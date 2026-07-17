@@ -1,0 +1,15 @@
+# Normaliza finales de linea: desarrollo en Windows, produccion en Linux.
+# Git guarda LF en el repo y no reescribe segun el SO. Evita el lio CRLF/LF.
+* text=auto eol=lf
+
+# Binarios: nunca tocar sus finales de linea.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.mp4 binary
+*.pdf binary

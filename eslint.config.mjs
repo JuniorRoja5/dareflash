@@ -1,6 +1,9 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+// Desactiva las reglas de ESLint que chocarian con Prettier.
+// Debe ir SIEMPRE al final para ganar a las anteriores.
+import prettier from "eslint-config-prettier/flat";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -13,6 +16,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  prettier,
 ]);
 
 export default eslintConfig;

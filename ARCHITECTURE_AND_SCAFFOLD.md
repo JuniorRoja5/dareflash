@@ -27,12 +27,14 @@ microservicios, Kafka ni sobreingeniería.
 **Producción: Hostinger Business (hosting compartido con Node.js).**
 
 Lo que el entorno **sí** permite:
+
 - Aplicaciones **Node.js / Next.js** (Next.js está soportado como framework de frontend
   y de backend). Despliegue por **integración con GitHub** (build automático en cada push).
 - **MySQL** como base de datos, **en la misma infraestructura que la app**.
 - **Cron jobs** desde hPanel.
 
 Lo que el entorno **no** permite (verificado en la documentación de Hostinger):
+
 - **PostgreSQL**: no disponible en planes Web/Cloud; requiere VPS.
 - **Redis**: restringido en planes web y cloud; requiere VPS.
 - **Docker en producción.**
@@ -41,15 +43,15 @@ Lo que el entorno **no** permite (verificado en la documentación de Hostinger):
 
 **Consecuencias arquitectónicas (decisiones tomadas):**
 
-| Necesidad | Solución en este entorno |
-|---|---|
-| Base de datos | **MySQL 8 (InnoDB)** vía Prisma. Está **junto a la app**: latencia mínima. |
-| Sesiones | En base de datos (Auth.js con adaptador Prisma). No hace falta Redis. |
-| Rate limiting | **Tabla en MySQL** con ventana fija. Ver sección 7. |
-| Caché | Caché nativa de Next.js + CDN de Bunny. Sin capa extra al inicio. |
+| Necesidad                 | Solución en este entorno                                                         |
+| ------------------------- | -------------------------------------------------------------------------------- |
+| Base de datos             | **MySQL 8 (InnoDB)** vía Prisma. Está **junto a la app**: latencia mínima.       |
+| Sesiones                  | En base de datos (Auth.js con adaptador Prisma). No hace falta Redis.            |
+| Rate limiting             | **Tabla en MySQL** con ventana fija. Ver sección 7.                              |
+| Caché                     | Caché nativa de Next.js + CDN de Bunny. Sin capa extra al inicio.                |
 | Trabajos en segundo plano | **Tabla `Job` en MySQL + cron** que invoca un endpoint protegido. Ver sección 8. |
-| Vídeo | **Bunny.net**, subida directa cliente→Bunny. No toca nuestro servidor. |
-| Entorno local | Docker **solo en local** (MySQL), opcional. Producción sin Docker. |
+| Vídeo                     | **Bunny.net**, subida directa cliente→Bunny. No toca nuestro servidor.           |
+| Entorno local             | Docker **solo en local** (MySQL), opcional. Producción sin Docker.               |
 
 **Por qué MySQL y no un Postgres externo (Neon/Supabase):** nuestro diseño de ledger hace
 transacciones con bloqueo de fila (`SELECT ... FOR UPDATE`). Una base de datos en otro
@@ -59,11 +61,12 @@ transacciones, `SELECT ... FOR UPDATE` y `SKIP LOCKED` (MySQL 8)**, que es todo 
 diseño necesita. Menos proveedores, menos latencia, menos cosas que se rompen.
 
 **A verificar en hPanel antes de la Fase 1** (afecta al diseño, no al andamiaje):
+
 1. **Intervalo mínimo de los cron jobs** (condiciona la precisión de la rotación de Boost).
 2. **Límite de conexiones simultáneas de MySQL** (condiciona el pool de Prisma).
 3. **Timeout de consultas** y límites de CPU/RAM del plan.
 4. **Soporte de WebSockets** (afecta solo a la mensajería VIP, fase tardía; si no hay, se
-   resuelve con *polling*).
+   resuelve con _polling_).
 
 ---
 
@@ -152,11 +155,13 @@ acceso a disco persistente o Docker.
 ## 4. Pasos del andamiaje (Fase 0 — en orden)
 
 ### Paso 1 — Repositorio y app base
+
 - `create-next-app`: TypeScript, App Router, ESLint, Tailwind, carpeta `src/`, alias `@/*`.
 - Git inicializado. Rama `main`; trabajo en `feat/...`, `fix/...`.
 - **Hecho cuando:** arranca en local y hay primer commit.
 
 ### Paso 2 — Higiene y calidad
+
 - `.gitignore`: excluye `.env*` (salvo `.env.example`), `node_modules`, `.next`, builds.
 - `.env.example` con TODAS las variables, **sin valores**. Ver sección 10.
 - Prettier + ESLint configurados y de acuerdo entre sí.
@@ -166,12 +171,14 @@ acceso a disco persistente o Docker.
 - **Hecho cuando:** un commit con error de lint/tipos es rechazado por el hook.
 
 ### Paso 3 — Validación de entorno (fail-fast)
+
 - `src/config/env.ts`: valida `process.env` con Zod, exporta objeto **tipado**.
   Si falta una variable obligatoria, la app **no arranca**.
 - Nadie lee `process.env` directamente fuera de ese archivo.
 - **Hecho cuando:** borrar una variable obligatoria impide el arranque con error claro.
 
 ### Paso 4 — Base de datos y esquema núcleo
+
 - Prisma con `provider = "mysql"`. Configura `DATABASE_URL`.
 - **Pool de conexiones pequeño y explícito** en la URL (`connection_limit`), acorde al
   límite del plan compartido. Nunca dejar el pool por defecto.
@@ -183,11 +190,13 @@ acceso a disco persistente o Docker.
 - **Hecho cuando:** la migración aplica limpia y `prisma studio` muestra las tablas.
 
 ### Paso 5 — Entorno local
+
 - `docker-compose.dev.yml` con **solo MySQL** (opcional; alternativa: MySQL instalado
   en local). Producción **no** usa Docker.
 - **Hecho cuando:** el proyecto arranca en local contra MySQL y `/health` responde.
 
 ### Paso 6 — Autenticación y autorización
+
 - Auth.js + adaptador Prisma, **sesiones en base de datos**.
 - **Argon2id** para contraseñas. Email/contraseña + Google OAuth.
 - **Verificación de email obligatoria** antes de cualquier acción con efectos.
@@ -200,6 +209,7 @@ acceso a disco persistente o Docker.
 - **Hecho cuando:** un `USER` no puede entrar a `/admin` ni a sus endpoints (probado).
 
 ### Paso 7 — Línea base de seguridad
+
 - **Cabeceras** en middleware: CSP, HSTS, X-Content-Type-Options, Referrer-Policy,
   Permissions-Policy, X-Frame-Options.
 - **Rate limiting en MySQL** (sección 7), helper listo para: registro, login, recuperación
@@ -213,6 +223,7 @@ acceso a disco persistente o Docker.
 - **Hecho cuando:** las cabeceras salen en las respuestas y el rate-limit corta tras N intentos.
 
 ### Paso 8 — Cola de trabajos (tabla + cron)
+
 - Implementa la cola descrita en la sección 8: tabla `Job`, `claimJobs()` con
   `FOR UPDATE SKIP LOCKED`, reintentos con backoff, y el endpoint
   `POST /api/cron/run` protegido por `CRON_SECRET`.
@@ -221,6 +232,7 @@ acceso a disco persistente o Docker.
   con secreto inválido devuelve 401; dos llamadas simultáneas **no** procesan el mismo job.
 
 ### Paso 9 — Stubs de Bunny y Stripe
+
 - **Bunny:** servicio server-side que genera token/URL de subida de corta duración.
   Guardar solo `bunnyVideoId` + metadatos. Validar tipo y **duración máxima** del vídeo
   **en servidor** al recibir la confirmación (nunca fiarse del cliente).
@@ -230,6 +242,7 @@ acceso a disco persistente o Docker.
 - **Hecho cuando:** el webhook rechaza firma inválida y acepta válida (modo test).
 
 ### Paso 10 — Pruebas mínimas
+
 - Vitest configurado.
 - **Al menos dos tests reales del ledger**: (a) operaciones concurrentes sobre el mismo
   usuario no descuadran el saldo; (b) la misma `idempotencyKey` no duplica el movimiento.
@@ -237,10 +250,12 @@ acceso a disco persistente o Docker.
 - **Hecho cuando:** `npm test` pasa y los tests fallan si se rompe el bloqueo.
 
 ### Paso 11 — Integración continua
+
 - GitHub Actions: en cada push/PR → `typecheck`, `lint`, `test`, `build`.
 - **Hecho cuando:** un PR que rompe tipos o lint sale en rojo automáticamente.
 
 ### Paso 12 — Despliegue y documentación
+
 - Conectar el repositorio a Hostinger (integración GitHub, build automático).
 - Variables de entorno de producción configuradas en hPanel, **nunca** en el repo.
 - **Migraciones: paso manual y explícito** (`prisma migrate deploy`). **Nunca** automáticas
@@ -385,6 +400,7 @@ model Job {
 ```
 
 Reglas:
+
 - `POST /api/cron/run` protegido por cabecera con `CRON_SECRET`. Devuelve 401 si no cuadra.
 - El endpoint coge un lote con
   `SELECT ... WHERE status='PENDING' AND runAt <= NOW() ORDER BY runAt LIMIT n FOR UPDATE SKIP LOCKED`
@@ -410,22 +426,23 @@ muestra el estado correcto. **Aplica el mismo principio al cierre de retos y al 
 
 Todo se construye. Esto es el **orden**, no un recorte.
 
-| Fase | Contenido |
-|---|---|
-| **0** | Andamiaje (este documento). |
-| **1** | Auth, perfiles, subida de vídeo a Bunny, feed/Explore, búsqueda. |
-| **2** | Challenges: crear, participar, deadline, categorías. |
-| **3** | Votación + antifraude (verificación, límites, detección, consecuencias). |
-| **4** | Puntos y niveles (DareUp) + insignias + TopRanking (mensual y Top 20). |
-| **5** | Moderación: denuncias, estados, panel de administración. |
-| **6** | Pagos con Stripe + **Boost** (rotación, tope diario, paquetes). |
-| **7** | Monedero, premios y retiradas con aprobación manual. |
-| **8** | **VIP Mythic**: suscripción y beneficios. |
-| **9** | **Brand Challenges**: panel de empresa, comisión 25%. |
-| **10** | **Retos 1vs1**: reto, aceptación, bloqueo de puntos, resolución. |
-| **11** | Multiidioma, PWA, pulido de UI/UX, rendimiento. |
+| Fase   | Contenido                                                                |
+| ------ | ------------------------------------------------------------------------ |
+| **0**  | Andamiaje (este documento).                                              |
+| **1**  | Auth, perfiles, subida de vídeo a Bunny, feed/Explore, búsqueda.         |
+| **2**  | Challenges: crear, participar, deadline, categorías.                     |
+| **3**  | Votación + antifraude (verificación, límites, detección, consecuencias). |
+| **4**  | Puntos y niveles (DareUp) + insignias + TopRanking (mensual y Top 20).   |
+| **5**  | Moderación: denuncias, estados, panel de administración.                 |
+| **6**  | Pagos con Stripe + **Boost** (rotación, tope diario, paquetes).          |
+| **7**  | Monedero, premios y retiradas con aprobación manual.                     |
+| **8**  | **VIP Mythic**: suscripción y beneficios.                                |
+| **9**  | **Brand Challenges**: panel de empresa, comisión 25%.                    |
+| **10** | **Retos 1vs1**: reto, aceptación, bloqueo de puntos, resolución.         |
+| **11** | Multiidioma, PWA, pulido de UI/UX, rendimiento.                          |
 
 Reglas de fase:
+
 - Una fase no empieza hasta que la anterior está **probada y desplegada**.
 - Cada fase que toque dinero o puntos pasa por los ledgers de la sección 6. Sin excepción.
 - Las funciones dependientes de decisiones del propietario (puntos por acción, duración de

@@ -1,0 +1,7 @@
+set -e
+
+# 1) Lint + formato SOLO sobre lo staged
+npx lint-staged
+
+# 2) Chequeo de tipos de todo el proyecto (tsc necesita el proyecto completo)
+npm run typecheck
