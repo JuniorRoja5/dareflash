@@ -37,6 +37,7 @@ yarn-error.log*
 # DareFlash: documentacion local (NO sincroniza con el repo)
 /Documentacion NO GIT/
 /PROMPT_AGENTE*.md
+/ARCHITECTURE_AND_SCAFFOLD.md
 
 # Claude Code: config local de maquina
 /.claude/settings.local.json
