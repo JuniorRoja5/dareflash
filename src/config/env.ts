@@ -13,6 +13,28 @@
  * `server-only` hace que este modulo reviente en COMPILACION si algun
  * componente de cliente intenta importarlo, para que ningun secreto acabe
  * en el bundle del navegador.
+ *
+ * ============================================================================
+ * REGLA DE ACCESO (importante, rompe el despliegue si se incumple)
+ * ============================================================================
+ * `env` valida de forma PEREZOSA: la validacion ocurre al leer una propiedad,
+ * no al importar el modulo. Y `next build` SI ejecuta codigo de pagina para
+ * prerenderizar. Por tanto:
+ *
+ *   ✅ SE PUEDE leer `env` desde codigo de servidor que corre POR PETICION:
+ *      route handlers, server actions, funciones de servicio (`src/server/**`).
+ *
+ *   ❌ NO se puede leer `env` en AMBITO DE MODULO de nada que cuelgue de
+ *      `src/app/**`, ni en componentes o layouts que se prerendericen de forma
+ *      estatica. Se evaluaria durante el build de Hostinger, que compila SIN
+ *      ninguna variable configurada -> excepcion -> despliegue caido.
+ *
+ * Si una pagina necesita configuracion: o se accede dentro del ambito de la
+ * peticion, o se marca esa ruta como dinamica de forma explicita y consciente.
+ *
+ * Esto lo vigila `npm run test:build-sin-env` (verificado: detecta una pagina
+ * que lea `env` en ambito de modulo).
+ * ============================================================================
  */
 import "server-only";
 

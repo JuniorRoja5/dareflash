@@ -58,10 +58,26 @@ const salida = `${resultado.stdout ?? ""}${resultado.stderr ?? ""}`;
 if (resultado.status !== 0) {
   console.error(salida);
   console.error(
-    "\n[test] FALLO: el build NO compila sin variables de entorno.\n" +
-      "Probablemente Next ha cambiado como marca la fase de build y la\n" +
-      "validacion de entorno se esta ejecutando al compilar. Revisa la guarda\n" +
-      "PHASE_PRODUCTION_BUILD en src/config/startup.ts.\n",
+    [
+      "",
+      "[test] FALLO: el build NO compila sin variables de entorno.",
+      "Hostinger compila sin ninguna variable configurada, asi que esto tumbaria",
+      "el despliegue. Dos causas posibles, por orden de probabilidad:",
+      "",
+      "  1) ALGUIEN LEE `env` DONDE NO DEBE (lo mas frecuente).",
+      "     `env` valida de forma perezosa al acceder a una propiedad. Si se lee",
+      "     en AMBITO DE MODULO de una pagina/layout, o en un componente que se",
+      "     prerenderiza, se evalua durante `next build` -> excepcion.",
+      "     Mira arriba el `Failed to collect page data for /<ruta>`: esa es la ruta.",
+      "     Solucion: leer `env` solo dentro del ambito de la peticion (route",
+      "     handlers, server actions, servicios), o marcar la ruta como dinamica",
+      "     de forma explicita y consciente. Ver la regla en src/config/env.ts.",
+      "",
+      "  2) Next ha cambiado su comportamiento y ahora ejecuta",
+      "     `instrumentation.register()` durante el build sin marcar NEXT_PHASE.",
+      "     Revisa la guarda PHASE_PRODUCTION_BUILD en src/config/startup.ts.",
+      "",
+    ].join("\n"),
   );
   process.exit(1);
 }

@@ -1,36 +1,138 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DareFlash
 
-## Getting Started
+Plataforma web (mobile-first) de **retos en vídeo corto con premios reales**: los usuarios
+suben vídeos verticales participando en retos, la comunidad vota y los ganadores reciben
+premios. Incluye puntos y niveles (DareUp), rankings, moderación con antifraude, promoción
+de pago (Boost), suscripción VIP, retos de marca y duelos 1vs1.
 
-First, run the development server:
+> **Estado:** Fase 0 — andamiaje. Este README se completa en el Paso 12; por ahora recoge
+> lo imprescindible para levantar el proyecto y las reglas operativas que **rompen el
+> despliegue si se incumplen**.
+
+---
+
+## Requisitos
+
+|                         |                                                                                                    |
+| ----------------------- | -------------------------------------------------------------------------------------------------- |
+| **Node**                | La versión exacta está en [`.nvmrc`](.nvmrc). `engines` exige `>=22.13 <23`.                       |
+| **Gestor de versiones** | [fnm](https://github.com/Schniz/fnm) (cambia de versión al entrar en la carpeta leyendo `.nvmrc`). |
+| **Base de datos**       | MySQL 8 (InnoDB). En local, vía `docker-compose.dev.yml`.                                          |
+| **Docker**              | **Solo en local**, para MySQL. Producción no usa Docker.                                           |
+
+## Arranque local
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env     # y rellena los valores
+npm ci                   # instalación reproducible (respeta package-lock.json)
+npm run dev              # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Script                            | Qué hace                                                                            |
+| --------------------------------- | ----------------------------------------------------------------------------------- |
+| `npm run dev`                     | Servidor de desarrollo.                                                             |
+| `npm run build` / `npm start`     | Build de producción y arranque.                                                     |
+| `npm run typecheck`               | `tsc --noEmit`.                                                                     |
+| `npm run lint` / `npm run format` | ESLint / Prettier.                                                                  |
+| `npm run test:build-sin-env`      | **Test de regresión**: el build debe compilar sin variables de entorno (ver abajo). |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Variables de entorno
 
-To learn more about Next.js, take a look at the following resources:
+- La plantilla es [`.env.example`](.env.example). **`.env` nunca se commitea.**
+- En producción viven en **hPanel** (Hostinger), nunca en el repositorio.
+- Se validan con Zod en [`src/config/env.ts`](src/config/env.ts). **Nadie lee `process.env`
+  fuera de ese archivo.**
+- La validación falla en **arranque**, no en build: si falta una obligatoria, el proceso
+  muere con un mensaje que dice cuál. Config rota = proceso muerto (mejor que servir
+  peticiones mal configuradas).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### ⚠️ Regla de acceso a `env` (rompe el despliegue si se incumple)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`env` valida de forma **perezosa**, al leer una propiedad. Y `next build` **sí ejecuta
+código de página** para prerenderizar. Además, **Hostinger compila sin ninguna variable
+configurada**. Por tanto:
 
-## Deploy on Vercel
+- ✅ **Sí**: leer `env` desde código de servidor que corre **por petición** — route
+  handlers, server actions, funciones de servicio (`src/server/**`).
+- ❌ **No**: leer `env` en **ámbito de módulo** de nada bajo `src/app/**`, ni en
+  componentes o layouts que se prerendericen estáticamente. Se evaluaría durante el build
+  → excepción → **despliegue caído**.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Si una página necesita configuración: o se accede dentro del ámbito de la petición, o se
+marca la ruta como dinámica de forma explícita y consciente.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Lo vigila `npm run test:build-sin-env` (verificado: detecta una página que lee `env` en
+ámbito de módulo).
+
+### ⚠️ Promover una variable a obligatoria
+
+**Toda variable que se marque como obligatoria en `src/config/env.ts` debe añadirse a
+hPanel en el mismo paso, antes de hacer push.** Hostinger redespliega en cada push; si
+falta, la app entra en **crash-loop**. Y un crash-loop repetido puede llevar a Hostinger a
+suspender o limitar la aplicación.
+
+---
+
+## Base de datos y migraciones
+
+- **En local**: `npx prisma migrate dev`.
+- **En producción**: **solo** `npx prisma migrate deploy`. **Nunca `migrate dev`.**
+
+  `migrate dev` necesita una _shadow database_ (crea y destruye una base de datos) y en
+  hosting compartido **no hay permisos** para eso.
+
+- Las migraciones son un **paso manual y explícito**. Nunca automáticas al arrancar la app.
+- `DATABASE_URL` lleva un **`connection_limit` bajo y explícito** (empieza en 5), acorde al
+  límite del plan compartido.
+- El cliente Prisma es un **singleton** (patrón `globalThis`): sin eso, el hot-reload abre
+  una conexión nueva en cada recarga y agota el pool.
+- **Charset**: `utf8mb4` con collation `utf8mb4_unicode_ci`, en el contenedor y en la base
+  de datos. No es opcional: nombres de usuario, títulos y categorías llevan emoji
+  (🎭 Humor, 🏋️ Fitness); con `utf8mb3` o `latin1` se corrompen o revientan las inserciones.
+
+---
+
+## Despliegue
+
+Producción es **Hostinger Business** (hosting compartido con Node.js), con build automático
+en cada push a `main`. Consecuencias asumidas: sin PostgreSQL, sin Redis, sin Docker, sin
+procesos permanentes y sin root.
+
+### Cola de trabajos y cron
+
+hPanel **no ofrece cron jobs** para aplicaciones Node. El disparador de la cola es un
+**workflow programado de GitHub Actions** que llama a `POST /api/cron/run` con el
+`CRON_SECRET` en cabecera. El diseño del endpoint no cambia: protegido por secreto,
+idempotente y en lotes pequeños; solo cambia quién lo invoca.
+
+> ⚠️ **Dos limitaciones que hay que vigilar:**
+>
+> 1. **GitHub desactiva los workflows programados en repositorios públicos tras 60 días sin
+>    actividad.** Si el proyecto se queda quieto dos meses, los jobs dejan de ejecutarse
+>    **en silencio**.
+> 2. Los workflows programados **no garantizan puntualidad**: se retrasan bajo carga y
+>    ocasionalmente se saltan ejecuciones. No son un cron de servidor.
+>
+> Por eso **todo se diseña calculado, no disparado**: el estado visible (qué Boost está
+> arriba, si un reto está cerrado) se resuelve siempre por consulta sobre `expiresAt`, y el
+> job solo consolida y limpia. Una ejecución perdida se recupera sola en la siguiente.
+>
+> Está previsto un **disparador redundante externo** (servicio de cron gratuito llamando al
+> mismo endpoint). La idempotencia y el `SKIP LOCKED` garantizan que ambas fuentes puedan
+> convivir.
+
+---
+
+## Notas de dependencias
+
+- **`overrides` de `sharp`** a `^0.35.0`: Next aún fija `0.34.x`, con vulnerabilidades
+  heredadas de libvips (GHSA-f88m-g3jw-g9cj). `sharp` corre en **producción** (optimización
+  de imágenes). **Retirar el override cuando Next actualice su rango.**
+- **`postcss` 8.4.31 anidado en Next**: vulnerabilidad moderada conocida y **aceptada**.
+  Solo se ejecuta en build, procesando nuestro propio CSS, así que no es explotable aquí.
+  No tiene arreglo limpio: `npm audit fix --force` degradaría Next a `9.3.3`. Se revisará
+  cuando Next actualice su postcss interno.
