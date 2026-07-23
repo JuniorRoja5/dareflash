@@ -83,7 +83,13 @@ suspender o limitar la aplicación.
 - **En producción**: **solo** `npx prisma migrate deploy`. **Nunca `migrate dev`.**
 
   `migrate dev` necesita una _shadow database_ (crea y destruye una base de datos) y en
-  hosting compartido **no hay permisos** para eso.
+  hosting compartido **no hay permisos** para eso. En **local**, el usuario `dareflash`
+  del contenedor necesita privilegio para crearla; concédelo una vez:
+  `GRANT ALL PRIVILEGES ON *.* TO 'dareflash'@'%' WITH GRANT OPTION; FLUSH PRIVILEGES;`
+  (solo desarrollo; en producción no aplica porque allí solo se usa `migrate deploy`).
+
+- **Seed:** `npx prisma db seed` (configurado en `prisma.config.ts` → `tsx prisma/seed.ts`).
+  Idempotente; inserta datos mínimos de desarrollo, incluidos emoji para verificar utf8mb4.
 
 - Las migraciones son un **paso manual y explícito**. Nunca automáticas al arrancar la app.
 - `DATABASE_URL` lleva un **`connection_limit` bajo y explícito** (empieza en 5), acorde al

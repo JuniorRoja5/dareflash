@@ -21,6 +21,21 @@ export const DB_CONNECTION_LIMIT = 5;
  */
 export const DEFAULT_CURRENCY = "USD"; // PENDIENTE
 
+/**
+ * Zona horaria de TODOS los limites temporales del producto. Decidido
+ * EXPLICITAMENTE: **UTC**, como el resto del sistema. Afecta al "dia" del limite
+ * de boosts y al "mes" del reinicio del ranking. Fijarlo aqui evita que cada
+ * implementador elija distinto y aparezcan discrepancias en los bordes del dia/mes.
+ * El corte del dia es 00:00 UTC; el del mes, el dia 1 a las 00:00 UTC.
+ */
+export const RESET_TIMEZONE = "UTC";
+
+/**
+ * Maximo de activaciones de Boost por usuario y DIA (UTC, ver RESET_TIMEZONE).
+ * Fuente: documentacion de producto ("3 apariciones destacadas por usuario al dia").
+ */
+export const BOOST_DAILY_LIMIT = 3;
+
 // ============================================================================
 // ESTADOS/TIPOS que en la BD son String (flexibles, sin migracion por estado
 // nuevo) pero tipados y validados con Zod aqui. La capa de servicio valida con

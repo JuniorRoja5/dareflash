@@ -50,6 +50,10 @@ model User {
   id String @id @default(cuid())
 
   // --- Identidad / perfil ---
+  // UNICIDAD SIN DISTINGUIR MAYUSCULAS (INTENCIONADO): la collation por defecto es
+  // utf8mb4_unicode_ci, asi que estos UNIQUE colisionan "Junior" con "junior" y
+  // "A@x.com" con "a@x.com". Es lo deseable para handles y correos (evita
+  // suplantaciones por diferencia de mayusculas). Se asume y se deja escrito.
   email         String?   @unique // opcional a nivel Auth.js; en registro propio se exige
   emailVerified DateTime? // Auth.js: fecha de verificacion. Sin esto no hay acciones con efectos.
   username      String?   @unique // handle publico
@@ -205,8 +209,9 @@ model Challenge {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  createdBy   User         @relation("ChallengeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy   User              @relation("ChallengeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   submissions Submission[]
+  results     ChallengeResult[]
 
   @@index([category])
   @@index([status, deadline]) // retos vigentes / a cerrar, calculado por consulta
@@ -214,6 +219,15 @@ model Challenge {
 }
 
 /// Participacion de un usuario en un reto, enlazando un video.
+///
+/// FUENTE DE VERDAD DEL ESTADO (Video.status vs Submission.status): mandan LOS DOS,
+/// el mas restrictivo gana. `Video.status` es la verdad del MEDIO en si (si el video
+/// esta REJECTED/REMOVED, no se muestra en ningun sitio). `Submission.status` gobierna
+/// la visibilidad de ESA participacion en el reto (se puede retirar una submission sin
+/// tocar el video, que puede seguir en el feed). Una submission es visible/valida solo
+/// si `Submission.status = PUBLISHED` Y `Video.status = PUBLISHED`. Si divergen, el
+/// estado mas restrictivo decide (un video REMOVED oculta la submission aunque su
+/// propio status siga PUBLISHED).
 model Submission {
   id          String           @id @default(cuid())
   challengeId String
@@ -248,6 +262,37 @@ model Submission {
   @@index([challengeId, voteCount])
 }
 
+/// Resultado del cierre de un reto: un HECHO DE NEGOCIO con fila propia.
+///
+/// DECISION CONSCIENTE — se elige un modelo explicito en vez de derivar el ganador
+/// de PointsLedger (reason=WIN_CHALLENGE) porque:
+///   (a) el cierre de un reto es un evento de negocio que merece su propia fila;
+///   (b) hace falta igualmente para mostrar el PALMARES en el perfil;
+///   (c) evita recorrer PointsLedger para contar victorias.
+/// El TopRanking mensual ("mejores perfiles del mes por eventos ganados") se calcula
+/// contando aqui por usuario y mes con @@index([userId, createdAt]). El mes es UTC
+/// (ver RESET_TIMEZONE en constants). La concesion de puntos/premio sigue pasando por
+/// sus ledgers; esta fila es el registro del resultado, no el movimiento de dinero.
+///
+/// userId/submissionId SIN FK (como los ledgers): el resultado sobrevive a la
+/// anonimizacion del ganador. FK solo a Challenge, que persiste.
+model ChallengeResult {
+  id               String   @id @default(cuid())
+  challengeId      String
+  userId           String // ganador (columna suelta, sin FK)
+  submissionId     String // participacion ganadora (columna suelta, sin FK)
+  rank             Int // posicion: 1 = ganador, 2, 3...
+  prizeAmountCents Int      @default(0) // premio OTORGADO (se congela aqui aunque cambie el del reto)
+  currency         String   @db.Char(3)
+  createdAt        DateTime @default(now())
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Restrict)
+
+  @@unique([challengeId, rank]) // una posicion, un resultado
+  @@unique([challengeId, userId]) // un usuario no ocupa dos posiciones en el mismo reto
+  @@index([userId, createdAt]) // victorias por usuario y mes (TopRanking mensual, UTC)
+}
+
 // ============================================================================
 // ANTIFRAUDE: VOTO
 // ============================================================================
@@ -265,9 +310,21 @@ model Submission {
 /// Sin FK a User/Submission a proposito (igual que los ledgers): el registro de
 /// voto es material de auditoria antifraude y debe sobrevivir desvinculado.
 model Vote {
-  id           String   @id @default(cuid())
+  id           String @id @default(cuid())
   userId       String
   submissionId String
+
+  // challengeId DENORMALIZADO (copiado de Submission al votar). Hoy el UNIQUE de
+  // abajo impide votar dos veces el MISMO video, pero no impide votar los N videos
+  // de un mismo reto; si todos votan todo, el recuento deja de ordenar nada.
+  // La regla real ("1 voto por reto" / "N por reto" / "sin limite") es decision de
+  // producto PENDIENTE, pero la POSIBILIDAD de imponerla no puede quedar pendiente:
+  // anadir esta columna con la tabla llena costaria una fortuna. Si el producto
+  // confirma "1 voto por reto", @@index([userId, challengeId]) pasa a @@unique.
+  // Ademas sirve al antifraude de la Fase 3 (votos de un usuario dentro de un reto)
+  // sin cruzar con Submission.
+  challengeId String
+
   // IP HASHEADA, nunca en claro (seccion 5). Dato personal de antifraude con
   // retencion de 90 dias: un job RETENTION_PURGE la pone a NULL pasado el plazo.
   // Sirve para detectar "un video que recibe >30% de votos desde IPs similares"
@@ -279,6 +336,9 @@ model Vote {
   @@index([submissionId])
   // Antifraude: "cuenta nueva que vota >5 veces en los primeros 10 min".
   @@index([userId, createdAt])
+  // Votos de un usuario en un reto (antifraude Fase 3). Pasa a @@unique si el
+  // producto confirma "1 voto por reto".
+  @@index([userId, challengeId])
 }
 
 // ============================================================================
@@ -392,8 +452,9 @@ model BoostLedger {
 /// (entre el SELECT y el INSERT cabe otra peticion; dos activaciones simultaneas
 /// veen "2 hoy" y pasan ambas -> 4). La activacion completa va en UNA SOLA
 /// transaccion con SELECT ... FOR UPDATE sobre la fila del User, y dentro:
-///   1. cuenta las BoostActivation del usuario de hoy (indice [userId, startsAt]),
-///   2. verifica saldo (User.boostBalance > 0) y limite (< 3 hoy),
+///   1. cuenta las BoostActivation del usuario de hoy (indice [userId, startsAt];
+///      "hoy" = dia UTC, ver RESET_TIMEZONE y BOOST_DAILY_LIMIT en constants),
+///   2. verifica saldo (User.boostBalance > 0) y limite (< BOOST_DAILY_LIMIT hoy),
 ///   3. inserta el movimiento -1 en BoostLedger y decrementa User.boostBalance,
 ///   4. inserta esta BoostActivation.
 /// El bloqueo de la fila del User serializa a los concurrentes y el limite se vuelve
@@ -477,7 +538,12 @@ model Job {
 }
 
 /// Rate limiting por ventana fija en la base de datos (sin Redis).
-/// Se incrementa con INSERT ... ON DUPLICATE KEY UPDATE count = count + 1.
+///
+/// EL INCREMENTO DEBE SER ATOMICO: `INSERT ... ON DUPLICATE KEY UPDATE
+/// count = count + 1` via CONSULTA CRUDA (queryRaw). NO usar el `upsert` de Prisma:
+/// hace lectura y luego escritura (read-then-write), con la MISMA ventana de carrera
+/// que estamos evitando en todo el sistema — dos peticiones simultaneas leerian el
+/// mismo `count` y una perderia su incremento, dejando pasar mas de lo permitido.
 model RateLimit {
   id          String   @id @default(cuid())
   key         String // "login:ip:<hash>", "vote:user:<id>"
