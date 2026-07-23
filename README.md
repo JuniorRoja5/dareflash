@@ -17,8 +17,8 @@ de pago (Boost), suscripción VIP, retos de marca y duelos 1vs1.
 | ----------------------- | -------------------------------------------------------------------------------------------------- |
 | **Node**                | La versión exacta está en [`.nvmrc`](.nvmrc). `engines` exige `>=22.13 <23`.                       |
 | **Gestor de versiones** | [fnm](https://github.com/Schniz/fnm) (cambia de versión al entrar en la carpeta leyendo `.nvmrc`). |
-| **Base de datos**       | MySQL 8 (InnoDB). En local, vía `docker-compose.dev.yml`.                                          |
-| **Docker**              | **Solo en local**, para MySQL. Producción no usa Docker.                                           |
+| **Base de datos**       | MariaDB 11.8 (InnoDB), igual que producción. En local, vía `docker-compose.dev.yml`.               |
+| **Docker**              | **Solo en local**, para MariaDB. Producción no usa Docker.                                         |
 
 ## Arranque local
 
