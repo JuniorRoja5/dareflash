@@ -13,10 +13,14 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "node scripts/prepare.mjs",
+    "test:build-sin-env": "node scripts/check-build-sin-env.mjs"
+  },
+  "overrides": {
+    "sharp": "^0.35.0"
   },
   "dependencies": {
-    "next": "16.2.10",
+    "next": "^16.2.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "server-only": "^0.0.1",
@@ -30,7 +34,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "^16.2.11",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
