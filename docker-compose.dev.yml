@@ -1,0 +1,42 @@
+# MySQL 8 para DESARROLLO LOCAL. Solo local: produccion (Hostinger) no usa Docker.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml down        # conserva los datos
+#   docker compose -f docker-compose.dev.yml down -v     # borra tambien los datos
+#
+# CHARSET: utf8mb4 / utf8mb4_unicode_ci, forzado a nivel de SERVIDOR para que la
+# base de datos que crea el entrypoint (MYSQL_DATABASE) los herede. No es un
+# detalle esteticö: nombres de usuario, titulos de video y categorias llevan
+# emoji (🎭 Humor, 🏋️ Fitness). Con utf8mb3 o latin1 se corrompen o revientan
+# las inserciones.
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: dareflash-mysql-dev
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: dareflash_root_dev
+      MYSQL_DATABASE: dareflash
+      MYSQL_USER: dareflash
+      MYSQL_PASSWORD: dareflash_dev
+    ports:
+      # Puerto 3307 en el HOST (dentro del contenedor sigue siendo 3306).
+      # El 3306 del host lo ocupa otra instalacion de MySQL de la maquina
+      # (servicio `doliwampmysqld`, de otro proyecto). No se toca: convivimos.
+      # Solo en localhost: no exponer la base de datos a la red local.
+      - "127.0.0.1:3307:3306"
+    volumes:
+      - dareflash_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pdareflash_root_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+volumes:
+  dareflash_mysql_data:
