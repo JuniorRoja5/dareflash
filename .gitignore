@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# Prisma: cliente generado (se regenera en cada install con `prisma generate`)
+/src/generated
+
 # DareFlash: documentacion local (NO sincroniza con el repo)
 /Documentacion NO GIT/
 /PROMPT_AGENTE*.md

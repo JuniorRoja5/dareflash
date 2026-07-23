@@ -1,0 +1,489 @@
+// DareFlash — esquema nucleo (Paso 4).
+// Motor: MariaDB 11.8 (local y produccion). Prisma usa `provider = "mysql"`,
+// que es lo correcto tambien para MariaDB.
+//
+// Convenciones NO negociables (documento de arquitectura, secciones 6-8):
+//   - Dinero SIEMPRE en enteros (centimos). Nunca coma flotante.
+//   - Ledgers de SOLO-INSERCION: una fila por movimiento, jamas se edita/borra.
+//   - Todo en UTC. La zona horaria solo al presentar.
+//   - Char(3) para `currency`; existe desde el dia 1 aunque haya una sola moneda.
+//
+// ESTADOS COMO String (hibrido): los estados fluidos (Job, Report, WalletLedger,
+// Challenge, Boost...) son String en la BD para no forzar una migracion por cada
+// estado nuevo, PERO estan tipados y validados con Zod en `src/config/constants.ts`
+// (uniones z.enum). Asi un "PENDNIG" mal escrito lo rechaza la validacion antes de
+// tocar la base de datos. Enums de Prisma de verdad solo en `Role` y
+// `ModerationStatus`, que son conjuntos estables y sensibles.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  // Prisma 7: la URL ya NO va aqui. Para migraciones la lee prisma.config.ts;
+  // en runtime el cliente se conecta con un driver adapter (@prisma/adapter-mariadb),
+  // que ademas elimina el binario nativo del motor de consultas (usa queryCompiler WASM).
+  provider = "mysql"
+}
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+/// Estados de moderacion de contenido (Video y Submission).
+/// Nunca hay borrado fisico de contenido denunciado: REMOVED es un estado.
+enum ModerationStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+  REMOVED
+}
+
+// ============================================================================
+// AUTENTICACION (Auth.js v5 + @auth/prisma-adapter) + PERFIL
+// ============================================================================
+
+model User {
+  id String @id @default(cuid())
+
+  // --- Identidad / perfil ---
+  email         String?   @unique // opcional a nivel Auth.js; en registro propio se exige
+  emailVerified DateTime? // Auth.js: fecha de verificacion. Sin esto no hay acciones con efectos.
+  username      String?   @unique // handle publico
+  displayName   String?
+  image         String? // avatar (URL)
+  bio           String?   @db.Text
+
+  // --- Credenciales propias (email/contrasena). OAuth va por Account. ---
+  passwordHash String? @db.Text // Argon2id. Null si el usuario solo usa OAuth.
+
+  // --- Autorizacion y cumplimiento ---
+  role Role @default(USER)
+
+  // NULLABLE a proposito: el adaptador de Auth.js crea el usuario en el alta por
+  // OAuth (Google) con lo que da el proveedor (email, nombre, imagen), y Google NO
+  // devuelve fecha de nacimiento. Si fuera obligatoria, el alta con Google fallaria.
+  // La edad minima 16 NO se relaja: se exige en la CAPA DE APLICACION. Tras el alta
+  // por OAuth el usuario pasa por "completar perfil"; sin `birthDate` verificada no
+  // puede realizar ninguna accion con efectos (participar, votar, cobrar).
+  birthDate DateTime?
+
+  // --- Saldos DENORMALIZADOS (cache guardado por transaccion + FOR UPDATE). ---
+  // La verdad contable es la suma del ledger; estas columnas son un cache que se
+  // actualiza en la MISMA transaccion que la insercion del movimiento, bloqueando
+  // esta fila con SELECT ... FOR UPDATE. Un job (LEDGER_RECONCILE) verifica que
+  // cuadren con la suma del ledger y alerta si no.
+  //
+  // La MONEDA del monedero NO se guarda aqui: es unica para toda la app y vive en
+  // `DEFAULT_CURRENCY` (constants). Multi-moneda futura necesitaria una tabla
+  // `WalletAccount` por (usuario, moneda). Cada fila de WalletLedger si guarda su
+  // `currency` para auditoria. INVARIANTE asociado: todas las filas de WalletLedger
+  // de un usuario comparten `currency` (ver WalletLedger; lo vigila LEDGER_RECONCILE).
+  //
+  // Los TRES saldos reciben el mismo trato: nunca un UPDATE suelto sin insertar su
+  // fila de ledger (PointsLedger / WalletLedger / BoostLedger), siempre dentro de la
+  // misma transaccion con SELECT ... FOR UPDATE sobre esta fila, y LEDGER_RECONCILE
+  // comprueba periodicamente que cada saldo == SUM(delta) de su ledger.
+  pointsBalance      Int @default(0) // puntos (DareUp). Nunca negativo por diseno.
+  walletBalanceCents Int @default(0) // dinero en centimos (moneda unica de la app).
+  boostBalance       Int @default(0) // creditos de Boost disponibles (ver BoostLedger).
+
+  // --- Ciclo de vida (RGPD). ---
+  // SOFT DELETE + ANONIMIZACION: al borrar una cuenta NO se borran filas de
+  // ledger/voto (son registro contable/antifraude, y ademas no tienen FK). El
+  // servicio de anonimizacion, en una transaccion:
+  //   1. Pone `deletedAt = now()`.
+  //   2. Pone a NULL los datos personales y los campos UNIQUE: email, username,
+  //      displayName, image, bio, passwordHash, birthDate.
+  //      (email y username DEBEN quedar a NULL o la direccion quedaria ocupada
+  //       para siempre y la persona no podria volver a registrarse.)
+  //   3. Los ledgers/votos conservan su `userId` (huerfano, sin FK): la contabilidad
+  //      queda integra pero desvinculada de la identidad.
+  deletedAt DateTime? // soft delete
+  bannedAt  DateTime? // baneo de moderacion
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relaciones con FK (datos propios del usuario). Los ledgers/votos/auditoria/boost
+  // NO llevan FK a proposito (ver su comentario): deben sobrevivir "desvinculados"
+  // a la anonimizacion o a un borrado duro del usuario.
+  accounts    Account[]
+  sessions    Session[]
+  videos      Video[]
+  challenges  Challenge[]  @relation("ChallengeCreatedBy")
+  submissions Submission[]
+
+  @@index([role])
+  @@index([deletedAt])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============================================================================
+// CONTENIDO: VIDEO, CHALLENGE, SUBMISSION
+// ============================================================================
+
+/// Un video subido a Bunny.net. Nunca pasan bytes por nuestro servidor: solo
+/// guardamos el id de Bunny y metadatos.
+model Video {
+  id           String           @id @default(cuid())
+  userId       String
+  bunnyVideoId String           @unique // referencia en Bunny
+  status       ModerationStatus @default(PENDING)
+  durationSec  Int? // duracion validada EN SERVIDOR al confirmar (nunca fiarse del cliente)
+  title        String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  submission Submission? // un video se usa en como mucho una submission
+
+  @@index([userId])
+  @@index([status])
+}
+
+/// Un reto. Pieza central del producto: tiene PREMIO. Lo sensible al tiempo se
+/// resuelve por consulta sobre `deadline` (calculado, no disparado): el cierre real
+/// es "status=PUBLISHED AND deadline <= now()", y el job solo consolida.
+model Challenge {
+  id          String  @id @default(cuid())
+  title       String
+  description String? @db.Text
+  category    String // de la lista de constants (PENDIENTE: lista definitiva del propietario)
+  status      String  @default("DRAFT") // DRAFT, PUBLISHED, CLOSED (union en constants)
+
+  // Premio en enteros (centimos) desde el dia 1: si entrara mas tarde, alguien lo
+  // meteria como decimal. 0 = aun sin premio. La moneda la fija la app desde
+  // DEFAULT_CURRENCY (constants); no se incrusta como default del esquema.
+  prizeAmountCents Int    @default(0)
+  prizeCurrency    String @db.Char(3)
+
+  startsAt    DateTime // apertura (UTC)
+  deadline    DateTime // cierre (UTC)
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy   User         @relation("ChallengeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  submissions Submission[]
+
+  @@index([category])
+  @@index([status, deadline]) // retos vigentes / a cerrar, calculado por consulta
+  @@index([createdById])
+}
+
+/// Participacion de un usuario en un reto, enlazando un video.
+model Submission {
+  id          String           @id @default(cuid())
+  challengeId String
+  userId      String
+  videoId     String           @unique // un video, una submission
+  status      ModerationStatus @default(PENDING)
+
+  // voteCount DENORMALIZADO: se actualiza en la MISMA transaccion que la
+  // insercion del Vote (mismo patron que los saldos). Permite ORDER BY para
+  // rankings sin contar filas, y un job lo reconcilia contra COUNT(Vote).
+  voteCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Restrict)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  video     Video     @relation(fields: [videoId], references: [id], onDelete: Restrict)
+  // `Vote` NO tiene relacion formal (sin FK, desacoplado como los ledgers). Los
+  // votos de una submission se consultan por `submissionId` (indexado).
+
+  // Empezamos por lo RESTRICTIVO: 1 participacion por usuario y reto. La doc de
+  // producto dice "maximo 1 video por usuario por reto, SALVO que el evento indique
+  // otra cosa" -> el producto contempla excepciones. Se mantiene el UNIQUE porque
+  // quitarlo despues es una migracion trivial; anadirlo cuando ya hay datos que lo
+  // violan es un infierno. Las excepciones por evento se abordaran cuando lleguen.
+  @@unique([challengeId, userId])
+  @@index([userId])
+  @@index([status])
+  // Ranking dentro de un reto: los mas votados primero. (Este indice ya cubre las
+  // busquedas por challengeId como prefijo, asi que no hay un @@index([challengeId]) suelto.)
+  @@index([challengeId, voteCount])
+}
+
+// ============================================================================
+// ANTIFRAUDE: VOTO
+// ============================================================================
+
+/// Voto de un usuario a una submission.
+///
+/// ANTIFRAUDE ESTRUCTURAL — un usuario no puede votar dos veces la misma
+/// submission: lo IMPIDE la base de datos con `@@unique([userId, submissionId])`.
+/// No es una comprobacion en codigo (que sufre condiciones de carrera): es una
+/// restriccion UNIQUE. Dos INSERT simultaneos -> uno gana, el otro recibe error
+/// de clave duplicada. El servicio de voto inserta el Vote e incrementa
+/// Submission.voteCount en la MISMA transaccion; si el INSERT viola el UNIQUE,
+/// la transaccion entera se revierte y el contador no sube.
+///
+/// Sin FK a User/Submission a proposito (igual que los ledgers): el registro de
+/// voto es material de auditoria antifraude y debe sobrevivir desvinculado.
+model Vote {
+  id           String   @id @default(cuid())
+  userId       String
+  submissionId String
+  // IP HASHEADA, nunca en claro (seccion 5). Dato personal de antifraude con
+  // retencion de 90 dias: un job RETENTION_PURGE la pone a NULL pasado el plazo.
+  // Sirve para detectar "un video que recibe >30% de votos desde IPs similares"
+  // (se agrupa por ipHash dentro de una submission, via el indice de submissionId).
+  ipHash    String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, submissionId])
+  @@index([submissionId])
+  // Antifraude: "cuenta nueva que vota >5 veces en los primeros 10 min".
+  @@index([userId, createdAt])
+}
+
+// ============================================================================
+// LEDGERS (SOLO-INSERCION) — LA PARTE MAS CRITICA
+// ============================================================================
+
+/// Libro mayor de PUNTOS. Solo-insercion: una fila por movimiento.
+///
+/// INTEGRIDAD DE SALDO (por que nunca se desincroniza):
+///  1. Toda operacion lleva `idempotencyKey` UNICA. Reintentos, webhooks
+///     duplicados o dobles clics NO duplican el movimiento: el segundo INSERT
+///     viola el UNIQUE y se rechaza.
+///  2. En una sola transaccion: SELECT ... FOR UPDATE sobre la fila del User
+///     (bloquea), se inserta la fila del ledger, y se actualiza
+///     User.pointsBalance += delta. El bloqueo serializa a los concurrentes.
+///     (Prisma no expone FOR UPDATE en su API declarativa: se hace con queryRaw
+///      dentro de una $transaction interactiva, en la capa de servicio.)
+///  3. Nunca se hace UPDATE directo del saldo sin insertar su fila de ledger.
+///  4. Un job LEDGER_RECONCILE comprueba que User.pointsBalance == SUM(delta) y alerta.
+model PointsLedger {
+  id             String   @id @default(cuid())
+  userId         String
+  delta          Int // +/- puntos
+  reason         String // WIN_CHALLENGE, INVITE_FRIEND, TOP20... (union en constants)
+  refType        String? // CHALLENGE, SUBMISSION...
+  refId          String?
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([refType, refId])
+}
+
+/// Libro mayor de DINERO (centimos). Mismas garantias que PointsLedger.
+/// Puntos y dinero son ledgers SEPARADOS y no se convierten entre si.
+///
+/// INVARIANTE (moneda unica por usuario): todas las filas de WalletLedger de un
+/// mismo usuario comparten `currency`. El saldo denormalizado User.walletBalanceCents
+/// asume esto: si un usuario tuviera movimientos en dos monedas, el saldo dejaria de
+/// significar nada y la reconciliacion sumaria manzanas con naranjas. El job
+/// LEDGER_RECONCILE DEBE verificar que un usuario no tiene movimientos en monedas
+/// distintas (COUNT(DISTINCT currency) <= 1) y alertar si ocurre. Un invariante que
+/// nadie comprueba deja de serlo. (Multi-moneda real: tabla WalletAccount por
+/// (usuario, moneda), y este invariante se sustituye por "por cuenta".)
+///
+/// Retiradas de premio: se crean como fila en estado PENDING/APPROVED y un admin
+/// las aprueba manualmente antes de pagar. Nunca pagos automaticos al usuario.
+model WalletLedger {
+  id             String   @id @default(cuid())
+  userId         String
+  amountCents    Int // +/- en centimos
+  currency       String   @db.Char(3) // la fija la app desde DEFAULT_CURRENCY
+  entryType      String // CREDIT, DEBIT (union en constants)
+  status         String   @default("COMPLETED") // PENDING, APPROVED, PAID, REJECTED, COMPLETED (union en constants)
+  idempotencyKey String   @unique
+  refType        String?
+  refId          String?
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([status])
+  @@index([refType, refId])
+}
+
+// ============================================================================
+// BOOST — comprar/regalar (creditos) y activar (puesto destacado) SEPARADOS
+// ============================================================================
+
+/// Creditos de Boost del usuario. SOLO-INSERCION: movimientos, no un contador
+/// suelto (misma filosofia que los ledgers de puntos/dinero). El saldo disponible
+/// es User.boostBalance (cache denormalizado, reconciliable con SUM(delta)).
+///
+///  - delta +N: COMPRA de un paquete (1/5/10, con importe y pago Stripe) o REGALO
+///    del VIP (1/semana, sin importe ni pago).
+///  - delta -1: ACTIVACION (gastar un boost; crea ademas una fila BoostActivation).
+///
+/// Los boosts NO caducan: se usan cuando el usuario quiera. Por eso comprar y activar
+/// estan separados; un boost comprado y no usado es simplemente saldo positivo aqui.
+///
+/// INTEGRIDAD DE SALDO: identica a los otros ledgers. Nunca un UPDATE suelto de
+/// User.boostBalance sin insertar su fila aqui; el debito/credito y el ajuste del
+/// saldo van en la MISMA transaccion con SELECT ... FOR UPDATE sobre la fila del
+/// User; `idempotencyKey` UNICA evita duplicar movimientos; y LEDGER_RECONCILE
+/// comprueba que User.boostBalance == SUM(delta).
+model BoostLedger {
+  id     String @id @default(cuid())
+  userId String
+  delta  Int // +N al obtener, -1 al activar
+  reason String // PURCHASE, VIP_WEEKLY, ACTIVATION, REFUND, ADMIN_ADJUST (union en constants)
+
+  // Solo en compras (reason=PURCHASE): importe y moneda del pago. Null en regalos
+  // VIP y en activaciones (que no tienen importe).
+  amountCents Int?
+  currency    String? @db.Char(3)
+
+  refType        String? // STRIPE_PAYMENT, BOOST_ACTIVATION, VIP_SUBSCRIPTION...
+  refId          String?
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([refType, refId])
+}
+
+/// Activacion de Boost: ocupa el espacio DESTACADO con el PERFIL del usuario
+/// (no un video) durante ~1h. No tiene importe. El puesto destacado se resuelve
+/// por CONSULTA sobre activaciones vigentes (startsAt/expiresAt), no por el job.
+///
+/// LIMITE 3/DIA — CUIDADO CON LA CONDICION DE CARRERA: contar las activaciones del
+/// dia y despues insertar es el mismo patron peligroso que evitamos en el voto
+/// (entre el SELECT y el INSERT cabe otra peticion; dos activaciones simultaneas
+/// veen "2 hoy" y pasan ambas -> 4). La activacion completa va en UNA SOLA
+/// transaccion con SELECT ... FOR UPDATE sobre la fila del User, y dentro:
+///   1. cuenta las BoostActivation del usuario de hoy (indice [userId, startsAt]),
+///   2. verifica saldo (User.boostBalance > 0) y limite (< 3 hoy),
+///   3. inserta el movimiento -1 en BoostLedger y decrementa User.boostBalance,
+///   4. inserta esta BoostActivation.
+/// El bloqueo de la fila del User serializa a los concurrentes y el limite se vuelve
+/// real. (Implementacion en la Fase 6.)
+model BoostActivation {
+  id        String   @id @default(cuid())
+  userId    String
+  startsAt  DateTime
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([startsAt, expiresAt]) // destacados vigentes ahora mismo
+  @@index([userId, startsAt]) // limite de 3/dia por usuario
+}
+
+// ============================================================================
+// MODERACION Y AUDITORIA
+// ============================================================================
+
+/// Denuncia de contenido o usuario.
+/// Nota: `targetType` contempla COMMENT, pero el modelo `Comment` (comentarios en
+/// los videos) llega en la FASE 1 a proposito; no es un olvido. Report se deja
+/// preparado para no tener que migrar la tabla cuando los comentarios existan.
+model Report {
+  id         String   @id @default(cuid())
+  reporterId String
+  targetType String // VIDEO, SUBMISSION, USER, COMMENT (union en constants)
+  targetId   String
+  reason     String
+  status     String   @default("OPEN") // OPEN, REVIEWING, RESOLVED, DISMISSED (union en constants)
+  createdAt  DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([status])
+  @@index([reporterId])
+}
+
+/// Registro de auditoria: acciones de admin, payouts, moderacion, ajustes.
+/// Sin FK (actorId puede quedar desvinculado si el actor se anonimiza).
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+}
+
+// ============================================================================
+// INFRAESTRUCTURA: COLA DE TRABAJOS Y RATE LIMIT
+// ============================================================================
+
+/// Cola de trabajos (tabla + disparador externo por GitHub Actions).
+///
+/// Reclamacion PORTABLE, sin SKIP LOCKED: cada ejecucion genera un token y hace
+///   UPDATE Job SET status='RUNNING', lockedBy=<token>, lockedAt=NOW()
+///   WHERE status='PENDING' AND runAt<=NOW() ORDER BY runAt LIMIT n
+/// y luego relee sus filas por `lockedBy=<token>`. El UPDATE es atomico, asi que
+/// dos ejecuciones simultaneas nunca reclaman la misma fila aunque no exista
+/// SKIP LOCKED. Todos los handlers son idempotentes.
+model Job {
+  id             String    @id @default(cuid())
+  type           String // union en constants (JobType)
+  payload        Json?
+  status         String    @default("PENDING") // PENDING, RUNNING, DONE, FAILED (union en constants)
+  runAt          DateTime // cuando debe ejecutarse (UTC)
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(5)
+  lockedAt       DateTime?
+  lockedBy       String? // token de la ejecucion que reclamo la fila
+  lastError      String?   @db.Text
+  idempotencyKey String?   @unique
+  createdAt      DateTime  @default(now())
+
+  @@index([status, runAt]) // indice del reclamo
+  @@index([lockedBy])
+}
+
+/// Rate limiting por ventana fija en la base de datos (sin Redis).
+/// Se incrementa con INSERT ... ON DUPLICATE KEY UPDATE count = count + 1.
+model RateLimit {
+  id          String   @id @default(cuid())
+  key         String // "login:ip:<hash>", "vote:user:<id>"
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@unique([key, windowStart])
+  @@index([windowStart])
+}

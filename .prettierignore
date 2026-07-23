@@ -8,6 +8,7 @@ node_modules
 # Generados / lockfiles
 next-env.d.ts
 package-lock.json
+src/generated
 
 # Documentacion local (no sincroniza)
 Documentacion NO GIT/

@@ -127,6 +127,21 @@ idempotente y en lotes pequeños; solo cambia quién lo invoca.
 
 ---
 
+## Prisma (base de datos)
+
+- **Runtime sin binario nativo:** con Prisma 7 + driver adapter (`@prisma/adapter-mariadb`)
+  el cliente usa el **queryCompiler en WASM**, no un motor de consultas nativo. Sirve
+  peticiones en cualquier arquitectura sin compilar nada — clave en hosting compartido.
+- **`postinstall` ejecuta `prisma generate`:** el cliente generado (`src/generated`) está
+  gitignoreado y se regenera en cada `install`. ⚠️ **Esto depende de que el CLI de Prisma
+  (devDependency) esté instalado.** Hoy funciona porque Hostinger instala también las
+  `devDependencies`. **Si algún día cambia a `--omit=dev`, el build se romperá** (no
+  encontrará `prisma`). En ese caso, mover `prisma` a `dependencies` o generar el cliente de
+  otro modo.
+- **Migraciones:** el motor de esquema (`schema-engine`) sí es un binario nativo, pero solo
+  lo usa el **CLI de migraciones**, que corre por SSH en el servidor (Node 22.18 + `npx`
+  bajan el binario de Linux). El runtime no lo toca.
+
 ## Notas de dependencias
 
 - **`overrides` de `sharp`** a `^0.35.0`: Next aún fija `0.34.x`, con vulnerabilidades

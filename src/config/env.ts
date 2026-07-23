@@ -52,10 +52,12 @@ const serverSchema = z.object({
   // --- Obligatorias HOY ---
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_URL: z.url("APP_URL debe ser una URL absoluta, p.ej. https://dareflash.com"),
+  /** Paso 4 — base de datos. Ya configurada en hPanel (confirmado por el propietario). */
+  DATABASE_URL: z
+    .string()
+    .min(1, "DATABASE_URL es obligatoria: cadena de conexion de MySQL/MariaDB"),
 
   // --- Se promueven a obligatorias en su paso (ver comentario de cada una) ---
-  /** Paso 4 — base de datos y esquema nucleo. */
-  DATABASE_URL: z.string().min(1).optional(),
   /** Paso 6 — autenticacion. */
   AUTH_SECRET: z.string().min(1).optional(),
   AUTH_GOOGLE_ID: z.string().min(1).optional(),

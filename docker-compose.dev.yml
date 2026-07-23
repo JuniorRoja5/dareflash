@@ -1,28 +1,30 @@
-# MySQL 8 para DESARROLLO LOCAL. Solo local: produccion (Hostinger) no usa Docker.
+# MariaDB 11.8 para DESARROLLO LOCAL. Solo local: produccion (Hostinger) no usa Docker.
+# El motor es MariaDB (11.8.8 en produccion), NO MySQL: se replica en local para paridad.
 #
 #   docker compose -f docker-compose.dev.yml up -d
 #   docker compose -f docker-compose.dev.yml down        # conserva los datos
 #   docker compose -f docker-compose.dev.yml down -v     # borra tambien los datos
 #
 # CHARSET: utf8mb4 / utf8mb4_unicode_ci, forzado a nivel de SERVIDOR para que la
-# base de datos que crea el entrypoint (MYSQL_DATABASE) los herede. No es un
-# detalle esteticö: nombres de usuario, titulos de video y categorias llevan
+# base de datos que crea el entrypoint (MARIADB_DATABASE) los herede. No es un
+# detalle estetico: nombres de usuario, titulos de video y categorias llevan
 # emoji (🎭 Humor, 🏋️ Fitness). Con utf8mb3 o latin1 se corrompen o revientan
-# las inserciones.
+# las inserciones. MariaDB tiene particularidades propias en collations: se
+# verifica empiricamente, no se asume.
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: dareflash-mysql-dev
+  mariadb:
+    image: mariadb:11.8
+    container_name: dareflash-mariadb-dev
     restart: unless-stopped
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
     environment:
-      MYSQL_ROOT_PASSWORD: dareflash_root_dev
-      MYSQL_DATABASE: dareflash
-      MYSQL_USER: dareflash
-      MYSQL_PASSWORD: dareflash_dev
+      MARIADB_ROOT_PASSWORD: dareflash_root_dev
+      MARIADB_DATABASE: dareflash
+      MARIADB_USER: dareflash
+      MARIADB_PASSWORD: dareflash_dev
     ports:
       # Puerto 3307 en el HOST (dentro del contenedor sigue siendo 3306).
       # El 3306 del host lo ocupa otra instalacion de MySQL de la maquina
@@ -30,13 +32,14 @@ services:
       # Solo en localhost: no exponer la base de datos a la red local.
       - "127.0.0.1:3307:3306"
     volumes:
-      - dareflash_mysql_data:/var/lib/mysql
+      - dareflash_mariadb_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pdareflash_root_dev"]
+      # Script oficial de la imagen mariadb.
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 5s
       timeout: 5s
       retries: 30
       start_period: 30s
 
 volumes:
-  dareflash_mysql_data:
+  dareflash_mariadb_data:

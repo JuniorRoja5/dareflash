@@ -14,12 +14,15 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "node scripts/prepare.mjs",
+    "postinstall": "prisma generate",
     "test:build-sin-env": "node scripts/check-build-sin-env.mjs"
   },
   "overrides": {
     "sharp": "^0.35.0"
   },
   "dependencies": {
+    "@prisma/adapter-mariadb": "^7.9.0",
+    "@prisma/client": "^7.9.0",
     "next": "^16.2.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -33,12 +36,14 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "^16.2.11",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "prettier": "^3.9.5",
+    "prisma": "^7.9.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
