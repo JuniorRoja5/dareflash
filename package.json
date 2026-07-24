@@ -20,7 +20,8 @@
     "test:build-sin-env": "node scripts/check-build-sin-env.mjs"
   },
   "overrides": {
-    "sharp": "^0.35.0"
+    "sharp": "^0.35.0",
+    "find-my-way": "^9.7.0"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.9.0",

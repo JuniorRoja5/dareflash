@@ -37,6 +37,60 @@ export const RESET_TIMEZONE = "UTC";
 export const BOOST_DAILY_LIMIT = 3;
 
 // ============================================================================
+// DECISIONES DE PRODUCTO CONFIRMADAS POR EL PROPIETARIO
+// ============================================================================
+
+/**
+ * Duracion maxima de un video, en segundos. DEFINITIVO.
+ * OJO deuda de contenido: las Normas Oficiales y el FAQ del documento decian 30 s;
+ * ese texto legal hay que corregirlo antes del lanzamiento (no es deuda de codigo).
+ * Se valida EN SERVIDOR al confirmar la subida a Bunny (nunca fiarse del cliente).
+ */
+export const VIDEO_MAX_DURATION_SEC = 90;
+
+/** Idiomas de lanzamiento. Solo estos dos. */
+export const LAUNCH_LOCALES = ["en", "es"] as const;
+export type Locale = (typeof LAUNCH_LOCALES)[number];
+
+/**
+ * Puntos por accion (sistema DareUp). Los puntos suben de nivel y dan fama; NO son
+ * dinero ni se canjean por dinero (Terminos y Condiciones, punto 8; implementado como
+ * ledgers separados que no se convierten entre si). Valores del documento maestro,
+ * con "invitar a un amigo que se registra" = +50 por decision del propietario (el
+ * documento proponia +10). El resto de la tabla queda como el documento.
+ */
+export const POINTS = {
+  WIN_CHALLENGE: 30,
+  INVITE_FRIEND: 50,
+  REGISTER_FROM_VIDEO_LINK: 10,
+  TOP20: 10,
+  VIDEO_100_EXTERNAL_VIEWS: 10,
+} as const;
+
+/**
+ * Las 14 categorias de reto (documento maestro; sin "Deportes"). `key` es el
+ * identificador ESTABLE que se guarda en Challenge.category; `emoji` y `es` son
+ * presentacion. Las etiquetas en ingles llegan con el multiidioma (Fase 11).
+ */
+export const CATEGORIES = [
+  { key: "humor", emoji: "🎭", es: "Humor" },
+  { key: "fitness", emoji: "🏋️", es: "Fitness" },
+  { key: "musica", emoji: "🎵", es: "Música" },
+  { key: "baile", emoji: "💃", es: "Baile" },
+  { key: "gaming", emoji: "🎮", es: "Gaming" },
+  { key: "lifestyle", emoji: "🌍", es: "Lifestyle" },
+  { key: "street", emoji: "🛹", es: "Street" },
+  { key: "arte", emoji: "🎨", es: "Arte" },
+  { key: "viajes", emoji: "✈️", es: "Viajes" },
+  { key: "talento", emoji: "🌟", es: "Talento" },
+  { key: "tecnologia", emoji: "💻", es: "Tecnología" },
+  { key: "moda", emoji: "👗", es: "Moda" },
+  { key: "motivacion", emoji: "🔥", es: "Motivación" },
+  { key: "retos", emoji: "⚡", es: "Retos" },
+] as const;
+export type CategoryKey = (typeof CATEGORIES)[number]["key"];
+
+// ============================================================================
 // ESTADOS/TIPOS que en la BD son String (flexibles, sin migracion por estado
 // nuevo) pero tipados y validados con Zod aqui. La capa de servicio valida con
 // estos esquemas ANTES de insertar, para que un valor mal escrito (p.ej.

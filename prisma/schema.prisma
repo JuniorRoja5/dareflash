@@ -194,7 +194,7 @@ model Challenge {
   id          String  @id @default(cuid())
   title       String
   description String? @db.Text
-  category    String // de la lista de constants (PENDIENTE: lista definitiva del propietario)
+  category    String // key de CATEGORIES en constants (las 14 confirmadas por el propietario)
   status      String  @default("DRAFT") // DRAFT, PUBLISHED, CLOSED (union en constants)
 
   // Premio en enteros (centimos) desde el dia 1: si entrara mas tarde, alguien lo
