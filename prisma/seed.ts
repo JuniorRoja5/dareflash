@@ -15,6 +15,37 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { DEFAULT_CURRENCY } from "../src/config/constants";
 import { PrismaClient } from "../src/generated/prisma/client";
 
+/**
+ * GUARDA DE SEGURIDAD (dura, aborta — no avisa).
+ *
+ * Esta semilla crea un usuario con rol ADMIN. Si se ejecutara contra produccion
+ * habriamos creado una cuenta de administrador conocida en un sistema con dinero.
+ * En un servidor donde conviven varios proyectos, basta un comando en la carpeta
+ * equivocada por SSH. Por eso: solo corre en desarrollo contra una BD LOCAL.
+ * El primer admin de produccion se crea con un script explicito y distinto (Paso 6).
+ */
+function assertSoloDesarrolloLocal(): void {
+  const dbUrl = process.env["DATABASE_URL"] ?? "";
+  let host = "";
+  try {
+    host = new URL(dbUrl).hostname;
+  } catch {
+    host = "";
+  }
+  const hostLocal = ["localhost", "127.0.0.1", "::1", "0.0.0.0"].includes(host);
+
+  if (process.env["NODE_ENV"] === "production" || !hostLocal) {
+    console.error(
+      "\n[seed] ABORTADO: la semilla SOLO puede ejecutarse en desarrollo contra una BD local.\n" +
+        `        NODE_ENV=${process.env["NODE_ENV"] ?? "(sin definir)"}  host=${host || "(desconocido)"}\n` +
+        "        El primer admin de produccion se crea con un script explicito (Paso 6).\n",
+    );
+    process.exit(1);
+  }
+}
+
+assertSoloDesarrolloLocal();
+
 const url = new URL(process.env["DATABASE_URL"] ?? "");
 const adapter = new PrismaMariaDb({
   host: url.hostname,
@@ -42,6 +73,10 @@ async function main() {
       role: "ADMIN",
       emailVerified: ahora,
       birthDate: new Date("1990-01-01T00:00:00.000Z"),
+      // Sin contrasena utilizable: passwordHash queda NULL, asi que no se puede
+      // iniciar sesion por credenciales con esta cuenta ni aunque escape a otro
+      // entorno. Es solo para trastear en local.
+      passwordHash: null,
     },
   });
 
