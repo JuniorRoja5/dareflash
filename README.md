@@ -80,13 +80,37 @@ suspender o limitar la aplicación.
 ## Base de datos y migraciones
 
 - **En local**: `npx prisma migrate dev`.
-- **En producción**: **solo** `npx prisma migrate deploy`. **Nunca `migrate dev`.**
-
-  `migrate dev` necesita una _shadow database_ (crea y destruye una base de datos) y en
-  hosting compartido **no hay permisos** para eso. En **local**, el usuario `dareflash`
-  del contenedor necesita privilegio para crearla; concédelo una vez:
+  `migrate dev` necesita una _shadow database_ (crea y destruye una base de datos). En
+  **local**, el usuario `dareflash` del contenedor necesita privilegio para crearla;
+  concédelo una vez:
   `GRANT ALL PRIVILEGES ON *.* TO 'dareflash'@'%' WITH GRANT OPTION; FLUSH PRIVILEGES;`
-  (solo desarrollo; en producción no aplica porque allí solo se usa `migrate deploy`).
+
+#### ⚠️ Migraciones en PRODUCCIÓN (procedimiento oficial)
+
+`prisma migrate deploy` **NO funciona en este hosting compartido**: el motor de esquema
+arranca, envía la orden y **se cuelga indefinidamente** (probablemente por el bloqueo de
+coordinación que Prisma pide antes de migrar, restringido en compartido). En su lugar se
+aplica el SQL a mano y se registra la migración con `migrate resolve` (que **sí** funciona).
+
+Por SSH, desde `~/dareflash-migrate`:
+
+```bash
+# 1) Traer la nueva migración
+git pull
+
+# 2) Aplicar el SQL con el cliente de MySQL (host 127.0.0.1, ¡nunca localhost!)
+mysql -u <user> -h 127.0.0.1 <base> < prisma/migrations/<nombre>/migration.sql
+
+# 3) Registrar la migración como aplicada en Prisma
+npx prisma migrate resolve --applied <nombre>
+```
+
+Reglas de este entorno:
+
+- El host **debe ser `127.0.0.1`**, nunca `localhost`: `localhost` resuelve a **IPv6** y la
+  conexión falla.
+- `DEBUG="prisma:*"` imprime la **cadena de conexión con la contraseña en claro**. No usarlo
+  salvo necesidad real, y **nunca** pegar su salida en ningún sitio.
 
 - **Seed:** `npx prisma db seed` (configurado en `prisma.config.ts` → `tsx prisma/seed.ts`).
   Idempotente; inserta datos mínimos de desarrollo, incluidos emoji para verificar utf8mb4.
