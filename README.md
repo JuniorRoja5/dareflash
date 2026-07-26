@@ -126,10 +126,54 @@ Reglas de este entorno:
 
 ---
 
-## Despliegue
+## Despliegue en el VPS (Docker Compose)
 
-Producción es **Hostinger Business** (hosting compartido con Node.js), con build automático
-en cada push a `main`. Consecuencias asumidas: sin PostgreSQL, sin Redis, sin Docker, sin
+Producción es un **VPS KVM (Ubuntu 24.04) con Docker**. La orquestación está en
+[`docker-compose.prod.yml`](docker-compose.prod.yml): `mariadb` + `redis` + `web` (la app,
+desde el [`Dockerfile`](Dockerfile) multi-stage) + `caddy` (reverse proxy con HTTPS
+automático, único que expone 80/443). El `worker` permanente está previsto pero **desactivado**
+(la cola sigue en tabla + cron; se activa en la fase de limpieza).
+
+**El `.env` vive FUERA del repo**, en el servidor: `~/dareflash-config/.env`. Contiene las
+`MARIADB_*` (para el servicio de BD) y las variables de la app; en producción,
+`DATABASE_URL` apunta al host del servicio: `mysql://usuario:clave@mariadb:3306/dareflash`.
+
+```bash
+# Levantar (build incluido)
+docker compose -f docker-compose.prod.yml up -d --build
+
+# Migrar (en el VPS prisma migrate deploy SÍ funciona)
+docker compose -f docker-compose.prod.yml exec web npx prisma migrate deploy
+
+# Ver logs
+docker compose -f docker-compose.prod.yml logs -f web
+```
+
+El **primer admin** se crea con [`scripts/create-admin.ts`](scripts/create-admin.ts), que es
+TypeScript y necesita `tsx` + el código fuente (no están en la imagen `standalone`). Se
+ejecuta desde una imagen de herramientas construida a partir de la etapa `builder`:
+
+```bash
+docker build --target builder -t dareflash-tools .
+docker run --rm --network dareflash_internal \
+  -e ADMIN_EMAIL=admin@dareflash.com -e ADMIN_PASSWORD=... \
+  -e DATABASE_URL="mysql://usuario:clave@mariadb:3306/dareflash" \
+  dareflash-tools npx tsx scripts/create-admin.ts
+```
+
+> **Imagen:** multi-stage con salida `standalone` de Next (~390 MB). `argon2` es nativo:
+> se compila/instala en la etapa de build (con build tools) y su binario + deps de runtime
+> (`@phc/format`, `node-gyp-build`) viajan a la imagen final vía `outputFileTracingIncludes`.
+> La app corre como usuario **no-root** con `tini` como PID 1. Verificado end-to-end: la imagen
+> arranca, `argon2` funciona y `/api/health` devuelve `db:true` contra MariaDB.
+
+---
+
+### Legado — Hostinger (hosting compartido, en migración)
+
+La sección siguiente documenta el entorno **anterior** (hosting compartido). Se conserva
+mientras se completa la migración; los "parches del compartido" (cola por cron, etc.) aún no
+se retiran. Consecuencias que tenía: sin PostgreSQL, sin Redis propio, sin Docker, sin
 procesos permanentes y sin root.
 
 ### Cola de trabajos y cron

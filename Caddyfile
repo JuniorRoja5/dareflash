@@ -1,0 +1,13 @@
+# DareFlash — reverse proxy con HTTPS automatico (Let's Encrypt).
+# Caddy es el unico servicio que expone 80/443. Proxy al servicio `web` de la red
+# interna del compose. Los certificados se guardan en el volumen caddy_data.
+
+# Dominio principal.
+dareflash.com {
+	reverse_proxy web:3000
+}
+
+# www -> apex (301). Evita contenido duplicado y unifica el dominio canonico.
+www.dareflash.com {
+	redir https://dareflash.com{uri} permanent
+}

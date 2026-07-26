@@ -1,0 +1,22 @@
+# No meter en el contexto de build cosas pesadas, especificas de plataforma o secretas.
+node_modules
+.next
+out
+build
+src/generated
+.git
+.github
+.husky
+.claude
+Documentacion NO GIT
+coverage
+
+# Secretos / entorno: nunca en la imagen
+.env
+.env.*
+!.env.example
+
+# Docs y config de dev que no hacen falta en la imagen
+*.md
+docker-compose.dev.yml
+tests

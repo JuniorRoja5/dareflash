@@ -1,0 +1,101 @@
+# DareFlash — orquestacion de PRODUCCION en el VPS (Ubuntu 24.04 + Docker).
+#
+# El .env vive FUERA del repo, en el servidor: ~/dareflash-config/.env
+# Contiene tanto MARIADB_* (para el servicio de BD) como las variables de la app
+# (DATABASE_URL apuntando al host `mariadb`, APP_URL, AUTH_SECRET, CRON_SECRET,
+# SMTP_*, etc.). Ningun secreto vive en el repositorio.
+#
+#   Levantar:   docker compose -f docker-compose.prod.yml up -d --build
+#   Migrar:     docker compose -f docker-compose.prod.yml exec web npx prisma migrate deploy
+#   Logs:       docker compose -f docker-compose.prod.yml logs -f web
+#
+# Solo `caddy` publica puertos al exterior (80/443). mariadb y redis NO se exponen.
+
+services:
+  mariadb:
+    image: mariadb:11.8
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    env_file:
+      - ${HOME}/dareflash-config/.env # MARIADB_ROOT_PASSWORD, MARIADB_DATABASE, MARIADB_USER, MARIADB_PASSWORD
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      # Script oficial de la imagen mariadb: conecta y comprueba que InnoDB arranco.
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    # Aun NO lo usa el codigo (limpieza posterior); se deja montado.
+    networks:
+      - internal
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ${HOME}/dareflash-config/.env # DATABASE_URL=mysql://user:pass@mariadb:3306/db, APP_URL, AUTH_SECRET, ...
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    expose:
+      - "3000" # solo dentro de la red interna; Caddy hace de proxy
+    networks:
+      - internal
+
+  # --- worker: DESACTIVADO a proposito ---
+  # Por ahora la app sigue usando la cola en tabla + endpoint cron (parche del
+  # compartido, aun sin retirar). El worker permanente se activara en la FASE DE
+  # LIMPIEZA del VPS (junto con el uso real de Redis). No crear como servicio todavia.
+  #
+  # worker:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   restart: unless-stopped
+  #   env_file:
+  #     - ${HOME}/dareflash-config/.env
+  #   depends_on:
+  #     mariadb:
+  #       condition: service_healthy
+  #   command: ["node", "worker.js"]
+  #   networks:
+  #     - internal
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # certificados (persistente)
+      - caddy_config:/config
+    depends_on:
+      - web
+    networks:
+      - internal
+
+volumes:
+  mariadb_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  internal:
