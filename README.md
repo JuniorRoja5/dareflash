@@ -142,24 +142,32 @@ automático, único que expone 80/443). El `worker` permanente está previsto pe
 # Levantar (build incluido)
 docker compose -f docker-compose.prod.yml up -d --build
 
-# Migrar (en el VPS prisma migrate deploy SÍ funciona)
-docker compose -f docker-compose.prod.yml exec web npx prisma migrate deploy
-
 # Ver logs
 docker compose -f docker-compose.prod.yml logs -f web
 ```
 
-El **primer admin** se crea con [`scripts/create-admin.ts`](scripts/create-admin.ts), que es
-TypeScript y necesita `tsx` + el código fuente (no están en la imagen `standalone`). Se
-ejecuta desde una imagen de herramientas construida a partir de la etapa `builder`:
+**Migraciones** — desde el servicio `migrate` (imagen de la etapa `builder`, que SÍ lleva el
+esquema y el CLI de Prisma; la imagen `standalone` de `web` **no**). Es un one-off (perfil
+`tools`, no arranca con `up -d`). En el VPS `prisma migrate deploy` funciona:
 
 ```bash
-docker build --target builder -t dareflash-tools .
-docker run --rm --network dareflash_internal \
-  -e ADMIN_EMAIL=admin@dareflash.com -e ADMIN_PASSWORD=... \
-  -e DATABASE_URL="mysql://usuario:clave@mariadb:3306/dareflash" \
-  dareflash-tools npx tsx scripts/create-admin.ts
+docker compose -f docker-compose.prod.yml run --rm migrate
 ```
+
+**Primer admin** — el script [`scripts/create-admin.ts`](scripts/create-admin.ts) es TypeScript
+y necesita `tsx` + el código fuente, así que se ejecuta desde la **misma imagen `migrate`**
+(no desde `web`), sobreescribiendo el comando:
+
+```bash
+docker compose -f docker-compose.prod.yml run --rm \
+  -e ADMIN_EMAIL=admin@dareflash.com -e ADMIN_PASSWORD='...' \
+  migrate npx tsx scripts/create-admin.ts
+```
+
+> Ambos verificados con `docker build` real: el servicio `migrate` carga
+> `prisma/schema.prisma`, conecta a `mariadb` y aplica/consulta migraciones (como root, sin
+> el `EACCES` de `/app/.npm` del usuario no-root de `web`); y el script de admin corre en TS
+> y llega a sus validaciones.
 
 > **Imagen:** multi-stage con salida `standalone` de Next (~390 MB). `argon2` es nativo:
 > se compila/instala en la etapa de build (con build tools) y su binario + deps de runtime

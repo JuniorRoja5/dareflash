@@ -57,6 +57,32 @@ services:
     networks:
       - internal
 
+  # --- migrate / tools: imagen de HERRAMIENTAS (one-off) ---
+  # Usa la etapa `builder` (tiene el esquema, el CLI de Prisma, tsx y el codigo
+  # fuente que la imagen standalone NO lleva) y corre como root (sin el EACCES del
+  # usuario no-root en /app/.npm). El perfil `tools` evita que arranque con `up -d`;
+  # solo se ejecuta puntualmente con `run --rm`.
+  #
+  #   Migrar:       docker compose -f docker-compose.prod.yml run --rm migrate
+  #   Crear admin:  docker compose -f docker-compose.prod.yml run --rm \
+  #                   -e ADMIN_EMAIL=admin@dareflash.com -e ADMIN_PASSWORD=... \
+  #                   migrate npx tsx scripts/create-admin.ts
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    profiles: ["tools"]
+    env_file:
+      - ${HOME}/dareflash-config/.env
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    command: ["npx", "prisma", "migrate", "deploy"]
+    restart: "no"
+    networks:
+      - internal
+
   # --- worker: DESACTIVADO a proposito ---
   # Por ahora la app sigue usando la cola en tabla + endpoint cron (parche del
   # compartido, aun sin retirar). El worker permanente se activara en la FASE DE
