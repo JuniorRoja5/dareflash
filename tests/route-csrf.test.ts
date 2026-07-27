@@ -24,9 +24,20 @@ const EXEMPT = new Set(["auth/login", "auth/register", "auth/verify", "auth/rese
 
 const METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;
 
-/** ¿El fichero exporta el metodo `m`? Cubre const, function y async function. */
+/**
+ * ¿El fichero exporta el metodo `m`? Cubre las cuatro formas que Next acepta:
+ *  - `export const M = ...`
+ *  - `export function M` / `export async function M`
+ *  - `export { handler as M }` (lista de exportacion, con o sin alias)
+ * La ultima es la mas peligrosa: si el escaner no la ve, la ruta pasa SIN examinar
+ * (fallo silencioso). Como `envueltoEnMutatingRoute` solo reconoce la forma canonica
+ * `export const M = mutatingRoute(...)`, una exportacion por lista queda marcada como
+ * desprotegida -> obliga a usar la forma canonica, que es justo lo que queremos.
+ */
 function exportaMetodo(src: string, m: string): boolean {
-  return new RegExp(`export\\s+(?:const\\s+${m}\\b|(?:async\\s+)?function\\s+${m}\\b)`).test(src);
+  const directo = new RegExp(`export\\s+(?:const\\s+${m}\\b|(?:async\\s+)?function\\s+${m}\\b)`);
+  const porLista = new RegExp(`export\\s*\\{[^}]*\\b${m}\\b[^}]*\\}`);
+  return directo.test(src) || porLista.test(src);
 }
 
 /** ¿Ese metodo se exporta envuelto en mutatingRoute? (admite generico `mutatingRoute<...>(`) */
@@ -94,6 +105,14 @@ describe("proteccion estructural CSRF de rutas mutantes", () => {
     const src =
       "export const DELETE = mutatingRoute<{ params: Promise<{ id: string }> }>(async () => new Response());";
     expect(metodosDesprotegidos("x/y", src, VACIO)).toEqual([]);
+  });
+
+  it("caza `export { handler as POST }` (lista de exportacion) sin proteger", () => {
+    const src = [
+      "async function handler() { return new Response(); }",
+      "export { handler as POST };",
+    ].join("\n");
+    expect(metodosDesprotegidos("x/y", src, VACIO)).toEqual(["POST"]);
   });
 
   it("respeta la exencion justificada aunque el metodo no este envuelto", () => {
