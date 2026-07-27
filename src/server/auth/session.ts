@@ -28,6 +28,8 @@ function hashToken(rawToken: string): string {
 export interface CreatedSession {
   rawToken: string; // EN CLARO, solo para la cookie. En BD va el hash.
   expires: Date;
+  /** Id de la fila Session recien creada (para atar un token CSRF a esta sesion). */
+  sessionId: string;
 }
 
 export interface CreateSessionOptions {
@@ -53,8 +55,9 @@ export async function createSession(
   const rawToken = randomBytes(SESSION_TOKEN_BYTES).toString("base64url");
   const expires = new Date(nowD.getTime() + (options.ttlMs ?? SESSION_TTL_MS));
 
-  await db.session.create({
+  const created = await db.session.create({
     data: { sessionToken: hashToken(rawToken), userId, expires, createdAt: nowD },
+    select: { id: true },
   });
 
   // Tope por usuario: conservar las SESSION_MAX_PER_USER mas recientes, borrar el resto.
@@ -68,7 +71,7 @@ export async function createSession(
     await db.session.deleteMany({ where: { id: { in: sobrantes.map((s) => s.id) } } });
   }
 
-  return { rawToken, expires };
+  return { rawToken, expires, sessionId: created.id };
 }
 
 export interface SessionUser {

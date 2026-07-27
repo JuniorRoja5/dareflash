@@ -136,14 +136,22 @@ export const EMAIL_MAX_PER_QUEUE_RUN = 20;
  * de verificacion, POR IP y POR direccion, como defensa antifraude/antiabuso.
  */
 export const RATE_LIMITS = {
-  LOGIN_PER_IP: { limit: 10, windowMs: 15 * 60 * 1000 }, // 10 / 15 min
+  // OJO: 10/15min se queda CORTO con CGNAT movil u oficinas (muchos usuarios tras una
+  // misma IP publica). Revisar con trafico real; puede subirse sin tocar la seguridad
+  // del limite por cuenta.
+  LOGIN_PER_IP: { limit: 10, windowMs: 15 * 60 * 1000 }, // 10 / 15 min por IP
   // Por CUENTA: frena el relleno de credenciales DISTRIBUIDO (muchas IPs, una cuenta),
-  // que el limite por IP no ve. Mas holgado que el de IP para no facilitar el bloqueo
-  // de una cuenta ajena (DoS), pero acotado.
-  LOGIN_PER_ACCOUNT: { limit: 20, windowMs: 15 * 60 * 1000 }, // 20 / 15 min por email
+  // que el limite por IP no ve. Consumo atomico + reset al acertar, asi que un usuario
+  // legitimo no acumula; 20 tolera erratas sin facilitar el bloqueo de una cuenta ajena.
+  LOGIN_PER_ACCOUNT: { limit: 20, windowMs: 15 * 60 * 1000 }, // 20 fallos / 15 min por cuenta
   REGISTER_PER_IP: { limit: 5, windowMs: 60 * 60 * 1000 }, // 5 / hora
   RESEND_VERIFICATION_PER_EMAIL: { limit: 3, windowMs: 60 * 60 * 1000 }, // 3 / hora
   RESEND_VERIFICATION_PER_IP: { limit: 10, windowMs: 60 * 60 * 1000 }, // 10 / hora
+  // Cambio de contrasena (sesion ya autenticada): verifica la contrasena ACTUAL con
+  // argon2. Umbral BAJO: un usuario legitimo casi nunca falla su contrasena actual, y
+  // asi se corta tanto el adivinado (quien roba una sesion) como la amplificacion de
+  // CPU (cada intento es un argon2). Consumo atomico + reset al acertar.
+  CHANGE_PASSWORD_PER_USER: { limit: 5, windowMs: 15 * 60 * 1000 }, // 5 fallos / 15 min por usuario
 } as const;
 
 // ============================================================================
