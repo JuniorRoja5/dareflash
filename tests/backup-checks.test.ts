@@ -5,6 +5,7 @@ import {
   evaluarTamano,
   faltanRespectoAProduccion,
   faltanTablasCriticas,
+  filasInsuficientes,
   TABLAS_CRITICAS,
 } from "../scripts/backup/checks";
 
@@ -63,5 +64,25 @@ describe("guardas del respaldo (puras)", () => {
     ]);
     // Que la restaurada tenga tablas de mas (la desechable) no es problema.
     expect(faltanRespectoAProduccion(produccion, [...produccion, "extra"])).toEqual([]);
+  });
+
+  it("conteos de filas: caza un volcado de SOLO ESTRUCTURA (tablas presentes, 0 filas)", () => {
+    // Iguales -> ok.
+    expect(
+      filasInsuficientes(
+        { User: 3, WalletLedger: 2, PointsLedger: 5 },
+        { User: 3, WalletLedger: 2, PointsLedger: 5 },
+      ),
+    ).toEqual([]);
+    // Volcado de solo estructura: restaurada a 0 -> todas las que tenian filas caen.
+    expect(
+      filasInsuficientes({ User: 3, WalletLedger: 2 }, { User: 0, WalletLedger: 0 }),
+    ).toHaveLength(2);
+    // Append-only: si produccion crecio DESPUES del volcado, la restaurada con mas no es problema.
+    expect(filasInsuficientes({ User: 3 }, { User: 5 })).toEqual([]);
+    // Una sola tabla por debajo tambien se detecta.
+    expect(filasInsuficientes({ User: 3, WalletLedger: 2 }, { User: 3, WalletLedger: 1 })).toEqual([
+      "WalletLedger: produccion=2, restaurada=1",
+    ]);
   });
 });

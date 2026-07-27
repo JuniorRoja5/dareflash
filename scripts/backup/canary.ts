@@ -78,7 +78,15 @@ export async function validarCanarioEnBase(
     select: { bannedAt: true, emailVerified: true, passwordHash: true },
   });
   if (!row) {
-    return { ok: false, motivos: ["no existe la cuenta canario en la base restaurada"] };
+    // Mensaje INEQUIVOCO: no es que se haya "perdido" la cuenta, es que falta el paso previo.
+    return {
+      ok: false,
+      motivos: [
+        `no existe la cuenta canario (${CANARY_EMAIL}). Es un PASO PREVIO obligatorio a la ` +
+          `primera ejecucion: aprovisionala con ` +
+          `\`docker compose -f docker-compose.prod.yml run --rm backup npx tsx scripts/backup/provision-canary.ts\``,
+      ],
+    };
   }
 
   const motivos = problemasDeSeguridadDelCanario(row);

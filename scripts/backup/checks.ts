@@ -74,3 +74,26 @@ export function faltanRespectoAProduccion(
   const set = new Set(restauradas);
   return produccion.filter((t) => !set.has(t)).sort();
 }
+
+/**
+ * Tablas cuyo NUMERO DE FILAS se compara entre produccion y la restaurada. Un volcado de
+ * SOLO ESTRUCTURA (18 tablas, 0 filas) pasaria la comparacion de conjuntos; esto lo caza.
+ * Son efectivamente APPEND-ONLY (User se borra en blando -> deletedAt, sin quitar la fila;
+ * los ledgers nunca se borran), asi que la restaurada JAMAS puede tener menos filas que
+ * las que produccion tenia al volcar. Por eso la condicion es "no menos", no igualdad: la
+ * BD viva sigue creciendo entre el volcado y la comparacion.
+ */
+export const TABLAS_CON_FILAS = ["User", "WalletLedger", "PointsLedger"] as const;
+
+/** Tablas donde la restaurada tiene MENOS filas que produccion (volcado incompleto/vacio). */
+export function filasInsuficientes(
+  prod: Record<string, number>,
+  restaurada: Record<string, number>,
+): string[] {
+  const bajaron: string[] = [];
+  for (const [tabla, n] of Object.entries(prod)) {
+    const r = restaurada[tabla] ?? 0;
+    if (r < n) bajaron.push(`${tabla}: produccion=${n}, restaurada=${r}`);
+  }
+  return bajaron;
+}

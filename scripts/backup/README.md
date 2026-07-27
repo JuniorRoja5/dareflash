@@ -45,11 +45,18 @@ un volumen del anfitrión**. Crear una vez con permisos cerrados:
 install -d -m 0700 /root/dareflash-backups
 ```
 
-## Cuenta canario (una vez)
+## Cuenta canario — PASO PREVIO OBLIGATORIO a la primera ejecución
+
+La validación del respaldo comprueba que el canario sobrevive al ciclo dump/restore. Si no
+existe, **la primera ejecución falla en la validación** (el mensaje de error apunta aquí). Hay
+que aprovisionarlo **una vez**, desde el servicio `backup` del compose:
 
 ```bash
 docker compose -f docker-compose.prod.yml run --rm backup npx tsx scripts/backup/provision-canary.ts
 ```
+
+> Ojo de secuencia: si se borran todas las cuentas (p.ej. limpieza tras verificar un paso), el
+> canario se borra con ellas y hay que **volver a aprovisionarlo** antes del siguiente respaldo.
 
 Nace **inutilizable** (`bannedAt` puesto, `emailVerified` null): `login` y `validateSession` la
 rechazan. La validación llama directo a `verifyPassword`. **No le quites el baneo**: si lo
@@ -61,10 +68,12 @@ haces, la validación del respaldo falla a propósito (ver `canary.ts`).
 docker compose -f docker-compose.prod.yml run --rm backup
 ```
 
-Pasos: dump por flujo (sin texto plano en disco) → sentinela → restaurar en
-`dareflash_backup_verify` con el usuario de verificación → validar (tablas == producción +
-suelo crítico incl. `_prisma_migrations` + canário íntegro) → comprimir → guarda de tamaño →
-`estado.json`. Deja un `.sql.gz` validado en `/backups`.
+Pasos: comprobación de disco (tamaño real de producción × margen) + lock → dump por flujo (sin
+texto plano en disco) → sentinela → restaurar en `dareflash_backup_verify` con el usuario de
+verificación → validar (tablas == producción + suelo crítico incl. `_prisma_migrations` +
+**conteos de filas** de User/WalletLedger/PointsLedger ≥ producción + canário íntegro) →
+comprimir → guarda de tamaño → `estado.json`. Deja un `.sql.gz` validado en `/backups`.
+Cualquier fallo borra el `.gz` parcial de esa ejecución.
 
 > **Suelo de tamaño:** `BACKUP_MIN_BYTES=1024` es simbólico (un dump del esquema vacío ya pasa
 > de 50 KB). Subir a una línea base real cuando la haya. Ajustables por entorno también

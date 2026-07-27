@@ -1,39 +1,41 @@
 /**
  * Respaldo de MariaDB — PARTE 1: dump consistente (por FLUJO, sin texto plano en disco ni
  * en memoria), guardas (sentinela + tamaño + disco + lock + timeouts), restauracion en una
- * base DESECHABLE y validacion real (conjunto de tablas == produccion, suelo critico y
- * canario integro).
+ * base DESECHABLE y validacion real (tablas == produccion, suelo critico, conteos de filas
+ * y canario integro).
  *
  * MINIMO PRIVILEGIO (defensa ESTRUCTURAL, no solo comparaciones de cadena):
  *   - Volcado:      usuario de SOLO LECTURA sobre `dareflash`. No puede escribir en nada.
  *   - Verificacion: usuario con ALL SOLO sobre la base desechable. No puede tocar produccion.
- * Asi ni un error tipografico ni un .env mal puesto pueden DROP-ear produccion: el usuario
- * que ejecuta el DROP no tiene permiso sobre ella. Las GRANT estan en scripts/backup/README.md.
+ * Verificado empiricamente: el DROP de produccion con cualquiera de los dos = Access denied.
+ * Las GRANT estan en scripts/backup/README.md.
  *
- * Lo que AUN NO hace (siguientes partes, a revisar aparte): cifrado age, subida a B2, ping a
- * healthchecks.io y la unidad de systemd. Por ahora deja un .sql.gz validado en OUT_DIR
- * (que DEBE ser un volumen del anfitrion 0700) y marca el punto de enganche.
+ * Lo que AUN NO hace (siguientes partes): cifrado age, subida a B2, poda de .gz antiguos,
+ * healthchecks.io y la unidad de systemd. Deja un .sql.gz validado en OUT_DIR (que DEBE ser
+ * un volumen del anfitrion 0700) y marca el punto de enganche.
  *
  * Config por entorno:
  *   BACKUP_DB_HOST=mariadb  BACKUP_DB_PORT=3306  BACKUP_DB_NAME=dareflash
  *   BACKUP_DUMP_USER / BACKUP_DUMP_PASSWORD          (solo lectura sobre dareflash)
  *   BACKUP_VERIFY_USER / BACKUP_VERIFY_PASSWORD      (ALL solo sobre la base desechable)
  *   BACKUP_OUT_DIR=/backups  BACKUP_VERIFY_DB=dareflash_backup_verify
- *   BACKUP_MIN_BYTES=1024  BACKUP_TIMEOUT_MS=1800000  BACKUP_DISK_FACTOR=5
+ *   BACKUP_MIN_BYTES=1024  BACKUP_TIMEOUT_MS=1800000  BACKUP_RESTORE_MARGIN=3
  *   MARIADB_DUMP_BIN=mariadb-dump  MARIADB_BIN=mariadb
  */
 import "dotenv/config";
 
 import { spawn } from "node:child_process";
 import {
+  closeSync,
   createReadStream,
   createWriteStream,
   existsSync,
   mkdirSync,
+  openSync,
   rmSync,
   statfsSync,
   statSync,
-  writeFileSync,
+  writeSync,
 } from "node:fs";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -50,6 +52,7 @@ import {
   evaluarTamano,
   faltanRespectoAProduccion,
   faltanTablasCriticas,
+  filasInsuficientes,
 } from "./checks";
 import { guardarEstado, leerEstado } from "./estado";
 
@@ -64,7 +67,10 @@ const OUT_DIR = process.env["BACKUP_OUT_DIR"] ?? "./backups";
 const VERIFY_DB = process.env["BACKUP_VERIFY_DB"] ?? "dareflash_backup_verify";
 const FLOOR = Number(process.env["BACKUP_MIN_BYTES"] ?? "1024");
 const TIMEOUT_MS = Number(process.env["BACKUP_TIMEOUT_MS"] ?? String(30 * 60 * 1000));
-const DISK_FACTOR = Number(process.env["BACKUP_DISK_FACTOR"] ?? "5");
+// La COPIA RESTAURADA (InnoDB + indices) pesa MAS que el SQL plano; el .gz comprime 5-10x.
+// Estimamos el tamaño real de produccion (data+index) y exigimos ese tamaño x este margen
+// libre, para cubrir la copia restaurada + el .gz + el overhead de undo/redo del restore.
+const RESTORE_MARGIN = Number(process.env["BACKUP_RESTORE_MARGIN"] ?? "3");
 const DISK_MIN_BYTES = Number(process.env["BACKUP_DISK_MIN_BYTES"] ?? String(500 * 1024 * 1024));
 const LOCK_STALE_MS = Number(process.env["BACKUP_LOCK_STALE_MS"] ?? String(3 * 60 * 60 * 1000));
 const DUMP_BIN = process.env["MARIADB_DUMP_BIN"] ?? "mariadb-dump";
@@ -158,24 +164,54 @@ async function tablasDe(prisma: PrismaClient, schema: string): Promise<string[]>
   return filas.map((f) => f.t);
 }
 
+/** Conteo de filas de las tablas append-only clave (para cazar volcados vacios/incompletos). */
+async function contarClave(prisma: PrismaClient): Promise<Record<string, number>> {
+  const [user, walletLedger, pointsLedger] = await Promise.all([
+    prisma.user.count(),
+    prisma.walletLedger.count(),
+    prisma.pointsLedger.count(),
+  ]);
+  return { User: user, WalletLedger: walletLedger, PointsLedger: pointsLedger };
+}
+
 // --- Guardas de arranque (disco + lock) ---------------------------------------------
 
-function comprobarEspacio(): void {
+async function comprobarEspacio(prismaProd: PrismaClient): Promise<void> {
   const st = statfsSync(OUT_DIR);
   const libre = Number(st.bavail) * Number(st.bsize);
-  const previo = leerEstado(OUT_DIR).ultimoBuenoBytes ?? 0;
-  const necesario = previo > 0 ? previo * DISK_FACTOR : DISK_MIN_BYTES;
+  // El gran consumidor NO es el .gz sino la COPIA RESTAURADA en el volumen de datos de
+  // MariaDB. Preguntamos al SERVIDOR el tamaño real de produccion (data+index).
+  // OJO: statfs mide OUT_DIR; en un VPS de disco unico es el mismo volumen que los datos de
+  // MariaDB. Con volumenes separados, el operador debe garantizar espacio en el de datos.
+  const filas = (await prismaProd.$queryRawUnsafe(
+    `SELECT COALESCE(SUM(data_length + index_length), 0) AS bytes FROM information_schema.TABLES WHERE TABLE_SCHEMA = ?`,
+    DB,
+  )) as Array<{ bytes: number | bigint | string }>;
+  const tamProd = Number(filas[0]?.bytes ?? 0);
+  const necesario = tamProd * RESTORE_MARGIN + DISK_MIN_BYTES;
   if (libre < necesario) {
     fail(
-      `espacio insuficiente en ${OUT_DIR}: ${libre} B libres < ${necesario} B necesarios ` +
-        `(${DISK_FACTOR}x del ultimo bueno). Abortando para no llenar el disco de produccion.`,
+      `espacio insuficiente: ${libre} B libres en ${OUT_DIR} < ${necesario} B ` +
+        `(copia restaurada ~${tamProd} B x${RESTORE_MARGIN} + margen). ` +
+        `Abortando para no llenar el disco de produccion.`,
     );
   }
 }
 
+/** Lock ATOMICO por el sistema de ficheros (openSync 'wx'): existsSync+write tendria carrera. */
+function crearLock(lockPath: string): void {
+  const fd = openSync(lockPath, "wx"); // falla con EEXIST si ya existe
+  writeSync(fd, `${process.pid} ${new Date().toISOString()}\n`);
+  closeSync(fd);
+}
+
 function adquirirLock(): string {
   const lockPath = join(OUT_DIR, ".backup.lock");
-  if (existsSync(lockPath)) {
+  try {
+    crearLock(lockPath);
+    return lockPath;
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== "EEXIST") throw e;
     const edadMs = Date.now() - statSync(lockPath).mtimeMs;
     if (edadMs < LOCK_STALE_MS) {
       fail(`ya hay un respaldo en marcha (${lockPath}); abortando para no pisarlo.`);
@@ -183,9 +219,10 @@ function adquirirLock(): string {
     console.error(
       `[backup] AVISO: lock huerfano (${Math.round(edadMs / 60000)} min) -> lo tomo por caido.`,
     );
+    rmSync(lockPath, { force: true });
+    crearLock(lockPath); // reintento atomico
+    return lockPath;
   }
-  writeFileSync(lockPath, `${process.pid} ${new Date().toISOString()}\n`);
-  return lockPath;
 }
 
 // --- Volcado por flujo + sentinela --------------------------------------------------
@@ -258,12 +295,20 @@ async function main(): Promise<void> {
   if (VERIFY_DB === DB) fail("BACKUP_VERIFY_DB no puede ser la base de produccion.");
 
   mkdirSync(OUT_DIR, { recursive: true });
-  comprobarEspacio();
   const lockPath = adquirirLock();
+  const prismaProd = clientePrisma(DUMP_USER, DUMP_PASSWORD, DB); // solo lectura
+  let gzPath: string | undefined;
 
   try {
+    await comprobarEspacio(prismaProd);
+
+    // Conteos y tablas de produccion ANTES del volcado. Append-only: la restaurada no puede
+    // tener MENOS filas que produccion al volcar (aunque la viva crezca despues).
+    const conteosProd = await contarClave(prismaProd);
+    const tablasProd = await tablasDe(prismaProd, DB);
+
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const gzPath = join(OUT_DIR, `dareflash-${stamp}.sql.gz`);
+    gzPath = join(OUT_DIR, `dareflash-${stamp}.sql.gz`);
 
     // 1) DUMP + compresion por flujo.
     console.log(`[backup] Volcando '${DB}' desde ${HOST} (usuario de solo lectura)...`);
@@ -271,7 +316,6 @@ async function main(): Promise<void> {
 
     // 2) GUARDA sentinela sobre la cola del texto plano.
     if (!dumpPareceCompleto(colaPlano.toString("utf8"))) {
-      rmSync(gzPath, { force: true });
       fail("dump truncado: falta el sentinela '-- Dump completed' (posible corte a mitad).");
     }
 
@@ -283,7 +327,6 @@ async function main(): Promise<void> {
     );
 
     const prismaVerify = clientePrisma(VERIFY_USER, VERIFY_PASSWORD, VERIFY_DB);
-    const prismaProd = clientePrisma(DUMP_USER, DUMP_PASSWORD, DB); // solo lectura
     try {
       await restaurarEnVerify(gzPath);
 
@@ -291,43 +334,53 @@ async function main(): Promise<void> {
       const faltanSuelo = faltanTablasCriticas(restauradas);
       if (faltanSuelo.length) fail(`faltan tablas del suelo critico: ${faltanSuelo.join(", ")}`);
 
-      const enProduccion = await tablasDe(prismaProd, DB);
-      const faltanVsProd = faltanRespectoAProduccion(enProduccion, restauradas);
+      const faltanVsProd = faltanRespectoAProduccion(tablasProd, restauradas);
       if (faltanVsProd.length) {
         fail(
-          `la base restaurada NO tiene tablas que SI estan en produccion: ${faltanVsProd.join(", ")}`,
+          `la restaurada NO tiene tablas que SI estan en produccion: ${faltanVsProd.join(", ")}`,
         );
+      }
+
+      // Conteos: caza un volcado de SOLO ESTRUCTURA (tablas presentes pero 0 filas).
+      const conteosRest = await contarClave(prismaVerify);
+      const insuficientes = filasInsuficientes(conteosProd, conteosRest);
+      if (insuficientes.length) {
+        fail(`la restaurada tiene MENOS filas que produccion: ${insuficientes.join("; ")}`);
       }
 
       const canario = await validarCanarioEnBase(prismaVerify);
       if (!canario.ok) fail(`validacion del canario fallida: ${canario.motivos.join("; ")}`);
 
-      const usuarios = await prismaVerify.user.count();
       console.log(
-        `[backup] Validacion OK: ${restauradas.length} tablas (== produccion), ${usuarios} usuarios, canario integro.`,
+        `[backup] Validacion OK: ${restauradas.length} tablas (== produccion); ` +
+          `User=${conteosRest.User} WalletLedger=${conteosRest.WalletLedger} ` +
+          `PointsLedger=${conteosRest.PointsLedger} (>= produccion); canario integro.`,
       );
     } finally {
       await prismaVerify.$disconnect();
-      await prismaProd.$disconnect();
-      await sqlComoVerify(`DROP DATABASE IF EXISTS \`${VERIFY_DB}\`;`); // limpiar SIEMPRE la desechable
+      await sqlComoVerify(`DROP DATABASE IF EXISTS \`${VERIFY_DB}\`;`); // limpiar SIEMPRE
     }
 
     // 4) GUARDA de tamaño (vs el ultimo bueno, que persiste en OUT_DIR).
     const bytes = statSync(gzPath).size;
     const previo = leerEstado(OUT_DIR).ultimoBuenoBytes ?? 0;
     const t = evaluarTamano({ bytes, previoBytes: previo, sueloBytes: FLOOR });
-    if (t.sospechoso) {
-      rmSync(gzPath, { force: true });
+    if (t.sospechoso)
       fail(`dump comprimido sospechosamente pequeño: ${t.motivo}. NO se marca como bueno.`);
-    }
 
-    // 5) OK. (Siguiente parte: cifrar con age -> subir a B2 -> borrar el .gz local.)
+    // 5) OK. (Siguiente parte: cifrar con age -> subir a B2 -> borrar el .gz local + poda.)
     guardarEstado(OUT_DIR, { ultimoBuenoBytes: bytes, ultimoBueno: gzPath, fecha: stamp });
     console.log(`[backup] OK: ${gzPath} (${bytes} B). Previo bueno: ${previo} B.`);
     console.log(
       "[backup] PENDIENTE (siguiente parte): cifrado age -> subida a B2 -> borrado del .gz local.",
     );
+  } catch (e) {
+    // Cualquier fallo (codigo != 0, timeout, sentinela, validacion, tamaño) borra el .gz de
+    // ESTA ejecucion: nunca dejamos artefactos parciales que parezcan respaldos buenos.
+    if (gzPath && existsSync(gzPath)) rmSync(gzPath, { force: true });
+    throw e;
   } finally {
+    await prismaProd.$disconnect();
     rmSync(lockPath, { force: true });
   }
 }
