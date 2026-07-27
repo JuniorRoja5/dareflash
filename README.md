@@ -175,6 +175,41 @@ docker compose -f docker-compose.prod.yml run --rm \
 > La app corre como usuario **no-root** con `tini` como PID 1. Verificado end-to-end: la imagen
 > arranca, `argon2` funciona y `/api/health` devuelve `db:true` contra MariaDB.
 
+### Caddy (reverse proxy) — actualizar la configuración
+
+El Caddyfile vive en [`caddy/Caddyfile`](caddy/Caddyfile) y el compose monta el
+**directorio** `caddy/`, **no el fichero suelto**:
+
+```yaml
+- ./caddy:/etc/caddy:ro
+```
+
+**Por qué el directorio y no `./Caddyfile`.** Un bind-mount de un fichero ata el contenedor
+al **inodo** de ese fichero. `git pull` no edita en su sitio: escribe un temporal y lo
+renombra encima, así que el inodo cambia y el contenedor sigue sirviendo el contenido
+**viejo** — un `caddy reload` recarga el Caddyfile antiguo **sin dar error**, que es la peor
+forma de fallar. Nos costó dos verificaciones que salían vacías, y un despliegue podría
+haber quedado con el `header_up X-Real-IP` ausente y **el rate-limit por IP inservible**
+(sin esa cabecera todas las peticiones caen en un cubo compartido) sin que nadie se enterase.
+El inodo de un **directorio** no cambia con `git pull`, así que su contenido siempre se ve al
+día. **No revertir a montar el fichero suelto.**
+
+> ⚠️ **Cambio de este montaje = recrear el contenedor UNA vez.** Un contenedor creado con el
+> montaje antiguo (fichero) hay que recrearlo para que tome el nuevo (directorio):
+> `docker compose -f docker-compose.prod.yml up -d caddy`.
+
+A partir de ahí, para actualizar la config basta `git pull` + recarga en caliente (sin
+recrear ni cortar el servicio):
+
+```bash
+git pull
+docker compose -f docker-compose.prod.yml exec caddy caddy reload --config /etc/caddy/Caddyfile
+
+# Verificar que el contenedor ve la versión VIVA (no una congelada):
+docker compose -f docker-compose.prod.yml exec -T caddy cat /etc/caddy/Caddyfile | grep header_up
+# debe mostrar:  header_up X-Real-IP {remote_host}
+```
+
 ---
 
 ### Legado — Hostinger (hosting compartido, en migración)

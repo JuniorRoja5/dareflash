@@ -109,7 +109,13 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Se monta el DIRECTORIO caddy/, no el fichero suelto. Un bind-mount de un
+      # fichero ata el contenedor al INODO: `git pull` no edita en su sitio (escribe un
+      # temporal y lo renombra encima), asi que el inodo cambia y el contenedor se queda
+      # con el contenido VIEJO hasta recrearlo -> `caddy reload` recargaba el Caddyfile
+      # antiguo sin error. Montando el directorio (su inodo no cambia con pull), el
+      # contenido se ve siempre al dia y basta `caddy reload`. NO revertir a fichero suelto.
+      - ./caddy:/etc/caddy:ro
       - caddy_data:/data # certificados (persistente)
       - caddy_config:/config
     depends_on:
