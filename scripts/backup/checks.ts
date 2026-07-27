@@ -82,6 +82,10 @@ export function faltanRespectoAProduccion(
  * los ledgers nunca se borran), asi que la restaurada JAMAS puede tener menos filas que
  * las que produccion tenia al volcar. Por eso la condicion es "no menos", no igualdad: la
  * BD viva sigue creciendo entre el volcado y la comparacion.
+ *
+ * OJO al ampliar esta lista: SOLO tablas append-only. Una tabla con borrado REAL podria
+ * BAJAR de filas entre el conteo previo y la comparacion, y "no menos" dispararia falsos
+ * positivos cada noche. Para esos casos haria falta otra estrategia (p.ej. rango tolerado).
  */
 export const TABLAS_CON_FILAS = ["User", "WalletLedger", "PointsLedger"] as const;
 

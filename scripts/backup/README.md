@@ -1,5 +1,10 @@
 # Respaldos de MariaDB — Parte 1 (dump + validación local)
 
+> ⚠️ **ESTO TODAVÍA NO ES UN RESPALDO.** El `.gz` vive en el **mismo disco del mismo servidor**
+> que la base de datos: si el disco falla o alguien entra en la máquina, se pierde todo a la
+> vez. La Parte 1 **fabrica y valida** el artefacto; la que lo pone **a salvo** (cifrado +
+> subida fuera del VPS) es la **Parte 2**. Hasta entonces, seguimos sin red.
+
 Volcado consistente + validación real (restauración en base **desechable**, comparación de
 tablas contra producción, cuenta **canario**), con guardas de sentinela, tamaño, disco, lock
 y timeouts. **Aún no** cifra, sube a B2 ni se programa en systemd (partes siguientes).

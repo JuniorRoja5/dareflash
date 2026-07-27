@@ -220,7 +220,16 @@ function adquirirLock(): string {
       `[backup] AVISO: lock huerfano (${Math.round(edadMs / 60000)} min) -> lo tomo por caido.`,
     );
     rmSync(lockPath, { force: true });
-    crearLock(lockPath); // reintento atomico
+    try {
+      crearLock(lockPath); // reintento atomico
+    } catch (e2) {
+      // Carrera: dos procesos vieron el lock huerfano y ambos hicieron rmSync; el que pierde
+      // el 'wx' se lleva EEXIST. Es el caso exacto del lock: mensaje limpio, no error criptico.
+      if ((e2 as NodeJS.ErrnoException).code === "EEXIST") {
+        fail(`ya hay un respaldo en marcha (${lockPath}); abortando para no pisarlo.`);
+      }
+      throw e2;
+    }
     return lockPath;
   }
 }
