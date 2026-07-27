@@ -37,6 +37,9 @@ yarn-error.log*
 # Prisma: cliente generado (se regenera en cada install con `prisma generate`)
 /src/generated
 
+# Respaldos: los dumps y su estado NUNCA entran al repo (datos reales de usuarios)
+/backups/
+
 # DareFlash: documentacion local (NO sincroniza con el repo)
 /Documentacion NO GIT/
 /PROMPT_AGENTE*.md
