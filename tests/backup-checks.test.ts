@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   dumpPareceCompleto,
   evaluarTamano,
+  faltanRespectoAProduccion,
   faltanTablasCriticas,
   TABLAS_CRITICAS,
 } from "../scripts/backup/checks";
@@ -34,9 +35,33 @@ describe("guardas del respaldo (puras)", () => {
     );
   });
 
-  it("tablas criticas: detecta las que faltan", () => {
+  it("suelo critico: detecta las que faltan, e incluye _prisma_migrations", () => {
     expect(faltanTablasCriticas([...TABLAS_CRITICAS])).toEqual([]);
     expect(faltanTablasCriticas(["User", "Session"])).toContain("WalletLedger");
     expect(faltanTablasCriticas([])).toEqual([...TABLAS_CRITICAS]);
+    // Sin _prisma_migrations un `migrate deploy` sobre la restaurada reaplicaria todo.
+    expect(TABLAS_CRITICAS).toContain("_prisma_migrations");
+    expect(
+      faltanTablasCriticas([
+        "User",
+        "Session",
+        "WalletLedger",
+        "PointsLedger",
+        "BoostLedger",
+        "Job",
+        "VerificationToken",
+      ]),
+    ).toEqual(["_prisma_migrations"]);
+  });
+
+  it("comparacion FUERTE contra produccion: falla si a la restaurada le falta una tabla viva", () => {
+    const produccion = ["User", "Session", "Challenge", "Vote"];
+    expect(faltanRespectoAProduccion(produccion, produccion)).toEqual([]);
+    // A la restaurada le falta 'Vote' que SI existe en produccion -> se detecta.
+    expect(faltanRespectoAProduccion(produccion, ["User", "Session", "Challenge"])).toEqual([
+      "Vote",
+    ]);
+    // Que la restaurada tenga tablas de mas (la desechable) no es problema.
+    expect(faltanRespectoAProduccion(produccion, [...produccion, "extra"])).toEqual([]);
   });
 });

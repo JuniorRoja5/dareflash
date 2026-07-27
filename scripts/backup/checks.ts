@@ -39,11 +39,14 @@ export function evaluarTamano(e: EntradaTamano): ResultadoTamano {
 }
 
 /**
- * Tablas que DEBEN existir en una base restaurada valida. Si falta alguna, la restauracion
- * no sirve (esquema incompleto). Incluye las de dinero y las de auth, que son las que no
- * podemos permitirnos perder.
+ * SUELO MINIMO de tablas que deben existir en una base restaurada valida. Es solo un
+ * suelo: la comprobacion FUERTE es comparar contra el conjunto real de produccion
+ * (faltanRespectoAProduccion), que se mantiene solo al crecer el esquema. Incluye las de
+ * dinero, las de auth y `_prisma_migrations` (sin ella, un `migrate deploy` sobre la base
+ * restaurada intentaria reaplicar TODAS las migraciones).
  */
 export const TABLAS_CRITICAS = [
+  "_prisma_migrations",
   "User",
   "Session",
   "VerificationToken",
@@ -53,8 +56,21 @@ export const TABLAS_CRITICAS = [
   "Job",
 ] as const;
 
-/** Devuelve las tablas criticas que FALTAN entre las presentes (vacio = todas estan). */
+/** Tablas del suelo minimo que FALTAN entre las presentes (vacio = todas estan). */
 export function faltanTablasCriticas(presentes: readonly string[]): string[] {
   const set = new Set(presentes);
   return TABLAS_CRITICAS.filter((t) => !set.has(t));
+}
+
+/**
+ * Comprobacion FUERTE (se mantiene sola): tablas que existen en PRODUCCION pero NO en la
+ * base restaurada. Si hay alguna, la restauracion esta incompleta. Al crecer el esquema no
+ * hay que tocar ninguna lista: se compara el conjunto vivo contra el restaurado.
+ */
+export function faltanRespectoAProduccion(
+  produccion: readonly string[],
+  restauradas: readonly string[],
+): string[] {
+  const set = new Set(restauradas);
+  return produccion.filter((t) => !set.has(t)).sort();
 }
