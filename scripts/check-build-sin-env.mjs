@@ -2,34 +2,43 @@
  * TEST DE REGRESION: `next build` debe seguir compilando SIN ninguna variable
  * de entorno configurada.
  *
- * Por que existe: Hostinger compila SIN ninguna variable configurada. Si el
- * build empezara a exigirlas, el despliegue se caeria.
+ * Por que existe: Docker (y antes Hostinger) compilan SIN ninguna variable configurada.
+ * Si el build empezara a exigirlas, el despliegue se caeria. Ese es EXACTAMENTE el fallo
+ * que dejo `next build` local en verde mientras el build de Docker reventaba.
  *
- * Comprobado empiricamente en Next 16.2.11: lo que mantiene el build en verde
- * es que Next **no ejecuta `instrumentation.register()` durante `next build`**.
- * Eso es comportamiento suyo, no un contrato que hayamos fijado nosotros: si una
- * version futura lo cambiara, la validacion de entorno correria al compilar y
- * tumbaria el despliegue. La guarda `PHASE_PRODUCTION_BUILD` de
- * `src/config/startup.ts` cubre parte de ese caso, pero depende de una variable
- * interna de Next (`NEXT_PHASE`, localizada inspeccionando su codigo fuente),
- * no de una API publica.
+ * OJO — por que no basta con borrar variables de `process.env`: `next build` **carga el
+ * fichero `.env` del disco por su cuenta** (dotenv integrado). Si solo limpiaramos
+ * `process.env`, Next volveria a poblar las variables desde `.env` y el test no
+ * comprobaria nada (justo lo que pasaba). Por eso APARTAMOS los ficheros `.env*` durante
+ * el build y los restauramos SIEMPRE al terminar.
  *
- * Este test vigila la propiedad de verdad — "el build compila sin variables" —
- * en vez del mecanismo concreto, para que un cambio de Next lo cace el CI y no
- * produccion.
+ * Comprobado empiricamente en Next 16.2.11: lo que mantiene el build en verde es que Next
+ * **no ejecuta `instrumentation.register()` durante `next build`**. Es comportamiento
+ * suyo, no un contrato nuestro; este test vigila la propiedad de verdad —"el build
+ * compila sin variables"— para que un cambio de Next lo cace el CI y no produccion.
  *
  * Uso: npm run test:build-sin-env
  */
 import { spawnSync } from "node:child_process";
+import { existsSync, renameSync } from "node:fs";
+import { join } from "node:path";
 
-// Variables de la app que hay que quitar para simular el entorno de Hostinger,
-// donde el build corre sin ninguna configurada.
+// Ficheros que Next carga automaticamente. Se apartan para replicar el entorno de Docker.
+const ENV_FILES = [
+  ".env",
+  ".env.local",
+  ".env.development",
+  ".env.development.local",
+  ".env.production",
+  ".env.production.local",
+];
+
+// Variables de la app que ademas se quitan de process.env (por si en CI vienen del
+// entorno, no de un fichero). Debe reflejar el esquema de src/config/env.ts.
 const VARIABLES_DE_LA_APP = [
   "APP_URL",
   "DATABASE_URL",
   "AUTH_SECRET",
-  "AUTH_GOOGLE_ID",
-  "AUTH_GOOGLE_SECRET",
   "CRON_SECRET",
   "BUNNY_STREAM_LIBRARY_ID",
   "BUNNY_STREAM_API_KEY",
@@ -37,41 +46,83 @@ const VARIABLES_DE_LA_APP = [
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
   "EMAIL_FROM",
-  "EMAIL_API_KEY",
+  "SMTP_HOST",
+  "SMTP_PORT",
+  "SMTP_USER",
+  "SMTP_PASSWORD",
   "SENTRY_DSN",
 ];
 
-const entorno = { ...process.env };
-for (const clave of VARIABLES_DE_LA_APP) delete entorno[clave];
+const root = process.cwd();
+const SUFIJO = ".bak-sin-env";
+const apartados = [];
 
-console.log("[test] Ejecutando `next build` sin variables de entorno de la app...");
+function apartarEnvFiles() {
+  for (const nombre of ENV_FILES) {
+    const ruta = join(root, nombre);
+    if (existsSync(ruta)) {
+      const backup = ruta + SUFIJO;
+      renameSync(ruta, backup);
+      apartados.push([ruta, backup]);
+    }
+  }
+}
 
-const resultado = spawnSync("npx", ["next", "build"], {
-  env: entorno,
-  stdio: "pipe",
-  shell: true,
-  encoding: "utf8",
-});
+function restaurarEnvFiles() {
+  while (apartados.length > 0) {
+    const [ruta, backup] = apartados.pop();
+    try {
+      if (existsSync(backup)) renameSync(backup, ruta);
+    } catch (e) {
+      console.error(`[test] AVISO: no pude restaurar ${ruta} desde ${backup}: ${e.message}`);
+    }
+  }
+}
 
-const salida = `${resultado.stdout ?? ""}${resultado.stderr ?? ""}`;
+// Restaurar tambien si nos interrumpen (Ctrl-C / kill): perder el .env del usuario seria grave.
+for (const sig of ["SIGINT", "SIGTERM"]) {
+  process.on(sig, () => {
+    restaurarEnvFiles();
+    process.exit(1);
+  });
+}
 
-if (resultado.status !== 0) {
+let status = 1;
+let salida = "";
+try {
+  apartarEnvFiles();
+
+  const entorno = { ...process.env };
+  for (const clave of VARIABLES_DE_LA_APP) delete entorno[clave];
+
+  console.log("[test] Ejecutando `next build` sin variables ni ficheros .env...");
+  const resultado = spawnSync("npx", ["next", "build"], {
+    env: entorno,
+    stdio: "pipe",
+    shell: true,
+    encoding: "utf8",
+  });
+  status = resultado.status;
+  salida = `${resultado.stdout ?? ""}${resultado.stderr ?? ""}`;
+} finally {
+  restaurarEnvFiles(); // SIEMPRE, aunque el build lance
+}
+
+if (status !== 0) {
   console.error(salida);
   console.error(
     [
       "",
       "[test] FALLO: el build NO compila sin variables de entorno.",
-      "Hostinger compila sin ninguna variable configurada, asi que esto tumbaria",
+      "Docker compila sin ninguna variable configurada, asi que esto tumbaria",
       "el despliegue. Dos causas posibles, por orden de probabilidad:",
       "",
-      "  1) ALGUIEN LEE `env` DONDE NO DEBE (lo mas frecuente).",
-      "     `env` valida de forma perezosa al acceder a una propiedad. Si se lee",
-      "     en AMBITO DE MODULO de una pagina/layout, o en un componente que se",
-      "     prerenderiza, se evalua durante `next build` -> excepcion.",
+      "  1) ALGUIEN LEE `env` (o construye algo que lo lee, p.ej. el cliente Prisma)",
+      "     EN AMBITO DE MODULO de una cadena que Next evalua en el build.",
       "     Mira arriba el `Failed to collect page data for /<ruta>`: esa es la ruta.",
-      "     Solucion: leer `env` solo dentro del ambito de la peticion (route",
-      "     handlers, server actions, servicios), o marcar la ruta como dinamica",
-      "     de forma explicita y consciente. Ver la regla en src/config/env.ts.",
+      "     Solucion: leer `env` / importar `prisma` solo dentro del ambito de la",
+      "     peticion (route handlers, server actions, servicios), o con `await import()`.",
+      "     Ver la regla en src/config/env.ts y el Proxy perezoso en src/server/db/client.ts.",
       "",
       "  2) Next ha cambiado su comportamiento y ahora ejecuta",
       "     `instrumentation.register()` durante el build sin marcar NEXT_PHASE.",
@@ -82,8 +133,7 @@ if (resultado.status !== 0) {
   process.exit(1);
 }
 
-// El build puede acabar en verde y aun asi contener un archivo con error
-// (paso de verdad con `process.exit` en el runtime Edge).
+// El build puede acabar en verde y aun asi contener un archivo con error.
 if (salida.includes("Ecmascript file had an error")) {
   console.error(salida);
   console.error("\n[test] FALLO: el build compila pero contiene un archivo con error.\n");
