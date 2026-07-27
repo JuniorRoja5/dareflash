@@ -9,36 +9,16 @@ import { NextResponse } from "next/server";
 
 import { deriveKey } from "@/server/auth/keys";
 
+import { normalizeIp } from "./ip";
+
+export { normalizeIp };
+
 export function apiError(code: string, message: string, status: number): NextResponse {
   return NextResponse.json({ error: { code, message } }, { status });
 }
 
 export function apiOk<T extends Record<string, unknown>>(body: T, status = 200): NextResponse {
   return NextResponse.json(body, { status });
-}
-
-/**
- * Normaliza una IP para agrupar el rate-limit:
- *  - IPv4: tal cual.
- *  - IPv6: truncada al prefijo /64. A un usuario domestico se le asigna un /64
- *    entero (2^64 direcciones); sin truncar, cada peticion podria usar una IP
- *    distinta y el rate-limit por IP no existiria para quien tenga IPv6.
- */
-export function normalizeIp(ip: string): string {
-  if (!ip.includes(":")) return ip; // IPv4
-  // IPv6: quedarnos con los primeros 4 hextetos (/64). Expandir "::" primero.
-  const zoneless = ip.split("%")[0] ?? ip;
-  const parts = zoneless.split("::");
-  let head: string[];
-  if (parts.length === 2) {
-    const left = parts[0] ? parts[0].split(":") : [];
-    const right = parts[1] ? parts[1].split(":") : [];
-    const missing = 8 - left.length - right.length;
-    head = [...left, ...Array(Math.max(0, missing)).fill("0"), ...right];
-  } else {
-    head = zoneless.split(":");
-  }
-  return head.slice(0, 4).join(":") + "::/64";
 }
 
 /**
