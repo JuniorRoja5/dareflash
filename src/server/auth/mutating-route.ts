@@ -18,7 +18,6 @@ import "server-only";
 
 import { apiError, originAllowed } from "@/server/http/api";
 
-import { getCurrentUser } from "./current-user";
 import { verifyCsrfToken } from "./csrf";
 import type { SessionUser } from "./session";
 
@@ -42,7 +41,12 @@ export function mutatingRoute<C = unknown>(
   handler: MutatingHandler<C>,
 ): (req: Request, routeContext: C) => Promise<Response> {
   return async (req: Request, routeContext: C): Promise<Response> => {
+    // Imports DINAMICOS (dentro del handler, nunca en ambito de modulo): getCurrentUser
+    // arrastra el singleton de Prisma; cargarlo de forma estatica evaluaria esa cadena en
+    // `next build` (recogida de datos de pagina) donde no hay variables -> build caido.
+    // (Prisma ya es perezoso, pero se mantiene el import dinamico como defensa en capas.)
     const { env } = await import("@/config/env");
+    const { getCurrentUser } = await import("./current-user");
 
     if (!originAllowed(req, env.APP_URL)) {
       return apiError("BAD_ORIGIN", "Origen no permitido.", 403);
