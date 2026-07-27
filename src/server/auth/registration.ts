@@ -12,8 +12,9 @@
  *     hashear siempre esta acotado por REGISTER_PER_IP.
  *  2. CARRERA: no hay `findUnique`-luego-`create` (dos peticiones simultaneas con el
  *     mismo email nuevo colarian ambas y una reventaria con un 500). Insertamos directo
- *     y la restriccion UNIQUE de `email` decide; si choca (P2002 = ya existe, o carrera)
- *     lo tratamos como el mismo no-op silencioso.
+ *     y la restriccion UNIQUE de `email` decide; si choca en EMAIL (P2002 = ya existe, o
+ *     carrera) es el no-op silencioso. Un P2002 en OTRA constraint unica se relanza (ver
+ *     `esViolacionUnicaDeEmail`): no ocultar un fallo real tras "te enviamos un correo".
  *
  * Recibe el PrismaClient por parametro (testeable).
  */
@@ -23,8 +24,36 @@ import { requestEmailVerification } from "@/server/services/email-verification";
 
 import { hashPassword } from "./password";
 
-function esEmailYaRegistrado(e: unknown): boolean {
-  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
+/**
+ * Identificador de la constraint UNICA violada en un P2002, como texto donde buscar
+ * "email". Contempla DOS formas de `meta` porque dependen del driver:
+ *  - Driver adapter de MariaDB (el que usamos): el nombre del indice esta en
+ *    `meta.driverAdapterError.cause.constraint.index` (p.ej. "User_email_key"). AQUI
+ *    NO existe `meta.target`.
+ *  - Forma clasica de Prisma (por si cambia el adapter o en otro driver): `meta.target`
+ *    puede ser string o string[].
+ */
+export function objetivoDeViolacionUnica(e: Prisma.PrismaClientKnownRequestError): string {
+  const meta = e.meta as Record<string, unknown> | undefined;
+  if (!meta) return "";
+  const target = meta["target"];
+  if (typeof target === "string") return target;
+  if (Array.isArray(target)) return target.join(",");
+  const dae = meta["driverAdapterError"] as
+    { cause?: { constraint?: { index?: unknown } } } | undefined;
+  const index = dae?.cause?.constraint?.index;
+  return typeof index === "string" ? index : "";
+}
+
+/**
+ * ¿Es un P2002 causado por la constraint UNICA de `email`? SOLO ese caso es el no-op
+ * silencioso del registro. User tiene otra columna unica (username, hoy NULL en el
+ * alta); si algun dia el alta viola OTRA constraint unica, NO debe tragarse en silencio
+ * (el usuario veria "te hemos enviado un correo" sin que exista cuenta): se relanza.
+ */
+export function esViolacionUnicaDeEmail(e: unknown): boolean {
+  if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") return false;
+  return /email/i.test(objetivoDeViolacionUnica(e));
 }
 
 export async function registerUser(
@@ -50,7 +79,9 @@ export async function registerUser(
       },
     });
   } catch (e) {
-    if (esEmailYaRegistrado(e)) return; // no-op: no revelar que la direccion ya tiene cuenta
+    // SOLO el choque en `email` es el no-op silencioso; cualquier otra constraint unica
+    // se relanza (no ocultar un fallo real detras de "te hemos enviado un correo").
+    if (esViolacionUnicaDeEmail(e)) return;
     throw e;
   }
 

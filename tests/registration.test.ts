@@ -2,11 +2,30 @@ import { performance } from "node:perf_hooks";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { Prisma } from "../src/generated/prisma/client";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/server/auth/password";
-import { registerUser } from "../src/server/auth/registration";
+import { esViolacionUnicaDeEmail, registerUser } from "../src/server/auth/registration";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
+
+/** P2002 con la forma del driver adapter de MariaDB (nombre de indice en constraint.index). */
+function p2002Adapter(index: string): Prisma.PrismaClientKnownRequestError {
+  return new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+    code: "P2002",
+    clientVersion: "test",
+    meta: { driverAdapterError: { cause: { constraint: { index } } } },
+  });
+}
+
+/** P2002 con la forma clasica de Prisma (`meta.target`). */
+function p2002Clasico(target: string | string[]): Prisma.PrismaClientKnownRequestError {
+  return new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+    code: "P2002",
+    clientVersion: "test",
+    meta: { target },
+  });
+}
 
 let prisma: PrismaClient;
 
@@ -118,5 +137,42 @@ describe("registro: sin oraculo por tiempo ni carrera", () => {
     expect(results.every((r) => r.status === "fulfilled")).toBe(true);
     // Y solo hay UN usuario con ese email.
     expect(await prisma.user.count({ where: { email } })).toBe(1);
+  });
+});
+
+describe("registro: el no-op silencioso SOLO cubre la constraint de email", () => {
+  it("reconoce el P2002 de email en la forma del adapter y en la clasica (string y array)", () => {
+    expect(esViolacionUnicaDeEmail(p2002Adapter("User_email_key"))).toBe(true);
+    expect(esViolacionUnicaDeEmail(p2002Clasico("User_email_key"))).toBe(true);
+    expect(esViolacionUnicaDeEmail(p2002Clasico(["email"]))).toBe(true);
+  });
+
+  it("NO reconoce el P2002 de OTRA columna unica (username) ni errores que no son P2002", () => {
+    expect(esViolacionUnicaDeEmail(p2002Adapter("User_username_key"))).toBe(false);
+    expect(esViolacionUnicaDeEmail(p2002Clasico(["username"]))).toBe(false);
+    expect(esViolacionUnicaDeEmail(new Error("otro fallo"))).toBe(false);
+  });
+
+  it("registerUser: el P2002 de email es no-op; el de OTRA columna se PROPAGA (no 'te enviamos un correo' en falso)", async () => {
+    const input = {
+      email: "x@test.com",
+      password: PASS,
+      birthDate: BIRTH,
+      appUrl: "https://x.test",
+    };
+
+    // Choque en email -> no-op silencioso (resuelve sin lanzar).
+    const dbEmail = {
+      user: { create: async () => Promise.reject(p2002Adapter("User_email_key")) },
+    } as unknown as PrismaClient;
+    await expect(registerUser(dbEmail, input)).resolves.toBeUndefined();
+
+    // Choque en username (u otra unica futura) -> se relanza, NO se oculta.
+    const dbUsername = {
+      user: { create: async () => Promise.reject(p2002Adapter("User_username_key")) },
+    } as unknown as PrismaClient;
+    await expect(registerUser(dbUsername, input)).rejects.toBeInstanceOf(
+      Prisma.PrismaClientKnownRequestError,
+    );
   });
 });
