@@ -22,10 +22,26 @@ import { getCurrentUser } from "./current-user";
 import { verifyCsrfToken } from "./csrf";
 import type { SessionUser } from "./session";
 
-type MutatingHandler = (req: Request, ctx: { user: SessionUser }) => Promise<Response>;
+/**
+ * Handler protegido. Recibe TRES argumentos:
+ *  - `req`: la peticion.
+ *  - `{ user }`: el usuario ya resuelto por el envoltorio.
+ *  - `routeContext`: el 2o argumento que Next pasa a la ruta, INTACTO. En una ruta
+ *    dinamica (`/api/x/[id]/route.ts`) es `{ params: Promise<{ id: string }> }`; sin
+ *    propagarlo, una ruta dinamica no podria leer sus params y alguien la sacaria del
+ *    envoltorio "para que funcione", perdiendo la proteccion. Es generico en `C` para
+ *    conservar el tipo de los params de cada ruta.
+ */
+type MutatingHandler<C> = (
+  req: Request,
+  ctx: { user: SessionUser },
+  routeContext: C,
+) => Promise<Response>;
 
-export function mutatingRoute(handler: MutatingHandler): (req: Request) => Promise<Response> {
-  return async (req: Request): Promise<Response> => {
+export function mutatingRoute<C = unknown>(
+  handler: MutatingHandler<C>,
+): (req: Request, routeContext: C) => Promise<Response> {
+  return async (req: Request, routeContext: C): Promise<Response> => {
     const { env } = await import("@/config/env");
 
     if (!originAllowed(req, env.APP_URL)) {
@@ -40,6 +56,6 @@ export function mutatingRoute(handler: MutatingHandler): (req: Request) => Promi
       return apiError("CSRF", "Token CSRF invalido o ausente.", 403);
     }
 
-    return handler(req, { user });
+    return handler(req, { user }, routeContext);
   };
 }
