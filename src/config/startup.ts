@@ -22,6 +22,8 @@ export async function validateEnvOnStartup(): Promise<void> {
   const { validateEnv, EnvValidationError } = await import("@/config/env");
 
   try {
+    // AUTH_SECRET ya es OBLIGATORIA en el esquema (clave HMAC de CSRF y del hash de
+    // IP del rate-limit): si falta, `validateEnv` falla y el proceso no arranca.
     validateEnv();
   } catch (error) {
     if (error instanceof EnvValidationError) {

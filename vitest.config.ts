@@ -4,9 +4,11 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
-    // Mismo alias que tsconfig: `@/*` -> `src/*`.
     alias: {
+      // Mismo alias que tsconfig: `@/*` -> `src/*`.
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // `server-only` no existe fuera de RSC: en tests se aliasa a un stub vacio.
+      "server-only": fileURLToPath(new URL("./tests/stubs/server-only.ts", import.meta.url)),
     },
   },
   test: {

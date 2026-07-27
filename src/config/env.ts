@@ -57,11 +57,15 @@ const serverSchema = z.object({
     .string()
     .min(1, "DATABASE_URL es obligatoria: cadena de conexion de MySQL/MariaDB"),
 
+  /**
+   * Paso 6 — secreto de servidor. OBLIGATORIO: se usa como clave HMAC del token CSRF
+   * (acciones con efectos) Y del hash de IP del rate-limit. Sin el, ni el rate-limit
+   * anonimiza la IP ni se puede proteger CSRF. `openssl rand -hex 32` (hex, sin `=`).
+   * NO hay Google OAuth: registro solo email + contrasena.
+   */
+  AUTH_SECRET: z.string().min(32, "AUTH_SECRET es obligatoria (>=32 chars; openssl rand -hex 32)"),
+
   // --- Se promueven a obligatorias en su paso (ver comentario de cada una) ---
-  /** Paso 6 — autenticacion. */
-  AUTH_SECRET: z.string().min(1).optional(),
-  AUTH_GOOGLE_ID: z.string().min(1).optional(),
-  AUTH_GOOGLE_SECRET: z.string().min(1).optional(),
   /** Paso 8 — cola de trabajos disparada por cron. */
   CRON_SECRET: z.string().min(1).optional(),
   /** Paso 9 — Bunny.net (video) y Stripe (pagos). */
@@ -70,9 +74,15 @@ const serverSchema = z.object({
   BUNNY_CDN_HOSTNAME: z.string().min(1).optional(),
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
-  /** Email transaccional. */
+  /**
+   * Email por SMTP del servidor de correo de Hostinger (Paso 6). El envio pasa por
+   * la cola. Se promueven a obligatorias cuando se conecte el envio real.
+   */
   EMAIL_FROM: z.email().optional(),
-  EMAIL_API_KEY: z.string().min(1).optional(),
+  SMTP_HOST: z.string().min(1).optional(),
+  SMTP_PORT: z.coerce.number().int().positive().optional(),
+  SMTP_USER: z.string().min(1).optional(),
+  SMTP_PASSWORD: z.string().min(1).optional(),
   /** Observabilidad. */
   SENTRY_DSN: z.url().optional(),
 });
