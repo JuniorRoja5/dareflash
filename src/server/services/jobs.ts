@@ -24,6 +24,8 @@ export interface ClaimJobsInput {
   limit: number;
   /** "ahora" en UTC (inyectable para tests). Por defecto, el reloj del servidor. */
   now?: Date;
+  /** Filtrar por tipo de job (p.ej. "SEND_EMAIL"). Sin filtro, reclama cualquiera. */
+  type?: string;
 }
 
 /**
@@ -41,12 +43,14 @@ export async function claimJobs(db: PrismaClient, input: ClaimJobsInput): Promis
     throw new Error(`claimJobs: limit invalido (${input.limit}).`);
   }
 
+  const typeFilter = input.type ? Prisma.sql`AND \`type\` = ${input.type}` : Prisma.empty;
+
   return db.$transaction(async (tx) => {
     await tx.$executeRaw(
       Prisma.sql`
         UPDATE \`Job\`
         SET \`status\` = 'RUNNING', \`lockedBy\` = ${workerToken}, \`lockedAt\` = ${now}
-        WHERE \`status\` = 'PENDING' AND \`runAt\` <= ${now}
+        WHERE \`status\` = 'PENDING' AND \`runAt\` <= ${now} ${typeFilter}
         ORDER BY \`runAt\` ASC
         LIMIT ${Prisma.raw(String(limit))}
       `,
