@@ -45,14 +45,14 @@ import { z } from "zod";
  *
  * Solo se marca obligatorio lo que la fase actual usa de verdad. El esquema
  * crece con el proyecto: cada paso que introduzca una variable la promueve a
- * obligatoria y la anade en hPanel en ese mismo paso. Marcar algo como
- * obligatorio antes de tiempo tumbaria el sitio ya desplegado sin motivo.
+ * obligatoria y la anade al fichero de entorno del VPS en ese mismo paso. Marcar
+ * algo como obligatorio antes de tiempo tumbaria el sitio ya desplegado sin motivo.
  */
 const serverSchema = z.object({
   // --- Obligatorias HOY ---
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_URL: z.url("APP_URL debe ser una URL absoluta, p.ej. https://dareflash.com"),
-  /** Paso 4 — base de datos. Ya configurada en hPanel (confirmado por el propietario). */
+  /** Paso 4 — base de datos. Ya configurada en el VPS (confirmado por el propietario). */
   DATABASE_URL: z
     .string()
     .min(1, "DATABASE_URL es obligatoria: cadena de conexion de MySQL/MariaDB"),
@@ -147,7 +147,7 @@ export function validateEnv(): Env {
         detalle,
         "",
         "Define esas variables en tu `.env` local (plantilla en `.env.example`)",
-        "o, en produccion, en el panel de variables de entorno de hPanel.",
+        "o, en produccion, en el fichero de entorno del VPS (~/dareflash-config/.env).",
       ].join("\n"),
     );
   }

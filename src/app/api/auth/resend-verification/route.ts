@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { requestEmailVerification } = await import("@/server/services/email-verification");
 
-  const schema = z.object({ email: z.string().trim().toLowerCase().email().max(254) });
+  const schema = z.object({ email: z.string().trim().toLowerCase().pipe(z.email().max(254)) });
   let body: unknown;
   try {
     body = await req.json();

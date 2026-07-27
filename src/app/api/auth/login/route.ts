@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   const { setSessionCookie } = await import("@/server/auth/current-user");
 
   const schema = z.object({
-    email: z.string().trim().toLowerCase().email().max(254),
+    email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
     password: z.string().min(1).max(200), // .max evita CPU (Argon2 pre-hashea lineal al tamano)
   });
   let body: unknown;
