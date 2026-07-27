@@ -1,0 +1,7 @@
+set -e
+
+# El build DEBE compilar SIN variables de entorno: asi lo construye Docker (y antes
+# Hostinger). Este check aparta los .env* y corre `next build` en limpio. Va en pre-PUSH,
+# no en pre-commit (tarda demasiado para cada commit); asi un push que rompa el build de
+# produccion no llega al servidor.
+npm run test:build-sin-env

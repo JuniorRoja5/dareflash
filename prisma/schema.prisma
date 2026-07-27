@@ -147,13 +147,15 @@ model Account {
 
 model Session {
   id           String   @id @default(cuid())
-  sessionToken String   @unique
+  sessionToken String   @unique // aqui va el HASH SHA-256 del token, no el token
   userId       String
   expires      DateTime
+  createdAt    DateTime @default(now()) // para el tope por usuario (borrar la mas antigua) y "ultima sesion"
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([userId, createdAt]) // tope por usuario, ordenado por antiguedad
+  @@index([expires]) // purga de caducadas (purgeExpiredSessions) sin recorrer la tabla
 }
 
 model VerificationToken {

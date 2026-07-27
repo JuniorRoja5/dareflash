@@ -7,19 +7,23 @@ import { env } from "@/config/env";
 import { PrismaClient } from "@/generated/prisma/client";
 
 /**
- * Cliente Prisma como SINGLETON (patron globalThis).
+ * Cliente Prisma como SINGLETON (patron globalThis) y PEREZOSO (patron Proxy, igual
+ * que `env`).
  *
- * Por que singleton: en desarrollo, el hot-reload de Next reevalua los modulos
- * en cada cambio. Sin este patron se crearia un PrismaClient nuevo (y un pool
- * nuevo) en cada recarga, agotando el limite de conexiones del plan compartido.
- * Guardando la instancia en `globalThis`, todas las recargas reutilizan la misma.
+ * Por que perezoso: importar este modulo NO debe construir nada ni leer `env`. El
+ * cliente (y con el la lectura de `env.DATABASE_URL`) se crea en el PRIMER acceso real a
+ * una propiedad de `prisma`, que siempre ocurre por peticion. Asi, aunque alguien importe
+ * `prisma` de forma ESTATICA desde una cadena que Next evalua en `next build` (recogida de
+ * datos de pagina), no se lee ninguna variable y el build no revienta. Esto elimina una
+ * clase entera de fallo: antes bastaba un import estatico nuevo para tumbar el despliegue
+ * (Hostinger/Docker compilan sin variables). `npm run test:build-sin-env` lo vigila.
  *
- * REGLA DE ACCESO (ver src/config/env.ts): este modulo lee `env.DATABASE_URL` y
- * es `server-only`. Solo debe importarse desde codigo de servidor que corre POR
- * PETICION (route handlers, server actions, servicios de `src/server/**`), nunca
- * en el ambito de modulo de algo bajo `src/app/**` que se prerenderice: se
- * evaluaria durante `next build`, donde Hostinger no tiene variables.
- * `npm run test:build-sin-env` vigila que no ocurra.
+ * Por que singleton: en desarrollo el hot-reload de Next reevalua los modulos; sin cachear
+ * en `globalThis` se crearia un PrismaClient (y un pool) nuevo en cada recarga, agotando el
+ * limite de conexiones. Se cachea SIEMPRE en global (tambien en produccion): garantiza un
+ * unico cliente por proceso aun con imports perezosos desde varios sitios, y en produccion
+ * no hay hot-reload, asi que el global no crece. No se lee `env.NODE_ENV` en ambito de
+ * modulo (seria una lectura de `env` al importar, justo lo que evitamos).
  */
 function createPrismaClient(): PrismaClient {
   const url = new URL(env.DATABASE_URL);
@@ -45,10 +49,33 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-export const prisma: PrismaClient = globalForPrisma.prisma ?? createPrismaClient();
-
-// Solo se cachea en global fuera de produccion: en produccion cada instancia
-// del servidor crea su cliente una vez y no hay hot-reload.
-if (env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+/** Devuelve el singleton, creandolo PEREZOSAMENTE la primera vez (nunca al importar). */
+function getPrisma(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient();
+  }
+  return globalForPrisma.prisma;
 }
+
+/**
+ * `prisma` es un Proxy: acceder a cualquier propiedad materializa el cliente real. Los
+ * metodos se enlazan al cliente para no perder el `this`; los delegados de modelo
+ * (`prisma.user`, ...) se devuelven tal cual (ya llevan su cliente dentro).
+ */
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, prop) {
+    const client = getPrisma();
+    // Reflect.get SIN receiver a proposito: pasar el Proxy como receiver haria que el
+    // `this` de un getter fuese el Proxy en vez del cliente real, y si el cliente generado
+    // de Prisma 7 usa campos privados en algun getter lanzaria "Cannot read private member"
+    // -> en la PRIMERA peticion que toque la BD, no en el build. Con el cliente real como
+    // receptor, los getters ven su `this` correcto.
+    const value = Reflect.get(client, prop);
+    return typeof value === "function"
+      ? (value as (...a: unknown[]) => unknown).bind(client)
+      : value;
+  },
+  has(_target, prop) {
+    return prop in getPrisma();
+  },
+});
