@@ -6,10 +6,10 @@
 dareflash.com {
 	reverse_proxy web:3000 {
 		# Rate-limit por IP: la app confia SOLO en X-Real-IP (ver src/server/http/api.ts).
-		# 1) Borrar cualquier X-Real-IP que mande el CLIENTE. NO quitar esta linea: sin
-		#    ella, un valor forjado por el cliente podria colarse y saltarse el rate-limit.
-		header_up -X-Real-IP
-		# 2) Fijar la IP de conexion REAL que ve Caddy. Con valor, header_up SOBREESCRIBE.
+		# header_up con valor hace Set, que REEMPLAZA lo que mande el cliente (defensa
+		# contra cabecera forjada). NO anadir "header_up -X-Real-IP": Caddy ejecuta los
+		# delete DESPUES de los set, asi que borraria esta misma cabecera y la app se
+		# quedaria sin IP (clientIp() devolveria "unknown" para todos).
 		header_up X-Real-IP {remote_host}
 	}
 }
