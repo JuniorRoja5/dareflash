@@ -79,6 +79,21 @@ function restaurarEnvFiles() {
   }
 }
 
+// Recuperacion de una ejecucion ANTERIOR muerta de forma dura (SIGKILL, corte de luz):
+// los handlers de senal no cubren ese caso y el .env quedaria apartado como .bak-sin-env,
+// rompiendo el entorno local sin explicacion. Al arrancar: si existe el backup y NO existe
+// el original, restaurarlo antes de nada. (.gitignore ya ignora .env*, incluido el backup.)
+function recuperarBackupsHuerfanos() {
+  for (const nombre of ENV_FILES) {
+    const ruta = join(root, nombre);
+    const backup = ruta + SUFIJO;
+    if (existsSync(backup) && !existsSync(ruta)) {
+      console.log(`[test] Recuperando ${nombre} de una ejecucion anterior interrumpida.`);
+      renameSync(backup, ruta);
+    }
+  }
+}
+
 // Restaurar tambien si nos interrumpen (Ctrl-C / kill): perder el .env del usuario seria grave.
 for (const sig of ["SIGINT", "SIGTERM"]) {
   process.on(sig, () => {
@@ -86,6 +101,9 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
     process.exit(1);
   });
 }
+
+// Antes de nada: deshacer un apartado huerfano de una ejecucion anterior muerta en duro.
+recuperarBackupsHuerfanos();
 
 let status = 1;
 let salida = "";
