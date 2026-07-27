@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
-import { rateLimit } from "../src/server/security/rate-limit";
+import { rateLimit, resetRateLimit } from "../src/server/security/rate-limit";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
 
@@ -56,5 +56,22 @@ describe("rate limiting", () => {
     const rows = await prisma.rateLimit.findMany({ where: { key: "register:ip:test" } });
     expect(rows).toHaveLength(1); // una sola fila (misma ventana)
     expect(rows[0]?.count).toBe(N); // exacto, sin lost updates
+  });
+
+  it("LOGIN_PER_ACCOUNT: N fallos concurrentes cuentan exactamente N (atomico, sin peek)", async () => {
+    const N = 25;
+    const opts = { key: "login:acct:hashXYZ", limit: 10, windowMs: 15 * 60_000 };
+    // Consumo atomico en cada intento (como haria el endpoint en cada fallo).
+    await Promise.all(Array.from({ length: N }, () => rateLimit(prisma, opts)));
+    const row = await prisma.rateLimit.findFirstOrThrow({ where: { key: "login:acct:hashXYZ" } });
+    expect(row.count).toBe(N); // sin ventana de carrera
+  });
+
+  it("resetRateLimit borra el cubo (login correcto -> la cuenta no acumula)", async () => {
+    const opts = { key: "login:acct:hashXYZ", limit: 10, windowMs: 15 * 60_000 };
+    await rateLimit(prisma, opts);
+    await rateLimit(prisma, opts);
+    await resetRateLimit(prisma, "login:acct:hashXYZ");
+    expect(await prisma.rateLimit.count({ where: { key: "login:acct:hashXYZ" } })).toBe(0);
   });
 });

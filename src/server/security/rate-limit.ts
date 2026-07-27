@@ -69,3 +69,13 @@ export async function rateLimit(
     windowStart,
   };
 }
+
+/**
+ * Resetea (borra) todas las ventanas de una clave. Se usa, p.ej., cuando un login
+ * ACIERTA: se limpia el cubo de esa cuenta para que un usuario legitimo no acumule.
+ * El consumo sigue siendo ATOMICO (no hay peek/lectura-previa que abra una ventana
+ * de carrera): se cuenta siempre y el acierto resetea.
+ */
+export async function resetRateLimit(db: PrismaClient, key: string): Promise<void> {
+  await db.rateLimit.deleteMany({ where: { key } });
+}
