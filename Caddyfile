@@ -4,7 +4,14 @@
 
 # Dominio principal.
 dareflash.com {
-	reverse_proxy web:3000
+	reverse_proxy web:3000 {
+		# Rate-limit por IP: la app confia SOLO en X-Real-IP (ver src/server/http/api.ts).
+		# 1) Borrar cualquier X-Real-IP que mande el CLIENTE. NO quitar esta linea: sin
+		#    ella, un valor forjado por el cliente podria colarse y saltarse el rate-limit.
+		header_up -X-Real-IP
+		# 2) Fijar la IP de conexion REAL que ve Caddy. Con valor, header_up SOBREESCRIBE.
+		header_up X-Real-IP {remote_host}
+	}
 }
 
 # www -> apex (301). Evita contenido duplicado y unifica el dominio canonico.
