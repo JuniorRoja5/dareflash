@@ -63,9 +63,14 @@ function getPrisma(): PrismaClient {
  * (`prisma.user`, ...) se devuelven tal cual (ya llevan su cliente dentro).
  */
 export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
-  get(_target, prop, receiver) {
+  get(_target, prop) {
     const client = getPrisma();
-    const value = Reflect.get(client, prop, receiver);
+    // Reflect.get SIN receiver a proposito: pasar el Proxy como receiver haria que el
+    // `this` de un getter fuese el Proxy en vez del cliente real, y si el cliente generado
+    // de Prisma 7 usa campos privados en algun getter lanzaria "Cannot read private member"
+    // -> en la PRIMERA peticion que toque la BD, no en el build. Con el cliente real como
+    // receptor, los getters ven su `this` correcto.
+    const value = Reflect.get(client, prop);
     return typeof value === "function"
       ? (value as (...a: unknown[]) => unknown).bind(client)
       : value;
