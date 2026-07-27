@@ -5,10 +5,14 @@ import { describe, expect, it } from "vitest";
 
 /**
  * Test ESTRUCTURAL (con dientes de verdad): recorre src/app/api/**\/route.ts y falla
- * si alguna ruta que exporta un metodo MUTANTE (POST/PUT/PATCH/DELETE) no pasa por el
- * envoltorio `mutatingRoute` (Origin + sesion + CSRF). No depende de que nadie se
- * acuerde de llamar a un helper: si alguien anade un POST sin proteger, esto se pone
- * rojo.
+ * si algun metodo MUTANTE exportado (POST/PUT/PATCH/DELETE) no pasa por el envoltorio
+ * `mutatingRoute` (Origin + sesion + CSRF). No depende de que nadie se acuerde de
+ * llamar a un helper: si alguien anade un POST sin proteger, esto se pone rojo.
+ *
+ * La comprobacion es POR METODO, no por fichero: un route.ts con el POST envuelto pero
+ * un DELETE suelto tiene que caer (antes, un simple `includes("mutatingRoute(")` a nivel
+ * de fichero lo daba por bueno). Y reconoce las tres formas de exportar un handler:
+ * `export const M = ...`, `export function M`, `export async function M`.
  *
  * Exenciones JUSTIFICADAS: puntos de entrada sin sesion a la que atar el token CSRF
  * (sameSite=lax + rate-limit los cubren).
@@ -18,7 +22,26 @@ const API_DIR = join(process.cwd(), "src", "app", "api");
 // Rutas exentas (ruta relativa dentro de src/app/api, con "/").
 const EXEMPT = new Set(["auth/login", "auth/register", "auth/verify", "auth/resend-verification"]);
 
-const MUTATING = /export\s+(?:const|async\s+function)\s+(POST|PUT|PATCH|DELETE)\b/;
+const METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;
+
+/** ¿El fichero exporta el metodo `m`? Cubre const, function y async function. */
+function exportaMetodo(src: string, m: string): boolean {
+  return new RegExp(`export\\s+(?:const\\s+${m}\\b|(?:async\\s+)?function\\s+${m}\\b)`).test(src);
+}
+
+/** ¿Ese metodo se exporta envuelto en mutatingRoute? (admite generico `mutatingRoute<...>(`) */
+function envueltoEnMutatingRoute(src: string, m: string): boolean {
+  return new RegExp(`export\\s+const\\s+${m}\\s*=\\s*mutatingRoute\\b`).test(src);
+}
+
+/**
+ * Metodos MUTANTES de este fichero que NO estan protegidos. Si la ruta esta exenta,
+ * ninguno cuenta (es un punto de entrada sin sesion, justificado).
+ */
+function metodosDesprotegidos(rel: string, src: string, exempt: Set<string>): string[] {
+  if (exempt.has(rel)) return [];
+  return METHODS.filter((m) => exportaMetodo(src, m) && !envueltoEnMutatingRoute(src, m));
+}
 
 function findRouteFiles(dir: string): string[] {
   const out: string[] = [];
@@ -31,26 +54,50 @@ function findRouteFiles(dir: string): string[] {
 }
 
 describe("proteccion estructural CSRF de rutas mutantes", () => {
-  it("toda ruta con POST/PUT/PATCH/DELETE pasa por mutatingRoute (o esta exenta y justificada)", () => {
+  it("todo metodo POST/PUT/PATCH/DELETE pasa por mutatingRoute (o esta exento y justificado)", () => {
     const files = findRouteFiles(API_DIR);
     expect(files.length).toBeGreaterThan(0); // sanity: el escaner encuentra rutas
 
     const desprotegidas: string[] = [];
     for (const file of files) {
       const src = readFileSync(file, "utf8");
-      if (!MUTATING.test(src)) continue; // no muta: no aplica
-
-      // Ruta relativa "auth/login" a partir de .../api/<ruta>/route.ts
       const rel = relative(API_DIR, file)
         .split(sep)
         .join(posix.sep)
         .replace(/\/route\.ts$/, "");
-      if (EXEMPT.has(rel)) continue;
-
-      if (!src.includes("mutatingRoute(")) desprotegidas.push(rel);
+      const bad = metodosDesprotegidos(rel, src, EXEMPT);
+      if (bad.length > 0) desprotegidas.push(`${rel} [${bad.join(",")}]`);
     }
 
-    expect(desprotegidas, `rutas mutantes SIN mutatingRoute: ${desprotegidas.join(", ")}`).toEqual(
+    expect(
+      desprotegidas,
+      `metodos mutantes SIN mutatingRoute: ${desprotegidas.join(" | ")}`,
+    ).toEqual([]);
+  });
+
+  // --- Dientes: el escaner sobre entradas sinteticas (no depende de las rutas reales) ---
+  const VACIO = new Set<string>();
+
+  it("caza `export function POST` sin async y sin envolver (el hueco del regex viejo)", () => {
+    expect(metodosDesprotegidos("x/y", "export function POST() {}", VACIO)).toEqual(["POST"]);
+  });
+
+  it("es POR METODO: caza el DELETE suelto aunque el POST del mismo fichero SI este envuelto", () => {
+    const src = [
+      "export const POST = mutatingRoute(async () => new Response());",
+      "export async function DELETE() { return new Response(); }",
+    ].join("\n");
+    expect(metodosDesprotegidos("x/y", src, VACIO)).toEqual(["DELETE"]);
+  });
+
+  it("acepta un metodo envuelto, incluida la forma generica mutatingRoute<...>()", () => {
+    const src =
+      "export const DELETE = mutatingRoute<{ params: Promise<{ id: string }> }>(async () => new Response());";
+    expect(metodosDesprotegidos("x/y", src, VACIO)).toEqual([]);
+  });
+
+  it("respeta la exencion justificada aunque el metodo no este envuelto", () => {
+    expect(metodosDesprotegidos("auth/login", "export async function POST() {}", EXEMPT)).toEqual(
       [],
     );
   });
