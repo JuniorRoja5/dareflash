@@ -83,36 +83,6 @@ services:
     networks:
       - internal
 
-  # --- backup: respaldo de MariaDB (one-off, perfil tools) ---
-  # Imagen `backup` (builder + cliente de MariaDB). NO monta el socket de Docker: el
-  # volcado y la restauracion van por RED al servicio `mariadb`, con dos usuarios de
-  # minimo privilegio (ver scripts/backup/README.md). Los dumps y el estado persisten en
-  # un volumen del ANFITRION (0700): con `run --rm` el FS del contenedor se destruye, y la
-  # guarda de tamaño necesita que `estado.json` sobreviva entre ejecuciones.
-  #
-  #   Aprovisionar canario (una vez):
-  #     docker compose -f docker-compose.prod.yml run --rm backup npx tsx scripts/backup/provision-canary.ts
-  #   Respaldar:
-  #     docker compose -f docker-compose.prod.yml run --rm backup
-  backup:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: backup
-    profiles: ["tools"]
-    env_file:
-      - ${HOME}/dareflash-config/.env # BACKUP_DUMP_USER/PASSWORD, BACKUP_VERIFY_USER/PASSWORD, DATABASE_URL...
-    environment:
-      BACKUP_OUT_DIR: /backups
-    volumes:
-      - /root/dareflash-backups:/backups # crear en el host con `install -d -m 0700 /root/dareflash-backups`
-    depends_on:
-      mariadb:
-        condition: service_healthy
-    restart: "no"
-    networks:
-      - internal
-
   # --- worker: DESACTIVADO a proposito ---
   # Por ahora la app sigue usando la cola en tabla + endpoint cron (parche del
   # compartido, aun sin retirar). El worker permanente se activara en la FASE DE
