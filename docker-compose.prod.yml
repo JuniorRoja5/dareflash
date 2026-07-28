@@ -83,24 +83,27 @@ services:
     networks:
       - internal
 
-  # --- worker: DESACTIVADO a proposito ---
-  # Por ahora la app sigue usando la cola en tabla + endpoint cron (parche del
-  # compartido, aun sin retirar). El worker permanente se activara en la FASE DE
-  # LIMPIEZA del VPS (junto con el uso real de Redis). No crear como servicio todavia.
+  # --- worker: procesa la cola de trabajos (Job) de forma permanente ---
+  # Fuente de verdad = MariaDB (tabla Job); el worker sondea y despacha. Sin Redis (con la
+  # tabla basta; el despertador se anadira solo si una necesidad medida lo justifica). Su
+  # consecuencia hoy: los correos de verificacion (SEND_EMAIL) SALEN.
   #
-  # worker:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile
-  #   restart: unless-stopped
-  #   env_file:
-  #     - ${HOME}/dareflash-config/.env
-  #   depends_on:
-  #     mariadb:
-  #       condition: service_healthy
-  #   command: ["node", "worker.js"]
-  #   networks:
-  #     - internal
+  # `stop_grace_period` generoso: ante SIGTERM el worker deja de reclamar y TERMINA el lote en
+  # curso (apagado limpio); Docker debe darle tiempo antes del SIGKILL.
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    restart: unless-stopped
+    env_file:
+      - ${HOME}/dareflash-config/.env # DATABASE_URL, SMTP_*, EMAIL_FROM, APP_URL, AUTH_SECRET...
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    stop_grace_period: 90s
+    networks:
+      - internal
 
   caddy:
     image: caddy:2

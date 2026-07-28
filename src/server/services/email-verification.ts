@@ -116,5 +116,8 @@ export async function requestEmailVerification(
 ): Promise<void> {
   const { rawToken } = await createEmailVerification(db, { email: input.email, now: input.now });
   const message = buildVerificationEmail(input.appUrl, input.email, rawToken);
-  await enqueueEmail(db, message, { runAt: input.now });
+  // Idempotencia determinista atada al token: un doble encolado del MISMO correo no crea dos
+  // jobs. Un reenvio genera un token nuevo -> clave nueva -> job nuevo (correcto: SI reenvia).
+  const idempotencyKey = `email:verify:${hashToken(rawToken)}`;
+  await enqueueEmail(db, message, { runAt: input.now, idempotencyKey });
 }

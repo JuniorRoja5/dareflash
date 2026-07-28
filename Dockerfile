@@ -64,3 +64,15 @@ EXPOSE 3000
 # tini como PID 1: reenvia senales y cosecha procesos zombie.
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "server.js"]
+
+# ---- Worker permanente de la cola de trabajos ----
+# Derivado de `builder` (tiene tsx, el codigo fuente y el cliente Prisma). Corre SIEMPRE (no
+# one-off). `--conditions=react-server` permite importar los modulos `server-only` (prisma,
+# env, adaptador) en un proceso Node. tini (PID 1) reenvia SIGTERM para el apagado limpio.
+FROM builder AS worker
+ENV NODE_ENV=production
+# node DIRECTO (tsx como loader, no `npx tsx`): asi el proceso Node es el hijo directo de
+# tini y recibe SIGTERM en su handler -> apagado limpio (con npx en medio, la senal no llega
+# a node y el contenedor moria con 143).
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["node", "--conditions=react-server", "--import", "tsx", "scripts/worker.ts"]
