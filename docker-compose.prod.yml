@@ -46,6 +46,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runner # EXPLICITO: sin esto, Docker construye la ULTIMA etapa del Dockerfile
+      #                (hoy `worker`), y `web` arrancaria la cola en vez del servidor -> 502.
     restart: unless-stopped
     env_file:
       - ${HOME}/dareflash-config/.env # DATABASE_URL=mysql://user:pass@mariadb:3306/db, APP_URL, AUTH_SECRET, ...

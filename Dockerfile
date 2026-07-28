@@ -65,6 +65,11 @@ EXPOSE 3000
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "server.js"]
 
+# ⚠️ ORDEN DE LAS ETAPAS: Docker construye la ULTIMA etapa por defecto (sin `--target`). Por eso
+# TODOS los servicios del compose fijan su `target` explicitamente (web->runner, worker->worker,
+# migrate->builder): anadir una etapa al final NO debe cambiar lo que construye ningun servicio.
+# Ya paso una vez -> `web` construyo `worker` y devolvia 502. Nunca dependas del orden.
+#
 # ---- Worker permanente de la cola de trabajos ----
 # Derivado de `builder` (tiene tsx, el codigo fuente y el cliente Prisma). Corre SIEMPRE (no
 # one-off). `--conditions=react-server` permite importar los modulos `server-only` (prisma,
