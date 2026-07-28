@@ -70,17 +70,30 @@ function conTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+/** Fases SMTP (nodemailer `error.command`) ANTERIORES al envio de los datos: si el fallo
+ *  ocurrio aqui, el correo NO salio -> reintentar es seguro. */
+const FASES_LIMPIAS = new Set(["CONN", "EHLO", "HELO", "AUTH", "MAIL FROM", "RCPT TO"]);
+
 /**
- * ¿El fallo es AMBIGUO (el efecto PUDO ocurrir)? Un TIMEOUT lo es: para SMTP, si se cortó tras
- * enviar los datos, el correo puede haberse entregado. Conexion rechazada, auth o DNS NO son
- * ambiguos (el correo no salio). Se usa para no reencolar un tipo con politica FAIL cuando el
- * envio pudo completarse (evita duplicados), igual que hace el reaper.
+ * ¿El fallo es AMBIGUO (el efecto PUDO ocurrir)? Los dos costes enfrentados: clasificar mal como
+ * AMBIGUO un correo que NO salio -> se pierde (recuperable con "reenviar"); clasificar mal como
+ * LIMPIO uno que SI salio -> se reintenta y llega DUPLICADO. Para SEND_EMAIL preferimos no
+ * duplicar, PERO sin anular el reintento en el corte transitorio (el fallo mas comun).
+ *
+ * Criterio: LIMPIO solo con SEÑAL POSITIVA de que no salio, no por ausencia de senal. Se mira la
+ * FASE (nodemailer `error.command`), no el `code`: un mismo ETIMEDOUT es de CONEXION (no salio ->
+ * limpio) o de DATA (pudo salir -> ambiguo).
+ *  - CONN/EHLO/AUTH/MAIL FROM/RCPT TO -> antes de los datos: LIMPIO, reintentar con backoff.
+ *  - DATA, el punto final, o SIN `command` -> AMBIGUO, aplicar la politica del tipo.
+ *  - JOB_TIMEOUT (la red de seguridad) -> AMBIGUO siempre: ahi no sabemos en que fase estaba.
+ * Ante la duda, AMBIGUO. Antes de "simplificar" esto, entender por que esta asi.
  */
 export function esAmbiguo(e: unknown): boolean {
-  if (!(e instanceof Error)) return false;
-  const code = (e as { code?: unknown }).code;
-  if (code === "JOB_TIMEOUT" || code === "ETIMEDOUT" || code === "ESOCKET") return true;
-  return /timeout/i.test(e.message);
+  if (!(e instanceof Error)) return true; // sin senal -> ambiguo
+  if ((e as { code?: unknown }).code === "JOB_TIMEOUT") return true; // no sabemos la fase
+  const command = (e as { command?: unknown }).command;
+  if (typeof command === "string" && FASES_LIMPIAS.has(command)) return false; // no salio
+  return true; // DATA, punto final, o sin command -> ambiguo
 }
 
 /**

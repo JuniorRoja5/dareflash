@@ -60,6 +60,23 @@ async function encolarEmail(to: string): Promise<void> {
   });
 }
 
+/** Adaptador que SIEMPRE lanza `err` (para probar la clasificacion limpio/ambiguo). */
+function adapterQueLanza(err: unknown): EmailAdapter {
+  return {
+    name: "err",
+    async send() {
+      throw err;
+    },
+  };
+}
+
+/** Error estilo nodemailer con su `command` (fase) y campos extra. */
+function errorSmtp(command: string | undefined, extra: Record<string, unknown> = {}): Error {
+  const e = new Error("fallo simulado");
+  if (command !== undefined) (e as { command?: string }).command = command;
+  return Object.assign(e, extra);
+}
+
 describe("worker: dispatch y reintentos", () => {
   it("procesa SEND_EMAIL, marca DONE y BORRA el payload (no retiene el token)", async () => {
     await encolarEmail("a@test.com");
@@ -83,9 +100,10 @@ describe("worker: dispatch y reintentos", () => {
     expect(await prisma.job.count({ where: { status: "PENDING" } })).toBe(3);
   });
 
-  it("fallo LIMPIO: reintenta con backoff y agota a FAILED conservando SOLO el destinatario", async () => {
+  it("fallo LIMPIO (fase CONN): reintenta con backoff y agota a FAILED conservando el destinatario", async () => {
     await encolarEmail("a@test.com");
-    const adapter = fakeAdapter({ fail: true });
+    // ETIMEDOUT en CONEXION: no se establecio sesion, el correo NO salio -> reintentar es seguro.
+    const adapter = adapterQueLanza(errorSmtp("CONN", { code: "ETIMEDOUT" }));
     let now = new Date();
     for (let i = 0; i < 8; i++) {
       const pend = await prisma.job.findFirst({ where: { status: "PENDING" } });
@@ -94,9 +112,42 @@ describe("worker: dispatch y reintentos", () => {
       await procesarLote(prisma, registroFake(adapter), { workerToken: `w${i}`, limit: 10, now });
     }
     const job = await prisma.job.findFirstOrThrow({ where: { type: "SEND_EMAIL" } });
-    expect(job.status).toBe("FAILED");
+    expect(job.status).toBe("FAILED"); // tras agotar los reintentos
     expect(job.attempts).toBe(job.maxAttempts);
     expect(job.payload).toEqual({ to: "a@test.com" });
+  });
+
+  it("fase CONN (corte transitorio): el PRIMER fallo deja PENDING para reintentar, no FAILED", async () => {
+    await encolarEmail("a@test.com");
+    await procesarLote(prisma, registroFake(adapterQueLanza(errorSmtp("CONN"))), {
+      workerToken: "w1",
+      limit: 10,
+    });
+    const job = await prisma.job.findFirstOrThrow({ where: { type: "SEND_EMAIL" } });
+    expect(job.status).toBe("PENDING"); // el reintento existe para esto
+    expect(job.attempts).toBe(1);
+  });
+
+  it("fase DATA (ambigua): FAILED directo, NO reintenta (pudo entregarse)", async () => {
+    await encolarEmail("a@test.com");
+    await procesarLote(prisma, registroFake(adapterQueLanza(errorSmtp("DATA"))), {
+      workerToken: "w1",
+      limit: 10,
+    });
+    const job = await prisma.job.findFirstOrThrow({ where: { type: "SEND_EMAIL" } });
+    expect(job.status).toBe("FAILED");
+    expect(job.attempts).toBe(1);
+  });
+
+  it("SIN command (sin senal de que no salio): ambiguo -> FAILED directo", async () => {
+    await encolarEmail("a@test.com");
+    await procesarLote(prisma, registroFake(adapterQueLanza(errorSmtp(undefined))), {
+      workerToken: "w1",
+      limit: 10,
+    });
+    const job = await prisma.job.findFirstOrThrow({ where: { type: "SEND_EMAIL" } });
+    expect(job.status).toBe("FAILED");
+    expect(job.attempts).toBe(1);
   });
 
   it("fallo AMBIGUO (JOB_TIMEOUT) sobre SEND_EMAIL -> FAILED directo, NO reencola (evita duplicado)", async () => {
@@ -123,18 +174,12 @@ describe("worker: dispatch y reintentos", () => {
 
   it("lastError SANEADO: guarda el code, nunca el mensaje crudo (posibles secretos)", async () => {
     await encolarEmail("a@test.com");
-    const authFail: EmailAdapter = {
-      name: "authfail",
-      async send() {
-        throw Object.assign(new Error("clave=SUPERSECRETO en la traza"), {
-          code: "EAUTH",
-          responseCode: 535,
-        });
-      },
-    };
+    const authFail = adapterQueLanza(
+      errorSmtp("AUTH", { code: "EAUTH", responseCode: 535, message: "clave=SUPERSECRETO" }),
+    );
     await procesarLote(prisma, registroFake(authFail), { workerToken: "w1", limit: 10 });
     const job = await prisma.job.findFirstOrThrow({ where: { type: "SEND_EMAIL" } });
-    expect(job.status).toBe("PENDING"); // auth NO es ambiguo (no salio) -> reintenta
+    expect(job.status).toBe("PENDING"); // AUTH es fase limpia (no salio) -> reintenta
     expect(job.lastError).toBe("EAUTH (535)");
     expect(job.lastError ?? "").not.toMatch(/SUPERSECRETO/);
   });
@@ -216,12 +261,18 @@ describe("worker: backoff, jitter, invariante y clasificacion", () => {
     expect(JOB_TIMEOUT_MS).toBeLessThan(REAPER_UMBRAL_MS);
   });
 
-  it("esAmbiguo: un TIMEOUT si; conexion/auth/DNS no", () => {
+  it("esAmbiguo: LIMPIO solo con senal positiva (fase antes de DATA); ante la duda, ambiguo", () => {
+    // Fases ANTERIORES a los datos: no salio -> limpio.
+    expect(esAmbiguo(errorSmtp("CONN"))).toBe(false);
+    expect(esAmbiguo(errorSmtp("AUTH"))).toBe(false);
+    expect(esAmbiguo(errorSmtp("RCPT TO"))).toBe(false);
+    // La clave es la FASE, no el code: ETIMEDOUT en CONEXION es limpio.
+    expect(esAmbiguo(errorSmtp("CONN", { code: "ETIMEDOUT" }))).toBe(false);
+    // DATA, sin command, JOB_TIMEOUT o algo que no es Error -> ambiguo.
+    expect(esAmbiguo(errorSmtp("DATA"))).toBe(true);
+    expect(esAmbiguo(errorSmtp(undefined))).toBe(true);
     expect(esAmbiguo(Object.assign(new Error(""), { code: "JOB_TIMEOUT" }))).toBe(true);
-    expect(esAmbiguo(Object.assign(new Error(""), { code: "ETIMEDOUT" }))).toBe(true);
-    expect(esAmbiguo(new Error("read timeout"))).toBe(true);
-    expect(esAmbiguo(Object.assign(new Error(""), { code: "ECONNREFUSED" }))).toBe(false);
-    expect(esAmbiguo(Object.assign(new Error(""), { code: "EAUTH" }))).toBe(false);
+    expect(esAmbiguo("no soy un Error")).toBe(true);
   });
 
   it("sanearError: code (+responseCode), etiqueta de certificado, nunca el mensaje crudo", () => {
