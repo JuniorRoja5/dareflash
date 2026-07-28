@@ -131,8 +131,9 @@ Reglas de este entorno:
 Producción es un **VPS KVM (Ubuntu 24.04) con Docker**. La orquestación está en
 [`docker-compose.prod.yml`](docker-compose.prod.yml): `mariadb` + `redis` + `web` (la app,
 desde el [`Dockerfile`](Dockerfile) multi-stage) + `caddy` (reverse proxy con HTTPS
-automático, único que expone 80/443). El `worker` permanente está previsto pero **desactivado**
-(la cola sigue en tabla + cron; se activa en la fase de limpieza).
+automático, único que expone 80/443) + `worker` (procesa la cola `Job` de forma permanente:
+sondea la tabla y despacha; **por eso salen los correos**). `redis` está montado pero **sin
+usar** por ahora (no hace falta: la fuente de verdad de la cola es MariaDB).
 
 **El `.env` vive FUERA del repo**, en el servidor: `~/dareflash-config/.env`. Contiene las
 `MARIADB_*` (para el servicio de BD) y las variables de la app; en producción,
@@ -140,6 +141,22 @@ automático, único que expone 80/443). El `worker` permanente está previsto pe
 
 > **Copias de seguridad:** las gestiona **Hostinger a nivel de VPS**; **no hay mecanismo de
 > respaldo en el código** (no reimplementar).
+
+### Correo saliente (SMTP) y entregabilidad
+
+El worker envía por **SMTP autenticado** contra el servidor de correo propio de Junior
+(`mail.dareflash.com`, **587 STARTTLS** o 465 TLS directo), usuario `noreply@dareflash.com`.
+`EMAIL_FROM` **debe coincidir** con `SMTP_USER` (el servidor lo comprueba). La verificación del
+certificado TLS va **siempre activada**: si falla, se arregla el certificado del servidor, nunca
+se desactiva `rejectUnauthorized` (por esa conexión viajan credenciales).
+
+> **SPF — error habitual:** el SPF de `dareflash.com` autoriza **`31.200.246.46`** (el servidor
+> cPanel que ENTREGA el correo), y **nunca la IP del VPS**. El VPS solo entrega el mensaje a ese
+> servidor por SMTP autenticado; no envía directamente. **Añadir la IP del VPS al SPF es un
+> permiso de más** — no lo hagas.
+
+DKIM (2048 bits) y DMARC se configuran en el cPanel, no en el código. DMARC está en `p=none`; la
+subida a `quarantine` tras semanas de envío real la decide Junior.
 
 ```bash
 # Levantar (build incluido)

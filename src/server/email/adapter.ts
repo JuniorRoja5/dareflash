@@ -69,12 +69,32 @@ export function createSmtpEmailAdapter(): EmailAdapter {
       ) {
         throw new Error("SMTP no configurado: faltan variables SMTP_* / EMAIL_FROM.");
       }
+      // EMAIL_FROM debe COINCIDIR con la cuenta autenticada (SMTP_USER): el servidor comprueba
+      // la correspondencia (X-Authenticated-Sender) y, si no cuadra, rechaza o rompe el SPF.
+      if (env.EMAIL_FROM !== env.SMTP_USER) {
+        throw new Error(
+          `EMAIL_FROM (${env.EMAIL_FROM}) debe coincidir con SMTP_USER (${env.SMTP_USER}): el ` +
+            `servidor rechaza si el remitente no es la cuenta autenticada.`,
+        );
+      }
       if (!smtpTransport) {
         const nodemailer = await import("nodemailer");
         smtpTransport = nodemailer.createTransport({
           host: env.SMTP_HOST,
           port: env.SMTP_PORT,
-          secure: env.SMTP_PORT === 465, // 465 = SSL directo; 587 = STARTTLS
+          secure: env.SMTP_PORT === 465, // 465 = TLS directo; 587 = STARTTLS
+          requireTLS: env.SMTP_PORT !== 465, // 587: STARTTLS OBLIGATORIO, nunca texto plano
+          // TLS: la verificacion del certificado queda SIEMPRE activada (rejectUnauthorized
+          // por defecto = true). Por esta conexion viajan credenciales; NO desactivarla jamas.
+          // Si la verificacion de nombre falla, se arregla el CERTIFICADO del servidor (AutoSSL
+          // que cubra mail.dareflash.com), NUNCA el cliente: desactivarla abre la puerta a un
+          // intermediario que robe las credenciales.
+          // Timeouts PROPIOS del transporte, por DEBAJO del JOB_TIMEOUT_MS del worker (60 s): asi
+          // un servidor colgado ABORTA el envio de verdad (no se queda en vuelo), y el timeout
+          // del worker queda solo como red de seguridad.
+          connectionTimeout: 15_000,
+          greetingTimeout: 15_000,
+          socketTimeout: 30_000,
           auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD },
         });
       }

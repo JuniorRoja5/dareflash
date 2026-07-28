@@ -27,21 +27,35 @@ export async function GET() {
   const { env } = await import("@/config/env");
 
   let dbOk = false;
+  // Trabajos en FAILED: visibilidad de la cola (correos que agotaron reintentos o que el
+  // reaper marco tras una caida). Sin proveedor externo ni coste; visible con el mismo curl.
+  //
+  // DECISION CONSCIENTE (2026-07-28): este endpoint es PUBLICO y expone `jobsFailed`. Es solo un
+  // NUMERO, sin detalle de ningun job (nada de destinatarios, tipos ni errores), y su valor
+  // operativo es alto (Junior lo consulta con curl sin autenticarse). Se acepta el minimo estado
+  // interno visible. Si algun dia se expone algo mas que un contador, moverlo a una ruta con rol
+  // de administrador.
+  let jobsFailed: number | null = null;
   try {
     const { prisma } = await import("@/server/db/client");
     // Consulta trivial: solo comprueba que la conexion responde.
     await withTimeout(prisma.$queryRaw`SELECT 1`, DB_PING_TIMEOUT_MS);
     dbOk = true;
+    jobsFailed = await withTimeout(
+      prisma.job.count({ where: { status: "FAILED" } }),
+      DB_PING_TIMEOUT_MS,
+    );
   } catch (error) {
     // El DETALLE completo va al log; NUNCA al cuerpo de la respuesta (no exponer
     // cadena de conexion, host, usuario ni el error interno).
     console.error("[health] fallo de conexion a la base de datos:", error);
   }
 
-  // El cuerpo solo lleva booleanos y, como mucho, un codigo generico.
+  // El cuerpo solo lleva booleanos/numeros, nunca detalles internos.
   const body = {
     status: dbOk ? "ok" : "degraded",
     db: dbOk,
+    ...(jobsFailed !== null ? { jobsFailed } : {}),
     entorno: env.NODE_ENV,
     ...(dbOk ? {} : { error: "DB_UNAVAILABLE" }),
     momento: new Date().toISOString(),
