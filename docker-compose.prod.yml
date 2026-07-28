@@ -88,8 +88,10 @@ services:
   # tabla basta; el despertador se anadira solo si una necesidad medida lo justifica). Su
   # consecuencia hoy: los correos de verificacion (SEND_EMAIL) SALEN.
   #
-  # `stop_grace_period` generoso: ante SIGTERM el worker deja de reclamar y TERMINA el lote en
-  # curso (apagado limpio); Docker debe darle tiempo antes del SIGKILL.
+  # `stop_grace_period`: ante SIGTERM el worker deja de reclamar y, entre trabajos, LIBERA a
+  # PENDING los no procesados. El peor caso de apagado es UN job en vuelo = JOB_TIMEOUT_MS (60 s)
+  # + desconexion; NO lote x timeout (por eso se comprueba parar() entre trabajos). 90 s cubre
+  # ese peor caso con margen. Si se sube JOB_TIMEOUT_MS, subir tambien esto.
   worker:
     build:
       context: .

@@ -25,6 +25,11 @@ export interface DefTipoJob {
   /** Que hace el reaper si este tipo queda colgado (worker muerto a media ejecucion). */
   reaper: PoliticaReaper;
   /**
+   * Tope del backoff entre reintentos para este tipo. SEND_EMAIL lo baja a minutos: un correo
+   * de verificacion que llega horas tarde ya no sirve (el usuario se fue). Por defecto 6 h.
+   */
+  backoffTopeMs?: number;
+  /**
    * Resumen NO sensible a conservar en el payload si el job acaba en FAILED, para saber a
    * quien afecto (reenvio manual). NUNCA el enlace/token, solo lo justo para identificar.
    */
@@ -42,6 +47,7 @@ export function construirRegistro(deps: DepsRegistro): Registro {
   return {
     SEND_EMAIL: {
       reaper: "FAIL", // sin exactly-once sobre SMTP: reencolar = correo duplicado
+      backoffTopeMs: 20 * 60_000, // 20 min: un correo de verificacion tardio no sirve
       async handler(job) {
         const message = job.payload as unknown as EmailMessage;
         await deps.emailAdapter.send(message);

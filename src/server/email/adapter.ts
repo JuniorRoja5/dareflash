@@ -89,6 +89,12 @@ export function createSmtpEmailAdapter(): EmailAdapter {
           // Si la verificacion de nombre falla, se arregla el CERTIFICADO del servidor (AutoSSL
           // que cubra mail.dareflash.com), NUNCA el cliente: desactivarla abre la puerta a un
           // intermediario que robe las credenciales.
+          // Timeouts PROPIOS del transporte, por DEBAJO del JOB_TIMEOUT_MS del worker (60 s): asi
+          // un servidor colgado ABORTA el envio de verdad (no se queda en vuelo), y el timeout
+          // del worker queda solo como red de seguridad.
+          connectionTimeout: 15_000,
+          greetingTimeout: 15_000,
+          socketTimeout: 30_000,
           auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD },
         });
       }

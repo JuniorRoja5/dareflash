@@ -19,6 +19,10 @@ export const JOB_TIMEOUT_MS = Number(process.env["JOB_TIMEOUT_MS"] ?? String(60 
 export const REAPER_UMBRAL_MS = Number(
   process.env["JOB_REAPER_UMBRAL_MS"] ?? String(10 * 60 * 1000),
 ); // 10 min
+/** Tope por defecto del backoff (los tipos pueden acortarlo; SEND_EMAIL lo baja mucho). */
+export const TOPE_BACKOFF_DEFECTO_MS = 6 * 60 * 60_000; // 6 h
+/** Cota del findMany del reaper: no cargar miles de filas colgadas en memoria. */
+const REAPER_LOTE = 1000;
 
 /**
  * INVARIANTE CRITICO: el timeout de un job debe ser SIEMPRE menor que el umbral del reaper.
@@ -36,38 +40,86 @@ export function validarInvarianteReaper(jobTimeoutMs: number, reaperUmbralMs: nu
 
 /**
  * Backoff exponencial acotado + JITTER +-20%. Sin jitter, si 20 correos fallan por la misma
- * caida del SMTP reintentan todos a la vez y vuelven a tumbarlo. Progresion base: 1m, 5m, 25m,
- * ... con tope 6h. `aleatorio` es inyectable para tests.
+ * caida del SMTP reintentan todos a la vez y vuelven a tumbarlo. Base 1m, 5m, 25m... con TOPE
+ * configurable por tipo (SEND_EMAIL lo baja a minutos: un correo que llega 9 h tarde no sirve).
  */
-export function backoffMs(attempts: number, aleatorio: () => number = Math.random): number {
-  const base = Math.min(5 ** (attempts - 1) * 60_000, 6 * 60 * 60_000); // 1m,5m,25m... tope 6h
+export function backoffMs(
+  attempts: number,
+  topeMs: number = TOPE_BACKOFF_DEFECTO_MS,
+  aleatorio: () => number = Math.random,
+): number {
+  const base = Math.min(5 ** (attempts - 1) * 60_000, topeMs);
   const jitter = 0.8 + aleatorio() * 0.4; // +-20%
   return Math.round(base * jitter);
 }
 
+/** Timeout del handler que MARCA el error como ambiguo (`code: JOB_TIMEOUT`): puede haber
+ *  ocurrido el efecto. Es una RED de seguridad; el abort real lo hace el propio transporte. */
 function conTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     p,
-    new Promise<never>((_r, rej) => setTimeout(() => rej(new Error("JOB_TIMEOUT")), ms)),
+    new Promise<never>((_r, reject) =>
+      setTimeout(() => {
+        const e = new Error(
+          "JOB_TIMEOUT: el handler no termino a tiempo (efecto posiblemente en vuelo)",
+        );
+        (e as { code?: string }).code = "JOB_TIMEOUT";
+        reject(e);
+      }, ms),
+    ),
   ]);
+}
+
+/**
+ * ¿El fallo es AMBIGUO (el efecto PUDO ocurrir)? Un TIMEOUT lo es: para SMTP, si se cortó tras
+ * enviar los datos, el correo puede haberse entregado. Conexion rechazada, auth o DNS NO son
+ * ambiguos (el correo no salio). Se usa para no reencolar un tipo con politica FAIL cuando el
+ * envio pudo completarse (evita duplicados), igual que hace el reaper.
+ */
+export function esAmbiguo(e: unknown): boolean {
+  if (!(e instanceof Error)) return false;
+  const code = (e as { code?: unknown }).code;
+  if (code === "JOB_TIMEOUT" || code === "ETIMEDOUT" || code === "ESOCKET") return true;
+  return /timeout/i.test(e.message);
+}
+
+/**
+ * Mensaje de error SANEADO para `lastError`: alguien lo va a leer (Junior, al depurar un correo
+ * que no llega). NUNCA el mensaje crudo: puede llevar tokens, enlaces o credenciales. Se guarda
+ * el `code` de nodemailer (EAUTH, ECONNECTION, EDNS, ETIMEDOUT, EENVELOPE...) y el responseCode
+ * SMTP, que es justo lo que distingue auth / certificado / DNS / rechazo del destinatario.
+ */
+export function sanearError(e: unknown): string {
+  if (!(e instanceof Error)) return "error desconocido";
+  const code = (e as { code?: unknown }).code;
+  const rc = (e as { responseCode?: unknown }).responseCode;
+  if (typeof code === "string") return typeof rc === "number" ? `${code} (${rc})` : code;
+  if (/cert|tls/i.test(e.message)) return "error de certificado TLS";
+  return e.name || "error de envio"; // fallback SIN el mensaje crudo
 }
 
 export interface LoteResultado {
   hechos: number;
   fallidos: number;
+  liberados: number;
 }
 
 export interface ProcesarLoteInput {
   workerToken: string;
   limit: number;
   now?: Date;
+  /** Timeout del handler (override para tests). */
+  jobTimeoutMs?: number;
   /** Inyectable para tests del jitter. */
   aleatorio?: () => number;
+  /** Apagado limpio: si pasa a true, se libera el RESTO del lote a PENDING (no se deja RUNNING). */
+  parar?: () => boolean;
 }
 
 /**
- * Reclama un lote y despacha cada job. DONE (borra el payload) / reintento con backoff /
- * FAILED (conserva el resumen no sensible). Un tipo desconocido va a FAILED (no colgado).
+ * Reclama un lote y despacha cada job. Entre trabajos comprueba `parar` (apagado limpio):
+ * libera los NO procesados a PENDING —no los deja RUNNING esperando al reaper—. DONE borra el
+ * payload; el fallo se clasifica (ver mas abajo) en reintento con backoff o FAILED.
  */
 export async function procesarLote(
   db: PrismaClient,
@@ -75,12 +127,26 @@ export async function procesarLote(
   input: ProcesarLoteInput,
 ): Promise<LoteResultado> {
   const now = input.now ?? new Date();
+  const timeout = input.jobTimeoutMs ?? JOB_TIMEOUT_MS;
   const jobs = await claimJobs(db, { workerToken: input.workerToken, limit: input.limit, now });
 
   let hechos = 0;
   let fallidos = 0;
+  let liberados = 0;
 
-  for (const job of jobs) {
+  for (let i = 0; i < jobs.length; i += 1) {
+    // Apagado limpio: liberar el resto del lote (incl. este) a PENDING y salir del lote.
+    if (input.parar?.()) {
+      const resto = jobs.slice(i).map((j) => j.id);
+      const r = await db.job.updateMany({
+        where: { id: { in: resto }, status: "RUNNING" },
+        data: { status: "PENDING", lockedBy: null, lockedAt: null },
+      });
+      liberados = r.count;
+      break;
+    }
+
+    const job = jobs[i]!;
     const def = registro[job.type];
     if (!def) {
       await db.job.update({
@@ -96,16 +162,37 @@ export async function procesarLote(
     }
 
     try {
-      await conTimeout(def.handler(job), JOB_TIMEOUT_MS);
+      await conTimeout(def.handler(job), timeout);
       await db.job.update({
         where: { id: job.id },
         // Borrar el payload: puede llevar enlace/token, no debe quedar retenido.
         data: { status: "DONE", payload: Prisma.DbNull, lockedBy: null },
       });
       hechos += 1;
-    } catch {
+    } catch (e) {
+      const lastError = sanearError(e);
+      // Fallo AMBIGUO (timeout: el efecto pudo ocurrir) sobre un tipo con politica FAIL:
+      // aplicamos la MISMA politica que el reaper (SEND_EMAIL). Reintentar arriesgaria un
+      // duplicado. Un fallo LIMPIO (conexion/auth/DNS: no salio) o un tipo REQUEUE (idempotente)
+      // se reintenta con backoff.
+      if (esAmbiguo(e) && def.reaper === "FAIL") {
+        await db.job.update({
+          where: { id: job.id },
+          data: {
+            status: "FAILED",
+            attempts: job.attempts + 1,
+            lockedBy: null,
+            lastError: `ambiguo, posible efecto: ${lastError}`,
+            payload: def.resumenFallo?.(job) ?? Prisma.DbNull,
+          },
+        });
+        fallidos += 1;
+        continue;
+      }
+
       const attempts = job.attempts + 1;
       const agotado = attempts >= job.maxAttempts;
+      const tope = def.backoffTopeMs ?? TOPE_BACKOFF_DEFECTO_MS;
       await db.job.update({
         where: { id: job.id },
         data: agotado
@@ -113,22 +200,22 @@ export async function procesarLote(
               status: "FAILED",
               attempts,
               lockedBy: null,
-              lastError: "job fallido (agotados los intentos)",
+              lastError,
               payload: def.resumenFallo?.(job) ?? Prisma.DbNull,
             }
           : {
               status: "PENDING",
               attempts,
               lockedBy: null,
-              lastError: "job fallido (reintentara)",
-              runAt: new Date(now.getTime() + backoffMs(attempts, input.aleatorio)),
+              lastError,
+              runAt: new Date(now.getTime() + backoffMs(attempts, tope, input.aleatorio)),
             },
       });
       fallidos += 1;
     }
   }
 
-  return { hechos, fallidos };
+  return { hechos, fallidos, liberados };
 }
 
 export interface ReaperResultado {
@@ -139,7 +226,7 @@ export interface ReaperResultado {
 /**
  * Recupera los jobs RUNNING mas viejos que `umbralMs` (worker caido). Aplica la politica de
  * CADA tipo: "REQUEUE" -> PENDING (reintento inmediato); "FAIL" (o tipo desconocido) -> FAILED
- * conservando el resumen no sensible.
+ * conservando el resumen no sensible. `take` acota la carga en memoria.
  */
 export async function repasarColgados(
   db: PrismaClient,
@@ -152,6 +239,7 @@ export async function repasarColgados(
 
   const colgados = await db.job.findMany({
     where: { status: "RUNNING", lockedAt: { lt: limite } },
+    take: REAPER_LOTE,
   });
 
   let reencolados = 0;
@@ -180,6 +268,17 @@ export async function repasarColgados(
   return { reencolados, fallados };
 }
 
+/** Borra los jobs DONE con mas de `dias` (la tabla no crece sin fin; sin cron ni nada externo). */
+export async function podarDone(
+  db: PrismaClient,
+  input: { now?: Date; dias: number },
+): Promise<number> {
+  const now = input.now ?? new Date();
+  const limite = new Date(now.getTime() - input.dias * 24 * 60 * 60_000);
+  const r = await db.job.deleteMany({ where: { status: "DONE", createdAt: { lt: limite } } });
+  return r.count;
+}
+
 /** Numero de jobs en FAILED (para /api/health y el log de arranque del worker). */
 export function contarFallidos(db: PrismaClient): Promise<number> {
   return db.job.count({ where: { status: "FAILED" } });
@@ -191,16 +290,18 @@ export interface OpcionesBucle {
   intervaloMs: number;
   umbralReaperMs?: number;
   reaperCadaMs?: number;
-  /** true -> dejar de reclamar y salir (SIGTERM). Se comprueba ENTRE lotes, no a media faena. */
+  podaCadaMs?: number;
+  doneRetenerDias?: number;
+  /** true -> dejar de reclamar y salir (SIGTERM). Se comprueba entre lotes Y entre trabajos. */
   parar: () => boolean;
   dormir: (ms: number) => Promise<void>;
   ahora?: () => Date;
 }
 
 /**
- * Bucle permanente. Apagado LIMPIO: `parar` se comprueba ANTES de reclamar y despues de cada
- * lote, nunca a media faena -> un SIGTERM deja de reclamar nuevos y termina el lote en curso.
- * (El apagado limpio es el camino normal; el reaper solo actua ante una caida DURA.)
+ * Bucle permanente. Apagado LIMPIO: `parar` se comprueba antes de reclamar y —dentro de
+ * `procesarLote`— entre trabajos, liberando a PENDING los no procesados. Asi el peor caso de
+ * apagado es UN job en vuelo (JOB_TIMEOUT_MS), no lote x timeout.
  */
 export async function bucleWorker(
   db: PrismaClient,
@@ -210,6 +311,7 @@ export async function bucleWorker(
   validarInvarianteReaper(JOB_TIMEOUT_MS, o.umbralReaperMs ?? REAPER_UMBRAL_MS);
   const ahora = o.ahora ?? (() => new Date());
   let ultimoReaper = 0;
+  let ultimaPoda = 0;
 
   while (!o.parar()) {
     const t = ahora();
@@ -217,11 +319,18 @@ export async function bucleWorker(
       workerToken: o.workerToken,
       limit: o.limit,
       now: t,
+      parar: o.parar,
     });
+
+    if (o.parar()) break;
 
     if (t.getTime() - ultimoReaper >= (o.reaperCadaMs ?? 60_000)) {
       await repasarColgados(db, registro, { now: t, umbralMs: o.umbralReaperMs });
       ultimoReaper = t.getTime();
+    }
+    if (t.getTime() - ultimaPoda >= (o.podaCadaMs ?? 24 * 60 * 60_000)) {
+      await podarDone(db, { now: t, dias: o.doneRetenerDias ?? 7 });
+      ultimaPoda = t.getTime();
     }
 
     if (o.parar()) break;

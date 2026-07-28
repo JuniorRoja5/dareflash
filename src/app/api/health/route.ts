@@ -29,6 +29,12 @@ export async function GET() {
   let dbOk = false;
   // Trabajos en FAILED: visibilidad de la cola (correos que agotaron reintentos o que el
   // reaper marco tras una caida). Sin proveedor externo ni coste; visible con el mismo curl.
+  //
+  // DECISION CONSCIENTE (2026-07-28): este endpoint es PUBLICO y expone `jobsFailed`. Es solo un
+  // NUMERO, sin detalle de ningun job (nada de destinatarios, tipos ni errores), y su valor
+  // operativo es alto (Junior lo consulta con curl sin autenticarse). Se acepta el minimo estado
+  // interno visible. Si algun dia se expone algo mas que un contador, moverlo a una ruta con rol
+  // de administrador.
   let jobsFailed: number | null = null;
   try {
     const { prisma } = await import("@/server/db/client");
