@@ -138,6 +138,9 @@ automático, único que expone 80/443). El `worker` permanente está previsto pe
 `MARIADB_*` (para el servicio de BD) y las variables de la app; en producción,
 `DATABASE_URL` apunta al host del servicio: `mysql://usuario:clave@mariadb:3306/dareflash`.
 
+> **Copias de seguridad:** las gestiona **Hostinger a nivel de VPS**; **no hay mecanismo de
+> respaldo en el código** (no reimplementar).
+
 ```bash
 # Levantar (build incluido)
 docker compose -f docker-compose.prod.yml up -d --build

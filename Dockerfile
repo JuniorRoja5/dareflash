@@ -64,13 +64,3 @@ EXPOSE 3000
 # tini como PID 1: reenvia senales y cosecha procesos zombie.
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "server.js"]
-
-# ---- Imagen de RESPALDOS (one-off, perfil `tools`) ----
-# Derivada de `builder`: ya lleva node, tsx, el codigo fuente, el cliente Prisma y argon2.
-# Ademas instala el CLIENTE de MariaDB (mariadb-dump / mariadb), que la app NO necesita y
-# por eso no esta en la imagen `runner`. No arranca nada por si sola; se invoca con `run --rm`.
-FROM builder AS backup
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      mariadb-client \
-    && rm -rf /var/lib/apt/lists/*
-CMD ["npx", "tsx", "scripts/backup/backup.ts"]
