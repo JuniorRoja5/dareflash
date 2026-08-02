@@ -246,3 +246,12 @@ export const JobTypeSchema = z.enum([
   "PAYOUT_PROCESS",
 ]);
 export type JobType = z.infer<typeof JobTypeSchema>;
+
+/**
+ * Proposito de un VerificationToken. El token de verificacion de alta y el de desbloqueo de
+ * cuenta comparten el MISMO mecanismo (un solo uso, hash en BD, caducidad, sin enumeracion) pero
+ * NO son intercambiables: el proposito se comprueba DENTRO del WHERE al consumir (ver
+ * `src/server/auth/email-token.ts`), asi que un token de un proposito no vale para el otro.
+ */
+export const VerificationPurposeSchema = z.enum(["EMAIL_VERIFY", "LOGIN_UNLOCK"]);
+export type VerificationPurpose = z.infer<typeof VerificationPurposeSchema>;
