@@ -24,7 +24,7 @@ export const POST = mutatingRoute(async (req, { user }) => {
   const { RATE_LIMITS } = await import("@/config/constants");
   const { prisma } = await import("@/server/db/client");
   const { rateLimit, resetRateLimit } = await import("@/server/security/rate-limit");
-  const { verifyPasswordConstantTime, esArgon2Sobrecargado } =
+  const { verifyPasswordConstantTime, esArgon2Sobrecargado, ejecutarConHueco } =
     await import("@/server/auth/password");
   const { changePassword } = await import("@/server/auth/account");
   const { setSessionCookie } = await import("@/server/auth/current-user");
@@ -43,32 +43,39 @@ export const POST = mutatingRoute(async (req, { user }) => {
   const parsed = schema.safeParse(body);
   if (!parsed.success) return apiError("VALIDATION", "Datos invalidos.", 400);
 
-  // Consumo ATOMICO por usuario ANTES del argon2 (acota adivinado + CPU). Clave hasheada
-  // (HMAC) por uniformidad con el resto de cubos.
   const rlKey = `changepw:user:${rateLimitKey(env.AUTH_SECRET, user.userId)}`;
-  const rl = await rateLimit(prisma, { key: rlKey, ...RATE_LIMITS.CHANGE_PASSWORD_PER_USER });
-  if (!rl.allowed) {
-    return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
-  }
 
-  const u = await prisma.user.findUnique({
-    where: { id: user.userId },
-    select: { passwordHash: true },
-  });
-
-  // Los dos argon2 (verificar la actual + hashear la nueva) van por el semaforo: si esta
-  // saturado, 503, no 500. El resto de la logica no cambia.
+  // Mismo trato que login (Opcion A, hallazgo 2): el cubo POR USUARIO + los dos argon2 (verificar
+  // la actual + hashear la nueva) van en un MISMO hueco del semaforo, para que un 503 por
+  // saturacion NO gaste un intento de cambio de contrasena. Menor severidad que en login (el cubo
+  // es del usuario autenticado, nadie lo llena desde fuera); se hace por COHERENCIA de estructura.
   try {
-    const ok = await verifyPasswordConstantTime(
-      u?.passwordHash ?? null,
-      parsed.data.currentPassword,
-    );
-    if (!ok) return apiError("INVALID_CREDENTIALS", "La contrasena actual no es correcta.", 403);
-
-    const session = await changePassword(prisma, {
-      userId: user.userId,
-      newPassword: parsed.data.newPassword,
+    const outcome = await ejecutarConHueco(async () => {
+      const rl = await rateLimit(prisma, { key: rlKey, ...RATE_LIMITS.CHANGE_PASSWORD_PER_USER });
+      if (!rl.allowed) return { tipo: "BLOQUEADA" as const };
+      const u = await prisma.user.findUnique({
+        where: { id: user.userId },
+        select: { passwordHash: true },
+      });
+      const ok = await verifyPasswordConstantTime(
+        u?.passwordHash ?? null,
+        parsed.data.currentPassword,
+      );
+      if (!ok) return { tipo: "MAL" as const };
+      const session = await changePassword(prisma, {
+        userId: user.userId,
+        newPassword: parsed.data.newPassword,
+      });
+      return { tipo: "OK" as const, session };
     });
+
+    if (outcome.tipo === "BLOQUEADA") {
+      return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
+    }
+    if (outcome.tipo === "MAL") {
+      return apiError("INVALID_CREDENTIALS", "La contrasena actual no es correcta.", 403);
+    }
+    const { session } = outcome;
     // Acierto: el cubo de este usuario se vacia (no acumula tras un cambio legitimo).
     await resetRateLimit(prisma, rlKey);
     await setSessionCookie(session.rawToken, session.expires); // sesion nueva para este dispositivo
