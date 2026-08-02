@@ -13,3 +13,6 @@ src/generated
 # Documentacion local (no sincroniza)
 Documentacion NO GIT/
 ARCHITECTURE_AND_SCAFFOLD.md
+
+# Material de terceros vendorizado (CC-BY-SA): NO se formatea ni modifica, se conserva byte-identico
+security/trailofbits-skills/
