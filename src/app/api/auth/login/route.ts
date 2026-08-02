@@ -11,7 +11,7 @@ export async function POST(req: Request) {
   const { rateLimit, resetRateLimit } = await import("@/server/security/rate-limit");
   const { login } = await import("@/server/auth/login");
   const { setSessionCookie } = await import("@/server/auth/current-user");
-  const { esArgon2Sobrecargado } = await import("@/server/auth/password");
+  const { esArgon2Sobrecargado, ejecutarConHueco } = await import("@/server/auth/password");
 
   const schema = z.object({
     email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
@@ -27,21 +27,39 @@ export async function POST(req: Request) {
   if (!parsed.success) return apiError("VALIDATION", "Datos invalidos.", 400);
   const { email, password } = parsed.data;
 
-  // Rate-limit POR IP y POR CUENTA. Consumo ATOMICO en ambos (sin peek); la clave de
-  // cuenta va HASHEADA (HMAC) como la de IP (privacidad + no reventar VARCHAR(191)).
   const acctKey = `login:acct:${rateLimitKey(env.AUTH_SECRET, email)}`;
+
+  // Cubo POR IP: se consume ANTES del hueco (guardian de CPU) y se gasta INCLUSO si luego hay 503.
+  // Esta BIEN y es DELIBERADO: la peticion costo algo y, sobre todo, el cubo por IP NO permite
+  // bloquear una CUENTA concreta de nadie (por eso aqui SI puede gastarse en un 503). El cubo por
+  // CUENTA es el que no debe gastarse en un 503 (ver mas abajo). NO muevas el de IP dentro del
+  // hueco "por simetria": la asimetria es a proposito.
   const perIp = await rateLimit(prisma, {
     key: `login:ip:${clientIpKey(req, env.AUTH_SECRET)}`,
     ...RATE_LIMITS.LOGIN_PER_IP,
   });
-  const perAccount = await rateLimit(prisma, { key: acctKey, ...RATE_LIMITS.LOGIN_PER_ACCOUNT });
-  if (!perIp.allowed || !perAccount.allowed) {
+  if (!perIp.allowed) {
     return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
   }
 
-  // El argon2 del login va por el semaforo: si esta saturado, 503 (ocupado), no 500 ni 401.
+  // Cubo POR CUENTA + verificacion, en un MISMO hueco del semaforo (Opcion A del hallazgo 2). Si
+  // el semaforo esta saturado, el 503 salta ANTES de consumir el cubo de cuenta, asi que un
+  // legitimo bajo saturacion NO se come un intento de SU cuenta (que un tercero podria usar para
+  // bloquearla). El intento se cuenta DONDE se evalua; no hay refund que mantener.
   try {
-    const result = await login(prisma, { email, password });
+    const outcome = await ejecutarConHueco(async () => {
+      const perAccount = await rateLimit(prisma, {
+        key: acctKey,
+        ...RATE_LIMITS.LOGIN_PER_ACCOUNT,
+      });
+      if (!perAccount.allowed) return { tipo: "BLOQUEADA" as const };
+      return { tipo: "RESULTADO" as const, result: await login(prisma, { email, password }) };
+    });
+
+    if (outcome.tipo === "BLOQUEADA") {
+      return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
+    }
+    const result = outcome.result;
     if (!result.ok) {
       if (result.reason === "EMAIL_NOT_VERIFIED") {
         return apiError("EMAIL_NOT_VERIFIED", "Verifica tu email antes de iniciar sesion.", 403);

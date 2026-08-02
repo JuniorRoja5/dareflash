@@ -5,6 +5,7 @@ import {
   ARGON2_PARAMS,
   Argon2Sobrecargado,
   DUMMY_HASH,
+  ejecutarConHueco,
   hashPassword,
   needsRehash,
   Semaforo,
@@ -84,5 +85,52 @@ describe("semaforo de concurrencia de argon2", () => {
     // El segundo espera >20 ms sin hueco -> se rechaza (la ruta lo hace 503, no cola infinita).
     await expect(s.ejecutar(async () => "ok")).rejects.toBeInstanceOf(Argon2Sobrecargado);
     await ocupa;
+  });
+
+  it("OPCION A: en un 503 (sin hueco) el callback NO se ejecuta -> el cubo de cuenta no se gasta", async () => {
+    const s = new Semaforo(1, 20);
+    const ocupa = s.ejecutar(() => sleep(200)); // ocupa la unica plaza
+    let ejecutado = false;
+    await expect(
+      s.ejecutar(async () => {
+        ejecutado = true; // esto es donde el login consumiria el cubo de cuenta
+        return "x";
+      }),
+    ).rejects.toBeInstanceOf(Argon2Sobrecargado);
+    expect(ejecutado).toBe(false); // el 503 salta ANTES de correr el trabajo: no se gasta intento
+    await ocupa;
+  });
+
+  it("REENTRANTE: un ejecutar dentro de otro NO re-adquiere (si no, se auto-bloquearia con 1 plaza)", async () => {
+    const s = new Semaforo(1, 50); // UNA sola plaza
+    let interno = false;
+    await s.ejecutar(async () => {
+      // La plaza la tiene el externo; si el interno re-adquiriese, esperaria 50 ms y lanzaria
+      // Argon2Sobrecargado. Reentrante (AsyncLocalStorage): corre directo.
+      await s.ejecutar(async () => {
+        interno = true;
+      });
+    });
+    expect(interno).toBe(true);
+  });
+
+  it("ejecutarConHueco es reentrante con hashPassword (no deadlock)", async () => {
+    const hash = await ejecutarConHueco(() => hashPassword("TEST-FIXTURE-pass-reentrante-1234"));
+    expect(hash.startsWith("$argon2id$")).toBe(true);
+  });
+
+  it("testigo POR INSTANCIA: un SEGUNDO semaforo dentro del hueco del primero SI adquiere su plaza", async () => {
+    // El testigo de reentrada es por INSTANCIA. Si fuera global, B heredaria el store de A y se
+    // saltaria su adquisicion EN SILENCIO (proteccion que parece puesta y no protege). Con testigo
+    // por instancia, B es ajeno al hueco de A y limita de verdad.
+    const A = new Semaforo(1, 50);
+    const B = new Semaforo(1, 20);
+    await A.ejecutar(async () => {
+      const ocupaB = B.ejecutar(() => sleep(200)); // ocupa la unica plaza de B
+      // Segunda llamada a B, dentro del mismo hueco de A: con testigo global RESOLVERIA (se salta
+      // la plaza); con testigo por instancia espera >20 ms sin plaza y se rechaza. Ese es el punto.
+      await expect(B.ejecutar(async () => "x")).rejects.toBeInstanceOf(Argon2Sobrecargado);
+      await ocupaB;
+    });
   });
 });
