@@ -19,6 +19,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { SESSION_MAX_PER_USER, SESSION_TOKEN_BYTES, SESSION_TTL_MS } from "@/config/constants";
+import { Prisma } from "@/generated/prisma/client";
 import type { Db } from "@/server/db/types";
 
 function hashToken(rawToken: string): string {
@@ -132,13 +133,30 @@ export async function revokeAllUserSessions(db: Db, userId: string): Promise<voi
   await db.session.deleteMany({ where: { userId } });
 }
 
+/** Tope de tandas por ciclo (backstop anti-bucle). Si se alcanza, NO se drenó del todo: el
+ *  llamador lo registra (`drenado: false`) y continua en el proximo ciclo. Sin tope silencioso. */
+const PURGA_SESIONES_MAX_TANDAS = 1000;
+
 /**
- * Purga de sesiones CADUCADAS (expires <= now). La tabla no crece sin fin con filas
- * muertas. Es el handler del job de limpieza (cola en tabla `Job` + cron; se registra
- * en el Paso 8). Devuelve cuantas borro.
+ * Purga de sesiones CADUCADAS (expires <= now), POR LOTES con tope: un DELETE de millones de
+ * filas bloquea la tabla. Se apoya en `@@index([expires])`. La CABLEA el bucle del worker
+ * (`src/server/jobs/worker.ts`), junto a la poda de Job y RateLimit. Devuelve el total borrado y
+ * si se drenó del todo (para que el bucle avise si un ciclo se quedó corto).
  */
-export async function purgeExpiredSessions(db: Db, now?: Date): Promise<number> {
+export async function purgeExpiredSessions(
+  db: Db,
+  now?: Date,
+  lote = 1000,
+): Promise<{ total: number; drenado: boolean }> {
   const nowD = now ?? new Date();
-  const { count } = await db.session.deleteMany({ where: { expires: { lte: nowD } } });
-  return count;
+  const n = Math.floor(lote);
+  let total = 0;
+  for (let i = 0; i < PURGA_SESIONES_MAX_TANDAS; i += 1) {
+    const borradas = await db.$executeRaw(
+      Prisma.sql`DELETE FROM \`Session\` WHERE \`expires\` <= ${nowD} LIMIT ${Prisma.raw(String(n))}`,
+    );
+    total += borradas;
+    if (borradas < n) return { total, drenado: true };
+  }
+  return { total, drenado: false };
 }

@@ -37,6 +37,7 @@ const DELETE_ORDER = [
   "AuditLog",
   "RateLimit",
   "Job",
+  "SystemState",
   "VerificationToken",
   "User",
 ];

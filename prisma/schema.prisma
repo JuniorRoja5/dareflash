@@ -555,3 +555,14 @@ model RateLimit {
   @@unique([key, windowStart])
   @@index([windowStart])
 }
+
+/// Estado interno del sistema (clave-valor DURABLE). Sobrevive a un reinicio del
+/// worker, que es justo lo que necesita la HISTERESIS del aviso de FAILED: avisar al
+/// CRUZAR el umbral y callar hasta que baje y lo cruce otra vez, sin reavisar en cada
+/// vuelta ni al reiniciar. Generico y reutilizable (futuro: estado de LEDGER_RECONCILE,
+/// flags operativos). No lleva datos personales.
+model SystemState {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+}

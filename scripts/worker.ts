@@ -63,8 +63,18 @@ async function main(): Promise<void> {
   const fallidosAlArrancar = await contarFallidos(prisma);
   console.log(
     `[worker] arrancando token=${workerToken} adaptador=${emailAdapter.name} ` +
-      `lote=${LIMIT} intervalo=${INTERVALO_MS}ms FAILED-en-cola=${fallidosAlArrancar}`,
+      `lote=${LIMIT} intervalo=${INTERVALO_MS}ms FAILED-en-cola=${fallidosAlArrancar} ` +
+      `aviso-admin=${env.ADMIN_EMAIL ?? "SIN CONFIGURAR"}`,
   );
+  // Destacado EN CADA ARRANQUE (es lo que se ve al desplegar): sin ADMIN_EMAIL, el aviso de
+  // acumulacion de FAILED no llega por correo. El vigilante tambien necesita quien lo vigile.
+  if (!env.ADMIN_EMAIL) {
+    console.warn(
+      "[worker] *** ATENCION: ADMIN_EMAIL no configurada. Los avisos de acumulacion de FAILED " +
+        "NO se enviaran por correo (solo se registran en el log). Configura ADMIN_EMAIL en el " +
+        ".env del VPS junto a las SMTP_* para recibirlos. ***",
+    );
+  }
 
   await bucleWorker(prisma, registro, {
     workerToken,
@@ -72,6 +82,10 @@ async function main(): Promise<void> {
     intervaloMs: INTERVALO_MS,
     parar,
     dormir,
+    // Mantenimiento cableado: purgas (Job DONE/FAILED, RateLimit, Session) y aviso de FAILED.
+    emailAdapter, // aviso DIRECTO, fuera de la cola
+    adminEmail: env.ADMIN_EMAIL,
+    log: (m) => console.log(m),
   });
 
   await prisma.$disconnect();

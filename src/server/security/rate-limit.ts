@@ -6,8 +6,10 @@
  * de carrera). Dos peticiones simultaneas incrementan sin perder cuentas.
  *
  * La ventana se calcula truncando el instante actual al tamano de ventana, asi la
- * clave (key, windowStart) es estable dentro de la ventana. Un job periodico
- * (RETENTION_PURGE) limpia ventanas antiguas.
+ * clave (key, windowStart) es estable dentro de la ventana. Las ventanas ya CERRADAS las
+ * purga el worker (`podarRateLimit` en `src/server/jobs/worker.ts`, en el bucle junto a la
+ * poda de Job y Session): por lotes y conservando la ventana en curso y la anterior. Sin esa
+ * purga la tabla crece sin fin (cada login fallido / registro / reenvio deja una fila).
  *
  * Recibe el PrismaClient por parametro (testeable), como el resto de servicios.
  */

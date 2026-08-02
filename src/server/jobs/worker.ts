@@ -7,8 +7,16 @@
  * NO usa Redis: con MariaDB como fuente de verdad, el sondeo basta. Se anadira un despertador
  * solo si una necesidad medida lo justifica.
  */
+import {
+  JOB_DONE_RETENTION_DAYS,
+  JOB_FAILED_ALERT_THRESHOLD,
+  JOB_FAILED_RETENTION_DAYS,
+  RATE_LIMIT_PURGE_RETENER_MS,
+} from "@/config/constants";
 import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { purgeExpiredSessions } from "@/server/auth/session";
+import type { EmailAdapter, EmailMessage } from "@/server/email/adapter";
 import { claimJobs } from "@/server/services/jobs";
 
 import type { Registro } from "./registry";
@@ -23,6 +31,16 @@ export const REAPER_UMBRAL_MS = Number(
 export const TOPE_BACKOFF_DEFECTO_MS = 6 * 60 * 60_000; // 6 h
 /** Cota del findMany del reaper: no cargar miles de filas colgadas en memoria. */
 const REAPER_LOTE = 1000;
+/** Tamano de LOTE de las purgas (RateLimit/Job): un DELETE de millones de filas bloquea la
+ *  tabla y tumba los logins. Se borra en tandas de este tamano hasta drenar (o hasta el tope). */
+const PURGA_LOTE = 1000;
+/** Tope de tandas por CICLO de purga (backstop anti-bucle). Si se alcanza, NO se drenó todo:
+ *  se registra y se sigue en el proximo ciclo (nada de tope silencioso). */
+const PURGA_MAX_TANDAS = 1000;
+/** Clave en SystemState de la histeresis del aviso de FAILED (ver `avisarSiFallidos`). */
+const CLAVE_AVISO_FAILED = "aviso:job_failed";
+const AVISO_ARMADO = "armado";
+const AVISO_DISPARADO = "disparado";
 
 /**
  * INVARIANTE CRITICO: el timeout de un job debe ser SIEMPRE menor que el umbral del reaper.
@@ -127,6 +145,8 @@ export interface ProcesarLoteInput {
   aleatorio?: () => number;
   /** Apagado limpio: si pasa a true, se libera el RESTO del lote a PENDING (no se deja RUNNING). */
   parar?: () => boolean;
+  /** Log operativo por trabajo (tipo, id, resultado, duracion). NUNCA datos sensibles. */
+  log?: (m: string) => void;
 }
 
 /**
@@ -146,6 +166,10 @@ export async function procesarLote(
   let hechos = 0;
   let fallidos = 0;
   let liberados = 0;
+
+  // Una linea por trabajo procesado: tipo, id, resultado, duracion. Sin payload/token/correo.
+  const registrar = (job: { type: string; id: string }, resultado: string, durMs: number): void =>
+    input.log?.(`[worker] job type=${job.type} id=${job.id} resultado=${resultado} dur=${durMs}ms`);
 
   for (let i = 0; i < jobs.length; i += 1) {
     // Apagado limpio: liberar el resto del lote (incl. este) a PENDING y salir del lote.
@@ -170,10 +194,12 @@ export async function procesarLote(
           lastError: `tipo de job desconocido: ${job.type}`,
         },
       });
+      registrar(job, "DESCONOCIDO", 0);
       fallidos += 1;
       continue;
     }
 
+    const t0 = Date.now();
     try {
       await conTimeout(def.handler(job), timeout);
       await db.job.update({
@@ -182,6 +208,7 @@ export async function procesarLote(
         data: { status: "DONE", payload: Prisma.DbNull, lockedBy: null },
       });
       hechos += 1;
+      registrar(job, "DONE", Date.now() - t0);
     } catch (e) {
       const lastError = sanearError(e);
       // Fallo AMBIGUO (timeout: el efecto pudo ocurrir) sobre un tipo con politica FAIL:
@@ -200,6 +227,7 @@ export async function procesarLote(
           },
         });
         fallidos += 1;
+        registrar(job, "FAILED", Date.now() - t0);
         continue;
       }
 
@@ -225,6 +253,7 @@ export async function procesarLote(
             },
       });
       fallidos += 1;
+      registrar(job, agotado ? "FAILED" : "REINTENTO", Date.now() - t0);
     }
   }
 
@@ -281,20 +310,170 @@ export async function repasarColgados(
   return { reencolados, fallados };
 }
 
-/** Borra los jobs DONE con mas de `dias` (la tabla no crece sin fin; sin cron ni nada externo). */
+/**
+ * Borrado POR LOTES (DELETE ... LIMIT) hasta drenar o hasta PURGA_MAX_TANDAS. Un unico DELETE
+ * de millones de filas bloquea la tabla; en tandas pequenas no. Devuelve el total borrado y si
+ * se drenó del todo (para avisar si un ciclo se quedó corto, sin tope silencioso).
+ * `tabla` es una union CERRADA de literales internos (nunca entrada de usuario) -> `Prisma.raw`
+ * es seguro aqui; la condicion `cond` lleva sus valores parametrizados.
+ */
+async function borrarPorLotes(
+  db: PrismaClient,
+  tabla: "Job" | "RateLimit",
+  cond: Prisma.Sql,
+  lote: number,
+): Promise<{ total: number; drenado: boolean }> {
+  const n = Math.floor(lote);
+  const tablaRaw = Prisma.raw(`\`${tabla}\``);
+  let total = 0;
+  for (let i = 0; i < PURGA_MAX_TANDAS; i += 1) {
+    const borradas = await db.$executeRaw(
+      Prisma.sql`DELETE FROM ${tablaRaw} WHERE ${cond} LIMIT ${Prisma.raw(String(n))}`,
+    );
+    total += borradas;
+    if (borradas < n) return { total, drenado: true };
+  }
+  return { total, drenado: false };
+}
+
+/**
+ * Borra los jobs DONE con mas de `dias` (por lotes). OJO: acota SOLO los DONE. Los FAILED tienen
+ * su propia poda (`podarFailed`, retencion larga) porque son señal de diagnostico: no se borran
+ * con este plazo. (Antes este comentario decia "la tabla no crece sin fin", cierto solo de DONE.)
+ */
 export async function podarDone(
   db: PrismaClient,
   input: { now?: Date; dias: number },
-): Promise<number> {
-  const now = input.now ?? new Date();
-  const limite = new Date(now.getTime() - input.dias * 24 * 60 * 60_000);
-  const r = await db.job.deleteMany({ where: { status: "DONE", createdAt: { lt: limite } } });
-  return r.count;
+): Promise<{ total: number; drenado: boolean }> {
+  const limite = new Date((input.now ?? new Date()).getTime() - input.dias * 24 * 60 * 60_000);
+  return borrarPorLotes(
+    db,
+    "Job",
+    Prisma.sql`\`status\` = 'DONE' AND \`createdAt\` < ${limite}`,
+    PURGA_LOTE,
+  );
+}
+
+/**
+ * Borra los jobs FAILED con mas de `dias` (por lotes). Retencion LARGA a proposito
+ * (JOB_FAILED_RETENTION_DAYS = 90): un FAILED es la señal de que algo fue mal y se conserva para
+ * diagnostico. NUNCA borrado silencioso antes de plazo.
+ */
+export async function podarFailed(
+  db: PrismaClient,
+  input: { now?: Date; dias: number },
+): Promise<{ total: number; drenado: boolean }> {
+  const limite = new Date((input.now ?? new Date()).getTime() - input.dias * 24 * 60 * 60_000);
+  return borrarPorLotes(
+    db,
+    "Job",
+    Prisma.sql`\`status\` = 'FAILED' AND \`createdAt\` < ${limite}`,
+    PURGA_LOTE,
+  );
+}
+
+/**
+ * Purga las ventanas de RateLimit ya CERRADAS con holgura (windowStart < now - retenerMs), por
+ * lotes. NUNCA toca la ventana en curso ni la inmediatamente anterior (retenerMs > la ventana
+ * mas larga): una peticion en vuelo podria estar incrementandola, y borrarla RESETEARIA el
+ * limite —dejaria de proteger—. Se apoya en `@@index([windowStart])`. Devuelve cuantas borro.
+ */
+export async function podarRateLimit(
+  db: PrismaClient,
+  input: { now?: Date; retenerMs: number },
+): Promise<{ total: number; drenado: boolean }> {
+  const limite = new Date((input.now ?? new Date()).getTime() - input.retenerMs);
+  return borrarPorLotes(db, "RateLimit", Prisma.sql`\`windowStart\` < ${limite}`, PURGA_LOTE);
 }
 
 /** Numero de jobs en FAILED (para /api/health y el log de arranque del worker). */
 export function contarFallidos(db: PrismaClient): Promise<number> {
   return db.job.count({ where: { status: "FAILED" } });
+}
+
+// ── Aviso al admin por acumulacion de FAILED, con histeresis durable ─────────────────────────
+
+async function leerEstado(db: PrismaClient, key: string): Promise<string | null> {
+  const row = await db.systemState.findUnique({ where: { key }, select: { value: true } });
+  return row?.value ?? null;
+}
+
+async function escribirEstado(db: PrismaClient, key: string, value: string): Promise<void> {
+  await db.systemState.upsert({ where: { key }, create: { key, value }, update: { value } });
+}
+
+export interface AvisoResultado {
+  fallidos: number;
+  enviado: boolean;
+}
+
+/**
+ * AVISO al admin por acumulacion de jobs FAILED, con HISTERESIS DURABLE:
+ *  - Se avisa UNA vez al CRUZAR el umbral hacia arriba; NO se reavisa mientras siga por encima
+ *    (con el correo caido serian cien correos identicos en una hora, y dejarias de mirarlos).
+ *  - Cuando baja por debajo del umbral, se RE-ARMA (sin correo); volver a cruzar vuelve a avisar.
+ *  - El estado ("armado"/"disparado") vive en SystemState (BD), asi SOBREVIVE a un reinicio del
+ *    worker; sin eso, cada reinicio reavisaria.
+ * El aviso viaja DIRECTO por el adaptador SMTP, NUNCA por la cola: si lo que falla es justamente
+ * el envio de correos, encolarlo lo condenaria al mismo fallo -> silencio total cuando mas falta
+ * hace. Si el envio directo falla (SMTP caido) NO se marca disparado: se reintenta el proximo
+ * ciclo (no hay spam: ningun correo salio).
+ */
+export async function avisarSiFallidos(
+  db: PrismaClient,
+  adapter: EmailAdapter,
+  input: { now?: Date; umbral: number; adminEmail?: string; log?: (m: string) => void },
+): Promise<AvisoResultado> {
+  const log = input.log ?? (() => {});
+  const fallidos = await contarFallidos(db);
+  const estado = (await leerEstado(db, CLAVE_AVISO_FAILED)) ?? AVISO_ARMADO;
+
+  // Por DEBAJO del umbral: re-armar (sin correo) si estaba disparado.
+  if (fallidos < input.umbral) {
+    if (estado === AVISO_DISPARADO) await escribirEstado(db, CLAVE_AVISO_FAILED, AVISO_ARMADO);
+    return { fallidos, enviado: false };
+  }
+  // En/por encima del umbral y YA disparado: silencio.
+  if (estado === AVISO_DISPARADO) return { fallidos, enviado: false };
+
+  // CRUCE del umbral: avisar una vez.
+  const mensaje: EmailMessage = {
+    to: input.adminEmail ?? "",
+    subject: `[DareFlash] ${fallidos} trabajos en FAILED (umbral ${input.umbral})`,
+    text: [
+      `La cola tiene ${fallidos} trabajos en estado FAILED (umbral de aviso: ${input.umbral}).`,
+      "",
+      "Algo esta fallando de forma sostenida (correo, ledger u otro tipo). Revisa la cola.",
+      "Este aviso NO se repite hasta que el contador baje del umbral y lo cruce de nuevo.",
+    ].join("\n"),
+  };
+
+  if (!input.adminEmail) {
+    // Sin destinatario: no se puede enviar. Se registra en cada ciclo por encima del umbral y NO
+    // se marca DISPARADO. Motivo (correccion de Junior): no ha salido ningun correo, asi que no
+    // hay spam que evitar; un log repetido es molesto, pero un silencio total es PELIGROSO (se
+    // olvida ADMIN_EMAIL en el VPS y el sistema de avisos queda muerto y callado para siempre).
+    // Ademas, al dejarlo ARMADO, en cuanto se configure ADMIN_EMAIL el aviso sale sin esperar a
+    // que el contador baje y vuelva a cruzar. El aviso destacado de que falta la variable se da
+    // AL ARRANCAR el worker (scripts/worker.ts).
+    log(
+      `[worker] AVISO (sin ADMIN_EMAIL, NO enviado): ${fallidos} jobs en FAILED (umbral ${input.umbral}).`,
+    );
+    return { fallidos, enviado: false };
+  }
+
+  try {
+    await adapter.send(mensaje);
+  } catch (e) {
+    // Fallo el envio DIRECTO (SMTP caido). NO marcar disparado: reintentar el proximo ciclo.
+    log(`[worker] AVISO no enviado (fallo el envio directo: ${sanearError(e)}); reintento luego.`);
+    return { fallidos, enviado: false };
+  }
+  await escribirEstado(db, CLAVE_AVISO_FAILED, AVISO_DISPARADO);
+  log(
+    `[worker] AVISO enviado al admin (${input.adminEmail}): ${fallidos} jobs en FAILED (umbral ${input.umbral}).`,
+  );
+  return { fallidos, enviado: true };
 }
 
 export interface OpcionesBucle {
@@ -305,6 +484,20 @@ export interface OpcionesBucle {
   reaperCadaMs?: number;
   podaCadaMs?: number;
   doneRetenerDias?: number;
+  /** Retencion de FAILED antes de purgarlos (dias). Por defecto JOB_FAILED_RETENTION_DAYS (90). */
+  failedRetenerDias?: number;
+  /** Holgura de RateLimit: se borran ventanas mas viejas que esto. Por defecto 2 h. */
+  rateLimitRetenerMs?: number;
+  /** Cada cuanto se comprueba el aviso de FAILED. Por defecto 60 s. */
+  avisoCadaMs?: number;
+  /** Umbral de FAILED para avisar al admin. Por defecto JOB_FAILED_ALERT_THRESHOLD (10). */
+  alertaUmbral?: number;
+  /** Adaptador de correo para el aviso DIRECTO (sin cola). Sin el, no se comprueba el aviso. */
+  emailAdapter?: EmailAdapter;
+  /** Destinatario del aviso. Sin el, el aviso se registra en el log en vez de enviarse. */
+  adminEmail?: string;
+  /** Log operativo (por trabajo y de las purgas/avisos). */
+  log?: (m: string) => void;
   /** true -> dejar de reclamar y salir (SIGTERM). Se comprueba entre lotes Y entre trabajos. */
   parar: () => boolean;
   dormir: (ms: number) => Promise<void>;
@@ -325,6 +518,7 @@ export async function bucleWorker(
   const ahora = o.ahora ?? (() => new Date());
   let ultimoReaper = 0;
   let ultimaPoda = 0;
+  let ultimoAviso = 0;
 
   while (!o.parar()) {
     const t = ahora();
@@ -333,6 +527,7 @@ export async function bucleWorker(
       limit: o.limit,
       now: t,
       parar: o.parar,
+      log: o.log,
     });
 
     if (o.parar()) break;
@@ -341,9 +536,52 @@ export async function bucleWorker(
       await repasarColgados(db, registro, { now: t, umbralMs: o.umbralReaperMs });
       ultimoReaper = t.getTime();
     }
+    // Las TRES purgas, juntas (misma cadencia que la poda de Job): la tabla no crece sin fin.
     if (t.getTime() - ultimaPoda >= (o.podaCadaMs ?? 24 * 60 * 60_000)) {
-      await podarDone(db, { now: t, dias: o.doneRetenerDias ?? 7 });
+      const done = await podarDone(db, {
+        now: t,
+        dias: o.doneRetenerDias ?? JOB_DONE_RETENTION_DAYS,
+      });
+      const rateLimit = await podarRateLimit(db, {
+        now: t,
+        retenerMs: o.rateLimitRetenerMs ?? RATE_LIMIT_PURGE_RETENER_MS,
+      });
+      const sesiones = await purgeExpiredSessions(db, t);
+      const failed = await podarFailed(db, {
+        now: t,
+        dias: o.failedRetenerDias ?? JOB_FAILED_RETENTION_DAYS,
+      });
+      o.log?.(
+        `[worker] poda: DONE=${done.total} RateLimit=${rateLimit.total} ` +
+          `Session=${sesiones.total} FAILED=${failed.total}`,
+      );
+      // No silencioso: si alguna purga alcanzo el tope de tandas (no drenó), se DICE en el log;
+      // sigue en el proximo ciclo. (Antes `drenado` se calculaba y se tiraba: comentario que
+      // prometia lo que el codigo no hacia.)
+      for (const [nombre, r] of [
+        ["DONE", done],
+        ["RateLimit", rateLimit],
+        ["Session", sesiones],
+        ["FAILED", failed],
+      ] as const) {
+        if (!r.drenado) {
+          o.log?.(
+            `[worker] poda: ${nombre} NO drenó (tope de tandas alcanzado); sigue en el proximo ciclo.`,
+          );
+        }
+      }
       ultimaPoda = t.getTime();
+    }
+    // Aviso al admin por acumulacion de FAILED (directo, fuera de la cola). Cadencia propia,
+    // mas frecuente que la poda: un pico de FAILED debe avisar pronto, no dentro de 24 h.
+    if (o.emailAdapter && t.getTime() - ultimoAviso >= (o.avisoCadaMs ?? 60_000)) {
+      await avisarSiFallidos(db, o.emailAdapter, {
+        now: t,
+        umbral: o.alertaUmbral ?? JOB_FAILED_ALERT_THRESHOLD,
+        adminEmail: o.adminEmail,
+        log: o.log,
+      });
+      ultimoAviso = t.getTime();
     }
 
     if (o.parar()) break;
