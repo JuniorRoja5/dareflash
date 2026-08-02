@@ -18,6 +18,7 @@ export async function POST(req: Request) {
   const { prisma } = await import("@/server/db/client");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { registerUser } = await import("@/server/auth/registration");
+  const { esArgon2Sobrecargado } = await import("@/server/auth/password");
 
   const rl = await rateLimit(prisma, {
     key: `register:ip:${clientIpKey(req, env.AUTH_SECRET)}`,
@@ -45,12 +46,21 @@ export async function POST(req: Request) {
   const parsed = schema.safeParse(body);
   if (!parsed.success) return apiError("VALIDATION", "Datos de registro invalidos.", 400);
 
-  await registerUser(prisma, {
-    email: parsed.data.email,
-    password: parsed.data.password,
-    birthDate: parsed.data.birthDate,
-    appUrl: env.APP_URL,
-  });
+  // El argon2 del registro (que se ejecuta SIEMPRE, anti-enumeracion) va por el semaforo: si
+  // esta saturado, 503, no 500. La respuesta uniforme se mantiene para el resto de casos.
+  try {
+    await registerUser(prisma, {
+      email: parsed.data.email,
+      password: parsed.data.password,
+      birthDate: parsed.data.birthDate,
+      appUrl: env.APP_URL,
+    });
+  } catch (e) {
+    if (esArgon2Sobrecargado(e)) {
+      return apiError("OVERLOADED", "Servicio ocupado, reintenta en unos segundos.", 503);
+    }
+    throw e;
+  }
 
   // Respuesta UNIFORME: no revela si la direccion ya tenia cuenta (sin enumeracion).
   return apiOk({

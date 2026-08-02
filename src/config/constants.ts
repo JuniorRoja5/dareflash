@@ -94,6 +94,15 @@ export type CategoryKey = (typeof CATEGORIES)[number]["key"];
 // AUTENTICACION / EMAIL (Paso 6)
 // ============================================================================
 
+/**
+ * Semaforo de Argon2id (medido en el VPS: 1 vCPU AMD EPYC, ~178 ms/hash a p=1, sin swap). En 1
+ * nucleo el threadpool de libuv ya limita a ~4 hashes en vuelo, asi que la MEMORIA ya esta
+ * acotada (~270 MB). Estos valores acotan LA ESPERA, no la memoria: mas de 4 plazas no aporta;
+ * esperar mas de ~2 s por un login es peor que un 503 claro. Ver src/server/auth/password.ts.
+ */
+export const ARGON2_MAX_CONCURRENT = 4;
+export const ARGON2_MAX_WAIT_MS = 2000;
+
 /** Edad minima para registrarse. Se valida EN SERVIDOR. */
 export const MIN_AGE_YEARS = 16;
 
