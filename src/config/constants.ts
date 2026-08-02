@@ -135,6 +135,36 @@ export const EMAIL_MAX_PER_QUEUE_RUN = 20;
  * Limites de rate limiting (ventana fija). Se aplican en login, registro y reenvio
  * de verificacion, POR IP y POR direccion, como defensa antifraude/antiabuso.
  */
+// ============================================================================
+// PURGAS Y AVISOS DEL WORKER (mantenimiento cableado en el bucle del worker)
+// ============================================================================
+
+/**
+ * RateLimit: se borran las ventanas ya CERRADAS con holgura (windowStart < now - esto). Se
+ * conserva todo lo mas reciente para NO tocar ni la ventana EN CURSO ni la inmediatamente
+ * anterior: una peticion en vuelo podria estar incrementandola, y borrarla RESETEARIA el
+ * limite. 2 h > la ventana mas larga que usamos (1 h: registro/reenvio), asi cubre "en curso
+ * + anterior" con margen.
+ */
+export const RATE_LIMIT_PURGE_RETENER_MS = 2 * 60 * 60 * 1000; // 2 h
+
+/** Jobs DONE: dias que se conservan antes de purgarlos. */
+export const JOB_DONE_RETENTION_DAYS = 7;
+
+/**
+ * Jobs FAILED: dias que se conservan antes de purgarlos. Largo A PROPOSITO: un FAILED es la
+ * señal de que algo fue mal (a quien afecto, por que) y se conserva para diagnostico. NUNCA
+ * borrado silencioso antes de plazo.
+ */
+export const JOB_FAILED_RETENTION_DAYS = 90;
+
+/**
+ * Umbral de AVISO al admin por acumulacion de jobs FAILED. Al CRUZARLO (hacia arriba) el
+ * worker envia UN aviso —directo por SMTP, fuera de la cola— y calla hasta que el contador
+ * baje del umbral y lo cruce de nuevo. Configurable aqui, no incrustado en el codigo.
+ */
+export const JOB_FAILED_ALERT_THRESHOLD = 10;
+
 export const RATE_LIMITS = {
   // OJO: 10/15min se queda CORTO con CGNAT movil u oficinas (muchos usuarios tras una
   // misma IP publica). Revisar con trafico real; puede subirse sin tocar la seguridad

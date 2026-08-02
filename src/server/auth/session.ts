@@ -19,6 +19,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { SESSION_MAX_PER_USER, SESSION_TOKEN_BYTES, SESSION_TTL_MS } from "@/config/constants";
+import { Prisma } from "@/generated/prisma/client";
 import type { Db } from "@/server/db/types";
 
 function hashToken(rawToken: string): string {
@@ -133,12 +134,20 @@ export async function revokeAllUserSessions(db: Db, userId: string): Promise<voi
 }
 
 /**
- * Purga de sesiones CADUCADAS (expires <= now). La tabla no crece sin fin con filas
- * muertas. Es el handler del job de limpieza (cola en tabla `Job` + cron; se registra
- * en el Paso 8). Devuelve cuantas borro.
+ * Purga de sesiones CADUCADAS (expires <= now), POR LOTES con tope: un DELETE de millones de
+ * filas bloquea la tabla. Se apoya en `@@index([expires])`. La CABLEA el bucle del worker
+ * (`src/server/jobs/worker.ts`), junto a la poda de Job y RateLimit. Devuelve cuantas borro.
  */
-export async function purgeExpiredSessions(db: Db, now?: Date): Promise<number> {
+export async function purgeExpiredSessions(db: Db, now?: Date, lote = 1000): Promise<number> {
   const nowD = now ?? new Date();
-  const { count } = await db.session.deleteMany({ where: { expires: { lte: nowD } } });
-  return count;
+  const n = Math.floor(lote);
+  let total = 0;
+  for (let i = 0; i < 1000; i += 1) {
+    const borradas = await db.$executeRaw(
+      Prisma.sql`DELETE FROM \`Session\` WHERE \`expires\` <= ${nowD} LIMIT ${Prisma.raw(String(n))}`,
+    );
+    total += borradas;
+    if (borradas < n) break;
+  }
+  return total;
 }

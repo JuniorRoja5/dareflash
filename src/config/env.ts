@@ -83,6 +83,12 @@ const serverSchema = z.object({
   SMTP_PORT: z.coerce.number().int().positive().optional(),
   SMTP_USER: z.string().min(1).optional(),
   SMTP_PASSWORD: z.string().min(1).optional(),
+  /**
+   * Correo del ADMIN para AVISOS operativos DIRECTOS (no por la cola): p.ej. acumulacion de
+   * jobs en FAILED. Opcional hoy; sin ella el worker registra el aviso en el log (alto) en vez
+   * de enviarlo. Se promueve a obligatoria cuando el aviso deba llegar si o si.
+   */
+  ADMIN_EMAIL: z.email().optional(),
   /** Observabilidad. */
   SENTRY_DSN: z.url().optional(),
 });

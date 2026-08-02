@@ -72,6 +72,10 @@ async function main(): Promise<void> {
     intervaloMs: INTERVALO_MS,
     parar,
     dormir,
+    // Mantenimiento cableado: purgas (Job DONE/FAILED, RateLimit, Session) y aviso de FAILED.
+    emailAdapter, // aviso DIRECTO, fuera de la cola
+    adminEmail: env.ADMIN_EMAIL,
+    log: (m) => console.log(m),
   });
 
   await prisma.$disconnect();
