@@ -83,6 +83,13 @@ function VerifyContenido() {
       {estado === "error" && (
         <>
           <p>{mensaje}</p>
+          {/* El token es de UN SOLO USO: quien ya verifico y refresca /verify cae aqui. No se
+              puede distinguir "ya verificado" de "token invalido" sin un oraculo (seria enumeracion),
+              asi que se cubre con TEXTO. Cuando exista /login, esta frase llevara enlace. */}
+          <p>
+            Si ya has verificado tu cuenta, este enlace deja de funcionar: puedes iniciar sesion
+            directamente.
+          </p>
           <Reenviar />
         </>
       )}
@@ -94,22 +101,33 @@ function VerifyContenido() {
  *  ya no sirve para identificar la cuenta. Respuesta uniforme (sin enumeracion), como el endpoint. */
 function Reenviar() {
   const [email, setEmail] = useState("");
-  const [enviado, setEnviado] = useState(false);
+  const [resultado, setResultado] = useState<string | null>(null);
 
   async function reenviar(e: FormEvent) {
     e.preventDefault();
     try {
-      await fetch("/api/auth/resend-verification", {
+      const res = await fetch("/api/auth/resend-verification", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-    } finally {
-      setEnviado(true); // respuesta uniforme: no revela si la cuenta existe
+      if (res.ok) {
+        // Respuesta UNIFORME: no revela si la cuenta existe (sin enumeracion).
+        setResultado("Si corresponde, te hemos reenviado el correo de verificacion.");
+      } else if (res.status === 429) {
+        // Mostrar el 429 NO abre enumeracion: en resend-verification/route.ts los dos rateLimit()
+        // se evaluan ANTES del findUnique, asi que el 429 es IDENTICO para una direccion real y
+        // una inventada. No revela nada. No "arreglarlo" ocultandolo.
+        setResultado("Demasiados intentos. Intenta mas tarde.");
+      } else {
+        setResultado("No se pudo conectar. Intentalo de nuevo mas tarde.");
+      }
+    } catch {
+      setResultado("No se pudo conectar. Intentalo de nuevo mas tarde.");
     }
   }
 
-  if (enviado) return <p>Si corresponde, te hemos reenviado el correo de verificacion.</p>;
+  if (resultado) return <p>{resultado}</p>;
 
   return (
     <form onSubmit={reenviar} style={{ marginTop: "1rem", display: "grid", gap: "0.5rem" }}>
