@@ -16,9 +16,9 @@ const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms
 
 describe("contrasenas (argon2id)", () => {
   it("hashea con argon2id y verifica correcto/incorrecto", async () => {
-    const hash = await hashPassword("un-secreto-largo");
+    const hash = await hashPassword("TEST-FIXTURE-pass-secreto-largo");
     expect(hash.startsWith("$argon2id$")).toBe(true);
-    expect(await verifyPassword(hash, "un-secreto-largo")).toBe(true);
+    expect(await verifyPassword(hash, "TEST-FIXTURE-pass-secreto-largo")).toBe(true);
     expect(await verifyPassword(hash, "otro")).toBe(false);
   });
 
@@ -30,16 +30,16 @@ describe("contrasenas (argon2id)", () => {
     // Sin hash real (usuario inexistente): siempre false, sin lanzar.
     expect(await verifyPasswordConstantTime(null, "cualquiera")).toBe(false);
 
-    const hash = await hashPassword("correcta-1234");
-    expect(await verifyPasswordConstantTime(hash, "correcta-1234")).toBe(true);
-    expect(await verifyPasswordConstantTime(hash, "incorrecta")).toBe(false);
+    const hash = await hashPassword("TEST-FIXTURE-pass-correcta-1234");
+    expect(await verifyPasswordConstantTime(hash, "TEST-FIXTURE-pass-correcta-1234")).toBe(true);
+    expect(await verifyPasswordConstantTime(hash, "TEST-FIXTURE-pass-incorrecta")).toBe(false);
   });
 });
 
 describe("argon2: parametros fijos y coherentes (medidos en el VPS: p=1)", () => {
   it("ARGON2_PARAMS es m=65536, t=3, p=1 y hashPassword lo aplica", async () => {
     expect(ARGON2_PARAMS).toMatchObject({ memoryCost: 65536, timeCost: 3, parallelism: 1 });
-    const h = await hashPassword("una-contrasena-larga-1234");
+    const h = await hashPassword("TEST-FIXTURE-pass-larga-1234");
     expect(h).toContain("m=65536");
     expect(h).toContain("p=1");
     expect(h).toContain("t=3");

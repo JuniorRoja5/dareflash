@@ -53,6 +53,11 @@ export async function login(
   // Asi los hashes reales convergen a los MISMOS parametros que DUMMY_HASH y no reaparece la
   // diferencia de tiempo (usuario existente vs inexistente). La verificacion previa ya funciono
   // (la libreria lee los params del propio hash); esto solo actualiza el formato.
+  //
+  // NOTA (no es un bug, anotado a proposito): esto va DESPUES del return de EMAIL_NOT_VERIFIED,
+  // asi que un usuario SIN verificar con un hash antiguo no se regraba hasta que verifique y
+  // entre. Es correcto: se regrabara en su primer login real. No lo "arregles" adelantandolo: no
+  // se debe hacer trabajo extra en un camino que no inicia sesion.
   if (user.passwordHash !== null && needsRehash(user.passwordHash)) {
     await db.user.update({
       where: { id: user.id },

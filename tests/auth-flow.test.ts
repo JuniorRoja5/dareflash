@@ -26,7 +26,7 @@ describe("registro", () => {
   it("email nuevo: crea usuario SIN verificar y encola el correo de verificacion", async () => {
     await registerUser(prisma, {
       email: "nuevo@test.com",
-      password: "contrasena-larga-123",
+      password: "TEST-FIXTURE-pass-larga-123",
       birthDate: new Date("2000-01-01T00:00:00Z"),
       appUrl: APP_URL,
     });
@@ -47,7 +47,7 @@ describe("registro", () => {
     await prisma.user.create({ data: { email: "ya@test.com", passwordHash: "x" } });
     await registerUser(prisma, {
       email: "ya@test.com",
-      password: "otra-contrasena-larga",
+      password: "TEST-FIXTURE-pass-otra-larga",
       birthDate: new Date("2000-01-01T00:00:00Z"),
       appUrl: APP_URL,
     });
@@ -68,26 +68,38 @@ describe("login", () => {
   }
 
   it("credenciales correctas y verificado -> sesion valida", async () => {
-    await crearUsuario("a@test.com", "correcta-1234567", true);
-    const r = await login(prisma, { email: "a@test.com", password: "correcta-1234567" });
+    await crearUsuario("a@test.com", "TEST-FIXTURE-pass-correcta-1234567", true);
+    const r = await login(prisma, {
+      email: "a@test.com",
+      password: "TEST-FIXTURE-pass-correcta-1234567",
+    });
     expect(r.ok).toBe(true);
     if (r.ok) expect(await validateSession(prisma, r.session.rawToken)).not.toBeNull();
   });
 
   it("contrasena incorrecta -> INVALID_CREDENTIALS", async () => {
-    await crearUsuario("a@test.com", "correcta-1234567", true);
-    const r = await login(prisma, { email: "a@test.com", password: "incorrecta" });
+    await crearUsuario("a@test.com", "TEST-FIXTURE-pass-correcta-1234567", true);
+    const r = await login(prisma, {
+      email: "a@test.com",
+      password: "TEST-FIXTURE-pass-incorrecta",
+    });
     expect(r).toEqual({ ok: false, reason: "INVALID_CREDENTIALS" });
   });
 
   it("usuario inexistente -> INVALID_CREDENTIALS (sin lanzar; timing-safe)", async () => {
-    const r = await login(prisma, { email: "nadie@test.com", password: "loquesea-1234" });
+    const r = await login(prisma, {
+      email: "nadie@test.com",
+      password: "TEST-FIXTURE-pass-loquesea-1234",
+    });
     expect(r).toEqual({ ok: false, reason: "INVALID_CREDENTIALS" });
   });
 
   it("sin email verificado -> EMAIL_NOT_VERIFIED (barrera antifraude)", async () => {
-    await crearUsuario("a@test.com", "correcta-1234567", false);
-    const r = await login(prisma, { email: "a@test.com", password: "correcta-1234567" });
+    await crearUsuario("a@test.com", "TEST-FIXTURE-pass-correcta-1234567", false);
+    const r = await login(prisma, {
+      email: "a@test.com",
+      password: "TEST-FIXTURE-pass-correcta-1234567",
+    });
     expect(r).toEqual({ ok: false, reason: "EMAIL_NOT_VERIFIED" });
   });
 });

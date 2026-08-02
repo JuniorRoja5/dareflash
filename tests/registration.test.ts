@@ -40,7 +40,7 @@ beforeEach(async () => {
 });
 
 const BIRTH = new Date("2000-01-01T00:00:00.000Z");
-const PASS = "una-contrasena-suficientemente-larga";
+const PASS = "TEST-FIXTURE-pass-suficientemente-larga";
 
 function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
