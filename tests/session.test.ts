@@ -29,7 +29,7 @@ beforeEach(async () => {
 
 async function crearUsuario(email: string, over: Record<string, unknown> = {}): Promise<string> {
   const u = await prisma.user.create({
-    data: { email, emailVerified: new Date(), passwordHash: "hash-viejo", ...over },
+    data: { email, emailVerified: new Date(), passwordHash: "TEST-FIXTURE-hash-viejo", ...over },
     select: { id: true },
   });
   return u.id;
@@ -105,7 +105,7 @@ describe("sesiones en base de datos", () => {
     const s2 = await createSession(prisma, userId);
     const sOtro = await createSession(prisma, otro);
 
-    await changePassword(prisma, { userId, newPassword: "contrasena-nueva-larga" });
+    await changePassword(prisma, { userId, newPassword: "TEST-FIXTURE-pass-nueva-larga" });
 
     // Las dos del usuario, muertas.
     expect(await validateSession(prisma, s1.rawToken)).toBeNull();
@@ -117,7 +117,7 @@ describe("sesiones en base de datos", () => {
       where: { id: userId },
       select: { passwordHash: true },
     });
-    expect(u.passwordHash).not.toBe("hash-viejo");
+    expect(u.passwordHash).not.toBe("TEST-FIXTURE-hash-viejo");
   });
 
   it("revokeAllUserSessions borra todas las de un usuario", async () => {
@@ -159,7 +159,10 @@ describe("sesiones en base de datos", () => {
     const userId = await crearUsuario("a@test.com");
     const vieja = await createSession(prisma, userId);
 
-    const nueva = await changePassword(prisma, { userId, newPassword: "contrasena-nueva-larga" });
+    const nueva = await changePassword(prisma, {
+      userId,
+      newPassword: "TEST-FIXTURE-pass-nueva-larga",
+    });
 
     expect(await validateSession(prisma, vieja.rawToken)).toBeNull(); // la del atacante muere
     expect(await validateSession(prisma, nueva.rawToken)).not.toBeNull(); // el legitimo sigue dentro
