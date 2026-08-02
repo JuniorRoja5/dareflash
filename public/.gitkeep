@@ -1,0 +1,2 @@
+# Directorio de estaticos publicos. Se conserva (aunque vacio) porque el Dockerfile hace
+# COPY /app/public. Los SVG del andamiaje de Next/Vercel se retiraron.
