@@ -9,7 +9,7 @@
 import { SESSION_TTL_BY_ROLE } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
 
-import { verifyPasswordConstantTime } from "./password";
+import { hashPassword, needsRehash, verifyPasswordConstantTime } from "./password";
 import { createSession, type CreatedSession } from "./session";
 
 export type LoginResult =
@@ -46,6 +46,18 @@ export async function login(
   // Barrera antifraude: sin email verificado no se inicia sesion.
   if (user.emailVerified === null) {
     return { ok: false, reason: "EMAIL_NOT_VERIFIED" };
+  }
+
+  // Rehasheo OPORTUNISTA: si el hash guardado usa parametros distintos a los actuales (un p=4
+  // antiguo), se regraba con los nuevos ahora que tenemos la contrasena en claro y es correcta.
+  // Asi los hashes reales convergen a los MISMOS parametros que DUMMY_HASH y no reaparece la
+  // diferencia de tiempo (usuario existente vs inexistente). La verificacion previa ya funciono
+  // (la libreria lee los params del propio hash); esto solo actualiza el formato.
+  if (user.passwordHash !== null && needsRehash(user.passwordHash)) {
+    await db.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await hashPassword(input.password) },
+    });
   }
 
   // TTL por rol: privilegio mayor -> sesion mas corta.

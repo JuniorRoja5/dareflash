@@ -11,6 +11,7 @@ export async function POST(req: Request) {
   const { rateLimit, resetRateLimit } = await import("@/server/security/rate-limit");
   const { login } = await import("@/server/auth/login");
   const { setSessionCookie } = await import("@/server/auth/current-user");
+  const { esArgon2Sobrecargado } = await import("@/server/auth/password");
 
   const schema = z.object({
     email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
@@ -38,17 +39,25 @@ export async function POST(req: Request) {
     return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
   }
 
-  const result = await login(prisma, { email, password });
-  if (!result.ok) {
-    if (result.reason === "EMAIL_NOT_VERIFIED") {
-      return apiError("EMAIL_NOT_VERIFIED", "Verifica tu email antes de iniciar sesion.", 403);
+  // El argon2 del login va por el semaforo: si esta saturado, 503 (ocupado), no 500 ni 401.
+  try {
+    const result = await login(prisma, { email, password });
+    if (!result.ok) {
+      if (result.reason === "EMAIL_NOT_VERIFIED") {
+        return apiError("EMAIL_NOT_VERIFIED", "Verifica tu email antes de iniciar sesion.", 403);
+      }
+      return apiError("INVALID_CREDENTIALS", "Credenciales invalidas.", 401);
     }
-    return apiError("INVALID_CREDENTIALS", "Credenciales invalidas.", 401);
-  }
 
-  // Acierto: resetea el cubo de ESA cuenta (un usuario legitimo no acumula).
-  await resetRateLimit(prisma, acctKey);
-  // La cookie SOLO se fija ahora, tras verificar la contrasena.
-  await setSessionCookie(result.session.rawToken, result.session.expires);
-  return apiOk({ ok: true });
+    // Acierto: resetea el cubo de ESA cuenta (un usuario legitimo no acumula).
+    await resetRateLimit(prisma, acctKey);
+    // La cookie SOLO se fija ahora, tras verificar la contrasena.
+    await setSessionCookie(result.session.rawToken, result.session.expires);
+    return apiOk({ ok: true });
+  } catch (e) {
+    if (esArgon2Sobrecargado(e)) {
+      return apiError("OVERLOADED", "Servicio ocupado, reintenta en unos segundos.", 503);
+    }
+    throw e;
+  }
 }

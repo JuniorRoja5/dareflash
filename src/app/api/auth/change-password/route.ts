@@ -24,7 +24,8 @@ export const POST = mutatingRoute(async (req, { user }) => {
   const { RATE_LIMITS } = await import("@/config/constants");
   const { prisma } = await import("@/server/db/client");
   const { rateLimit, resetRateLimit } = await import("@/server/security/rate-limit");
-  const { verifyPasswordConstantTime } = await import("@/server/auth/password");
+  const { verifyPasswordConstantTime, esArgon2Sobrecargado } =
+    await import("@/server/auth/password");
   const { changePassword } = await import("@/server/auth/account");
   const { setSessionCookie } = await import("@/server/auth/current-user");
   const { issueCsrfToken } = await import("@/server/auth/csrf");
@@ -54,17 +55,30 @@ export const POST = mutatingRoute(async (req, { user }) => {
     where: { id: user.userId },
     select: { passwordHash: true },
   });
-  const ok = await verifyPasswordConstantTime(u?.passwordHash ?? null, parsed.data.currentPassword);
-  if (!ok) return apiError("INVALID_CREDENTIALS", "La contrasena actual no es correcta.", 403);
 
-  const session = await changePassword(prisma, {
-    userId: user.userId,
-    newPassword: parsed.data.newPassword,
-  });
-  // Acierto: el cubo de este usuario se vacia (no acumula tras un cambio legitimo).
-  await resetRateLimit(prisma, rlKey);
-  await setSessionCookie(session.rawToken, session.expires); // sesion nueva para este dispositivo
-  // Token CSRF nuevo, atado a la sesion recien creada (la anterior ya no existe).
-  const csrfToken = issueCsrfToken(env.AUTH_SECRET, session.sessionId);
-  return apiOk({ ok: true, csrfToken });
+  // Los dos argon2 (verificar la actual + hashear la nueva) van por el semaforo: si esta
+  // saturado, 503, no 500. El resto de la logica no cambia.
+  try {
+    const ok = await verifyPasswordConstantTime(
+      u?.passwordHash ?? null,
+      parsed.data.currentPassword,
+    );
+    if (!ok) return apiError("INVALID_CREDENTIALS", "La contrasena actual no es correcta.", 403);
+
+    const session = await changePassword(prisma, {
+      userId: user.userId,
+      newPassword: parsed.data.newPassword,
+    });
+    // Acierto: el cubo de este usuario se vacia (no acumula tras un cambio legitimo).
+    await resetRateLimit(prisma, rlKey);
+    await setSessionCookie(session.rawToken, session.expires); // sesion nueva para este dispositivo
+    // Token CSRF nuevo, atado a la sesion recien creada (la anterior ya no existe).
+    const csrfToken = issueCsrfToken(env.AUTH_SECRET, session.sessionId);
+    return apiOk({ ok: true, csrfToken });
+  } catch (e) {
+    if (esArgon2Sobrecargado(e)) {
+      return apiError("OVERLOADED", "Servicio ocupado, reintenta en unos segundos.", 503);
+    }
+    throw e;
+  }
 });
