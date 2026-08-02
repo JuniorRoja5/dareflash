@@ -369,7 +369,7 @@ describe("worker: poda de DONE", () => {
     await prisma.job.create({
       data: { type: "SEND_EMAIL", status: "DONE", runAt: new Date(), createdAt: new Date() },
     });
-    const borrados = await podarDone(prisma, { dias: 7 });
+    const { total: borrados } = await podarDone(prisma, { dias: 7 });
     expect(borrados).toBe(1);
     expect(await prisma.job.count({ where: { status: "DONE" } })).toBe(1);
   });

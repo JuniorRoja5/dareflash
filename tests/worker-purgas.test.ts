@@ -67,7 +67,10 @@ describe("purga de RateLimit", () => {
       data: { key: "login:ip:vieja", windowStart: vieja, count: 9 },
     });
 
-    const borradas = await podarRateLimit(prisma, { now, retenerMs: RATE_LIMIT_PURGE_RETENER_MS });
+    const { total: borradas } = await podarRateLimit(prisma, {
+      now,
+      retenerMs: RATE_LIMIT_PURGE_RETENER_MS,
+    });
 
     expect(borradas).toBe(1);
     // La EN CURSO conserva su cuenta intacta (el rate limit sigue protegiendo).
@@ -89,7 +92,7 @@ describe("purga de sesiones caducadas", () => {
       data: { sessionToken: "hash-viva", userId, expires: new Date(now.getTime() + 60_000) },
     });
 
-    const borradas = await purgeExpiredSessions(prisma, now);
+    const { total: borradas } = await purgeExpiredSessions(prisma, now);
 
     expect(borradas).toBe(1);
     expect(await prisma.session.findFirst({ where: { sessionToken: "hash-viva" } })).not.toBeNull();
@@ -109,7 +112,7 @@ describe("purga de Job FAILED (retencion 90 dias)", () => {
       data: { type: "SEND_EMAIL", status: "FAILED", runAt: d100, createdAt: d100 },
     });
 
-    const borrados = await podarFailed(prisma, { now, dias: JOB_FAILED_RETENTION_DAYS });
+    const { total: borrados } = await podarFailed(prisma, { now, dias: JOB_FAILED_RETENTION_DAYS });
 
     expect(borrados).toBe(1);
     const quedan = await prisma.job.findMany({ where: { status: "FAILED" } });
@@ -187,5 +190,24 @@ describe("aviso al admin por acumulacion de FAILED (histeresis durable)", () => 
     expect(adapter.sent).toHaveLength(1);
     // El aviso salio por el adaptador, NO como job: el numero de filas Job no cambia.
     expect(await prisma.job.count()).toBe(jobsAntes);
+  });
+
+  it("SIN ADMIN_EMAIL: NO marca DISPARADO; dos ciclos por encima dejan el estado ARMADO", async () => {
+    const adapter = fakeAdapter();
+    await crearFailed(umbral);
+
+    // Dos ciclos por encima del umbral SIN destinatario: no envia y NO dispara el estado.
+    expect((await avisarSiFallidos(prisma, adapter, { umbral })).enviado).toBe(false);
+    expect((await avisarSiFallidos(prisma, adapter, { umbral })).enviado).toBe(false);
+    expect(adapter.sent).toHaveLength(0);
+    // El estado NO queda "disparado" (si no, olvidar ADMIN_EMAIL mataria el aviso para siempre).
+    const estado = await prisma.systemState.findUnique({ where: { key: "aviso:job_failed" } });
+    expect(estado?.value).not.toBe("disparado");
+
+    // En cuanto se configura ADMIN_EMAIL, el aviso sale sin esperar a que el contador baje y cruce.
+    expect((await avisarSiFallidos(prisma, adapter, { umbral, adminEmail: admin })).enviado).toBe(
+      true,
+    );
+    expect(adapter.sent).toHaveLength(1);
   });
 });

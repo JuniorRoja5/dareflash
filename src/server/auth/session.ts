@@ -133,21 +133,30 @@ export async function revokeAllUserSessions(db: Db, userId: string): Promise<voi
   await db.session.deleteMany({ where: { userId } });
 }
 
+/** Tope de tandas por ciclo (backstop anti-bucle). Si se alcanza, NO se drenó del todo: el
+ *  llamador lo registra (`drenado: false`) y continua en el proximo ciclo. Sin tope silencioso. */
+const PURGA_SESIONES_MAX_TANDAS = 1000;
+
 /**
  * Purga de sesiones CADUCADAS (expires <= now), POR LOTES con tope: un DELETE de millones de
  * filas bloquea la tabla. Se apoya en `@@index([expires])`. La CABLEA el bucle del worker
- * (`src/server/jobs/worker.ts`), junto a la poda de Job y RateLimit. Devuelve cuantas borro.
+ * (`src/server/jobs/worker.ts`), junto a la poda de Job y RateLimit. Devuelve el total borrado y
+ * si se drenó del todo (para que el bucle avise si un ciclo se quedó corto).
  */
-export async function purgeExpiredSessions(db: Db, now?: Date, lote = 1000): Promise<number> {
+export async function purgeExpiredSessions(
+  db: Db,
+  now?: Date,
+  lote = 1000,
+): Promise<{ total: number; drenado: boolean }> {
   const nowD = now ?? new Date();
   const n = Math.floor(lote);
   let total = 0;
-  for (let i = 0; i < 1000; i += 1) {
+  for (let i = 0; i < PURGA_SESIONES_MAX_TANDAS; i += 1) {
     const borradas = await db.$executeRaw(
       Prisma.sql`DELETE FROM \`Session\` WHERE \`expires\` <= ${nowD} LIMIT ${Prisma.raw(String(n))}`,
     );
     total += borradas;
-    if (borradas < n) break;
+    if (borradas < n) return { total, drenado: true };
   }
-  return total;
+  return { total, drenado: false };
 }

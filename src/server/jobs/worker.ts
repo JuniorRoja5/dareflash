@@ -344,15 +344,14 @@ async function borrarPorLotes(
 export async function podarDone(
   db: PrismaClient,
   input: { now?: Date; dias: number },
-): Promise<number> {
+): Promise<{ total: number; drenado: boolean }> {
   const limite = new Date((input.now ?? new Date()).getTime() - input.dias * 24 * 60 * 60_000);
-  const { total } = await borrarPorLotes(
+  return borrarPorLotes(
     db,
     "Job",
     Prisma.sql`\`status\` = 'DONE' AND \`createdAt\` < ${limite}`,
     PURGA_LOTE,
   );
-  return total;
 }
 
 /**
@@ -363,15 +362,14 @@ export async function podarDone(
 export async function podarFailed(
   db: PrismaClient,
   input: { now?: Date; dias: number },
-): Promise<number> {
+): Promise<{ total: number; drenado: boolean }> {
   const limite = new Date((input.now ?? new Date()).getTime() - input.dias * 24 * 60 * 60_000);
-  const { total } = await borrarPorLotes(
+  return borrarPorLotes(
     db,
     "Job",
     Prisma.sql`\`status\` = 'FAILED' AND \`createdAt\` < ${limite}`,
     PURGA_LOTE,
   );
-  return total;
 }
 
 /**
@@ -383,15 +381,9 @@ export async function podarFailed(
 export async function podarRateLimit(
   db: PrismaClient,
   input: { now?: Date; retenerMs: number },
-): Promise<number> {
+): Promise<{ total: number; drenado: boolean }> {
   const limite = new Date((input.now ?? new Date()).getTime() - input.retenerMs);
-  const { total } = await borrarPorLotes(
-    db,
-    "RateLimit",
-    Prisma.sql`\`windowStart\` < ${limite}`,
-    PURGA_LOTE,
-  );
-  return total;
+  return borrarPorLotes(db, "RateLimit", Prisma.sql`\`windowStart\` < ${limite}`, PURGA_LOTE);
 }
 
 /** Numero de jobs en FAILED (para /api/health y el log de arranque del worker). */
@@ -457,12 +449,16 @@ export async function avisarSiFallidos(
   };
 
   if (!input.adminEmail) {
-    // Sin destinatario: no se puede enviar. Log ALTO y disparar el estado para no repetir el log
-    // en cada ciclo (misma histeresis). Configura ADMIN_EMAIL para recibir el aviso por correo.
+    // Sin destinatario: no se puede enviar. Se registra en cada ciclo por encima del umbral y NO
+    // se marca DISPARADO. Motivo (correccion de Junior): no ha salido ningun correo, asi que no
+    // hay spam que evitar; un log repetido es molesto, pero un silencio total es PELIGROSO (se
+    // olvida ADMIN_EMAIL en el VPS y el sistema de avisos queda muerto y callado para siempre).
+    // Ademas, al dejarlo ARMADO, en cuanto se configure ADMIN_EMAIL el aviso sale sin esperar a
+    // que el contador baje y vuelva a cruzar. El aviso destacado de que falta la variable se da
+    // AL ARRANCAR el worker (scripts/worker.ts).
     log(
       `[worker] AVISO (sin ADMIN_EMAIL, NO enviado): ${fallidos} jobs en FAILED (umbral ${input.umbral}).`,
     );
-    await escribirEstado(db, CLAVE_AVISO_FAILED, AVISO_DISPARADO);
     return { fallidos, enviado: false };
   }
 
@@ -556,8 +552,24 @@ export async function bucleWorker(
         dias: o.failedRetenerDias ?? JOB_FAILED_RETENTION_DAYS,
       });
       o.log?.(
-        `[worker] poda: DONE=${done} RateLimit=${rateLimit} Session=${sesiones} FAILED=${failed}`,
+        `[worker] poda: DONE=${done.total} RateLimit=${rateLimit.total} ` +
+          `Session=${sesiones.total} FAILED=${failed.total}`,
       );
+      // No silencioso: si alguna purga alcanzo el tope de tandas (no drenó), se DICE en el log;
+      // sigue en el proximo ciclo. (Antes `drenado` se calculaba y se tiraba: comentario que
+      // prometia lo que el codigo no hacia.)
+      for (const [nombre, r] of [
+        ["DONE", done],
+        ["RateLimit", rateLimit],
+        ["Session", sesiones],
+        ["FAILED", failed],
+      ] as const) {
+        if (!r.drenado) {
+          o.log?.(
+            `[worker] poda: ${nombre} NO drenó (tope de tandas alcanzado); sigue en el proximo ciclo.`,
+          );
+        }
+      }
       ultimaPoda = t.getTime();
     }
     // Aviso al admin por acumulacion de FAILED (directo, fuera de la cola). Cadencia propia,

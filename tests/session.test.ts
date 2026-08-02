@@ -150,7 +150,7 @@ describe("sesiones en base de datos", () => {
     await createSession(prisma, userId, { now: pasado }); // caducada
     const viva = await createSession(prisma, userId); // vigente
 
-    const borradas = await purgeExpiredSessions(prisma);
+    const { total: borradas } = await purgeExpiredSessions(prisma);
     expect(borradas).toBe(1);
     expect(await validateSession(prisma, viva.rawToken)).not.toBeNull();
   });
