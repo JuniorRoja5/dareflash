@@ -118,4 +118,19 @@ describe("semaforo de concurrencia de argon2", () => {
     const hash = await ejecutarConHueco(() => hashPassword("TEST-FIXTURE-pass-reentrante-1234"));
     expect(hash.startsWith("$argon2id$")).toBe(true);
   });
+
+  it("testigo POR INSTANCIA: un SEGUNDO semaforo dentro del hueco del primero SI adquiere su plaza", async () => {
+    // El testigo de reentrada es por INSTANCIA. Si fuera global, B heredaria el store de A y se
+    // saltaria su adquisicion EN SILENCIO (proteccion que parece puesta y no protege). Con testigo
+    // por instancia, B es ajeno al hueco de A y limita de verdad.
+    const A = new Semaforo(1, 50);
+    const B = new Semaforo(1, 20);
+    await A.ejecutar(async () => {
+      const ocupaB = B.ejecutar(() => sleep(200)); // ocupa la unica plaza de B
+      // Segunda llamada a B, dentro del mismo hueco de A: con testigo global RESOLVERIA (se salta
+      // la plaza); con testigo por instancia espera >20 ms sin plaza y se rechaza. Ese es el punto.
+      await expect(B.ejecutar(async () => "x")).rejects.toBeInstanceOf(Argon2Sobrecargado);
+      await ocupaB;
+    });
+  });
 });

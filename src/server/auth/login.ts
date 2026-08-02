@@ -58,6 +58,12 @@ export async function login(
   // asi que un usuario SIN verificar con un hash antiguo no se regraba hasta que verifique y
   // entre. Es correcto: se regrabara en su primer login real. No lo "arregles" adelantandolo: no
   // se debe hacer trabajo extra en un camino que no inicia sesion.
+  //
+  // NOTA 2 (anotada a proposito): cuando ESTO se dispara, el hueco del semaforo que envuelve al
+  // login (ver ejecutarConHueco en la ruta) contiene DOS argon2 —la verificacion previa y este
+  // rehasheo—, asi que retiene la plaza ~360 ms en vez de ~178. No rompe el limite de memoria
+  // (cada hueco hace UNA cosa cada vez) y solo ocurre UNA vez por usuario (hasta converger). Que
+  // quede escrito para que nadie lo tome por un fallo.
   if (user.passwordHash !== null && needsRehash(user.passwordHash)) {
     await db.user.update({
       where: { id: user.id },

@@ -70,16 +70,19 @@ export function esArgon2Sobrecargado(e: unknown): boolean {
  * 503 claro que un login que tarda mas de 2 s. DEGRADA (espera unos ms), no rompe. Es un tope de
  * CONCURRENCIA, no un tope GLOBAL: no deja a todos fuera, solo hace esperar.
  *
- * REENTRANTE: si ya estamos dentro de un hueco (p.ej. `ejecutarConHueco` envuelve el login y
- * dentro se llama a `verifyPassword`/`hashPassword`), NO se re-adquiere — se ejecuta directo. Sin
- * esto, un hash dentro de un hueco pediria un SEGUNDO hueco y podria auto-bloquearse (deadlock).
- * El contexto se lleva con AsyncLocalStorage, que sigue la cadena async.
+ * REENTRANTE: si ya estamos dentro de un hueco de ESTE semaforo (p.ej. `ejecutarConHueco` envuelve
+ * el login y dentro se llama a `verifyPassword`/`hashPassword`), NO se re-adquiere — se ejecuta
+ * directo. Sin esto, un hash dentro de un hueco pediria un SEGUNDO hueco y podria auto-bloquearse
+ * (deadlock). El contexto se lleva con AsyncLocalStorage POR INSTANCIA (`this.enHueco`): "ya estoy
+ * dentro de ESTE semaforo", no de ALGUNO. Si el testigo fuera GLOBAL, un SEGUNDO semaforo (p.ej.
+ * transcodificar video) usado dentro de un hueco del primero se saltaria su adquisicion EN
+ * SILENCIO: proteccion que parece puesta y no protege. Un test lo caza.
  */
-const enHueco = new AsyncLocalStorage<true>();
-
 export class Semaforo {
   private enVuelo = 0;
   private readonly cola: Array<{ resolver: () => void; timer: ReturnType<typeof setTimeout> }> = [];
+  // Testigo de reentrada POR INSTANCIA (ver arriba). NUNCA global: seria una trampa silenciosa.
+  private readonly enHueco = new AsyncLocalStorage<true>();
 
   constructor(
     private readonly max: number,
@@ -115,10 +118,10 @@ export class Semaforo {
   }
 
   async ejecutar<T>(fn: () => Promise<T>): Promise<T> {
-    if (enHueco.getStore()) return fn(); // REENTRANTE: ya estamos en un hueco, no re-adquirir
+    if (this.enHueco.getStore()) return fn(); // REENTRANTE en ESTE semaforo: no re-adquirir
     await this.adquirir(); // si no hay hueco a tiempo, lanza Argon2Sobrecargado (no se adquiere)
     try {
-      return await enHueco.run(true, fn);
+      return await this.enHueco.run(true, fn);
     } finally {
       this.liberar();
     }
@@ -140,6 +143,11 @@ const semaforo = new Semaforo(ARGON2_MAX_CONCURRENT, ARGON2_MAX_WAIT_MS);
  * colgarse. El camino de rechazo (cuenta bloqueada, sin hash) suelta el hueco 50-100x mas rapido
  * que el normal (consulta ~ms vs hash ~178 ms) y el semaforo sirve por orden de llegada
  * (`cola.shift`), asi que un legitimo esperando coge el siguiente hueco: no hay inanicion.
+ *
+ * FILO de la reentrada por contexto asincrono (regla, no deducible leyendo): TODO lo que se lance
+ * dentro del hueco DEBE esperarse (`await`). Una tarea disparada SIN await HEREDA el contexto de
+ * reentrada y, cuando el hueco ya se ha liberado, correria su argon2 SALTANDOSE el semaforo. Hoy
+ * no pasa (todo se espera), pero esto es de uso general: no lances nada sin await aqui dentro.
  */
 export function ejecutarConHueco<T>(fn: () => Promise<T>): Promise<T> {
   return semaforo.ejecutar(fn);
