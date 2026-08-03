@@ -13,6 +13,7 @@ export async function POST(req: Request) {
   const { setSessionCookie } = await import("@/server/auth/current-user");
   const { esArgon2Sobrecargado, ejecutarConHueco } = await import("@/server/auth/password");
   const { requestAccountUnlockEmail } = await import("@/server/auth/account-unlock");
+  const { sanearError } = await import("@/server/observability/sanitize-error");
 
   const schema = z.object({
     email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
@@ -71,7 +72,14 @@ export async function POST(req: Request) {
         appUrl: env.APP_URL,
         unlockAcctKey,
         unlockIpKey,
-      }).catch(() => {});
+      }).catch((e: unknown) => {
+        // NO tragar el error: si el ENCOLADO falla, no se crea el Job -> no hay FAILED -> no salta
+        // el aviso al admin. Es el unico punto ciego de la vigilancia y el unico sitio donde un
+        // correo puede evaporarse sin rastro. Se registra SANEADO (sin direcciones ni tokens).
+        console.error(
+          `[api] login: fallo al considerar el correo de desbloqueo: ${sanearError(e)}`,
+        );
+      });
       return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
     }
     const result = outcome.result;

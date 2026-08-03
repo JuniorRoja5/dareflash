@@ -10,6 +10,7 @@ export async function POST(req: Request) {
   const { prisma } = await import("@/server/db/client");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { requestEmailVerification } = await import("@/server/services/email-verification");
+  const { sanearError } = await import("@/server/observability/sanitize-error");
 
   const schema = z.object({ email: z.string().trim().toLowerCase().pipe(z.email().max(254)) });
   let body: unknown;
@@ -51,7 +52,11 @@ export async function POST(req: Request) {
     if (user && user.emailVerified === null) {
       await requestEmailVerification(prisma, { email, appUrl: env.APP_URL });
     }
-  })().catch(() => {});
+  })().catch((e: unknown) => {
+    // NO tragar: si el encolado falla, no se crea el Job -> no hay FAILED -> no salta el aviso al
+    // admin (unico punto ciego de la vigilancia). Se registra SANEADO (sin direcciones ni tokens).
+    console.error(`[api] resend: fallo al reenviar la verificacion: ${sanearError(e)}`);
+  });
 
   return apiOk({
     ok: true,

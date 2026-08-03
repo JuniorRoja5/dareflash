@@ -15,6 +15,19 @@ import type { EmailMessage } from "@/server/email/adapter";
 import { enqueueEmail } from "@/server/email/send";
 import { rateLimit } from "@/server/security/rate-limit";
 
+/*
+ * LIMITACION CONOCIDA (anotada a proposito, NO se arregla ahora):
+ * El enlace de desbloqueo caduca en 2 h (LOGIN_UNLOCK_TTL_MS) y la cadencia es 1 correo/hora. Eso
+ * garantiza que SIEMPRE haya un enlace valido esperando... SOLO hasta que el usuario lo USA: el
+ * token es de UN SOLO USO. Escenario: el dueño se desbloquea a las 10:05 (gasta el enlace), el
+ * atacante re-bloquea a las 10:20, y no hay correo nuevo hasta las 11:00 -> ~40 min fuera. Lo
+ * salva que al entrar a las 10:05 obtiene una sesion de 30 dias y no necesita volver a iniciarla;
+ * la ventana mala es estrecha y rara.
+ * La solucion seria que el token de desbloqueo valga VARIAS veces durante sus 2 h (solo libera un
+ * freno, no da acceso: no cuesta seguridad), pero obliga a romper el "un solo uso" del servicio
+ * generico de tokens. NO se hace ahora; si se retoma, hay que separar ese caso del generico.
+ */
+
 /**
  * Construye el correo de desbloqueo. Es una NOTIFICACION DE SEGURIDAD: texto llano y SIN NINGUN
  * detalle del intento (ni IP, ni numero de intentos, ni hora exacta, ni ubicacion). Al dueño no le

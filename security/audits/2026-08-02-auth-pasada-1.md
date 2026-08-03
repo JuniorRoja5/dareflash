@@ -1,7 +1,23 @@
 # Auditoría de seguridad — primera pasada sobre `auth` (2026-08-02)
 
-**Estado: PROPUESTAS. No se ha tocado ni una línea de código.** Cada hallazgo es una
-propuesta; el propietario decide cuáles se corrigen y en qué orden.
+**Estado inicial: PROPUESTAS.** Cada hallazgo fue una propuesta; el propietario decidió cuáles se
+corrigen y en qué orden. Ver el estado de remediación abajo.
+
+## Estado de remediación (actualizado 2026-08-03)
+
+- **Hallazgo 1 (bloqueo de cuenta ajena) — RESUELTO.** Rama `2a` (el 503 por saturación ya no gasta
+  un intento del cubo de cuenta, semáforo reentrante) + rama `2b` (desbloqueo por correo: el dueño
+  siempre tiene una vía de recuperación que el atacante no puede usar). Cerrado de punta a punta.
+- **Hallazgo 2 (oráculo de tiempo en `resend-verification`) — RESUELTO de verdad**, no solo el
+  comentario: la rama `2b` responde el uniforme PRIMERO y hace el trabajo dependiente de existencia
+  en segundo plano (fire-and-forget), así su rama no gobierna el tiempo. Mismo arreglo que el correo
+  de desbloqueo. El comentario de `email-verification.ts` ahora dice la verdad.
+- **Hallazgos 4 y 5 (endurecimiento) — HECHOS** en la rama de Argon2id: parámetros explícitos y
+  compartidos (`ARGON2_PARAMS`, p=1) con rehasheo. El `Secure` de la cookie sigue como estaba (el
+  Dockerfile hornea `NODE_ENV=production`); se deja como endurecimiento menor.
+- **Hallazgo 3 (X-Real-IP) — ABIERTO**, único que queda. Defensa en profundidad, no explotable en la
+  infra actual. Va después o en paralelo a la Fase 1, con diseño primero. No bloquea nada.
+- **Hallazgo 6 (`AUTH_SECRET` entropía) — anotado**, sin prioridad.
 
 ## Alcance
 
