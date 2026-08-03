@@ -1,8 +1,14 @@
 import { notFound } from "next/navigation";
 import type { CSSProperties, ReactNode } from "react";
 
+import { Avatar } from "@/components/ui/avatar";
+import { Boton } from "@/components/ui/boton";
+import { Campo } from "@/components/ui/campo";
 import { FilaPuesto } from "@/components/ui/fila-puesto";
 import { ImportePremio } from "@/components/ui/importe-premio";
+import { NavegacionInferior, NavegacionLateral } from "@/components/ui/navegacion";
+import { PildoraCategoria } from "@/components/ui/pildora";
+import { Tarjeta } from "@/components/ui/tarjeta";
 
 import { CuentaAtrasEnVivo, MarcadorEnVivo, VotoDemo } from "./demos";
 import { styleGuideHidden } from "./visibility";
@@ -111,7 +117,7 @@ export default function StyleGuide() {
           DAREFLASH
         </h1>
         <p className="text-2xs uppercase tracking-[0.2em] text-text-dim">
-          Sistema de diseño · Fase 1 · Paso A · Tokens
+          Sistema de diseño · Fase 1 · Tokens y primitivas
         </p>
       </header>
       <p className="max-w-prose text-sm text-text-dim">
@@ -456,6 +462,108 @@ export default function StyleGuide() {
         <p className="mt-6 max-w-prose text-sm text-text-dim">
           Oro SOLO en el podio (1/2/3); del 4 en adelante, neutro. Los puntos van en neutro, jamás
           en lima. Nombres largos y cortos, cifras tabulares.
+        </p>
+      </Seccion>
+
+      {/* ==================== PRIMITIVAS · PASO B (ENTREGA 2) ==================== */}
+
+      <Seccion etiqueta="Primitiva · botón (una acción principal por pantalla)">
+        <div className="flex flex-wrap items-center gap-4">
+          <Boton variante="principal">Participar</Boton>
+          <Boton variante="secundario">Ver reto</Boton>
+          <Boton variante="fantasma">Cancelar</Boton>
+          <Boton variante="peligro">Eliminar vídeo</Boton>
+          <Boton variante="principal" disabled>
+            Participar
+          </Boton>
+        </div>
+        <p className="mt-6 max-w-prose text-sm text-text-dim">
+          Principal (--df-action de relleno + texto NEGRO; UNA por pantalla), secundario (filete de
+          1 px), fantasma (solo texto), peligro (--df-alarm). Zona táctil de 44 px, foco visible
+          global, deshabilitado sobrio (el último, a la derecha).
+        </p>
+      </Seccion>
+
+      <Seccion etiqueta="Primitiva · campo (label real, error que dice qué y cómo)">
+        <div className="grid max-w-md gap-5">
+          <Campo id="sg-usuario" label="Nombre de usuario" placeholder="@tu_usuario" />
+          <Campo
+            id="sg-email"
+            label="Correo"
+            type="email"
+            defaultValue="nombre@ejemplo"
+            error="Ese correo no tiene un formato válido. Escríbelo como nombre@dominio.com."
+          />
+          <Campo
+            id="sg-premio"
+            label="Premio del reto (USD)"
+            inputMode="numeric"
+            defaultValue="$3.00"
+            error="El premio mínimo es $5.00. Sube la cifra para poder publicar el reto."
+          />
+        </div>
+        <p className="mt-6 max-w-prose text-sm text-text-dim">
+          La etiqueta es un elemento label real, no el placeholder. Al enfocar, el fondo pasa a
+          --df-raised y el filete se aclara. El error va en --df-alarm y dice qué pasó y cómo se
+          arregla, sin pedir perdón ni vaguedades.
+        </p>
+      </Seccion>
+
+      <Seccion etiqueta="Primitivas · tarjeta, píldora de categoría y avatar">
+        <div className="flex flex-wrap items-start gap-8">
+          <Tarjeta className="w-full max-w-xs">
+            <div className="flex items-center gap-3">
+              <Avatar nombre="Campeona del Barrio" tamano="md" />
+              <div className="min-w-0">
+                <p className="truncate font-semibold">@campeona_del_barrio_2026</p>
+                <p className="text-sm tabular-nums text-text-dim">1,204 seguidores</p>
+              </div>
+            </div>
+            <p className="mt-3 font-medium">Tu mejor salto en el gym</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <PildoraCategoria>Fitness</PildoraCategoria>
+              <PildoraCategoria>Reto de la semana</PildoraCategoria>
+            </div>
+          </Tarjeta>
+          <div className="flex items-end gap-4">
+            <Avatar nombre="Leo" tamano="sm" />
+            <Avatar nombre="María" tamano="md" />
+            <Avatar nombre="Xoán" tamano="lg" />
+          </div>
+        </div>
+        <p className="mt-6 max-w-prose text-sm text-text-dim">
+          Tarjeta: superficie + filete de 1 px, sin sombra (la profundidad es luminosidad). Píldora:
+          radius-full, filete, NEUTRA (jamás un color semántico). Avatar: radius-full, placeholder
+          con la inicial.
+        </p>
+      </Seccion>
+
+      <Seccion etiqueta="Primitiva · navegación (móvil inferior / escritorio lateral)">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+          <div>
+            <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
+              móvil · inferior
+            </p>
+            <div className="w-[320px] overflow-hidden rounded-lg border border-line">
+              <div className="flex h-40 items-center justify-center bg-void text-sm text-text-dim">
+                contenido
+              </div>
+              <NavegacionInferior activo="inicio" />
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
+              escritorio · lateral
+            </p>
+            <div className="inline-block overflow-hidden rounded-lg border border-line">
+              <NavegacionLateral activo="inicio" />
+            </div>
+          </div>
+        </div>
+        <p className="mt-6 max-w-prose text-sm text-text-dim">
+          Los mismos cinco destinos, mismo orden y nombres (Inicio · Retos · [+] · Ranking ·
+          Perfil). El [+] central es la única acción magenta. Zonas táctiles de 44 px. Los destinos
+          son las rutas ANTICIPADAS del Paso C; hoy solo existe «/».
         </p>
       </Seccion>
     </main>

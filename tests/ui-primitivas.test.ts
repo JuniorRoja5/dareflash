@@ -7,9 +7,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  botonTokens,
+  type BotonVariante,
   esCuentaAtrasCritica,
   formatearCuentaAtras,
   formatearImporte,
+  NAV_DESTINOS,
   tokenCuentaAtras,
   tokenPuesto,
   UMBRAL_ALARMA_MS,
@@ -66,5 +69,56 @@ describe("importe: money en USD, formato en-US", () => {
     expect(formatearImporte(125000)).toBe("$1,250.00");
     expect(formatearImporte(2500)).toBe("$25.00");
     expect(formatearImporte(0)).toBe("$0.00");
+  });
+});
+
+describe("boton: mapa variante -> tokens", () => {
+  it("principal -> relleno action con TEXTO NEGRO (void); peligro -> relleno alarm", () => {
+    expect(botonTokens("principal")).toEqual({ fondo: "action", texto: "void", filete: false });
+    expect(botonTokens("peligro")).toEqual({ fondo: "alarm", texto: "void", filete: false });
+  });
+
+  it("secundario lleva filete sin relleno; fantasma no lleva ni relleno ni filete", () => {
+    expect(botonTokens("secundario")).toEqual({ fondo: null, texto: "text", filete: true });
+    expect(botonTokens("fantasma")).toEqual({ fondo: null, texto: "text", filete: false });
+  });
+
+  it("INVARIANTE: todo boton con relleno semantico lleva texto negro (void), nunca blanco", () => {
+    const variantes: BotonVariante[] = ["principal", "secundario", "fantasma", "peligro"];
+    for (const v of variantes) {
+      const t = botonTokens(v);
+      if (t.fondo !== null) expect(t.texto).toBe("void");
+    }
+  });
+});
+
+describe("navegacion: cinco destinos, en orden y con sus nombres", () => {
+  it("son exactamente cinco", () => {
+    expect(NAV_DESTINOS).toHaveLength(5);
+  });
+
+  it("orden y claves exactos (reordenar o perder uno cae en rojo)", () => {
+    expect(NAV_DESTINOS.map((d) => d.clave)).toEqual([
+      "inicio",
+      "retos",
+      "crear",
+      "ranking",
+      "perfil",
+    ]);
+  });
+
+  it("nombres exactos, en ese orden", () => {
+    expect(NAV_DESTINOS.map((d) => d.nombre)).toEqual([
+      "Inicio",
+      "Retos",
+      "Crear",
+      "Ranking",
+      "Perfil",
+    ]);
+  });
+
+  it("hay UN unico destino central (el [+] = crear)", () => {
+    const centrales = NAV_DESTINOS.filter((d) => "central" in d && d.central).map((d) => d.clave);
+    expect(centrales).toEqual(["crear"]);
   });
 });

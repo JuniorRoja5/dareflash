@@ -49,3 +49,50 @@ export function tokenPuesto(puesto: number): "rank" | "neutral" {
 export function formatearImporte(cents: number, currency = "USD"): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
 }
+
+// ---------------------------------------------------------------------------
+// BOTON — mapa variante -> tokens de color. Fuente de verdad, extraida para atarla: un boton con
+// RELLENO semantico lleva SIEMPRE texto negro (--df-void), nunca blanco. Romper el mapa (p. ej.
+// principal -> money, o texto de un relleno a "text") cae en rojo.
+// ---------------------------------------------------------------------------
+
+export type BotonVariante = "principal" | "secundario" | "fantasma" | "peligro";
+
+export type BotonTokens = {
+  /** Token de relleno, o null si el boton no lleva relleno (secundario/fantasma). */
+  fondo: "action" | "alarm" | null;
+  /** Token del texto. Sobre relleno semantico, SIEMPRE "void" (negro). */
+  texto: "void" | "text";
+  /** Filete de 1 px (solo el secundario). */
+  filete: boolean;
+};
+
+export function botonTokens(variante: BotonVariante): BotonTokens {
+  switch (variante) {
+    case "principal":
+      return { fondo: "action", texto: "void", filete: false };
+    case "peligro":
+      return { fondo: "alarm", texto: "void", filete: false };
+    case "secundario":
+      return { fondo: null, texto: "text", filete: true };
+    case "fantasma":
+      return { fondo: null, texto: "text", filete: false };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// NAVEGACION — los cinco destinos, en orden y con sus nombres. Misma estructura en movil (inferior)
+// y escritorio (lateral). Fuente de verdad unica, extraida para atarla: reordenar o perder uno cae
+// en rojo. `central` marca el [+] (accion principal). Las rutas se ANTICIPAN (se construyen en el
+// Paso C); hoy solo existe "/".
+// ---------------------------------------------------------------------------
+
+export const NAV_DESTINOS = [
+  { clave: "inicio", nombre: "Inicio", href: "/" },
+  { clave: "retos", nombre: "Retos", href: "/retos" },
+  { clave: "crear", nombre: "Crear", href: "/crear", central: true },
+  { clave: "ranking", nombre: "Ranking", href: "/ranking" },
+  { clave: "perfil", nombre: "Perfil", href: "/perfil" },
+] as const;
+
+export type NavDestino = (typeof NAV_DESTINOS)[number];
