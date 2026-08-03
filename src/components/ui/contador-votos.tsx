@@ -25,16 +25,19 @@ export function ContadorVotos({ votos, className = "" }: { votos: number; classN
     if (votos > desde && !prefiereMenosMovimiento()) {
       setGolpe(true);
       const finGolpe = setTimeout(() => setGolpe(false), 180); // golpe seco
-      const inicio = Date.now();
       const dur = 600; // incremento lento
-      const id = setInterval(() => {
-        const p = Math.min(1, (Date.now() - inicio) / dur);
+      let raf = 0;
+      let inicioTs = 0;
+      const paso = (t: number): void => {
+        if (inicioTs === 0) inicioTs = t; // primer frame: fija el origen (timestamp del rAF)
+        const p = Math.min(1, (t - inicioTs) / dur);
         setMostrado(Math.round(desde + (votos - desde) * p));
-        if (p >= 1) clearInterval(id);
-      }, 40);
+        if (p < 1) raf = requestAnimationFrame(paso);
+      };
+      raf = requestAnimationFrame(paso);
       return () => {
         clearTimeout(finGolpe);
-        clearInterval(id);
+        cancelAnimationFrame(raf);
       };
     }
     setMostrado(votos); // reduced-motion o bajada: salto directo

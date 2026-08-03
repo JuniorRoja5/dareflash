@@ -39,7 +39,9 @@ export function CuentaAtras({
     return () => clearInterval(id);
   }, [deadlineMs]);
 
-  const token = ms === null ? "time" : tokenCuentaAtras(ms);
+  // Placeholder (aun sin plazo) en NEUTRO: no debe insinuar la semantica "tiempo" antes de haber
+  // datos. En cuanto el efecto calcula el restante, el token pasa a time/alarm (con transicion).
+  const token = ms === null ? "text-dim" : tokenCuentaAtras(ms);
   const estilo: CSSProperties = {
     fontFamily: "var(--font-display)",
     fontVariationSettings: '"wght" 640, "wdth" 112',

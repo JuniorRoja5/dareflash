@@ -32,8 +32,10 @@ export function Boton({
     t.fondo ? "hover:brightness-110" : "hover:bg-raised",
     className,
   ].join(" ");
+  // type="button" por defecto para que un primitivo reutilizable no haga submit por accidente
+  // dentro de un formulario; va ANTES del spread para que quien pase `type` lo pueda sobreescribir.
   return (
-    <button className={clases} {...props}>
+    <button type="button" className={clases} {...props}>
       {children}
     </button>
   );
