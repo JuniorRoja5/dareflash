@@ -1,6 +1,10 @@
 import { notFound } from "next/navigation";
 import type { CSSProperties, ReactNode } from "react";
 
+import { FilaPuesto } from "@/components/ui/fila-puesto";
+import { ImportePremio } from "@/components/ui/importe-premio";
+
+import { CuentaAtrasEnVivo, MarcadorEnVivo, VotoDemo } from "./demos";
 import { styleGuideHidden } from "./visibility";
 
 /**
@@ -366,6 +370,93 @@ export default function StyleGuide() {
             <span className="text-text">prefers-reduced-motion</span> se respeta siempre.
           </p>
         </div>
+      </Seccion>
+
+      {/* ==================== PRIMITIVAS · PASO B (ENTREGA 1) ==================== */}
+
+      <Seccion etiqueta="Primitiva · importe de premio (escala de lista a héroe)">
+        <div className="flex flex-wrap items-end gap-x-10 gap-y-6">
+          {(["lista", "tarjeta", "heroe"] as const).map((t, i) => (
+            <div key={t}>
+              <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">{t}</p>
+              <ImportePremio cents={[2000, 25000, 125000][i]!} tamano={t} />
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 max-w-prose text-sm text-text-dim">
+          Misma estructura, solo cambia el tamaño. Archivo Expanded, tabular-nums, SOLO --df-money
+          (texto lima, nunca relleno). Los puntos no son dinero: no usan esta pieza.
+        </p>
+      </Seccion>
+
+      <Seccion etiqueta="Primitiva · cuenta atrás (--df-time → --df-alarm por debajo de 24 h)">
+        <div className="flex flex-wrap items-end gap-x-10 gap-y-6">
+          <div>
+            <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
+              &gt; 24 h · time
+            </p>
+            <CuentaAtrasEnVivo offsetMs={6 * 24 * 3_600_000 + 4 * 3_600_000} />
+          </div>
+          <div>
+            <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
+              &lt; 24 h · alarm
+            </p>
+            <CuentaAtrasEnVivo offsetMs={23 * 3_600_000} />
+          </div>
+          <div>
+            <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
+              por vencer · alarm
+            </p>
+            <CuentaAtrasEnVivo offsetMs={45_000} />
+          </div>
+        </div>
+        <p className="mt-6 max-w-prose text-sm text-text-dim">
+          El paso a alarma por debajo de 24 h es un EVENTO de producto (transición lenta, 300 ms),
+          no un adorno. Tictac cada segundo; prefers-reduced-motion respetado.
+        </p>
+      </Seccion>
+
+      <Seccion etiqueta="Primitiva firma · el marcador (premio + tiempo, nunca separados)">
+        <div className="space-y-7">
+          <MarcadorEnVivo cents={2000} offsetMs={8 * 24 * 3_600_000} tamano="lista" />
+          <MarcadorEnVivo
+            cents={25000}
+            offsetMs={6 * 24 * 3_600_000 + 4 * 3_600_000}
+            tamano="tarjeta"
+          />
+          <MarcadorEnVivo cents={125000} offsetMs={18 * 3_600_000} tamano="heroe" />
+        </div>
+        <p className="mt-7 max-w-prose text-sm text-text-dim">
+          Misma estructura de la tarjeta pequeña al héroe: filete de 1 px, sin fondo ni caja. El de
+          abajo está por debajo de 24 h, así que el reloj va en alarma.
+        </p>
+      </Seccion>
+
+      <Seccion etiqueta="Primitiva · contador de votos (golpe seco al votar, incremento lento)">
+        <VotoDemo inicial={1248} />
+        <p className="mt-6 max-w-prose text-sm text-text-dim">
+          Color NEUTRO (los votos no son un color semántico). El voto se confirma con un golpe seco
+          y la marca en --df-ok, no con una animación mona.
+        </p>
+      </Seccion>
+
+      <Seccion etiqueta="Primitiva · fila de puesto (--df-rank solo en 1/2/3)">
+        <div className="max-w-md rounded-sm border border-line bg-surface">
+          <FilaPuesto puesto={1} username="campeona_del_barrio_2026" puntos={8940} />
+          <FilaPuesto puesto={2} username="leo" puntos={7510} />
+          <FilaPuesto puesto={3} username="maria_fit" puntos={6880} />
+          <FilaPuesto puesto={4} username="dancer_xx" puntos={5220} />
+          <FilaPuesto
+            puesto={7}
+            username="usuario_demo_con_un_nombre_larguisimo"
+            puntos={3900}
+            activo
+          />
+        </div>
+        <p className="mt-6 max-w-prose text-sm text-text-dim">
+          Oro SOLO en el podio (1/2/3); del 4 en adelante, neutro. Los puntos van en neutro, jamás
+          en lima. Nombres largos y cortos, cifras tabulares.
+        </p>
       </Seccion>
     </main>
   );
