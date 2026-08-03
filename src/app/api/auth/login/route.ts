@@ -12,6 +12,8 @@ export async function POST(req: Request) {
   const { login } = await import("@/server/auth/login");
   const { setSessionCookie } = await import("@/server/auth/current-user");
   const { esArgon2Sobrecargado, ejecutarConHueco } = await import("@/server/auth/password");
+  const { requestAccountUnlockEmail } = await import("@/server/auth/account-unlock");
+  const { sanearError } = await import("@/server/observability/sanitize-error");
 
   const schema = z.object({
     email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
@@ -57,6 +59,27 @@ export async function POST(req: Request) {
     });
 
     if (outcome.tipo === "BLOQUEADA") {
+      // Correo de desbloqueo al dueño: FUERA del hueco (ya salimos de ejecutarConHueco) y SIN await
+      // (best-effort). Meter sus escrituras DENTRO del hueco llenaria los 4 huecos de peticiones
+      // RECHAZADAS escribiendo en BD bajo ataque -> el legitimo no encontraria hueco y se caeria la
+      // garantia de 2a (el rechazo suelta el hueco 50-100x mas rapido PORQUE no escribe). El 429
+      // uniforme se responde YA; el envio no gobierna el tiempo. (Node standalone: el event loop
+      // sigue tras responder, asi que el best-effort se completa.)
+      const unlockAcctKey = `unlock:acct:${rateLimitKey(env.AUTH_SECRET, email)}`;
+      const unlockIpKey = `unlock:ip:${clientIpKey(req, env.AUTH_SECRET)}`;
+      void requestAccountUnlockEmail(prisma, {
+        email,
+        appUrl: env.APP_URL,
+        unlockAcctKey,
+        unlockIpKey,
+      }).catch((e: unknown) => {
+        // NO tragar el error: si el ENCOLADO falla, no se crea el Job -> no hay FAILED -> no salta
+        // el aviso al admin. Es el unico punto ciego de la vigilancia y el unico sitio donde un
+        // correo puede evaporarse sin rastro. Se registra SANEADO (sin direcciones ni tokens).
+        console.error(
+          `[api] login: fallo al considerar el correo de desbloqueo: ${sanearError(e)}`,
+        );
+      });
       return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
     }
     const result = outcome.result;

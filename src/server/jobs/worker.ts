@@ -17,6 +17,7 @@ import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { purgeExpiredSessions } from "@/server/auth/session";
 import type { EmailAdapter, EmailMessage } from "@/server/email/adapter";
+import { sanearError } from "@/server/observability/sanitize-error";
 import { claimJobs } from "@/server/services/jobs";
 
 import type { Registro } from "./registry";
@@ -114,20 +115,9 @@ export function esAmbiguo(e: unknown): boolean {
   return true; // DATA, punto final, o sin command -> ambiguo
 }
 
-/**
- * Mensaje de error SANEADO para `lastError`: alguien lo va a leer (Junior, al depurar un correo
- * que no llega). NUNCA el mensaje crudo: puede llevar tokens, enlaces o credenciales. Se guarda
- * el `code` de nodemailer (EAUTH, ECONNECTION, EDNS, ETIMEDOUT, EENVELOPE...) y el responseCode
- * SMTP, que es justo lo que distingue auth / certificado / DNS / rechazo del destinatario.
- */
-export function sanearError(e: unknown): string {
-  if (!(e instanceof Error)) return "error desconocido";
-  const code = (e as { code?: unknown }).code;
-  const rc = (e as { responseCode?: unknown }).responseCode;
-  if (typeof code === "string") return typeof rc === "number" ? `${code} (${rc})` : code;
-  if (/cert|tls/i.test(e.message)) return "error de certificado TLS";
-  return e.name || "error de envio"; // fallback SIN el mensaje crudo
-}
+// `sanearError` se movio a `@/server/observability/sanitize-error` (lo usan el worker y las rutas).
+// Se re-exporta para no romper importadores (p.ej. tests/worker.test.ts).
+export { sanearError };
 
 export interface LoteResultado {
   hechos: number;

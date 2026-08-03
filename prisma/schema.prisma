@@ -162,6 +162,12 @@ model VerificationToken {
   identifier String
   token      String
   expires    DateTime
+  /// PROPOSITO del token: "EMAIL_VERIFY" (verificacion de alta) o "LOGIN_UNLOCK" (desbloqueo del
+  /// cubo de cuenta por correo). Se comprueba DENTRO del WHERE al consumir, NUNCA despues de
+  /// encontrar el token: asi un token de verificacion no puede desbloquear una cuenta ni al reves
+  /// (imposible por construccion, no una regla que alguien pueda saltarse). Default para las filas
+  /// existentes al migrar. Union validada con Zod en constants (VerificationPurposeSchema).
+  purpose String @default("EMAIL_VERIFY")
 
   @@unique([identifier, token])
 }

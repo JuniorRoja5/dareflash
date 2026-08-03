@@ -10,6 +10,7 @@ export async function POST(req: Request) {
   const { prisma } = await import("@/server/db/client");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { requestEmailVerification } = await import("@/server/services/email-verification");
+  const { sanearError } = await import("@/server/observability/sanitize-error");
 
   const schema = z.object({ email: z.string().trim().toLowerCase().pipe(z.email().max(254)) });
   let body: unknown;
@@ -36,12 +37,26 @@ export async function POST(req: Request) {
     return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
   }
 
-  // SIN ENUMERACION: solo se reenvia si la cuenta existe y sigue sin verificar, pero
-  // la respuesta es la misma en todos los casos.
-  const user = await prisma.user.findUnique({ where: { email }, select: { emailVerified: true } });
-  if (user && user.emailVerified === null) {
-    await requestEmailVerification(prisma, { email, appUrl: env.APP_URL });
-  }
+  // SIN ENUMERACION por TIEMPO (arreglo del hallazgo de la auditoria): la respuesta uniforme se
+  // devuelve YA, y el trabajo dependiente de existencia (mirar si existe + encolar) va en segundo
+  // plano (fire-and-forget), asi su rama NO gobierna el tiempo de respuesta. Antes se AWAITaba y el
+  // camino "existe y sin verificar" tardaba mas -> oraculo. MISMO arreglo que el correo de
+  // desbloqueo del login (no dos apaños distintos). Node standalone: el event loop sigue tras
+  // responder, asi que el best-effort se completa. Los rate-limit (arriba) SI se esperan: acotan
+  // el envio y deben aplicarse antes de responder.
+  void (async () => {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { emailVerified: true },
+    });
+    if (user && user.emailVerified === null) {
+      await requestEmailVerification(prisma, { email, appUrl: env.APP_URL });
+    }
+  })().catch((e: unknown) => {
+    // NO tragar: si el encolado falla, no se crea el Job -> no hay FAILED -> no salta el aviso al
+    // admin (unico punto ciego de la vigilancia). Se registra SANEADO (sin direcciones ni tokens).
+    console.error(`[api] resend: fallo al reenviar la verificacion: ${sanearError(e)}`);
+  });
 
   return apiOk({
     ok: true,

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `VerificationToken` ADD COLUMN `purpose` VARCHAR(191) NOT NULL DEFAULT 'EMAIL_VERIFY';
