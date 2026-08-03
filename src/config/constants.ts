@@ -109,6 +109,16 @@ export const MIN_AGE_YEARS = 16;
 /** Caducidad del token de verificacion de email. */
 export const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24 h
 
+/**
+ * Caducidad del enlace de DESBLOQUEO de cuenta por correo (Opcion 3). ACOPLADA con la cadencia del
+ * correo (`RATE_LIMITS.UNLOCK_EMAIL_PER_ACCOUNT`, 1/hora): la caducidad (2 h) DEBE ser mayor que la
+ * cadencia (1 h) CON MARGEN, para que SIEMPRE haya un enlace valido esperando al dueño. Si fueran
+ * iguales o al reves, habria huecos sin ningun enlace vigente (el correo lo dispara el ATACANTE con
+ * su trafico, no el dueño) y el dueño se quedaria fuera — el fallo mismo que el diseño evita. NO
+ * toques una sin la otra.
+ */
+export const LOGIN_UNLOCK_TTL_MS = 2 * 60 * 60 * 1000; // 2 h (ver acoplamiento arriba)
+
 /** Caducidad de sesion por defecto (USER). Explicita. */
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
 
@@ -191,6 +201,12 @@ export const RATE_LIMITS = {
   // asi se corta tanto el adivinado (quien roba una sesion) como la amplificacion de
   // CPU (cada intento es un argon2). Consumo atomico + reset al acertar.
   CHANGE_PASSWORD_PER_USER: { limit: 5, windowMs: 15 * 60 * 1000 }, // 5 fallos / 15 min por usuario
+  // Correo de DESBLOQUEO de cuenta (Opcion 3): UN correo por VENTANA de bloqueo por cuenta (1/hora),
+  // no uno por intento -> el atacante no puede usarlo para inundar el buzon de la victima. ACOPLADO
+  // con LOGIN_UNLOCK_TTL_MS (caducidad 2 h > cadencia 1 h, ver alli). El tope por IP evita que
+  // alguien dispare correos de desbloqueo hacia MUCHAS cuentas distintas desde una sola IP.
+  UNLOCK_EMAIL_PER_ACCOUNT: { limit: 1, windowMs: 60 * 60 * 1000 }, // 1 / hora por cuenta
+  UNLOCK_EMAIL_PER_IP: { limit: 5, windowMs: 60 * 60 * 1000 }, // 5 / hora por IP
 } as const;
 
 // ============================================================================

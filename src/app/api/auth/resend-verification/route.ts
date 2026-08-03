@@ -36,12 +36,22 @@ export async function POST(req: Request) {
     return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
   }
 
-  // SIN ENUMERACION: solo se reenvia si la cuenta existe y sigue sin verificar, pero
-  // la respuesta es la misma en todos los casos.
-  const user = await prisma.user.findUnique({ where: { email }, select: { emailVerified: true } });
-  if (user && user.emailVerified === null) {
-    await requestEmailVerification(prisma, { email, appUrl: env.APP_URL });
-  }
+  // SIN ENUMERACION por TIEMPO (arreglo del hallazgo de la auditoria): la respuesta uniforme se
+  // devuelve YA, y el trabajo dependiente de existencia (mirar si existe + encolar) va en segundo
+  // plano (fire-and-forget), asi su rama NO gobierna el tiempo de respuesta. Antes se AWAITaba y el
+  // camino "existe y sin verificar" tardaba mas -> oraculo. MISMO arreglo que el correo de
+  // desbloqueo del login (no dos apaños distintos). Node standalone: el event loop sigue tras
+  // responder, asi que el best-effort se completa. Los rate-limit (arriba) SI se esperan: acotan
+  // el envio y deben aplicarse antes de responder.
+  void (async () => {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { emailVerified: true },
+    });
+    if (user && user.emailVerified === null) {
+      await requestEmailVerification(prisma, { email, appUrl: env.APP_URL });
+    }
+  })().catch(() => {});
 
   return apiOk({
     ok: true,

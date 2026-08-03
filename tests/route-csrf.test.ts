@@ -19,8 +19,19 @@ import { describe, expect, it } from "vitest";
  */
 const API_DIR = join(process.cwd(), "src", "app", "api");
 
-// Rutas exentas (ruta relativa dentro de src/app/api, con "/").
-const EXEMPT = new Set(["auth/login", "auth/register", "auth/verify", "auth/resend-verification"]);
+// Rutas exentas (ruta relativa dentro de src/app/api, con "/"): puntos de entrada SIN sesion a la
+// que atar el token CSRF. Todas exigen `application/json` (una peticion cross-site no puede enviarlo
+// sin preflight) + rate-limit/sameSite=lax donde aplica.
+//  - login/register/verify/resend-verification: el usuario aun no tiene sesion.
+//  - unlock: el dueño llega BLOQUEADO desde el correo de desbloqueo, sin sesion (Opcion 3 del
+//    hallazgo 1). El token es de un solo uso y de 256 bits; solo libera el cubo de cuenta.
+const EXEMPT = new Set([
+  "auth/login",
+  "auth/register",
+  "auth/verify",
+  "auth/resend-verification",
+  "auth/unlock",
+]);
 
 const METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;
 
