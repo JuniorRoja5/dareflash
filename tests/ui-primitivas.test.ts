@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   botonTokens,
   type BotonVariante,
+  destinoActivo,
   esCuentaAtrasCritica,
   formatearCuentaAtras,
   formatearImporte,
@@ -120,5 +121,22 @@ describe("navegacion: cinco destinos, en orden y con sus nombres", () => {
   it("hay UN unico destino central (el [+] = crear)", () => {
     const centrales = NAV_DESTINOS.filter((d) => "central" in d && d.central).map((d) => d.clave);
     expect(centrales).toEqual(["crear"]);
+  });
+});
+
+describe("navegacion: destino activo segun la ruta", () => {
+  it('"/" -> inicio; cada ruta a su destino; una subruta hereda el destino', () => {
+    expect(destinoActivo("/")).toBe("inicio");
+    expect(destinoActivo("/retos")).toBe("retos");
+    expect(destinoActivo("/retos/123")).toBe("retos");
+    expect(destinoActivo("/ranking")).toBe("ranking");
+    expect(destinoActivo("/perfil")).toBe("perfil");
+    expect(destinoActivo("/crear")).toBe("crear");
+  });
+
+  it("una ruta desconocida no activa ningun destino (null)", () => {
+    expect(destinoActivo("/desconocida")).toBeNull();
+    // "/retosxyz" NO es subruta de /retos (no hay barra): no debe activar Retos
+    expect(destinoActivo("/retosxyz")).toBeNull();
   });
 });

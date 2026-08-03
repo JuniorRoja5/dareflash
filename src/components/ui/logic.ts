@@ -96,3 +96,19 @@ export const NAV_DESTINOS = [
 ] as const;
 
 export type NavDestino = (typeof NAV_DESTINOS)[number];
+export type DestinoClave = NavDestino["clave"];
+
+/**
+ * Ruta actual -> clave del destino activo, o null si ninguna. PURA (sin router), extraida para
+ * atarla: "/" es Inicio; una SUBRUTA como "/retos/123" sigue siendo Retos; una ruta desconocida es
+ * null (y "/retosxyz" NO es subruta de /retos). El armazon la llama desde una isla cliente y pasa
+ * `activo` a la nav, que sigue presentacional y pura.
+ */
+export function destinoActivo(pathname: string): DestinoClave | null {
+  if (pathname === "/") return "inicio";
+  for (const d of NAV_DESTINOS) {
+    if (d.href === "/") continue; // Inicio ya resuelto; "/" es prefijo de todo
+    if (pathname === d.href || pathname.startsWith(`${d.href}/`)) return d.clave;
+  }
+  return null;
+}
