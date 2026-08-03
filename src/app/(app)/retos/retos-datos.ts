@@ -1,0 +1,132 @@
+/**
+ * RETOS · datos de VISTA y logica pura del feed (Paso C · unidad 2). Todo aqui es maqueta: NO es el
+ * modelo de datos (eso es decision posterior) ni toca backend. `RetoVista` es la forma de
+ * PRESENTACION —tipada para que la fuente real entre luego sin rediseñar la pantalla— y `RETOS_SEED`
+ * es el mock. El plazo se guarda como OFFSET (`restanteMs`) para poder ver la alarma en vivo; el
+ * feed (cliente) lo convierte a `deadlineMs` absoluto en el montaje (sin Date.now() en el render).
+ */
+
+/** Las 14 categorias (decision cerrada del brief). `clave` = slug estable; `nombre` = etiqueta. */
+export const CATEGORIAS = [
+  { clave: "fitness", nombre: "Fitness" },
+  { clave: "baile", nombre: "Baile" },
+  { clave: "comedia", nombre: "Comedia" },
+  { clave: "musica", nombre: "Música" },
+  { clave: "cocina", nombre: "Cocina" },
+  { clave: "mascotas", nombre: "Mascotas" },
+  { clave: "arte", nombre: "Arte" },
+  { clave: "deportes", nombre: "Deportes" },
+  { clave: "gaming", nombre: "Gaming" },
+  { clave: "belleza", nombre: "Belleza" },
+  { clave: "viajes", nombre: "Viajes" },
+  { clave: "moda", nombre: "Moda" },
+  { clave: "educacion", nombre: "Educación" },
+  { clave: "talento", nombre: "Talento" },
+] as const;
+
+export type CategoriaClave = (typeof CATEGORIAS)[number]["clave"];
+
+/** clave -> etiqueta legible de una categoria (para la pildora de la tarjeta). */
+export function nombreCategoria(clave: CategoriaClave): string {
+  return CATEGORIAS.find((c) => c.clave === clave)?.nombre ?? clave;
+}
+
+/** Clave del filtro "Todos" (no es una categoria: no puede chocar con ninguna `clave`). */
+export const CATEGORIA_TODOS = "todos" as const;
+
+/** Forma de VISTA de un reto (solo presentacion). En datos reales `deadlineMs` sera absoluto. */
+export type RetoVista = {
+  id: string;
+  titulo: string;
+  categoria: CategoriaClave;
+  premioCents: number;
+  deadlineMs: number;
+  miniaturaPlaceholder: string;
+};
+
+/** Semilla del mock: como `RetoVista` pero el plazo va como offset desde "ahora" (`restanteMs`). */
+export type RetoSemilla = Omit<RetoVista, "deadlineMs"> & { restanteMs: number };
+
+const H = 60 * 60 * 1000;
+const D = 24 * H;
+const M = 60 * 1000;
+
+export const RETOS_SEED: readonly RetoSemilla[] = [
+  {
+    id: "salto-en-caja",
+    titulo: "Tu mejor salto en caja (box jump)",
+    categoria: "fitness",
+    premioCents: 25000,
+    restanteMs: 6 * D + 4 * H,
+    miniaturaPlaceholder: "Salto en caja",
+  },
+  {
+    id: "receta-60s",
+    titulo: "Receta viral en 60 segundos, un solo plano",
+    categoria: "cocina",
+    premioCents: 12000,
+    restanteMs: 18 * H, // < 24 h -> alarma
+    miniaturaPlaceholder: "Receta 60s",
+  },
+  {
+    id: "coreo-agosto",
+    titulo: "Coreografía del reto de agosto con el giro que nadie ha clavado todavía",
+    categoria: "baile",
+    premioCents: 50000,
+    restanteMs: 2 * D,
+    miniaturaPlaceholder: "Coreo agosto",
+  },
+  {
+    id: "clutch-1v5",
+    titulo: "Clutch 1v5 en ranked",
+    categoria: "gaming",
+    premioCents: 7500,
+    restanteMs: 3 * H + 20 * M, // < 24 h -> alarma
+    miniaturaPlaceholder: "Clutch 1v5",
+  },
+  {
+    id: "cover-una-toma",
+    titulo: "Cover a una sola toma, sin cortes",
+    categoria: "musica",
+    premioCents: 125000,
+    restanteMs: 5 * D + 12 * H,
+    miniaturaPlaceholder: "Cover 1 toma",
+  },
+  {
+    id: "sketch-30s",
+    titulo: "Sketch de 30 s",
+    categoria: "comedia",
+    premioCents: 4000,
+    restanteMs: 45 * M, // < 24 h -> alarma (por vencer)
+    miniaturaPlaceholder: "Sketch 30s",
+  },
+  {
+    id: "truco-perro",
+    titulo: "El truco más rápido de tu perro",
+    categoria: "mascotas",
+    premioCents: 9000,
+    restanteMs: 9 * D,
+    miniaturaPlaceholder: "Truco perro",
+  },
+  {
+    id: "tiro-centro",
+    titulo: "Tiro libre desde el círculo central",
+    categoria: "deportes",
+    premioCents: 30000,
+    restanteMs: 12 * H, // < 24 h -> alarma
+    miniaturaPlaceholder: "Tiro centro",
+  },
+];
+
+/**
+ * Filtro PURO del feed. `todos` -> todos (copia estable, mismo orden); una categoria -> solo los que
+ * coinciden. NO muta la lista original. Extraido para atarlo con dientes: ignorar la categoria cae
+ * en rojo. Generico sobre `{ categoria }` para atarlo con datos minimos.
+ */
+export function filtrarRetos<T extends { categoria: string }>(
+  retos: readonly T[],
+  categoria: string,
+): T[] {
+  if (categoria === CATEGORIA_TODOS) return retos.slice();
+  return retos.filter((reto) => reto.categoria === categoria);
+}
