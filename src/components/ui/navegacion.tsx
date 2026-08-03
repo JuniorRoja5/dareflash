@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { NAV_DESTINOS } from "./logic";
@@ -47,7 +48,7 @@ const ICONO: Record<string, ReactNode> = {
  * accion principal: circulo de relleno --df-action con texto negro (--df-void), el UNICO magenta.
  * Cada objetivo mide 44 px. Es presentacional: la posicion fija la pone el layout (Paso C).
  */
-export function NavegacionInferior({ activo = "inicio" }: { activo?: string }) {
+export function NavegacionInferior({ activo }: { activo?: string }) {
   return (
     <nav
       aria-label="Principal"
@@ -55,7 +56,7 @@ export function NavegacionInferior({ activo = "inicio" }: { activo?: string }) {
     >
       {NAV_DESTINOS.map((d) =>
         "central" in d && d.central ? (
-          <a
+          <Link
             key={d.clave}
             href={d.href}
             aria-label={d.nombre}
@@ -64,9 +65,9 @@ export function NavegacionInferior({ activo = "inicio" }: { activo?: string }) {
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-action text-2xl font-bold leading-none text-void">
               +
             </span>
-          </a>
+          </Link>
         ) : (
-          <a
+          <Link
             key={d.clave}
             href={d.href}
             aria-current={activo === d.clave ? "page" : undefined}
@@ -76,7 +77,7 @@ export function NavegacionInferior({ activo = "inicio" }: { activo?: string }) {
           >
             {ICONO[d.clave]}
             <span>{d.nombre}</span>
-          </a>
+          </Link>
         ),
       )}
     </nav>
@@ -88,11 +89,11 @@ export function NavegacionInferior({ activo = "inicio" }: { activo?: string }) {
  * central es una fila de accion en --df-action con texto negro (el unico magenta). Cada fila mide
  * 44 px. Presentacional: el layout la fija (Paso C).
  */
-export function NavegacionLateral({ activo = "inicio" }: { activo?: string }) {
+export function NavegacionLateral({ activo }: { activo?: string }) {
   return (
     <nav
       aria-label="Principal"
-      className="flex w-56 flex-col gap-1 border-r border-line bg-surface p-3"
+      className="flex h-full w-56 flex-col gap-1 border-r border-line bg-surface p-3"
     >
       <p
         className="mb-4 px-2 pt-2 text-xl leading-none text-text"
@@ -105,16 +106,16 @@ export function NavegacionLateral({ activo = "inicio" }: { activo?: string }) {
       </p>
       {NAV_DESTINOS.map((d) =>
         "central" in d && d.central ? (
-          <a
+          <Link
             key={d.clave}
             href={d.href}
             className="mt-1 flex min-h-[44px] items-center gap-3 rounded-sm bg-action px-3 font-semibold text-void transition-[filter] duration-150 ease-mechanical hover:brightness-110"
           >
             <span className="text-xl font-bold leading-none">+</span>
             <span>{d.nombre}</span>
-          </a>
+          </Link>
         ) : (
-          <a
+          <Link
             key={d.clave}
             href={d.href}
             aria-current={activo === d.clave ? "page" : undefined}
@@ -126,7 +127,7 @@ export function NavegacionLateral({ activo = "inicio" }: { activo?: string }) {
           >
             {ICONO[d.clave]}
             <span>{d.nombre}</span>
-          </a>
+          </Link>
         ),
       )}
     </nav>
