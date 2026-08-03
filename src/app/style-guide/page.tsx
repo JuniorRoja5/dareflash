@@ -6,6 +6,10 @@ import type { CSSProperties, ReactNode } from "react";
  * que se revisa antes de construir primitivas. Construida con la propia gramatica del brief
  * (geometria severa, filetes de 1px, cero sombras, oscuro), para que se vea el sistema, no un
  * catalogo generico. El sitio entero es noindex, asi que esta ruta no se indexa.
+ *
+ * DEUDA DE LANZAMIENTO (anotada a proposito): antes de abrir al publico hay que RETIRAR o PROTEGER
+ * esta ruta. noindex evita que se INDEXE, pero sigue siendo alcanzable por URL directa. No es una
+ * pantalla de producto y no debe verla un usuario final.
  */
 export const metadata = { title: "DareFlash · Sistema de diseño" };
 
@@ -67,7 +71,7 @@ const COLORES = [
 ] as const;
 
 const ESCALA = [
-  { u: "text-hero", px: "64", rem: "4rem", lh: "1", ej: "1.250" },
+  { u: "text-hero", px: "64", rem: "4rem", lh: "1", ej: "1,250" },
   { u: "text-3xl", px: "36", rem: "2.25rem", lh: "2.5rem", ej: "Titular grande" },
   { u: "text-2xl", px: "28", rem: "1.75rem", lh: "2rem", ej: "Titular" },
   { u: "text-xl", px: "22", rem: "1.375rem", lh: "1.75rem", ej: "Título de tarjeta" },
@@ -111,9 +115,9 @@ export default function StyleGuide() {
             <div>
               <p className="mb-1 text-2xs uppercase tracking-widest text-text-dim">Premio</p>
               <p style={displayExpanded(850)} className="text-money" data-size="hero">
-                <span className="align-top text-2xl">€</span>
-                <span className="text-[64px] leading-none">1.250</span>
-                <span className="text-2xl">,00</span>
+                <span className="align-top text-2xl">$</span>
+                <span className="text-[64px] leading-none">1,250</span>
+                <span className="text-2xl">.00</span>
               </p>
             </div>
             <div className="h-16 w-px bg-line" aria-hidden />
@@ -137,7 +141,7 @@ export default function StyleGuide() {
         <div className="grid gap-6 md:grid-cols-[1fr_auto]">
           <div className="border border-line rounded-sm bg-surface p-5">
             <p style={displayExpanded(800)} className="text-[52px] leading-none text-money">
-              <span className="align-top text-xl">€</span>25,00
+              <span className="align-top text-xl">$</span>25.00
             </p>
             <p style={displayExpanded(600, 110)} className="mt-2 text-2xl leading-none text-time">
               6 d 04 h
@@ -189,7 +193,7 @@ export default function StyleGuide() {
                 className="flex items-end justify-between rounded-t-sm px-3 py-4"
                 style={{ backgroundColor: `var(--color-${c.u})` }}
               >
-                <span className="font-semibold text-void">Aa · 1.234</span>
+                <span className="font-semibold text-void">Aa · 1,234</span>
                 <span className="text-xs text-void/70">{c.hex}</span>
               </div>
               <div className="p-3">
@@ -255,7 +259,7 @@ export default function StyleGuide() {
           <div className="border border-line rounded-sm bg-surface p-4">
             <p className="text-2xs uppercase tracking-widest text-text-dim">Display · Archivo</p>
             <p style={displayExpanded(800)} className="mt-2 text-3xl leading-none">
-              1.234.567
+              1,234,567
             </p>
             <p style={displayExpanded(600, 100)} className="text-xl leading-tight">
               Cifras y titulares
@@ -297,9 +301,9 @@ export default function StyleGuide() {
             Cifras tabulares · obligatorias en premios, votos, contadores, puestos y saldos
           </p>
           <p className="tabular-nums text-xl leading-tight" style={displayExpanded(600, 100)}>
-            1.111
+            1,111
             <br />
-            8.888
+            8,888
           </p>
           <p className="mt-1 text-xs text-text-dim">
             Los dígitos ocupan lo mismo: un reloj cuyos números bailan al cambiar es un reloj roto.
@@ -333,7 +337,8 @@ export default function StyleGuide() {
           {ESPACIOS.map((n) => (
             <div key={n} className="flex items-center gap-3">
               <span className="w-14 shrink-0 tabular-nums text-xs text-text-dim">{n * 4}px</span>
-              <span className="h-3 bg-action/80" style={{ width: `${n * 4}px` }} />
+              {/* barra de MEDIDA = neutro. NUNCA un color semantico (no es dinero/accion/etc.). */}
+              <span className="h-3 bg-text-dim" style={{ width: `${n * 4}px` }} />
             </div>
           ))}
         </div>
