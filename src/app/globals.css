@@ -1,26 +1,124 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================================
+   DAREFLASH — TOKENS DEL SISTEMA (brief de marca v1.0)
+   Retransmision deportiva, no red social: geometria severa, color sin miedo.
+   Cada color semantico tiene UN SOLO TRABAJO y no se presta a ningun otro.
+   El producto es OSCURO SIEMPRE; el modo claro no existe.
+   ============================================================================ */
+@theme {
+  /* Limpiamos los defaults de Tailwind que el brief PROHIBE, para que no existan
+     por construccion: nada de bg-blue-500, ni rounded-2xl (16px), ni una escala
+     tipografica automatica. Si no se puede escribir, no se puede colar. */
+  --color-*: initial;
+  --radius-*: initial;
+  --text-*: initial;
+
+  /* --- COLORES SEMANTICOS (un trabajo cada uno) --- */
+  --color-money: #d9f32b; /* lima acido. SOLO dinero: premios, saldo, bote. */
+  --color-action: #ff2e88; /* magenta. SOLO accion principal. UNO por pantalla. */
+  --color-time: #ffa114; /* ambar. SOLO tiempo restante no critico. */
+  --color-alarm: #ff4d2e; /* rojo-naranja. Tiempo critico (<24h) Y error/peligro. */
+  --color-rank: #e8c468; /* oro. SOLO puestos 1/2/3 del podio. */
+  --color-ok: #2be58b; /* menta. SOLO confirmaciones. */
+
+  /* --- BASE Y SUPERFICIES (profundidad por LUMINOSIDAD, nunca por sombra) --- */
+  --color-void: #07090d; /* fondo de pagina */
+  --color-surface: #10141c; /* tarjetas, hojas, paneles */
+  --color-raised: #1a2029; /* elevado: menus, estados activos, campos enfocados */
+  --color-line: rgb(255 255 255 / 0.1); /* filetes de 1 px: como se separan las cosas */
+  --color-text: #f2f4f7; /* texto principal */
+  --color-text-dim: #8d95a3; /* texto secundario, etiquetas, metadatos */
+
+  /* neutrales que Tailwind necesita tras limpiar el namespace */
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  /* --- RADIOS: SOLO los permitidos (2/4/8/999). 12/16/20/24 no existen. --- */
+  --radius-xs: 2px; /* pildoras de dato, etiquetas */
+  --radius-sm: 4px; /* POR DEFECTO: botones, campos, tarjetas */
+  --radius-lg: 8px; /* SOLO hojas inferiores y modales */
+  --radius-full: 999px; /* SOLO avatares y pildoras de categoria */
+
+  /* --- ESCALA TIPOGRAFICA: saltos deliberados, de la etiqueta de 11px al heroe --- */
+  --text-2xs: 0.6875rem; /* 11px — metadatos, categoria */
+  --text-2xs--line-height: 0.9375rem;
+  --text-xs: 0.75rem; /* 12px — etiquetas */
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem; /* 14px — texto secundario */
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem; /* 16px — cuerpo */
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem; /* 18px — cuerpo enfatizado */
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.375rem; /* 22px — titulo de tarjeta */
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.75rem; /* 28px — h2 */
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 2.25rem; /* 36px — h1 */
+  --text-3xl--line-height: 2.5rem;
+  --text-hero: 4rem; /* 64px — importe heroe (se escala mas en contexto) */
+  --text-hero--line-height: 1;
+
+  /* --- MOVIMIENTO: rapido y mecanico, sin rebotes --- */
+  --ease-mechanical: cubic-bezier(0.2, 0, 0, 1);
 }
 
+/* Las fuentes vienen de next/font como variables en <html> (ver layout.tsx). */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-archivo), ui-sans-serif, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Alias con la nomenclatura del brief (--df-*), para uso directo en CSS/componentes
+   (p.ej. el marcador). Mismos valores que los tokens de @theme de arriba. */
+:root {
+  --df-money: var(--color-money);
+  --df-action: var(--color-action);
+  --df-time: var(--color-time);
+  --df-alarm: var(--color-alarm);
+  --df-rank: var(--color-rank);
+  --df-ok: var(--color-ok);
+  --df-void: var(--color-void);
+  --df-surface: var(--color-surface);
+  --df-raised: var(--color-raised);
+  --df-line: var(--color-line);
+  --df-text: var(--color-text);
+  --df-text-dim: var(--color-text-dim);
+}
+
+@layer base {
+  html {
+    color-scheme: dark; /* oscuro siempre: el producto es video a pantalla completa */
+    background-color: var(--color-void);
+  }
+  body {
+    background-color: var(--color-void);
+    color: var(--color-text);
+    font-family: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  /* La seleccion NO usa un color semantico (no es "dinero" ni "accion"): superficie elevada. */
+  ::selection {
+    background-color: var(--color-raised);
+    color: var(--color-text);
+  }
+  /* Foco visible en TODO lo interactivo (requisito: se usa con teclado). Neutro, no semantico. */
+  :focus-visible {
+    outline: 2px solid var(--color-text);
+    outline-offset: 2px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* prefers-reduced-motion se respeta SIEMPRE (brief, seccion 6 / exigencias tecnicas). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
