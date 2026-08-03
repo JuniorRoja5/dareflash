@@ -1,4 +1,7 @@
+import { notFound } from "next/navigation";
 import type { CSSProperties, ReactNode } from "react";
+
+import { styleGuideHidden } from "./visibility";
 
 /**
  * HOJA DE ESTILO VIVA — Fase 1 · Paso A. Referencia interna del sistema de diseño de DareFlash:
@@ -7,9 +10,10 @@ import type { CSSProperties, ReactNode } from "react";
  * (geometria severa, filetes de 1px, cero sombras, oscuro), para que se vea el sistema, no un
  * catalogo generico. El sitio entero es noindex, asi que esta ruta no se indexa.
  *
- * DEUDA DE LANZAMIENTO (anotada a proposito): antes de abrir al publico hay que RETIRAR o PROTEGER
- * esta ruta. noindex evita que se INDEXE, pero sigue siendo alcanzable por URL directa. No es una
- * pantalla de producto y no debe verla un usuario final.
+ * DEV-ONLY POR CONSTRUCCION: en cualquier build de produccion (NODE_ENV=production, que el
+ * Dockerfile hornea) esta ruta devuelve 404 (ver el guard `styleGuideHidden` al entrar en el
+ * componente). No es una pantalla de producto, no puede quedar viva al abrir al publico, y NO
+ * depende de que nadie se acuerde de retirarla: si no es desarrollo, no existe.
  */
 export const metadata = { title: "DareFlash · Sistema de diseño" };
 
@@ -92,6 +96,9 @@ const RADIOS = [
 const ESPACIOS = [1, 2, 3, 4, 6, 8, 12, 16] as const; // × 4px
 
 export default function StyleGuide() {
+  // DEV-ONLY: en produccion (NODE_ENV != "development") la ruta no existe -> 404. Ver visibility.ts.
+  if (styleGuideHidden(process.env.NODE_ENV)) notFound();
+
   return (
     <main className="mx-auto w-full max-w-[900px] px-6 pb-24">
       {/* Cabecera */}
