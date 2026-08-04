@@ -52,9 +52,13 @@ export default async function RetoPorDentroPage({ params }: { params: Promise<{ 
         <MarcadorVivo cents={reto.premioCents} restanteMs={reto.restanteMs} />
       </div>
 
-      {/* Video del participante: placeholder VERTICAL 9:16, centrado, sin estirar. Bunny despues. */}
+      {/* Video del participante: placeholder VERTICAL 9:16, centrado, sin estirar. Responsive sin
+          limite fijo: en movil ocupa el ancho disponible (aspect 9:16 -> alto derivado); en pantallas
+          grandes (sm+) manda la ALTURA, acotada a 70svh (svh = viewport estable, no salta con las
+          barras del navegador) y el ancho se deriva del 9:16, centrado. Detalle, NO inmersivo:
+          "Votar" y el participante quedan alcanzables. Bunny despues. */}
       <div className="mt-6">
-        <div className="mx-auto flex aspect-[9/16] w-full max-w-[300px] flex-col items-center justify-center gap-2 rounded-sm border border-line bg-raised">
+        <div className="mx-auto flex aspect-[9/16] w-full flex-col items-center justify-center gap-2 rounded-sm border border-line bg-raised sm:h-[70svh] sm:w-auto">
           <IconoPlay />
           <span className="text-sm text-text-dim">Vídeo del participante</span>
           <span className="text-2xs uppercase tracking-widest text-text-dim">máx. 90 s</span>
