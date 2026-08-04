@@ -32,9 +32,12 @@ const IconoComentario = () => (
     <path d="M5 5h14v10H9l-4 4z" />
   </IconoAccion>
 );
+// VOTAR = check/tick propio (nuestra gramatica, no copiado de ningun banco de iconos). Trazo bold,
+// caps redondeados, en el viewBox de 24 -> nitido dentro del circulo magenta a 24 px. Negro (hereda
+// text-void del circulo bg-action).
 const IconoVoto = () => (
   <IconoAccion bold>
-    <path d="M6 14l6-6 6 6" />
+    <path d="M5 12.5l4.5 4.5L19 7" />
   </IconoAccion>
 );
 const IconoCompartir = () => (
