@@ -34,7 +34,11 @@ export function nombreCategoria(clave: CategoriaClave): string {
 /** Clave del filtro "Todos" (no es una categoria: no puede chocar con ninguna `clave`). */
 export const CATEGORIA_TODOS = "todos" as const;
 
-/** Forma de VISTA de un reto (solo presentacion). En datos reales `deadlineMs` sera absoluto. */
+/**
+ * Forma de VISTA de un reto (solo presentacion). En datos reales `deadlineMs` sera absoluto.
+ * `autorUsername` y `votos` son campos de vista minimos para el detalle (unidad 3): representan el
+ * video del participante que se esta votando en la maqueta; NO son el modelo de datos.
+ */
 export type RetoVista = {
   id: string;
   titulo: string;
@@ -42,6 +46,8 @@ export type RetoVista = {
   premioCents: number;
   deadlineMs: number;
   miniaturaPlaceholder: string;
+  autorUsername: string;
+  votos: number;
 };
 
 /** Semilla del mock: como `RetoVista` pero el plazo va como offset desde "ahora" (`restanteMs`). */
@@ -59,6 +65,8 @@ export const RETOS_SEED: readonly RetoSemilla[] = [
     premioCents: 25000,
     restanteMs: 6 * D + 4 * H,
     miniaturaPlaceholder: "Salto en caja",
+    autorUsername: "carlos_fit",
+    votos: 1240,
   },
   {
     id: "receta-60s",
@@ -67,6 +75,8 @@ export const RETOS_SEED: readonly RetoSemilla[] = [
     premioCents: 12000,
     restanteMs: 18 * H, // < 24 h -> alarma
     miniaturaPlaceholder: "Receta 60s",
+    autorUsername: "cocina_express_maria",
+    votos: 3410,
   },
   {
     id: "coreo-agosto",
@@ -75,6 +85,8 @@ export const RETOS_SEED: readonly RetoSemilla[] = [
     premioCents: 50000,
     restanteMs: 2 * D,
     miniaturaPlaceholder: "Coreo agosto",
+    autorUsername: "dario",
+    votos: 890,
   },
   {
     id: "clutch-1v5",
@@ -83,6 +95,8 @@ export const RETOS_SEED: readonly RetoSemilla[] = [
     premioCents: 7500,
     restanteMs: 3 * H + 20 * M, // < 24 h -> alarma
     miniaturaPlaceholder: "Clutch 1v5",
+    autorUsername: "noscope_king_2012",
+    votos: 5620,
   },
   {
     id: "cover-una-toma",
@@ -91,6 +105,8 @@ export const RETOS_SEED: readonly RetoSemilla[] = [
     premioCents: 125000,
     restanteMs: 5 * D + 12 * H,
     miniaturaPlaceholder: "Cover 1 toma",
+    autorUsername: "lucia.voz",
+    votos: 12840,
   },
   {
     id: "sketch-30s",
@@ -99,6 +115,8 @@ export const RETOS_SEED: readonly RetoSemilla[] = [
     premioCents: 4000,
     restanteMs: 45 * M, // < 24 h -> alarma (por vencer)
     miniaturaPlaceholder: "Sketch 30s",
+    autorUsername: "rae",
+    votos: 430,
   },
   {
     id: "truco-perro",
@@ -107,6 +125,8 @@ export const RETOS_SEED: readonly RetoSemilla[] = [
     premioCents: 9000,
     restanteMs: 9 * D,
     miniaturaPlaceholder: "Truco perro",
+    autorUsername: "maxi_y_rocky",
+    votos: 2075,
   },
   {
     id: "tiro-centro",
@@ -115,6 +135,8 @@ export const RETOS_SEED: readonly RetoSemilla[] = [
     premioCents: 30000,
     restanteMs: 12 * H, // < 24 h -> alarma
     miniaturaPlaceholder: "Tiro centro",
+    autorUsername: "laia10",
+    votos: 760,
   },
 ];
 
@@ -129,4 +151,13 @@ export function filtrarRetos<T extends { categoria: string }>(
 ): T[] {
   if (categoria === CATEGORIA_TODOS) return retos.slice();
   return retos.filter((reto) => reto.categoria === categoria);
+}
+
+/**
+ * Busca un reto por id (PURA). Existente -> el reto; inexistente -> undefined (el detalle server la
+ * usa para decidir el 404 con notFound()). Extraida para atarla con dientes: romper la busqueda
+ * (devolver algo para un id que no existe) cae en rojo.
+ */
+export function buscarReto(id: string): RetoSemilla | undefined {
+  return RETOS_SEED.find((reto) => reto.id === id);
 }

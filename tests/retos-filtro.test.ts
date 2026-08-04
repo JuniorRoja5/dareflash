@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { CATEGORIA_TODOS, filtrarRetos } from "../src/app/(app)/retos/retos-datos";
+import { buscarReto, CATEGORIA_TODOS, filtrarRetos } from "../src/app/(app)/retos/retos-datos";
 
 const RETOS = [
   { id: "a", categoria: "fitness" },
@@ -33,5 +33,18 @@ describe("filtrarRetos", () => {
     const salida = filtrarRetos(RETOS, CATEGORIA_TODOS);
     expect(salida).not.toBe(RETOS);
     expect(RETOS).toHaveLength(4);
+  });
+});
+
+describe("buscarReto (detalle)", () => {
+  it("un id EXISTENTE devuelve el reto correcto", () => {
+    const reto = buscarReto("salto-en-caja");
+    expect(reto?.id).toBe("salto-en-caja");
+    expect(reto?.categoria).toBe("fitness");
+  });
+
+  it("un id INEXISTENTE devuelve undefined (-> 404)", () => {
+    expect(buscarReto("no-existe")).toBeUndefined();
+    expect(buscarReto("")).toBeUndefined();
   });
 });
