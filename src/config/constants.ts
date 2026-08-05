@@ -49,12 +49,13 @@ export const BOOST_DAILY_LIMIT = 3;
 export const VIDEO_MAX_DURATION_SEC = 90;
 
 /**
- * Caducidad de la credencial de subida TUS PREFIRMADA a Bunny (segundos). CORTA a proposito: es una
- * credencial delegada de subida directa; cuanto menos viva, menos ventana si se filtra. 15 min es de
- * sobra para subir un video de <=90 s aun con conexion mala, y sigue siendo "minutos, no horas".
- * (Bunny compara este instante -AuthorizationExpire- contra el fin de la subida; ver bunny.ts.)
+ * Caducidad de la credencial de subida TUS PREFIRMADA a Bunny (segundos). Bunny compara
+ * `AuthorizationExpire` contra el fin de la subida COMPLETA (401 si caduca a media subida), NO contra
+ * la duracion del video: un clip de <=90 s pesa cientos de MB y una subida en conexion movil mala
+ * supera de sobra los minutos. La doc oficial de Bunny recomienda EXPLICITAMENTE >= 1 h; 2 h da margen
+ * para ficheros grandes en movil sin dejar la credencial viva eternamente. (Atado en tests/bunny.test.ts.)
  */
-export const BUNNY_TUS_CREDENTIAL_TTL_SEC = 15 * 60;
+export const BUNNY_TUS_CREDENTIAL_TTL_SEC = 2 * 60 * 60;
 
 /** Idiomas de lanzamiento. Solo estos dos. */
 export const LAUNCH_LOCALES = ["en", "es"] as const;
