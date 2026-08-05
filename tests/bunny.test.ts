@@ -36,12 +36,14 @@ describe("credencialSubidaTus", () => {
     expect(Object.values(cred)).not.toContain(CONFIG.apiKey);
   });
 
-  it("INVARIANTE 2: la expiracion es CORTA (segundos desde ahora, no horas)", () => {
+  it("INVARIANTE 2: la expiracion cubre la subida completa pero esta ACOTADA (1h..6h)", () => {
+    // Bunny compara AuthorizationExpire contra el fin de la subida (no la duracion del video) y
+    // recomienda >= 1 h. La credencial debe durar MAS que la subida completa; y no ser eterna.
     const nowSec = Math.floor(now.getTime() / 1000);
     const ttl = cred.expirationTime - nowSec;
     expect(ttl).toBe(BUNNY_TUS_CREDENTIAL_TTL_SEC);
-    expect(ttl).toBeGreaterThan(0);
-    expect(ttl).toBeLessThanOrEqual(15 * 60); // <= 15 min: alargarla a horas pone esto en rojo
+    expect(ttl).toBeGreaterThanOrEqual(60 * 60); // suelo 1 h: bajarlo por debajo pone esto en rojo
+    expect(ttl).toBeLessThanOrEqual(6 * 60 * 60); // techo 6 h: subirlo por encima pone esto en rojo
   });
 
   it("firma = sha256_hex(libraryId + apiKey + expirationTime + videoId), orden EXACTO de la doc", () => {
