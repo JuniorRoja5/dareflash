@@ -48,6 +48,14 @@ export const BOOST_DAILY_LIMIT = 3;
  */
 export const VIDEO_MAX_DURATION_SEC = 90;
 
+/**
+ * Caducidad de la credencial de subida TUS PREFIRMADA a Bunny (segundos). CORTA a proposito: es una
+ * credencial delegada de subida directa; cuanto menos viva, menos ventana si se filtra. 15 min es de
+ * sobra para subir un video de <=90 s aun con conexion mala, y sigue siendo "minutos, no horas".
+ * (Bunny compara este instante -AuthorizationExpire- contra el fin de la subida; ver bunny.ts.)
+ */
+export const BUNNY_TUS_CREDENTIAL_TTL_SEC = 15 * 60;
+
 /** Idiomas de lanzamiento. Solo estos dos. */
 export const LAUNCH_LOCALES = ["en", "es"] as const;
 export type Locale = (typeof LAUNCH_LOCALES)[number];
@@ -207,6 +215,9 @@ export const RATE_LIMITS = {
   // alguien dispare correos de desbloqueo hacia MUCHAS cuentas distintas desde una sola IP.
   UNLOCK_EMAIL_PER_ACCOUNT: { limit: 1, windowMs: 60 * 60 * 1000 }, // 1 / hora por cuenta
   UNLOCK_EMAIL_PER_IP: { limit: 5, windowMs: 60 * 60 * 1000 }, // 5 / hora por IP
+  // Crear objeto de video en Bunny (credencial de subida). Cada peticion crea un objeto en Bunny
+  // (coste + posible huerfano si se abandona): por USUARIO autenticado, acota la creacion en masa.
+  CREATE_VIDEO_PER_USER: { limit: 10, windowMs: 60 * 60 * 1000 }, // 10 / hora por usuario
 } as const;
 
 // ============================================================================

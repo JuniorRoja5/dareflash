@@ -24,10 +24,13 @@ let prisma: PrismaClient;
 
 beforeAll(async () => {
   // El Proxy lee env.DATABASE_URL en el PRIMER acceso: apuntamos a la BD de tests y damos
-  // las otras obligatorias del esquema para que `env` valide.
+  // las otras obligatorias del esquema para que `env` valide (valores de test, no reales).
   process.env["DATABASE_URL"] = TEST_DB_URL;
   process.env["APP_URL"] = "https://x.test";
   process.env["AUTH_SECRET"] = "x".repeat(32);
+  process.env["BUNNY_STREAM_LIBRARY_ID"] = "test-library";
+  process.env["BUNNY_STREAM_API_KEY"] = "test-key-no-real";
+  process.env["BUNNY_CDN_HOSTNAME"] = "test.b-cdn.net";
   ({ prisma } = await import("../src/server/db/client"));
 });
 
