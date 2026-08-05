@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
@@ -50,7 +50,6 @@ export function FormularioCrear() {
   const [fase, setFase] = useState<Fase>("idle");
   const [progreso, setProgreso] = useState(0);
   const [errorSubida, setErrorSubida] = useState<string | undefined>(undefined);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const ocupado = fase === "subiendo" || fase === "subido";
 
@@ -156,7 +155,6 @@ export function FormularioCrear() {
         )}
         <input
           id="crear-video"
-          ref={inputRef}
           type="file"
           accept="video/*"
           className="sr-only"
