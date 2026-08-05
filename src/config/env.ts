@@ -68,10 +68,15 @@ const serverSchema = z.object({
   // --- Se promueven a obligatorias en su paso (ver comentario de cada una) ---
   /** Paso 8 — cola de trabajos disparada por cron. */
   CRON_SECRET: z.string().min(1).optional(),
-  /** Paso 9 — Bunny.net (video) y Stripe (pagos). */
-  BUNNY_STREAM_LIBRARY_ID: z.string().min(1).optional(),
-  BUNNY_STREAM_API_KEY: z.string().min(1).optional(),
-  BUNNY_CDN_HOSTNAME: z.string().min(1).optional(),
+  /**
+   * Bunny Stream (video). OBLIGATORIAS desde el paso de subida real: el servicio de
+   * credenciales las necesita (la clave de API SOLO en servidor; nunca llega al cliente).
+   * Deben estar en el fichero de entorno del VPS ANTES de desplegar esta rama, o el arranque
+   * falla (validacion fail-fast en instrumentation). Stripe sigue opcional hasta su paso.
+   */
+  BUNNY_STREAM_LIBRARY_ID: z.string().min(1),
+  BUNNY_STREAM_API_KEY: z.string().min(1),
+  BUNNY_CDN_HOSTNAME: z.string().min(1),
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
   /**
