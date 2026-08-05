@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { Upload } from "tus-js-client";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
@@ -50,8 +51,24 @@ export function FormularioCrear() {
   const [fase, setFase] = useState<Fase>("idle");
   const [progreso, setProgreso] = useState(0);
   const [errorSubida, setErrorSubida] = useState<string | undefined>(undefined);
+  const uploadRef = useRef<Upload | null>(null);
+
+  // (1) Si el usuario abandona la pantalla a media subida, se aborta: no queda corriendo en JS.
+  useEffect(() => () => void uploadRef.current?.abort(), []);
 
   const ocupado = fase === "subiendo" || fase === "subido";
+
+  // (2) Reinicia el formulario para subir otro video (tras completar).
+  const reiniciar = (): void => {
+    uploadRef.current = null;
+    setFichero(null);
+    setTitulo("");
+    setErrorTitulo(undefined);
+    setErrorFichero(undefined);
+    setErrorSubida(undefined);
+    setProgreso(0);
+    setFase("idle");
+  };
 
   const onElegirFichero = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const f = e.target.files?.[0];
@@ -117,6 +134,7 @@ export function FormularioCrear() {
         },
         onSuccess: () => setFase("subido"),
       });
+      uploadRef.current = upload;
       upload.start();
     } catch (err) {
       const codigo = err instanceof Error ? err.message : "";
@@ -207,19 +225,25 @@ export function FormularioCrear() {
         </div>
       ) : null}
 
-      <Boton type="submit" variante="principal" disabled={ocupado} className="mt-6 w-full py-4">
-        {fase === "subiendo"
-          ? `Subiendo… ${progreso} %`
-          : fase === "subido"
-            ? "Subido"
-            : "Publicar"}
-      </Boton>
-
       {fase === "subido" ? (
-        <p className="mt-2 text-center text-sm text-ok" role="status">
-          Subido — se publicará tras el procesado.
-        </p>
-      ) : null}
+        <div className="mt-6">
+          <p className="text-center text-sm text-ok" role="status">
+            Subido — se publicará tras el procesado.
+          </p>
+          <Boton
+            type="button"
+            variante="secundario"
+            onClick={reiniciar}
+            className="mt-3 w-full py-3"
+          >
+            Subir otro vídeo
+          </Boton>
+        </div>
+      ) : (
+        <Boton type="submit" variante="principal" disabled={ocupado} className="mt-6 w-full py-4">
+          {fase === "subiendo" ? `Subiendo… ${progreso} %` : "Publicar"}
+        </Boton>
+      )}
       {fase === "error" && errorSubida ? (
         <p className="mt-2 text-center text-sm text-alarm" role="status">
           {errorSubida}
