@@ -35,11 +35,15 @@ enum Role {
 
 /// Estados de moderacion de contenido (Video y Submission).
 /// Nunca hay borrado fisico de contenido denunciado: REMOVED es un estado.
+/// FAILED: terminal e INVISIBLE, lo fija el sondeo de confirmacion (worker) cuando Bunny no deja
+/// publicable el video (error de transcodificado o supera 90 s; el motivo va en Video.failureReason).
+/// NO es una decision de moderacion; el poller es forward-only (solo promueve PENDING).
 enum ModerationStatus {
   PENDING
   PUBLISHED
   REJECTED
   REMOVED
+  FAILED
 }
 
 // ============================================================================
@@ -184,7 +188,10 @@ model Video {
   bunnyVideoId String           @unique // referencia en Bunny
   status       ModerationStatus @default(PENDING)
   durationSec  Int? // duracion validada EN SERVIDOR al confirmar (nunca fiarse del cliente)
-  title        String?
+  // Motivo cuando status=FAILED. String tipado con Zod (VideoFailureReasonSchema), no enum de
+  // Prisma: TRANSCODE_ERROR | TOO_LONG. Distingue el fallo tecnico de la sobreduracion.
+  failureReason String?
+  title         String?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 

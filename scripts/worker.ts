@@ -13,11 +13,14 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
+import { CONFIRM_LOTE, SONDEO_MAX_EDAD_MS, VIDEO_MAX_DURATION_SEC } from "@/config/constants";
 import { env } from "@/config/env";
 import { prisma } from "@/server/db/client";
 import { getEmailAdapter } from "@/server/email/adapter";
 import { construirRegistro } from "@/server/jobs/registry";
 import { bucleWorker, contarFallidos } from "@/server/jobs/worker";
+import { clienteBunnyReal } from "@/server/services/bunny";
+import { confirmarVideosPendientes } from "@/server/services/video-confirmacion";
 
 const LIMIT = Number(process.env["WORKER_LIMIT"] ?? "5"); // lote pequeño y secuencial
 const INTERVALO_MS = Number(process.env["WORKER_INTERVALO_MS"] ?? "5000"); // sondeo 5 s
@@ -85,6 +88,20 @@ async function main(): Promise<void> {
     // Mantenimiento cableado: purgas (Job DONE/FAILED, RateLimit, Session) y aviso de FAILED.
     emailAdapter, // aviso DIRECTO, fuera de la cola
     adminEmail: env.ADMIN_EMAIL,
+    // Confirmacion de subidas: sondeo a Bunny por GUID (bytes/API key solo servidor).
+    confirmar: (now) =>
+      confirmarVideosPendientes(
+        prisma,
+        clienteBunnyReal,
+        { libraryId: env.BUNNY_STREAM_LIBRARY_ID, apiKey: env.BUNNY_STREAM_API_KEY },
+        {
+          now,
+          maxEdadMs: SONDEO_MAX_EDAD_MS,
+          lote: CONFIRM_LOTE,
+          maxSeg: VIDEO_MAX_DURATION_SEC,
+          log: (m) => console.log(m),
+        },
+      ),
     log: (m) => console.log(m),
   });
 

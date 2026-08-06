@@ -65,6 +65,9 @@ describe("crearObjetoVideo", () => {
         visto = input;
         return { guid: "guid-del-doble" };
       },
+      async getVideo() {
+        return { status: 0, length: 0 }; // no se usa en este test
+      },
     };
     const guid = await crearObjetoVideo(doble, CONFIG, "Mi video");
     expect(guid).toBe("guid-del-doble");

@@ -57,6 +57,25 @@ export const VIDEO_MAX_DURATION_SEC = 90;
  */
 export const BUNNY_TUS_CREDENTIAL_TTL_SEC = 2 * 60 * 60;
 
+/**
+ * Confirmacion de subida (sondeo por el worker a Bunny). El barrido revisa los Video en PENDING
+ * cuyo `createdAt >= now - SONDEO_MAX_EDAD_MS`: un video de 90 s se transcodifica en segundos-minutos,
+ * asi que 6 h sin llegar a Finished = atascado/abandonado -> lo hereda la reconciliacion (rama
+ * siguiente), no se sondea eternamente. `CONFIRM_LOTE` acota el trabajo por vuelta.
+ */
+export const SONDEO_MAX_EDAD_MS = 6 * 60 * 60 * 1000; // 6 h
+export const CONFIRM_LOTE = 100;
+/** Cadencia ADAPTATIVA del barrido: frecuente si quedaron PENDING, en reposo si no. */
+export const CONFIRM_CADENCIA_ACTIVO_MS = 15 * 1000; // 15 s
+export const CONFIRM_CADENCIA_REPOSO_MS = 5 * 60 * 1000; // 5 min
+
+/**
+ * Motivo de un Video en FAILED (String tipado con Zod, no enum de Prisma; convencion del proyecto).
+ * TRANSCODE_ERROR: Bunny reporto Error/UploadFailed. TOO_LONG: transcodifico bien pero supera 90 s.
+ */
+export const VideoFailureReasonSchema = z.enum(["TRANSCODE_ERROR", "TOO_LONG"]);
+export type VideoFailureReason = z.infer<typeof VideoFailureReasonSchema>;
+
 /** Idiomas de lanzamiento. Solo estos dos. */
 export const LAUNCH_LOCALES = ["en", "es"] as const;
 export type Locale = (typeof LAUNCH_LOCALES)[number];

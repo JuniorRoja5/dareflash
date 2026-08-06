@@ -8,6 +8,8 @@
  * solo si una necesidad medida lo justifica.
  */
 import {
+  CONFIRM_CADENCIA_ACTIVO_MS,
+  CONFIRM_CADENCIA_REPOSO_MS,
   JOB_DONE_RETENTION_DAYS,
   JOB_FAILED_ALERT_THRESHOLD,
   JOB_FAILED_RETENTION_DAYS,
@@ -19,6 +21,7 @@ import { purgeExpiredSessions } from "@/server/auth/session";
 import type { EmailAdapter, EmailMessage } from "@/server/email/adapter";
 import { sanearError } from "@/server/observability/sanitize-error";
 import { claimJobs } from "@/server/services/jobs";
+import { cadenciaConfirmMs, type ResultadoConfirm } from "@/server/services/video-confirmacion";
 
 import type { Registro } from "./registry";
 
@@ -492,6 +495,13 @@ export interface OpcionesBucle {
   parar: () => boolean;
   dormir: (ms: number) => Promise<void>;
   ahora?: () => Date;
+  /**
+   * Barrido de CONFIRMACION de subidas (sondeo a Bunny), en su propia cadencia adaptativa. Sin el,
+   * no se confirma (p. ej. en tests que no lo ejercitan). Devuelve el resultado para la cadencia.
+   */
+  confirmar?: (now: Date) => Promise<ResultadoConfirm>;
+  confirmActivoMs?: number;
+  confirmReposoMs?: number;
 }
 
 /**
@@ -509,6 +519,7 @@ export async function bucleWorker(
   let ultimoReaper = 0;
   let ultimaPoda = 0;
   let ultimoAviso = 0;
+  let proximoConfirm = 0;
 
   while (!o.parar()) {
     const t = ahora();
@@ -572,6 +583,25 @@ export async function bucleWorker(
         log: o.log,
       });
       ultimoAviso = t.getTime();
+    }
+
+    // Barrido de CONFIRMACION de subidas (sondeo a Bunny). Cadencia ADAPTATIVA propia; try/catch
+    // propio para que un fallo de la API de Bunny NO rompa el bucle (como las purgas/aviso). El
+    // reloj `t` es inyectable (tests).
+    if (o.confirmar && t.getTime() >= proximoConfirm) {
+      const activo = o.confirmActivoMs ?? CONFIRM_CADENCIA_ACTIVO_MS;
+      const reposo = o.confirmReposoMs ?? CONFIRM_CADENCIA_REPOSO_MS;
+      try {
+        const r = await o.confirmar(t);
+        o.log?.(
+          `[worker] confirm: revisados=${r.revisados} publicados=${r.publicados} ` +
+            `fallidos=${r.fallidos} pendientes=${r.pendientes}`,
+        );
+        proximoConfirm = t.getTime() + cadenciaConfirmMs(r.revisados > 0, activo, reposo);
+      } catch (e) {
+        o.log?.(`[worker] confirm: barrido fallo (${sanearError(e)}); reintento en reposo.`);
+        proximoConfirm = t.getTime() + reposo;
+      }
     }
 
     if (o.parar()) break;
