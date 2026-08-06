@@ -30,8 +30,8 @@ export interface ConfigBunny {
 }
 
 /**
- * Interfaz INYECTABLE de la llamada HTTP a Bunny. En tests se sustituye por un doble: ningun test
- * toca Bunny de verdad. Solo cubre lo que ESTE paso necesita (crear el objeto de video).
+ * Interfaz INYECTABLE de las llamadas HTTP a Bunny. En tests se sustituye por un doble: ningun test
+ * toca Bunny de verdad. La reconciliacion (rama siguiente) reutilizara este cliente (+ list/delete).
  */
 export interface ClienteBunny {
   crearVideo(input: {
@@ -39,6 +39,12 @@ export interface ClienteBunny {
     apiKey: string;
     title: string;
   }): Promise<{ guid: string }>;
+  /** Estado de transcodificacion (0-8) y duracion en segundos de un video (Get Video de Bunny). */
+  getVideo(input: {
+    libraryId: string;
+    apiKey: string;
+    videoId: string;
+  }): Promise<{ status: number; length: number }>;
 }
 
 /** Cliente HTTP real de Bunny (fetch). La clave de API va en la cabecera AccessKey, solo servidor. */
@@ -63,6 +69,21 @@ export const clienteBunnyReal: ClienteBunny = {
       throw new Error("Bunny createVideo: respuesta sin guid");
     }
     return { guid };
+  },
+  async getVideo({ libraryId, apiKey, videoId }) {
+    const res = await fetch(`${API_BASE}/library/${libraryId}/videos/${videoId}`, {
+      method: "GET",
+      headers: { AccessKey: apiKey, Accept: "application/json" },
+    });
+    if (!res.ok) throw new Error(`Bunny getVideo: HTTP ${res.status}`);
+    const data: unknown = await res.json();
+    const status = (data as { status?: unknown }).status;
+    const length = (data as { length?: unknown }).length;
+    if (typeof status !== "number") {
+      throw new Error("Bunny getVideo: respuesta sin status numerico");
+    }
+    // `length` (duracion en segundos) solo esta disponible tras transcodificar; antes puede faltar.
+    return { status, length: typeof length === "number" ? length : 0 };
   },
 };
 
