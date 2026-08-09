@@ -9,7 +9,7 @@ import {
   listaRanking,
   RANKING_MENSUAL,
   RANKING_RETO,
-} from "../src/app/(app)/ranking/ranking-datos";
+} from "../src/app/(app)/(shell)/ranking/ranking-datos";
 
 describe("listaRanking", () => {
   it("cada pestaña devuelve SU lista (los dos sentidos)", () => {

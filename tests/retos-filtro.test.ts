@@ -6,7 +6,11 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { buscarReto, CATEGORIA_TODOS, filtrarRetos } from "../src/app/(app)/retos/retos-datos";
+import {
+  buscarReto,
+  CATEGORIA_TODOS,
+  filtrarRetos,
+} from "../src/app/(app)/(shell)/retos/retos-datos";
 
 const RETOS = [
   { id: "a", categoria: "fitness" },

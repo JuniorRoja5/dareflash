@@ -548,7 +548,7 @@ export default function StyleGuide() {
               <div className="flex h-40 items-center justify-center bg-void text-sm text-text-dim">
                 contenido
               </div>
-              <NavegacionInferior activo="inicio" />
+              <NavegacionInferior activo="feed" />
             </div>
           </div>
           <div>
@@ -556,7 +556,7 @@ export default function StyleGuide() {
               escritorio · lateral
             </p>
             <div className="inline-block overflow-hidden rounded-lg border border-line">
-              <NavegacionLateral activo="inicio" />
+              <NavegacionLateral activo="feed" />
             </div>
           </div>
         </div>

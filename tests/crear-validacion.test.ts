@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { tituloEsValido } from "../src/app/(app)/crear/crear-logic";
+import { tituloEsValido } from "../src/app/(app)/(shell)/crear/crear-logic";
 
 describe("tituloEsValido", () => {
   it("con contenido real es valido", () => {

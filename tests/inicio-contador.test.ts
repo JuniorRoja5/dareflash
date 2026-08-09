@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { formatearContador } from "../src/app/(app)/_inicio/inicio-datos";
+import { formatearContador } from "../src/app/(app)/feed/inicio-datos";
 
 describe("formatearContador", () => {
   it("por debajo de 1000 se muestra tal cual", () => {

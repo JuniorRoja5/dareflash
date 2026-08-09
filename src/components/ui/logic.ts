@@ -81,14 +81,19 @@ export function botonTokens(variante: BotonVariante): BotonTokens {
 }
 
 // ---------------------------------------------------------------------------
-// NAVEGACION — los cinco destinos, en orden y con sus nombres. Misma estructura en movil (inferior)
-// y escritorio (lateral). Fuente de verdad unica, extraida para atarla: reordenar o perder uno cae
-// en rojo. `central` marca el [+] (accion principal). Las rutas se ANTICIPAN (se construyen en el
-// Paso C); hoy solo existe "/".
+// NAVEGACION — catalogo canonico de destinos (nombres, rutas, clave). Fuente de verdad unica,
+// extraida para atarla: reordenar o perder uno cae en rojo. `central` marca el [+] (Crear en movil).
+//
+// La nav DIVERGE entre movil y escritorio (el brief: "no son la misma pantalla a distinto ancho"):
+//   - Escritorio (barra lateral): Inicio, Feed, Retos, Ranking, Perfil. Crear NO va aqui: es el
+//     boton magenta de la barra superior (el UNICO magenta de la pantalla).
+//   - Movil (barra inferior): Feed (home del movil), Retos, [+] Crear, Ranking, Perfil. Inicio
+//     (portada) es concepto de escritorio, no va en la barra inferior.
 // ---------------------------------------------------------------------------
 
 export const NAV_DESTINOS = [
-  { clave: "inicio", nombre: "Inicio", href: "/" },
+  { clave: "inicio", nombre: "Inicio", href: "/inicio" },
+  { clave: "feed", nombre: "Feed", href: "/feed" },
   { clave: "retos", nombre: "Retos", href: "/retos" },
   { clave: "crear", nombre: "Crear", href: "/crear", central: true },
   { clave: "ranking", nombre: "Ranking", href: "/ranking" },
@@ -98,16 +103,23 @@ export const NAV_DESTINOS = [
 export type NavDestino = (typeof NAV_DESTINOS)[number];
 export type DestinoClave = NavDestino["clave"];
 
+/** Subconjuntos ORDENADOS por contexto (claves de NAV_DESTINOS). */
+export const NAV_ESCRITORIO = ["inicio", "feed", "retos", "ranking", "perfil"] as const;
+export const NAV_MOVIL = ["feed", "retos", "crear", "ranking", "perfil"] as const;
+
+/** Resuelve una lista de claves a sus destinos, preservando el orden. */
+export function destinosDe(claves: readonly DestinoClave[]): NavDestino[] {
+  return claves.map((c) => NAV_DESTINOS.find((d) => d.clave === c)!);
+}
+
 /**
- * Ruta actual -> clave del destino activo, o null si ninguna. PURA (sin router), extraida para
- * atarla: "/" es Inicio; una SUBRUTA como "/retos/123" sigue siendo Retos; una ruta desconocida es
- * null (y "/retosxyz" NO es subruta de /retos). El armazon la llama desde una isla cliente y pasa
- * `activo` a la nav, que sigue presentacional y pura.
+ * Ruta actual -> clave del destino activo, o null si ninguna. PURA (sin router). Una SUBRUTA como
+ * "/retos/123" sigue siendo Retos; "/retosxyz" NO es subruta de /retos; una ruta desconocida (y "/",
+ * que redirige por dispositivo) es null. El armazon la llama desde una isla cliente y pasa `activo`
+ * a la nav, que sigue presentacional y pura.
  */
 export function destinoActivo(pathname: string): DestinoClave | null {
-  if (pathname === "/") return "inicio";
   for (const d of NAV_DESTINOS) {
-    if (d.href === "/") continue; // Inicio ya resuelto; "/" es prefijo de todo
     if (pathname === d.href || pathname.startsWith(`${d.href}/`)) return d.clave;
   }
   return null;

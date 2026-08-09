@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { NAV_DESTINOS } from "./logic";
+import { destinosDe, NAV_ESCRITORIO, NAV_MOVIL } from "./logic";
 
 // Iconos geometricos inline (sin dependencias): trazo de 1.5 px, currentColor, misma familia severa
 // del sistema. Uno por destino no central.
@@ -27,6 +27,12 @@ const ICONO: Record<string, ReactNode> = {
       <path d="M5.5 9.5V20h13V9.5" />
     </>,
   ),
+  feed: svg(
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M10.5 9.5l4 2.5-4 2.5z" />
+    </>,
+  ),
   retos: svg(<path d="M13 3 5 13.5h5l-1 7.5 8-10.5h-5z" />), // rayo (flash)
   ranking: svg(
     <>
@@ -44,9 +50,9 @@ const ICONO: Record<string, ReactNode> = {
 };
 
 /**
- * NAVEGACION INFERIOR (movil) — los cinco destinos de `NAV_DESTINOS` en orden. El [+] central es la
- * accion principal: circulo de relleno --df-action con texto negro (--df-void), el UNICO magenta.
- * Cada objetivo mide 44 px. Es presentacional: la posicion fija la pone el layout (Paso C).
+ * NAVEGACION INFERIOR (movil) — los cinco destinos de `NAV_MOVIL` en orden (Feed es el home del
+ * movil). El [+] central es Crear: circulo de relleno --df-action con texto negro (--df-void), el
+ * UNICO magenta. Cada objetivo mide 44 px. Presentacional: la posicion fija la pone el layout.
  */
 export function NavegacionInferior({ activo }: { activo?: string }) {
   return (
@@ -54,7 +60,7 @@ export function NavegacionInferior({ activo }: { activo?: string }) {
       aria-label="Principal"
       className="flex items-stretch justify-around border-t border-line bg-surface"
     >
-      {NAV_DESTINOS.map((d) =>
+      {destinosDe(NAV_MOVIL).map((d) =>
         "central" in d && d.central ? (
           <Link
             key={d.clave}
@@ -85,9 +91,9 @@ export function NavegacionInferior({ activo }: { activo?: string }) {
 }
 
 /**
- * NAVEGACION LATERAL (escritorio) — los MISMOS cinco destinos, mismo orden y nombres. El [+]
- * central es una fila de accion en --df-action con texto negro (el unico magenta). Cada fila mide
- * 44 px. Presentacional: el layout la fija (Paso C).
+ * NAVEGACION LATERAL (escritorio) — los destinos de `NAV_ESCRITORIO` (Inicio, Feed, Retos, Ranking,
+ * Perfil). Crear NO va aqui: es el boton magenta de la barra superior (el unico magenta). Sin [+].
+ * Cada fila mide 44 px; activo = neutro elevado. Presentacional: el layout la fija.
  */
 export function NavegacionLateral({ activo }: { activo?: string }) {
   return (
@@ -104,32 +110,21 @@ export function NavegacionLateral({ activo }: { activo?: string }) {
       >
         DAREFLASH
       </p>
-      {NAV_DESTINOS.map((d) =>
-        "central" in d && d.central ? (
-          <Link
-            key={d.clave}
-            href={d.href}
-            className="mt-1 flex min-h-[44px] items-center gap-3 rounded-sm bg-action px-3 font-semibold text-void transition-[filter] duration-150 ease-mechanical hover:brightness-110"
-          >
-            <span className="text-xl font-bold leading-none">+</span>
-            <span>{d.nombre}</span>
-          </Link>
-        ) : (
-          <Link
-            key={d.clave}
-            href={d.href}
-            aria-current={activo === d.clave ? "page" : undefined}
-            className={`flex min-h-[44px] items-center gap-3 rounded-sm px-3 text-sm transition-colors duration-150 ease-mechanical ${
-              activo === d.clave
-                ? "bg-raised font-medium text-text"
-                : "text-text-dim hover:bg-raised hover:text-text"
-            }`}
-          >
-            {ICONO[d.clave]}
-            <span>{d.nombre}</span>
-          </Link>
-        ),
-      )}
+      {destinosDe(NAV_ESCRITORIO).map((d) => (
+        <Link
+          key={d.clave}
+          href={d.href}
+          aria-current={activo === d.clave ? "page" : undefined}
+          className={`flex min-h-[44px] items-center gap-3 rounded-sm px-3 text-sm transition-colors duration-150 ease-mechanical ${
+            activo === d.clave
+              ? "bg-raised font-medium text-text"
+              : "text-text-dim hover:bg-raised hover:text-text"
+          }`}
+        >
+          {ICONO[d.clave]}
+          <span>{d.nombre}</span>
+        </Link>
+      ))}
     </nav>
   );
 }

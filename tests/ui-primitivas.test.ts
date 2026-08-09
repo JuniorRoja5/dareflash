@@ -10,10 +10,13 @@ import {
   botonTokens,
   type BotonVariante,
   destinoActivo,
+  destinosDe,
   esCuentaAtrasCritica,
   formatearCuentaAtras,
   formatearImporte,
   NAV_DESTINOS,
+  NAV_ESCRITORIO,
+  NAV_MOVIL,
   tokenCuentaAtras,
   tokenPuesto,
   UMBRAL_ALARMA_MS,
@@ -93,14 +96,11 @@ describe("boton: mapa variante -> tokens", () => {
   });
 });
 
-describe("navegacion: cinco destinos, en orden y con sus nombres", () => {
-  it("son exactamente cinco", () => {
-    expect(NAV_DESTINOS).toHaveLength(5);
-  });
-
-  it("orden y claves exactos (reordenar o perder uno cae en rojo)", () => {
+describe("navegacion: catalogo canonico de destinos", () => {
+  it("seis destinos, orden y claves exactos (reordenar o perder uno cae en rojo)", () => {
     expect(NAV_DESTINOS.map((d) => d.clave)).toEqual([
       "inicio",
+      "feed",
       "retos",
       "crear",
       "ranking",
@@ -108,13 +108,22 @@ describe("navegacion: cinco destinos, en orden y con sus nombres", () => {
     ]);
   });
 
-  it("nombres exactos, en ese orden", () => {
+  it("nombres y rutas exactos", () => {
     expect(NAV_DESTINOS.map((d) => d.nombre)).toEqual([
       "Inicio",
+      "Feed",
       "Retos",
       "Crear",
       "Ranking",
       "Perfil",
+    ]);
+    expect(NAV_DESTINOS.map((d) => d.href)).toEqual([
+      "/inicio",
+      "/feed",
+      "/retos",
+      "/crear",
+      "/ranking",
+      "/perfil",
     ]);
   });
 
@@ -124,9 +133,37 @@ describe("navegacion: cinco destinos, en orden y con sus nombres", () => {
   });
 });
 
+describe("navegacion: subsets divergentes movil/escritorio (con dientes)", () => {
+  it("escritorio: Inicio·Feed·Retos·Ranking·Perfil, SIN Crear (es el CTA de la barra superior)", () => {
+    expect(destinosDe(NAV_ESCRITORIO).map((d) => d.clave)).toEqual([
+      "inicio",
+      "feed",
+      "retos",
+      "ranking",
+      "perfil",
+    ]);
+    expect(NAV_ESCRITORIO).not.toContain("crear");
+  });
+
+  it("movil: Feed·Retos·[+]Crear·Ranking·Perfil, SIN Inicio (portada es de escritorio)", () => {
+    expect(destinosDe(NAV_MOVIL).map((d) => d.clave)).toEqual([
+      "feed",
+      "retos",
+      "crear",
+      "ranking",
+      "perfil",
+    ]);
+    expect(NAV_MOVIL).not.toContain("inicio");
+    // el [+] (central) sigue siendo Crear, presente solo en movil
+    expect(destinosDe(NAV_MOVIL).find((d) => "central" in d && d.central)?.clave).toBe("crear");
+  });
+});
+
 describe("navegacion: destino activo segun la ruta", () => {
-  it('"/" -> inicio; cada ruta a su destino; una subruta hereda el destino', () => {
-    expect(destinoActivo("/")).toBe("inicio");
+  it("cada ruta a su destino; una subruta hereda el destino", () => {
+    expect(destinoActivo("/inicio")).toBe("inicio");
+    expect(destinoActivo("/feed")).toBe("feed");
+    expect(destinoActivo("/feed/123")).toBe("feed");
     expect(destinoActivo("/retos")).toBe("retos");
     expect(destinoActivo("/retos/123")).toBe("retos");
     expect(destinoActivo("/ranking")).toBe("ranking");
@@ -134,7 +171,8 @@ describe("navegacion: destino activo segun la ruta", () => {
     expect(destinoActivo("/crear")).toBe("crear");
   });
 
-  it("una ruta desconocida no activa ningun destino (null)", () => {
+  it('"/" (redirige por dispositivo) y una ruta desconocida no activan destino (null)', () => {
+    expect(destinoActivo("/")).toBeNull();
     expect(destinoActivo("/desconocida")).toBeNull();
     // "/retosxyz" NO es subruta de /retos (no hay barra): no debe activar Retos
     expect(destinoActivo("/retosxyz")).toBeNull();
