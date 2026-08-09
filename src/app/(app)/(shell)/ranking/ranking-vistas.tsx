@@ -9,6 +9,7 @@ import { PodioRanking } from "./podio-ranking";
 import {
   listaRanking,
   paginar,
+  puntosNivel,
   RANKING_VISTAS,
   type RankingClave,
   USUARIO_ACTUAL,
@@ -90,7 +91,7 @@ export function RankingVistas() {
             username={fila.username}
             puntos={fila.puntos}
             activo={fila.username === USUARIO_ACTUAL}
-            insignia={<InsigniaNivel puntos={fila.puntos} />}
+            insignia={<InsigniaNivel puntos={puntosNivel(fila)} />}
           />
         ))}
       </div>

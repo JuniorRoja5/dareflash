@@ -5,10 +5,24 @@
  * lima. `usuario_demo` aparece en media tabla en ambas para demostrar el resaltado (`activo`).
  */
 
-export type FilaRankVista = { username: string; puntos: number };
+import { USUARIO_DEMO } from "@/lib/usuario-demo";
 
-/** El usuario actual de la maqueta (el mismo del Perfil): se resalta su fila. */
-export const USUARIO_ACTUAL = "usuario_demo";
+/**
+ * Forma de fila del ranking. `puntos` = la puntuacion que se MUESTRA en esta vista (globales en
+ * Mensual; votos del reto en Top 20). `puntosGlobales` = los puntos ACUMULADOS del usuario, que
+ * mueven su NIVEL: la insignia se deriva SIEMPRE de estos (no de `puntos`), asi el nivel es coherente
+ * en las dos vistas. En Mensual coinciden; en Top 20 no (el nivel es global, el standing es del reto).
+ */
+export type FilaRankVista = { username: string; puntos: number; puntosGlobales: number };
+
+/** El usuario actual de la maqueta (el mismo del Perfil, fuente unica): se resalta su fila. */
+export const USUARIO_ACTUAL = USUARIO_DEMO.username;
+
+/** Los puntos que determinan el NIVEL de una fila: SIEMPRE los globales, nunca los de la vista.
+ *  Extraida para atarla con dientes: derivar el nivel de `puntos` (la vista) cae en rojo. */
+export function puntosNivel(fila: FilaRankVista): number {
+  return fila.puntosGlobales;
+}
 
 /**
  * Clasificacion mensual (puntos acumulados del mes). Ordenada de mayor a menor. Los puntos estan
@@ -17,40 +31,51 @@ export const USUARIO_ACTUAL = "usuario_demo";
  * demostrar el resaltado de "Tu".
  */
 export const RANKING_MENSUAL: readonly FilaRankVista[] = [
-  { username: "lucia.voz", puntos: 14200 }, // Legend
-  { username: "noscope_king_2012", puntos: 8600 }, // Elite
-  { username: "cocina_express_maria", puntos: 5400 }, // Elite
-  { username: "carlos_fit", puntos: 3100 }, // Elite
-  { username: "dario", puntos: 1850 }, // Pro
-  { username: "maxi_y_rocky", puntos: 1200 }, // Pro
-  { username: "laia10", puntos: 780 }, // Pro
-  { username: "sara_p", puntos: 540 }, // Pro
-  { username: "usuario_demo", puntos: 320 }, // Challenger (Tu)
-  { username: "entrenador_dani", puntos: 210 }, // Challenger
-  { username: "rae", puntos: 140 }, // Challenger
-  { username: "viajera_incansable_2025", puntos: 95 }, // Rookie
-  { username: "leo", puntos: 60 }, // Rookie
-  { username: "bea", puntos: 30 }, // Rookie
-  { username: "nico_skate", puntos: 10 }, // Rookie
+  { username: "lucia.voz", puntos: 14200, puntosGlobales: 14200 }, // Legend
+  { username: "noscope_king_2012", puntos: 8600, puntosGlobales: 8600 }, // Elite
+  { username: "cocina_express_maria", puntos: 5400, puntosGlobales: 5400 }, // Elite
+  { username: "carlos_fit", puntos: 3100, puntosGlobales: 3100 }, // Elite
+  { username: "dario", puntos: 1850, puntosGlobales: 1850 }, // Pro
+  { username: "maxi_y_rocky", puntos: 1200, puntosGlobales: 1200 }, // Pro
+  { username: "laia10", puntos: 780, puntosGlobales: 780 }, // Pro
+  { username: "sara_p", puntos: 540, puntosGlobales: 540 }, // Pro
+  // usuario_demo: fuente unica (Mensual muestra los globales) -> Challenger, puesto 9 (Tu)
+  {
+    username: USUARIO_DEMO.username,
+    puntos: USUARIO_DEMO.puntos,
+    puntosGlobales: USUARIO_DEMO.puntos,
+  },
+  { username: "entrenador_dani", puntos: 210, puntosGlobales: 210 }, // Challenger
+  { username: "rae", puntos: 140, puntosGlobales: 140 }, // Challenger
+  { username: "viajera_incansable_2025", puntos: 95, puntosGlobales: 95 }, // Rookie
+  { username: "leo", puntos: 60, puntosGlobales: 60 }, // Rookie
+  { username: "bea", puntos: 30, puntosGlobales: 30 }, // Rookie
+  { username: "nico_skate", puntos: 10, puntosGlobales: 10 }, // Rookie
 ];
 
-/** Clasificacion del reto en curso (puntos de ESTE reto). Otro orden y otros valores. */
+/**
+ * Clasificacion del reto en curso (VOTOS de ESTE reto). Otro orden y otros valores. `puntos` = votos
+ * del reto (lo que se muestra); `puntosGlobales` = los puntos acumulados del usuario (mueven el
+ * NIVEL, igual que en Mensual). Por eso el standing del reto y el nivel se desacoplan: p. ej. `rae`
+ * es 6a por votos pero globalmente Challenger, y `lucia.voz` es 9a por votos pero Legend.
+ */
 export const RANKING_RETO: readonly FilaRankVista[] = [
-  { username: "carlos_fit", puntos: 5240 },
-  { username: "cocina_express_maria", puntos: 4980 },
-  { username: "laia10", puntos: 4610 },
-  { username: "dario", puntos: 4130 },
-  { username: "noscope_king_2012", puntos: 3890 },
-  { username: "rae", puntos: 3520 },
-  { username: "usuario_demo", puntos: 3180 },
-  { username: "maxi_y_rocky", puntos: 2940 },
-  { username: "lucia.voz", puntos: 2710 },
-  { username: "sara_p", puntos: 2450 },
-  { username: "leo", puntos: 2190 },
-  { username: "bea", puntos: 1980 },
-  { username: "nico_skate", puntos: 1720 },
-  { username: "entrenador_dani", puntos: 1510 },
-  { username: "viajera_incansable_2025", puntos: 1290 },
+  { username: "carlos_fit", puntos: 5240, puntosGlobales: 3100 }, // Elite
+  { username: "cocina_express_maria", puntos: 4980, puntosGlobales: 5400 }, // Elite
+  { username: "laia10", puntos: 4610, puntosGlobales: 780 }, // Pro
+  { username: "dario", puntos: 4130, puntosGlobales: 1850 }, // Pro
+  { username: "noscope_king_2012", puntos: 3890, puntosGlobales: 8600 }, // Elite
+  { username: "rae", puntos: 3520, puntosGlobales: 140 }, // Challenger
+  // usuario_demo: fuente unica para el nivel (Challenger), aunque su standing del reto sea alto
+  { username: USUARIO_DEMO.username, puntos: 3180, puntosGlobales: USUARIO_DEMO.puntos },
+  { username: "maxi_y_rocky", puntos: 2940, puntosGlobales: 1200 }, // Pro
+  { username: "lucia.voz", puntos: 2710, puntosGlobales: 14200 }, // Legend
+  { username: "sara_p", puntos: 2450, puntosGlobales: 540 }, // Pro
+  { username: "leo", puntos: 2190, puntosGlobales: 60 }, // Rookie
+  { username: "bea", puntos: 1980, puntosGlobales: 30 }, // Rookie
+  { username: "nico_skate", puntos: 1720, puntosGlobales: 10 }, // Rookie
+  { username: "entrenador_dani", puntos: 1510, puntosGlobales: 210 }, // Challenger
+  { username: "viajera_incansable_2025", puntos: 1290, puntosGlobales: 95 }, // Rookie
 ];
 
 /** Las dos vistas del conmutador: `clave` = estado; `etiqueta` = texto de la pestaña. */

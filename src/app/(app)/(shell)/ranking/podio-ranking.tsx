@@ -1,7 +1,13 @@
 import { Avatar, type TamanoAvatar } from "@/components/ui/avatar";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
 
-import { type FilaRankVista, type Medalla, medallaPuesto, ordenPodio } from "./ranking-datos";
+import {
+  type FilaRankVista,
+  type Medalla,
+  medallaPuesto,
+  ordenPodio,
+  puntosNivel,
+} from "./ranking-datos";
 
 /** Token de medalla -> variable CSS. Oro/plata/bronce son EXCLUSIVOS del podio (ver globals.css). */
 const MEDALLA_VAR: Record<Medalla, string> = {
@@ -132,7 +138,7 @@ function ColumnaPodio({ fila, puesto }: { fila: FilaRankVista; puesto: 1 | 2 | 3
         <Puntos valor={fila.puntos} tam={geo.pts} />
       </div>
       <div className="mt-2">
-        <InsigniaNivel puntos={fila.puntos} />
+        <InsigniaNivel puntos={puntosNivel(fila)} />
       </div>
       <div
         className="mt-3 grid w-full place-items-center rounded-t-sm border border-b-0 border-line bg-raised"
@@ -197,7 +203,7 @@ function TarjetaMovil({
           <Puntos valor={fila.puntos} tam={destacado ? "20px" : "16px"} />
         </div>
         <div className="mt-2">
-          <InsigniaNivel puntos={fila.puntos} />
+          <InsigniaNivel puntos={puntosNivel(fila)} />
         </div>
       </div>
     </div>

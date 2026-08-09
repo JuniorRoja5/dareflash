@@ -10,6 +10,7 @@ import {
   medallaPuesto,
   ordenPodio,
   paginar,
+  puntosNivel,
   RANKING_MENSUAL,
   RANKING_RETO,
 } from "../src/app/(app)/(shell)/ranking/ranking-datos";
@@ -36,6 +37,12 @@ describe("medallaPuesto (color por puesto del podio)", () => {
     expect(medallaPuesto(4)).toBeNull();
     expect(medallaPuesto(0)).toBeNull();
     expect(medallaPuesto(1.5)).toBeNull();
+  });
+});
+
+describe("puntosNivel (el nivel sale de los globales, no de la vista)", () => {
+  it("devuelve los puntos globales de la fila, no los mostrados", () => {
+    expect(puntosNivel({ username: "x", puntos: 3180, puntosGlobales: 320 })).toBe(320);
   });
 });
 
