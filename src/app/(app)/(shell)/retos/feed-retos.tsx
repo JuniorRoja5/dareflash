@@ -36,7 +36,7 @@ export function FeedRetos() {
       <div
         role="group"
         aria-label="Filtrar por categoría"
-        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden"
       >
         <PildoraFiltro
           activo={categoria === CATEGORIA_TODOS}
@@ -67,9 +67,11 @@ export function FeedRetos() {
           </p>
         </div>
       ) : (
-        <ul role="list" className="mt-4 space-y-3">
+        <ul role="list" className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {visibles.map((reto) => (
-            <li key={reto.id}>
+            // `grid` en el <li> hace que la <article> se estire a la altura de la fila: tarjetas de
+            // igual alto por fila (coherente con la rejilla de destacados de la portada).
+            <li key={reto.id} className="grid">
               <TarjetaReto reto={reto} deadlineMs={deadlines?.[reto.id] ?? null} />
             </li>
           ))}
