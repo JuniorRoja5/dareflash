@@ -7,6 +7,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   listaRanking,
+  medallaPuesto,
+  ordenPodio,
+  paginar,
   RANKING_MENSUAL,
   RANKING_RETO,
 } from "../src/app/(app)/(shell)/ranking/ranking-datos";
@@ -19,5 +22,38 @@ describe("listaRanking", () => {
 
   it("las dos listas son distintas: el conmutador cambia de verdad", () => {
     expect(RANKING_MENSUAL[0]?.username).not.toBe(RANKING_RETO[0]?.username);
+  });
+});
+
+describe("medallaPuesto (color por puesto del podio)", () => {
+  it("1 -> oro, 2 -> plata, 3 -> bronce", () => {
+    expect(medallaPuesto(1)).toBe("rank");
+    expect(medallaPuesto(2)).toBe("silver");
+    expect(medallaPuesto(3)).toBe("bronze");
+  });
+
+  it("fuera del podio (4+, 0, no entero) no lleva medalla", () => {
+    expect(medallaPuesto(4)).toBeNull();
+    expect(medallaPuesto(0)).toBeNull();
+    expect(medallaPuesto(1.5)).toBeNull();
+  });
+});
+
+describe("ordenPodio (2 · 1 · 3)", () => {
+  it("coloca [1,2,3] como [2,1,3] (2 izq, 1 centro, 3 der)", () => {
+    expect(ordenPodio(["a", "b", "c"])).toEqual(["b", "a", "c"]);
+  });
+});
+
+describe("paginar", () => {
+  const lista = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+  it("devuelve la porcion de la pagina (base 1)", () => {
+    expect(paginar(lista, 1, 10)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(paginar(lista, 2, 10)).toEqual([11, 12]);
+  });
+
+  it("una pagina fuera de rango devuelve lista vacia", () => {
+    expect(paginar(lista, 3, 10)).toEqual([]);
   });
 });

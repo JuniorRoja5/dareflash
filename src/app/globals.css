@@ -19,7 +19,9 @@
   --color-action: #ff2e88; /* magenta. SOLO accion principal. UNO por pantalla. */
   --color-time: #ffa114; /* ambar. SOLO tiempo restante no critico. */
   --color-alarm: #ff4d2e; /* rojo-naranja. Tiempo critico (<24h) Y error/peligro. */
-  --color-rank: #e8c468; /* oro. SOLO puestos 1/2/3 del podio. */
+  --color-rank: #e8c468; /* oro. Puesto 1 del podio; y puestos 1/2/3 en filas de tabla (FilaPuesto). */
+  --color-silver: #b3bbc6; /* plata MATE. EXCLUSIVO de la medalla del PUESTO 2 del podio. No usar en ningun otro sitio. */
+  --color-bronze: #bb7f4f; /* bronce MATE. EXCLUSIVO de la medalla del PUESTO 3 del podio. No usar en ningun otro sitio. */
   --color-ok: #2be58b; /* menta. SOLO confirmaciones. */
 
   /* --- BASE Y SUPERFICIES (profundidad por LUMINOSIDAD, nunca por sombra) --- */
@@ -78,6 +80,8 @@
   --df-time: var(--color-time);
   --df-alarm: var(--color-alarm);
   --df-rank: var(--color-rank);
+  --df-silver: var(--color-silver); /* SOLO medalla del puesto 2 del podio */
+  --df-bronze: var(--color-bronze); /* SOLO medalla del puesto 3 del podio */
   --df-ok: var(--color-ok);
   --df-void: var(--color-void);
   --df-surface: var(--color-surface);

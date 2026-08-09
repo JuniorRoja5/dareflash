@@ -3,23 +3,14 @@ import { RankingVistas } from "./ranking-vistas";
 export const metadata = { title: "Ranking · DareFlash" };
 
 /**
- * TOPRANKING (Paso C · unidad 4) — boceto 5 + tratamiento del brief. Encabezado + conmutador de dos
- * vistas + lista numerada. El oro del podio y los puntos neutros viajan con la primitiva
- * `FilaPuesto`; el conmutador y el resaltado del usuario son estado de cliente. Un solo magenta en
- * pantalla: el [+] de la nav (cero magenta de contenido). Datos de PRUEBA; sin backend.
+ * RANKING — re-maquetado a lo ancho (Rama C). Vive dentro del shell (barra lateral + superior +
+ * region ancha); contenedor coherente con la portada (`max-w-7xl` + mismo padding) para que el ancho
+ * case con /inicio. El encabezado, el conmutador de dos vistas, el PODIO del top-3 (color por puesto
+ * + geometria) y la lista del 4 en adelante los monta `RankingVistas`. Datos de PRUEBA; sin backend.
  */
 export default function RankingPage() {
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-6">
-      <h1
-        className="mb-5 text-2xl leading-none text-text"
-        style={{
-          fontFamily: "var(--font-display)",
-          fontVariationSettings: '"wght" 720, "wdth" 112',
-        }}
-      >
-        TopRanking
-      </h1>
+    <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
       <RankingVistas />
     </div>
   );
