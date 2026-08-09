@@ -1,6 +1,6 @@
-import Link from "next/link";
-
 import { Avatar } from "@/components/ui/avatar";
+
+import { CtaCrear } from "./cta-crear";
 
 /** Iconos inline (trazo 1.6 px, currentColor), misma familia severa. */
 function IconoLupa() {
@@ -61,9 +61,9 @@ function IconoChevron() {
  * boton "Crear reto" + notificaciones + avatar. Es MAQUETA: el buscador y las notificaciones son
  * presentacionales (sin backend), claramente falsos. Cero sombras; filete inferior; geometria severa.
  *
- * "Crear reto" es el UNICO magenta de la pantalla: un <Link> vestido con los tokens del boton
- * principal (relleno --df-action + texto negro --df-void), como el [+] de la nav. No es un primitivo
- * nuevo; reusa el lenguaje del boton para un CTA de navegacion.
+ * "Crear reto" (CtaCrear) es el magenta persistente del shell (cromo, como el [+] de la nav), salvo
+ * en /inicio, donde se atenua a secundario para no competir con el magenta de contenido del hero de
+ * la portada. Reusa el lenguaje del boton para un CTA de navegacion; no es un primitivo nuevo.
  */
 export function BarraSuperior() {
   return (
@@ -82,14 +82,8 @@ export function BarraSuperior() {
       </div>
 
       <div className="ml-auto flex items-center gap-3">
-        {/* Crear reto — UNICO magenta */}
-        <Link
-          href="/crear"
-          className="inline-flex min-h-[44px] items-center gap-2 rounded-sm bg-action px-5 text-sm font-semibold text-void transition-[filter] duration-150 ease-mechanical hover:brightness-110"
-        >
-          <span className="text-lg font-bold leading-none">+</span>
-          <span>Crear reto</span>
-        </Link>
+        {/* Crear reto — magenta persistente (atenuado a secundario en /inicio) */}
+        <CtaCrear />
 
         {/* Notificaciones (maqueta: badge fijo, NEUTRO — el magenta es solo Crear) */}
         <button

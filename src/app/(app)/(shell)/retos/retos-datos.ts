@@ -161,3 +161,17 @@ export function filtrarRetos<T extends { categoria: string }>(
 export function buscarReto(id: string): RetoSemilla | undefined {
   return RETOS_SEED.find((reto) => reto.id === id);
 }
+
+/**
+ * Seleccion de retos DESTACADOS (PURA): los `n` MAS votados, de mayor a menor. Copia (no muta) y
+ * ordena por `votos` desc; `n<=0` -> vacio; `n` mayor que la lista -> todos ordenados. Extraida para
+ * atarla con dientes: cambiar el criterio (ordenar ascendente, por premio, o no ordenar) cambia el
+ * resultado y cae en rojo. La portada la usa (el 1o al hero, el resto a la rejilla); NO es ranking ni
+ * modelo de datos. Generica sobre `{ votos }` para atarla con datos minimos.
+ */
+export function retosDestacados<T extends { votos: number }>(retos: readonly T[], n: number): T[] {
+  return retos
+    .slice()
+    .sort((a, b) => b.votos - a.votos)
+    .slice(0, Math.max(0, n));
+}

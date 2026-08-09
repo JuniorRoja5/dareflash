@@ -10,6 +10,7 @@ import {
   buscarReto,
   CATEGORIA_TODOS,
   filtrarRetos,
+  retosDestacados,
 } from "../src/app/(app)/(shell)/retos/retos-datos";
 
 const RETOS = [
@@ -37,6 +38,32 @@ describe("filtrarRetos", () => {
     const salida = filtrarRetos(RETOS, CATEGORIA_TODOS);
     expect(salida).not.toBe(RETOS);
     expect(RETOS).toHaveLength(4);
+  });
+});
+
+describe("retosDestacados (portada)", () => {
+  const CON_VOTOS = [
+    { id: "a", votos: 10 },
+    { id: "b", votos: 90 },
+    { id: "c", votos: 50 },
+    { id: "d", votos: 30 },
+  ];
+
+  it("devuelve los n MAS votados, de mayor a menor (cambiar el criterio cae en rojo)", () => {
+    expect(retosDestacados(CON_VOTOS, 2).map((r) => r.id)).toEqual(["b", "c"]);
+    expect(retosDestacados(CON_VOTOS, 3).map((r) => r.id)).toEqual(["b", "c", "d"]);
+  });
+
+  it("n mayor o igual que el total devuelve TODOS ordenados; n<=0 devuelve vacio", () => {
+    expect(retosDestacados(CON_VOTOS, 10).map((r) => r.id)).toEqual(["b", "c", "d", "a"]);
+    expect(retosDestacados(CON_VOTOS, 0)).toEqual([]);
+    expect(retosDestacados(CON_VOTOS, -1)).toEqual([]);
+  });
+
+  it("es estable: copia nueva, no muta la lista original", () => {
+    const salida = retosDestacados(CON_VOTOS, 2);
+    expect(salida).not.toBe(CON_VOTOS);
+    expect(CON_VOTOS.map((r) => r.id)).toEqual(["a", "b", "c", "d"]);
   });
 });
 
