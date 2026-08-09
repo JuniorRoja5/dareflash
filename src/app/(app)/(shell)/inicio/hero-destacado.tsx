@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import Link from "next/link";
-
+import { Boton } from "@/components/ui/boton";
 import { Marcador } from "@/components/ui/marcador";
 import { PildoraCategoria } from "@/components/ui/pildora";
 
@@ -44,12 +43,9 @@ export function HeroDestacado() {
         </div>
       </div>
 
-      <Link
-        href={`/retos/${RETO_HERO.id}`}
-        className="mt-6 inline-flex min-h-[44px] items-center rounded-sm border border-line px-5 text-sm font-semibold text-text transition-colors duration-150 ease-mechanical hover:bg-raised"
-      >
+      <Boton href={`/retos/${RETO_HERO.id}`} variante="secundario" className="mt-6">
         Ver reto
-      </Link>
+      </Boton>
     </article>
   );
 }

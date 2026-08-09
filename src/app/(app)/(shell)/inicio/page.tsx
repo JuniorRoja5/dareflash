@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Boton } from "@/components/ui/boton";
 import { FilaPuesto } from "@/components/ui/fila-puesto";
 
 import { RANKING_MENSUAL } from "../ranking/ranking-datos";
@@ -48,19 +49,13 @@ export default function InicioPage() {
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             {/* UNICO magenta de contenido de la portada */}
-            <Link
-              href="/crear"
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-sm bg-action px-5 text-sm font-semibold text-void transition-[filter] duration-150 ease-mechanical hover:brightness-110"
-            >
+            <Boton href="/crear" variante="principal">
               <span className="text-lg font-bold leading-none">+</span>
               <span>Crear reto</span>
-            </Link>
-            <Link
-              href="/retos"
-              className="inline-flex min-h-[44px] items-center rounded-sm border border-line px-5 text-sm font-semibold text-text transition-colors duration-150 ease-mechanical hover:bg-raised"
-            >
+            </Boton>
+            <Boton href="/retos" variante="secundario">
               Explorar retos
-            </Link>
+            </Boton>
           </div>
         </div>
 
