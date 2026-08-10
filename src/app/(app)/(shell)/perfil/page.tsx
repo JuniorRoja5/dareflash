@@ -43,7 +43,7 @@ export default function PerfilPage() {
       <div className="lg:grid lg:grid-cols-[320px_1fr] lg:gap-8">
         {/* IDENTIDAD (aside) */}
         <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="rounded-sm border border-line bg-surface p-6">
+          <div className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md">
             <div className="flex flex-col items-center text-center">
               <Avatar nombre={USUARIO_DEMO.username} tamano="xl" />
               <p className="mt-3 max-w-full truncate text-lg font-semibold text-text">
@@ -61,21 +61,23 @@ export default function PerfilPage() {
               <Estadistica valor={USUARIO_DEMO.videos} etiqueta="Vídeos" />
             </div>
 
-            {/* Boost = accion de pago = UNICO magenta de contenido (relleno + texto negro) */}
-            <Boton variante="principal" className="mt-6 w-full py-4">
+            {/* Boost = accion de pago = UNICO magenta de contenido: PLANO (magenta solido, sin
+                degradado), realzado solo con la sombra --df-cta-lift. */}
+            <Boton variante="principal" className="mt-6 w-full py-4 shadow-[var(--df-cta-lift)]">
               Destacar mi perfil (Boost)
             </Boton>
           </div>
         </aside>
 
         {/* MIS VIDEOS (columna principal): rejilla multicolumna de placeholders 9:16 */}
-        <section className="mt-8 lg:mt-0">
+        <section className="df-rise mt-8 lg:mt-0" style={{ animationDelay: "80ms" }}>
           <h2 className="mb-4 text-lg font-semibold text-text">Mis vídeos</h2>
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-5">
             {Array.from({ length: 15 }).map((_, i) => (
+              // Celda de vídeo 9:16: realce sutil en hover (sombra v2), sin animacion en bucle.
               <div
                 key={i}
-                className="flex aspect-[9/16] items-center justify-center rounded-sm border border-line bg-raised"
+                className="flex aspect-[9/16] items-center justify-center rounded-sm border border-line bg-raised transition-[transform,box-shadow] duration-[var(--df-dur-fast)] ease-mechanical hover:-translate-y-0.5 hover:shadow-[var(--df-shadow-md)]"
               >
                 <IconoPlay />
               </div>
