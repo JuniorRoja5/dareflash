@@ -30,7 +30,7 @@ export const POSTS_INICIO: readonly PostVista[] = [
     id: "receta-60s",
     username: "cocina_express_maria",
     retoTitulo: "Receta viral en 60 segundos",
-    categoria: "Cocina",
+    categoria: "Lifestyle",
     meGusta: 45200,
     comentarios: 1200,
     votos: 3410,

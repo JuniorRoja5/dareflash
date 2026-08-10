@@ -6,29 +6,20 @@
  * feed (cliente) lo convierte a `deadlineMs` absoluto en el montaje (sin Date.now() en el render).
  */
 
-/** Las 14 categorias (decision cerrada del brief). `clave` = slug estable; `nombre` = etiqueta. */
-export const CATEGORIAS = [
-  { clave: "fitness", nombre: "Fitness" },
-  { clave: "baile", nombre: "Baile" },
-  { clave: "comedia", nombre: "Comedia" },
-  { clave: "musica", nombre: "Música" },
-  { clave: "cocina", nombre: "Cocina" },
-  { clave: "mascotas", nombre: "Mascotas" },
-  { clave: "arte", nombre: "Arte" },
-  { clave: "deportes", nombre: "Deportes" },
-  { clave: "gaming", nombre: "Gaming" },
-  { clave: "belleza", nombre: "Belleza" },
-  { clave: "viajes", nombre: "Viajes" },
-  { clave: "moda", nombre: "Moda" },
-  { clave: "educacion", nombre: "Educación" },
-  { clave: "talento", nombre: "Talento" },
-] as const;
+import { CATEGORIES, type CategoryKey } from "@/config/constants";
 
-export type CategoriaClave = (typeof CATEGORIAS)[number]["clave"];
+/**
+ * Las 14 categorias — FUENTE UNICA: `CATEGORIES` de `config/constants` (documento maestro; sin
+ * "Deportes"). Aqui NO se duplica la lista: solo se ADAPTA su forma a la vista (`clave` = la `key`
+ * estable que guarda `Challenge.category`; `nombre` = la etiqueta en español).
+ */
+export const CATEGORIAS = CATEGORIES.map((c) => ({ clave: c.key, nombre: c.es }));
+
+export type CategoriaClave = CategoryKey;
 
 /** clave -> etiqueta legible de una categoria (para la pildora de la tarjeta). */
 export function nombreCategoria(clave: CategoriaClave): string {
-  return CATEGORIAS.find((c) => c.clave === clave)?.nombre ?? clave;
+  return CATEGORIES.find((c) => c.key === clave)?.es ?? clave;
 }
 
 /** Clave del filtro "Todos" (no es una categoria: no puede chocar con ninguna `clave`). */
@@ -71,7 +62,7 @@ export const RETOS_SEED: readonly RetoSemilla[] = [
   {
     id: "receta-60s",
     titulo: "Receta viral en 60 segundos, un solo plano",
-    categoria: "cocina",
+    categoria: "lifestyle",
     premioCents: 12000,
     restanteMs: 18 * H, // < 24 h -> alarma
     miniaturaPlaceholder: "Receta 60s",
@@ -111,7 +102,7 @@ export const RETOS_SEED: readonly RetoSemilla[] = [
   {
     id: "sketch-30s",
     titulo: "Sketch de 30 s",
-    categoria: "comedia",
+    categoria: "humor",
     premioCents: 4000,
     restanteMs: 45 * M, // < 24 h -> alarma (por vencer)
     miniaturaPlaceholder: "Sketch 30s",
@@ -121,7 +112,7 @@ export const RETOS_SEED: readonly RetoSemilla[] = [
   {
     id: "truco-perro",
     titulo: "El truco más rápido de tu perro",
-    categoria: "mascotas",
+    categoria: "talento",
     premioCents: 9000,
     restanteMs: 9 * D,
     miniaturaPlaceholder: "Truco perro",
@@ -131,7 +122,7 @@ export const RETOS_SEED: readonly RetoSemilla[] = [
   {
     id: "tiro-centro",
     titulo: "Tiro libre desde el círculo central",
-    categoria: "deportes",
+    categoria: "street",
     premioCents: 30000,
     restanteMs: 12 * H, // < 24 h -> alarma
     miniaturaPlaceholder: "Tiro centro",

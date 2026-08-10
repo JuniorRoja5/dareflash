@@ -82,7 +82,7 @@ export function FormularioCrear() {
           </label>
           <select
             id="crear-categoria"
-            defaultValue={CATEGORIAS[0].clave}
+            defaultValue={CATEGORIAS[0]?.clave}
             className="min-h-[44px] w-full rounded-sm border border-line bg-surface px-3.5 text-base text-text focus:border-text focus:bg-raised"
           >
             {CATEGORIAS.map((c) => (
