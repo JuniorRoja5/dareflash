@@ -27,12 +27,11 @@ export default function InicioPage() {
       {/* HERO */}
       <section className="df-rise grid gap-8 lg:grid-cols-2 lg:items-center">
         <div>
-          {/* Titular hero: display Archivo Expanded MUY grande y pesado = impacto (sin color
-              semantico; el magenta/lima se reservan a accion/dinero). text-balance + leading corto.
-              OJO: la escala del proyecto resetea --text-* y NO define text-4xl+; se usan tamaños
-              arbitrarios en rem (40 / 56 / 72 px) para no caer a 16 px por defecto. */}
+          {/* Titular hero: display Archivo Expanded pesado = impacto, pero por TOKENS de la escala
+              (NADA de rem arbitrario ni pasarse del tope deliberado): text-3xl (36px) en movil,
+              text-hero (64px) en escritorio. Peso/ancho por font-variation-settings. */}
           <h1
-            className="text-[2.5rem] leading-[0.95] text-balance text-text sm:text-[3.5rem] lg:text-[4.5rem]"
+            className="text-3xl text-balance text-text lg:text-hero"
             style={{
               fontFamily: "var(--font-display)",
               fontVariationSettings: '"wght" 860, "wdth" 130',
