@@ -4,35 +4,28 @@ import { Boton } from "@/components/ui/boton";
 import { FilaPuesto } from "@/components/ui/fila-puesto";
 
 import { RANKING_MENSUAL } from "../ranking/ranking-datos";
+import { BoostDestacados } from "./boost-destacados";
 import { HeroDestacado } from "./hero-destacado";
 import { RetosDestacados } from "./retos-destacados";
+import { StatsInicio } from "./stats-inicio";
 
 export const metadata = { title: "Inicio · DareFlash" };
 
 /**
- * INICIO — portada de escritorio (Rama B). Aprovecha la region ancha del shell:
- *   - HERO a dos columnas: izquierda (titular + subtitulo + 2 CTAs), derecha (reto destacado con
- *     marcador GRANDE = la firma; ocupa el sitio de la ilustracion de la plantilla).
- *   - CONTENIDO: columna principal (retos destacados, tarjetas apaisadas, 2/3) + rail lateral con un
- *     VISTAZO del Top Ranking (1/3).
+ * INICIO — portada real con el BRIEF v2 (dirección aprobada, mockup E2). Impacto con NUESTRA paleta
+ * (magenta/lima/oscuros): glow, sombras suaves, glass y movimiento vía los tokens `--df-*` de v2 en
+ * globals.css. CTA "Crear reto" PLANO (magenta sólido) = el ÚNICO magenta de acción; semántica intacta
+ * (dinero lima, puntos neutro, oro/plata/bronce solo podio). Sin foto de stock, sin monigotes (vídeo
+ * real con Bunny). Copy en voz de usuario. Respeta prefers-reduced-motion (regla global).
  *
- * MAGENTA: el UNICO magenta de CONTENIDO es el CTA "Crear reto" del hero; la barra superior atenua su
- * "Crear reto" en esta ruta (ver CtaCrear) para no duplicar dos magenta gemelos. "Explorar retos",
- * "Participar" de las tarjetas y los enlaces "Ver todo(s)" son secundarios/neutros. Cero sombras.
- *
- * RESPONSIVE: la portada es concepto de escritorio (movil entra por el Feed y no tiene Inicio en la
- * barra inferior), pero se ve DECENTE en movil: una sola columna (hero apilado, destacados 1 col,
- * rail al final). En lg, hero 2 columnas + principal (2/3) con rail (1/3).
- *
- * RANKING (rail): solo un VISTAZO del top 5 (puesto + avatar + nombre + puntos, via FilaPuesto). Reusa
- * los datos maqueta TAL CUAL y NO cierra decisiones de producto del ranking (semanal/mensual, niveles
- * con nombre): sin la fila "Tu", sin niveles, y sin etiquetarlo como "mensual" — eso es la rama C.
+ * Coherencia de modelos: hero y muro = Challenge (+ Submission para el vídeo, 14 categorías válidas);
+ * "Destacados" = BoostActivation (perfiles pagados, ≠ ranking); stats = agregados; nivel derivado.
  */
 export default function InicioPage() {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
+    <div className="mx-auto w-full max-w-7xl overflow-x-clip px-4 py-8 lg:px-8 lg:py-12">
       {/* HERO */}
-      <section className="grid gap-8 lg:grid-cols-2 lg:items-center">
+      <section className="df-rise grid gap-8 lg:grid-cols-2 lg:items-center">
         <div>
           <h1
             className="text-4xl leading-[1.05] text-text lg:text-5xl"
@@ -44,12 +37,12 @@ export default function InicioPage() {
             Reta al mundo. Gana de verdad.
           </h1>
           <p className="mt-4 max-w-prose text-base text-text-dim">
-            Graba tu reto, la comunidad vota y los mejores se llevan premios reales. Sin trucos: la
-            cifra y el plazo mandan.
+            Sube tu reto, la comunidad vota y los mejores se llevan premios de verdad. Aquí gana lo
+            que haces, no a quién conoces.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            {/* UNICO magenta de contenido de la portada */}
-            <Boton href="/crear" variante="principal">
+            {/* UNICO magenta de accion — PLANO (sin degradado), realzado con --df-cta-lift */}
+            <Boton href="/crear" variante="principal" className="shadow-[var(--df-cta-lift)]">
               <span className="text-lg font-bold leading-none">+</span>
               <span>Crear reto</span>
             </Boton>
@@ -57,13 +50,22 @@ export default function InicioPage() {
               Explorar retos
             </Boton>
           </div>
+          <StatsInicio />
         </div>
 
         <HeroDestacado />
       </section>
 
-      {/* CONTENIDO: principal (2/3) + rail (1/3) */}
-      <div className="mt-12 grid gap-8 lg:mt-16 lg:grid-cols-3">
+      {/* PERFILES DESTACADOS (Boost) */}
+      <div className="df-rise mt-12 lg:mt-16" style={{ animationDelay: "80ms" }}>
+        <BoostDestacados />
+      </div>
+
+      {/* MURO de retos + rail de ranking */}
+      <div
+        className="df-rise mt-12 grid gap-8 lg:mt-16 lg:grid-cols-3"
+        style={{ animationDelay: "140ms" }}
+      >
         <section className="lg:col-span-2">
           <div className="flex items-baseline justify-between gap-4">
             <h2 className="text-xl font-semibold text-text">Retos destacados</h2>
@@ -71,7 +73,7 @@ export default function InicioPage() {
               href="/retos"
               className="shrink-0 text-sm font-medium text-text-dim hover:text-text"
             >
-              Ver todos
+              Ver todos →
             </Link>
           </div>
           <div className="mt-4">
@@ -89,7 +91,7 @@ export default function InicioPage() {
               Ver todo
             </Link>
           </div>
-          <div className="mt-4 overflow-hidden rounded-sm border border-line bg-surface">
+          <div className="mt-4 overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md">
             {RANKING_MENSUAL.slice(0, 5).map((fila, i) => (
               <FilaPuesto
                 key={fila.username}

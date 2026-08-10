@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-import { TarjetaReto } from "../retos/tarjeta-reto";
+import { TarjetaVertical } from "../retos/tarjeta-vertical";
 import { RETOS_REJILLA } from "./portada-datos";
 
 /**
- * Rejilla de RETOS DESTACADOS de la portada — REUSA la primitiva de feed `TarjetaReto` tal cual (no
- * la duplica). Isla cliente minima: convierte los offsets (`restanteMs`) en plazos absolutos en el
- * montaje (mismo patron que el feed: sin Date.now() en el render, sin mismatch de hidratacion; hasta
- * entonces cada marcador muestra su placeholder). En movil 1 columna; desde sm, 2.
+ * MURO de retos destacados (brief v2) — rejilla de tiles 9:16 verticales (`TarjetaVertical`, reusable).
+ * Isla cliente minima: convierte los offsets (`restanteMs`) en plazos absolutos en el montaje (mismo
+ * patron que el feed: sin Date.now() en el render, sin mismatch de hidratacion; hasta entonces cada
+ * marcador muestra su placeholder). En movil 2 columnas; desde sm, 3.
  */
 export function RetosDestacados() {
   const [plazos, setPlazos] = useState<Record<string, number> | null>(null);
@@ -24,9 +24,9 @@ export function RetosDestacados() {
   }, []);
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
       {RETOS_REJILLA.map((reto) => (
-        <TarjetaReto key={reto.id} reto={reto} deadlineMs={plazos?.[reto.id] ?? null} />
+        <TarjetaVertical key={reto.id} reto={reto} deadlineMs={plazos?.[reto.id] ?? null} />
       ))}
     </div>
   );

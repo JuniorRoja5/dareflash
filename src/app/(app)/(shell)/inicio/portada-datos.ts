@@ -1,11 +1,35 @@
+import { CATEGORIES } from "@/config/constants";
+
 import { retosDestacados, RETOS_SEED } from "../retos/retos-datos";
 
 /**
- * Seleccion APLICADA a la portada: los 5 retos mas votados (via `retosDestacados`, pura y testeada).
- * El 1o va al HERO (marcador grande = firma); el resto, a la rejilla de destacados. El split evita
- * repetir el mismo reto en el hero y en la rejilla. Es maqueta (reusa `RETOS_SEED` tal cual).
+ * Seleccion APLICADA a la portada. HERO = el reto de MAYOR PREMIO activo (regla COMPUTABLE placeholder;
+ * la regla final la decide Sergio) — Challenge, no persona. El resto de los mas votados va al muro. Es
+ * maqueta (reusa `RETOS_SEED`). El split evita repetir el reto del hero en el muro.
  */
-const TOP = retosDestacados(RETOS_SEED, 5);
+export const RETO_HERO = [...RETOS_SEED].sort((a, b) => b.premioCents - a.premioCents)[0]!;
+export const RETOS_REJILLA = retosDestacados(RETOS_SEED, 6).filter((r) => r.id !== RETO_HERO.id);
 
-export const RETO_HERO = TOP[0]!;
-export const RETOS_REJILLA = TOP.slice(1);
+/**
+ * PERFILES DESTACADOS (Boost) — maqueta de `BoostActivation` (Fase 6, Stripe): perfiles PAGADOS por
+ * posicion (1..N). Son usuarios DISTINTOS del Top Ranking a proposito: el Boost es visibilidad
+ * comprada (cualquiera paga por aparecer). El nivel se DERIVA de `puntos` con `nivelPorPuntos`.
+ */
+export const PERFILES_BOOST = [
+  { username: "sara_p", puntos: 540 },
+  { username: "laia10", puntos: 780 },
+  { username: "rae", puntos: 140 },
+  { username: "nico_skate", puntos: 10 },
+  { username: "bea", puntos: 30 },
+] as const;
+
+/**
+ * STATS del hero — agregados reales del producto (en produccion: consultas). Aqui `categorias` es
+ * REAL (las 14 de `CATEGORIES`); `premiosActivosCents` (SUM de premios de Challenges activos) y
+ * `retosAbiertos` (COUNT de Challenges abiertos) van con valores de maqueta representativos.
+ */
+export const STATS_INICIO = {
+  categorias: CATEGORIES.length,
+  premiosActivosCents: 840000,
+  retosAbiertos: 2310,
+} as const;

@@ -89,6 +89,85 @@
   --df-line: var(--color-line);
   --df-text: var(--color-text);
   --df-text-dim: var(--color-text-dim);
+
+  /* ==========================================================================
+     BRIEF v2 — impacto con NUESTRA paleta (magenta/lima/oscuros). Reutilizable en
+     Inicio y en el re-skin de Ranking/Retos. Degradado/glow/sombra suave/movimiento;
+     el CTA sigue PLANO (magenta solido). Sin foto de stock, sin morados/turquesas.
+     ========================================================================== */
+  /* DEGRADADOS/GLOW (radial color -> transparente; para fondos de seccion) */
+  --df-glow-accion: radial-gradient(
+    600px 480px at 82% 26%,
+    rgb(255 46 136 / 0.18),
+    transparent 60%
+  );
+  --df-glow-money: radial-gradient(900px 520px at 4% 106%, rgb(217 243 43 / 0.06), transparent 60%);
+  /* SOMBRAS SUAVES (oscuras: profundidad sin negro duro) */
+  --df-shadow-sm: 0 10px 26px -14px rgb(0 0 0 / 0.6);
+  --df-shadow-md: 0 24px 54px -26px rgb(0 0 0 / 0.72);
+  --df-shadow-lg: 0 40px 90px -28px rgb(0 0 0 / 0.8);
+  /* REALCE EN HOVER (glow magenta sutil + filo) */
+  --df-glow-hover: 0 32px 70px -24px rgb(255 46 136 / 0.4), 0 0 0 1px rgb(255 46 136 / 0.35);
+  /* CTA PLANO: el relleno es magenta SOLIDO (--df-action); solo esta sombra magenta lo eleva */
+  --df-cta-lift: 0 10px 26px -12px rgb(255 46 136 / 0.5);
+  /* GLOW del dinero (halo lima para el marcador; el color SIGUE lima) */
+  --df-glow-lima: drop-shadow(0 0 12px rgb(217 243 43 / 0.4));
+  /* SHEEN (brillo lineal que barre las tarjetas glass) */
+  --df-sheen: linear-gradient(
+    115deg,
+    transparent 44%,
+    rgb(255 255 255 / 0.07) 50%,
+    transparent 56%
+  );
+  /* MOVIMIENTO (duraciones; el easing es --ease-mechanical) */
+  --df-dur-fast: 180ms;
+  --df-dur-reveal: 500ms;
+  --df-dur-float: 5500ms;
+}
+
+/* Utilidades de movimiento del v2. prefers-reduced-motion las apaga (regla global de abajo). */
+@keyframes df-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.df-rise {
+  animation: df-rise var(--df-dur-reveal) var(--ease-mechanical) both;
+}
+@keyframes df-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+.df-float {
+  animation: df-float var(--df-dur-float) ease-in-out infinite;
+}
+.df-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: var(--df-sheen);
+  background-size: 260% 260%;
+  animation: df-sweep 5.5s linear infinite;
+}
+@keyframes df-sweep {
+  0% {
+    background-position: 180% 0;
+  }
+  100% {
+    background-position: -80% 0;
+  }
 }
 
 @layer base {
