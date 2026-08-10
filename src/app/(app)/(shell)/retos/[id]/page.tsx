@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { Avatar } from "@/components/ui/avatar";
+import { CajaVideo } from "@/components/ui/caja-video";
 import { PildoraCategoria } from "@/components/ui/pildora";
 
 import { buscarReto, nombreCategoria } from "../retos-datos";
@@ -54,11 +55,14 @@ export default async function RetoPorDentroPage({ params }: { params: Promise<{ 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 lg:px-8 lg:py-12">
       <div className="df-rise lg:grid lg:h-[70svh] lg:grid-cols-[auto_minmax(0,1fr)] lg:grid-rows-[auto_auto_minmax(0,1fr)] lg:gap-x-8">
-        {/* PANEL v2 (solo escritorio): superficie glass que abarca col 2 · filas 1-3, DETRAS del
-            contexto/voto/comentarios (elemento decorativo, no reestructura el DOM -> movil intacto). */}
+        {/* PANEL v2 (solo escritorio): superficie que abarca col 2 · filas 1-3, DETRAS del
+            contexto/voto/comentarios (elemento decorativo, no reestructura el DOM -> movil intacto).
+            SIN backdrop-blur: backdrop-filter promociona el elemento a pintarse ENCIMA del contenido
+            (aunque va antes en el DOM) y le difuminaria el texto; ademas sobre el fondo plano no
+            aportaba nada. Translucido + sombra + filete = panel que lee sin tocar el contenido. */}
         <div
           aria-hidden
-          className="hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md lg:block lg:col-start-2 lg:row-start-1 lg:row-span-3"
+          className="hidden rounded-sm border border-line bg-surface/70 shadow-[var(--df-shadow-md)] lg:block lg:col-start-2 lg:row-start-1 lg:row-span-3"
         />
 
         {/* CONTEXTO (cabecera): "Reto: {titulo}", categoria y marcador vivo. Col 2 · fila 1 en desktop. */}
@@ -79,14 +83,17 @@ export default async function RetoPorDentroPage({ params }: { params: Promise<{ 
           </div>
         </header>
 
-        {/* VIDEO del participante: placeholder VERTICAL 9:16, tratamiento INTACTO (70svh centrado en
-            sm+). Col 1 (pieza focal) en desktop. Bunny montara aqui el player; no toco las tripas. */}
+        {/* VIDEO del participante: CAJA de formato cerrado — 16:9 en escritorio (pieza focal a la
+            izquierda), 9:16 en móvil, con blurred-fill (CajaVideo). Bunny monta el player; sus tripas
+            no se tocan. Col 1 en desktop. */}
         <div className="mt-6 lg:col-start-1 lg:row-span-3 lg:mt-0 lg:self-start">
-          <div className="mx-auto flex aspect-[9/16] w-full flex-col items-center justify-center gap-2 rounded-sm border border-line bg-raised sm:h-[70svh] sm:w-auto lg:shadow-[var(--df-shadow-lg)]">
-            <IconoPlay />
-            <span className="text-sm text-text-dim">Vídeo del participante</span>
-            <span className="text-2xs uppercase tracking-widest text-text-dim">máx. 90 s</span>
-          </div>
+          <CajaVideo className="mx-auto w-full max-w-[360px] rounded-sm border border-line shadow-[var(--df-shadow-lg)] sm:max-w-[400px] lg:w-[540px] lg:max-w-none">
+            <div className="flex flex-col items-center justify-center gap-2 text-center">
+              <IconoPlay />
+              <span className="text-sm text-text-dim">Vídeo del participante</span>
+              <span className="text-2xs tracking-widest text-text-dim uppercase">máx. 90 s</span>
+            </div>
+          </CajaVideo>
         </div>
 
         {/* VOTO (isla cliente). Col 2 · fila 2 en desktop. `BloqueVoto` no se toca; se coloca via el
