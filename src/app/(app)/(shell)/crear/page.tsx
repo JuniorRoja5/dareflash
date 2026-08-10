@@ -26,7 +26,9 @@ export default function CrearPage() {
       >
         Subir tu vídeo
       </h1>
-      <div className="lg:rounded-sm lg:border lg:border-line lg:bg-surface lg:p-8">
+      {/* Panel v2 (SOLO en lg, como hoy): glass + sombra suave; en movil el form ocupa la columna
+          sin panel. La piel vive AQUI; formulario-crear.tsx no se toca (lo reescribe Bunny). */}
+      <div className="df-rise lg:rounded-sm lg:border lg:border-line lg:bg-surface/60 lg:p-8 lg:shadow-[var(--df-shadow-md)] lg:backdrop-blur-md">
         <FormularioCrear />
       </div>
     </div>
