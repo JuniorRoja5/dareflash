@@ -12,6 +12,8 @@ export const metadata = { title: "Retos · DareFlash" };
 export default function RetosPage() {
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
+      {/* El UNICO magenta de accion de la pantalla es "Crear reto" del cromo (top bar en escritorio,
+          nav [+] en movil): no se repite aqui. "Participar" en cada tarjeta es secundario. */}
       <h1
         className="mb-5 text-2xl leading-none text-text"
         style={{

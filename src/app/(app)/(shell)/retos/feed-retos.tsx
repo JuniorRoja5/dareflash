@@ -56,7 +56,7 @@ export function FeedRetos() {
       </div>
 
       {visibles.length === 0 ? (
-        <div className="mt-8 rounded-sm border border-line bg-surface p-6 text-center">
+        <div className="mt-8 rounded-sm border border-line bg-surface/60 p-6 text-center shadow-[var(--df-shadow-md)] backdrop-blur-md">
           <p className="font-medium text-text">Todavía no hay retos en esta categoría.</p>
           <p className="mt-1 text-sm text-text-dim">
             Sé el primero:{" "}
@@ -67,7 +67,10 @@ export function FeedRetos() {
           </p>
         </div>
       ) : (
-        <ul role="list" className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        // 2 columnas: tiles VERTICALES 9:16 en movil, tarjetas APAISADAS en lg (la propia tarjeta
+        // reflowa col→row). El marcador va superpuesto a la miniatura, asi que se ve en el viewport
+        // en ambos (no cae bajo el fold como en un tile 9:16 a pantalla completa).
+        <ul role="list" className="df-rise mt-4 grid grid-cols-2 gap-3 sm:gap-4">
           {visibles.map((reto) => (
             // `grid` en el <li> hace que la <article> se estire a la altura de la fila: tarjetas de
             // igual alto por fila (coherente con la rejilla de destacados de la portada).
