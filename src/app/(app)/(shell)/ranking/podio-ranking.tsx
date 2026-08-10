@@ -141,7 +141,9 @@ function ColumnaPodio({ fila, puesto }: { fila: FilaRankVista; puesto: 1 | 2 | 3
         <InsigniaNivel puntos={puntosNivel(fila)} />
       </div>
       <div
-        className="mt-3 grid w-full place-items-center rounded-t-sm border border-b-0 border-line bg-raised"
+        className={`mt-3 grid w-full place-items-center rounded-t-sm border border-b-0 border-line bg-raised ${
+          puesto === 1 ? "shadow-[var(--df-shadow-lg)]" : ""
+        }`}
         style={{ height: geo.ped }}
       >
         <span
@@ -175,8 +177,10 @@ function TarjetaMovil({
   const color = colorMedalla(puesto);
   return (
     <div
-      className={`relative rounded-sm border border-line bg-surface p-4 ${
-        destacado ? "flex items-center gap-4" : "flex flex-col items-center gap-2 text-center"
+      className={`relative rounded-sm border border-line bg-surface/60 p-4 backdrop-blur-md ${
+        destacado
+          ? "flex items-center gap-4 shadow-[var(--df-shadow-lg)]"
+          : "flex flex-col items-center gap-2 text-center shadow-[var(--df-shadow-md)]"
       }`}
     >
       <span
@@ -230,7 +234,7 @@ export function PodioRanking({ top3 }: { top3: readonly FilaRankVista[] }) {
   const visual = ordenPodio(emparejado); // [#2, #1, #3]
 
   return (
-    <div className="mt-8">
+    <div className="df-rise mt-8">
       {/* Escritorio: podio con pedestales (2 | 1 | 3), alineados al pie */}
       <div className="hidden items-end gap-4 lg:grid lg:grid-cols-[1fr_1.25fr_1fr]">
         {visual.map(({ fila, puesto }) => (

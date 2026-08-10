@@ -56,7 +56,7 @@ export function RankingVistas() {
         <div
           role="group"
           aria-label="Vista del ranking"
-          className="inline-flex rounded-sm border border-line bg-surface p-1"
+          className="inline-flex rounded-sm border border-line bg-surface/60 p-1 shadow-[var(--df-shadow-sm)] backdrop-blur-md"
         >
           {RANKING_VISTAS.map((v) => (
             <button
@@ -82,7 +82,7 @@ export function RankingVistas() {
       {/* Lista del 4 en adelante */}
       <div
         aria-label="Clasificación (del 4º en adelante)"
-        className="mt-8 overflow-hidden rounded-sm border border-line bg-surface"
+        className="df-rise mt-8 overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md"
       >
         {visibles.map((fila, i) => (
           <FilaPuesto
@@ -100,7 +100,7 @@ export function RankingVistas() {
       <div className="mt-5 flex flex-wrap items-center justify-between gap-4 text-sm text-text-dim">
         <span className="inline-flex items-center gap-2">
           Mostrar
-          <span className="rounded-sm border border-line bg-surface px-3 py-1.5 tabular-nums text-text">
+          <span className="rounded-sm border border-line bg-surface/60 px-3 py-1.5 tabular-nums text-text backdrop-blur-md">
             {TAMANO_PAGINA}
           </span>
           por página
@@ -111,7 +111,7 @@ export function RankingVistas() {
             aria-label="Página anterior"
             disabled={paginaSegura <= 1}
             onClick={() => setPagina((p) => Math.max(1, p - 1))}
-            className="grid h-9 w-9 place-items-center rounded-sm border border-line bg-surface text-text transition-colors duration-150 ease-mechanical hover:bg-raised disabled:opacity-40 disabled:hover:bg-surface"
+            className="grid h-9 w-9 place-items-center rounded-sm border border-line bg-surface/60 text-text backdrop-blur-md transition-colors duration-150 ease-mechanical hover:bg-raised disabled:opacity-40 disabled:hover:bg-surface/60"
           >
             ‹
           </button>
@@ -123,7 +123,7 @@ export function RankingVistas() {
             aria-label="Página siguiente"
             disabled={paginaSegura >= totalPaginas}
             onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-            className="grid h-9 w-9 place-items-center rounded-sm border border-line bg-surface text-text transition-colors duration-150 ease-mechanical hover:bg-raised disabled:opacity-40 disabled:hover:bg-surface"
+            className="grid h-9 w-9 place-items-center rounded-sm border border-line bg-surface/60 text-text backdrop-blur-md transition-colors duration-150 ease-mechanical hover:bg-raised disabled:opacity-40 disabled:hover:bg-surface/60"
           >
             ›
           </button>
