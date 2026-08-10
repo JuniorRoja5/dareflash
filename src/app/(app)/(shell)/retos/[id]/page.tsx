@@ -53,9 +53,16 @@ export default async function RetoPorDentroPage({ params }: { params: Promise<{ 
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 lg:px-8 lg:py-12">
-      <div className="lg:grid lg:h-[70svh] lg:grid-cols-[auto_minmax(0,1fr)] lg:grid-rows-[auto_auto_minmax(0,1fr)] lg:gap-x-8">
+      <div className="df-rise lg:grid lg:h-[70svh] lg:grid-cols-[auto_minmax(0,1fr)] lg:grid-rows-[auto_auto_minmax(0,1fr)] lg:gap-x-8">
+        {/* PANEL v2 (solo escritorio): superficie glass que abarca col 2 · filas 1-3, DETRAS del
+            contexto/voto/comentarios (elemento decorativo, no reestructura el DOM -> movil intacto). */}
+        <div
+          aria-hidden
+          className="hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md lg:block lg:col-start-2 lg:row-start-1 lg:row-span-3"
+        />
+
         {/* CONTEXTO (cabecera): "Reto: {titulo}", categoria y marcador vivo. Col 2 · fila 1 en desktop. */}
-        <header className="lg:col-start-2 lg:row-start-1">
+        <header className="lg:col-start-2 lg:row-start-1 lg:px-6 lg:pt-6">
           <p className="text-sm text-text-dim">Reto</p>
           <h1
             className="mt-1 text-2xl leading-tight text-text"
@@ -75,7 +82,7 @@ export default async function RetoPorDentroPage({ params }: { params: Promise<{ 
         {/* VIDEO del participante: placeholder VERTICAL 9:16, tratamiento INTACTO (70svh centrado en
             sm+). Col 1 (pieza focal) en desktop. Bunny montara aqui el player; no toco las tripas. */}
         <div className="mt-6 lg:col-start-1 lg:row-span-3 lg:mt-0 lg:self-start">
-          <div className="mx-auto flex aspect-[9/16] w-full flex-col items-center justify-center gap-2 rounded-sm border border-line bg-raised sm:h-[70svh] sm:w-auto">
+          <div className="mx-auto flex aspect-[9/16] w-full flex-col items-center justify-center gap-2 rounded-sm border border-line bg-raised sm:h-[70svh] sm:w-auto lg:shadow-[var(--df-shadow-lg)]">
             <IconoPlay />
             <span className="text-sm text-text-dim">Vídeo del participante</span>
             <span className="text-2xs uppercase tracking-widest text-text-dim">máx. 90 s</span>
@@ -84,13 +91,13 @@ export default async function RetoPorDentroPage({ params }: { params: Promise<{ 
 
         {/* VOTO (isla cliente). Col 2 · fila 2 en desktop. `BloqueVoto` no se toca; se coloca via el
             wrapper del grid (su mt-6 propio da el hueco, igual en movil y desktop). */}
-        <div className="lg:col-start-2 lg:row-start-2">
+        <div className="lg:col-start-2 lg:row-start-2 lg:px-6">
           <BloqueVoto autorUsername={reto.autorUsername} votosIniciales={reto.votos} />
         </div>
 
         {/* COMENTARIOS: placeholder. Col 2 · fila 3 (1fr) en desktop; la lista SCROLLEA dentro del
             panel (cabecera y nota fijas). En movil, flujo normal con su separador superior (como hoy). */}
-        <section className="mt-10 border-t border-line pt-6 lg:col-start-2 lg:row-start-3 lg:mt-6 lg:flex lg:min-h-0 lg:flex-col lg:border-t-0 lg:pt-0">
+        <section className="mt-10 border-t border-line pt-6 lg:col-start-2 lg:row-start-3 lg:mt-6 lg:flex lg:min-h-0 lg:flex-col lg:border-t-0 lg:px-6 lg:pt-0 lg:pb-6">
           <h2 className="mb-4 text-lg font-semibold text-text lg:shrink-0">Comentarios</h2>
           <ul className="space-y-4 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-2">
             {COMENTARIOS_MOCK.map((c) => (
