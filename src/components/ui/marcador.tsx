@@ -19,19 +19,34 @@ export function Marcador({
   currency = "USD",
   deadlineMs,
   tamano = "tarjeta",
+  apilarEnMovil = false,
   className = "",
 }: {
   cents: number;
   currency?: string;
   deadlineMs: number | null;
   tamano?: TamanoMarcador;
+  /**
+   * OPT-IN (por defecto false → comportamiento intacto). Si true, en movil PREMIO y PLAZO se APILAN
+   * (dos lineas, sin recortar) y en lg vuelven a la linea horizontal de siempre. Pensado para tiles
+   * verticales estrechos (2 columnas), donde el marcador de 1 linea del mayor premio no cabria. La
+   * unidad sigue indivisible: nunca se separan ni se recorta el plazo; solo cambia de forma. Afinado
+   * para `tamano="lista"` (el usado en esos tiles); el filete vertical se oculta en movil (apilado).
+   */
+  apilarEnMovil?: boolean;
   className?: string;
 }) {
   const t = TAMANOS[tamano];
+  const contenedor = apilarEnMovil
+    ? `flex flex-col items-start gap-0.5 lg:flex-row lg:items-center lg:gap-3`
+    : `inline-flex items-center ${t.gap}`;
+  const filete = apilarEnMovil
+    ? `hidden lg:block w-px ${t.filete} shrink-0 bg-line`
+    : `w-px ${t.filete} shrink-0 bg-line`;
   return (
-    <div className={`inline-flex items-center ${t.gap} ${className}`}>
+    <div className={`${contenedor} ${className}`}>
       <ImportePremio cents={cents} currency={currency} tamano={t.importe as TamanoImporte} />
-      <span className={`w-px ${t.filete} shrink-0 bg-line`} aria-hidden />
+      <span className={filete} aria-hidden />
       <CuentaAtras deadlineMs={deadlineMs} tamano={t.cuenta as TamanoCuenta} />
     </div>
   );
