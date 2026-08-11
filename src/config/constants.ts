@@ -76,10 +76,26 @@ export const CONFIRM_CADENCIA_REPOSO_MS = 5 * 60 * 1000; // 5 min
 export const CONFIRM_WAKE_KEY = "confirm:wake";
 
 /**
+ * RECONCILIACION de subidas abandonadas (Parte A). Una Video en PENDING mas VIEJA que este umbral es
+ * DEMOSTRABLEMENTE abandonada: pasada la caducidad de la credencial TUS, Bunny ya no acepta bytes, asi
+ * que jamas va a completarse. Se le da un margen extra (15 min) sobre el TTL para no matar NUNCA una
+ * subida legitima aun en curso. Las PENDING mas RECIENTES que esto son territorio del confirm.
+ */
+export const UMBRAL_ABANDONO_MS = BUNNY_TUS_CREDENTIAL_TTL_SEC * 1000 + 15 * 60 * 1000; // TTL + 15 min
+/** Cadencia del barrido de reconciliacion: cada 10 min (red de seguridad, no latencia critica). */
+export const RECON_CADENCIA_MS = 10 * 60 * 1000; // 10 min
+
+/**
  * Motivo de un Video en FAILED (String tipado con Zod, no enum de Prisma; convencion del proyecto).
  * TRANSCODE_ERROR: Bunny reporto Error/UploadFailed. TOO_LONG: transcodifico bien pero supera 90 s.
+ * UPLOAD_INCOMPLETE: la subida no llego a completarse (credencial caducada sin Finished, u objeto
+ * inexistente en Bunny) -> lo resuelve la reconciliacion de subidas abandonadas.
  */
-export const VideoFailureReasonSchema = z.enum(["TRANSCODE_ERROR", "TOO_LONG"]);
+export const VideoFailureReasonSchema = z.enum([
+  "TRANSCODE_ERROR",
+  "TOO_LONG",
+  "UPLOAD_INCOMPLETE",
+]);
 export type VideoFailureReason = z.infer<typeof VideoFailureReasonSchema>;
 
 /** Idiomas de lanzamiento. Solo estos dos. */

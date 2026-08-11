@@ -13,7 +13,12 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { CONFIRM_LOTE, SONDEO_MAX_EDAD_MS, VIDEO_MAX_DURATION_SEC } from "@/config/constants";
+import {
+  CONFIRM_LOTE,
+  SONDEO_MAX_EDAD_MS,
+  UMBRAL_ABANDONO_MS,
+  VIDEO_MAX_DURATION_SEC,
+} from "@/config/constants";
 import { env } from "@/config/env";
 import { prisma } from "@/server/db/client";
 import { getEmailAdapter } from "@/server/email/adapter";
@@ -21,6 +26,7 @@ import { construirRegistro } from "@/server/jobs/registry";
 import { bucleWorker, contarFallidos } from "@/server/jobs/worker";
 import { clienteBunnyReal } from "@/server/services/bunny";
 import { confirmarVideosPendientes } from "@/server/services/video-confirmacion";
+import { reconciliarVideosAbandonados } from "@/server/services/video-reconciliacion";
 
 const LIMIT = Number(process.env["WORKER_LIMIT"] ?? "5"); // lote pequeño y secuencial
 const INTERVALO_MS = Number(process.env["WORKER_INTERVALO_MS"] ?? "5000"); // sondeo 5 s
@@ -97,6 +103,21 @@ async function main(): Promise<void> {
         {
           now,
           maxEdadMs: SONDEO_MAX_EDAD_MS,
+          lote: CONFIRM_LOTE,
+          maxSeg: VIDEO_MAX_DURATION_SEC,
+          log: (m) => console.log(m),
+        },
+      ),
+    // Reconciliacion de subidas abandonadas: barrido de BAJA frecuencia (RECON_CADENCIA_MS por
+    // defecto) que resuelve las PENDING mas viejas que el umbral de abandono. NO borra nada de Bunny.
+    reconciliar: (now) =>
+      reconciliarVideosAbandonados(
+        prisma,
+        clienteBunnyReal,
+        { libraryId: env.BUNNY_STREAM_LIBRARY_ID, apiKey: env.BUNNY_STREAM_API_KEY },
+        {
+          now,
+          maxEdadMs: UMBRAL_ABANDONO_MS,
           lote: CONFIRM_LOTE,
           maxSeg: VIDEO_MAX_DURATION_SEC,
           log: (m) => console.log(m),

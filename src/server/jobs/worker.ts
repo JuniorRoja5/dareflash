@@ -16,6 +16,7 @@ import {
   JOB_FAILED_ALERT_THRESHOLD,
   JOB_FAILED_RETENTION_DAYS,
   RATE_LIMIT_PURGE_RETENER_MS,
+  RECON_CADENCIA_MS,
 } from "@/config/constants";
 import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -25,6 +26,7 @@ import { sanearError } from "@/server/observability/sanitize-error";
 import { claimJobs } from "@/server/services/jobs";
 import { escribirEstado, leerEstado } from "@/server/services/system-state";
 import { cadenciaConfirmMs, type ResultadoConfirm } from "@/server/services/video-confirmacion";
+import type { ResultadoReconciliacion } from "@/server/services/video-reconciliacion";
 
 import type { Registro } from "./registry";
 
@@ -497,6 +499,12 @@ export interface OpcionesBucle {
   confirmar?: (now: Date) => Promise<ResultadoConfirm>;
   confirmActivoMs?: number;
   confirmReposoMs?: number;
+  /**
+   * Barrido de RECONCILIACION de subidas abandonadas (Parte A), en su propia cadencia BAJA (red de
+   * seguridad, no latencia). Sin el, no se reconcilia (p. ej. en tests que no lo ejercitan).
+   */
+  reconciliar?: (now: Date) => Promise<ResultadoReconciliacion>;
+  reconCadaMs?: number;
 }
 
 /**
@@ -515,6 +523,7 @@ export async function bucleWorker(
   let ultimaPoda = 0;
   let ultimoAviso = 0;
   let proximoConfirm = 0;
+  let proximoRecon = 0;
   // Ultima marca de wake HONRADA (event-kick). Comparacion por igualdad de STRING, NUNCA contra el
   // reloj: no depende de sincronia web/worker. En reinicio arranca null -> la primera marca existente
   // fuerza UN barrido (recoge PENDING previos).
@@ -610,6 +619,22 @@ export async function bucleWorker(
         // Marca honrada TRAS el barrido: la MISMA marca no vuelve a disparar; solo una nueva lo hara.
         ultimoWakeHonrado = wakeActual;
       }
+    }
+
+    // Barrido de RECONCILIACION de subidas abandonadas (Parte A). Cadencia BAJA y FIJA (red de
+    // seguridad); try/catch propio para que un fallo de Bunny NO rompa el bucle (como el confirm).
+    if (o.reconciliar && t.getTime() >= proximoRecon) {
+      const cada = o.reconCadaMs ?? RECON_CADENCIA_MS;
+      try {
+        const r = await o.reconciliar(t);
+        o.log?.(
+          `[worker] reconcile: revisados=${r.revisados} rescatados=${r.rescatados} ` +
+            `incompletos=${r.incompletos} fallidos=${r.fallidos} pendientes=${r.pendientes}`,
+        );
+      } catch (e) {
+        o.log?.(`[worker] reconcile: barrido fallo (${sanearError(e)}); reintento luego.`);
+      }
+      proximoRecon = t.getTime() + cada;
     }
 
     if (o.parar()) break;

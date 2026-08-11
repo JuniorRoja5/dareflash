@@ -30,6 +30,19 @@ export interface ConfigBunny {
 }
 
 /**
+ * El objeto de video NO existe en Bunny (getVideo devolvio 404). Es un error TIPADO a proposito: la
+ * reconciliacion lo distingue de un fallo de RED (404 = nunca llegaron bytes -> subida incompleta;
+ * error de red = transitorio -> se reintenta). El confirm lo captura como cualquier error (deja
+ * PENDING), asi que esto NO cambia su comportamiento.
+ */
+export class BunnyNotFoundError extends Error {
+  constructor(videoId: string) {
+    super(`Bunny getVideo: 404 (videoId ${videoId} no existe)`);
+    this.name = "BunnyNotFoundError";
+  }
+}
+
+/**
  * Interfaz INYECTABLE de las llamadas HTTP a Bunny. En tests se sustituye por un doble: ningun test
  * toca Bunny de verdad. La reconciliacion (rama siguiente) reutilizara este cliente (+ list/delete).
  */
@@ -75,6 +88,8 @@ export const clienteBunnyReal: ClienteBunny = {
       method: "GET",
       headers: { AccessKey: apiKey, Accept: "application/json" },
     });
+    // 404 = el objeto no existe (distinto de un error de red): error TIPADO para la reconciliacion.
+    if (res.status === 404) throw new BunnyNotFoundError(videoId);
     if (!res.ok) throw new Error(`Bunny getVideo: HTTP ${res.status}`);
     const data: unknown = await res.json();
     const status = (data as { status?: unknown }).status;
