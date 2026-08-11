@@ -14,7 +14,7 @@
  */
 import "dotenv/config";
 
-import { emitKeypressEvents } from "node:readline";
+import { emitKeypressEvents, type Key } from "node:readline";
 
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { z } from "zod";
@@ -27,34 +27,56 @@ function fail(message: string): never {
   process.exit(1);
 }
 
-/** Prompt de contrasena SIN eco en pantalla (entrada interactiva). */
+/**
+ * Prompt de contrasena SIN eco en pantalla (entrada interactiva). Usa eventos "keypress" (readline),
+ * NO "data" cruda: asi el caracter llega como string (no como Buffer) y las secuencias de escape
+ * (flechas, etc.) llegan YA parseadas en `key`, no como bytes que corrompan la contrasena. Restaura
+ * el modo raw PREVIO en TODAS las salidas (Enter, Ctrl-C). Solo se alcanza con TTY (getPassword ya
+ * exige TTY o ADMIN_PASSWORD).
+ */
 function promptHidden(question: string): Promise<string> {
   return new Promise((resolve) => {
     const { stdin, stdout } = process;
     stdout.write(question);
     emitKeypressEvents(stdin);
+    const rawPrevio = stdin.isRaw ?? false;
     if (stdin.isTTY) stdin.setRawMode(true);
+    stdin.resume();
+
     let value = "";
-    const onKey = (char: string) => {
-      const c = char.charCodeAt(0);
-      if (c === 13 || c === 10) {
-        // Enter
-        if (stdin.isTTY) stdin.setRawMode(false);
-        stdin.removeListener("data", onKey);
+
+    // Limpieza en UN solo sitio: quita el listener, restaura el raw PREVIO y suelta stdin.
+    const cerrar = (): void => {
+      stdin.removeListener("keypress", onKey);
+      if (stdin.isTTY) stdin.setRawMode(rawPrevio);
+      stdin.pause();
+    };
+
+    function onKey(str: string | undefined, key: Key): void {
+      if (key.name === "return" || key.name === "enter") {
+        cerrar();
         stdout.write("\n");
         resolve(value);
-      } else if (c === 3) {
-        // Ctrl+C
-        process.exit(1);
-      } else if (c === 127 || c === 8) {
-        // Backspace
-        value = value.slice(0, -1);
-      } else {
-        value += char;
+        return;
       }
-    };
-    stdin.on("data", onKey);
-    stdin.resume();
+      if (key.ctrl && key.name === "c") {
+        // Ctrl-C: restaura la terminal antes de salir (no la deja en raw).
+        cerrar();
+        stdout.write("\n");
+        process.exit(1);
+      }
+      if (key.name === "backspace") {
+        value = value.slice(0, -1);
+        return;
+      }
+      // Caracter normal: solo si es imprimible y NO lleva ctrl/meta. Ignora flechas y secuencias de
+      // escape (llegan con `str` vacio o con key.ctrl/meta y su propio key.name).
+      if (str && !key.ctrl && !key.meta && str >= " " && str !== "\x7f") {
+        value += str;
+      }
+    }
+
+    stdin.on("keypress", onKey);
   });
 }
 
