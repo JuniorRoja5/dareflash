@@ -4,8 +4,9 @@
  * registro. Fallo -> reintento con backoff+jitter hasta agotar -> FAILED. Un reaper recupera
  * los jobs que quedaron RUNNING por un worker caido, segun la politica de CADA tipo.
  *
- * NO usa Redis: con MariaDB como fuente de verdad, el sondeo basta. Se anadira un despertador
- * solo si una necesidad medida lo justifica.
+ * NO usa Redis: con MariaDB como fuente de verdad, el sondeo basta. El despertador del confirm
+ * (event-kick) es TAMBIEN MariaDB: una marca en SystemState que la ruta de subida escribe al crear
+ * la fila fuerza un barrido en el siguiente tick, sin sondear Bunny en vacio (ver el bucle).
  */
 import {
   CONFIRM_CADENCIA_ACTIVO_MS,
