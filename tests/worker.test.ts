@@ -1,8 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { CONFIRM_WAKE_KEY } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import type { EmailAdapter, EmailMessage } from "../src/server/email/adapter";
 import { construirRegistro, type Registro } from "../src/server/jobs/registry";
+import { escribirEstado, leerEstado } from "../src/server/services/system-state";
 import {
   backoffMs,
   bucleWorker,
@@ -372,5 +374,93 @@ describe("worker: poda de DONE", () => {
     const { total: borrados } = await podarDone(prisma, { dias: 7 });
     expect(borrados).toBe(1);
     expect(await prisma.job.count({ where: { status: "DONE" } })).toBe(1);
+  });
+});
+
+describe("worker: event-kick del confirm (marca de wake en SystemState)", () => {
+  it("una marca NUEVA fuerza el barrido antes de tiempo; la MISMA no re-dispara; otra nueva si", async () => {
+    // Marca inicial (simula una subida previa que dejo fila PENDING + marca).
+    await prisma.systemState.create({ data: { key: CONFIRM_WAKE_KEY, value: "M1" } });
+
+    let corridas = 0;
+    const confirmar = async () => {
+      corridas++;
+      return { revisados: 0, publicados: 0, fallidos: 0, pendientes: 0 };
+    };
+
+    let paso = 0;
+    const snaps: number[] = []; // corridas acumuladas al FINAL de cada iteracion
+    // Reloj pequeño (reaper/purga no saltan) y CONGELADO: tras la 1a corrida, proximoConfirm queda
+    // en el futuro, asi que solo un kick puede volver a disparar el barrido.
+    const reloj = new Date(1000);
+
+    await bucleWorker(prisma, registroFake(fakeAdapter()), {
+      workerToken: "wk",
+      limit: 10,
+      intervaloMs: 0,
+      ahora: () => reloj,
+      parar: () => paso >= 3,
+      dormir: async () => {
+        snaps.push(corridas);
+        paso++;
+        // Antes de la 3a iteracion, una marca NUEVA (M2): debe kickear pese a proximoConfirm futuro.
+        if (paso === 2) {
+          await prisma.systemState.update({
+            where: { key: CONFIRM_WAKE_KEY },
+            data: { value: "M2" },
+          });
+        }
+      },
+      confirmar,
+      confirmActivoMs: 100_000,
+      confirmReposoMs: 100_000,
+    });
+
+    // Iter 0: proximoConfirm=0 -> corre por TIEMPO, honra M1.               -> 1
+    // Iter 1: proximoConfirm futuro, marca sigue M1 (honrada) -> NO corre.  -> 1
+    // Iter 2: marca M2 NUEVA -> kick, corre pese a proximoConfirm futuro.   -> 2
+    // Dientes: si NO se actualizara ultimoWakeHonrado, la iter 1 dispararia -> [1, 2, 3] (rojo).
+    expect(snaps).toEqual([1, 1, 2]);
+  });
+});
+
+describe("upload-credential: la marca de wake es ATOMICA con la fila Video", () => {
+  it("crea la fila Video Y escribe la marca (valor fresco) en la MISMA transaccion", async () => {
+    const user = await prisma.user.create({
+      data: { email: "kick-ok@test.com", passwordHash: "x" },
+      select: { id: true },
+    });
+    const t0 = Date.now();
+    await prisma.$transaction(async (tx) => {
+      await tx.video.create({
+        data: { userId: user.id, bunnyVideoId: "guid-kick-ok", title: "t" },
+      });
+      await escribirEstado(tx, CONFIRM_WAKE_KEY, String(Date.now()));
+    });
+
+    expect(
+      await prisma.video.findUnique({ where: { bunnyVideoId: "guid-kick-ok" } }),
+    ).not.toBeNull();
+    const marca = await leerEstado(prisma, CONFIRM_WAKE_KEY);
+    expect(marca).not.toBeNull();
+    expect(Number(marca)).toBeGreaterThanOrEqual(t0); // valor FRESCO (timestamp de la subida)
+  });
+
+  it("si la creacion de la fila falla, la marca NO se persiste (rollback de la transaccion)", async () => {
+    expect(await leerEstado(prisma, CONFIRM_WAKE_KEY)).toBeNull(); // sin marca previa
+
+    await expect(
+      prisma.$transaction(async (tx) => {
+        // La marca se ESCRIBE dentro de la tx...
+        await escribirEstado(tx, CONFIRM_WAKE_KEY, "DEBERIA_REVERTIR");
+        // ...pero el create falla (userId inexistente viola la FK) -> toda la tx revierte.
+        await tx.video.create({
+          data: { userId: "usuario-que-no-existe", bunnyVideoId: "guid-kick-fail", title: "t" },
+        });
+      }),
+    ).rejects.toThrow();
+
+    // Pese a haberse escrito dentro de la tx, la marca revirtio con el fallo del create.
+    expect(await leerEstado(prisma, CONFIRM_WAKE_KEY)).toBeNull();
   });
 });

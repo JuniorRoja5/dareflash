@@ -82,7 +82,9 @@ describe("INVARIANTE 3 (estructural): la route crea Video en PENDING, jamas PUBL
   );
 
   it("crea la fila Video y NO fija status PUBLISHED (se apoya en el default PENDING del esquema)", () => {
-    expect(src).toContain("prisma.video.create");
+    // `video.create` cubre tanto `prisma.video.create` como `tx.video.create`: la fila se crea ahora
+    // DENTRO de una transaccion (atomica con la marca de wake del event-kick), pero sigue en PENDING.
+    expect(src).toContain("video.create");
     // No asigna `status: PUBLISHED` (ignora la palabra en comentarios). Escribirlo pone esto en rojo.
     expect(src).not.toMatch(/status\s*:\s*["']?PUBLISHED/);
   });

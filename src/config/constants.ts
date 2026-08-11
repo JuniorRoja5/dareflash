@@ -68,6 +68,12 @@ export const CONFIRM_LOTE = 100;
 /** Cadencia ADAPTATIVA del barrido: frecuente si quedaron PENDING, en reposo si no. */
 export const CONFIRM_CADENCIA_ACTIVO_MS = 15 * 1000; // 15 s
 export const CONFIRM_CADENCIA_REPOSO_MS = 5 * 60 * 1000; // 5 min
+/**
+ * Marca de "despertar" del confirm en SystemState (event-kick). La ruta upload-credential la escribe
+ * en la MISMA transaccion que crea la fila Video PENDING; el worker la lee en su tick y fuerza un
+ * barrido, saltandose la espera de reposo (colapsa el arranque en frio). Fuente unica: ruta + worker.
+ */
+export const CONFIRM_WAKE_KEY = "confirm:wake";
 
 /**
  * Motivo de un Video en FAILED (String tipado con Zod, no enum de Prisma; convencion del proyecto).

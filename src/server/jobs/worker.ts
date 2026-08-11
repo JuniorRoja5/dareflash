@@ -10,6 +10,7 @@
 import {
   CONFIRM_CADENCIA_ACTIVO_MS,
   CONFIRM_CADENCIA_REPOSO_MS,
+  CONFIRM_WAKE_KEY,
   JOB_DONE_RETENTION_DAYS,
   JOB_FAILED_ALERT_THRESHOLD,
   JOB_FAILED_RETENTION_DAYS,
@@ -21,6 +22,7 @@ import { purgeExpiredSessions } from "@/server/auth/session";
 import type { EmailAdapter, EmailMessage } from "@/server/email/adapter";
 import { sanearError } from "@/server/observability/sanitize-error";
 import { claimJobs } from "@/server/services/jobs";
+import { escribirEstado, leerEstado } from "@/server/services/system-state";
 import { cadenciaConfirmMs, type ResultadoConfirm } from "@/server/services/video-confirmacion";
 
 import type { Registro } from "./registry";
@@ -385,15 +387,7 @@ export function contarFallidos(db: PrismaClient): Promise<number> {
 }
 
 // ── Aviso al admin por acumulacion de FAILED, con histeresis durable ─────────────────────────
-
-async function leerEstado(db: PrismaClient, key: string): Promise<string | null> {
-  const row = await db.systemState.findUnique({ where: { key }, select: { value: true } });
-  return row?.value ?? null;
-}
-
-async function escribirEstado(db: PrismaClient, key: string, value: string): Promise<void> {
-  await db.systemState.upsert({ where: { key }, create: { key, value }, update: { value } });
-}
+// (leerEstado/escribirEstado viven ahora en @/server/services/system-state, compartidos con la ruta.)
 
 export interface AvisoResultado {
   fallidos: number;
@@ -520,6 +514,10 @@ export async function bucleWorker(
   let ultimaPoda = 0;
   let ultimoAviso = 0;
   let proximoConfirm = 0;
+  // Ultima marca de wake HONRADA (event-kick). Comparacion por igualdad de STRING, NUNCA contra el
+  // reloj: no depende de sincronia web/worker. En reinicio arranca null -> la primera marca existente
+  // fuerza UN barrido (recoge PENDING previos).
+  let ultimoWakeHonrado: string | null = null;
 
   while (!o.parar()) {
     const t = ahora();
@@ -588,19 +586,28 @@ export async function bucleWorker(
     // Barrido de CONFIRMACION de subidas (sondeo a Bunny). Cadencia ADAPTATIVA propia; try/catch
     // propio para que un fallo de la API de Bunny NO rompa el bucle (como las purgas/aviso). El
     // reloj `t` es inyectable (tests).
-    if (o.confirmar && t.getTime() >= proximoConfirm) {
-      const activo = o.confirmActivoMs ?? CONFIRM_CADENCIA_ACTIVO_MS;
-      const reposo = o.confirmReposoMs ?? CONFIRM_CADENCIA_REPOSO_MS;
-      try {
-        const r = await o.confirmar(t);
-        o.log?.(
-          `[worker] confirm: revisados=${r.revisados} publicados=${r.publicados} ` +
-            `fallidos=${r.fallidos} pendientes=${r.pendientes}`,
-        );
-        proximoConfirm = t.getTime() + cadenciaConfirmMs(r.revisados > 0, activo, reposo);
-      } catch (e) {
-        o.log?.(`[worker] confirm: barrido fallo (${sanearError(e)}); reintento en reposo.`);
-        proximoConfirm = t.getTime() + reposo;
+    // El barrido dispara por el reloj adaptativo O por una marca de wake NUEVA (event-kick escrito por
+    // upload-credential): la marca fuerza el barrido saltandose el reposo. Solo se lee la marca si el
+    // confirm esta cableado (hay tests que no lo ejercitan).
+    if (o.confirmar) {
+      const wakeActual = await leerEstado(db, CONFIRM_WAKE_KEY);
+      const kicked = wakeActual !== null && wakeActual !== ultimoWakeHonrado;
+      if (t.getTime() >= proximoConfirm || kicked) {
+        const activo = o.confirmActivoMs ?? CONFIRM_CADENCIA_ACTIVO_MS;
+        const reposo = o.confirmReposoMs ?? CONFIRM_CADENCIA_REPOSO_MS;
+        try {
+          const r = await o.confirmar(t);
+          o.log?.(
+            `[worker] confirm: revisados=${r.revisados} publicados=${r.publicados} ` +
+              `fallidos=${r.fallidos} pendientes=${r.pendientes}`,
+          );
+          proximoConfirm = t.getTime() + cadenciaConfirmMs(r.revisados > 0, activo, reposo);
+        } catch (e) {
+          o.log?.(`[worker] confirm: barrido fallo (${sanearError(e)}); reintento en reposo.`);
+          proximoConfirm = t.getTime() + reposo;
+        }
+        // Marca honrada TRAS el barrido: la MISMA marca no vuelve a disparar; solo una nueva lo hara.
+        ultimoWakeHonrado = wakeActual;
       }
     }
 

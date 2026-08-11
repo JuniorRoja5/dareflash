@@ -17,11 +17,13 @@ export const dynamic = "force-dynamic";
  */
 export const POST = mutatingRoute(async (req, { user }) => {
   const { env } = await import("@/config/env");
-  const { RATE_LIMITS, BUNNY_TUS_CREDENTIAL_TTL_SEC } = await import("@/config/constants");
+  const { RATE_LIMITS, BUNNY_TUS_CREDENTIAL_TTL_SEC, CONFIRM_WAKE_KEY } =
+    await import("@/config/constants");
   const { prisma } = await import("@/server/db/client");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { crearObjetoVideo, credencialSubidaTus, clienteBunnyReal } =
     await import("@/server/services/bunny");
+  const { escribirEstado } = await import("@/server/services/system-state");
   const { sanearError } = await import("@/server/observability/sanitize-error");
 
   // Titulo OPCIONAL (metadato del objeto en Bunny; el titulo definitivo se fija al publicar).
@@ -53,9 +55,15 @@ export const POST = mutatingRoute(async (req, { user }) => {
       tituloUsuario ?? "Video de DareFlash",
     );
 
-    // 2. Fila Video en PENDING (status por defecto del esquema; NO se pone PUBLISHED aqui).
-    await prisma.video.create({
-      data: { userId: user.userId, bunnyVideoId: guid, title: tituloUsuario },
+    // 2. Fila Video en PENDING (status por defecto; NO se pone PUBLISHED aqui) + marca de wake del
+    //    confirm, ATOMICO en una transaccion: si se crea la fila, hay marca; si algo falla, ninguna
+    //    de las dos. El worker leera la marca en su tick y forzara un barrido (event-kick: colapsa el
+    //    arranque en frio de la deteccion sin sondear Bunny en vacio).
+    await prisma.$transaction(async (tx) => {
+      await tx.video.create({
+        data: { userId: user.userId, bunnyVideoId: guid, title: tituloUsuario },
+      });
+      await escribirEstado(tx, CONFIRM_WAKE_KEY, String(Date.now()));
     });
 
     // 3. Solo la credencial de corta duracion (sin la clave de API).
