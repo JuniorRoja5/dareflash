@@ -84,6 +84,8 @@ export interface OpcionesHuerfanos {
 }
 
 export interface ResultadoHuerfanos {
+  /** Modo del barrido ("dry-run"/"borrar"), para que el resumen del worker lo muestre SIEMPRE. */
+  modo: "dry-run" | "borrar";
   revisados: number;
   candidatos: number;
   borrados: number;
@@ -168,5 +170,5 @@ export async function limpiarHuerfanosBunny(
 
   // El RESUMEN lo loguea el bucle del worker (como confirm/reconcile); aqui solo van las lineas por
   // objeto (DRY-RUN/borrado), que ya dejan claro el modo. No duplicar el resumen.
-  return { revisados, candidatos, borrados, conservados };
+  return { modo: opts.modo, revisados, candidatos, borrados, conservados };
 }

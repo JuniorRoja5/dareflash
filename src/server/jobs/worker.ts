@@ -654,7 +654,7 @@ export async function bucleWorker(
       try {
         const r = await o.limpiarHuerfanos(t);
         o.log?.(
-          `[worker] huerfanos: revisados=${r.revisados} candidatos=${r.candidatos} ` +
+          `[worker] huerfanos (${r.modo}): revisados=${r.revisados} candidatos=${r.candidatos} ` +
             `borrados=${r.borrados} conservados=${r.conservados}`,
         );
       } catch (e) {

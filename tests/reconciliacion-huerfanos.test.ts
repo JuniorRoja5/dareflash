@@ -135,7 +135,7 @@ describe("limpiarHuerfanosBunny (BD + doble)", () => {
       unaPagina([{ guid: "huerfano", status: 4, dateUploaded: viejo }]),
     );
     const r = await limpiarHuerfanosBunny(prisma, cliente, CONFIG, opts("dry-run"));
-    expect(r).toMatchObject({ revisados: 1, candidatos: 1, borrados: 0 });
+    expect(r).toMatchObject({ modo: "dry-run", revisados: 1, candidatos: 1, borrados: 0 });
     expect(borrados).toEqual([]); // NUNCA se borro nada
   });
 
@@ -156,6 +156,12 @@ describe("limpiarHuerfanosBunny (BD + doble)", () => {
     const r = await limpiarHuerfanosBunny(prisma, cliente, CONFIG, opts("borrar"));
 
     expect(borrados).toEqual(["huerfano"]); // solo el candidato
-    expect(r).toMatchObject({ revisados: 3, candidatos: 1, borrados: 1, conservados: 2 });
+    expect(r).toMatchObject({
+      modo: "borrar",
+      revisados: 3,
+      candidatos: 1,
+      borrados: 1,
+      conservados: 2,
+    });
   });
 });
