@@ -166,9 +166,7 @@ export async function limpiarHuerfanosBunny(
     if (revisados >= totalItems || items.length < opts.perPage) break; // ultima pagina
   }
 
-  opts.log?.(
-    `[worker] huerfanos (${opts.modo}): revisados=${revisados} candidatos=${candidatos} ` +
-      `borrados=${borrados} conservados=${conservados}`,
-  );
+  // El RESUMEN lo loguea el bucle del worker (como confirm/reconcile); aqui solo van las lineas por
+  // objeto (DRY-RUN/borrado), que ya dejan claro el modo. No duplicar el resumen.
   return { revisados, candidatos, borrados, conservados };
 }
