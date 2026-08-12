@@ -58,6 +58,16 @@ export interface ClienteBunny {
     apiKey: string;
     videoId: string;
   }): Promise<{ status: number; length: number }>;
+  /**
+   * Lista PAGINADA de la biblioteca (List Videos de Bunny). Solo se mapea lo que la limpieza de
+   * huerfanos necesita: guid, status y dateUploaded de cada objeto, y el total para paginar.
+   */
+  listVideos(input: { libraryId: string; apiKey: string; page: number; perPage: number }): Promise<{
+    items: { guid: string; status: number; dateUploaded: string }[];
+    totalItems: number;
+  }>;
+  /** Borra un objeto de video de Bunny (Delete Video). IRREVERSIBLE: solo lo llama la limpieza. */
+  deleteVideo(input: { libraryId: string; apiKey: string; videoId: string }): Promise<void>;
 }
 
 /** Cliente HTTP real de Bunny (fetch). La clave de API va en la cabecera AccessKey, solo servidor. */
@@ -99,6 +109,35 @@ export const clienteBunnyReal: ClienteBunny = {
     }
     // `length` (duracion en segundos) solo esta disponible tras transcodificar; antes puede faltar.
     return { status, length: typeof length === "number" ? length : 0 };
+  },
+  async listVideos({ libraryId, apiKey, page, perPage }) {
+    const res = await fetch(
+      `${API_BASE}/library/${libraryId}/videos?page=${page}&itemsPerPage=${perPage}`,
+      { method: "GET", headers: { AccessKey: apiKey, Accept: "application/json" } },
+    );
+    if (!res.ok) throw new Error(`Bunny listVideos: HTTP ${res.status}`);
+    const data: unknown = await res.json();
+    // Nombres de campo segun la respuesta "List Videos" de Bunny (totalItems, items[].{guid,status,
+    // dateUploaded}). Mapeo DEFENSIVO: un campo ausente/mal tipado no revienta el barrido.
+    const d = data as { totalItems?: unknown; items?: unknown };
+    const totalItems = typeof d.totalItems === "number" ? d.totalItems : 0;
+    const items = (Array.isArray(d.items) ? d.items : []).map((it) => {
+      const o = it as { guid?: unknown; status?: unknown; dateUploaded?: unknown };
+      return {
+        guid: typeof o.guid === "string" ? o.guid : "",
+        status: typeof o.status === "number" ? o.status : -1,
+        dateUploaded: typeof o.dateUploaded === "string" ? o.dateUploaded : "",
+      };
+    });
+    return { items, totalItems };
+  },
+  async deleteVideo({ libraryId, apiKey, videoId }) {
+    const res = await fetch(`${API_BASE}/library/${libraryId}/videos/${videoId}`, {
+      method: "DELETE",
+      headers: { AccessKey: apiKey, Accept: "application/json" },
+    });
+    // Sin cuerpo hacia arriba: solo el codigo, para el log (mismo estilo que crearVideo/getVideo).
+    if (!res.ok) throw new Error(`Bunny deleteVideo: HTTP ${res.status}`);
   },
 };
 

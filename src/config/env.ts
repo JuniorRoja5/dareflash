@@ -96,6 +96,13 @@ const serverSchema = z.object({
   ADMIN_EMAIL: z.email().optional(),
   /** Observabilidad. */
   SENTRY_DSN: z.url().optional(),
+  /**
+   * Modo de la limpieza de HUERFANOS en Bunny (reconciliacion Parte B, DESTRUCTIVA). Por defecto
+   * "dry-run": el barrido LOGuea que borraria pero NO borra nada. Junior lo pone a "borrar" en el
+   * .env del VPS SOLO tras revisar los logs del dry-run. Ausente => dry-run => despliegue SEGURO.
+   * NO es secreto (no hace falta hPanel para desplegar en modo seguro).
+   */
+  RECON_HUERFANOS_MODO: z.enum(["dry-run", "borrar"]).default("dry-run"),
 });
 
 /**

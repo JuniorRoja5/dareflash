@@ -17,7 +17,14 @@ const MAX_SEG = 90;
 const UMBRAL = 2 * 60 * 60 * 1000; // 2 h en el test (en prod: UMBRAL_ABANDONO_MS = TTL + 15 min)
 
 function dobleBunny(getVideo: ClienteBunny["getVideo"]): ClienteBunny {
-  return { crearVideo: async () => ({ guid: "no-usado" }), getVideo };
+  return {
+    crearVideo: async () => ({ guid: "no-usado" }),
+    getVideo,
+    // list/delete no se usan aqui (la reconciliacion Parte A no borra); stubs para satisfacer la
+    // interfaz que la Parte B extendio.
+    listVideos: async () => ({ items: [], totalItems: 0 }),
+    deleteVideo: async () => {},
+  };
 }
 
 describe("reconciliarVideosAbandonados (BD)", () => {

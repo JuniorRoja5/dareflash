@@ -22,7 +22,12 @@ const MAX_SEG = 90;
 
 /** Doble de Bunny: `getVideo` devuelve lo configurado; `crearVideo` no se usa aqui. */
 function dobleBunny(getVideo: ClienteBunny["getVideo"]): ClienteBunny {
-  return { crearVideo: async () => ({ guid: "no-usado" }), getVideo };
+  return {
+    crearVideo: async () => ({ guid: "no-usado" }),
+    getVideo,
+    listVideos: async () => ({ items: [], totalItems: 0 }),
+    deleteVideo: async () => {},
+  };
 }
 
 describe("decidirTransicion (puro)", () => {

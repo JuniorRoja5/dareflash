@@ -86,6 +86,15 @@ export const UMBRAL_ABANDONO_MS = BUNNY_TUS_CREDENTIAL_TTL_SEC * 1000 + 15 * 60 
 export const RECON_CADENCIA_MS = 10 * 60 * 1000; // 10 min
 
 /**
+ * Limpieza de HUERFANOS en Bunny (reconciliacion Parte B, DESTRUCTIVA). Una fila FAILED debe llevar
+ * >= esta gracia antes de borrar su objeto (margen por si se inspecciona). La cadencia es BAJA
+ * (listar la biblioteca es pesado y los huerfanos no son urgentes). La pagina es el tope de la API.
+ */
+export const RECON_HUERFANOS_GRACIA_MS = 24 * 60 * 60 * 1000; // 24 h
+export const RECON_HUERFANOS_PAGINA = 100; // itemsPerPage (tope de la API de Bunny)
+export const RECON_HUERFANOS_CADENCIA_MS = 6 * 60 * 60 * 1000; // 6 h
+
+/**
  * Motivo de un Video en FAILED (String tipado con Zod, no enum de Prisma; convencion del proyecto).
  * TRANSCODE_ERROR: Bunny reporto Error/UploadFailed. TOO_LONG: transcodifico bien pero supera 90 s.
  * UPLOAD_INCOMPLETE: la subida no llego a completarse (credencial caducada sin Finished, u objeto

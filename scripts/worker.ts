@@ -15,6 +15,8 @@ import { randomUUID } from "node:crypto";
 
 import {
   CONFIRM_LOTE,
+  RECON_HUERFANOS_GRACIA_MS,
+  RECON_HUERFANOS_PAGINA,
   SONDEO_MAX_EDAD_MS,
   UMBRAL_ABANDONO_MS,
   VIDEO_MAX_DURATION_SEC,
@@ -25,6 +27,7 @@ import { getEmailAdapter } from "@/server/email/adapter";
 import { construirRegistro } from "@/server/jobs/registry";
 import { bucleWorker, contarFallidos } from "@/server/jobs/worker";
 import { clienteBunnyReal } from "@/server/services/bunny";
+import { limpiarHuerfanosBunny } from "@/server/services/reconciliacion-huerfanos";
 import { confirmarVideosPendientes } from "@/server/services/video-confirmacion";
 import { reconciliarVideosAbandonados } from "@/server/services/video-reconciliacion";
 
@@ -120,6 +123,22 @@ async function main(): Promise<void> {
           maxEdadMs: UMBRAL_ABANDONO_MS,
           lote: CONFIRM_LOTE,
           maxSeg: VIDEO_MAX_DURATION_SEC,
+          log: (m) => console.log(m),
+        },
+      ),
+    // Limpieza de huerfanos en Bunny (Parte B, DESTRUCTIVA). Modo desde el env: dry-run por defecto
+    // (NO borra); Junior lo pone a "borrar" tras revisar los logs del dry-run.
+    limpiarHuerfanos: (now) =>
+      limpiarHuerfanosBunny(
+        prisma,
+        clienteBunnyReal,
+        { libraryId: env.BUNNY_STREAM_LIBRARY_ID, apiKey: env.BUNNY_STREAM_API_KEY },
+        {
+          now,
+          modo: env.RECON_HUERFANOS_MODO,
+          perPage: RECON_HUERFANOS_PAGINA,
+          graciaMs: RECON_HUERFANOS_GRACIA_MS,
+          umbralAbandonoMs: UMBRAL_ABANDONO_MS,
           log: (m) => console.log(m),
         },
       ),

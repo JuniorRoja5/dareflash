@@ -17,6 +17,7 @@ import {
   JOB_FAILED_RETENTION_DAYS,
   RATE_LIMIT_PURGE_RETENER_MS,
   RECON_CADENCIA_MS,
+  RECON_HUERFANOS_CADENCIA_MS,
 } from "@/config/constants";
 import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -24,6 +25,7 @@ import { purgeExpiredSessions } from "@/server/auth/session";
 import type { EmailAdapter, EmailMessage } from "@/server/email/adapter";
 import { sanearError } from "@/server/observability/sanitize-error";
 import { claimJobs } from "@/server/services/jobs";
+import type { ResultadoHuerfanos } from "@/server/services/reconciliacion-huerfanos";
 import { escribirEstado, leerEstado } from "@/server/services/system-state";
 import { cadenciaConfirmMs, type ResultadoConfirm } from "@/server/services/video-confirmacion";
 import type { ResultadoReconciliacion } from "@/server/services/video-reconciliacion";
@@ -505,6 +507,13 @@ export interface OpcionesBucle {
    */
   reconciliar?: (now: Date) => Promise<ResultadoReconciliacion>;
   reconCadaMs?: number;
+  /**
+   * Barrido de LIMPIEZA de huerfanos en Bunny (reconciliacion Parte B, destructiva con salvaguardas),
+   * cadencia BAJA propia. Sin el, no se limpia (p. ej. en tests que no lo ejercitan). Por defecto el
+   * modo es dry-run (no borra) hasta que se configure RECON_HUERFANOS_MODO=borrar.
+   */
+  limpiarHuerfanos?: (now: Date) => Promise<ResultadoHuerfanos>;
+  huerfanosCadaMs?: number;
 }
 
 /**
@@ -524,6 +533,7 @@ export async function bucleWorker(
   let ultimoAviso = 0;
   let proximoConfirm = 0;
   let proximoRecon = 0;
+  let proximoHuerfanos = 0;
   // Ultima marca de wake HONRADA (event-kick). Comparacion por igualdad de STRING, NUNCA contra el
   // reloj: no depende de sincronia web/worker. En reinicio arranca null -> la primera marca existente
   // fuerza UN barrido (recoge PENDING previos).
@@ -635,6 +645,22 @@ export async function bucleWorker(
         o.log?.(`[worker] reconcile: barrido fallo (${sanearError(e)}); reintento luego.`);
       }
       proximoRecon = t.getTime() + cada;
+    }
+
+    // Limpieza de HUERFANOS en Bunny (Parte B). Cadencia MUY BAJA (listar la biblioteca es pesado);
+    // try/catch propio (un fallo de Bunny no rompe el bucle). Por defecto en dry-run (no borra).
+    if (o.limpiarHuerfanos && t.getTime() >= proximoHuerfanos) {
+      const cada = o.huerfanosCadaMs ?? RECON_HUERFANOS_CADENCIA_MS;
+      try {
+        const r = await o.limpiarHuerfanos(t);
+        o.log?.(
+          `[worker] huerfanos: revisados=${r.revisados} candidatos=${r.candidatos} ` +
+            `borrados=${r.borrados} conservados=${r.conservados}`,
+        );
+      } catch (e) {
+        o.log?.(`[worker] huerfanos: barrido fallo (${sanearError(e)}); reintento luego.`);
+      }
+      proximoHuerfanos = t.getTime() + cada;
     }
 
     if (o.parar()) break;
