@@ -189,3 +189,58 @@ export function credencialSubidaTus(
     endpointTus: ENDPOINT_TUS,
   };
 }
+
+/**
+ * Firma una URL HLS con TOKEN DE DIRECTORIO (URL Token Authentication de Bunny) para `/{videoId}/`
+ * ENTERO: cubre la playlist Y los segmentos. hls.js pide los .ts/.m4s por su cuenta y todos cuelgan
+ * de esa carpeta; si se firmara SOLO la playlist, los segmentos darian 403.
+ *
+ * Algoritmo oficial de Bunny (SHA256 de clave + ruta-del-directorio + expiracion + parametros; base64
+ * url-safe con +→- /→_ y sin '='; `token_path` del directorio en el hash -valor crudo- y en la query
+ * -url-encoded-). Se sigue la doc AL PIE DE LA LETRA y se VERIFICA reproduciendo una URL real, no de
+ * memoria: https://support.bunny.net/hc/en-us/articles/360016055099
+ *
+ * La `claveToken` es la de TOKEN AUTHENTICATION de la pull-zone, DISTINTA de la API key (firmar con la
+ * API key da 403). `ahoraMs` es inyectable (tests / vectores conocidos).
+ */
+export function firmarUrlHls(input: {
+  hostname: string;
+  videoId: string;
+  claveToken: string;
+  expiraEnSeg: number;
+  ahoraMs?: number;
+}): { src: string; poster: string } {
+  const expires = Math.floor((input.ahoraMs ?? Date.now()) / 1000) + input.expiraEnSeg;
+  const tokenPath = `/${input.videoId}/`;
+  // Unico parametro extra: token_path. En el HASH va su valor CRUDO; en la URL, url-encoded.
+  const parameterData = `token_path=${tokenPath}`;
+  const token = createHash("sha256")
+    .update(`${input.claveToken}${tokenPath}${expires}${parameterData}`)
+    .digest("base64")
+    .replace(/\n/g, "")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+  const query = `?token=${token}&token_path=${encodeURIComponent(tokenPath)}&expires=${expires}`;
+  const base = `https://${input.hostname}/${input.videoId}`;
+  return { src: `${base}/playlist.m3u8${query}`, poster: `${base}/thumbnail.jpg${query}` };
+}
+
+/**
+ * GUARDARRAIL de reproduccion (PURO, testeable): SOLO un Video PUBLISHED es reproducible. Cualquier
+ * otro estado (PENDING/FAILED/REJECTED/REMOVED) o la ausencia de fila -> `null` (el endpoint responde
+ * 404, sin URL). Un video no publicado JAMAS es reproducible.
+ */
+export function reproduccionFirmada(
+  video: { bunnyVideoId: string; status: string } | null,
+  cfg: { hostname: string; claveToken: string; expiraEnSeg: number; ahoraMs?: number },
+): { src: string; poster: string } | null {
+  if (!video || video.status !== "PUBLISHED") return null;
+  return firmarUrlHls({
+    hostname: cfg.hostname,
+    videoId: video.bunnyVideoId,
+    claveToken: cfg.claveToken,
+    expiraEnSeg: cfg.expiraEnSeg,
+    ahoraMs: cfg.ahoraMs,
+  });
+}

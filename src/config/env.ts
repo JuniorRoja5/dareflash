@@ -77,6 +77,12 @@ const serverSchema = z.object({
   BUNNY_STREAM_LIBRARY_ID: z.string().min(1),
   BUNNY_STREAM_API_KEY: z.string().min(1),
   BUNNY_CDN_HOSTNAME: z.string().min(1),
+  /**
+   * Clave de TOKEN AUTHENTICATION de la pull-zone (firma las URLs de reproduccion). Es DISTINTA de
+   * la API key (firmar con la API key da 403 en Bunny). Obligatoria: sin firma, la .m3u8 seria
+   * publica/scrapeable. Debe estar en el .env del VPS ANTES de desplegar esta rama, o crash-loop.
+   */
+  BUNNY_TOKEN_AUTH_KEY: z.string().min(1),
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
   /**

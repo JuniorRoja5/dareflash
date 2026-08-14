@@ -58,6 +58,13 @@ export const VIDEO_MAX_DURATION_SEC = 90;
 export const BUNNY_TUS_CREDENTIAL_TTL_SEC = 2 * 60 * 60;
 
 /**
+ * TTL de la URL de REPRODUCCION firmada (token-auth de la pull-zone). Holgado (2 h) aunque el video
+ * dure <=90 s: cubre re-ver, seek y pausas largas sin tener que re-firmar. El token es de DIRECTORIO
+ * (/{videoId}/), asi que la misma firma vale para la playlist y todos los segmentos.
+ */
+export const BUNNY_PLAYBACK_TTL_SEC = 2 * 60 * 60;
+
+/**
  * Confirmacion de subida (sondeo por el worker a Bunny). El barrido revisa los Video en PENDING
  * cuyo `createdAt >= now - SONDEO_MAX_EDAD_MS`: un video de 90 s se transcodifica en segundos-minutos,
  * asi que 6 h sin llegar a Finished = atascado/abandonado -> lo hereda la reconciliacion (rama

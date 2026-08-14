@@ -31,6 +31,7 @@ beforeAll(async () => {
   process.env["BUNNY_STREAM_LIBRARY_ID"] = "test-library";
   process.env["BUNNY_STREAM_API_KEY"] = "test-key-no-real";
   process.env["BUNNY_CDN_HOSTNAME"] = "test.b-cdn.net";
+  process.env["BUNNY_TOKEN_AUTH_KEY"] = "test-token-auth-no-real";
   ({ prisma } = await import("../src/server/db/client"));
 });
 
