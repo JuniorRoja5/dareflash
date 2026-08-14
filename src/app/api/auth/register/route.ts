@@ -19,6 +19,7 @@ export async function POST(req: Request) {
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { registerUser } = await import("@/server/auth/registration");
   const { esArgon2Sobrecargado } = await import("@/server/auth/password");
+  const { evaluarPassword } = await import("@/server/auth/password-policy");
 
   const rl = await rateLimit(prisma, {
     key: `register:ip:${clientIpKey(req, env.AUTH_SECRET)}`,
@@ -29,7 +30,9 @@ export async function POST(req: Request) {
   const schema = z
     .object({
       email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
-      password: z.string().min(8).max(200), // .max evita quemar CPU en el pre-hash de Argon2
+      // La longitud/fuerza REAL la valida `evaluarPassword` (abajo). Aquí solo el .max, que evita
+      // quemar CPU en el pre-hash de Argon2 con una entrada enorme; .min(1) para no aceptar vacío.
+      password: z.string().min(1).max(200),
       birthDate: z.coerce.date(),
     })
     .refine((d) => ageYears(d.birthDate, new Date()) >= MIN_AGE_YEARS, {
@@ -45,6 +48,14 @@ export async function POST(req: Request) {
   }
   const parsed = schema.safeParse(body);
   if (!parsed.success) return apiError("VALIDATION", "Datos de registro invalidos.", 400);
+
+  // POLITICA DE CONTRASENA FUERTE (server-side, misma regla que el reset): rechaza debiles/comunes/
+  // predecibles, no solo por longitud. El email se pasa para vetar contrasenas ligadas a la identidad.
+  const veredicto = evaluarPassword({
+    password: parsed.data.password,
+    email: parsed.data.email,
+  });
+  if (!veredicto.ok) return apiError("VALIDATION", veredicto.mensaje, 400);
 
   // El argon2 del registro (que se ejecuta SIEMPRE, anti-enumeracion) va por el semaforo: si
   // esta saturado, 503, no 500. La respuesta uniforme se mantiene para el resto de casos.
