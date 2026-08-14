@@ -21,6 +21,7 @@ import {
   type CreatedToken,
 } from "@/server/auth/email-token";
 import type { EmailMessage } from "@/server/email/adapter";
+import { renderCorreoHtml } from "@/server/email/plantilla";
 import { enqueueEmail } from "@/server/email/send";
 
 export type CreatedVerification = CreatedToken;
@@ -82,6 +83,14 @@ export function buildVerificationEmail(
       "",
       "Si no te has registrado, ignora este correo. El enlace caduca en 24 horas.",
     ].join("\n"),
+    html: renderCorreoHtml({
+      preheader: "Confirma tu correo para activar tu cuenta de DareFlash.",
+      titulo: "Verifica tu cuenta",
+      intro:
+        "Bienvenido a DareFlash. Confirma tu direccion de correo para activar tu cuenta y empezar a competir.",
+      cta: { texto: "Verificar mi cuenta", href: link },
+      notas: ["Si no te has registrado, ignora este correo.", "El enlace caduca en 24 horas."],
+    }),
   };
 }
 

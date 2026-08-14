@@ -12,6 +12,7 @@ import { LOGIN_UNLOCK_TTL_MS, RATE_LIMITS } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { createEmailToken, hashToken } from "@/server/auth/email-token";
 import type { EmailMessage } from "@/server/email/adapter";
+import { renderCorreoHtml } from "@/server/email/plantilla";
 import { enqueueEmail } from "@/server/email/send";
 import { rateLimit } from "@/server/security/rate-limit";
 
@@ -54,6 +55,18 @@ export function buildUnlockEmail(appUrl: string, email: string, rawToken: string
       "Si no has sido tu, alguien podria estar intentando entrar: cambia tu contrasena por",
       "precaucion. Sin este enlace, tu cuenta sigue protegida; no necesitas hacer nada mas.",
     ].join("\n"),
+    html: renderCorreoHtml({
+      preheader: "Demasiados intentos de inicio de sesion: tu cuenta se freno temporalmente.",
+      titulo: "Tu cuenta se ha bloqueado temporalmente",
+      intro:
+        "Ha habido demasiados intentos de inicio de sesion en tu cuenta, asi que la hemos frenado temporalmente por seguridad.",
+      cta: { texto: "Reactivar mi cuenta", href: link },
+      notas: [
+        "El enlace caduca en 2 horas.",
+        "Si no has sido tu, alguien podria estar intentando entrar: cambia tu contrasena por " +
+          "precaucion. Sin este enlace, tu cuenta sigue protegida; no necesitas hacer nada mas.",
+      ],
+    }),
   };
 }
 
