@@ -102,8 +102,8 @@ export function FormularioRegistro() {
         type={verVisible ? "text" : "password"}
         autoComplete="new-password"
         required
-        minLength={8}
-        placeholder="Mínimo 8 caracteres"
+        minLength={10}
+        placeholder="Mínimo 10 caracteres"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         disabled={ocupado}
@@ -119,6 +119,14 @@ export function FormularioRegistro() {
           </button>
         }
       />
+      {/* Pista de UX (el SERVIDOR es el gate real): guía sin prometer "segura". */}
+      {password.length > 0 && password.length < 10 ? (
+        <p className="-mt-3 text-xs text-text-dim">Usa al menos 10 caracteres.</p>
+      ) : password.length >= 10 ? (
+        <p className="-mt-3 text-xs text-text-dim">
+          Mejor si es larga y no contiene palabras o secuencias obvias.
+        </p>
+      ) : null}
 
       <Campo
         id="registro-nacimiento"
