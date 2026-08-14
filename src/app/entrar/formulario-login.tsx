@@ -6,13 +6,18 @@ import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
+import { rutaSiguienteSegura } from "@/lib/ruta-siguiente";
 
 /**
  * FORMULARIO de inicio de sesión (isla cliente). POST /api/auth/login { email, password } (JSON). La
  * validación del formulario es solo UX; el SERVIDOR es el gate (no hay lógica de auth aquí). Cada
  * error del endpoint se MAPEA a un mensaje HUMANO (nunca códigos crudos ni 401/CSRF al usuario) y, por
  * SEGURIDAD, credenciales malas dan el MISMO mensaje para email inexistente y contraseña mala (sin
- * revelar si el correo existe). Éxito -> "/".
+ * revelar si el correo existe).
+ *
+ * Éxito -> si venía `?siguiente` con una ruta LOCAL segura (el proxy la añade al mandar aquí a un
+ * anónimo que pisó una acción protegida), se vuelve allí; si no, a "/". La ruta se lee en el momento
+ * del envío (`window.location`) y se valida contra open-redirect en `rutaSiguienteSegura`.
  */
 type Estado = "idle" | "enviando";
 
@@ -63,7 +68,10 @@ export function FormularioLogin() {
         body: JSON.stringify({ email: email.trim(), password }),
       });
       if (res.ok) {
-        router.push("/"); // éxito -> Inicio
+        // `?siguiente` (ruta local validada) o "/" por defecto. Se lee al enviar: no
+        // necesita Suspense y solo importa en el éxito.
+        const siguiente = new URLSearchParams(window.location.search).get("siguiente");
+        router.push(rutaSiguienteSegura(siguiente));
         router.refresh();
         return;
       }
