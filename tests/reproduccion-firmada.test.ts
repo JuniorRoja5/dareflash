@@ -1,8 +1,11 @@
 /**
  * URL de reproducción FIRMADA — con DIENTES. `firmarUrlHls` (token de directorio) y el guardarrail
- * `reproduccionFirmada` (solo PUBLISHED) son PUROS. El endpoint se prueba con mocks de sesión/BD/env.
+ * `reproduccionFirmada` (solo PUBLISHED) son PUROS. El endpoint se prueba con mocks de BD/env.
  * El vector de firma es fijo (regresión del algoritmo); la firma real contra Bunny la verifica Junior
  * reproduciendo una URL.
+ *
+ * CONTRATO del endpoint (Rama 3): es PÚBLICO. Un INVITADO puede reproducir un video PUBLISHED (el feed
+ * es público). Ya NO exige sesión; lo que se conserva es el guardarrail de ESTADO (no-PUBLISHED -> 404).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,9 +13,9 @@ import { GET } from "../src/app/api/videos/[id]/reproduccion/route";
 import { firmarUrlHls, reproduccionFirmada } from "../src/server/services/bunny";
 
 // La ruta consume estos módulos por import DINÁMICO en tiempo de llamada; vitest iza los vi.mock por
-// encima de los imports, así que las llamadas a GET() ven los dobles.
-const mocks = vi.hoisted(() => ({ getCurrentUser: vi.fn(), findUnique: vi.fn() }));
-vi.mock("@/server/auth/current-user", () => ({ getCurrentUser: mocks.getCurrentUser }));
+// encima de los imports, así que las llamadas a GET() ven los dobles. Ya NO se mockea la sesión: el
+// endpoint no la consulta (es público).
+const mocks = vi.hoisted(() => ({ findUnique: vi.fn() }));
 vi.mock("@/server/db/client", () => ({ prisma: { video: { findUnique: mocks.findUnique } } }));
 vi.mock("@/config/env", () => ({
   env: { BUNNY_CDN_HOSTNAME: "cdn.test.b-cdn.net", BUNNY_TOKEN_AUTH_KEY: "clave-test-xyz" },
@@ -78,26 +81,34 @@ describe("GET /api/videos/[id]/reproduccion", () => {
   const ctx = { params: Promise.resolve({ id: "vid1" }) };
 
   beforeEach(() => {
-    mocks.getCurrentUser.mockReset();
     mocks.findUnique.mockReset();
   });
 
-  it("anónimo -> 401 (reproducción solo para logueados)", async () => {
-    mocks.getCurrentUser.mockResolvedValue(null);
+  it("INVITADO (sin sesión) + PUBLISHED -> 200: el endpoint NO exige sesión (contrato nuevo)", async () => {
+    // DIENTES: si se reintrodujera el gate de sesión, un invitado recibiría 401 y esto caería en rojo.
+    mocks.findUnique.mockResolvedValue({ bunnyVideoId: "g", status: "PUBLISHED" });
     const res = await GET(req(), ctx);
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
   });
 
-  it("Video PENDING -> 404 SIN URL (guardarrail del endpoint)", async () => {
-    mocks.getCurrentUser.mockResolvedValue({ userId: "u1" });
+  it("INVITADO + PENDING -> 404 SIN URL (guardarrail de estado intacto para invitados)", async () => {
     mocks.findUnique.mockResolvedValue({ bunnyVideoId: "g", status: "PENDING" });
     const res = await GET(req(), ctx);
     expect(res.status).toBe(404);
     expect(JSON.stringify(await res.json())).not.toContain("playlist.m3u8");
   });
 
+  it("Video no-PUBLISHED (cada estado) y sin fila -> 404 SIN URL, aun sin sesión", async () => {
+    for (const status of ["PENDING", "FAILED", "REJECTED", "REMOVED"]) {
+      mocks.findUnique.mockResolvedValue({ bunnyVideoId: "g", status });
+      const res = await GET(req(), ctx);
+      expect(res.status).toBe(404);
+    }
+    mocks.findUnique.mockResolvedValue(null);
+    expect((await GET(req(), ctx)).status).toBe(404);
+  });
+
   it("Video PUBLISHED -> 200 con {src, poster} firmadas", async () => {
-    mocks.getCurrentUser.mockResolvedValue({ userId: "u1" });
     mocks.findUnique.mockResolvedValue({ bunnyVideoId: "g", status: "PUBLISHED" });
     const res = await GET(req(), ctx);
     expect(res.status).toBe(200);

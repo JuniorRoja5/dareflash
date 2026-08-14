@@ -1,90 +1,44 @@
-import { Avatar } from "@/components/ui/avatar";
-import { Boton } from "@/components/ui/boton";
-import { InsigniaNivel } from "@/components/ui/insignia-nivel";
-import { USUARIO_DEMO } from "@/lib/usuario-demo";
+import { redirect } from "next/navigation";
+
+import { PerfilVista } from "./perfil-vista";
 
 export const metadata = { title: "Perfil · DareFlash" };
-
-/** Triangulo de "play" sutil para las celdas de la cuadricula de videos. */
-function IconoPlay() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6 text-text-dim" fill="currentColor" aria-hidden>
-      <path d="M9 6.5v11l9-5.5z" />
-    </svg>
-  );
-}
-
-function Estadistica({ valor, etiqueta }: { valor: number; etiqueta: string }) {
-  return (
-    <div className="flex-1 px-2 py-3 text-center">
-      {/* cifras tabulares y NEUTRAS: los puntos NO llevan lima */}
-      <p className="text-xl font-semibold tabular-nums text-text">
-        {valor.toLocaleString("en-US")}
-      </p>
-      <p className="mt-0.5 text-2xs tracking-widest text-text-dim uppercase">{etiqueta}</p>
-    </div>
-  );
-}
+export const dynamic = "force-dynamic";
 
 /**
- * PERFIL — re-maquetado a lo ancho (Rama D). Dentro del (shell), mismo contenedor que portada y
- * ranking (`max-w-7xl` + padding). En escritorio: columna de IDENTIDAD al lado (~320px: avatar,
- * @usuario, insignia de nivel, stats y Boost) + "Mis vídeos" como columna PRINCIPAL (rejilla
- * multicolumna: el contenido primario del perfil son los vídeos). En movil: una sola columna.
- *
- * Coherencia: los datos salen de la FUENTE UNICA `USUARIO_DEMO` (la misma que consume el ranking) y
- * el NIVEL se DERIVA con la MISMA `InsigniaNivel` (medidor + nombre, sin emoji), no hardcodeado ->
- * /perfil y /ranking muestran el mismo nivel/puntos para usuario_demo. Boost = UNICO magenta de
- * contenido de la pantalla. Maqueta, sin backend.
+ * /perfil — MI perfil (el de la SESIÓN). Server Component: resuelve el usuario por la COOKIE (nunca por
+ * un id del cliente) y consulta sus datos reales (displayName/username, puntos -> nivel, sus vídeos
+ * PUBLISHED). Sin sesión -> a /entrar. Los pósters se firman en el servidor (Bunny, `env`) y se pasan
+ * ya listos a la vista presentacional compartida con `/u/[username]`.
  */
-export default function PerfilPage() {
+export default async function PerfilPage() {
+  const { getCurrentUser } = await import("@/server/auth/current-user");
+  const user = await getCurrentUser();
+  if (!user) redirect("/entrar");
+
+  const { prisma } = await import("@/server/db/client");
+  const { perfilPublicoPorId } = await import("@/server/services/perfil");
+  const { firmarReproduccion } = await import("@/server/services/reproduccion-servidor");
+
+  const perfil = await perfilPublicoPorId(prisma, user.userId);
+  // Sesión válida pero la fila pudo borrarse/banearse entre validar la cookie y consultar: mismo trato.
+  if (!perfil) redirect("/entrar");
+
+  const videos = perfil.videos.map((v) => ({
+    id: v.id,
+    title: v.title,
+    poster: firmarReproduccion(v.bunnyVideoId).poster,
+  }));
+
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
-      <div className="lg:grid lg:grid-cols-[320px_1fr] lg:gap-8">
-        {/* IDENTIDAD (aside) */}
-        <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md">
-            <div className="flex flex-col items-center text-center">
-              <Avatar nombre={USUARIO_DEMO.username} tamano="xl" />
-              <p className="mt-3 max-w-full truncate text-lg font-semibold text-text">
-                @{USUARIO_DEMO.username}
-              </p>
-              <div className="mt-2">
-                <InsigniaNivel puntos={USUARIO_DEMO.puntos} />
-              </div>
-            </div>
-
-            {/* stats NEUTRAS (panel recesado: profundidad por luminosidad, sin sombra) */}
-            <div className="mt-6 flex divide-x divide-line rounded-sm border border-line bg-void">
-              <Estadistica valor={USUARIO_DEMO.retosGanados} etiqueta="Retos ganados" />
-              <Estadistica valor={USUARIO_DEMO.puntos} etiqueta="Puntos" />
-              <Estadistica valor={USUARIO_DEMO.videos} etiqueta="Vídeos" />
-            </div>
-
-            {/* Boost = accion de pago = UNICO magenta de contenido: PLANO (magenta solido, sin
-                degradado), realzado solo con la sombra --df-cta-lift. */}
-            <Boton variante="principal" className="mt-6 w-full py-4 shadow-[var(--df-cta-lift)]">
-              Destacar mi perfil (Boost)
-            </Boton>
-          </div>
-        </aside>
-
-        {/* MIS VIDEOS (columna principal): rejilla multicolumna de placeholders 9:16 */}
-        <section className="df-rise mt-8 lg:mt-0" style={{ animationDelay: "80ms" }}>
-          <h2 className="mb-4 text-lg font-semibold text-text">Mis vídeos</h2>
-          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-5">
-            {Array.from({ length: 15 }).map((_, i) => (
-              // Celda de vídeo 9:16: realce sutil en hover (sombra v2), sin animacion en bucle.
-              <div
-                key={i}
-                className="flex aspect-[9/16] items-center justify-center rounded-sm border border-line bg-raised transition-[transform,box-shadow] duration-[var(--df-dur-fast)] ease-mechanical hover:-translate-y-0.5 hover:shadow-[var(--df-shadow-md)]"
-              >
-                <IconoPlay />
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-    </div>
+    <PerfilVista
+      nombre={perfil.displayName ?? perfil.username ?? "Tu perfil"}
+      handle={perfil.username}
+      puntos={perfil.pointsBalance}
+      retosGanados={perfil.retosGanados}
+      totalVideos={perfil.videos.length}
+      videos={videos}
+      esPropio
+    />
   );
 }
