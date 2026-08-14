@@ -15,20 +15,25 @@ import type { ReactNode } from "react";
  *
  * `overlays` se pintan SOBRE la caja (categoría, marcador, votos…). `className` estiliza la caja
  * (aspecto/borde/sombra los pone el consumidor; el aspecto por defecto ya es 9:16→16:9).
+ *
+ * `relleno` sustituye la capa de blurred-fill de fondo. Por defecto es el placeholder `bg-raised`;
+ * el reproductor real (hls.js) le pasa el fondo difuminado (póster/vídeo escalado + blur).
  */
 export function CajaVideo({
   children,
   overlays,
+  relleno,
   className = "",
 }: {
   children?: ReactNode;
   overlays?: ReactNode;
+  relleno?: ReactNode;
   className?: string;
 }) {
   return (
     <div className={`relative aspect-[9/16] overflow-hidden lg:aspect-video ${className}`}>
-      {/* Capa de blurred-fill (fondo). Placeholder; con Bunny: el propio vídeo difuminado y escalado. */}
-      <div aria-hidden className="absolute inset-0 bg-raised" />
+      {/* Capa de blurred-fill (fondo). Placeholder por defecto; con Bunny: el vídeo/póster difuminado. */}
+      {relleno ?? <div aria-hidden className="absolute inset-0 bg-raised" />}
       {/* Vídeo nítido, CENTRADO como tira 9:16. En móvil ocupa toda la caja; en lg deja los lados al
           relleno. Filete lateral sutil en lg para leer dónde cae el vídeo real. */}
       <div className="absolute inset-0 flex items-center justify-center">
