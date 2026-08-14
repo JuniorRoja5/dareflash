@@ -1,20 +1,18 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 
 /**
- * FORMULARIO de inicio de sesión (isla cliente). POST /api/auth/login { email, password } (JSON). La
- * validación del formulario es solo UX; el SERVIDOR es el gate (no hay lógica de auth aquí). Cada
- * error del endpoint se MAPEA a un mensaje HUMANO (nunca códigos crudos ni 401/CSRF al usuario) y, por
- * SEGURIDAD, credenciales malas dan el MISMO mensaje para email inexistente y contraseña mala (sin
- * revelar si el correo existe). Éxito -> "/".
+ * FORMULARIO de registro (isla cliente). POST /api/auth/register { email, password, birthDate }
+ * (JSON). La validación del formulario es solo UX; el SERVIDOR es el gate (edad, unicidad, política de
+ * contraseña). La respuesta del endpoint es UNIFORME (sin enumeración): tanto si el correo es nuevo
+ * como si ya existía, contesta "te hemos enviado un correo de verificación" -> aquí NO se redirige ni
+ * se inicia sesión: se pide al usuario que confirme su correo. Cada error se MAPEA a copy humano.
  */
-type Estado = "idle" | "enviando";
+type Estado = "idle" | "enviando" | "hecho";
 
 /** Lee `error.code` de la respuesta del endpoint de forma defensiva. */
 function codigoDe(data: unknown): string {
@@ -27,82 +25,67 @@ function codigoDe(data: unknown): string {
   return "";
 }
 
-/** Mapea (status, code) a copy humano. EMAIL_NOT_VERIFIED se trata aparte (con reenvío). */
+/** Mapea (status, code) a copy humano. El 400 es genérico (edad/correo/contraseña) -> pista útil. */
 function mensajeError(status: number, code: string): string {
   if (status === 429 || code === "RATE_LIMITED") return "Demasiados intentos, espera un momento.";
   if (status === 503 || code === "OVERLOADED")
     return "El servicio está ocupado. Reinténtalo en unos segundos.";
-  // Credenciales malas = MISMO mensaje para email inexistente y contraseña incorrecta (sin enumeración).
-  if (status === 401 || code === "INVALID_CREDENTIALS") return "Correo o contraseña incorrectos.";
-  if (status === 400) return "Revisa el correo y la contraseña.";
-  return "No se pudo iniciar sesión. Reintenta.";
+  if (status === 400)
+    return "Revisa el correo, una contraseña de 8+ caracteres y que tengas al menos 16 años.";
+  return "No se pudo crear la cuenta. Reintenta.";
 }
 
-export function FormularioLogin() {
-  const router = useRouter();
+export function FormularioRegistro() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [nacimiento, setNacimiento] = useState("");
   const [verVisible, setVerVisible] = useState(false);
   const [estado, setEstado] = useState<Estado>("idle");
   const [error, setError] = useState("");
-  const [sinVerificar, setSinVerificar] = useState(false);
-  const [reenviado, setReenviado] = useState<string | null>(null);
 
   const ocupado = estado === "enviando";
 
   async function onSubmit(e: FormEvent): Promise<void> {
     e.preventDefault();
     setError("");
-    setSinVerificar(false);
-    setReenviado(null);
     setEstado("enviando");
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: email.trim(), password, birthDate: nacimiento }),
       });
       if (res.ok) {
-        router.push("/"); // éxito -> Inicio
-        router.refresh();
+        setEstado("hecho"); // respuesta uniforme: revisa tu correo (sin sesión ni redirección)
         return;
       }
       const data: unknown = await res.json().catch(() => ({}));
-      const code = codigoDe(data);
-      if (code === "EMAIL_NOT_VERIFIED") {
-        setSinVerificar(true);
-      } else {
-        setError(mensajeError(res.status, code));
-      }
+      setError(mensajeError(res.status, codigoDe(data)));
       setEstado("idle");
     } catch {
-      setError("No se pudo iniciar sesión. Reintenta.");
+      setError("No se pudo crear la cuenta. Reintenta.");
       setEstado("idle");
     }
   }
 
-  async function reenviarVerificacion(): Promise<void> {
-    try {
-      const res = await fetch("/api/auth/resend-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      // Respuesta UNIFORME (sin enumeración), como el endpoint.
-      setReenviado(
-        res.status === 429
-          ? "Demasiados intentos. Espera un momento."
-          : "Si corresponde, te hemos reenviado el correo de verificación.",
-      );
-    } catch {
-      setReenviado("No se pudo conectar. Reinténtalo más tarde.");
-    }
+  // ÉXITO: mensaje uniforme (no revela si el correo ya tenía cuenta). El usuario verifica por email.
+  if (estado === "hecho") {
+    return (
+      <div
+        role="status"
+        className="rounded-sm border border-line bg-surface/60 p-4 text-sm text-text-dim"
+      >
+        <p className="mb-1 font-medium text-text">Revisa tu correo.</p>
+        Si la dirección es válida, te hemos enviado un enlace de verificación. Ábrelo para activar
+        tu cuenta y poder entrar.
+      </div>
+    );
   }
 
   return (
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
       <Campo
-        id="login-email"
+        id="registro-email"
         label="Correo"
         type="email"
         autoComplete="email"
@@ -114,11 +97,13 @@ export function FormularioLogin() {
       />
 
       <Campo
-        id="login-password"
+        id="registro-password"
         label="Contraseña"
         type={verVisible ? "text" : "password"}
-        autoComplete="current-password"
+        autoComplete="new-password"
         required
+        minLength={8}
+        placeholder="Mínimo 8 caracteres"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         disabled={ocupado}
@@ -135,49 +120,36 @@ export function FormularioLogin() {
         }
       />
 
+      <Campo
+        id="registro-nacimiento"
+        label="Fecha de nacimiento"
+        type="date"
+        autoComplete="bday"
+        required
+        value={nacimiento}
+        onChange={(e) => setNacimiento(e.target.value)}
+        disabled={ocupado}
+      />
+
       {error ? (
         <p role="alert" className="text-sm text-alarm">
           {error}
         </p>
       ) : null}
 
-      {sinVerificar ? (
-        <div
-          role="alert"
-          className="rounded-sm border border-line bg-surface/60 p-3 text-sm text-text-dim"
-        >
-          Verifica tu correo antes de entrar.{" "}
-          {reenviado ? (
-            <span className="mt-1 block text-text">{reenviado}</span>
-          ) : (
-            <button
-              type="button"
-              onClick={reenviarVerificacion}
-              className="mt-1 block rounded-xs text-text underline underline-offset-2"
-            >
-              Reenviar el correo de verificación
-            </button>
-          )}
-        </div>
-      ) : null}
-
-      {/* ÚNICA acción magenta de la pantalla: plano (magenta sólido) + realce --df-cta-lift. */}
+      {/* ÚNICA acción magenta de la vista de registro: plano + realce --df-cta-lift. */}
       <Boton
         type="submit"
         variante="principal"
         disabled={ocupado}
         className="w-full py-3.5 shadow-[var(--df-cta-lift)]"
       >
-        {ocupado ? "Entrando…" : "Iniciar sesión"}
+        {ocupado ? "Creando…" : "Crear cuenta"}
       </Boton>
 
-      {/* El cambio a "Crear cuenta" lo gestiona la tarjeta (toggle); aquí solo el reset de contraseña. */}
-      <Link
-        href="/recuperar"
-        className="rounded-xs text-sm text-text-dim transition-colors duration-150 ease-mechanical hover:text-text"
-      >
-        He olvidado mi contraseña
-      </Link>
+      <p className="text-xs text-text-dim">
+        Debes tener al menos 16 años. Te enviaremos un correo para verificar tu cuenta.
+      </p>
     </form>
   );
 }
