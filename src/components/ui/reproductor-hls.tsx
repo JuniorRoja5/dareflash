@@ -1,5 +1,6 @@
 "use client";
 
+import type { LoaderCallbacks, LoaderConfiguration, LoaderContext } from "hls.js";
 import { useEffect, useRef, useState } from "react";
 
 import { CajaVideo } from "./caja-video";
@@ -63,24 +64,52 @@ export function ReproductorHls({
       cargadoRef.current = true;
       setError(false);
 
-      if (video.canPlayType(HLS_NATIVO)) {
-        video.src = src; // Safari/iOS: HLS nativo, sin cargar hls.js
-      } else {
-        try {
-          const { default: Hls } = await import("hls.js");
-          if (cancelado) return;
-          if (!Hls.isSupported()) {
-            setError(true);
-            return;
+      // hls.js PRIMERO (donde esta soportado: MSE / Managed Media Source en iOS 17.1+), con un LOADER
+      // propio que propaga el token a CADA peticion. El HLS nativo queda de fallback SOLO donde hls.js
+      // no corre.
+      let usaHlsJs = false;
+      try {
+        const { default: Hls } = await import("hls.js");
+        if (cancelado) return;
+        if (Hls.isSupported()) {
+          usaHlsJs = true;
+          // El token del endpoint viaja en el query de `src` (?token=...&token_path=...&expires=...).
+          // hls.js NO lo arrastra a los segmentos por defecto -> se anade en el loader a la playlist,
+          // subniveles (p.ej. 720p/) y segmentos (.ts/.m4s). El token es de DIRECTORIO /{videoId}/, asi
+          // que la MISMA firma cubre todo ese prefijo.
+          const params = src.includes("?") ? src.slice(src.indexOf("?") + 1) : "";
+          class LoaderConToken extends Hls.DefaultConfig.loader {
+            load(
+              context: LoaderContext,
+              config: LoaderConfiguration,
+              callbacks: LoaderCallbacks<LoaderContext>,
+            ): void {
+              if (params && !context.url.includes("token=")) {
+                context.url += (context.url.includes("?") ? "&" : "?") + params;
+              }
+              super.load(context, config, callbacks);
+            }
           }
-          const hls = new Hls({ enableWorker: true });
+          const hls = new Hls({ enableWorker: true, loader: LoaderConToken });
           hls.on(Hls.Events.ERROR, (_evento, data) => {
             if (data.fatal) setError(true); // solo los fatales; los recuperables los gestiona hls.js
           });
           hls.loadSource(src);
           hls.attachMedia(video);
           hlsRef.current = hls;
-        } catch {
+        }
+      } catch {
+        setError(true);
+        return;
+      }
+
+      if (!usaHlsJs) {
+        // FALLBACK HLS NATIVO (iOS viejo sin MSE). LIMITACION CONOCIDA: el navegador pide los segmentos
+        // por su cuenta y aqui el token NO se propaga a ellos -> con token-auth activo darian 403. Se
+        // decide aparte; NO se resuelve en esta pieza.
+        if (video.canPlayType(HLS_NATIVO)) {
+          video.src = src;
+        } else {
           setError(true);
           return;
         }
