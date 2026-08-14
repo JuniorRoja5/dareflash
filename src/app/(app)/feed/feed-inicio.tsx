@@ -3,8 +3,10 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { PildoraCategoria } from "@/components/ui/pildora";
+import { ReproductorHls } from "@/components/ui/reproductor-hls";
+import type { PostFeed } from "@/server/services/feed";
 
-import { COMENTARIOS_FEED, formatearContador, POSTS_INICIO, type PostVista } from "./inicio-datos";
+import { COMENTARIOS_FEED, formatearContador } from "./inicio-datos";
 
 /** Iconos de accion: trazo 1.8 px, currentColor (blanco sobre video; negro dentro del circulo de VOTA). */
 function IconoAccion({ children, bold = false }: { children: ReactNode; bold?: boolean }) {
@@ -48,18 +50,10 @@ const IconoCompartir = () => (
   </IconoAccion>
 );
 
-function IconoPlayGrande() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-16 w-16 text-white/25" fill="currentColor" aria-hidden>
-      <path d="M9 6.5v11l9-5.5z" />
-    </svg>
-  );
-}
-
 /**
  * Boton de accion. Neutro (icono blanco) salvo VOTA (`destacado`): circulo magenta con icono NEGRO =
  * la UNICA accion magenta de contenido (movil sobre el video; desktop en la columna de acciones fuera
- * del video). Zona tactil 44 px. Maqueta (presentacional).
+ * del video). Zona tactil 44 px.
  */
 function Accion({
   label,
@@ -96,57 +90,59 @@ function Accion({
 
 /**
  * Un post. DOM en orden MOVIL (video con info/acciones ENCIMA); el grid de FeedInicio recompone en lg.
- * Movil (<lg): video a sangre completa, scrim, info abajo-izquierda y acciones flotantes a la derecha
- * (VOTA magenta) — EXACTAMENTE como hoy. Desktop (lg): el video queda LIMPIO (scrim/info `lg:hidden`),
- * las acciones salen del video (`lg:static`) a su columna, y la info del post se muestra en el panel.
+ * El VIDEO real lo reproduce `ReproductorHls` (variante `feed`, 9:16 inmersivo, autoplay en mute con
+ * carga/descarga por visibilidad). Solo `votos` sale del modelo (Submission.voteCount); me gusta,
+ * comentarios y compartir aún no tienen modelo (llegan en fases posteriores) y muestran 0 real.
  */
-function PostInicio({ post, alRef }: { post: PostVista; alRef: (el: HTMLElement | null) => void }) {
+function PostInicio({ post, alRef }: { post: PostFeed; alRef: (el: HTMLElement | null) => void }) {
   return (
     <section
       ref={alRef}
       className="relative flex h-[100svh] snap-start items-center justify-center lg:gap-5"
     >
-      {/* VIDEO (Bunny monta el player; no se tocan sus tripas) */}
-      <div className="relative h-full w-full overflow-hidden bg-raised lg:h-[86svh] lg:w-auto lg:rounded-sm lg:border lg:border-line lg:aspect-[9/16]">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <IconoPlayGrande />
+      {/* VIDEO real (HLS firmado). En desktop, tira 9:16 centrada con filete; en movil, a sangre. */}
+      <div className="relative h-full w-full overflow-hidden bg-raised lg:h-[86svh] lg:aspect-[9/16] lg:w-auto lg:rounded-sm lg:border lg:border-line">
+        <div className="absolute inset-0">
+          <ReproductorHls variante="feed" src={post.src} poster={post.poster} />
         </div>
         {/* Scrim (velo) — solo movil (en desktop el video queda limpio) */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/50 to-transparent lg:hidden" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/75 to-transparent lg:hidden" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-24 bg-gradient-to-b from-black/50 to-transparent lg:hidden" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-56 bg-gradient-to-t from-black/75 to-transparent lg:hidden" />
         {/* Info sobre el video — solo movil (en desktop va al panel) */}
-        <div className="absolute bottom-0 left-0 w-3/4 p-4 pb-24 lg:hidden">
+        <div className="absolute bottom-0 left-0 z-10 w-3/4 p-4 pb-24 lg:hidden">
           <p className="text-base font-semibold text-white">@{post.username}</p>
           <p className="mt-1 line-clamp-2 text-sm text-white/90">Reto: {post.retoTitulo}</p>
-          <div className="mt-2">
-            <PildoraCategoria>{post.categoria}</PildoraCategoria>
-          </div>
+          {post.categoria ? (
+            <div className="mt-2">
+              <PildoraCategoria>{post.categoria}</PildoraCategoria>
+            </div>
+          ) : null}
         </div>
       </div>
 
       {/* ACCIONES: sobre el video en movil (absolute), FUERA del video en desktop (static) */}
-      <div className="absolute right-2 bottom-24 flex flex-col items-center gap-5 lg:static lg:right-auto lg:bottom-auto">
-        <Accion label="Me gusta" valor={post.meGusta} icono={<IconoCorazon />} />
-        <Accion label="Comentar" valor={post.comentarios} icono={<IconoComentario />} />
+      <div className="absolute right-2 bottom-24 z-10 flex flex-col items-center gap-5 lg:static lg:right-auto lg:bottom-auto">
+        <Accion label="Me gusta" valor={0} icono={<IconoCorazon />} />
+        <Accion label="Comentar" valor={0} icono={<IconoComentario />} />
         <Accion label="Votar" valor={post.votos} icono={<IconoVoto />} destacado />
-        <Accion label="Compartir" valor={post.compartidos} icono={<IconoCompartir />} />
+        <Accion label="Compartir" valor={0} icono={<IconoCompartir />} />
       </div>
     </section>
   );
 }
 
-/** Panel de comentarios de escritorio (superficie v2). Muestra los del video ACTIVO. Los comentarios
- *  son placeholder con SCROLL propio; los reales llegan con el modelo `Comment` (Fase 1). */
-function PanelComentarios({ post }: { post: PostVista }) {
+/** Panel de comentarios de escritorio (superficie v2). Cabecera del video ACTIVO (datos reales); la
+ *  lista de comentarios es placeholder (el modelo `Comment` llega en la Fase 1). */
+function PanelComentarios({ post }: { post: PostFeed }) {
   return (
     <aside className="hidden border-l border-line bg-surface shadow-[var(--df-shadow-lg)] lg:flex lg:h-[100svh] lg:flex-col lg:overflow-hidden">
       <div className="border-b border-line p-4">
         <p className="font-semibold text-text">@{post.username}</p>
         <p className="mt-1 line-clamp-2 text-sm text-text-dim">Reto: {post.retoTitulo}</p>
         <div className="mt-2 flex items-center gap-2">
-          <PildoraCategoria>{post.categoria}</PildoraCategoria>
+          {post.categoria ? <PildoraCategoria>{post.categoria}</PildoraCategoria> : null}
           <span className="text-2xs tabular-nums text-text-dim">
-            {formatearContador(post.comentarios)} comentarios
+            {formatearContador(post.votos)} votos
           </span>
         </div>
       </div>
@@ -204,17 +200,28 @@ function Flecha({
 }
 
 /**
- * FEED de Inicio (boceto 1) — vertical, scroll-snap, un video por pantalla. MOVIL: inmersivo a sangre
- * completa, IDENTICO a hoy (el scroll-snap es CSS). DESKTOP (lg): grid tipo TikTok-web -> columna de
- * feed (se MANTIENE el scroll vertical entre videos) + panel de comentarios FIJO del video ACTIVO;
- * flechas ↑/↓ cambian de video. Isla cliente minima: solo detecta el video activo (IntersectionObserver)
- * y navega; el player real lo monta Bunny.
+ * FEED de Inicio — vertical, scroll-snap, un video por pantalla. La PRIMERA página llega ya renderizada
+ * del servidor (`postsIniciales` + `cursorInicial`); al acercarse al final, el cliente pide la
+ * siguiente a `/api/feed?cursor=...` y la anexa (scroll infinito). MOVIL: inmersivo a sangre completa.
+ * DESKTOP (lg): columna de feed + panel de comentarios FIJO del video ACTIVO; flechas ↑/↓ navegan.
  */
-export function FeedInicio() {
+export function FeedInicio({
+  postsIniciales,
+  cursorInicial,
+}: {
+  postsIniciales: PostFeed[];
+  cursorInicial: string | null;
+}) {
+  const [posts, setPosts] = useState<PostFeed[]>(postsIniciales);
+  const [cursor, setCursor] = useState<string | null>(cursorInicial);
   const [activo, setActivo] = useState(0);
+  // Guarda anti-solape de la paginacion: es un ref (no se pinta), asi que no dispara renders.
+  const cargandoRef = useRef(false);
   const columna = useRef<HTMLDivElement | null>(null);
   const secciones = useRef<HTMLElement[]>([]);
 
+  // Detecta el video ACTIVO. Se re-suscribe cuando cambia el numero de posts (al anexar pagina) para
+  // observar tambien las secciones nuevas.
   useEffect(() => {
     const io = new IntersectionObserver(
       (entradas) => {
@@ -227,12 +234,37 @@ export function FeedInicio() {
       },
       { root: columna.current, threshold: 0.6 },
     );
-    for (const s of secciones.current) io.observe(s);
+    for (const s of secciones.current.slice(0, posts.length)) io.observe(s);
     return () => io.disconnect();
-  }, []);
+  }, [posts.length]);
+
+  // Paginacion: al acercarse al final (a <=2 del ultimo) y habiendo cursor, pide la siguiente pagina.
+  useEffect(() => {
+    if (cursor === null || cargandoRef.current) return;
+    if (activo < posts.length - 2) return;
+    let vivo = true;
+    cargandoRef.current = true;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/feed?cursor=${encodeURIComponent(cursor)}`);
+        if (!res.ok) return;
+        const data = (await res.json()) as { items: PostFeed[]; nextCursor: string | null };
+        if (!vivo) return;
+        setPosts((prev) => [...prev, ...data.items]);
+        setCursor(data.nextCursor);
+      } catch {
+        /* fallo de red: se reintentara al seguir desplazandose */
+      } finally {
+        cargandoRef.current = false;
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [activo, cursor, posts.length]);
 
   const irA = (i: number): void => {
-    const dest = Math.max(0, Math.min(POSTS_INICIO.length - 1, i));
+    const dest = Math.max(0, Math.min(posts.length - 1, i));
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     secciones.current[dest]?.scrollIntoView({
       behavior: reduce ? "auto" : "smooth",
@@ -246,7 +278,7 @@ export function FeedInicio() {
         ref={columna}
         className="h-[100svh] snap-y snap-mandatory overflow-y-auto overscroll-y-contain"
       >
-        {POSTS_INICIO.map((post, i) => (
+        {posts.map((post, i) => (
           <PostInicio
             key={post.id}
             post={post}
@@ -257,16 +289,12 @@ export function FeedInicio() {
         ))}
       </div>
 
-      <PanelComentarios post={POSTS_INICIO[activo]!} />
+      <PanelComentarios post={posts[activo] ?? posts[0]!} />
 
       {/* Flechas de navegacion — solo desktop, fijas junto al panel */}
       <div className="pointer-events-none absolute top-1/2 right-[376px] hidden -translate-y-1/2 flex-col gap-3 lg:flex">
         <Flecha dir="up" onClick={() => irA(activo - 1)} disabled={activo === 0} />
-        <Flecha
-          dir="down"
-          onClick={() => irA(activo + 1)}
-          disabled={activo === POSTS_INICIO.length - 1}
-        />
+        <Flecha dir="down" onClick={() => irA(activo + 1)} disabled={activo >= posts.length - 1} />
       </div>
     </div>
   );
