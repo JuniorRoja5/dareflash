@@ -1,24 +1,37 @@
 /**
- * CONSULTAS de PERFIL (Rama 3 — capa de datos reales). Devuelve SOLO campos PUBLICOS de un usuario,
- * mas su palmares (retos ganados) y su rejilla de videos PUBLISHED.
+ * Servicio de PERFIL (server-only). Reúne DOS responsabilidades del lote de Fase 1:
  *
- * SEGURIDAD (por que cambiar el id/username JAMAS filtra datos privados):
- *   1. El `select` de Prisma (`SELECT_USUARIO_PUBLICO`) enumera EXPLICITAMENTE solo columnas publicas.
- *      email, birthDate, walletBalanceCents, boostBalance y passwordHash NUNCA se piden a la BD: no
- *      viajan en la consulta, asi que no pueden salir por mucho que cambie el identificador de entrada.
- *   2. El mapeo a DTO (`aPerfilPublico`) copia campo a campo solo lo publico: aunque a la funcion le
- *      llegara una fila con datos privados, el DTO resultante no los incluiria.
- *   3. Las dos vias de acceso (por id de sesion y por username de la URL) pasan por el MISMO `select`
- *      y el MISMO mapeo: no hay una ruta "ancha" para unos y "estrecha" para otros.
+ *  A) CONSULTAS PÚBLICAS (Rama 3 — datos reales). Devuelve SOLO campos PÚBLICOS de un usuario, más su
+ *     palmarés (retos ganados) y su rejilla de vídeos PUBLISHED. Por qué cambiar el id/username JAMÁS
+ *     filtra datos privados:
+ *       1. El `select` (`SELECT_USUARIO_PUBLICO`) enumera EXPLÍCITAMENTE solo columnas públicas. email,
+ *          birthDate, walletBalanceCents, boostBalance y passwordHash NUNCA se piden a la BD.
+ *       2. El mapeo a DTO (`aPerfilPublico`) copia campo a campo solo lo público (aunque llegara una
+ *          fila "contaminada", el DTO no la propaga — probado con dientes).
+ *       3. Las dos vías (por id de sesión y por username de la URL) pasan por el MISMO select y mapeo.
+ *     `pointsBalance` es la PUNTUACIÓN de juego (pública: nivel + ranking); los saldos privados son el
+ *     monedero y los créditos de Boost, que no se exponen jamás.
  *
- * NOTA sobre `pointsBalance`: es la PUNTUACION de juego (mueve el nivel y se muestra en el ranking),
- * publica por diseno. Los saldos PRIVADOS son el monedero (`walletBalanceCents`) y los creditos de
- * Boost (`boostBalance`): esos no se exponen jamas.
+ *  B) ACTUALIZACIÓN del propio perfil (Rama 5). AUTORIZACIÓN POR CONSTRUCCIÓN: recibe el `userId` de la
+ *     SESIÓN (nunca del cliente) y actualiza EXACTAMENTE esa fila; la ruta pasa `user.userId` del
+ *     `mutatingRoute`. La validación del nombre vive aquí como esquema Zod (el gate real de servidor).
  */
 import "server-only";
 
+import { z } from "zod";
+
+import {
+  NOMBRE_MAX,
+  NOMBRE_MIN,
+  PATRON_NOMBRE,
+  normalizarNombre,
+} from "@/app/(app)/(shell)/perfil/perfil-logic";
 import { Prisma } from "@/generated/prisma/client";
 import type { Db } from "@/server/db/types";
+
+// ============================================================================
+// A) CONSULTAS PÚBLICAS (Rama 3)
+// ============================================================================
 
 /** Un video de la rejilla del perfil. Solo lo necesario para pintarlo y firmar su reproduccion. */
 export interface VideoPublico {
@@ -123,4 +136,45 @@ export function perfilPublicoPorId(db: Db, userId: string): Promise<PerfilPublic
  */
 export function perfilPublicoPorUsername(db: Db, username: string): Promise<PerfilPublico | null> {
   return cargarPerfil(db, { username });
+}
+
+// ============================================================================
+// B) ACTUALIZACIÓN DEL PROPIO PERFIL (Rama 5)
+// ============================================================================
+
+/**
+ * Esquema del nombre visible. `transform` NORMALIZA (recorta + colapsa espacios) ANTES de medir y de
+ * comprobar la whitelist, así se valida lo que de verdad se guardaría. El orden importa: primero
+ * normaliza, luego longitud, luego caracteres. Un nombre vacío o de solo espacios cae por longitud.
+ */
+export const displayNameSchema = z
+  .string()
+  .transform(normalizarNombre)
+  .pipe(
+    z
+      .string()
+      .min(NOMBRE_MIN, "El nombre es demasiado corto.")
+      .max(NOMBRE_MAX, "El nombre es demasiado largo.")
+      .regex(PATRON_NOMBRE, "El nombre tiene caracteres no permitidos."),
+  );
+
+/** Cuerpo aceptado por la actualización de perfil (hoy: solo el nombre). */
+export const actualizarPerfilSchema = z.object({ displayName: displayNameSchema });
+export type ActualizarPerfilInput = z.infer<typeof actualizarPerfilSchema>;
+
+/**
+ * Actualiza el nombre visible del usuario `userId` (el de la SESIÓN). Devuelve el nombre ya guardado
+ * (normalizado) para que la UI refleje lo persistido. `userId` NUNCA sale del cuerpo de la petición.
+ */
+export async function actualizarNombre(
+  db: Db,
+  userId: string,
+  displayName: string,
+): Promise<{ displayName: string }> {
+  const actualizado = await db.user.update({
+    where: { id: userId },
+    data: { displayName },
+    select: { displayName: true },
+  });
+  return { displayName: actualizado.displayName ?? displayName };
 }

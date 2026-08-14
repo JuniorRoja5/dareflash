@@ -75,9 +75,19 @@ export function PerfilVista({
 
             {/* Boost = acción de pago = ÚNICO magenta: solo en el perfil PROPIO. */}
             {esPropio ? (
-              <Boton variante="principal" className="mt-6 w-full py-4 shadow-[var(--df-cta-lift)]">
-                Destacar mi perfil (Boost)
-              </Boton>
+              <>
+                <Boton
+                  variante="principal"
+                  className="mt-6 w-full py-4 shadow-[var(--df-cta-lift)]"
+                >
+                  Destacar mi perfil (Boost)
+                </Boton>
+                {/* Editar perfil: SECUNDARIO (el magenta es Boost). Solo tu propio perfil es editable;
+                    la pantalla de edición exige sesión y actúa siempre sobre el usuario de la sesión. */}
+                <Boton href="/perfil/editar" variante="secundario" className="mt-3 w-full py-3">
+                  Editar perfil
+                </Boton>
+              </>
             ) : null}
           </div>
         </aside>
