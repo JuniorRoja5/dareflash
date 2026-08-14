@@ -66,6 +66,12 @@ export default function PerfilPage() {
             <Boton variante="principal" className="mt-6 w-full py-4 shadow-[var(--df-cta-lift)]">
               Destacar mi perfil (Boost)
             </Boton>
+
+            {/* Editar perfil: SECUNDARIO (el magenta es Boost). Solo tu propio perfil es editable; la
+                pantalla de edicion exige sesion y actua siempre sobre el usuario de la sesion. */}
+            <Boton href="/perfil/editar" variante="secundario" className="mt-3 w-full py-3">
+              Editar perfil
+            </Boton>
           </div>
         </aside>
 

@@ -276,6 +276,12 @@ export const RATE_LIMITS = {
   // Crear objeto de video en Bunny (credencial de subida). Cada peticion crea un objeto en Bunny
   // (coste + posible huerfano si se abandona): por USUARIO autenticado, acota la creacion en masa.
   CREATE_VIDEO_PER_USER: { limit: 10, windowMs: 60 * 60 * 1000 }, // 10 / hora por usuario
+  // Editar el nombre del propio perfil (sesion autenticada). Barato (un UPDATE), pero se acota para
+  // que nadie use el guardado como amplificador de escrituras; holgado para no molestar al legitimo.
+  UPDATE_PROFILE_PER_USER: { limit: 20, windowMs: 15 * 60 * 1000 }, // 20 / 15 min por usuario
+  // Subir avatar: DECODIFICA y RECOMPRIME una imagen (CPU + memoria). Cubo por USUARIO mas estrecho,
+  // para que nadie funda el VPS a base de subir imagenes de 5 MB en bucle.
+  UPLOAD_AVATAR_PER_USER: { limit: 10, windowMs: 15 * 60 * 1000 }, // 10 / 15 min por usuario
 } as const;
 
 // ============================================================================
