@@ -13,7 +13,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
-const SECRET = "secreto-de-test-suficientemente-largo-xxxxxxxx";
+const SECRET = "TEST-FIXTURE-auth-secret-suficientemente-largo-1";
 const APP_URL = "http://test.local";
 
 const mocks = vi.hoisted(() => ({

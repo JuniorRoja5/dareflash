@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -26,9 +27,9 @@ type EstadoAvatar = "idle" | "subiendo";
  * Formulario de EDITAR PERFIL (isla cliente). Dos acciones independientes:
  *  - NOMBRE: PATCH /api/perfil (JSON) — 100% funcional. La validación de aquí es SOLO UX; el gate es
  *    el servidor (Zod). La ÚNICA acción magenta de la pantalla es "Guardar nombre".
- *  - FOTO: POST /api/perfil/avatar (multipart) — el pipeline de servidor valida/recomprime/quita EXIF,
- *    pero el ALMACENAMIENTO está pendiente de decisión, así que hoy responde con un aviso humano
- *    ("disponible muy pronto"). La previsualización y la validación de UX ya funcionan.
+ *  - FOTO: POST /api/perfil/avatar (multipart) — el servidor valida/recomprime/quita EXIF y GUARDA el
+ *    WebP en el volumen que Caddy sirve en /avatars/*; devuelve la nueva URL. `router.refresh()` en
+ *    éxito revalida los Server Components para que el avatar se actualice también fuera de aquí.
  *
  * Todo error se muestra en copy HUMANO; nunca códigos, 401 ni CSRF crudos. CSRF: se pide un token
  * atado a la sesión a /api/auth/csrf y se manda en `X-CSRF-Token` (igual que Crear).
@@ -42,6 +43,7 @@ export function FormularioEditarPerfil({
   usuario: string;
   imagenInicial: string | null;
 }) {
+  const router = useRouter();
   const [nombre, setNombre] = useState(nombreInicial);
   const [errorNombre, setErrorNombre] = useState<string | undefined>(undefined);
   const [estadoNombre, setEstadoNombre] = useState<EstadoNombre>("idle");
@@ -157,13 +159,11 @@ export function FormularioEditarPerfil({
       if (res.ok) {
         setAvisoAvatar("Foto actualizada.");
         setEstadoAvatar("idle");
+        router.refresh(); // revalida los Server Components -> el avatar nuevo se ve en /perfil, nav…
         return;
       }
       const msg = codigoDe(await res.json().catch(() => ({})));
-      // 501 = almacenamiento aún no habilitado: es un AVISO informativo, no un error del usuario.
-      if (res.status === 501) {
-        setAvisoAvatar(msg || "Cambiar la foto estará disponible muy pronto.");
-      } else if (res.status === 401) {
+      if (res.status === 401) {
         setErrorAvatar("Tu sesión ha caducado. Vuelve a iniciar sesión.");
       } else if (res.status === 429) {
         setErrorAvatar("Has subido muchas imágenes seguidas. Espera un momento.");

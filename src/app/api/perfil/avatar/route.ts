@@ -1,4 +1,4 @@
-import { apiError, rateLimitKey } from "@/server/http/api";
+import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 
 export const dynamic = "force-dynamic";
@@ -13,19 +13,11 @@ export const dynamic = "force-dynamic";
  * (geolocalización incluida) — todo en `procesarAvatar`. Rate-limit por usuario porque decodificar
  * y recomprimir cuesta CPU/memoria.
  *
- * ┌─────────────────────────────────────────────────────────────────────────────────────────────┐
- * │ DECISIÓN PENDIENTE PARA JUNIOR — DÓNDE SE GUARDA LA IMAGEN                                     │
- * │ Bunny Stream es SOLO vídeo; hoy NO hay hosting de imágenes en la infra. Todo el pipeline       │
- * │ seguro (recepción, validación, recompresión, strip EXIF) está construido y probado, pero el    │
- * │ PASO DE ALMACENAMIENTO se detiene aquí a propósito: elegir destino (bucket S3-compatible /      │
- * │ Bunny Storage / volumen servido por Caddy) es una alta de proveedor/infra con coste y datos,   │
- * │ y la norma del repo es CONSULTAR antes de añadir un proveedor externo. Cuando se decida:        │
- * │   1) subir `procesado.buffer` (image/webp) al destino con una clave estable por usuario,        │
- * │   2) `prisma.user.update({ where:{ id:user.userId }, data:{ image: <URL pública> } })`,         │
- * │   3) devolver `apiOk({ ok:true, image })` y cablear la UI para refrescar el avatar.             │
- * │ Hasta entonces se responde 501 con copy humano: la validación/saneado SÍ corren (una no-imagen  │
- * │ o una sobre-tamaño se rechazan como es debido); solo la ESCRITURA final está aparcada.          │
- * └─────────────────────────────────────────────────────────────────────────────────────────────┘
+ * ALMACENAMIENTO: se escribe el WebP en un VOLUMEN PERSISTENTE (`AVATARS_DIR`, p.ej. /srv/avatars)
+ * montado en el servicio `web` (escribe la app) y en `caddy` (lo sirve como estático en `/avatars/*`,
+ * FUERA de la app — ver docker-compose.prod.yml y Caddyfile). El nombre es `{userId}.webp` (userId de
+ * la SESIÓN, nunca del cliente -> sin traversal; el cuid es alfanumérico). La URL guardada lleva un
+ * `?v=` para invalidar la caché del navegador al cambiar de foto (el fichero se sobrescribe).
  */
 export const POST = mutatingRoute(async (req, { user }) => {
   const { env } = await import("@/config/env");
@@ -68,12 +60,20 @@ export const POST = mutatingRoute(async (req, { user }) => {
     return apiError("AVATAR_ERROR", "No hemos podido procesar la imagen. Prueba con otra.", 400);
   }
 
-  // 3. ALMACENAMIENTO — APARCADO (ver el recuadro de arriba). `procesado.buffer` está listo para
-  //    subir, pero no hay destino de imágenes decidido. No inventamos proveedor: se responde 501.
-  void procesado;
-  return apiError(
-    "AVATAR_ALMACEN_PENDIENTE",
-    "Cambiar la foto de perfil estará disponible muy pronto. De momento puedes editar tu nombre.",
-    501,
-  );
+  // 3. ALMACENAR en el volumen persistente + apuntar `User.image` a la URL pública que sirve Caddy.
+  //    Todo dentro de un try: un fallo de disco NO debe filtrar rutas/stack al usuario.
+  try {
+    const { writeFile, mkdir } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    await mkdir(env.AVATARS_DIR, { recursive: true });
+    const nombre = `${user.userId}.webp`; // userId de sesión (cuid alfanumérico): sin traversal
+    await writeFile(join(env.AVATARS_DIR, nombre), procesado.buffer);
+    // `?v=` cambia en cada subida (el fichero se sobrescribe) -> invalida la caché del navegador.
+    const image = `/avatars/${nombre}?v=${Date.now()}`;
+    await prisma.user.update({ where: { id: user.userId }, data: { image } });
+    return apiOk({ ok: true, image });
+  } catch (e) {
+    console.error("[perfil/avatar] fallo guardando la imagen:", sanearError(e));
+    return apiError("AVATAR_ERROR", "No hemos podido guardar la imagen. Reintenta.", 500);
+  }
 });

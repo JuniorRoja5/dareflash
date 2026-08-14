@@ -65,6 +65,14 @@ const serverSchema = z.object({
    */
   AUTH_SECRET: z.string().min(32, "AUTH_SECRET es obligatoria (>=32 chars; openssl rand -hex 32)"),
 
+  /**
+   * Directorio PERSISTENTE donde se guardan los avatares (WebP). OPCIONAL con default: es una ruta de
+   * CONTENEDOR, no un secreto, y no debe ser obligatoria (rompería el arranque sin aportar nada). En
+   * prod es un volumen montado en `web` (escribe la app) y en `caddy` (lo sirve en /avatars/*). En
+   * local, si se quiere probar la subida, se apunta a una carpeta escribible.
+   */
+  AVATARS_DIR: z.string().min(1).default("/srv/avatars"),
+
   // --- Se promueven a obligatorias en su paso (ver comentario de cada una) ---
   /** Paso 8 — cola de trabajos disparada por cron. */
   CRON_SECRET: z.string().min(1).optional(),

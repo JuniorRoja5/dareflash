@@ -21,6 +21,7 @@ import { createEmailToken, hashToken, type CreatedToken } from "@/server/auth/em
 import { hashPassword } from "@/server/auth/password";
 import { revokeAllUserSessions } from "@/server/auth/session";
 import type { EmailMessage } from "@/server/email/adapter";
+import { renderCorreoHtml } from "@/server/email/plantilla";
 import { enqueueEmail } from "@/server/email/send";
 
 export type CreatedPasswordReset = CreatedToken;
@@ -61,6 +62,17 @@ export function buildPasswordResetEmail(
       "",
       "Si no has pedido tu, ignora este correo: tu contrasena sigue igual y tu cuenta protegida.",
     ].join("\n"),
+    html: renderCorreoHtml({
+      preheader: "Restablece tu contrasena de DareFlash. El enlace caduca en 30 minutos.",
+      titulo: "Restablece tu contrasena",
+      intro:
+        "Has pedido restablecer tu contrasena de DareFlash. Pulsa el boton para elegir una nueva.",
+      cta: { texto: "Elegir contrasena nueva", href: link },
+      notas: [
+        "El enlace caduca en 30 minutos y solo sirve una vez.",
+        "Si no lo has pedido tu, ignora este correo: tu contrasena sigue igual.",
+      ],
+    }),
   };
 }
 

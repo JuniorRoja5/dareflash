@@ -4,13 +4,26 @@
 
 # Dominio principal.
 dareflash.com {
-	reverse_proxy web:3000 {
-		# Rate-limit por IP: la app confia SOLO en X-Real-IP (ver src/server/http/api.ts).
-		# header_up con valor hace Set, que REEMPLAZA lo que mande el cliente (defensa
-		# contra cabecera forjada). NO anadir "header_up -X-Real-IP": Caddy ejecuta los
-		# delete DESPUES de los set, asi que borraria esta misma cabecera y la app se
-		# quedaria sin IP (clientIp() devolveria "unknown" para todos).
-		header_up X-Real-IP {remote_host}
+	# AVATARES: estaticos desde el volumen `avatars_data` (montado en /srv/avatars), servidos por
+	# Caddy FUERA de la app. `handle_path` quita el prefijo /avatars, asi /avatars/{id}.webp -> el
+	# fichero /srv/avatars/{id}.webp. La app escribe con un `?v=` cambiante para invalidar la cache
+	# del navegador al cambiar de foto (el fichero se sobrescribe con el mismo nombre).
+	handle_path /avatars/* {
+		root * /srv/avatars
+		header Cache-Control "public, max-age=86400"
+		file_server
+	}
+
+	# Todo lo demas -> la app.
+	handle {
+		reverse_proxy web:3000 {
+			# Rate-limit por IP: la app confia SOLO en X-Real-IP (ver src/server/http/api.ts).
+			# header_up con valor hace Set, que REEMPLAZA lo que mande el cliente (defensa
+			# contra cabecera forjada). NO anadir "header_up -X-Real-IP": Caddy ejecuta los
+			# delete DESPUES de los set, asi que borraria esta misma cabecera y la app se
+			# quedaria sin IP (clientIp() devolveria "unknown" para todos).
+			header_up X-Real-IP {remote_host}
+		}
 	}
 }
 

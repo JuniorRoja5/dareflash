@@ -56,6 +56,10 @@ services:
         condition: service_healthy
     expose:
       - "3000" # solo dentro de la red interna; Caddy hace de proxy
+    volumes:
+      # Avatares: la app (env.AVATARS_DIR=/srv/avatars) ESCRIBE aqui; Caddy lo sirve en /avatars/*
+      # (mismo volumen, montado abajo en `caddy` en solo-lectura). Volumen nombrado -> persiste.
+      - avatars_data:/srv/avatars
     networks:
       - internal
 
@@ -125,6 +129,9 @@ services:
       - ./caddy:/etc/caddy:ro
       - caddy_data:/data # certificados (persistente)
       - caddy_config:/config
+      # Avatares: MISMO volumen que escribe `web`, aqui en SOLO-LECTURA. Caddy los sirve como
+      # estaticos en /avatars/* (ver Caddyfile), fuera de la app.
+      - avatars_data:/srv/avatars:ro
     depends_on:
       - web
     networks:
@@ -135,6 +142,7 @@ volumes:
   redis_data:
   caddy_data:
   caddy_config:
+  avatars_data: # avatares subidos (WebP); escrito por `web`, servido por `caddy`
 
 networks:
   internal:

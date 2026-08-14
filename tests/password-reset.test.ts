@@ -45,7 +45,7 @@ beforeEach(async () => {
 
 const TTL = 30 * 60 * 1000;
 const HASH_ORIGINAL = "TEST-FIXTURE-hash-original";
-const NUEVA = "NUEVA-contrasena-de-prueba-suficientemente-larga";
+const NUEVA = "TEST-FIXTURE-password-nueva-larga-1";
 
 async function crearUsuario(email: string): Promise<string> {
   const u = await prisma.user.create({
@@ -167,7 +167,7 @@ describe("resetPassword: consumo del token", () => {
 
     const segunda = await resetPassword(prisma, {
       rawToken,
-      newPassword: "OTRA-distinta-larga-xyz",
+      newPassword: "TEST-FIXTURE-password-otra-distinta-2",
     });
     expect(segunda).toEqual({ ok: false, reason: "INVALID" });
 

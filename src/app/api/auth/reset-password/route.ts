@@ -24,12 +24,13 @@ export async function POST(req: Request) {
   const { prisma } = await import("@/server/db/client");
   const { resetPassword } = await import("@/server/auth/password-reset");
   const { esArgon2Sobrecargado } = await import("@/server/auth/password");
+  const { evaluarPassword } = await import("@/server/auth/password-policy");
 
-  // Misma politica de contrasena que el registro: min 8, max 200 (el .max evita quemar CPU en el
-  // pre-hash de Argon2 con entradas enormes).
+  // La fuerza/longitud REAL la valida `evaluarPassword` (abajo), MISMA politica que el registro. El
+  // .max evita quemar CPU en el pre-hash de Argon2; .min(1) para no aceptar vacio.
   const schema = z.object({
     token: z.string().min(1),
-    password: z.string().min(8).max(200),
+    password: z.string().min(1).max(200),
   });
   let body: unknown;
   try {
@@ -38,8 +39,12 @@ export async function POST(req: Request) {
     return apiError("BAD_REQUEST", "Cuerpo de la peticion invalido.", 400);
   }
   const parsed = schema.safeParse(body);
-  if (!parsed.success)
-    return apiError("VALIDATION", "Revisa el enlace y una contrasena de 8+ caracteres.", 400);
+  if (!parsed.success) return apiError("VALIDATION", "Revisa el enlace y la contrasena.", 400);
+
+  // POLITICA DE CONTRASENA FUERTE (misma que el registro). Aqui no hay email a mano (el token aun no
+  // se ha consumido), pero longitud + fuerza + veto de "dareflash" siguen aplicando.
+  const veredicto = evaluarPassword({ password: parsed.data.password });
+  if (!veredicto.ok) return apiError("VALIDATION", veredicto.mensaje, 400);
 
   try {
     const r = await resetPassword(prisma, {
