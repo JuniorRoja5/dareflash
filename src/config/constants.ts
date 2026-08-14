@@ -185,6 +185,17 @@ export const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24 h
  */
 export const LOGIN_UNLOCK_TTL_MS = 2 * 60 * 60 * 1000; // 2 h (ver acoplamiento arriba)
 
+/**
+ * Caducidad del enlace de RESTABLECER contrasena ("olvide mi contrasena"). CORTA A PROPOSITO: un
+ * enlace de reset filtrado da control TOTAL de la cuenta (fija una contrasena nueva y revoca las
+ * demas sesiones), muy por encima del de desbloqueo (LOGIN_UNLOCK, 2 h, que solo libera un cubo de
+ * rate-limit). A diferencia de aquel, NO hay acoplamiento con ninguna cadencia: aqui el correo lo
+ * dispara el DUENO desde /recuperar (no un atacante con su trafico), asi que no hace falta "que
+ * siempre haya un enlace vivo esperando". 30 min basta de sobra para abrir el correo y elegir una
+ * contrasena, y minimiza la ventana en la que un enlace filtrado sigue siendo util.
+ */
+export const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000; // 30 min
+
 /** Caducidad de sesion por defecto (USER). Explicita. */
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
 
@@ -273,6 +284,12 @@ export const RATE_LIMITS = {
   // alguien dispare correos de desbloqueo hacia MUCHAS cuentas distintas desde una sola IP.
   UNLOCK_EMAIL_PER_ACCOUNT: { limit: 1, windowMs: 60 * 60 * 1000 }, // 1 / hora por cuenta
   UNLOCK_EMAIL_PER_IP: { limit: 5, windowMs: 60 * 60 * 1000 }, // 5 / hora por IP
+  // Correo de RESTABLECER contrasena ("olvide mi contrasena"). Mismos numeros que el reenvio de
+  // verificacion: los dos MANDAN un correo a una direccion, asi que el abuso a acotar es identico
+  // (usar el envio para acosar un buzon o quemar la cuota SMTP). Por DIRECCION frena el bombardeo de
+  // una victima; por IP frena disparar resets hacia MUCHAS direcciones desde una sola IP.
+  FORGOT_PASSWORD_PER_EMAIL: { limit: 3, windowMs: 60 * 60 * 1000 }, // 3 / hora por direccion
+  FORGOT_PASSWORD_PER_IP: { limit: 10, windowMs: 60 * 60 * 1000 }, // 10 / hora por IP
   // Crear objeto de video en Bunny (credencial de subida). Cada peticion crea un objeto en Bunny
   // (coste + posible huerfano si se abandona): por USUARIO autenticado, acota la creacion en masa.
   CREATE_VIDEO_PER_USER: { limit: 10, windowMs: 60 * 60 * 1000 }, // 10 / hora por usuario
@@ -344,5 +361,5 @@ export type JobType = z.infer<typeof JobTypeSchema>;
  * NO son intercambiables: el proposito se comprueba DENTRO del WHERE al consumir (ver
  * `src/server/auth/email-token.ts`), asi que un token de un proposito no vale para el otro.
  */
-export const VerificationPurposeSchema = z.enum(["EMAIL_VERIFY", "LOGIN_UNLOCK"]);
+export const VerificationPurposeSchema = z.enum(["EMAIL_VERIFY", "LOGIN_UNLOCK", "PASSWORD_RESET"]);
 export type VerificationPurpose = z.infer<typeof VerificationPurposeSchema>;

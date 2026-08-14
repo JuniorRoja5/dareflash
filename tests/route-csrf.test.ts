@@ -25,12 +25,18 @@ const API_DIR = join(process.cwd(), "src", "app", "api");
 //  - login/register/verify/resend-verification: el usuario aun no tiene sesion.
 //  - unlock: el dueño llega BLOQUEADO desde el correo de desbloqueo, sin sesion (Opcion 3 del
 //    hallazgo 1). El token es de un solo uso y de 256 bits; solo libera el cubo de cuenta.
+//  - forgot-password: el usuario ha OLVIDADO su contrasena, llega deslogueado; respuesta uniforme
+//    (sin enumeracion) + rate-limit por IP y por direccion.
+//  - reset-password: el dueño llega desde el correo de reset, sin sesion. El token es de un solo uso
+//    y de 256 bits; ademas revoca TODAS las sesiones al aplicar la contrasena nueva.
 const EXEMPT = new Set([
   "auth/login",
   "auth/register",
   "auth/verify",
   "auth/resend-verification",
   "auth/unlock",
+  "auth/forgot-password",
+  "auth/reset-password",
 ]);
 
 const METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;
