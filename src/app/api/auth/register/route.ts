@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { apiError, apiOk, clientIpKey } from "@/server/http/api";
+import { apiError, apiOk, clientIpKey, rateLimitKey } from "@/server/http/api";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +48,17 @@ export async function POST(req: Request) {
   }
   const parsed = schema.safeParse(body);
   if (!parsed.success) return apiError("VALIDATION", "Datos de registro invalidos.", 400);
+
+  // Rate-limit POR DIRECCION (ademas del de IP de arriba). Sin esto, un atacante con muchas IPs
+  // (botnet / IPv6 rotando) puede BOMBARDEAR el buzon de una victima con correos de verificacion. El
+  // tope por email lo frena. Mensaje 429 UNIFORME (igual exista o no la cuenta): no abre enumeracion.
+  const rlEmail = await rateLimit(prisma, {
+    key: `register:email:${rateLimitKey(env.AUTH_SECRET, parsed.data.email)}`,
+    ...RATE_LIMITS.REGISTER_PER_EMAIL,
+  });
+  if (!rlEmail.allowed) {
+    return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
+  }
 
   // POLITICA DE CONTRASENA FUERTE (server-side, misma regla que el reset): rechaza debiles/comunes/
   // predecibles, no solo por longitud. El email se pasa para vetar contrasenas ligadas a la identidad.

@@ -271,6 +271,10 @@ export const RATE_LIMITS = {
   // legitimo no acumula; 20 tolera erratas sin facilitar el bloqueo de una cuenta ajena.
   LOGIN_PER_ACCOUNT: { limit: 20, windowMs: 15 * 60 * 1000 }, // 20 fallos / 15 min por cuenta
   REGISTER_PER_IP: { limit: 5, windowMs: 60 * 60 * 1000 }, // 5 / hora
+  // Tope POR DIRECCION: frena el bombardeo del buzon de una victima con correos de verificacion
+  // desde muchas IPs (botnet / IPv6). 3 / hora basta para un alta legitima (+ reintento) sin permitir
+  // el bombing; lo calca de FORGOT_PASSWORD_PER_EMAIL.
+  REGISTER_PER_EMAIL: { limit: 3, windowMs: 60 * 60 * 1000 }, // 3 / hora por direccion
   RESEND_VERIFICATION_PER_EMAIL: { limit: 3, windowMs: 60 * 60 * 1000 }, // 3 / hora
   RESEND_VERIFICATION_PER_IP: { limit: 10, windowMs: 60 * 60 * 1000 }, // 10 / hora
   // Cambio de contrasena (sesion ya autenticada): verifica la contrasena ACTUAL con
