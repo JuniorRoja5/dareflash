@@ -65,6 +65,10 @@ export function ReproductorHls({
   const [pausado, setPausado] = useState(false); // pausa MANUAL del usuario (feed): pinta el icono play
   const [progreso, setProgreso] = useState(0); // 0..1
   const [intento, setIntento] = useState(0); // fuerza recarga al "Reintentar"
+  // Orientación real del vídeo (feed): VERTICAL -> object-cover (llena, recorta lo mínimo); HORIZONTAL
+  // -> object-contain + relleno difuminado (no recorta los lados). `null` hasta leer los metadatos: se
+  // asume vertical (el feed es 9:16), así el caso común llena sin parpadeo.
+  const [orientacion, setOrientacion] = useState<"vertical" | "horizontal" | null>(null);
 
   // Mute: en FEED lo controla el prop (preferencia global). En DETALLE no hay prop -> arranca en mute y
   // el usuario lo cambia con los controles NATIVOS del <video> (el efecto solo fija el valor inicial).
@@ -187,11 +191,20 @@ export function ReproductorHls({
       raf = requestAnimationFrame(tick);
     };
     const parar = (): void => cancelAnimationFrame(raf);
+    // Orientación por la relación REAL del vídeo (no del contenedor): decide cover vs contain.
+    const medir = (): void => {
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        setOrientacion(video.videoHeight > video.videoWidth ? "vertical" : "horizontal");
+      }
+    };
+    if (video.readyState >= 1) medir(); // metadatos ya disponibles (recarga)
+    video.addEventListener("loadedmetadata", medir);
     video.addEventListener("playing", arrancar);
     video.addEventListener("pause", parar);
     video.addEventListener("ended", parar);
     return () => {
       parar();
+      video.removeEventListener("loadedmetadata", medir);
       video.removeEventListener("playing", arrancar);
       video.removeEventListener("pause", parar);
       video.removeEventListener("ended", parar);
@@ -259,6 +272,10 @@ export function ReproductorHls({
     />
   );
 
+  // FEED: vertical llena la pantalla (cover, recorta lo mínimo); horizontal no recorta los lados
+  // (contain + relleno difuminado). DETALLE: siempre contain (el encuadre lo pone CajaVideo).
+  const ajuste = !esFeed || orientacion === "horizontal" ? "object-contain" : "object-cover";
+
   const video = (
     <video
       ref={videoRef}
@@ -270,7 +287,7 @@ export function ReproductorHls({
       controlsList="nodownload noplaybackrate noremoteplayback"
       disablePictureInPicture
       onError={() => setError((prev) => prev ?? "transitorio")}
-      className="h-full w-full object-contain"
+      className={`h-full w-full ${ajuste}`}
       aria-label="Vídeo"
     />
   );
@@ -314,11 +331,10 @@ export function ReproductorHls({
   return (
     <div ref={contenedorRef} className="relative h-full w-full overflow-hidden">
       {relleno}
-      {/* El vídeo (object-contain) se centra en el área VISIBLE: en móvil se reserva abajo el alto de
-          la barra inferior + área segura para que el vídeo entero quede por ENCIMA de la nav. */}
-      <div className="absolute inset-0 flex items-center justify-center pb-[calc(4.5rem_+_env(safe-area-inset-bottom))] lg:pb-0">
-        {video}
-      </div>
+      {/* El vídeo llena TODO el slide (a sangre): vertical con cover, horizontal con contain sobre el
+          relleno difuminado. La barra inferior fija (móvil) se superpone abajo; los controles flotan
+          sobre ella (safe-area) sin reservar espacio, así el vídeo no queda pequeño ni difuminado. */}
+      <div className="absolute inset-0 flex items-center justify-center">{video}</div>
 
       {/* Capa de TAP (pausa/reanuda). z por DEBAJO de la barra (para no robar el seek) y de los
           overlays del feed (caption/acciones/mute, z-10). `touch-action: pan-y` deja pasar el scroll
