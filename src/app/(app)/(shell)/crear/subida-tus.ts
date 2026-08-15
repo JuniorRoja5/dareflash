@@ -3,6 +3,7 @@
  * guardas, para poder atarlos con tests. La subida real de bytes (tus-js-client) vive en el
  * formulario; aqui esta lo que decide QUE se envia y CUANDO NO se arranca.
  */
+import { VIDEO_MAX_DURATION_SEC } from "@/config/constants";
 
 /**
  * Tope de tamaño de fichero en CLIENTE = 1 GB. Es una GUARDA DE UX (fallo rapido con mensaje claro
@@ -14,6 +15,33 @@ export const LIMITE_TAMANO_BYTES = 1024 * 1024 * 1024; // 1 GB
 /** ¿El fichero supera el tope de UX? (a nivel de tope, mismo tamaño = permitido). */
 export function excedeTope(sizeBytes: number): boolean {
   return sizeBytes > LIMITE_TAMANO_BYTES;
+}
+
+/**
+ * Tolerancia (segundos) que se suma al limite de duracion en el pre-check de CLIENTE. Absorbe el
+ * redondeo de metadata del contenedor (un clip "de 90 s" puede leerse como 90.02) para no rechazar
+ * en el navegador un video que el SERVIDOR aceptaria. El servidor manda: aqui solo evitamos subidas
+ * obviamente largas.
+ */
+export const DURACION_TOLERANCIA_SEC = 0.5;
+
+/**
+ * Copy HUMANO (sin codigos) cuando el pre-check de cliente rechaza un video por durar de mas. Texto
+ * EXACTO del brief; fuente unica para UI y test.
+ */
+export const MENSAJE_DURACION_EXCEDIDA =
+  "Tu video reto supera los 90 segundos. Ajustalo y empieza el reto de nuevo";
+
+/**
+ * Decision PURA del pre-check de duracion en CLIENTE: dada la duracion (segundos) leida del <video>,
+ * ¿hay que RECHAZAR antes de subir? Es SOLO UX (fallo rapido); la autoridad sigue siendo el SERVIDOR
+ * (worker -> FAILED/TOO_LONG). Por eso, si la duracion no es un numero FINITO (Infinity/NaN: formato
+ * raro, metadata sin duracion, error de lectura) NO se rechaza: se PERMITE subir y que decida el
+ * servidor. Solo se rechaza cuando consta, con margen (VIDEO_MAX_DURATION_SEC + tolerancia), que pasa.
+ */
+export function duracionExcedeLimite(durationSec: number): boolean {
+  if (!Number.isFinite(durationSec)) return false;
+  return durationSec > VIDEO_MAX_DURATION_SEC + DURACION_TOLERANCIA_SEC;
 }
 
 /** Credencial de subida que emite el servidor (POST /api/videos/upload-credential). */
