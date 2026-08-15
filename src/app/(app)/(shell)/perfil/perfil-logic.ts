@@ -50,3 +50,16 @@ export type AvatarTipo = (typeof AVATAR_TIPOS)[number];
 export function avatarExcedeTope(bytes: number): boolean {
   return bytes > AVATAR_MAX_BYTES;
 }
+
+// ---------------------------------------------------------------------------
+// Estado VISIBLE de MIS vídeos (SOLO el perfil propio)
+// ---------------------------------------------------------------------------
+
+/**
+ * Estado SEMÁNTICO de un vídeo en "Mis vídeos", ya humanizado del enum crudo de Prisma. El SERVIDOR
+ * lo deriva de `status` + `failureReason` (`estadoDeVideo`, con Zod); el CLIENTE lo traduce a copy
+ * ("Procesando", "Publicado", "No se pudo procesar"…). Al usuario NUNCA le llega PENDING/FAILED/
+ * TOO_LONG: solo este puñado de casos, y sin el `failureReason` crudo. Es un TIPO (sin runtime), así
+ * que viaja al bundle del navegador sin arrastrar Zod ni Prisma, igual que el resto de este módulo.
+ */
+export type EstadoVideo = "procesando" | "publicado" | "demasiado-largo" | "error";

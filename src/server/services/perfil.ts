@@ -21,12 +21,14 @@ import "server-only";
 import { z } from "zod";
 
 import {
+  type EstadoVideo,
   NOMBRE_MAX,
   NOMBRE_MIN,
   PATRON_NOMBRE,
   normalizarNombre,
 } from "@/app/(app)/(shell)/perfil/perfil-logic";
-import { Prisma } from "@/generated/prisma/client";
+import { VideoFailureReasonSchema } from "@/config/constants";
+import { type ModerationStatus, Prisma } from "@/generated/prisma/client";
 import type { Db } from "@/server/db/types";
 
 // ============================================================================
@@ -177,4 +179,103 @@ export async function actualizarNombre(
     select: { displayName: true },
   });
   return { displayName: actualizado.displayName ?? displayName };
+}
+
+// ============================================================================
+// C) MIS VÍDEOS CON ESTADO (Pieza C — SOLO el perfil PROPIO)
+// ============================================================================
+//
+// CAMINO SEPARADO del público a propósito. El público (`cargarPerfil`) filtra `status: "PUBLISHED"`
+// y su DTO (`VideoPublico`) ni siquiera tiene un campo de estado: por construcción no puede filtrar
+// un vídeo no-publicado de nadie. Este camino es del DUEÑO: recibe el `userId` de la SESIÓN (la ruta
+// `/perfil` lo saca de la cookie, NUNCA de la URL) y añade a la rejilla los vídeos en proceso/fallidos
+// CON su estado ya HUMANIZADO. `MiVideo` expone `estado` (semántico), no el `failureReason` crudo:
+// aunque este DTO se filtrara, no revelaría el código interno del fallo.
+
+/** Estados que el DUEÑO ve en su rejilla. REJECTED/REMOVED (moderación) quedan fuera de esta pieza. */
+const ESTADOS_MIS_VIDEOS = ["PENDING", "PUBLISHED", "FAILED"] as const;
+
+const SELECT_MI_VIDEO = {
+  id: true,
+  bunnyVideoId: true,
+  title: true,
+  status: true,
+  failureReason: true,
+} satisfies Prisma.VideoSelect;
+
+/**
+ * Deriva el estado VISIBLE de un vídeo a partir de `status` + `failureReason`. PURA y total. El
+ * `failureReason` se valida con el MISMO Zod que lo escribe (`VideoFailureReasonSchema`): TOO_LONG se
+ * distingue como sobreduración; cualquier otro fallo (o motivo desconocido) cae en "error" genérico.
+ * PENDING -> "procesando". Un estado no esperado (la consulta ya los excluye) se trata como "error",
+ * nunca como "procesando" (mentir diciendo que sigue en curso sería peor que un fallo honesto).
+ */
+export function estadoDeVideo(status: ModerationStatus, failureReason: string | null): EstadoVideo {
+  switch (status) {
+    case "PUBLISHED":
+      return "publicado";
+    case "PENDING":
+      return "procesando";
+    case "FAILED": {
+      const motivo = VideoFailureReasonSchema.safeParse(failureReason);
+      return motivo.success && motivo.data === "TOO_LONG" ? "demasiado-largo" : "error";
+    }
+    default:
+      return "error";
+  }
+}
+
+/** Un vídeo de MI rejilla: lo público para pintarlo + su `estado` ya humanizado (sin el motivo crudo). */
+export interface MiVideo {
+  id: string;
+  bunnyVideoId: string;
+  title: string | null;
+  estado: EstadoVideo;
+}
+
+/** MI perfil: identidad + stats públicas (reutiliza el select público) + vídeos CON estado. */
+export interface MiPerfil {
+  id: string;
+  username: string | null;
+  displayName: string | null;
+  image: string | null;
+  pointsBalance: number;
+  retosGanados: number;
+  videos: MiVideo[];
+}
+
+/**
+ * MI perfil (el de la SESIÓN). Lo consume `/perfil` con `user.userId` de la cookie. A diferencia del
+ * camino público, la rejilla incluye PENDING/FAILED con su estado. `userId` NUNCA sale del cliente.
+ */
+export async function miPerfil(db: Db, userId: string): Promise<MiPerfil | null> {
+  const usuario = await db.user.findFirst({
+    where: { id: userId, deletedAt: null, bannedAt: null },
+    select: SELECT_USUARIO_PUBLICO,
+  });
+  if (!usuario) return null;
+
+  const [videos, retosGanados] = await Promise.all([
+    db.video.findMany({
+      where: { userId: usuario.id, status: { in: [...ESTADOS_MIS_VIDEOS] } },
+      select: SELECT_MI_VIDEO,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    }),
+    db.challengeResult.count({ where: { userId: usuario.id } }),
+  ]);
+
+  return {
+    id: usuario.id,
+    username: usuario.username,
+    displayName: usuario.displayName,
+    image: usuario.image,
+    pointsBalance: usuario.pointsBalance,
+    retosGanados,
+    videos: videos.map((v) => ({
+      id: v.id,
+      bunnyVideoId: v.bunnyVideoId,
+      title: v.title,
+      estado: estadoDeVideo(v.status, v.failureReason),
+    })),
+  };
 }
