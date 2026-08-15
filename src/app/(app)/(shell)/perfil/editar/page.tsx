@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Boton } from "@/components/ui/boton";
 
+import { CambiarPassword } from "./cambiar-password";
 import { FormularioEditarPerfil } from "./formulario-editar-perfil";
 
 export const metadata = { title: "Editar perfil · DareFlash" };
@@ -61,6 +62,11 @@ export default async function EditarPerfilPage() {
         usuario={perfil?.username ?? ""}
         imagenInicial={perfil?.image ?? null}
       />
+
+      {/* Cambiar contraseña: sesión ya exigida arriba; el endpoint re-verifica (mutatingRoute). */}
+      <div className="mt-8">
+        <CambiarPassword />
+      </div>
     </div>
   );
 }

@@ -29,10 +29,13 @@ export const POST = mutatingRoute(async (req, { user }) => {
   const { changePassword } = await import("@/server/auth/account");
   const { setSessionCookie } = await import("@/server/auth/current-user");
   const { issueCsrfToken } = await import("@/server/auth/csrf");
+  const { evaluarPassword } = await import("@/server/auth/password-policy");
 
   const schema = z.object({
     currentPassword: z.string().min(1).max(200),
-    newPassword: z.string().min(8).max(200),
+    // La fuerza/longitud REAL de la NUEVA la valida `evaluarPassword` (abajo), MISMA politica que el
+    // registro y el reset. El .max evita quemar CPU en el pre-hash de Argon2; .min(1) para no vacio.
+    newPassword: z.string().min(1).max(200),
   });
   let body: unknown;
   try {
@@ -42,6 +45,11 @@ export const POST = mutatingRoute(async (req, { user }) => {
   }
   const parsed = schema.safeParse(body);
   if (!parsed.success) return apiError("VALIDATION", "Datos invalidos.", 400);
+
+  // POLITICA FUERTE sobre la NUEVA (misma que registro/reset), ANTES del rate-limit y el argon2: una
+  // contrasena debil se rechaza sin gastar intento ni CPU. No mira la actual -> no abre oraculo.
+  const veredicto = evaluarPassword({ password: parsed.data.newPassword });
+  if (!veredicto.ok) return apiError("VALIDATION", veredicto.mensaje, 400);
 
   const rlKey = `changepw:user:${rateLimitKey(env.AUTH_SECRET, user.userId)}`;
 
