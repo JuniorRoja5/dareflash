@@ -35,6 +35,7 @@ function Estadistica({ valor, etiqueta }: { valor: number; etiqueta: string }) {
 export function PerfilVista({
   nombre,
   handle,
+  imagen,
   puntos,
   retosGanados,
   totalVideos,
@@ -43,6 +44,7 @@ export function PerfilVista({
 }: {
   nombre: string;
   handle: string | null;
+  imagen: string | null;
   puntos: number;
   retosGanados: number;
   totalVideos: number;
@@ -56,7 +58,7 @@ export function PerfilVista({
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md">
             <div className="flex flex-col items-center text-center">
-              <Avatar nombre={handle ?? nombre} tamano="xl" />
+              <Avatar nombre={handle ?? nombre} tamano="xl" imagen={imagen} />
               <p className="mt-3 max-w-full truncate text-lg font-semibold text-text">
                 {handle ? `@${handle}` : nombre}
               </p>

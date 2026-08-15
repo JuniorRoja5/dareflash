@@ -37,6 +37,7 @@ export default async function PerfilPage() {
     <PerfilVista
       nombre={perfil.displayName ?? perfil.username ?? "Tu perfil"}
       handle={perfil.username}
+      imagen={perfil.image}
       puntos={perfil.pointsBalance}
       retosGanados={perfil.retosGanados}
       totalVideos={perfil.videos.length}

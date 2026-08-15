@@ -44,6 +44,7 @@ export default async function PerfilPublicoPage({
     <PerfilVista
       nombre={perfil.displayName ?? perfil.username ?? "Perfil"}
       handle={perfil.username}
+      imagen={perfil.image}
       puntos={perfil.pointsBalance}
       retosGanados={perfil.retosGanados}
       totalVideos={perfil.videos.length}
