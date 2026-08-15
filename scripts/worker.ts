@@ -45,7 +45,15 @@ async function main(): Promise<void> {
   }
 
   const emailAdapter = await getEmailAdapter();
-  const registro = construirRegistro({ emailAdapter });
+  const registro = construirRegistro({
+    emailAdapter,
+    // Borrado del objeto en Bunny por la cola (job BUNNY_DELETE_VIDEO): mismo cliente/credenciales
+    // que confirm/reconciliacion (API key solo en servidor).
+    bunny: {
+      cliente: clienteBunnyReal,
+      config: { libraryId: env.BUNNY_STREAM_LIBRARY_ID, apiKey: env.BUNNY_STREAM_API_KEY },
+    },
+  });
   const workerToken = randomUUID();
 
   let parando = false;

@@ -352,6 +352,9 @@ export const JobTypeSchema = z.enum([
   "LEDGER_RECONCILE",
   "RETENTION_PURGE",
   "PAYOUT_PROCESS",
+  // Borrado del objeto en Bunny cuando el DUEÑO borra su video. Va por la COLA (no inline) para no
+  // dejar el objeto huerfano si Bunny falla: idempotente (404 = ya no existe = exito) y reintentable.
+  "BUNNY_DELETE_VIDEO",
 ]);
 export type JobType = z.infer<typeof JobTypeSchema>;
 

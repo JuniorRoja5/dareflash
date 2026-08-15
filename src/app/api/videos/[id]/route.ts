@@ -8,6 +8,9 @@ export const dynamic = "force-dynamic";
 /** Valida el id de la ruta. Un id vacio/absurdo -> 404 (no se consulta la BD con basura). */
 const ParamsSchema = z.object({ id: z.string().min(1).max(64) });
 
+/** Tipo de job de borrado del objeto en Bunny (union en constants: JobType). */
+const BUNNY_DELETE_VIDEO = "BUNNY_DELETE_VIDEO";
+
 /**
  * DELETE /api/videos/[id] — el DUEÑO borra SU propio video. `mutatingRoute` (Origin + sesion + CSRF).
  *
@@ -15,10 +18,12 @@ const ParamsSchema = z.object({ id: z.string().min(1).max(64) });
  * Si no existe o es de OTRO -> 404 (no 403: no revela la existencia de videos ajenos). Nunca se fia de
  * un id/owner del cliente.
  *
- * ORDEN (evita estado inconsistente): 1) marca REMOVED de forma FIABLE (a partir de ahi deja de salir
- * en feed/perfil, que filtran REMOVED); 2) borra el objeto en Bunny en BEST-EFFORT. Si Bunny falla, el
- * video YA esta oculto y el barrido de huerfanos limpiara el objeto despues: no bloqueamos el borrado
- * logico por un fallo de Bunny.
+ * BORRADO EN DOS PLANOS, ATOMICOS: en UNA transaccion se (1) marca REMOVED —a partir de ahi deja de
+ * salir en feed/perfil, que filtran REMOVED— y (2) se ENCOLA un job `BUNNY_DELETE_VIDEO` que borrara
+ * el objeto en Bunny. Van juntos a proposito: si el encolado fallara tras el REMOVED, el objeto
+ * quedaria HUERFANO PARA SIEMPRE (el barrido de huerfanos CONSERVA los REMOVED: es moderacion). El
+ * borrado real NO lo hace esta peticion (no bloquear al usuario por Bunny): lo ejecuta el worker, que
+ * es idempotente (404 = ya no existe = exito) y reintentable, y si se agota deja el Job FAILED VISIBLE.
  */
 export const DELETE = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (_req, { user }, { params }) => {
@@ -26,10 +31,7 @@ export const DELETE = mutatingRoute<{ params: Promise<{ id: string }> }>(
     if (!parsed.success) return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
     const { id } = parsed.data;
 
-    const { env } = await import("@/config/env");
     const { prisma } = await import("@/server/db/client");
-    const { clienteBunnyReal } = await import("@/server/services/bunny");
-    const { sanearError } = await import("@/server/observability/sanitize-error");
 
     const video = await prisma.video.findUnique({
       where: { id },
@@ -39,22 +41,26 @@ export const DELETE = mutatingRoute<{ params: Promise<{ id: string }> }>(
     if (!video || video.userId !== user.userId) {
       return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
     }
-    // Idempotente: ya borrado -> 200 sin repetir nada.
+    // Idempotente: ya borrado -> 200 sin repetir nada (ni re-encolar).
     if (video.status === "REMOVED") return apiOk({ ok: true });
 
-    // 1) REMOVED FIABLE primero: el video deja de mostrarse aunque Bunny falle luego.
-    await prisma.video.update({ where: { id: video.id }, data: { status: "REMOVED" } });
-
-    // 2) Bunny best-effort: un fallo se LOGuea (saneado) y se ignora (lo limpia el barrido de huerfanos).
-    try {
-      await clienteBunnyReal.deleteVideo({
-        libraryId: env.BUNNY_STREAM_LIBRARY_ID,
-        apiKey: env.BUNNY_STREAM_API_KEY,
-        videoId: video.bunnyVideoId,
+    await prisma.$transaction(async (tx) => {
+      // Condicionado a NO estar ya REMOVED: si dos peticiones entran a la vez, solo UNA marca y encola.
+      const r = await tx.video.updateMany({
+        where: { id: video.id, status: { not: "REMOVED" } },
+        data: { status: "REMOVED" },
       });
-    } catch (e) {
-      console.error(`[videos/delete] Bunny fallo, queda para huerfanos: ${sanearError(e)}`);
-    }
+      if (r.count !== 1) return; // otra peticion gano la carrera: ya esta REMOVED y encolado.
+      await tx.job.create({
+        data: {
+          type: BUNNY_DELETE_VIDEO,
+          payload: { bunnyVideoId: video.bunnyVideoId },
+          runAt: new Date(),
+          // Idempotencia dura del encolado: un doble borrado del mismo objeto no crea dos jobs.
+          idempotencyKey: `bunny:delete:${video.bunnyVideoId}`,
+        },
+      });
+    });
 
     return apiOk({ ok: true });
   },
