@@ -17,6 +17,9 @@ import {
   CONFIRM_LOTE,
   RECON_HUERFANOS_GRACIA_MS,
   RECON_HUERFANOS_PAGINA,
+  RECON_PUBLICADOS_LOTE_POR_CICLO,
+  RECON_PUBLICADOS_TOPE_FILAS,
+  RECON_PUBLICADOS_TOPE_PCT,
   SONDEO_MAX_EDAD_MS,
   UMBRAL_ABANDONO_MS,
   VIDEO_MAX_DURATION_SEC,
@@ -28,6 +31,7 @@ import { construirRegistro } from "@/server/jobs/registry";
 import { bucleWorker, contarFallidos } from "@/server/jobs/worker";
 import { clienteBunnyReal } from "@/server/services/bunny";
 import { limpiarHuerfanosBunny } from "@/server/services/reconciliacion-huerfanos";
+import { reconciliarPublicadosDesaparecidos } from "@/server/services/reconciliacion-publicados";
 import { confirmarVideosPendientes } from "@/server/services/video-confirmacion";
 import { reconciliarVideosAbandonados } from "@/server/services/video-reconciliacion";
 
@@ -147,6 +151,21 @@ async function main(): Promise<void> {
           perPage: RECON_HUERFANOS_PAGINA,
           graciaMs: RECON_HUERFANOS_GRACIA_MS,
           umbralAbandonoMs: UMBRAL_ABANDONO_MS,
+          log: (m) => console.log(m),
+        },
+      ),
+    // Publicados desaparecidos en Bunny (Parte C, integridad de datos — NO destructivo: degrada la
+    // fila a FAILED/OBJETO_INEXISTENTE, no borra nada). Modo desde el env: dry-run por defecto.
+    reconciliarPublicados: () =>
+      reconciliarPublicadosDesaparecidos(
+        prisma,
+        clienteBunnyReal,
+        { libraryId: env.BUNNY_STREAM_LIBRARY_ID, apiKey: env.BUNNY_STREAM_API_KEY },
+        {
+          modo: env.RECON_PUBLICADOS_MODO,
+          lotePorCiclo: RECON_PUBLICADOS_LOTE_POR_CICLO,
+          topeFilas: RECON_PUBLICADOS_TOPE_FILAS,
+          topePct: RECON_PUBLICADOS_TOPE_PCT,
           log: (m) => console.log(m),
         },
       ),
