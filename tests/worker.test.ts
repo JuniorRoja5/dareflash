@@ -47,7 +47,19 @@ function fakeAdapter(opts: { fail?: boolean } = {}): EmailAdapter & { sent: Emai
 /** Registro con SEND_EMAIL (FAIL) + un tipo sintetico idempotente (REQUEUE) para el reaper. */
 function registroFake(adapter: EmailAdapter): Registro {
   return {
-    ...construirRegistro({ emailAdapter: adapter }),
+    ...construirRegistro({
+      emailAdapter: adapter,
+      // Bunny no se ejercita en estas pruebas (solo SEND_EMAIL/reaper): stub inerte que cumple el tipo.
+      bunny: {
+        cliente: {
+          crearVideo: async () => ({ guid: "x" }),
+          getVideo: async () => ({ status: 4, length: 0 }),
+          listVideos: async () => ({ items: [], totalItems: 0 }),
+          deleteVideo: async () => {},
+        },
+        config: { libraryId: "lib", apiKey: "key" },
+      },
+    }),
     LEDGER_TEST: { reaper: "REQUEUE", async handler() {} },
   };
 }

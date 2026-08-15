@@ -13,11 +13,17 @@
  * reintento con backoff o FAILED). El registro se construye con sus dependencias (el
  * adaptador de correo) para poder inyectar un doble en los tests.
  */
+import { z } from "zod";
+
 import { Prisma } from "@/generated/prisma/client";
 import type { JobModel } from "@/generated/prisma/models";
 import type { EmailAdapter, EmailMessage } from "@/server/email/adapter";
+import type { ClienteBunny, ConfigBunny } from "@/server/services/bunny";
 
 export type PoliticaReaper = "FAIL" | "REQUEUE";
+
+/** Payload del job BUNNY_DELETE_VIDEO: solo el GUID del objeto en Bunny (no dato personal). */
+const BunnyDeletePayloadSchema = z.object({ bunnyVideoId: z.string().min(1) });
 
 export interface DefTipoJob {
   /** Ejecuta el trabajo. Lanza en fallo. */
@@ -40,6 +46,8 @@ export type Registro = Record<string, DefTipoJob>;
 
 export interface DepsRegistro {
   emailAdapter: EmailAdapter;
+  /** Cliente de Bunny + su config (libraryId/apiKey) para el borrado del objeto por la cola. */
+  bunny: { cliente: ClienteBunny; config: ConfigBunny };
 }
 
 /** Construye el registro de tipos con sus dependencias. */
@@ -56,6 +64,33 @@ export function construirRegistro(deps: DepsRegistro): Registro {
       resumenFallo(job) {
         const message = job.payload as unknown as EmailMessage | null;
         return message?.to ? { to: message.to } : null;
+      },
+    },
+
+    /**
+     * Borra el objeto en Bunny cuando el DUEÑO borro su video (la fila ya quedo REMOVED en la ruta).
+     * IDEMPOTENTE: un 404 de Bunny (BunnyNotFoundError) significa "ya no existe" -> EXITO, sin
+     * reintento; encolar/procesar dos veces el mismo GUID no rompe nada. Un fallo de RED/HTTP se
+     * PROPAGA (throw) y el runner reintenta con backoff (REQUEUE); si se agota, el Job queda FAILED
+     * y VISIBLE (el objeto NO se pierde en silencio, a diferencia del best-effort inline anterior).
+     * NO depende del barrido de huerfanos, que CONSERVA los REMOVED (moderacion, Parte B).
+     */
+    BUNNY_DELETE_VIDEO: {
+      reaper: "REQUEUE", // idempotente de verdad: si el worker cae a media, reintentar es seguro
+      async handler(job) {
+        const { bunnyVideoId } = BunnyDeletePayloadSchema.parse(job.payload);
+        // `deleteVideo` trata el 404 como EXITO (idempotente): borrar un objeto ausente ya cumple el
+        // objetivo. Un fallo de RED/HTTP se PROPAGA y el runner lo reintenta (backoff) hasta FAILED.
+        await deps.bunny.cliente.deleteVideo({
+          libraryId: deps.bunny.config.libraryId,
+          apiKey: deps.bunny.config.apiKey,
+          videoId: bunnyVideoId,
+        });
+      },
+      // Si acaba en FAILED, conserva el GUID (interno, no personal) para saber que objeto quedo sin borrar.
+      resumenFallo(job) {
+        const p = BunnyDeletePayloadSchema.safeParse(job.payload);
+        return p.success ? { bunnyVideoId: p.data.bunnyVideoId } : null;
       },
     },
   };

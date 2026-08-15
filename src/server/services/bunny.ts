@@ -136,7 +136,10 @@ export const clienteBunnyReal: ClienteBunny = {
       method: "DELETE",
       headers: { AccessKey: apiKey, Accept: "application/json" },
     });
-    // Sin cuerpo hacia arriba: solo el codigo, para el log (mismo estilo que crearVideo/getVideo).
+    // 404 = el objeto ya no existe: DELETE es IDEMPOTENTE, el estado deseado (ausente) YA se cumple
+    // -> EXITO, no error. Asi el borrado por la cola y el barrido de huerfanos no fallan por un objeto
+    // que se borro entre medias. Cualquier otro !ok (red/HTTP) SI es error -> reintento arriba.
+    if (res.status === 404) return;
     if (!res.ok) throw new Error(`Bunny deleteVideo: HTTP ${res.status}`);
   },
 };

@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { ModalReproductor } from "@/components/ui/modal-reproductor";
 
+import { BorrarVideo } from "./borrar-video";
 import type { EstadoVideo } from "./perfil-logic";
 import type { VideoCelda } from "./perfil-vista";
 
@@ -35,14 +36,14 @@ const TONO_TEXTO: Record<"neutro" | "ok" | "alarma", string> = {
  * Guardarrail real de estado: lo pone el endpoint firmado. Si un vídeo publicado dejara de ser
  * reproducible responde 404 y el modal muestra "no disponible", nunca un player roto.
  */
-export function CeldaVideo({ video }: { video: VideoCelda }) {
+export function CeldaVideo({ video, esPropio = false }: { video: VideoCelda; esPropio?: boolean }) {
   const [abierto, setAbierto] = useState(false);
   const info = video.estado ? COPY_ESTADO[video.estado] : null;
   const publicado = video.poster !== "";
   const etiqueta = video.title?.trim() ? `Reproducir «${video.title}»` : "Reproducir vídeo";
 
   return (
-    <div className="flex flex-col">
+    <div className="relative flex flex-col">
       {publicado ? (
         <button
           type="button"
@@ -68,6 +69,9 @@ export function CeldaVideo({ video }: { video: VideoCelda }) {
       {info ? (
         <p className={`mt-1.5 text-2xs leading-tight ${TONO_TEXTO[info.tono]}`}>{info.texto}</p>
       ) : null}
+      {/* Borrar: SOLO en el perfil propio. Va como hermano (no dentro del <button> de la celda) y por
+          encima, con confirmación; el endpoint reverifica que el vídeo es del usuario de la sesión. */}
+      {esPropio ? <BorrarVideo videoId={video.id} titulo={video.title} /> : null}
       {abierto ? (
         <ModalReproductor id={video.id} titulo={video.title} onCerrar={() => setAbierto(false)} />
       ) : null}
