@@ -105,8 +105,9 @@ export function PerfilVista({
           ) : (
             <div className="grid grid-cols-3 items-start gap-x-1.5 gap-y-3 sm:grid-cols-4 lg:grid-cols-5">
               {videos.map((v) => (
-                // Publicado -> tap abre el modal de reproducción; en proceso/fallido -> icono + estado.
-                <CeldaVideo key={v.id} video={v} />
+                // Publicado -> tap abre el modal; en proceso/fallido -> icono + estado. En el perfil
+                // PROPIO cada celda lleva su acción de borrar (con confirmación).
+                <CeldaVideo key={v.id} video={v} esPropio={esPropio} />
               ))}
             </div>
           )}
