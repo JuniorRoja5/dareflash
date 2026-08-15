@@ -195,6 +195,10 @@ describe("estadoDeVideo (mapeo PURO status+failureReason -> copy semántico)", (
     expect(estadoDeVideo("FAILED", "TOO_LONG")).toBe("demasiado-largo");
   });
 
+  it("FAILED + OBJETO_INEXISTENTE -> no-disponible (Parte C: NO es 'error' de proceso)", () => {
+    expect(estadoDeVideo("FAILED", "OBJETO_INEXISTENTE")).toBe("no-disponible");
+  });
+
   it("FAILED con otro motivo (o desconocido/nulo) -> error genérico", () => {
     expect(estadoDeVideo("FAILED", "TRANSCODE_ERROR")).toBe("error");
     expect(estadoDeVideo("FAILED", "UPLOAD_INCOMPLETE")).toBe("error");

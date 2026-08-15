@@ -301,9 +301,11 @@ const SELECT_MI_VIDEO = {
 /**
  * Deriva el estado VISIBLE de un vídeo a partir de `status` + `failureReason`. PURA y total. El
  * `failureReason` se valida con el MISMO Zod que lo escribe (`VideoFailureReasonSchema`): TOO_LONG se
- * distingue como sobreduración; cualquier otro fallo (o motivo desconocido) cae en "error" genérico.
- * PENDING -> "procesando". Un estado no esperado (la consulta ya los excluye) se trata como "error",
- * nunca como "procesando" (mentir diciendo que sigue en curso sería peor que un fallo honesto).
+ * distingue como sobreduración; OBJETO_INEXISTENTE (degradado por la reconciliación Parte C: estuvo
+ * publicado pero su objeto en Bunny desapareció) como "no-disponible" —NO "error": el vídeo no falló al
+ * procesar, simplemente ya no está—; cualquier otro fallo (o motivo desconocido) cae en "error"
+ * genérico. PENDING -> "procesando". Un estado no esperado (la consulta ya los excluye) se trata como
+ * "error", nunca como "procesando" (mentir diciendo que sigue en curso sería peor que un fallo honesto).
  */
 export function estadoDeVideo(status: ModerationStatus, failureReason: string | null): EstadoVideo {
   switch (status) {
@@ -313,7 +315,9 @@ export function estadoDeVideo(status: ModerationStatus, failureReason: string | 
       return "procesando";
     case "FAILED": {
       const motivo = VideoFailureReasonSchema.safeParse(failureReason);
-      return motivo.success && motivo.data === "TOO_LONG" ? "demasiado-largo" : "error";
+      if (motivo.success && motivo.data === "TOO_LONG") return "demasiado-largo";
+      if (motivo.success && motivo.data === "OBJETO_INEXISTENTE") return "no-disponible";
+      return "error";
     }
     default:
       return "error";

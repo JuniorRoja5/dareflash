@@ -87,5 +87,10 @@ export function avatarExcedeTope(bytes: number): boolean {
  * ("Procesando", "Publicado", "No se pudo procesar"…). Al usuario NUNCA le llega PENDING/FAILED/
  * TOO_LONG: solo este puñado de casos, y sin el `failureReason` crudo. Es un TIPO (sin runtime), así
  * que viaja al bundle del navegador sin arrastrar Zod ni Prisma, igual que el resto de este módulo.
+ *
+ * `no-disponible`: el vídeo estuvo publicado pero su objeto en Bunny desapareció (la reconciliación
+ * Parte C lo degradó a FAILED/OBJETO_INEXISTENTE). Es DISTINTO de "error" (no es que fallara al
+ * procesar): al usuario se le dice que "ya no está disponible", no que "no se pudo procesar".
  */
-export type EstadoVideo = "procesando" | "publicado" | "demasiado-largo" | "error";
+export type EstadoVideo =
+  "procesando" | "publicado" | "demasiado-largo" | "no-disponible" | "error";

@@ -17,6 +17,8 @@ const COPY_ESTADO: Record<EstadoVideo, { texto: string; tono: "neutro" | "ok" | 
   procesando: { texto: "Procesando", tono: "neutro" },
   publicado: { texto: "Publicado", tono: "ok" },
   "demasiado-largo": { texto: "No publicado: supera los 90 segundos", tono: "alarma" },
+  // Parte C: estuvo publicado pero su objeto en Bunny desapareció. NO es un fallo de proceso.
+  "no-disponible": { texto: "Este vídeo ya no está disponible", tono: "alarma" },
   error: { texto: "No se pudo procesar", tono: "alarma" },
 };
 
