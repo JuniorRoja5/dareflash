@@ -28,6 +28,13 @@ import { CajaVideo } from "./caja-video";
  */
 type Variante = "feed" | "detalle";
 
+/**
+ * Naturaleza del fallo de carga. `transitorio` = red/decodificación: el "Reintentar" tiene sentido.
+ * `permanente` = el objeto ya no existe en el origen (404/410); reintentar NUNCA funcionará, así que se
+ * muestra un mensaje terminal (sin botón) y, en el feed, se retira del scroll. `null` = sin error.
+ */
+type FalloCarga = "transitorio" | "permanente";
+
 const HLS_NATIVO = "application/vnd.apple.mpegurl";
 const UMBRAL_TAP_PX = 10; // más movimiento que esto entre down y up = swipe (scroll), no un tap
 
@@ -36,12 +43,15 @@ export function ReproductorHls({
   poster,
   variante,
   silenciado: silenciadoProp,
+  onNoDisponible,
 }: {
   src: string;
   poster: string;
   variante: Variante;
   /** Mute CONTROLADO (feed: preferencia global). Sin prop (detalle) -> estado local, arranca en mute. */
   silenciado?: boolean;
+  /** Se invoca cuando el vídeo ya no existe (fallo permanente): el feed lo usa para retirarlo del scroll. */
+  onNoDisponible?: () => void;
 }) {
   const esFeed = variante === "feed";
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -51,7 +61,7 @@ export function ReproductorHls({
   const cargadoRef = useRef(false);
   const bajadaRef = useRef<{ x: number; y: number } | null>(null);
   const swipeRef = useRef(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<FalloCarga | null>(null);
   const [pausado, setPausado] = useState(false); // pausa MANUAL del usuario (feed): pinta el icono play
   const [progreso, setProgreso] = useState(0); // 0..1
   const [intento, setIntento] = useState(0); // fuerza recarga al "Reintentar"
@@ -80,7 +90,7 @@ export function ReproductorHls({
     const cargar = async (): Promise<void> => {
       if (cargadoRef.current) return;
       cargadoRef.current = true;
-      setError(false);
+      setError(null);
       setPausado(false); // al entrar en vista se reproduce: no hay pausa manual pendiente
 
       // hls.js PRIMERO (donde esta soportado: MSE / Managed Media Source en iOS 17.1+), con un LOADER
@@ -107,14 +117,18 @@ export function ReproductorHls({
           }
           const hls = new Hls({ enableWorker: true, loader: LoaderConToken });
           hls.on(Hls.Events.ERROR, (_evento, data) => {
-            if (data.fatal) setError(true); // solo los fatales; los recuperables los gestiona hls.js
+            if (!data.fatal) return; // solo los fatales; los recuperables los gestiona hls.js
+            // 404/410 en la playlist o el segmento = el objeto ya no existe en Bunny -> PERMANENTE.
+            // Cualquier otro fatal (timeout, red caída, decodificación) se trata como transitorio.
+            const codigo = data.response?.code;
+            setError(codigo === 404 || codigo === 410 ? "permanente" : "transitorio");
           });
           hls.loadSource(src);
           hls.attachMedia(video);
           hlsRef.current = hls;
         }
       } catch {
-        setError(true);
+        setError("transitorio");
         return;
       }
 
@@ -122,7 +136,7 @@ export function ReproductorHls({
         if (video.canPlayType(HLS_NATIVO)) {
           video.src = src;
         } else {
-          setError(true);
+          setError("transitorio");
           return;
         }
       }
@@ -183,6 +197,12 @@ export function ReproductorHls({
       video.removeEventListener("ended", parar);
     };
   }, [esFeed, src, intento]);
+
+  // Fallo PERMANENTE (el vídeo ya no existe): avisa al contenedor. El feed lo aprovecha para retirar el
+  // slide del scroll; el detalle no pasa handler y se queda solo con el mensaje terminal.
+  useEffect(() => {
+    if (error === "permanente") onNoDisponible?.();
+  }, [error, onNoDisponible]);
 
   // --- Tap para pausar/reanudar (feed) ---
   function alternarPausa(): void {
@@ -249,28 +269,35 @@ export function ReproductorHls({
       controls={!esFeed} // detalle: controles nativos mínimos; feed: cromo propio
       controlsList="nodownload noplaybackrate noremoteplayback"
       disablePictureInPicture
-      onError={() => setError(true)}
+      onError={() => setError((prev) => prev ?? "transitorio")}
       className="h-full w-full object-contain"
       aria-label="Vídeo"
     />
   );
 
-  const overlayError = error ? (
-    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-void/85 p-4 text-center">
-      <p className="text-sm text-text-dim">No se pudo cargar el vídeo. Reintenta.</p>
-      <button
-        type="button"
-        onClick={() => {
-          cargadoRef.current = false;
-          setError(false);
-          setIntento((n) => n + 1);
-        }}
-        className="rounded-sm border border-line px-4 py-1.5 text-sm text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised"
-      >
-        Reintentar
-      </button>
-    </div>
-  ) : null;
+  // PERMANENTE: mensaje terminal, SIN "Reintentar" (nunca funcionaría). TRANSITORIO: el reintento actual.
+  const overlayError =
+    error === "permanente" ? (
+      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-void/85 p-4 text-center">
+        <p className="text-sm font-medium text-text">Este vídeo ya no está disponible</p>
+        <p className="text-2xs text-text-dim">Puede que su autor lo haya retirado.</p>
+      </div>
+    ) : error === "transitorio" ? (
+      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-void/85 p-4 text-center">
+        <p className="text-sm text-text-dim">No se pudo cargar el vídeo. Reintenta.</p>
+        <button
+          type="button"
+          onClick={() => {
+            cargadoRef.current = false;
+            setError(null);
+            setIntento((n) => n + 1);
+          }}
+          className="rounded-sm border border-line px-4 py-1.5 text-sm text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised"
+        >
+          Reintentar
+        </button>
+      </div>
+    ) : null;
 
   // DETALLE: usa CajaVideo (16:9 escritorio / 9:16 móvil) con el relleno difuminado. Sin cromo propio.
   if (variante === "detalle") {

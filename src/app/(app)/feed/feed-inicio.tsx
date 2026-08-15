@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { PildoraCategoria } from "@/components/ui/pildora";
 import { ReproductorHls } from "@/components/ui/reproductor-hls";
@@ -125,11 +125,14 @@ function PostInicio({
   alRef,
   silenciado,
   onToggleSilencio,
+  onNoDisponible,
 }: {
   post: PostFeed;
   alRef: (el: HTMLElement | null) => void;
   silenciado: boolean;
   onToggleSilencio: () => void;
+  /** El vídeo ya no existe en el origen: se retira este slide del scroll. */
+  onNoDisponible: () => void;
 }) {
   return (
     <section
@@ -140,12 +143,14 @@ function PostInicio({
       <div className="relative h-full w-full overflow-hidden bg-raised lg:h-[86svh] lg:aspect-[9/16] lg:w-auto lg:rounded-sm lg:border lg:border-line">
         <div className="absolute inset-0">
           {/* `silenciado` GLOBAL: la preferencia vive en el feed; el player solo la aplica. El tap-pausa
-              y la barra de progreso viven dentro del player. */}
+              y la barra de progreso viven dentro del player. `onNoDisponible` retira el slide si el
+              vídeo ya no existe (404/410). */}
           <ReproductorHls
             variante="feed"
             src={post.src}
             poster={post.poster}
             silenciado={silenciado}
+            onNoDisponible={onNoDisponible}
           />
         </div>
         {/* Scrim (velo) — solo movil (en desktop el video queda limpio) */}
@@ -320,6 +325,12 @@ export function FeedInicio({
     };
   }, [activo, cursor, posts.length]);
 
+  // Un vídeo cuyo objeto ya no existe (404/410) se retira del scroll: no debe ocupar un slide roto.
+  // Esto es robustez de cliente, NO moderación (Fase 5: el servidor filtra los REMOVED del feed).
+  const quitarPost = useCallback((id: string): void => {
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
   const irA = (i: number): void => {
     const dest = Math.max(0, Math.min(posts.length - 1, i));
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -344,11 +355,12 @@ export function FeedInicio({
             }}
             silenciado={silenciado}
             onToggleSilencio={() => setSilenciado((s) => !s)}
+            onNoDisponible={() => quitarPost(post.id)}
           />
         ))}
       </div>
 
-      <PanelComentarios post={posts[activo] ?? posts[0]!} />
+      {posts.length > 0 ? <PanelComentarios post={posts[activo] ?? posts[0]!} /> : null}
 
       {/* Flechas de navegacion — solo desktop, fijas junto al panel */}
       <div className="pointer-events-none absolute top-1/2 right-[376px] hidden -translate-y-1/2 flex-col gap-3 lg:flex">
