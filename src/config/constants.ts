@@ -102,15 +102,29 @@ export const RECON_HUERFANOS_PAGINA = 100; // itemsPerPage (tope de la API de Bu
 export const RECON_HUERFANOS_CADENCIA_MS = 6 * 60 * 60 * 1000; // 6 h
 
 /**
+ * Reconciliacion Parte C: PUBLICADOS DESAPARECIDOS (integridad de datos, NO moderacion). Sonda cada
+ * fila PUBLISHED contra Bunny (getVideo); si el objeto ya no existe (404), la degrada a FAILED/
+ * OBJETO_INEXISTENTE. Cadencia BAJA (una getVideo por PUBLISHED es pesado; no es urgente). SALVAGUARDA
+ * anti-incidente: se aborta el modo actuar si los candidatos superan `min(TOPE_FILAS, ceil(total*PCT))`.
+ */
+export const RECON_PUBLICADOS_CADENCIA_MS = 6 * 60 * 60 * 1000; // 6 h
+export const RECON_PUBLICADOS_LOTE = 200; // filas PUBLISHED por pagina del barrido
+export const RECON_PUBLICADOS_TOPE_FILAS = 50; // nunca degradar mas de 50 filas en un barrido
+export const RECON_PUBLICADOS_TOPE_PCT = 0.2; // ni mas del 20% de las PUBLISHED (lo que sea MENOR)
+
+/**
  * Motivo de un Video en FAILED (String tipado con Zod, no enum de Prisma; convencion del proyecto).
  * TRANSCODE_ERROR: Bunny reporto Error/UploadFailed. TOO_LONG: transcodifico bien pero supera 90 s.
  * UPLOAD_INCOMPLETE: la subida no llego a completarse (credencial caducada sin Finished, u objeto
  * inexistente en Bunny) -> lo resuelve la reconciliacion de subidas abandonadas.
+ * OBJETO_INEXISTENTE: estuvo PUBLISHED pero su objeto en Bunny desaparecio (404) -> lo degrada la
+ * reconciliacion Parte C. Distinto de un fallo de proceso: SI llego a publicarse.
  */
 export const VideoFailureReasonSchema = z.enum([
   "TRANSCODE_ERROR",
   "TOO_LONG",
   "UPLOAD_INCOMPLETE",
+  "OBJETO_INEXISTENTE",
 ]);
 export type VideoFailureReason = z.infer<typeof VideoFailureReasonSchema>;
 

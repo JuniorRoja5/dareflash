@@ -117,6 +117,12 @@ const serverSchema = z.object({
    * NO es secreto (no hace falta hPanel para desplegar en modo seguro).
    */
   RECON_HUERFANOS_MODO: z.enum(["dry-run", "borrar"]).default("dry-run"),
+  /**
+   * Modo de la reconciliacion Parte C (PUBLICADOS desaparecidos). Por defecto "dry-run": LOGuea que
+   * degradaria pero NO muta. Junior lo pone a "actuar" tras revisar los logs del dry-run. INDEPENDIENTE
+   * de RECON_HUERFANOS_MODO. Ausente => dry-run => despliegue SEGURO. No es secreto (no pide hPanel).
+   */
+  RECON_PUBLICADOS_MODO: z.enum(["dry-run", "actuar"]).default("dry-run"),
 });
 
 /**
