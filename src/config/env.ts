@@ -103,6 +103,12 @@ const serverSchema = z.object({
   SMTP_USER: z.string().min(1).optional(),
   SMTP_PASSWORD: z.string().min(1).optional(),
   /**
+   * Nombre HELO/EHLO que el cliente SMTP anuncia. Sin esto, nodemailer usa el hostname del contenedor
+   * (127.0.0.1) -> "helo=[127.0.0.1]", que perjudica la entregabilidad. OPCIONAL con default (no es
+   * secreto ni obligatorio; no rompe el arranque). Debe ser el dominio del remitente.
+   */
+  SMTP_HELO_NAME: z.string().min(1).default("dareflash.com"),
+  /**
    * Correo del ADMIN para AVISOS operativos DIRECTOS (no por la cola): p.ej. acumulacion de
    * jobs en FAILED. Opcional hoy; sin ella el worker registra el aviso en el log (alto) en vez
    * de enviarlo. Se promueve a obligatoria cuando el aviso deba llegar si o si.

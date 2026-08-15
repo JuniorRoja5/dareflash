@@ -82,6 +82,9 @@ export function createSmtpEmailAdapter(): EmailAdapter {
         smtpTransport = nodemailer.createTransport({
           host: env.SMTP_HOST,
           port: env.SMTP_PORT,
+          // HELO/EHLO con nuestro dominio: sin `name`, nodemailer usa el hostname del contenedor
+          // (127.0.0.1) y algunos filtros penalizan ese "helo=[127.0.0.1]". Mejora la entregabilidad.
+          name: env.SMTP_HELO_NAME,
           secure: env.SMTP_PORT === 465, // 465 = TLS directo; 587 = STARTTLS
           requireTLS: env.SMTP_PORT !== 465, // 587: STARTTLS OBLIGATORIO, nunca texto plano
           // TLS: la verificacion del certificado queda SIEMPRE activada (rejectUnauthorized
