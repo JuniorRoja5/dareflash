@@ -2,17 +2,10 @@ import { Avatar } from "@/components/ui/avatar";
 import { Boton } from "@/components/ui/boton";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
 
+import { CeldaVideo } from "./celda-video";
+
 /** Celda de la rejilla: un video PUBLISHED con su póster firmado. */
 export type VideoCelda = { id: string; title: string | null; poster: string };
-
-/** Triangulo de "play" sutil sobre el póster de cada celda. */
-function IconoPlay() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6 text-white/85" fill="currentColor" aria-hidden>
-      <path d="M9 6.5v11l9-5.5z" />
-    </svg>
-  );
-}
 
 function Estadistica({ valor, etiqueta }: { valor: number; etiqueta: string }) {
   return (
@@ -106,18 +99,8 @@ export function PerfilVista({
           ) : (
             <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-5">
               {videos.map((v) => (
-                // Póster real como fondo (blurred-fill lo pone el reproductor; aquí es miniatura).
-                <div
-                  key={v.id}
-                  title={v.title ?? undefined}
-                  className="relative flex aspect-[9/16] items-center justify-center overflow-hidden rounded-sm border border-line bg-raised bg-cover bg-center transition-[transform,box-shadow] duration-[var(--df-dur-fast)] ease-mechanical hover:-translate-y-0.5 hover:shadow-[var(--df-shadow-md)]"
-                  style={{ backgroundImage: `url("${v.poster}")` }}
-                >
-                  <span className="absolute inset-0 bg-void/25" aria-hidden />
-                  <span className="relative">
-                    <IconoPlay />
-                  </span>
-                </div>
+                // Tap en la miniatura -> reproduce en un modal (el póster/blurred-fill lo pone el player).
+                <CeldaVideo key={v.id} video={v} />
               ))}
             </div>
           )}
