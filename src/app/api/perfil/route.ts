@@ -15,7 +15,7 @@ export const PATCH = mutatingRoute(async (req, { user }) => {
   const { RATE_LIMITS } = await import("@/config/constants");
   const { prisma } = await import("@/server/db/client");
   const { rateLimit } = await import("@/server/security/rate-limit");
-  const { actualizarPerfilSchema, actualizarNombre } = await import("@/server/services/perfil");
+  const { actualizarPerfilSchema, actualizarPerfil } = await import("@/server/services/perfil");
 
   const rlKey = `updateprofile:user:${rateLimitKey(env.AUTH_SECRET, user.userId)}`;
   const rl = await rateLimit(prisma, { key: rlKey, ...RATE_LIMITS.UPDATE_PROFILE_PER_USER });
@@ -37,6 +37,6 @@ export const PATCH = mutatingRoute(async (req, { user }) => {
   }
 
   // userId de la SESIÓN, jamás del cuerpo: la actualización solo puede tocar la propia fila.
-  const { displayName } = await actualizarNombre(prisma, user.userId, parsed.data.displayName);
+  const { displayName } = await actualizarPerfil(prisma, user.userId, parsed.data);
   return apiOk({ ok: true, displayName });
 });

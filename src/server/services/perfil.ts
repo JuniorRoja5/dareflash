@@ -21,11 +21,16 @@ import "server-only";
 import { z } from "zod";
 
 import {
+  BIO_MAX,
   type EstadoVideo,
   NOMBRE_MAX,
   NOMBRE_MIN,
+  PATRON_INSTAGRAM,
   PATRON_NOMBRE,
+  PATRON_YOUTUBE,
+  WEBSITE_MAX,
   normalizarNombre,
+  normalizarYoutube,
 } from "@/app/(app)/(shell)/perfil/perfil-logic";
 import { VideoFailureReasonSchema } from "@/config/constants";
 import { type ModerationStatus, Prisma } from "@/generated/prisma/client";
@@ -48,6 +53,11 @@ export interface PerfilPublico {
   username: string | null;
   displayName: string | null;
   image: string | null;
+  /** Bio y enlaces (v1): informacion PUBLICA del perfil. `instagram`/`youtube` son HANDLES. */
+  bio: string | null;
+  website: string | null;
+  instagram: string | null;
+  youtube: string | null;
   /** Puntuacion de juego (publica: alimenta el nivel y el ranking). */
   pointsBalance: number;
   /** Retos ganados (numero de filas ChallengeResult del usuario). */
@@ -58,12 +68,17 @@ export interface PerfilPublico {
 /**
  * Columnas PUBLICAS del usuario. Es la barrera dura: anadir aqui una columna privada (email, saldo...)
  * la expondria, y por eso el test con dientes falla si esta lista deja de ser exactamente la publica.
+ * bio/website/instagram/youtube SON publicos (informacion de perfil que el usuario elige mostrar).
  */
 export const SELECT_USUARIO_PUBLICO = {
   id: true,
   username: true,
   displayName: true,
   image: true,
+  bio: true,
+  website: true,
+  instagram: true,
+  youtube: true,
   pointsBalance: true,
 } satisfies Prisma.UserSelect;
 
@@ -79,6 +94,10 @@ type FilaUsuarioPublico = {
   username: string | null;
   displayName: string | null;
   image: string | null;
+  bio: string | null;
+  website: string | null;
+  instagram: string | null;
+  youtube: string | null;
   pointsBalance: number;
 };
 
@@ -96,6 +115,10 @@ export function aPerfilPublico(
     username: fila.username,
     displayName: fila.displayName,
     image: fila.image,
+    bio: fila.bio,
+    website: fila.website,
+    instagram: fila.instagram,
+    youtube: fila.youtube,
     pointsBalance: fila.pointsBalance,
     retosGanados,
     videos,
@@ -160,25 +183,97 @@ export const displayNameSchema = z
       .regex(PATRON_NOMBRE, "El nombre tiene caracteres no permitidos."),
   );
 
-/** Cuerpo aceptado por la actualización de perfil (hoy: solo el nombre). */
-export const actualizarPerfilSchema = z.object({ displayName: displayNameSchema });
+/** Sin caracteres de control (U+0000-U+001F, U+007F)? El salto de linea tambien queda fuera. */
+function sinControles(v: string): boolean {
+  for (const c of v) {
+    const n = c.charCodeAt(0);
+    if (n < 0x20 || n === 0x7f) return false;
+  }
+  return true;
+}
+
+/** URL http/https válida (el sitio web SÍ es una URL libre; se pinta con rel="nofollow noopener"). */
+const urlHttp = z
+  .url("El sitio web debe ser una URL válida.")
+  .refine((u) => /^https?:\/\//i.test(u), "El sitio web debe empezar por http:// o https://");
+
+/**
+ * Campos de perfil v1. Cada uno acepta VACÍO -> `null` (borrar el campo). bio: <=300 sin controles.
+ * website: URL http/https o vacío. instagram/youtube: HANDLE (no URL; el frontend construye el enlace);
+ * youtube se normaliza quitando un `@` inicial. Todos OPCIONALES: si no vienen, ese campo no se toca.
+ */
+const bioSchema = z
+  .string()
+  .transform((s) => s.trim())
+  .pipe(
+    z
+      .string()
+      .max(BIO_MAX, `La biografía no puede pasar de ${BIO_MAX} caracteres.`)
+      .refine(sinControles, "La biografía tiene caracteres no permitidos."),
+  )
+  .transform((s) => s || null);
+
+const websiteSchema = z
+  .string()
+  .transform((s) => s.trim())
+  .pipe(z.union([z.literal(""), urlHttp]))
+  // Tope = ancho de columna (VARCHAR(191)): sin el, una URL válida larga reventaría en la BD (500).
+  .pipe(z.string().max(WEBSITE_MAX, `El sitio web no puede pasar de ${WEBSITE_MAX} caracteres.`))
+  .transform((s) => s || null);
+
+const instagramSchema = z
+  .string()
+  .transform((s) => s.trim())
+  .pipe(
+    z.union([
+      z.literal(""),
+      z.string().regex(PATRON_INSTAGRAM, "El usuario de Instagram no es válido."),
+    ]),
+  )
+  .transform((s) => s || null);
+
+const youtubeSchema = z
+  .string()
+  .transform(normalizarYoutube)
+  .pipe(
+    z.union([
+      z.literal(""),
+      z.string().regex(PATRON_YOUTUBE, "El usuario de YouTube no es válido."),
+    ]),
+  )
+  .transform((s) => s || null);
+
+/** Cuerpo aceptado por la actualización de perfil: nombre + (opcionales) bio y enlaces. */
+export const actualizarPerfilSchema = z.object({
+  displayName: displayNameSchema,
+  bio: bioSchema.optional(),
+  website: websiteSchema.optional(),
+  instagram: instagramSchema.optional(),
+  youtube: youtubeSchema.optional(),
+});
 export type ActualizarPerfilInput = z.infer<typeof actualizarPerfilSchema>;
 
 /**
- * Actualiza el nombre visible del usuario `userId` (el de la SESIÓN). Devuelve el nombre ya guardado
- * (normalizado) para que la UI refleje lo persistido. `userId` NUNCA sale del cuerpo de la petición.
+ * Actualiza el perfil del usuario `userId` (el de la SESIÓN). Fija el nombre (siempre) y, para cada
+ * enlace/bio PRESENTE, su valor ya normalizado (`null` si venía vacío -> borra el campo). Un campo
+ * AUSENTE (`undefined`) no se toca. `userId` NUNCA sale del cuerpo de la petición. Devuelve lo guardado.
  */
-export async function actualizarNombre(
+export async function actualizarPerfil(
   db: Db,
   userId: string,
-  displayName: string,
+  datos: ActualizarPerfilInput,
 ): Promise<{ displayName: string }> {
+  const data: Prisma.UserUpdateInput = { displayName: datos.displayName };
+  if (datos.bio !== undefined) data.bio = datos.bio;
+  if (datos.website !== undefined) data.website = datos.website;
+  if (datos.instagram !== undefined) data.instagram = datos.instagram;
+  if (datos.youtube !== undefined) data.youtube = datos.youtube;
   const actualizado = await db.user.update({
     where: { id: userId },
-    data: { displayName },
+    data,
     select: { displayName: true },
   });
-  return { displayName: actualizado.displayName ?? displayName };
+  return { displayName: actualizado.displayName ?? datos.displayName };
 }
 
 // ============================================================================
@@ -239,6 +334,10 @@ export interface MiPerfil {
   username: string | null;
   displayName: string | null;
   image: string | null;
+  bio: string | null;
+  website: string | null;
+  instagram: string | null;
+  youtube: string | null;
   pointsBalance: number;
   retosGanados: number;
   videos: MiVideo[];
@@ -269,6 +368,10 @@ export async function miPerfil(db: Db, userId: string): Promise<MiPerfil | null>
     username: usuario.username,
     displayName: usuario.displayName,
     image: usuario.image,
+    bio: usuario.bio,
+    website: usuario.website,
+    instagram: usuario.instagram,
+    youtube: usuario.youtube,
     pointsBalance: usuario.pointsBalance,
     retosGanados,
     videos: videos.map((v) => ({

@@ -45,6 +45,10 @@ export default async function PerfilPublicoPage({
       nombre={perfil.displayName ?? perfil.username ?? "Perfil"}
       handle={perfil.username}
       imagen={perfil.image}
+      bio={perfil.bio}
+      website={perfil.website}
+      instagram={perfil.instagram}
+      youtube={perfil.youtube}
       puntos={perfil.pointsBalance}
       retosGanados={perfil.retosGanados}
       totalVideos={perfil.videos.length}

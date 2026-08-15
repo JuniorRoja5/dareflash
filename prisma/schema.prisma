@@ -64,6 +64,12 @@ model User {
   displayName   String?
   image         String? // avatar (URL)
   bio           String?   @db.Text
+  // Enlaces de perfil v1. `website` es una URL http/https libre (se pinta con rel="nofollow noopener").
+  // `instagram`/`youtube` guardan el HANDLE, no una URL: evita que alguien meta un enlace malicioso
+  // disfrazado de red social; el frontend construye la URL a partir del handle (validado en servidor).
+  website       String?
+  instagram     String? // handle de Instagram (sin @, sin URL)
+  youtube       String? // handle de YouTube (con o sin @, sin URL)
 
   // --- Credenciales propias (email/contrasena). OAuth va por Account. ---
   passwordHash String? @db.Text // Argon2id. Null si el usuario solo usa OAuth.

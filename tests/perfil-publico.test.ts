@@ -63,11 +63,15 @@ describe("SELECT_USUARIO_PUBLICO (barrera de columnas)", () => {
       expect(campo in SELECT_USUARIO_PUBLICO).toBe(false);
     }
     expect(Object.keys(SELECT_USUARIO_PUBLICO).sort()).toEqual([
+      "bio",
       "displayName",
       "id",
       "image",
+      "instagram",
       "pointsBalance",
       "username",
+      "website",
+      "youtube",
     ]);
   });
 });

@@ -34,6 +34,32 @@ export function nombreEsValido(nombre: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Bio y enlaces (perfil v1)
+// ---------------------------------------------------------------------------
+
+/** Longitud máxima de la biografía. */
+export const BIO_MAX = 300;
+
+/**
+ * Longitud máxima del sitio web. Coincide con el ANCHO DE COLUMNA (`website VARCHAR(191)`, el default
+ * de Prisma para String): sin este tope, una URL válida de >191 caracteres pasaría Zod y reventaría al
+ * insertar con un error crudo de la BD (500 sin copy humano). Se valida arriba con mensaje claro.
+ */
+export const WEBSITE_MAX = 191;
+
+/**
+ * HANDLES (no URLs) de redes: guardar el handle y NO una URL libre evita que alguien meta un enlace
+ * malicioso disfrazado de red social. La URL la construye el frontend a partir del handle validado.
+ */
+export const PATRON_INSTAGRAM = /^[A-Za-z0-9._]{1,30}$/; // usuario de Instagram, sin @ ni URL
+export const PATRON_YOUTUBE = /^[A-Za-z0-9._-]{1,30}$/; // handle de YouTube SIN el @ inicial
+
+/** Quita @ iniciales del handle de YouTube (se guarda sin @; el frontend antepone `@`). */
+export function normalizarYoutube(handle: string): string {
+  return handle.trim().replace(/^@+/, "");
+}
+
+// ---------------------------------------------------------------------------
 // Avatar (imagen)
 // ---------------------------------------------------------------------------
 

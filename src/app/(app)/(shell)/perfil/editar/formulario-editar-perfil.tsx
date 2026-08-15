@@ -7,7 +7,13 @@ import { Avatar } from "@/components/ui/avatar";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 
-import { AVATAR_TIPOS, NOMBRE_MAX, avatarExcedeTope, nombreEsValido } from "../perfil-logic";
+import {
+  AVATAR_TIPOS,
+  BIO_MAX,
+  NOMBRE_MAX,
+  avatarExcedeTope,
+  nombreEsValido,
+} from "../perfil-logic";
 
 /** Lee `error.code` de la respuesta del endpoint de forma defensiva (mismo patrón que login). */
 function codigoDe(data: unknown): string {
@@ -38,13 +44,25 @@ export function FormularioEditarPerfil({
   nombreInicial,
   usuario,
   imagenInicial,
+  bioInicial,
+  websiteInicial,
+  instagramInicial,
+  youtubeInicial,
 }: {
   nombreInicial: string;
   usuario: string;
   imagenInicial: string | null;
+  bioInicial: string;
+  websiteInicial: string;
+  instagramInicial: string;
+  youtubeInicial: string;
 }) {
   const router = useRouter();
   const [nombre, setNombre] = useState(nombreInicial);
+  const [bio, setBio] = useState(bioInicial);
+  const [website, setWebsite] = useState(websiteInicial);
+  const [instagram, setInstagram] = useState(instagramInicial);
+  const [youtube, setYoutube] = useState(youtubeInicial);
   const [errorNombre, setErrorNombre] = useState<string | undefined>(undefined);
   const [estadoNombre, setEstadoNombre] = useState<EstadoNombre>("idle");
 
@@ -89,7 +107,7 @@ export function FormularioEditarPerfil({
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
-        body: JSON.stringify({ displayName: nombre }),
+        body: JSON.stringify({ displayName: nombre, bio, website, instagram, youtube }),
       });
       if (res.ok) {
         const data = (await res.json()) as { displayName?: string };
@@ -256,21 +274,57 @@ export function FormularioEditarPerfil({
         className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md"
         style={{ animationDelay: "60ms" }}
       >
-        <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">Nombre</h2>
-        <Campo
-          id="perfil-nombre"
-          label="Nombre visible"
-          className="mt-4"
-          placeholder="Ej.: Ana Gómez"
-          maxLength={NOMBRE_MAX}
-          value={nombre}
-          onChange={(e) => {
-            setNombre(e.target.value);
-            if (estadoNombre === "guardado") setEstadoNombre("idle");
-          }}
-          error={errorNombre}
-          disabled={nombreOcupado}
-        />
+        <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">Perfil</h2>
+        <div className="mt-4 flex flex-col gap-5">
+          <Campo
+            id="perfil-nombre"
+            label="Nombre visible"
+            placeholder="Ej.: Ana Gómez"
+            maxLength={NOMBRE_MAX}
+            value={nombre}
+            onChange={(e) => {
+              setNombre(e.target.value);
+              if (estadoNombre === "guardado") setEstadoNombre("idle");
+            }}
+            error={errorNombre}
+            disabled={nombreOcupado}
+          />
+          <Campo
+            id="perfil-bio"
+            label="Biografía"
+            placeholder="Cuenta algo sobre ti"
+            maxLength={BIO_MAX}
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            disabled={nombreOcupado}
+          />
+          <Campo
+            id="perfil-website"
+            label="Sitio web"
+            type="url"
+            inputMode="url"
+            placeholder="https://tu-web.com"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            disabled={nombreOcupado}
+          />
+          <Campo
+            id="perfil-instagram"
+            label="Instagram"
+            placeholder="tu_usuario (sin @)"
+            value={instagram}
+            onChange={(e) => setInstagram(e.target.value)}
+            disabled={nombreOcupado}
+          />
+          <Campo
+            id="perfil-youtube"
+            label="YouTube"
+            placeholder="@tucanal"
+            value={youtube}
+            onChange={(e) => setYoutube(e.target.value)}
+            disabled={nombreOcupado}
+          />
+        </div>
 
         <Boton
           type="submit"
@@ -278,12 +332,12 @@ export function FormularioEditarPerfil({
           disabled={nombreOcupado}
           className="mt-5 w-full py-3.5 shadow-[var(--df-cta-lift)]"
         >
-          {nombreOcupado ? "Guardando…" : "Guardar nombre"}
+          {nombreOcupado ? "Guardando…" : "Guardar perfil"}
         </Boton>
 
         {estadoNombre === "guardado" ? (
           <p role="status" className="mt-3 text-center text-sm text-ok">
-            Nombre guardado.
+            Perfil guardado.
           </p>
         ) : null}
       </form>
