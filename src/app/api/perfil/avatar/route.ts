@@ -73,7 +73,10 @@ export const POST = mutatingRoute(async (req, { user }) => {
     await prisma.user.update({ where: { id: user.userId }, data: { image } });
     return apiOk({ ok: true, image });
   } catch (e) {
-    console.error("[perfil/avatar] fallo guardando la imagen:", sanearError(e));
+    // Loguea el `code` del error de FS (EACCES, ENOSPC, ENOENT…) para diagnosticar de un vistazo
+    // (p.ej. permisos del volumen). El mensaje al usuario sigue siendo humano; nada de errnos fuera.
+    const code = e instanceof Error && "code" in e ? String((e as { code?: unknown }).code) : "?";
+    console.error(`[perfil/avatar] fallo guardando la imagen (code=${code}):`, sanearError(e));
     return apiError("AVATAR_ERROR", "No hemos podido guardar la imagen. Reintenta.", 500);
   }
 });

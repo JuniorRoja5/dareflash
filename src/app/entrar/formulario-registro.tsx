@@ -31,7 +31,7 @@ function mensajeError(status: number, code: string): string {
   if (status === 503 || code === "OVERLOADED")
     return "El servicio está ocupado. Reinténtalo en unos segundos.";
   if (status === 400)
-    return "Revisa el correo, una contraseña de 8+ caracteres y que tengas al menos 16 años.";
+    return "Revisa el correo, una contraseña de 10+ caracteres (larga y poco predecible) y que tengas al menos 16 años.";
   return "No se pudo crear la cuenta. Reintenta.";
 }
 

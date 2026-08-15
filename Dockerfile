@@ -57,6 +57,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 # argon2 (nativo, con @phc/format y node-gyp-build) llega via el standalone gracias a
 # `outputFileTracingIncludes` en next.config. No hace falta copiarlo a mano.
 
+# Punto de montaje del volumen de AVATARES con el dueño correcto. `web` corre como nextjs (uid 1001)
+# y escribe aqui (env.AVATARS_DIR=/srv/avatars); si el volumen se monta sobre un dir de root,
+# writeFile da EACCES (500). Creando el dir con este dueño ANTES de montar, un volumen NUEVO hereda
+# el dueño -> nextjs escribe; caddy lo lee en solo-lectura. Ver docker-compose.prod.yml.
+RUN mkdir -p /srv/avatars && chown nextjs:nodejs /srv/avatars
+
 USER nextjs
 ENV PORT=3000 HOSTNAME=0.0.0.0
 EXPOSE 3000
