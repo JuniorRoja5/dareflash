@@ -194,7 +194,9 @@ export function ReproductorHls({
       type="button"
       onClick={() => setSilenciado((s) => !s)}
       aria-label={silenciado ? "Activar sonido" : "Silenciar"}
-      className="absolute bottom-3 left-3 z-20 grid h-10 w-10 place-items-center rounded-full bg-void/60 text-white backdrop-blur-sm transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-void/80"
+      // Móvil: sobre la barra inferior fija (~56px) + área segura, para que NUNCA quede tapado ni
+      // bajo el chrome del sistema. Escritorio: la nav es lateral (no inferior) -> vuelve abajo.
+      className="absolute bottom-[calc(4.5rem_+_env(safe-area-inset-bottom))] left-3 z-20 grid h-10 w-10 place-items-center rounded-full bg-void/60 text-white backdrop-blur-sm transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-void/80 lg:bottom-3"
     >
       <IconoSonido silenciado={silenciado} />
     </button>
@@ -216,7 +218,12 @@ export function ReproductorHls({
   return (
     <div ref={contenedorRef} className="relative h-full w-full overflow-hidden">
       {relleno}
-      <div className="absolute inset-0 flex items-center justify-center">{video}</div>
+      {/* El vídeo (object-contain) se centra en el área VISIBLE: en móvil se reserva abajo el alto de
+          la barra inferior + área segura para que el vídeo entero quede por ENCIMA de la nav (no
+          "cortado"). El relleno difuminado sí es full-bleed (decorativo, puede ir tras la nav). */}
+      <div className="absolute inset-0 flex items-center justify-center pb-[calc(4.5rem_+_env(safe-area-inset-bottom))] lg:pb-0">
+        {video}
+      </div>
       {toggleSonido}
       {overlayError}
     </div>

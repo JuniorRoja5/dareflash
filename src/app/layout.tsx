@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Archivo, IBM_Plex_Sans } from "next/font/google";
 
 import "./globals.css";
@@ -27,6 +27,16 @@ const plex = IBM_Plex_Sans({
 export const metadata: Metadata = {
   title: "DareFlash",
   description: "DareFlash — retos en vídeo corto con premios reales.",
+};
+
+/**
+ * `viewport-fit=cover` es OBLIGATORIO para que `env(safe-area-inset-*)` tenga valor (>0) en móviles
+ * con notch/gestos: sin él, las áreas seguras que usan el feed inmersivo y sus controles quedan a 0 y
+ * los botones se meten bajo la barra del sistema. El feed es oscuro a pantalla completa.
+ */
+export const viewport: Viewport = {
+  viewportFit: "cover",
+  themeColor: "#08080c",
 };
 
 export default function RootLayout({
