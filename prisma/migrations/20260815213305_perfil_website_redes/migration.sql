@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE `User` ADD COLUMN `instagram` VARCHAR(191) NULL,
+    ADD COLUMN `website` VARCHAR(191) NULL,
+    ADD COLUMN `youtube` VARCHAR(191) NULL;

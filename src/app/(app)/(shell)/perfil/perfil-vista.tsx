@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { Avatar } from "@/components/ui/avatar";
 import { Boton } from "@/components/ui/boton";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
@@ -12,6 +14,29 @@ import type { EstadoVideo } from "./perfil-logic";
  * celda (póster + play + modal para publicados, icono + estado para el resto) vive en `celda-video`.
  */
 export type VideoCelda = { id: string; title: string | null; poster: string; estado?: EstadoVideo };
+
+/** Enlace externo del perfil: SIEMPRE rel="nofollow noopener" + target _blank (no confiamos la URL). */
+function EnlaceExterno({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="nofollow noopener"
+      className="rounded-xs font-medium text-text underline underline-offset-2 transition-colors duration-150 ease-mechanical hover:text-text-dim"
+    >
+      {children}
+    </a>
+  );
+}
+
+/** Hostname legible de una URL ya validada (http/https), sin "www.". Si fallara, muestra la URL. */
+function hostnameDe(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
 
 function Estadistica({ valor, etiqueta }: { valor: number; etiqueta: string }) {
   return (
@@ -35,6 +60,10 @@ function Estadistica({ valor, etiqueta }: { valor: number; etiqueta: string }) {
 export function PerfilVista({
   nombre,
   handle,
+  bio,
+  website,
+  instagram,
+  youtube,
   puntos,
   retosGanados,
   totalVideos,
@@ -43,6 +72,10 @@ export function PerfilVista({
 }: {
   nombre: string;
   handle: string | null;
+  bio: string | null;
+  website: string | null;
+  instagram: string | null;
+  youtube: string | null;
   puntos: number;
   retosGanados: number;
   totalVideos: number;
@@ -64,6 +97,28 @@ export function PerfilVista({
                 <InsigniaNivel puntos={puntos} />
               </div>
             </div>
+
+            {/* Bio + enlaces (v1). Los enlaces externos van SIEMPRE con rel="nofollow noopener" y
+                target="_blank"; instagram/youtube se construyen desde el HANDLE guardado. Los campos
+                vacíos no se muestran. */}
+            {bio ? (
+              <p className="mt-4 text-center text-sm whitespace-pre-line text-text-dim">{bio}</p>
+            ) : null}
+            {website || instagram || youtube ? (
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-sm">
+                {website ? (
+                  <EnlaceExterno href={website}>{hostnameDe(website)}</EnlaceExterno>
+                ) : null}
+                {instagram ? (
+                  <EnlaceExterno href={`https://instagram.com/${instagram}`}>
+                    Instagram
+                  </EnlaceExterno>
+                ) : null}
+                {youtube ? (
+                  <EnlaceExterno href={`https://youtube.com/@${youtube}`}>YouTube</EnlaceExterno>
+                ) : null}
+              </div>
+            ) : null}
 
             {/* stats NEUTRAS (panel recesado: profundidad por luminosidad, sin sombra) */}
             <div className="mt-6 flex divide-x divide-line rounded-sm border border-line bg-void">

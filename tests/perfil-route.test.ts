@@ -19,7 +19,7 @@ const APP_URL = "http://test.local";
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   rateLimit: vi.fn(),
-  actualizarNombre: vi.fn(),
+  actualizarPerfil: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ env: { APP_URL, AUTH_SECRET: SECRET } }));
@@ -28,7 +28,7 @@ vi.mock("@/server/db/client", () => ({ prisma: {} }));
 vi.mock("@/server/security/rate-limit", () => ({ rateLimit: mocks.rateLimit }));
 vi.mock("@/server/services/perfil", async (orig) => {
   const real = await orig<typeof import("@/server/services/perfil")>();
-  return { ...real, actualizarNombre: mocks.actualizarNombre };
+  return { ...real, actualizarPerfil: mocks.actualizarPerfil };
 });
 
 // Import DESPUÉS de los mocks (los vi.mock se izan, pero mantenemos el orden explícito claro).
@@ -60,30 +60,30 @@ describe("PATCH /api/perfil (autorización)", () => {
   beforeEach(() => {
     mocks.getCurrentUser.mockReset();
     mocks.rateLimit.mockReset();
-    mocks.actualizarNombre.mockReset();
+    mocks.actualizarPerfil.mockReset();
     mocks.rateLimit.mockResolvedValue({ allowed: true, remaining: 10, resetAt: new Date() });
-    mocks.actualizarNombre.mockResolvedValue({ displayName: "Ana Gómez" });
+    mocks.actualizarPerfil.mockResolvedValue({ displayName: "Ana Gómez" });
   });
 
   it("anónimo -> 401 y NO toca la BD", async () => {
     mocks.getCurrentUser.mockResolvedValue(null);
     const res = await patch({ displayName: "Ana" });
     expect(res.status).toBe(401);
-    expect(mocks.actualizarNombre).not.toHaveBeenCalled();
+    expect(mocks.actualizarPerfil).not.toHaveBeenCalled();
   });
 
   it("con sesión pero SIN token CSRF -> 403", async () => {
     mocks.getCurrentUser.mockResolvedValue(SESSION);
     const res = await patch({ displayName: "Ana" }, { csrf: null });
     expect(res.status).toBe(403);
-    expect(mocks.actualizarNombre).not.toHaveBeenCalled();
+    expect(mocks.actualizarPerfil).not.toHaveBeenCalled();
   });
 
   it("con token CSRF de OTRA sesión -> 403 (el token está atado a la sesión)", async () => {
     mocks.getCurrentUser.mockResolvedValue(SESSION);
     const res = await patch({ displayName: "Ana" }, { csrf: issueCsrfToken(SECRET, "otra") });
     expect(res.status).toBe(403);
-    expect(mocks.actualizarNombre).not.toHaveBeenCalled();
+    expect(mocks.actualizarPerfil).not.toHaveBeenCalled();
   });
 
   it("Origin ajeno -> 403 (corta el CSRF antes de mirar el token)", async () => {
@@ -96,7 +96,7 @@ describe("PATCH /api/perfil (autorización)", () => {
     mocks.getCurrentUser.mockResolvedValue(SESSION);
     const res = await patch({ displayName: "<script>alert(1)</script>" });
     expect(res.status).toBe(400);
-    expect(mocks.actualizarNombre).not.toHaveBeenCalled();
+    expect(mocks.actualizarPerfil).not.toHaveBeenCalled();
   });
 
   it("éxito: edita SIEMPRE la fila de la SESIÓN, aunque el cuerpo traiga otro id", async () => {
@@ -108,13 +108,13 @@ describe("PATCH /api/perfil (autorización)", () => {
       userId: "u-victima",
     });
     expect(res.status).toBe(200);
-    // El servicio recibe el userId de la SESIÓN, no el del cuerpo. (db, userId, displayName)
-    expect(mocks.actualizarNombre).toHaveBeenCalledTimes(1);
-    const [, userIdUsado, nombre] = mocks.actualizarNombre.mock.calls[0]!;
+    // El servicio recibe el userId de la SESIÓN, no el del cuerpo. (db, userId, datos)
+    expect(mocks.actualizarPerfil).toHaveBeenCalledTimes(1);
+    const [, userIdUsado, datos] = mocks.actualizarPerfil.mock.calls[0]!;
     expect(userIdUsado).toBe("u-real");
     expect(userIdUsado).not.toBe("u-victima");
     // Zod normaliza antes de guardar.
-    expect(nombre).toBe("Ana Gómez");
+    expect(datos.displayName).toBe("Ana Gómez");
   });
 
   it("rate-limit agotado -> 429", async () => {
@@ -122,6 +122,6 @@ describe("PATCH /api/perfil (autorización)", () => {
     mocks.rateLimit.mockResolvedValue({ allowed: false, remaining: 0, resetAt: new Date() });
     const res = await patch({ displayName: "Ana" });
     expect(res.status).toBe(429);
-    expect(mocks.actualizarNombre).not.toHaveBeenCalled();
+    expect(mocks.actualizarPerfil).not.toHaveBeenCalled();
   });
 });

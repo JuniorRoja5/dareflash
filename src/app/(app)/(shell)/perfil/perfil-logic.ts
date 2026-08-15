@@ -34,6 +34,25 @@ export function nombreEsValido(nombre: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
+// Bio y enlaces (perfil v1)
+// ---------------------------------------------------------------------------
+
+/** Longitud máxima de la biografía. */
+export const BIO_MAX = 300;
+
+/**
+ * HANDLES (no URLs) de redes: guardar el handle y NO una URL libre evita que alguien meta un enlace
+ * malicioso disfrazado de red social. La URL la construye el frontend a partir del handle validado.
+ */
+export const PATRON_INSTAGRAM = /^[A-Za-z0-9._]{1,30}$/; // usuario de Instagram, sin @ ni URL
+export const PATRON_YOUTUBE = /^[A-Za-z0-9._-]{1,30}$/; // handle de YouTube SIN el @ inicial
+
+/** Quita @ iniciales del handle de YouTube (se guarda sin @; el frontend antepone `@`). */
+export function normalizarYoutube(handle: string): string {
+  return handle.trim().replace(/^@+/, "");
+}
+
+// ---------------------------------------------------------------------------
 // Avatar (imagen)
 // ---------------------------------------------------------------------------
 

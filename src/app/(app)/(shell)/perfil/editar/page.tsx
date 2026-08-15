@@ -41,7 +41,15 @@ export default async function EditarPerfilPage() {
 
   const perfil = await prisma.user.findUnique({
     where: { id: sesion.userId },
-    select: { displayName: true, username: true, image: true },
+    select: {
+      displayName: true,
+      username: true,
+      image: true,
+      bio: true,
+      website: true,
+      instagram: true,
+      youtube: true,
+    },
   });
 
   return (
@@ -60,6 +68,10 @@ export default async function EditarPerfilPage() {
         nombreInicial={perfil?.displayName ?? ""}
         usuario={perfil?.username ?? ""}
         imagenInicial={perfil?.image ?? null}
+        bioInicial={perfil?.bio ?? ""}
+        websiteInicial={perfil?.website ?? ""}
+        instagramInicial={perfil?.instagram ?? ""}
+        youtubeInicial={perfil?.youtube ?? ""}
       />
     </div>
   );
