@@ -13,6 +13,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { ModerationStatus, PrismaClient } from "../src/generated/prisma/client";
 import {
   aPerfilPublico,
+  estadoDeVideo,
+  miPerfil,
   perfilPublicoPorId,
   perfilPublicoPorUsername,
   SELECT_USUARIO_PUBLICO,
@@ -46,9 +48,10 @@ async function crearVideo(
   status: ModerationStatus,
   bunny: string,
   title: string,
+  failureReason?: string,
 ): Promise<string> {
   const v = await prisma.video.create({
-    data: { userId, status, bunnyVideoId: bunny, title },
+    data: { userId, status, bunnyVideoId: bunny, title, failureReason: failureReason ?? null },
     select: { id: true },
   });
   return v.id;
@@ -171,5 +174,99 @@ describe("perfil público contra la BD real", () => {
 
     await prisma.user.create({ data: { username: "baneado", bannedAt: new Date() } });
     expect(await perfilPublicoPorUsername(prisma, "baneado")).toBeNull();
+  });
+});
+
+// ============================================================================
+// PIEZA C — Estado de MIS vídeos (solo el dueño) vs perfil público de otro
+// ============================================================================
+
+describe("estadoDeVideo (mapeo PURO status+failureReason -> copy semántico)", () => {
+  it("PENDING -> procesando; PUBLISHED -> publicado", () => {
+    expect(estadoDeVideo("PENDING", null)).toBe("procesando");
+    expect(estadoDeVideo("PUBLISHED", null)).toBe("publicado");
+  });
+
+  it("FAILED + TOO_LONG -> demasiado-largo (la sobreduración se distingue)", () => {
+    expect(estadoDeVideo("FAILED", "TOO_LONG")).toBe("demasiado-largo");
+  });
+
+  it("FAILED con otro motivo (o desconocido/nulo) -> error genérico", () => {
+    expect(estadoDeVideo("FAILED", "TRANSCODE_ERROR")).toBe("error");
+    expect(estadoDeVideo("FAILED", "UPLOAD_INCOMPLETE")).toBe("error");
+    expect(estadoDeVideo("FAILED", null)).toBe("error");
+    expect(estadoDeVideo("FAILED", "MOTIVO_INVENTADO")).toBe("error");
+  });
+
+  it("un estado inesperado NUNCA se disfraza de 'procesando'", () => {
+    expect(estadoDeVideo("REJECTED", null)).toBe("error");
+    expect(estadoDeVideo("REMOVED", null)).toBe("error");
+  });
+});
+
+describe("mis vídeos con estado vs perfil público (DIENTES anti-fuga)", () => {
+  it("el DUEÑO ve los estados; el público de OTRO solo PUBLISHED, sin motivo crudo", async () => {
+    const duena = await prisma.user.create({
+      data: { username: "duena", displayName: "Dueña", pointsBalance: 10 },
+      select: { id: true },
+    });
+    await crearVideo(duena.id, "PUBLISHED", "b-pub", "Publicado");
+    await crearVideo(duena.id, "PENDING", "b-pend", "En proceso");
+    await crearVideo(duena.id, "FAILED", "b-long", "Largo", "TOO_LONG");
+    await crearVideo(duena.id, "FAILED", "b-err", "Roto", "TRANSCODE_ERROR");
+
+    // DUEÑO (miPerfil, por userId de SESIÓN): ve los 4 con su estado humanizado.
+    const mio = await miPerfil(prisma, duena.id);
+    expect(mio).not.toBeNull();
+    const porBunny = new Map(mio!.videos.map((v) => [v.bunnyVideoId, v.estado]));
+    expect(porBunny.get("b-pub")).toBe("publicado");
+    expect(porBunny.get("b-pend")).toBe("procesando");
+    expect(porBunny.get("b-long")).toBe("demasiado-largo");
+    expect(porBunny.get("b-err")).toBe("error");
+    // Ni el motivo crudo ni el enum de Prisma viajan en el DTO del dueño.
+    const mioStr = JSON.stringify(mio);
+    for (const crudo of ["TOO_LONG", "TRANSCODE_ERROR", "FAILED", "PENDING", "failureReason"]) {
+      expect(mioStr).not.toContain(crudo);
+    }
+
+    // PÚBLICO de OTRO (por username Y por id): SOLO el PUBLISHED; cero rastro de lo no publicado.
+    for (const publico of [
+      await perfilPublicoPorUsername(prisma, "duena"),
+      await perfilPublicoPorId(prisma, duena.id),
+    ]) {
+      expect(publico).not.toBeNull();
+      expect(publico!.videos.map((v) => v.bunnyVideoId)).toEqual(["b-pub"]);
+      const pubStr = JSON.stringify(publico);
+      for (const fuga of [
+        "b-pend",
+        "b-long",
+        "b-err",
+        "TOO_LONG",
+        "TRANSCODE_ERROR",
+        "FAILED",
+        "PENDING",
+        "estado",
+        "procesando",
+        "demasiado-largo",
+      ]) {
+        expect(pubStr).not.toContain(fuga);
+      }
+    }
+  });
+
+  it("miPerfil de un usuario inexistente/borrado/baneado -> null", async () => {
+    expect(await miPerfil(prisma, "no-existe")).toBeNull();
+
+    const borrado = await prisma.user.create({
+      data: { username: "borrado2", deletedAt: new Date() },
+      select: { id: true },
+    });
+    expect(await miPerfil(prisma, borrado.id)).toBeNull();
+
+    const baneado = await prisma.user.create({
+      data: { username: "baneado2", bannedAt: new Date() },
+      select: { id: true },
+    });
+    expect(await miPerfil(prisma, baneado.id)).toBeNull();
   });
 });

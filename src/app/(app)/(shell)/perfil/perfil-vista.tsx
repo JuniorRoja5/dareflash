@@ -2,8 +2,32 @@ import { Avatar } from "@/components/ui/avatar";
 import { Boton } from "@/components/ui/boton";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
 
-/** Celda de la rejilla: un video PUBLISHED con su póster firmado. */
-export type VideoCelda = { id: string; title: string | null; poster: string };
+import type { EstadoVideo } from "./perfil-logic";
+
+/**
+ * Celda de la rejilla. `poster` firmado cuando el vídeo está PUBLICADO; "" cuando no (aún no se
+ * reproduce). `estado` SOLO viaja en el perfil PROPIO: el perfil público de otro NUNCA lo incluye,
+ * así que la etiqueta de estado no puede aparecer —ni filtrarse— fuera del dueño.
+ */
+export type VideoCelda = { id: string; title: string | null; poster: string; estado?: EstadoVideo };
+
+/**
+ * Copy HUMANO de cada estado (el usuario nunca ve PENDING/FAILED/TOO_LONG). `tono` elige el color
+ * semántico: menta SOLO para la confirmación (Publicado), rojo para lo que no saldrá; "Procesando"
+ * es neutro (el ámbar está reservado a tiempo restante, no se toca aquí).
+ */
+const COPY_ESTADO: Record<EstadoVideo, { texto: string; tono: "neutro" | "ok" | "alarma" }> = {
+  procesando: { texto: "Procesando", tono: "neutro" },
+  publicado: { texto: "Publicado", tono: "ok" },
+  "demasiado-largo": { texto: "No publicado: supera los 90 segundos", tono: "alarma" },
+  error: { texto: "No se pudo procesar", tono: "alarma" },
+};
+
+const TONO_TEXTO: Record<"neutro" | "ok" | "alarma", string> = {
+  neutro: "text-text-dim",
+  ok: "text-ok",
+  alarma: "text-alarm",
+};
 
 /** Triangulo de "play" sutil sobre el póster de cada celda. */
 function IconoPlay() {
@@ -11,6 +35,84 @@ function IconoPlay() {
     <svg viewBox="0 0 24 24" className="h-6 w-6 text-white/85" fill="currentColor" aria-hidden>
       <path d="M9 6.5v11l9-5.5z" />
     </svg>
+  );
+}
+
+/** Reloj: vídeo aún en proceso (sin póster todavía). */
+function IconoReloj() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-7 w-7 text-text-dim"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v4l2.5 2" />
+    </svg>
+  );
+}
+
+/** Aviso: vídeo que no llegó a publicarse. */
+function IconoAviso() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-7 w-7 text-alarm"
+      aria-hidden
+    >
+      <path d="M12 4l9 15H3z" />
+      <path d="M12 10v4" />
+      <path d="M12 17.5v.5" />
+    </svg>
+  );
+}
+
+/**
+ * Una celda de "Mis vídeos"/"Vídeos". El PUBLICADO muestra su póster y "play"; el que aún no se
+ * publica muestra un marcador neutro con icono. La etiqueta de estado se pinta SOLO si el dueño la
+ * pasó (`estado`): en el perfil público de otro no existe ese dato y por tanto no se pinta nada.
+ */
+function CeldaVideo({ video }: { video: VideoCelda }) {
+  const info = video.estado ? COPY_ESTADO[video.estado] : null;
+  const publicado = video.poster !== "";
+  return (
+    <div className="flex flex-col">
+      <div
+        title={video.title ?? undefined}
+        className={`relative flex aspect-[9/16] items-center justify-center overflow-hidden rounded-sm border border-line bg-raised bg-cover bg-center ${
+          publicado
+            ? "transition-[transform,box-shadow] duration-[var(--df-dur-fast)] ease-mechanical hover:-translate-y-0.5 hover:shadow-[var(--df-shadow-md)]"
+            : ""
+        }`}
+        style={publicado ? { backgroundImage: `url("${video.poster}")` } : undefined}
+      >
+        {publicado ? (
+          <>
+            <span className="absolute inset-0 bg-void/25" aria-hidden />
+            <span className="relative">
+              <IconoPlay />
+            </span>
+          </>
+        ) : video.estado === "procesando" ? (
+          <IconoReloj />
+        ) : (
+          <IconoAviso />
+        )}
+      </div>
+      {info ? (
+        <p className={`mt-1.5 text-2xs leading-tight ${TONO_TEXTO[info.tono]}`}>{info.texto}</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -104,20 +206,9 @@ export function PerfilVista({
                 : "Este perfil aún no tiene vídeos publicados."}
             </p>
           ) : (
-            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 lg:grid-cols-5">
+            <div className="grid grid-cols-3 items-start gap-x-1.5 gap-y-3 sm:grid-cols-4 lg:grid-cols-5">
               {videos.map((v) => (
-                // Póster real como fondo (blurred-fill lo pone el reproductor; aquí es miniatura).
-                <div
-                  key={v.id}
-                  title={v.title ?? undefined}
-                  className="relative flex aspect-[9/16] items-center justify-center overflow-hidden rounded-sm border border-line bg-raised bg-cover bg-center transition-[transform,box-shadow] duration-[var(--df-dur-fast)] ease-mechanical hover:-translate-y-0.5 hover:shadow-[var(--df-shadow-md)]"
-                  style={{ backgroundImage: `url("${v.poster}")` }}
-                >
-                  <span className="absolute inset-0 bg-void/25" aria-hidden />
-                  <span className="relative">
-                    <IconoPlay />
-                  </span>
-                </div>
+                <CeldaVideo key={v.id} video={v} />
               ))}
             </div>
           )}

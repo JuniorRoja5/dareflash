@@ -228,7 +228,7 @@ export function FormularioCrear() {
       {fase === "subido" ? (
         <div className="mt-6">
           <p className="text-center text-sm text-ok" role="status">
-            Subido — se publicará tras el procesado.
+            Subido. Lo estamos procesando; aparecerá en tu perfil cuando esté listo.
           </p>
           <Boton
             type="button"
