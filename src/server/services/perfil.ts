@@ -28,6 +28,7 @@ import {
   PATRON_INSTAGRAM,
   PATRON_NOMBRE,
   PATRON_YOUTUBE,
+  WEBSITE_MAX,
   normalizarNombre,
   normalizarYoutube,
 } from "@/app/(app)/(shell)/perfil/perfil-logic";
@@ -216,6 +217,8 @@ const websiteSchema = z
   .string()
   .transform((s) => s.trim())
   .pipe(z.union([z.literal(""), urlHttp]))
+  // Tope = ancho de columna (VARCHAR(191)): sin el, una URL válida larga reventaría en la BD (500).
+  .pipe(z.string().max(WEBSITE_MAX, `El sitio web no puede pasar de ${WEBSITE_MAX} caracteres.`))
   .transform((s) => s || null);
 
 const instagramSchema = z
