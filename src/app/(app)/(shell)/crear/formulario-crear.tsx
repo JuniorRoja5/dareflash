@@ -8,7 +8,14 @@ import { Campo } from "@/components/ui/campo";
 
 import { CATEGORIAS } from "../retos/retos-datos";
 import { tituloEsValido } from "./crear-logic";
-import { credencialValida, excedeTope, LIMITE_TAMANO_BYTES, opcionesTus } from "./subida-tus";
+import {
+  credencialValida,
+  duracionExcedeLimite,
+  excedeTope,
+  LIMITE_TAMANO_BYTES,
+  MENSAJE_DURACION_EXCEDIDA,
+  opcionesTus,
+} from "./subida-tus";
 
 /** Icono de camara de video (SVG inline propio, trazo geometrico). */
 function IconoCamara() {
@@ -31,6 +38,29 @@ function IconoCamara() {
 
 const MB = 1024 * 1024;
 const toMB = (bytes: number): string => `${(bytes / MB).toFixed(1)} MB`;
+
+/**
+ * Lee la duracion (segundos) de un video EN EL NAVEGADOR sin subir un solo byte: un <video> temporal
+ * cargado desde un object URL, que resuelve en `loadedmetadata`. Si el navegador NO puede leer la
+ * metadata (`error`) resuelve `Infinity` -> el pre-check lo deja pasar y manda el servidor. LIBERA el
+ * object URL SIEMPRE (`revokeObjectURL`) para no fugar memoria, tanto en exito como en error.
+ */
+function leerDuracionVideo(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    const cerrar = (segundos: number): void => {
+      URL.revokeObjectURL(url);
+      video.removeAttribute("src");
+      video.load(); // suelta el decoder del <video> descartado
+      resolve(segundos);
+    };
+    video.preload = "metadata";
+    video.onloadedmetadata = () => cerrar(video.duration);
+    video.onerror = () => cerrar(Infinity); // formato raro/ilegible -> decide el servidor
+    video.src = url;
+  });
+}
 
 type Fase = "idle" | "subiendo" | "subido" | "error";
 
@@ -70,7 +100,7 @@ export function FormularioCrear() {
     setFase("idle");
   };
 
-  const onElegirFichero = (e: React.ChangeEvent<HTMLInputElement>): void => {
+  const onElegirFichero = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (excedeTope(f.size)) {
@@ -78,6 +108,14 @@ export function FormularioCrear() {
       setErrorFichero(
         `El vídeo supera el límite de ${LIMITE_TAMANO_BYTES / (1024 * MB)} GB. Elige uno más corto o de menor calidad.`,
       );
+      return;
+    }
+    // Pre-check de duracion EN CLIENTE (solo UX): rechaza >90 s antes de tocar Bunny; si la duracion
+    // no se puede leer, se PERMITE y decide el servidor (worker -> FAILED/TOO_LONG, la autoridad).
+    const duracion = await leerDuracionVideo(f);
+    if (duracionExcedeLimite(duracion)) {
+      setFichero(null);
+      setErrorFichero(MENSAJE_DURACION_EXCEDIDA);
       return;
     }
     setErrorFichero(undefined);
@@ -177,7 +215,7 @@ export function FormularioCrear() {
           accept="video/*"
           className="sr-only"
           disabled={ocupado}
-          onChange={onElegirFichero}
+          onChange={(e) => void onElegirFichero(e)}
         />
       </label>
       {errorFichero ? <p className="mt-1.5 text-sm text-alarm">{errorFichero}</p> : null}

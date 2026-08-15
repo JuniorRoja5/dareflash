@@ -7,8 +7,11 @@
  */
 import { describe, expect, it } from "vitest";
 
+import { VIDEO_MAX_DURATION_SEC } from "../src/config/constants";
 import {
   credencialValida,
+  duracionExcedeLimite,
+  DURACION_TOLERANCIA_SEC,
   excedeTope,
   LIMITE_TAMANO_BYTES,
   opcionesTus,
@@ -61,5 +64,27 @@ describe("excedeTope: guarda de UX de 1 GB (no es control de seguridad)", () => 
     expect(excedeTope(LIMITE_TAMANO_BYTES)).toBe(false);
     expect(excedeTope(LIMITE_TAMANO_BYTES + 1)).toBe(true);
     expect(excedeTope(50 * 1024 * 1024)).toBe(false);
+  });
+});
+
+describe("duracionExcedeLimite: pre-check de duracion en cliente (solo UX)", () => {
+  const LIMITE = VIDEO_MAX_DURATION_SEC + DURACION_TOLERANCIA_SEC; // 90 + 0.5
+
+  it("dentro del limite (con tolerancia) NO se rechaza", () => {
+    expect(duracionExcedeLimite(30)).toBe(false);
+    expect(duracionExcedeLimite(VIDEO_MAX_DURATION_SEC)).toBe(false); // 90 exacto
+    expect(duracionExcedeLimite(LIMITE)).toBe(false); // 90.5, borde inclusivo
+  });
+
+  it("pasado el limite + tolerancia SI se rechaza", () => {
+    expect(duracionExcedeLimite(LIMITE + 0.01)).toBe(true);
+    expect(duracionExcedeLimite(91)).toBe(true);
+    expect(duracionExcedeLimite(600)).toBe(true);
+  });
+
+  it("duracion no legible (Infinity/NaN) se PERMITE: manda el servidor", () => {
+    expect(duracionExcedeLimite(Infinity)).toBe(false);
+    expect(duracionExcedeLimite(NaN)).toBe(false);
+    expect(duracionExcedeLimite(-1)).toBe(false);
   });
 });
