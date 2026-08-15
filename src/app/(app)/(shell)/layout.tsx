@@ -8,15 +8,32 @@ import { BarraSuperior } from "./barra-superior";
  * puede aprovechar el ancho. En movil no hay barra superior (la nav es la inferior del chrome) y se
  * reserva el hueco de esa barra (`pb-24`). El `/feed` queda FUERA de este grupo -> sin shell.
  *
- * En ESTA rama las secciones solo van "envueltas": su interior no se re-maqueta (eso es en ramas
- * posteriores). La rejilla ancha multicolumna se construira sobre esta region entonces.
+ * La barra muestra al usuario de la SESION (nombre + avatar reales). Se resuelve AQUI (server): lee la
+ * cookie y consulta solo lo publico del chrome (displayName/username/image). Un INVITADO (sin sesion)
+ * ve un avatar neutro, sin romper (el grupo es publico). Leer la sesion hace el shell dinamico por
+ * peticion; el build sin env no se toca (cookies/DB son de request, no de build).
  */
-export default function ShellLayout({ children }: { children: ReactNode }) {
+export default async function ShellLayout({ children }: { children: ReactNode }) {
+  const { getCurrentUser } = await import("@/server/auth/current-user");
+  const user = await getCurrentUser();
+
+  let cuenta: { nombre: string; imagen: string | null } | null = null;
+  if (user) {
+    const { prisma } = await import("@/server/db/client");
+    const fila = await prisma.user.findUnique({
+      where: { id: user.userId },
+      select: { displayName: true, username: true, image: true },
+    });
+    if (fila) {
+      cuenta = { nombre: fila.displayName ?? fila.username ?? "Tú", imagen: fila.image };
+    }
+  }
+
   return (
     <div className="min-h-full">
       {/* Barra superior: solo escritorio */}
       <div className="hidden lg:block">
-        <BarraSuperior />
+        <BarraSuperior usuario={cuenta} />
       </div>
 
       {/* Region de contenido: hueco para la barra inferior en movil; en escritorio, ancho disponible. */}

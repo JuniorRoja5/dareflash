@@ -65,7 +65,12 @@ function IconoChevron() {
  * en /inicio, donde se atenua a secundario para no competir con el magenta de contenido del hero de
  * la portada. Reusa el lenguaje del boton para un CTA de navegacion; no es un primitivo nuevo.
  */
-export function BarraSuperior() {
+export function BarraSuperior({
+  usuario,
+}: {
+  /** Usuario de la sesión (nombre + avatar reales). `null` = invitado -> avatar neutro. */
+  usuario: { nombre: string; imagen: string | null } | null;
+}) {
   return (
     <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-line bg-surface px-8 py-3">
       {/* Buscador (maqueta, no funcional) */}
@@ -103,7 +108,11 @@ export function BarraSuperior() {
           aria-label="Tu cuenta"
           className="flex items-center gap-1 rounded-full"
         >
-          <Avatar nombre="usuario_demo" tamano="sm" />
+          <Avatar
+            nombre={usuario?.nombre ?? "Invitado"}
+            imagen={usuario?.imagen ?? null}
+            tamano="sm"
+          />
           <IconoChevron />
         </button>
       </div>
