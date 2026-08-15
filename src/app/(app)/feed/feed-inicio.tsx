@@ -50,6 +50,32 @@ const IconoCompartir = () => (
   </IconoAccion>
 );
 
+/** Icono de altavoz (con/sin ondas) para el botón de mute global del feed. SVG inline, trazo de marca. */
+function IconoSonido({ silenciado }: { silenciado: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+      aria-hidden
+    >
+      <path d="M5 9v6h3l4 3V6L8 9H5z" />
+      {silenciado ? (
+        <path d="M16 9l5 6M21 9l-5 6" />
+      ) : (
+        <>
+          <path d="M16 8.5a4 4 0 0 1 0 7" />
+          <path d="M18.5 6a7 7 0 0 1 0 12" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 /**
  * Boton de accion. Neutro (icono blanco) salvo VOTA (`destacado`): circulo magenta con icono NEGRO =
  * la UNICA accion magenta de contenido (movil sobre el video; desktop en la columna de acciones fuera
@@ -94,7 +120,17 @@ function Accion({
  * carga/descarga por visibilidad). Solo `votos` sale del modelo (Submission.voteCount); me gusta,
  * comentarios y compartir aún no tienen modelo (llegan en fases posteriores) y muestran 0 real.
  */
-function PostInicio({ post, alRef }: { post: PostFeed; alRef: (el: HTMLElement | null) => void }) {
+function PostInicio({
+  post,
+  alRef,
+  silenciado,
+  onToggleSilencio,
+}: {
+  post: PostFeed;
+  alRef: (el: HTMLElement | null) => void;
+  silenciado: boolean;
+  onToggleSilencio: () => void;
+}) {
   return (
     <section
       ref={alRef}
@@ -103,13 +139,21 @@ function PostInicio({ post, alRef }: { post: PostFeed; alRef: (el: HTMLElement |
       {/* VIDEO real (HLS firmado). En desktop, tira 9:16 centrada con filete; en movil, a sangre. */}
       <div className="relative h-full w-full overflow-hidden bg-raised lg:h-[86svh] lg:aspect-[9/16] lg:w-auto lg:rounded-sm lg:border lg:border-line">
         <div className="absolute inset-0">
-          <ReproductorHls variante="feed" src={post.src} poster={post.poster} />
+          {/* `silenciado` GLOBAL: la preferencia vive en el feed; el player solo la aplica. El tap-pausa
+              y la barra de progreso viven dentro del player. */}
+          <ReproductorHls
+            variante="feed"
+            src={post.src}
+            poster={post.poster}
+            silenciado={silenciado}
+          />
         </div>
         {/* Scrim (velo) — solo movil (en desktop el video queda limpio) */}
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-24 bg-gradient-to-b from-black/50 to-transparent lg:hidden" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-56 bg-gradient-to-t from-black/75 to-transparent lg:hidden" />
-        {/* Info sobre el video — solo movil (en desktop va al panel) */}
-        <div className="absolute bottom-0 left-0 z-10 w-3/4 p-4 pb-24 lg:hidden">
+        {/* Info sobre el video — solo movil. `pointer-events-none`: los taps la ATRAVIESAN y llegan a la
+            capa de pausa/reanudar del player (no es un target interactivo). */}
+        <div className="pointer-events-none absolute bottom-0 left-0 z-10 w-3/4 p-4 pb-24 lg:hidden">
           <p className="text-base font-semibold text-white">@{post.username}</p>
           <p className="mt-1 line-clamp-2 text-sm text-white/90">Reto: {post.retoTitulo}</p>
           {post.categoria ? (
@@ -118,6 +162,16 @@ function PostInicio({ post, alRef }: { post: PostFeed; alRef: (el: HTMLElement |
             </div>
           ) : null}
         </div>
+        {/* MUTE GLOBAL: su propio control, sobre la barra inferior + safe-area en móvil (abajo en
+            escritorio: la nav es lateral). Toca el estado compartido del feed. */}
+        <button
+          type="button"
+          onClick={onToggleSilencio}
+          aria-label={silenciado ? "Activar sonido" : "Silenciar"}
+          className="absolute bottom-[calc(4.5rem_+_env(safe-area-inset-bottom))] left-3 z-10 grid h-10 w-10 place-items-center rounded-full bg-void/60 text-white backdrop-blur-sm transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-void/80 lg:bottom-3"
+        >
+          <IconoSonido silenciado={silenciado} />
+        </button>
       </div>
 
       {/* ACCIONES: sobre el video en movil (absolute), FUERA del video en desktop (static) */}
@@ -215,6 +269,9 @@ export function FeedInicio({
   const [posts, setPosts] = useState<PostFeed[]>(postsIniciales);
   const [cursor, setCursor] = useState<string | null>(cursorInicial);
   const [activo, setActivo] = useState(0);
+  // MUTE GLOBAL del feed: una sola preferencia para TODOS los vídeos (arranca en mute; el navegador lo
+  // exige para autoplay). Se pasa a cada player; quitar/poner el sonido en uno se mantiene en el resto.
+  const [silenciado, setSilenciado] = useState(true);
   // Guarda anti-solape de la paginacion: es un ref (no se pinta), asi que no dispara renders.
   const cargandoRef = useRef(false);
   const columna = useRef<HTMLDivElement | null>(null);
@@ -285,6 +342,8 @@ export function FeedInicio({
             alRef={(el) => {
               if (el) secciones.current[i] = el;
             }}
+            silenciado={silenciado}
+            onToggleSilencio={() => setSilenciado((s) => !s)}
           />
         ))}
       </div>

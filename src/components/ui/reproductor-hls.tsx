@@ -1,7 +1,7 @@
 "use client";
 
 import type { LoaderCallbacks, LoaderConfiguration, LoaderContext } from "hls.js";
-import { useEffect, useRef, useState } from "react";
+import { type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
 
 import { CajaVideo } from "./caja-video";
 
@@ -13,34 +13,52 @@ import { CajaVideo } from "./caja-video";
  *
  * Reproducción: HLS NATIVO donde el navegador lo soporta (Safari/iOS -> `canPlayType`), y `hls.js`
  * (import DINÁMICO, fuera del bundle inicial) en el resto. Rendimiento: carga/reproduce SOLO cuando
- * está en pantalla (IntersectionObserver) y suelta el buffer al salir de vista — clave para un feed
- * con muchos vídeos (nunca 10 a la vez).
+ * está en pantalla (IntersectionObserver) y suelta el buffer al salir de vista.
  *
- * Encuadre (reglas cerradas): `feed` = 9:16 inmersivo (el vídeo llena el alto; el material que no sea
- * 9:16 se rellena con fondo DIFUMINADO, nunca barras ni recorte). `detalle` = 16:9 en escritorio /
- * 9:16 en móvil vía `CajaVideo`, con el mismo relleno difuminado.
+ * Encuadre (reglas cerradas): `feed` = 9:16 inmersivo (el vídeo llena el alto; lo que no sea 9:16 se
+ * rellena con fondo DIFUMINADO, nunca barras ni recorte). `detalle` = 16:9 escritorio / 9:16 móvil.
+ *
+ * CONTROLES DEL FEED (estilo TikTok, solo variante `feed`):
+ *  - TAP en el vídeo -> pausa/reanuda, con icono de play central al pausar. Un arrastre (>10 px entre
+ *    pointerdown y pointerup) NO alterna: es el scroll vertical del snap.
+ *  - BARRA DE PROGRESO fina abajo; al pausar engorda y permite SEEK (tocar/arrastrar).
+ *  - MUTE GLOBAL: el estado `silenciado` vive en el FEED (una sola preferencia para todos los vídeos)
+ *    y llega por prop; el botón lo pinta el feed. En `detalle` no hay prop -> estado local (arranca en
+ *    mute). El feed SIEMPRE arranca en mute (el navegador lo exige para autoplay).
  */
 type Variante = "feed" | "detalle";
 
 const HLS_NATIVO = "application/vnd.apple.mpegurl";
+const UMBRAL_TAP_PX = 10; // más movimiento que esto entre down y up = swipe (scroll), no un tap
 
 export function ReproductorHls({
   src,
   poster,
   variante,
+  silenciado: silenciadoProp,
 }: {
   src: string;
   poster: string;
   variante: Variante;
+  /** Mute CONTROLADO (feed: preferencia global). Sin prop (detalle) -> estado local, arranca en mute. */
+  silenciado?: boolean;
 }) {
   const esFeed = variante === "feed";
   const videoRef = useRef<HTMLVideoElement>(null);
   const contenedorRef = useRef<HTMLDivElement>(null);
+  const barraRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<{ destroy: () => void } | null>(null);
   const cargadoRef = useRef(false);
+  const bajadaRef = useRef<{ x: number; y: number } | null>(null);
+  const swipeRef = useRef(false);
   const [error, setError] = useState(false);
-  const [silenciado, setSilenciado] = useState(true); // el feed arranca en mute (autoplay lo exige)
+  const [pausado, setPausado] = useState(false); // pausa MANUAL del usuario (feed): pinta el icono play
+  const [progreso, setProgreso] = useState(0); // 0..1
   const [intento, setIntento] = useState(0); // fuerza recarga al "Reintentar"
+
+  // Mute: en FEED lo controla el prop (preferencia global). En DETALLE no hay prop -> arranca en mute y
+  // el usuario lo cambia con los controles NATIVOS del <video> (el efecto solo fija el valor inicial).
+  const silenciado = silenciadoProp ?? true;
 
   useEffect(() => {
     const video = videoRef.current;
@@ -63,6 +81,7 @@ export function ReproductorHls({
       if (cargadoRef.current) return;
       cargadoRef.current = true;
       setError(false);
+      setPausado(false); // al entrar en vista se reproduce: no hay pausa manual pendiente
 
       // hls.js PRIMERO (donde esta soportado: MSE / Managed Media Source en iOS 17.1+), con un LOADER
       // propio que propaga el token a CADA peticion. El HLS nativo queda de fallback SOLO donde hls.js
@@ -73,10 +92,6 @@ export function ReproductorHls({
         if (cancelado) return;
         if (Hls.isSupported()) {
           usaHlsJs = true;
-          // El token del endpoint viaja en el query de `src` (?token=...&token_path=...&expires=...).
-          // hls.js NO lo arrastra a los segmentos por defecto -> se anade en el loader a la playlist,
-          // subniveles (p.ej. 720p/) y segmentos (.ts/.m4s). El token es de DIRECTORIO /{videoId}/, asi
-          // que la MISMA firma cubre todo ese prefijo.
           const params = src.includes("?") ? src.slice(src.indexOf("?") + 1) : "";
           class LoaderConToken extends Hls.DefaultConfig.loader {
             load(
@@ -104,9 +119,6 @@ export function ReproductorHls({
       }
 
       if (!usaHlsJs) {
-        // FALLBACK HLS NATIVO (iOS viejo sin MSE). LIMITACION CONOCIDA: el navegador pide los segmentos
-        // por su cuenta y aqui el token NO se propaga a ellos -> con token-auth activo darian 403. Se
-        // decide aparte; NO se resuelve en esta pieza.
         if (video.canPlayType(HLS_NATIVO)) {
           video.src = src;
         } else {
@@ -115,11 +127,10 @@ export function ReproductorHls({
         }
       }
       if (esFeed) {
-        // Autoplay: puede fallar por política del navegador -> se queda en el póster, sin romper.
         try {
           await video.play();
         } catch {
-          /* autoplay bloqueado */
+          /* autoplay bloqueado -> se queda en el póster, sin romper */
         }
       }
     };
@@ -142,10 +153,82 @@ export function ReproductorHls({
     };
   }, [src, esFeed, intento]);
 
-  // Mantener el mute del elemento sincronizado con el estado (toggle de sonido del feed).
+  // Mute del elemento sincronizado con el estado (controlado por el feed o local en detalle).
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = silenciado;
   }, [silenciado]);
+
+  // PROGRESO (solo feed): rAF mientras reproduce; para al pausar/salir. Los eventos del <video> son la
+  // fuente de verdad (cubren pausa manual, buffering y fin de bucle).
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !esFeed) return;
+    let raf = 0;
+    const tick = (): void => {
+      if (video.duration > 0) setProgreso(video.currentTime / video.duration);
+      raf = requestAnimationFrame(tick);
+    };
+    const arrancar = (): void => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(tick);
+    };
+    const parar = (): void => cancelAnimationFrame(raf);
+    video.addEventListener("playing", arrancar);
+    video.addEventListener("pause", parar);
+    video.addEventListener("ended", parar);
+    return () => {
+      parar();
+      video.removeEventListener("playing", arrancar);
+      video.removeEventListener("pause", parar);
+      video.removeEventListener("ended", parar);
+    };
+  }, [esFeed, src, intento]);
+
+  // --- Tap para pausar/reanudar (feed) ---
+  function alternarPausa(): void {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) {
+      void v.play().catch(() => {});
+      setPausado(false);
+    } else {
+      v.pause();
+      setPausado(true);
+    }
+  }
+  function onTapDown(e: ReactPointerEvent): void {
+    bajadaRef.current = { x: e.clientX, y: e.clientY };
+    swipeRef.current = false;
+  }
+  function onTapMove(e: ReactPointerEvent): void {
+    const b = bajadaRef.current;
+    if (b && Math.hypot(e.clientX - b.x, e.clientY - b.y) > UMBRAL_TAP_PX) swipeRef.current = true;
+  }
+  function onTapClick(): void {
+    // El click nativo cubre el tap Y el teclado (Space/Enter en el <button>). Si hubo arrastre, fue
+    // scroll: no alternamos.
+    if (swipeRef.current) return;
+    alternarPausa();
+  }
+
+  // --- Seek por la barra (solo cuando está pausado) ---
+  function buscarEn(clientX: number): void {
+    const v = videoRef.current;
+    const barra = barraRef.current;
+    if (!v || !barra || !(v.duration > 0)) return;
+    const r = barra.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+    v.currentTime = ratio * v.duration;
+    setProgreso(ratio);
+  }
+  function onBarraDown(e: ReactPointerEvent): void {
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    buscarEn(e.clientX);
+  }
+  function onBarraMove(e: ReactPointerEvent): void {
+    if (e.pointerType === "mouse" && e.buttons === 0) return; // ratón sin botón: no arrastres
+    buscarEn(e.clientX);
+  }
 
   // Fondo DIFUMINADO (póster escalado + blur): cubre los lados/franjas sin barras negras ni recorte.
   const relleno = (
@@ -163,7 +246,7 @@ export function ReproductorHls({
       muted={silenciado}
       loop={esFeed}
       playsInline
-      controls={!esFeed} // detalle: controles nativos mínimos; feed: sin cromo (solo el toggle)
+      controls={!esFeed} // detalle: controles nativos mínimos; feed: cromo propio
       controlsList="nodownload noplaybackrate noremoteplayback"
       disablePictureInPicture
       onError={() => setError(true)}
@@ -189,20 +272,7 @@ export function ReproductorHls({
     </div>
   ) : null;
 
-  const toggleSonido = esFeed ? (
-    <button
-      type="button"
-      onClick={() => setSilenciado((s) => !s)}
-      aria-label={silenciado ? "Activar sonido" : "Silenciar"}
-      // Móvil: sobre la barra inferior fija (~56px) + área segura, para que NUNCA quede tapado ni
-      // bajo el chrome del sistema. Escritorio: la nav es lateral (no inferior) -> vuelve abajo.
-      className="absolute bottom-[calc(4.5rem_+_env(safe-area-inset-bottom))] left-3 z-20 grid h-10 w-10 place-items-center rounded-full bg-void/60 text-white backdrop-blur-sm transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-void/80 lg:bottom-3"
-    >
-      <IconoSonido silenciado={silenciado} />
-    </button>
-  ) : null;
-
-  // DETALLE: usa CajaVideo (16:9 escritorio / 9:16 móvil) con el relleno difuminado.
+  // DETALLE: usa CajaVideo (16:9 escritorio / 9:16 móvil) con el relleno difuminado. Sin cromo propio.
   if (variante === "detalle") {
     return (
       <div ref={contenedorRef} className="h-full w-full">
@@ -213,45 +283,74 @@ export function ReproductorHls({
     );
   }
 
-  // FEED: 9:16 inmersivo (no usa CajaVideo). Llena su contenedor; el vídeo se centra (object-contain)
-  // y el fondo difuminado rellena lo que sobre.
+  // FEED: 9:16 inmersivo con controles propios (tap-pausa, icono play, barra de progreso).
   return (
     <div ref={contenedorRef} className="relative h-full w-full overflow-hidden">
       {relleno}
       {/* El vídeo (object-contain) se centra en el área VISIBLE: en móvil se reserva abajo el alto de
-          la barra inferior + área segura para que el vídeo entero quede por ENCIMA de la nav (no
-          "cortado"). El relleno difuminado sí es full-bleed (decorativo, puede ir tras la nav). */}
+          la barra inferior + área segura para que el vídeo entero quede por ENCIMA de la nav. */}
       <div className="absolute inset-0 flex items-center justify-center pb-[calc(4.5rem_+_env(safe-area-inset-bottom))] lg:pb-0">
         {video}
       </div>
-      {toggleSonido}
+
+      {/* Capa de TAP (pausa/reanuda). z por DEBAJO de la barra (para no robar el seek) y de los
+          overlays del feed (caption/acciones/mute, z-10). `touch-action: pan-y` deja pasar el scroll
+          vertical del snap; el umbral de movimiento distingue tap de swipe. El click nativo cubre el
+          tap y el teclado (Space/Enter con foco). */}
+      <button
+        type="button"
+        aria-label={pausado ? "Reanudar el vídeo" : "Pausar el vídeo"}
+        onPointerDown={onTapDown}
+        onPointerMove={onTapMove}
+        onClick={onTapClick}
+        style={{ touchAction: "pan-y" }}
+        className="absolute inset-0 z-[1] cursor-default appearance-none bg-transparent"
+      />
+
+      {/* Icono PLAY central al pausar (decorativo, no intercepta). */}
+      <div
+        aria-hidden
+        className={`pointer-events-none absolute inset-0 z-[2] flex items-center justify-center transition-opacity duration-[var(--df-dur-fast)] ease-mechanical ${
+          pausado && !error ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        <span className="grid h-16 w-16 place-items-center rounded-full bg-void/45 text-white backdrop-blur-sm">
+          <svg viewBox="0 0 24 24" className="ml-1 h-7 w-7" fill="currentColor" aria-hidden>
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </span>
+      </div>
+
+      {/* BARRA DE PROGRESO: fina al reproducir (no interactiva) y sobre la barra inferior + safe-area.
+          Al pausar: engorda, aparece el scrubber y acepta seek (tocar/arrastrar). El contenedor añade
+          zona táctil vertical al pausar para que sea fácil de agarrar. */}
+      <div
+        className={`absolute inset-x-0 bottom-[calc(4.5rem_+_env(safe-area-inset-bottom))] z-[2] px-3 lg:bottom-0 ${
+          pausado ? "pointer-events-auto py-3" : "pointer-events-none py-0"
+        }`}
+        onPointerDown={pausado ? onBarraDown : undefined}
+        onPointerMove={pausado ? onBarraMove : undefined}
+      >
+        <div
+          ref={barraRef}
+          className={`relative w-full rounded-full bg-white/25 transition-[height] duration-[var(--df-dur-fast)] ease-mechanical ${
+            pausado ? "h-1.5" : "h-[3px]"
+          }`}
+        >
+          <div
+            className="absolute inset-y-0 left-0 rounded-full bg-white"
+            style={{ width: `${progreso * 100}%` }}
+          />
+          {pausado ? (
+            <div
+              className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[var(--df-shadow-sm)]"
+              style={{ left: `${progreso * 100}%` }}
+            />
+          ) : null}
+        </div>
+      </div>
+
       {overlayError}
     </div>
-  );
-}
-
-/** Icono de altavoz (con/sin ondas). SVG inline, trazo de marca; nada de librerías de iconos. */
-function IconoSonido({ silenciado }: { silenciado: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-5 w-5"
-      aria-hidden
-    >
-      <path d="M5 9v6h3l4 3V6L8 9H5z" />
-      {silenciado ? (
-        <path d="M16 9l5 6M21 9l-5 6" />
-      ) : (
-        <>
-          <path d="M16 8.5a4 4 0 0 1 0 7" />
-          <path d="M18.5 6a7 7 0 0 1 0 12" />
-        </>
-      )}
-    </svg>
   );
 }
