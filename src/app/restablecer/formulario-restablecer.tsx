@@ -64,7 +64,9 @@ function RestablecerContenido() {
         return;
       }
       if (res.status === 400 && code === "VALIDATION") {
-        setError("Elige una contraseña de al menos 8 caracteres.");
+        // El SERVIDOR manda: `msg` trae el texto de `evaluarPassword` (misma política que el
+        // registro: p.ej. "demasiado fácil de adivinar…"). Fallback alineado a la política (>=10).
+        setError(msg || "Elige una contraseña de al menos 10 caracteres, larga y poco predecible.");
         setEstado("listo");
         return;
       }
@@ -150,8 +152,8 @@ function RestablecerContenido() {
           type={verVisible ? "text" : "password"}
           autoComplete="new-password"
           required
-          minLength={8}
-          placeholder="Mínimo 8 caracteres"
+          minLength={10}
+          placeholder="Mínimo 10 caracteres"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           disabled={ocupado}
