@@ -22,23 +22,33 @@ import { CajaVideo } from "./caja-video";
  */
 type Variante = "feed" | "detalle";
 
+/**
+ * Naturaleza del fallo de carga. `transitorio` = red/decodificación: el "Reintentar" tiene sentido.
+ * `permanente` = el objeto ya no existe en el origen (404/410); reintentar NUNCA funcionará, así que se
+ * muestra un mensaje terminal (sin botón) y, en el feed, se retira del scroll. `null` = sin error.
+ */
+type FalloCarga = "transitorio" | "permanente";
+
 const HLS_NATIVO = "application/vnd.apple.mpegurl";
 
 export function ReproductorHls({
   src,
   poster,
   variante,
+  onNoDisponible,
 }: {
   src: string;
   poster: string;
   variante: Variante;
+  /** Se invoca cuando el vídeo ya no existe (fallo permanente): el feed lo usa para retirarlo del scroll. */
+  onNoDisponible?: () => void;
 }) {
   const esFeed = variante === "feed";
   const videoRef = useRef<HTMLVideoElement>(null);
   const contenedorRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<{ destroy: () => void } | null>(null);
   const cargadoRef = useRef(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<FalloCarga | null>(null);
   const [silenciado, setSilenciado] = useState(true); // el feed arranca en mute (autoplay lo exige)
   const [intento, setIntento] = useState(0); // fuerza recarga al "Reintentar"
 
@@ -62,7 +72,7 @@ export function ReproductorHls({
     const cargar = async (): Promise<void> => {
       if (cargadoRef.current) return;
       cargadoRef.current = true;
-      setError(false);
+      setError(null);
 
       // hls.js PRIMERO (donde esta soportado: MSE / Managed Media Source en iOS 17.1+), con un LOADER
       // propio que propaga el token a CADA peticion. El HLS nativo queda de fallback SOLO donde hls.js
@@ -92,14 +102,18 @@ export function ReproductorHls({
           }
           const hls = new Hls({ enableWorker: true, loader: LoaderConToken });
           hls.on(Hls.Events.ERROR, (_evento, data) => {
-            if (data.fatal) setError(true); // solo los fatales; los recuperables los gestiona hls.js
+            if (!data.fatal) return; // solo los fatales; los recuperables los gestiona hls.js
+            // 404/410 en la playlist o el segmento = el objeto ya no existe en Bunny -> PERMANENTE.
+            // Cualquier otro fatal (timeout, red caída, decodificación) se trata como transitorio.
+            const codigo = data.response?.code;
+            setError(codigo === 404 || codigo === 410 ? "permanente" : "transitorio");
           });
           hls.loadSource(src);
           hls.attachMedia(video);
           hlsRef.current = hls;
         }
       } catch {
-        setError(true);
+        setError("transitorio");
         return;
       }
 
@@ -110,7 +124,7 @@ export function ReproductorHls({
         if (video.canPlayType(HLS_NATIVO)) {
           video.src = src;
         } else {
-          setError(true);
+          setError("transitorio");
           return;
         }
       }
@@ -147,6 +161,12 @@ export function ReproductorHls({
     if (videoRef.current) videoRef.current.muted = silenciado;
   }, [silenciado]);
 
+  // Fallo PERMANENTE (el vídeo ya no existe): avisa al contenedor. El feed lo aprovecha para retirar el
+  // slide del scroll; el detalle no pasa handler y se queda solo con el mensaje terminal.
+  useEffect(() => {
+    if (error === "permanente") onNoDisponible?.();
+  }, [error, onNoDisponible]);
+
   // Fondo DIFUMINADO (póster escalado + blur): cubre los lados/franjas sin barras negras ni recorte.
   const relleno = (
     <div
@@ -166,28 +186,35 @@ export function ReproductorHls({
       controls={!esFeed} // detalle: controles nativos mínimos; feed: sin cromo (solo el toggle)
       controlsList="nodownload noplaybackrate noremoteplayback"
       disablePictureInPicture
-      onError={() => setError(true)}
+      onError={() => setError((prev) => prev ?? "transitorio")}
       className="h-full w-full object-contain"
       aria-label="Vídeo"
     />
   );
 
-  const overlayError = error ? (
-    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-void/85 p-4 text-center">
-      <p className="text-sm text-text-dim">No se pudo cargar el vídeo. Reintenta.</p>
-      <button
-        type="button"
-        onClick={() => {
-          cargadoRef.current = false;
-          setError(false);
-          setIntento((n) => n + 1);
-        }}
-        className="rounded-sm border border-line px-4 py-1.5 text-sm text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised"
-      >
-        Reintentar
-      </button>
-    </div>
-  ) : null;
+  // PERMANENTE: mensaje terminal, SIN "Reintentar" (nunca funcionaría). TRANSITORIO: el reintento actual.
+  const overlayError =
+    error === "permanente" ? (
+      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-void/85 p-4 text-center">
+        <p className="text-sm font-medium text-text">Este vídeo ya no está disponible</p>
+        <p className="text-2xs text-text-dim">Puede que su autor lo haya retirado.</p>
+      </div>
+    ) : error === "transitorio" ? (
+      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-void/85 p-4 text-center">
+        <p className="text-sm text-text-dim">No se pudo cargar el vídeo. Reintenta.</p>
+        <button
+          type="button"
+          onClick={() => {
+            cargadoRef.current = false;
+            setError(null);
+            setIntento((n) => n + 1);
+          }}
+          className="rounded-sm border border-line px-4 py-1.5 text-sm text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised"
+        >
+          Reintentar
+        </button>
+      </div>
+    ) : null;
 
   const toggleSonido = esFeed ? (
     <button

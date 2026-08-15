@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { PildoraCategoria } from "@/components/ui/pildora";
 import { ReproductorHls } from "@/components/ui/reproductor-hls";
@@ -94,7 +94,16 @@ function Accion({
  * carga/descarga por visibilidad). Solo `votos` sale del modelo (Submission.voteCount); me gusta,
  * comentarios y compartir aún no tienen modelo (llegan en fases posteriores) y muestran 0 real.
  */
-function PostInicio({ post, alRef }: { post: PostFeed; alRef: (el: HTMLElement | null) => void }) {
+function PostInicio({
+  post,
+  alRef,
+  onNoDisponible,
+}: {
+  post: PostFeed;
+  alRef: (el: HTMLElement | null) => void;
+  /** El vídeo ya no existe en el origen: se retira este slide del scroll. */
+  onNoDisponible: () => void;
+}) {
   return (
     <section
       ref={alRef}
@@ -103,7 +112,12 @@ function PostInicio({ post, alRef }: { post: PostFeed; alRef: (el: HTMLElement |
       {/* VIDEO real (HLS firmado). En desktop, tira 9:16 centrada con filete; en movil, a sangre. */}
       <div className="relative h-full w-full overflow-hidden bg-raised lg:h-[86svh] lg:aspect-[9/16] lg:w-auto lg:rounded-sm lg:border lg:border-line">
         <div className="absolute inset-0">
-          <ReproductorHls variante="feed" src={post.src} poster={post.poster} />
+          <ReproductorHls
+            variante="feed"
+            src={post.src}
+            poster={post.poster}
+            onNoDisponible={onNoDisponible}
+          />
         </div>
         {/* Scrim (velo) — solo movil (en desktop el video queda limpio) */}
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-24 bg-gradient-to-b from-black/50 to-transparent lg:hidden" />
@@ -263,6 +277,12 @@ export function FeedInicio({
     };
   }, [activo, cursor, posts.length]);
 
+  // Un vídeo cuyo objeto ya no existe (404/410) se retira del scroll: no debe ocupar un slide roto.
+  // Esto es robustez de cliente, NO moderación (Fase 5: el servidor filtra los REMOVED del feed).
+  const quitarPost = useCallback((id: string): void => {
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
   const irA = (i: number): void => {
     const dest = Math.max(0, Math.min(posts.length - 1, i));
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -285,11 +305,12 @@ export function FeedInicio({
             alRef={(el) => {
               if (el) secciones.current[i] = el;
             }}
+            onNoDisponible={() => quitarPost(post.id)}
           />
         ))}
       </div>
 
-      <PanelComentarios post={posts[activo] ?? posts[0]!} />
+      {posts.length > 0 ? <PanelComentarios post={posts[activo] ?? posts[0]!} /> : null}
 
       {/* Flechas de navegacion — solo desktop, fijas junto al panel */}
       <div className="pointer-events-none absolute top-1/2 right-[376px] hidden -translate-y-1/2 flex-col gap-3 lg:flex">
