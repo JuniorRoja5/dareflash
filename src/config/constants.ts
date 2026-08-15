@@ -102,15 +102,18 @@ export const RECON_HUERFANOS_PAGINA = 100; // itemsPerPage (tope de la API de Bu
 export const RECON_HUERFANOS_CADENCIA_MS = 6 * 60 * 60 * 1000; // 6 h
 
 /**
- * Reconciliacion Parte C: PUBLICADOS DESAPARECIDOS (integridad de datos, NO moderacion). Sonda cada
- * fila PUBLISHED contra Bunny (getVideo); si el objeto ya no existe (404), la degrada a FAILED/
- * OBJETO_INEXISTENTE. Cadencia BAJA (una getVideo por PUBLISHED es pesado; no es urgente). SALVAGUARDA
- * anti-incidente: se aborta el modo actuar si los candidatos superan `min(TOPE_FILAS, ceil(total*PCT))`.
+ * Reconciliacion Parte C: PUBLICADOS DESAPARECIDOS (integridad de datos, NO moderacion). Sonda filas
+ * PUBLISHED contra Bunny (getVideo); si el objeto ya no existe (404), la degrada a FAILED/
+ * OBJETO_INEXISTENTE. INCREMENTAL: cada barrido sonda como mucho LOTE_POR_CICLO filas a partir de un
+ * CURSOR ROTATORIO persistido (SystemState), y al llegar al fin de la tabla reinicia el cursor
+ * (round-robin de cobertura completa). Coste por ciclo FIJO sea cual sea el tamaño del catalogo.
+ * Cadencia BAJA (una getVideo por fila es pesado; no es urgente). SALVAGUARDA anti-incidente: se
+ * aborta el modo actuar si los candidatos superan `min(TOPE_FILAS, ceil(revisados_del_barrido*PCT))`.
  */
 export const RECON_PUBLICADOS_CADENCIA_MS = 6 * 60 * 60 * 1000; // 6 h
-export const RECON_PUBLICADOS_LOTE = 200; // filas PUBLISHED por pagina del barrido
+export const RECON_PUBLICADOS_LOTE_POR_CICLO = 500; // filas sondeadas por barrido (coste fijo)
 export const RECON_PUBLICADOS_TOPE_FILAS = 50; // nunca degradar mas de 50 filas en un barrido
-export const RECON_PUBLICADOS_TOPE_PCT = 0.2; // ni mas del 20% de las PUBLISHED (lo que sea MENOR)
+export const RECON_PUBLICADOS_TOPE_PCT = 0.2; // ni mas del 20% de las sondeadas (lo que sea MENOR)
 
 /**
  * Motivo de un Video en FAILED (String tipado con Zod, no enum de Prisma; convencion del proyecto).

@@ -17,7 +17,7 @@ import {
   CONFIRM_LOTE,
   RECON_HUERFANOS_GRACIA_MS,
   RECON_HUERFANOS_PAGINA,
-  RECON_PUBLICADOS_LOTE,
+  RECON_PUBLICADOS_LOTE_POR_CICLO,
   RECON_PUBLICADOS_TOPE_FILAS,
   RECON_PUBLICADOS_TOPE_PCT,
   SONDEO_MAX_EDAD_MS,
@@ -148,15 +148,14 @@ async function main(): Promise<void> {
       ),
     // Publicados desaparecidos en Bunny (Parte C, integridad de datos — NO destructivo: degrada la
     // fila a FAILED/OBJETO_INEXISTENTE, no borra nada). Modo desde el env: dry-run por defecto.
-    reconciliarPublicados: (now) =>
+    reconciliarPublicados: () =>
       reconciliarPublicadosDesaparecidos(
         prisma,
         clienteBunnyReal,
         { libraryId: env.BUNNY_STREAM_LIBRARY_ID, apiKey: env.BUNNY_STREAM_API_KEY },
         {
-          now,
           modo: env.RECON_PUBLICADOS_MODO,
-          lote: RECON_PUBLICADOS_LOTE,
+          lotePorCiclo: RECON_PUBLICADOS_LOTE_POR_CICLO,
           topeFilas: RECON_PUBLICADOS_TOPE_FILAS,
           topePct: RECON_PUBLICADOS_TOPE_PCT,
           log: (m) => console.log(m),

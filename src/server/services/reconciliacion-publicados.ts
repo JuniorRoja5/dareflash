@@ -10,14 +10,27 @@
  * REMOVED (reservado a la MODERACION de Fase 5, fuera de alcance). Idempotente: una vez FAILED la fila
  * ya no es PUBLISHED, asi que un barrido posterior no la re-selecciona.
  *
- * SALVAGUARDA anti-incidente: si un barrido degradaria MAS del tope (min(topeFilas, % de las
- * PUBLISHED)), ABORTA el modo "actuar" de ESE barrido, se queda en dry-run y LOGuea alarma: una
- * incidencia de Bunny con 404 masivos NO debe fulminar el catalogo.
+ * INCREMENTAL con COBERTURA COMPLETA (escala): sondear TODOS los PUBLISHED cada ciclo no escala y un
+ * cursor local topado por paginas solo revisaria la CABEZA del catalogo. En su lugar cada barrido lee
+ * un CURSOR ROTATORIO persistido en SystemState, sonda como mucho `lotePorCiclo` filas con `id > cursor`
+ * y guarda el ultimo id como nuevo cursor; al llegar al fin de la tabla (vuelven menos de `lotePorCiclo`)
+ * REINICIA el cursor -> round-robin que, a lo largo de muchos barridos, cubre TODO el catalogo con coste
+ * FIJO por ciclo. El keyset por id tolera que filas dejen de ser PUBLISHED entre barridos (id > cursor
+ * avanza igual).
+ *
+ * SALVAGUARDA anti-incidente (tope RELATIVO al lote, sin base en el total): ABORTA el modo "actuar" de
+ * ESE barrido si los candidatos superan `min(topeFilas, ceil(revisados_del_barrido * topePct))` y se
+ * queda en dry-run + alarma. Asi una incidencia de Bunny (casi todo el lote en 404) aborta en cada
+ * barrido afectado, mientras que lo normal (0-pocos huerfanos por lote) procede.
  */
 import type { PrismaClient } from "@/generated/prisma/client";
 import { sanearError } from "@/server/observability/sanitize-error";
+import { escribirEstado, leerEstado } from "@/server/services/system-state";
 
 import { BunnyNotFoundError, type ClienteBunny, type ConfigBunny } from "./bunny";
+
+/** Clave en SystemState del cursor rotatorio del barrido (ultimo id sondeado). Fuente unica aqui. */
+export const RECON_PUBLICADOS_CURSOR_KEY = "recon_publicados_cursor";
 
 /** Resultado de consultar el objeto en Bunny, ya CLASIFICADO (la llamada + try/catch lo produce). */
 export type SondeoBunny = "existe" | "no-existe" | "error-transitorio";
@@ -63,14 +76,11 @@ async function sondear(
 }
 
 export interface OpcionesPublicados {
-  now?: Date;
   /** "dry-run" (defecto seguro): NO muta, solo LOGuea. "actuar": degrada los candidatos. */
   modo: "dry-run" | "actuar";
-  /** Filas PUBLISHED por pagina (acota memoria/consultas). */
-  lote: number;
-  /** Cota de paginas por barrido (backstop anti-bucle). */
-  maxPaginas?: number;
-  /** TOPE de seguridad: se aborta "actuar" si los candidatos superan `min(topeFilas, ceil(total*topePct))`. */
+  /** Filas sondeadas por barrido (coste FIJO por ciclo, sea cual sea el tamaño del catalogo). */
+  lotePorCiclo: number;
+  /** TOPE de seguridad RELATIVO al lote: se aborta "actuar" si candidatos > `min(topeFilas, ceil(revisados*topePct))`. */
   topeFilas: number;
   topePct: number; // 0..1
   log?: (m: string) => void;
@@ -78,21 +88,23 @@ export interface OpcionesPublicados {
 
 export interface ResultadoPublicados {
   modo: "dry-run" | "actuar";
-  /** Total de PUBLISHED al inicio (base del tope). */
-  publicados: number;
+  /** Filas sondeadas en ESTE barrido (base del tope relativo). */
   revisados: number;
   candidatos: number;
   degradados: number;
   reintentos: number;
   /** true si el tope de seguridad forzo dry-run (candidatos > tope). */
   abortadoPorTope: boolean;
+  /** true si el barrido llego al fin de la tabla y REINICIO el cursor (wrap round-robin). */
+  reinicioCursor: boolean;
 }
 
 const MOTIVO_FALLO = "OBJETO_INEXISTENTE";
 
 /**
- * Un barrido. FASE 1: sonda cada PUBLISHED (getVideo) y recolecta los candidatos (objeto 404), sin
- * mutar nada. FASE 2: aplica el tope de seguridad y, si procede, degrada cada candidato a FAILED/
+ * Un barrido INCREMENTAL. FASE 1: lee el cursor rotatorio, sonda hasta `lotePorCiclo` filas con
+ * `id > cursor` (getVideo) y recolecta los candidatos (objeto 404), sin mutar nada; avanza/reinicia el
+ * cursor. FASE 2: aplica el tope de seguridad relativo y, si procede, degrada cada candidato a FAILED/
  * OBJETO_INEXISTENTE + AuditLog, en transaccion e idempotente (updateMany condicionado a SEGUIR
  * PUBLISHED). En dry-run (o si el tope aborta) solo se LOGuea. Un fallo por fila no rompe el barrido.
  */
@@ -102,50 +114,46 @@ export async function reconciliarPublicadosDesaparecidos(
   config: ConfigBunny,
   opts: OpcionesPublicados,
 ): Promise<ResultadoPublicados> {
-  const maxPaginas = opts.maxPaginas ?? 1000;
-
-  const publicados = await db.video.count({ where: { status: "PUBLISHED" } });
-  const tope = Math.min(opts.topeFilas, Math.ceil(publicados * opts.topePct));
+  // FASE 1: leer el cursor rotatorio y sondear un LOTE acotado a partir de el (keyset por id).
+  const cursor = (await leerEstado(db, RECON_PUBLICADOS_CURSOR_KEY)) ?? "";
+  const filas = await db.video.findMany({
+    where: { status: "PUBLISHED", id: { gt: cursor } },
+    select: { id: true, bunnyVideoId: true },
+    orderBy: { id: "asc" },
+    take: opts.lotePorCiclo,
+  });
 
   let revisados = 0;
   let reintentos = 0;
   const candidatosIds: { id: string; bunnyVideoId: string }[] = [];
-
-  // FASE 1: sondear (keyset por id) y recolectar candidatos.
-  let cursor: string | undefined;
-  for (let page = 0; page < maxPaginas; page++) {
-    const filas = await db.video.findMany({
-      where: { status: "PUBLISHED" },
-      select: { id: true, bunnyVideoId: true },
-      orderBy: { id: "asc" },
-      take: opts.lote,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-    });
-    if (filas.length === 0) break;
-    cursor = filas[filas.length - 1]!.id;
-
-    for (const fila of filas) {
-      revisados += 1;
-      const d = decidirPublicado(await sondear(cliente, config, fila.bunnyVideoId));
-      if (d.accion === "degradar") {
-        candidatosIds.push({ id: fila.id, bunnyVideoId: fila.bunnyVideoId });
-      } else if (d.accion === "reintentar") {
-        reintentos += 1;
-      }
+  for (const fila of filas) {
+    revisados += 1;
+    const d = decidirPublicado(await sondear(cliente, config, fila.bunnyVideoId));
+    if (d.accion === "degradar") {
+      candidatosIds.push({ id: fila.id, bunnyVideoId: fila.bunnyVideoId });
+    } else if (d.accion === "reintentar") {
+      reintentos += 1;
     }
-    if (filas.length < opts.lote) break;
   }
+
+  // Cursor rotatorio: si volvieron MENOS de `lotePorCiclo` es el fin de la tabla -> reiniciar (wrap),
+  // asi el proximo barrido vuelve al principio. Si no, avanzar al ultimo id sondeado.
+  const reinicioCursor = filas.length < opts.lotePorCiclo;
+  const nuevoCursor = reinicioCursor ? "" : filas[filas.length - 1]!.id;
+  await escribirEstado(db, RECON_PUBLICADOS_CURSOR_KEY, nuevoCursor);
 
   const candidatos = candidatosIds.length;
 
-  // SALVAGUARDA: candidatos por encima del tope -> se aborta "actuar" (posible incidencia masiva de Bunny).
+  // SALVAGUARDA (tope RELATIVO a lo sondeado en ESTE barrido): candidatos por encima del tope ->
+  // se aborta "actuar" (posible incidencia masiva de Bunny: casi todo el lote en 404).
+  const tope = Math.min(opts.topeFilas, Math.ceil(revisados * opts.topePct));
   const abortadoPorTope = opts.modo === "actuar" && candidatos > tope;
   const actua = opts.modo === "actuar" && !abortadoPorTope;
 
   if (abortadoPorTope) {
     opts.log?.(
-      `[worker] publicados ALARMA: ${candidatos} candidatos > tope ${tope} (de ${publicados} ` +
-        `PUBLISHED); se ABORTA el modo actuar y se queda en dry-run. Revisar incidencia de Bunny.`,
+      `[worker] publicados ALARMA: ${candidatos} candidatos > tope ${tope} (de ${revisados} ` +
+        `sondeadas este barrido); se ABORTA el modo actuar y se queda en dry-run. Revisar incidencia de Bunny.`,
     );
   }
 
@@ -187,11 +195,11 @@ export async function reconciliarPublicadosDesaparecidos(
 
   return {
     modo: actua ? "actuar" : "dry-run",
-    publicados,
     revisados,
     candidatos,
     degradados,
     reintentos,
     abortadoPorTope,
+    reinicioCursor,
   };
 }

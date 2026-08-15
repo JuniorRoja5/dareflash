@@ -673,16 +673,17 @@ export async function bucleWorker(
       proximoHuerfanos = t.getTime() + cada;
     }
 
-    // PUBLICADOS DESAPARECIDOS en Bunny (Parte C). Cadencia BAJA (una getVideo por PUBLISHED); try/catch
-    // propio; por defecto dry-run (no muta). El resumen muestra SIEMPRE el modo y si el tope abortо.
+    // PUBLICADOS DESAPARECIDOS en Bunny (Parte C). Barrido INCREMENTAL (cursor rotatorio); una getVideo
+    // por fila sondeada; try/catch propio; por defecto dry-run (no muta). El resumen muestra SIEMPRE el
+    // modo, si el tope abortо y si el cursor reinicio (fin de tabla).
     if (o.reconciliarPublicados && t.getTime() >= proximoPublicados) {
       const cada = o.publicadosCadaMs ?? RECON_PUBLICADOS_CADENCIA_MS;
       try {
         const r = await o.reconciliarPublicados(t);
         o.log?.(
-          `[worker] publicados (${r.modo}${r.abortadoPorTope ? ", ABORTADO por tope" : ""}): ` +
-            `publicados=${r.publicados} revisados=${r.revisados} candidatos=${r.candidatos} ` +
-            `degradados=${r.degradados} reintentos=${r.reintentos}`,
+          `[worker] publicados (${r.modo}${r.abortadoPorTope ? ", ABORTADO por tope" : ""}` +
+            `${r.reinicioCursor ? ", cursor REINICIADO" : ""}): revisados=${r.revisados} ` +
+            `candidatos=${r.candidatos} degradados=${r.degradados} reintentos=${r.reintentos}`,
         );
       } catch (e) {
         o.log?.(`[worker] publicados: barrido fallo (${sanearError(e)}); reintento luego.`);
