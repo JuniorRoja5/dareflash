@@ -132,10 +132,15 @@ function PostInicio({
   /** Mute EFECTIVO (preferencia del usuario O permiso del navegador aún sin desbloquear). El icono y
    *  el aria se pintan según esto: NUNCA mienten sobre lo que se oye de verdad. */
   muted: boolean;
-  onToggleSilencio: () => void;
+  /** Recibe el SNAPSHOT del mute efectivo capturado ANTES del unlock (así el 1er clic no se pierde). */
+  onToggleSilencio: (estabaMudo: boolean) => void;
   /** El vídeo ya no existe en el origen: se retira este slide del scroll. */
   onNoDisponible: () => void;
 }) {
+  // Snapshot del mute efectivo en la fase de CAPTURA del pointerdown (root->botón), ANTES de que el
+  // listener del contenedor (fase de burbuja) desbloquee el audio y flipe `mutedEfectivo`. Sin esto,
+  // si el PRIMER gesto es el botón, el onClick leería el estado ya cambiado y mutearía en vez de sonar.
+  const intentoRef = useRef(muted);
   return (
     <section
       ref={alRef}
@@ -182,7 +187,10 @@ function PostInicio({
             Icono y aria según el mute EFECTIVO (nunca miente). Un cambio afecta a TODOS los vídeos. */}
         <button
           type="button"
-          onClick={onToggleSilencio}
+          onPointerDownCapture={() => {
+            intentoRef.current = muted;
+          }}
+          onClick={() => onToggleSilencio(intentoRef.current)}
           aria-label={muted ? "Activar sonido" : "Silenciar"}
           className="flex flex-col items-center"
         >
@@ -382,10 +390,11 @@ export function FeedInicio({
               if (el) secciones.current[i] = el;
             }}
             muted={mutedEfectivo}
-            onToggleSilencio={() => {
-              // El botón actúa según lo que se OYE (efectivo): si está mudo, el usuario quiere sonido
-              // (desbloquea el audio + preferencia = sonido); si suena, mutea (opt-in).
-              if (mutedEfectivo) {
+            onToggleSilencio={(estabaMudo) => {
+              // Decide según el SNAPSHOT (lo que el usuario VEÍA al pulsar), no según el estado ya
+              // cambiado por el unlock: si estaba mudo, quiere sonido (desbloquea + preferencia = sonido);
+              // si sonaba, mutea (opt-in).
+              if (estabaMudo) {
                 setAudioDesbloqueado(true);
                 setSilenciado(false);
               } else {
