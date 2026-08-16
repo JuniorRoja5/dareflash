@@ -167,16 +167,6 @@ function PostInicio({
             </div>
           ) : null}
         </div>
-        {/* MUTE GLOBAL: su propio control, sobre la barra inferior + safe-area en móvil (abajo en
-            escritorio: la nav es lateral). Toca el estado compartido del feed. */}
-        <button
-          type="button"
-          onClick={onToggleSilencio}
-          aria-label={silenciado ? "Activar sonido" : "Silenciar"}
-          className="absolute bottom-[calc(4.5rem_+_env(safe-area-inset-bottom))] left-3 z-10 grid h-10 w-10 place-items-center rounded-full bg-void/60 text-white backdrop-blur-sm transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-void/80 lg:bottom-3"
-        >
-          <IconoSonido silenciado={silenciado} />
-        </button>
       </div>
 
       {/* ACCIONES: sobre el video en movil (absolute), FUERA del video en desktop (static) */}
@@ -185,6 +175,19 @@ function PostInicio({
         <Accion label="Comentar" valor={0} icono={<IconoComentario />} />
         <Accion label="Votar" valor={post.votos} icono={<IconoVoto />} destacado />
         <Accion label="Compartir" valor={0} icono={<IconoCompartir />} />
+        {/* MUTE GLOBAL: última acción de la columna, DEBAJO de Compartir (antes tapaba la descripción
+            abajo-izquierda). Mismo look de icono que las acciones pero SIN contador (no tiene número).
+            Toca el estado compartido del feed: un cambio silencia/activa TODOS los vídeos. */}
+        <button
+          type="button"
+          onClick={onToggleSilencio}
+          aria-label={silenciado ? "Activar sonido" : "Silenciar"}
+          className="flex flex-col items-center"
+        >
+          <span className="flex h-11 w-11 items-center justify-center text-white lg:text-text lg:hover:text-white">
+            <IconoSonido silenciado={silenciado} />
+          </span>
+        </button>
       </div>
     </section>
   );
@@ -274,9 +277,11 @@ export function FeedInicio({
   const [posts, setPosts] = useState<PostFeed[]>(postsIniciales);
   const [cursor, setCursor] = useState<string | null>(cursorInicial);
   const [activo, setActivo] = useState(0);
-  // MUTE GLOBAL del feed: una sola preferencia para TODOS los vídeos (arranca en mute; el navegador lo
-  // exige para autoplay). Se pasa a cada player; quitar/poner el sonido en uno se mantiene en el resto.
-  const [silenciado, setSilenciado] = useState(true);
+  // MUTE GLOBAL del feed: una sola preferencia para TODOS los vídeos. Arranca CON SONIDO (mute opcional).
+  // El navegador bloquea el autoplay con sonido sin gesto previo, así que el player reintenta EN MUTE
+  // (autoplay garantizado) y el primer gesto del usuario activa el sonido (ver ReproductorHls). Se pasa
+  // a cada player; quitar/poner el sonido en uno se mantiene en el resto.
+  const [silenciado, setSilenciado] = useState(false);
   // Guarda anti-solape de la paginacion: es un ref (no se pinta), asi que no dispara renders.
   const cargandoRef = useRef(false);
   const columna = useRef<HTMLDivElement | null>(null);

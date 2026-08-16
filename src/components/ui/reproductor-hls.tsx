@@ -24,7 +24,9 @@ import { CajaVideo } from "./caja-video";
  *  - BARRA DE PROGRESO fina abajo; al pausar engorda y permite SEEK (tocar/arrastrar).
  *  - MUTE GLOBAL: el estado `silenciado` vive en el FEED (una sola preferencia para todos los vídeos)
  *    y llega por prop; el botón lo pinta el feed. En `detalle` no hay prop -> estado local (arranca en
- *    mute). El feed SIEMPRE arranca en mute (el navegador lo exige para autoplay).
+ *    mute). El feed arranca CON SONIDO (preferencia); como el navegador bloquea el autoplay con sonido
+ *    sin gesto previo, el player reintenta EN MUTE para garantizar el autoplay y el primer gesto del
+ *    usuario reconcilia el `muted` con la preferencia (activa el sonido).
  */
 type Variante = "feed" | "detalle";
 
@@ -148,7 +150,16 @@ export function ReproductorHls({
         try {
           await video.play();
         } catch {
-          /* autoplay bloqueado -> se queda en el póster, sin romper */
+          // Autoplay CON sonido bloqueado por el navegador (sin gesto del usuario): reintenta EN MUTE
+          // para que el vídeo AL MENOS autoreproduzca —nunca se queda parado en el póster—. La
+          // PREFERENCIA global sigue siendo la del feed; el primer gesto del usuario la reconcilia
+          // (ver `alternarPausa` y el sync de `muted`) y, si pedía sonido, lo activa.
+          try {
+            video.muted = true;
+            await video.play();
+          } catch {
+            /* ni en mute -> se queda en el póster, sin romper */
+          }
         }
       }
     };
@@ -222,6 +233,10 @@ export function ReproductorHls({
     const v = videoRef.current;
     if (!v) return;
     if (v.paused) {
+      // Un gesto del usuario permite salir del mute que el navegador forzó al bloquear el autoplay con
+      // sonido: reconcilia el `muted` del elemento con la PREFERENCIA (`silenciado`) antes de reproducir.
+      // Si la preferencia es "con sonido", este toque lo activa (ya hay gesto -> el navegador lo permite).
+      v.muted = silenciado;
       void v.play().catch(() => {});
       setPausado(false);
     } else {
