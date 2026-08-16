@@ -16,6 +16,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { type CSSProperties, Suspense, useState } from "react";
 
+import { postJson } from "@/lib/cliente-http";
+
 const CONTENEDOR: CSSProperties = {
   maxWidth: 480,
   margin: "0 auto",
@@ -34,14 +36,10 @@ function UnlockContenido() {
     if (!token) return;
     setEstado("enviando");
     try {
-      const res = await fetch("/api/auth/unlock", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-      const data: unknown = await res.json().catch(() => ({}));
+      const r = await postJson("/api/auth/unlock", { token });
+      const data: unknown = r.data;
       const msg = typeof data === "object" && data && "message" in data ? String(data.message) : "";
-      if (res.ok) {
+      if (r.ok) {
         setMensaje(msg || "Cuenta reactivada. Ya puedes intentar iniciar sesion de nuevo.");
         setEstado("ok");
       } else {

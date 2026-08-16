@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { Boton } from "@/components/ui/boton";
+import { delCsrf } from "@/lib/cliente-http";
 
 /**
  * BORRAR MI VÍDEO — botón (esquina de la celda) + diálogo de CONFIRMACIÓN (nunca de un toque). Al
@@ -40,21 +41,14 @@ export function BorrarVideo({ videoId, titulo }: { videoId: string; titulo: stri
     setError("");
     setBorrando(true);
     try {
-      const csrf = await fetch("/api/auth/csrf", { credentials: "include" });
-      if (!csrf.ok) throw new Error("SIN_SESION");
-      const { csrfToken } = (await csrf.json()) as { csrfToken: string };
-      const res = await fetch(`/api/videos/${encodeURIComponent(videoId)}`, {
-        method: "DELETE",
-        credentials: "include",
-        headers: { "X-CSRF-Token": csrfToken },
-      });
-      if (res.ok) {
+      const r = await delCsrf(`/api/videos/${encodeURIComponent(videoId)}`);
+      if (r.ok) {
         setAbierto(false);
         router.refresh(); // el vídeo (REMOVED) desaparece de la rejilla
         return;
       }
       setError(
-        res.status === 401
+        r.status === 401
           ? "Tu sesión ha caducado. Vuelve a iniciar sesión."
           : "No hemos podido borrar el vídeo. Reinténtalo.",
       );

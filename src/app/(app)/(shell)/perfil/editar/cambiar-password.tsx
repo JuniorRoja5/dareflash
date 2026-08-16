@@ -4,6 +4,7 @@ import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
+import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 
 /**
  * CAMBIAR CONTRASEÑA (isla cliente) — sección del perfil para un usuario logueado. POST al endpoint
@@ -14,17 +15,6 @@ import { Campo } from "@/components/ui/campo";
  */
 type Estado = "idle" | "enviando" | "hecho";
 
-/** Lee `error.message` de la respuesta del endpoint de forma defensiva. */
-function mensajeServidor(data: unknown): string {
-  if (typeof data === "object" && data && "error" in data) {
-    const err = (data as { error?: unknown }).error;
-    if (typeof err === "object" && err && "message" in err) {
-      return String((err as { message?: unknown }).message ?? "");
-    }
-  }
-  return "";
-}
-
 export function CambiarPassword() {
   const [actual, setActual] = useState("");
   const [nueva, setNueva] = useState("");
@@ -34,13 +24,6 @@ export function CambiarPassword() {
   const [error, setError] = useState("");
 
   const ocupado = estado === "enviando";
-
-  async function pedirCsrf(): Promise<string> {
-    const res = await fetch("/api/auth/csrf", { credentials: "include" });
-    if (!res.ok) throw new Error("SIN_SESION");
-    const { csrfToken } = (await res.json()) as { csrfToken: string };
-    return csrfToken;
-  }
 
   async function onSubmit(e: FormEvent): Promise<void> {
     e.preventDefault();
@@ -56,28 +39,24 @@ export function CambiarPassword() {
     }
     setEstado("enviando");
     try {
-      const csrfToken = await pedirCsrf();
-      const res = await fetch("/api/auth/change-password", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
-        body: JSON.stringify({ currentPassword: actual, newPassword: nueva }),
+      const r = await postJsonCsrf("/api/auth/change-password", {
+        currentPassword: actual,
+        newPassword: nueva,
       });
-      if (res.ok) {
+      if (r.ok) {
         setEstado("hecho");
         setActual("");
         setNueva("");
         setConfirmar("");
         return;
       }
-      const msg = mensajeServidor(await res.json().catch(() => ({})));
-      if (res.status === 429) {
+      if (r.status === 429) {
         setError("Demasiados intentos. Espera un momento.");
-      } else if (res.status === 503) {
+      } else if (r.status === 503) {
         setError("El servicio está ocupado. Reinténtalo en unos segundos.");
-      } else if (res.status === 403 || res.status === 400) {
+      } else if (r.status === 403 || r.status === 400) {
         // 403 = contraseña actual incorrecta; 400 = política débil. En ambos el servidor da el copy.
-        setError(msg || "No se pudo cambiar la contraseña. Revisa los datos.");
+        setError(mensajeDe(r.data) || "No se pudo cambiar la contraseña. Revisa los datos.");
       } else {
         setError("No se pudo cambiar la contraseña. Reintenta.");
       }

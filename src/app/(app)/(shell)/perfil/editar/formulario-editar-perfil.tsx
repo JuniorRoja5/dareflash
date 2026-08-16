@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
+import { mensajeDe, obtenerCsrfToken, patchJsonCsrf } from "@/lib/cliente-http";
 
 import {
   AVATAR_TIPOS,
@@ -14,17 +15,6 @@ import {
   avatarExcedeTope,
   nombreEsValido,
 } from "../perfil-logic";
-
-/** Lee `error.code` de la respuesta del endpoint de forma defensiva (mismo patrón que login). */
-function codigoDe(data: unknown): string {
-  if (typeof data === "object" && data && "error" in data) {
-    const err = (data as { error?: unknown }).error;
-    if (typeof err === "object" && err && "message" in err) {
-      return String((err as { message?: unknown }).message ?? "");
-    }
-  }
-  return "";
-}
 
 type EstadoNombre = "idle" | "guardando" | "guardado";
 type EstadoAvatar = "idle" | "subiendo";
@@ -83,13 +73,6 @@ export function FormularioEditarPerfil({
     };
   }, []);
 
-  async function pedirCsrf(): Promise<string> {
-    const res = await fetch("/api/auth/csrf", { credentials: "include" });
-    if (!res.ok) throw new Error("SIN_SESION");
-    const { csrfToken } = (await res.json()) as { csrfToken: string };
-    return csrfToken;
-  }
-
   async function guardarNombre(e: React.FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
     setEstadoNombre("idle");
@@ -102,26 +85,26 @@ export function FormularioEditarPerfil({
     setErrorNombre(undefined);
     setEstadoNombre("guardando");
     try {
-      const csrfToken = await pedirCsrf();
-      const res = await fetch("/api/perfil", {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
-        body: JSON.stringify({ displayName: nombre, bio, website, instagram, youtube }),
+      const r = await patchJsonCsrf<{ displayName?: string }>("/api/perfil", {
+        displayName: nombre,
+        bio,
+        website,
+        instagram,
+        youtube,
       });
-      if (res.ok) {
-        const data = (await res.json()) as { displayName?: string };
-        if (typeof data.displayName === "string") setNombre(data.displayName);
+      if (r.ok) {
+        if (typeof r.data.displayName === "string") setNombre(r.data.displayName);
         setEstadoNombre("guardado");
         return;
       }
-      if (res.status === 401) {
+      if (r.status === 401) {
         setErrorNombre("Tu sesión ha caducado. Vuelve a iniciar sesión para guardar.");
-      } else if (res.status === 429) {
+      } else if (r.status === 429) {
         setErrorNombre("Has guardado muchas veces seguidas. Espera un momento.");
       } else {
-        const msg = codigoDe(await res.json().catch(() => ({})));
-        setErrorNombre(msg || "No hemos podido guardar el nombre. Inténtalo de nuevo.");
+        setErrorNombre(
+          mensajeDe(r.data) || "No hemos podido guardar el nombre. Inténtalo de nuevo.",
+        );
       }
       setEstadoNombre("idle");
     } catch (err) {
@@ -165,7 +148,8 @@ export function FormularioEditarPerfil({
     setAvisoAvatar(undefined);
     setEstadoAvatar("subiendo");
     try {
-      const csrfToken = await pedirCsrf();
+      // Multipart (NO JSON): usa el token del helper CSRF compartido, pero el fetch es propio.
+      const csrfToken = await obtenerCsrfToken();
       const cuerpo = new FormData();
       cuerpo.append("avatar", ficheroAvatar);
       const res = await fetch("/api/perfil/avatar", {
@@ -180,7 +164,7 @@ export function FormularioEditarPerfil({
         router.refresh(); // revalida los Server Components -> el avatar nuevo se ve en /perfil, nav…
         return;
       }
-      const msg = codigoDe(await res.json().catch(() => ({})));
+      const msg = mensajeDe(await res.json().catch(() => ({})));
       if (res.status === 401) {
         setErrorAvatar("Tu sesión ha caducado. Vuelve a iniciar sesión.");
       } else if (res.status === 429) {

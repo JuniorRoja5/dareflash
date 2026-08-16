@@ -5,6 +5,7 @@ import type { Upload } from "tus-js-client";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
+import { postJsonCsrf } from "@/lib/cliente-http";
 
 import { CATEGORIAS } from "../retos/retos-datos";
 import { tituloEsValido } from "./crear-logic";
@@ -141,20 +142,12 @@ export function FormularioCrear() {
     setErrorSubida(undefined);
 
     try {
-      // 1. Token CSRF atado a la sesion (sin sesion -> 401; la UI de login aun no existe).
-      const csrfRes = await fetch("/api/auth/csrf", { credentials: "include" });
-      if (!csrfRes.ok) throw new Error("SIN_SESION");
-      const { csrfToken } = (await csrfRes.json()) as { csrfToken: string };
-
-      // 2. Credencial de subida (crea el objeto en Bunny + fila Video PENDING; devuelve la credencial).
-      const credRes = await fetch("/api/videos/upload-credential", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
-        body: JSON.stringify({ title: titulo.trim() }),
-      });
-      if (!credRes.ok) throw new Error(credRes.status === 401 ? "SIN_SESION" : "CREDENCIAL");
-      const credencial: unknown = await credRes.json();
+      // 1+2. Credencial de subida via helper CSRF (obtiene el token atado a la sesion y hace el POST;
+      //       sin sesion en el paso CSRF -> lanza "SIN_SESION"). Crea el objeto en Bunny + fila Video
+      //       PENDING y devuelve la credencial.
+      const cred = await postJsonCsrf("/api/videos/upload-credential", { title: titulo.trim() });
+      if (!cred.ok) throw new Error(cred.status === 401 ? "SIN_SESION" : "CREDENCIAL");
+      const credencial: unknown = cred.data;
       if (!credencialValida(credencial)) throw new Error("CREDENCIAL");
 
       // 3. Subida TUS directa a Bunny. Las 4 cabeceras se fijan UNA vez desde la credencial.
