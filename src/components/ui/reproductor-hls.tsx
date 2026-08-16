@@ -22,9 +22,11 @@ import { CajaVideo } from "./caja-video";
  *  - TAP en el vídeo -> pausa/reanuda, con icono de play central al pausar. Un arrastre (>10 px entre
  *    pointerdown y pointerup) NO alterna: es el scroll vertical del snap.
  *  - BARRA DE PROGRESO fina abajo; al pausar engorda y permite SEEK (tocar/arrastrar).
- *  - MUTE GLOBAL: el estado `silenciado` vive en el FEED (una sola preferencia para todos los vídeos)
- *    y llega por prop; el botón lo pinta el feed. En `detalle` no hay prop -> estado local (arranca en
- *    mute). El feed SIEMPRE arranca en mute (el navegador lo exige para autoplay).
+ *  - MUTE GLOBAL: el mute EFECTIVO lo calcula el FEED (preferencia del usuario + permiso del navegador)
+ *    y llega por prop `silenciado`; el player SOLO lo aplica (`video.muted`). El botón y su icono los
+ *    pinta el feed según ese efectivo (nunca miente). En `detalle` no hay prop -> estado local (arranca
+ *    en mute). El autoplay siempre arranca mudo (el feed fuerza el mute hasta el primer gesto), y como
+ *    red de seguridad el play() reintenta EN MUTE si el navegador lo bloqueara igualmente.
  */
 type Variante = "feed" | "detalle";
 
@@ -148,7 +150,16 @@ export function ReproductorHls({
         try {
           await video.play();
         } catch {
-          /* autoplay bloqueado -> se queda en el póster, sin romper */
+          // Autoplay CON sonido bloqueado por el navegador (sin gesto del usuario): reintenta EN MUTE
+          // para que el vídeo AL MENOS autoreproduzca —nunca se queda parado en el póster—. La
+          // PREFERENCIA global sigue siendo la del feed; el primer gesto del usuario la reconcilia
+          // (ver `alternarPausa` y el sync de `muted`) y, si pedía sonido, lo activa.
+          try {
+            video.muted = true;
+            await video.play();
+          } catch {
+            /* ni en mute -> se queda en el póster, sin romper */
+          }
         }
       }
     };

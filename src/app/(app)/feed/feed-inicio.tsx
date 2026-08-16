@@ -123,17 +123,24 @@ function Accion({
 function PostInicio({
   post,
   alRef,
-  silenciado,
+  muted,
   onToggleSilencio,
   onNoDisponible,
 }: {
   post: PostFeed;
   alRef: (el: HTMLElement | null) => void;
-  silenciado: boolean;
-  onToggleSilencio: () => void;
+  /** Mute EFECTIVO (preferencia del usuario O permiso del navegador aún sin desbloquear). El icono y
+   *  el aria se pintan según esto: NUNCA mienten sobre lo que se oye de verdad. */
+  muted: boolean;
+  /** Recibe el SNAPSHOT del mute efectivo capturado ANTES del unlock (así el 1er clic no se pierde). */
+  onToggleSilencio: (estabaMudo: boolean) => void;
   /** El vídeo ya no existe en el origen: se retira este slide del scroll. */
   onNoDisponible: () => void;
 }) {
+  // Snapshot del mute efectivo en la fase de CAPTURA del pointerdown (root->botón), ANTES de que el
+  // listener del contenedor (fase de burbuja) desbloquee el audio y flipe `mutedEfectivo`. Sin esto,
+  // si el PRIMER gesto es el botón, el onClick leería el estado ya cambiado y mutearía en vez de sonar.
+  const intentoRef = useRef(muted);
   return (
     <section
       ref={alRef}
@@ -142,14 +149,14 @@ function PostInicio({
       {/* VIDEO real (HLS firmado). En desktop, tira 9:16 centrada con filete; en movil, a sangre. */}
       <div className="relative h-full w-full overflow-hidden bg-raised lg:h-[86svh] lg:aspect-[9/16] lg:w-auto lg:rounded-sm lg:border lg:border-line">
         <div className="absolute inset-0">
-          {/* `silenciado` GLOBAL: la preferencia vive en el feed; el player solo la aplica. El tap-pausa
-              y la barra de progreso viven dentro del player. `onNoDisponible` retira el slide si el
-              vídeo ya no existe (404/410). */}
+          {/* Mute EFECTIVO GLOBAL: lo calcula el feed (preferencia + permiso del navegador); el player
+              solo lo aplica. El tap-pausa y la barra de progreso viven dentro del player.
+              `onNoDisponible` retira el slide si el vídeo ya no existe (404/410). */}
           <ReproductorHls
             variante="feed"
             src={post.src}
             poster={post.poster}
-            silenciado={silenciado}
+            silenciado={muted}
             onNoDisponible={onNoDisponible}
           />
         </div>
@@ -167,16 +174,6 @@ function PostInicio({
             </div>
           ) : null}
         </div>
-        {/* MUTE GLOBAL: su propio control, sobre la barra inferior + safe-area en móvil (abajo en
-            escritorio: la nav es lateral). Toca el estado compartido del feed. */}
-        <button
-          type="button"
-          onClick={onToggleSilencio}
-          aria-label={silenciado ? "Activar sonido" : "Silenciar"}
-          className="absolute bottom-[calc(4.5rem_+_env(safe-area-inset-bottom))] left-3 z-10 grid h-10 w-10 place-items-center rounded-full bg-void/60 text-white backdrop-blur-sm transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-void/80 lg:bottom-3"
-        >
-          <IconoSonido silenciado={silenciado} />
-        </button>
       </div>
 
       {/* ACCIONES: sobre el video en movil (absolute), FUERA del video en desktop (static) */}
@@ -185,6 +182,22 @@ function PostInicio({
         <Accion label="Comentar" valor={0} icono={<IconoComentario />} />
         <Accion label="Votar" valor={post.votos} icono={<IconoVoto />} destacado />
         <Accion label="Compartir" valor={0} icono={<IconoCompartir />} />
+        {/* MUTE GLOBAL: última acción de la columna, DEBAJO de Compartir (antes tapaba la descripción
+            abajo-izquierda). Mismo look de icono que las acciones pero SIN contador (no tiene número).
+            Icono y aria según el mute EFECTIVO (nunca miente). Un cambio afecta a TODOS los vídeos. */}
+        <button
+          type="button"
+          onPointerDownCapture={() => {
+            intentoRef.current = muted;
+          }}
+          onClick={() => onToggleSilencio(intentoRef.current)}
+          aria-label={muted ? "Activar sonido" : "Silenciar"}
+          className="flex flex-col items-center"
+        >
+          <span className="flex h-11 w-11 items-center justify-center text-white lg:text-text lg:hover:text-white">
+            <IconoSonido silenciado={muted} />
+          </span>
+        </button>
       </div>
     </section>
   );
@@ -274,13 +287,36 @@ export function FeedInicio({
   const [posts, setPosts] = useState<PostFeed[]>(postsIniciales);
   const [cursor, setCursor] = useState<string | null>(cursorInicial);
   const [activo, setActivo] = useState(0);
-  // MUTE GLOBAL del feed: una sola preferencia para TODOS los vídeos (arranca en mute; el navegador lo
-  // exige para autoplay). Se pasa a cada player; quitar/poner el sonido en uno se mantiene en el resto.
-  const [silenciado, setSilenciado] = useState(true);
+  // MUTE del feed — DOS estados (una sola preferencia GLOBAL para todos los vídeos):
+  //  - `silenciado`: PREFERENCIA del usuario (arranca en false = quiere sonido; el botón la togglea =
+  //    mute opt-in).
+  //  - `audioDesbloqueado`: PERMISO del navegador (arranca en false; el navegador bloquea el autoplay
+  //    con sonido sin gesto). Pasa a true en el PRIMER gesto del usuario.
+  // El mute EFECTIVO que aplican los players y pinta el icono es `silenciado || !audioDesbloqueado`:
+  // el autoplay SIEMPRE arranca mudo (garantizado) y el icono NUNCA miente sobre lo que se oye.
+  const [silenciado, setSilenciado] = useState(false);
+  const [audioDesbloqueado, setAudioDesbloqueado] = useState(false);
+  const mutedEfectivo = silenciado || !audioDesbloqueado;
   // Guarda anti-solape de la paginacion: es un ref (no se pinta), asi que no dispara renders.
   const cargandoRef = useRef(false);
   const columna = useRef<HTMLDivElement | null>(null);
   const secciones = useRef<HTMLElement[]>([]);
+
+  // UNLOCK del audio al PRIMER gesto del usuario (el navegador exige un gesto para permitir sonido).
+  // Un ÚNICO listener en el contenedor del feed: al primer pointerdown/keydown desbloquea y se
+  // auto-retira. Si la preferencia es "con sonido", el vídeo activo pasa a sonar en ese mismo gesto y
+  // los siguientes (scroll) también, porque `mutedEfectivo` deja de forzar el mute.
+  useEffect(() => {
+    const cont = columna.current;
+    if (!cont || audioDesbloqueado) return;
+    const desbloquear = (): void => setAudioDesbloqueado(true);
+    cont.addEventListener("pointerdown", desbloquear, { once: true });
+    cont.addEventListener("keydown", desbloquear, { once: true });
+    return () => {
+      cont.removeEventListener("pointerdown", desbloquear);
+      cont.removeEventListener("keydown", desbloquear);
+    };
+  }, [audioDesbloqueado]);
 
   // Detecta el video ACTIVO. Se re-suscribe cuando cambia el numero de posts (al anexar pagina) para
   // observar tambien las secciones nuevas.
@@ -353,8 +389,18 @@ export function FeedInicio({
             alRef={(el) => {
               if (el) secciones.current[i] = el;
             }}
-            silenciado={silenciado}
-            onToggleSilencio={() => setSilenciado((s) => !s)}
+            muted={mutedEfectivo}
+            onToggleSilencio={(estabaMudo) => {
+              // Decide según el SNAPSHOT (lo que el usuario VEÍA al pulsar), no según el estado ya
+              // cambiado por el unlock: si estaba mudo, quiere sonido (desbloquea + preferencia = sonido);
+              // si sonaba, mutea (opt-in).
+              if (estabaMudo) {
+                setAudioDesbloqueado(true);
+                setSilenciado(false);
+              } else {
+                setSilenciado(true);
+              }
+            }}
             onNoDisponible={() => quitarPost(post.id)}
           />
         ))}
