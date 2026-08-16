@@ -7,6 +7,8 @@ import { createHmac } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
+import type { Env } from "@/config/env";
+import type { PrismaClient } from "@/generated/prisma/client";
 import { deriveKey } from "@/server/auth/keys";
 
 import { normalizeIp } from "./ip";
@@ -19,6 +21,19 @@ export function apiError(code: string, message: string, status: number): NextRes
 
 export function apiOk<T extends Record<string, unknown>>(body: T, status = 200): NextResponse {
   return NextResponse.json(body, { status });
+}
+
+/**
+ * Dependencias UNIVERSALES de una ruta (`env` + `prisma`), para las rutas que NO pasan por
+ * `mutatingRoute` (las mutantes ya las reciben inyectadas). Centraliza el par de imports que casi toda
+ * ruta repetia. Los imports SIGUEN SIENDO DINAMICOS (dentro de esta funcion, que se llama por peticion,
+ * NUNCA en ambito de modulo): el build no evalua `env` ni la BD. `env` es un proxy perezoso: devolverlo
+ * aqui NO valida nada hasta que la ruta lee una propiedad, asi que una ruta que no use `env` no cambia.
+ */
+export async function depsRuta(): Promise<{ env: Env; prisma: PrismaClient }> {
+  const { env } = await import("@/config/env");
+  const { prisma } = await import("@/server/db/client");
+  return { env, prisma };
 }
 
 /**

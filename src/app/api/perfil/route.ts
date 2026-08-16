@@ -10,10 +10,8 @@ export const dynamic = "force-dynamic";
  * un id del cuerpo -> nadie edita el perfil de otro. El servidor RE-valida con Zod (el cliente solo
  * hace UX). Rate-limit por usuario para que el guardado no sea un amplificador de escrituras.
  */
-export const PATCH = mutatingRoute(async (req, { user }) => {
-  const { env } = await import("@/config/env");
+export const PATCH = mutatingRoute(async (req, { user, env, prisma }) => {
   const { RATE_LIMITS } = await import("@/config/constants");
-  const { prisma } = await import("@/server/db/client");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { actualizarPerfilSchema, actualizarPerfil } = await import("@/server/services/perfil");
 

@@ -19,10 +19,8 @@ export const dynamic = "force-dynamic";
  * la SESIÓN, nunca del cliente -> sin traversal; el cuid es alfanumérico). La URL guardada lleva un
  * `?v=` para invalidar la caché del navegador al cambiar de foto (el fichero se sobrescribe).
  */
-export const POST = mutatingRoute(async (req, { user }) => {
-  const { env } = await import("@/config/env");
+export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
   const { RATE_LIMITS } = await import("@/config/constants");
-  const { prisma } = await import("@/server/db/client");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { procesarAvatar, AvatarInvalidoError } = await import("@/server/services/avatar");
   const { sanearError } = await import("@/server/observability/sanitize-error");

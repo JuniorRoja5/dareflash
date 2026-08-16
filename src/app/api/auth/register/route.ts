@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { apiError, apiOk, clientIpKey, rateLimitKey } from "@/server/http/api";
+import { apiError, apiOk, clientIpKey, depsRuta, rateLimitKey } from "@/server/http/api";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +13,8 @@ function ageYears(birth: Date, now: Date): number {
 }
 
 export async function POST(req: Request) {
-  const { env } = await import("@/config/env");
+  const { env, prisma } = await depsRuta();
   const { MIN_AGE_YEARS, RATE_LIMITS } = await import("@/config/constants");
-  const { prisma } = await import("@/server/db/client");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { registerUser } = await import("@/server/auth/registration");
   const { esArgon2Sobrecargado } = await import("@/server/auth/password");

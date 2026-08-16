@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { apiError, apiOk } from "@/server/http/api";
+import { apiError, apiOk, depsRuta } from "@/server/http/api";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,7 @@ export async function GET(req: Request) {
   });
   if (!parsed.success) return apiError("BAD_REQUEST", "Parámetros de feed inválidos.", 400);
 
-  const { prisma } = await import("@/server/db/client");
+  const { prisma } = await depsRuta();
   const { feedPublicado } = await import("@/server/services/feed");
   const { firmarReproduccion } = await import("@/server/services/reproduccion-servidor");
   const { sanearError } = await import("@/server/observability/sanitize-error");

@@ -26,12 +26,10 @@ const BUNNY_DELETE_VIDEO = "BUNNY_DELETE_VIDEO";
  * es idempotente (404 = ya no existe = exito) y reintentable, y si se agota deja el Job FAILED VISIBLE.
  */
 export const DELETE = mutatingRoute<{ params: Promise<{ id: string }> }>(
-  async (_req, { user }, { params }) => {
+  async (_req, { user, prisma }, { params }) => {
     const parsed = ParamsSchema.safeParse(await params);
     if (!parsed.success) return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
     const { id } = parsed.data;
-
-    const { prisma } = await import("@/server/db/client");
 
     const video = await prisma.video.findUnique({
       where: { id },

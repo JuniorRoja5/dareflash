@@ -15,11 +15,9 @@ export const dynamic = "force-dynamic";
  * para la limpieza de huerfanos (que se construye en su propia rama); 3) devuelve al cliente SOLO la
  * credencial de corta duracion, NUNCA la clave de API.
  */
-export const POST = mutatingRoute(async (req, { user }) => {
-  const { env } = await import("@/config/env");
+export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
   const { RATE_LIMITS, BUNNY_TUS_CREDENTIAL_TTL_SEC, CONFIRM_WAKE_KEY } =
     await import("@/config/constants");
-  const { prisma } = await import("@/server/db/client");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { crearObjetoVideo, credencialSubidaTus, clienteBunnyReal } =
     await import("@/server/services/bunny");
