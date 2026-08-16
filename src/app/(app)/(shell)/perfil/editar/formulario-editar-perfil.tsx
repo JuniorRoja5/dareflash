@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Boton } from "@/components/ui/boton";
@@ -48,6 +48,7 @@ export function FormularioEditarPerfil({
   websiteInicial,
   instagramInicial,
   youtubeInicial,
+  children,
 }: {
   nombreInicial: string;
   usuario: string;
@@ -56,6 +57,8 @@ export function FormularioEditarPerfil({
   websiteInicial: string;
   instagramInicial: string;
   youtubeInicial: string;
+  /** Contenido de la columna DERECHA bajo "Perfil" (hoy: la tarjeta de Contraseña). Solo maqueta. */
+  children?: ReactNode;
 }) {
   const router = useRouter();
   const [nombre, setNombre] = useState(nombreInicial);
@@ -196,8 +199,12 @@ export function FormularioEditarPerfil({
   }
 
   return (
-    <div className="space-y-8">
-      {/* FOTO — previsualización + selector. Acción SECUNDARIA (el magenta único es "Guardar nombre"). */}
+    // Maqueta desktop v2: en `lg` DOS columnas (izquierda Foto, derecha Perfil + Contraseña); en móvil
+    // UNA columna apilada (idéntico a antes). El grid solo entra en `lg`; el espaciado móvil lo dan el
+    // `mt-8` de la columna derecha y el `space-y-8` interno.
+    <div className="lg:grid lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] lg:items-start lg:gap-8">
+      {/* COLUMNA IZQUIERDA — FOTO. Previsualización + selector. Acción SECUNDARIA (el magenta único es
+          "Guardar perfil"). */}
       <section className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md">
         <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">Foto</h2>
         <div className="mt-4 flex items-center gap-5">
@@ -267,80 +274,86 @@ export function FormularioEditarPerfil({
         ) : null}
       </section>
 
-      {/* NOMBRE — acción principal (magenta único). */}
-      <form
-        onSubmit={guardarNombre}
-        noValidate
-        className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md"
-        style={{ animationDelay: "60ms" }}
-      >
-        <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">Perfil</h2>
-        <div className="mt-4 flex flex-col gap-5">
-          <Campo
-            id="perfil-nombre"
-            label="Nombre visible"
-            placeholder="Ej.: Ana Gómez"
-            maxLength={NOMBRE_MAX}
-            value={nombre}
-            onChange={(e) => {
-              setNombre(e.target.value);
-              if (estadoNombre === "guardado") setEstadoNombre("idle");
-            }}
-            error={errorNombre}
-            disabled={nombreOcupado}
-          />
-          <Campo
-            id="perfil-bio"
-            label="Biografía"
-            placeholder="Cuenta algo sobre ti"
-            maxLength={BIO_MAX}
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            disabled={nombreOcupado}
-          />
-          <Campo
-            id="perfil-website"
-            label="Sitio web"
-            type="url"
-            inputMode="url"
-            placeholder="https://tu-web.com"
-            value={website}
-            onChange={(e) => setWebsite(e.target.value)}
-            disabled={nombreOcupado}
-          />
-          <Campo
-            id="perfil-instagram"
-            label="Instagram"
-            placeholder="tu_usuario (sin @)"
-            value={instagram}
-            onChange={(e) => setInstagram(e.target.value)}
-            disabled={nombreOcupado}
-          />
-          <Campo
-            id="perfil-youtube"
-            label="YouTube"
-            placeholder="@tucanal"
-            value={youtube}
-            onChange={(e) => setYoutube(e.target.value)}
-            disabled={nombreOcupado}
-          />
-        </div>
-
-        <Boton
-          type="submit"
-          variante="principal"
-          disabled={nombreOcupado}
-          className="mt-5 w-full py-3.5 shadow-[var(--df-cta-lift)]"
+      {/* COLUMNA DERECHA — Perfil + Contraseña, apiladas. */}
+      <div className="mt-8 space-y-8 lg:mt-0">
+        {/* PERFIL — acción principal (magenta único). */}
+        <form
+          onSubmit={guardarNombre}
+          noValidate
+          className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md"
+          style={{ animationDelay: "60ms" }}
         >
-          {nombreOcupado ? "Guardando…" : "Guardar perfil"}
-        </Boton>
+          <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">Perfil</h2>
+          <div className="mt-4 flex flex-col gap-5">
+            <Campo
+              id="perfil-nombre"
+              label="Nombre visible"
+              placeholder="Ej.: Ana Gómez"
+              maxLength={NOMBRE_MAX}
+              value={nombre}
+              onChange={(e) => {
+                setNombre(e.target.value);
+                if (estadoNombre === "guardado") setEstadoNombre("idle");
+              }}
+              error={errorNombre}
+              disabled={nombreOcupado}
+            />
+            <Campo
+              id="perfil-bio"
+              label="Biografía"
+              placeholder="Cuenta algo sobre ti"
+              maxLength={BIO_MAX}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              disabled={nombreOcupado}
+            />
+            <Campo
+              id="perfil-website"
+              label="Sitio web"
+              type="url"
+              inputMode="url"
+              placeholder="https://tu-web.com"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              disabled={nombreOcupado}
+            />
+            <Campo
+              id="perfil-instagram"
+              label="Instagram"
+              placeholder="tu_usuario (sin @)"
+              value={instagram}
+              onChange={(e) => setInstagram(e.target.value)}
+              disabled={nombreOcupado}
+            />
+            <Campo
+              id="perfil-youtube"
+              label="YouTube"
+              placeholder="@tucanal"
+              value={youtube}
+              onChange={(e) => setYoutube(e.target.value)}
+              disabled={nombreOcupado}
+            />
+          </div>
 
-        {estadoNombre === "guardado" ? (
-          <p role="status" className="mt-3 text-center text-sm text-ok">
-            Perfil guardado.
-          </p>
-        ) : null}
-      </form>
+          <Boton
+            type="submit"
+            variante="principal"
+            disabled={nombreOcupado}
+            className="mt-5 w-full py-3.5 shadow-[var(--df-cta-lift)]"
+          >
+            {nombreOcupado ? "Guardando…" : "Guardar perfil"}
+          </Boton>
+
+          {estadoNombre === "guardado" ? (
+            <p role="status" className="mt-3 text-center text-sm text-ok">
+              Perfil guardado.
+            </p>
+          ) : null}
+        </form>
+
+        {/* CONTRASEÑA (u otro contenido de la columna derecha): pasado como children desde la página. */}
+        {children}
+      </div>
     </div>
   );
 }

@@ -54,7 +54,10 @@ export default async function EditarPerfilPage() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-xl px-4 py-8 lg:py-12">
+    // Desktop v2: contenedor ANCHO + maqueta a DOS COLUMNAS (dentro del formulario): izquierda la
+    // Foto, derecha Perfil + Contraseña. En móvil es UNA columna (idéntico a antes). No se estira el
+    // formulario a todo el ancho: es una maqueta de dos columnas intencional (como perfil-vista).
+    <div className="mx-auto w-full max-w-5xl px-4 py-8 lg:px-8 lg:py-12">
       <div className="mb-6 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold text-text">Editar perfil</h1>
         <Link
@@ -73,12 +76,11 @@ export default async function EditarPerfilPage() {
         websiteInicial={perfil?.website ?? ""}
         instagramInicial={perfil?.instagram ?? ""}
         youtubeInicial={perfil?.youtube ?? ""}
-      />
-
-      {/* Cambiar contraseña: sesión ya exigida arriba; el endpoint re-verifica (mutatingRoute). */}
-      <div className="mt-8">
+      >
+        {/* Contraseña: va en la columna DERECHA bajo Perfil (el form la coloca). Sesión ya exigida
+            arriba; el endpoint re-verifica (mutatingRoute). */}
         <CambiarPassword />
-      </div>
+      </FormularioEditarPerfil>
     </div>
   );
 }
