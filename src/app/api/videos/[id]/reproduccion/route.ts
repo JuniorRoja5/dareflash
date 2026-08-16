@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { apiError, apiOk } from "@/server/http/api";
+import { apiError, apiOk, depsRuta } from "@/server/http/api";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +22,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!parsed.success) return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
   const { id } = parsed.data;
 
-  const { env } = await import("@/config/env");
+  const { env, prisma } = await depsRuta();
   const { BUNNY_PLAYBACK_TTL_SEC } = await import("@/config/constants");
-  const { prisma } = await import("@/server/db/client");
   const { reproduccionFirmada } = await import("@/server/services/bunny");
   const { sanearError } = await import("@/server/observability/sanitize-error");
 

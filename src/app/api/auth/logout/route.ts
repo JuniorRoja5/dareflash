@@ -5,8 +5,7 @@ export const dynamic = "force-dynamic";
 
 /** Logout: muta (revoca la sesion), asi que pasa por `mutatingRoute` (Origin + sesion
  *  + CSRF). Borra la fila de la sesion actual y limpia la cookie. */
-export const POST = mutatingRoute(async () => {
-  const { prisma } = await import("@/server/db/client");
+export const POST = mutatingRoute(async (_req, { prisma }) => {
   const { revokeSession } = await import("@/server/auth/session");
   const { readSessionToken, clearSessionCookie } = await import("@/server/auth/current-user");
 

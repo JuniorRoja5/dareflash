@@ -19,10 +19,8 @@ export const dynamic = "force-dynamic";
  * La sesion ROTA (sessionId nuevo), asi que el token CSRF que el cliente tenia en
  * memoria queda invalido: devolvemos uno nuevo atado a la sesion nueva en la respuesta.
  */
-export const POST = mutatingRoute(async (req, { user }) => {
-  const { env } = await import("@/config/env");
+export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
   const { RATE_LIMITS } = await import("@/config/constants");
-  const { prisma } = await import("@/server/db/client");
   const { rateLimit, resetRateLimit } = await import("@/server/security/rate-limit");
   const { verifyPasswordConstantTime, esArgon2Sobrecargado, ejecutarConHueco } =
     await import("@/server/auth/password");

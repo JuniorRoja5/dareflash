@@ -16,6 +16,8 @@
  */
 import "server-only";
 
+import type { Env } from "@/config/env";
+import type { PrismaClient } from "@/generated/prisma/client";
 import { apiError, originAllowed } from "@/server/http/api";
 
 import { verifyCsrfToken } from "./csrf";
@@ -24,7 +26,11 @@ import type { SessionUser } from "./session";
 /**
  * Handler protegido. Recibe TRES argumentos:
  *  - `req`: la peticion.
- *  - `{ user }`: el usuario ya resuelto por el envoltorio.
+ *  - `{ user, env, prisma }`: el usuario ya resuelto por el envoltorio, MAS los dos "universales"
+ *    (`env` y `prisma`) que casi toda ruta mutante necesita. El envoltorio ya los cargaba (env) o los
+ *    arrastraba (prisma via getCurrentUser); pasarlos INYECTADOS evita que cada ruta repita sus propios
+ *    `await import("@/config/env")` / `await import("@/server/db/client")`. Siguen siendo dinamicos (se
+ *    resuelven aqui, dentro de la funcion, NUNCA en ambito de modulo): el build no evalua env ni BD.
  *  - `routeContext`: el 2o argumento que Next pasa a la ruta, INTACTO. En una ruta
  *    dinamica (`/api/x/[id]/route.ts`) es `{ params: Promise<{ id: string }> }`; sin
  *    propagarlo, una ruta dinamica no podria leer sus params y alguien la sacaria del
@@ -33,7 +39,7 @@ import type { SessionUser } from "./session";
  */
 type MutatingHandler<C> = (
   req: Request,
-  ctx: { user: SessionUser },
+  ctx: { user: SessionUser; env: Env; prisma: PrismaClient },
   routeContext: C,
 ) => Promise<Response>;
 
@@ -46,6 +52,7 @@ export function mutatingRoute<C = unknown>(
     // `next build` (recogida de datos de pagina) donde no hay variables -> build caido.
     // (Prisma ya es perezoso, pero se mantiene el import dinamico como defensa en capas.)
     const { env } = await import("@/config/env");
+    const { prisma } = await import("@/server/db/client");
     const { getCurrentUser } = await import("./current-user");
 
     if (!originAllowed(req, env.APP_URL)) {
@@ -60,6 +67,6 @@ export function mutatingRoute<C = unknown>(
       return apiError("CSRF", "Token CSRF invalido o ausente.", 403);
     }
 
-    return handler(req, { user }, routeContext);
+    return handler(req, { user, env, prisma }, routeContext);
   };
 }
