@@ -4,6 +4,8 @@ import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
+import { postJson } from "@/lib/cliente-http";
+import { mensajeError, MSG_REGISTRO } from "@/lib/mensajes-error";
 
 /**
  * FORMULARIO de registro (isla cliente). POST /api/auth/register { email, password, birthDate }
@@ -13,27 +15,6 @@ import { Campo } from "@/components/ui/campo";
  * se inicia sesión: se pide al usuario que confirme su correo. Cada error se MAPEA a copy humano.
  */
 type Estado = "idle" | "enviando" | "hecho";
-
-/** Lee `error.code` de la respuesta del endpoint de forma defensiva. */
-function codigoDe(data: unknown): string {
-  if (typeof data === "object" && data && "error" in data) {
-    const err = (data as { error?: unknown }).error;
-    if (typeof err === "object" && err && "code" in err) {
-      return String((err as { code?: unknown }).code ?? "");
-    }
-  }
-  return "";
-}
-
-/** Mapea (status, code) a copy humano. El 400 es genérico (edad/correo/contraseña) -> pista útil. */
-function mensajeError(status: number, code: string): string {
-  if (status === 429 || code === "RATE_LIMITED") return "Demasiados intentos, espera un momento.";
-  if (status === 503 || code === "OVERLOADED")
-    return "El servicio está ocupado. Reinténtalo en unos segundos.";
-  if (status === 400)
-    return "Revisa el correo, una contraseña de 10+ caracteres (larga y poco predecible) y que tengas al menos 16 años.";
-  return "No se pudo crear la cuenta. Reintenta.";
-}
 
 export function FormularioRegistro() {
   const [email, setEmail] = useState("");
@@ -50,17 +31,16 @@ export function FormularioRegistro() {
     setError("");
     setEstado("enviando");
     try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password, birthDate: nacimiento }),
+      const r = await postJson("/api/auth/register", {
+        email: email.trim(),
+        password,
+        birthDate: nacimiento,
       });
-      if (res.ok) {
+      if (r.ok) {
         setEstado("hecho"); // respuesta uniforme: revisa tu correo (sin sesión ni redirección)
         return;
       }
-      const data: unknown = await res.json().catch(() => ({}));
-      setError(mensajeError(res.status, codigoDe(data)));
+      setError(mensajeError(r.status, r.code, MSG_REGISTRO));
       setEstado("idle");
     } catch {
       setError("No se pudo crear la cuenta. Reintenta.");

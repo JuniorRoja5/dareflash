@@ -6,6 +6,7 @@ import { type FormEvent, Suspense, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
+import { postJson } from "@/lib/cliente-http";
 
 /**
  * FORMULARIO de restablecer contraseña (isla cliente). POST /api/auth/reset-password { token,
@@ -16,17 +17,6 @@ import { Campo } from "@/components/ui/campo";
  * render (anti-prefetch, ver la página).
  */
 type Estado = "sin-token" | "listo" | "enviando" | "ok" | "error";
-
-/** Lee `error.code` de la respuesta del endpoint de forma defensiva. */
-function codigoDe(data: unknown): string {
-  if (typeof data === "object" && data && "error" in data) {
-    const err = (data as { error?: unknown }).error;
-    if (typeof err === "object" && err && "code" in err) {
-      return String((err as { code?: unknown }).code ?? "");
-    }
-  }
-  return "";
-}
 
 function RestablecerContenido() {
   const token = useSearchParams().get("token");
@@ -44,26 +34,22 @@ function RestablecerContenido() {
     setError("");
     setEstado("enviando");
     try {
-      const res = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
-      });
-      const data: unknown = await res.json().catch(() => ({}));
+      const r = await postJson("/api/auth/reset-password", { token, password });
+      const data: unknown = r.data;
       const msg = typeof data === "object" && data && "message" in data ? String(data.message) : "";
-      if (res.ok) {
+      if (r.ok) {
         setMensaje(msg || "Contraseña actualizada. Ya puedes iniciar sesión con la nueva.");
         setEstado("ok");
         return;
       }
-      const code = codigoDe(data);
-      if (res.status === 503 || code === "OVERLOADED") {
+      const code = r.code;
+      if (r.status === 503 || code === "OVERLOADED") {
         // Se puede reintentar: no se pierde el enlace (el token no se consumió). Vuelve al formulario.
         setError("El servicio está ocupado. Reinténtalo en unos segundos.");
         setEstado("listo");
         return;
       }
-      if (res.status === 400 && code === "VALIDATION") {
+      if (r.status === 400 && code === "VALIDATION") {
         // El SERVIDOR manda: `msg` trae el texto de `evaluarPassword` (misma política que el
         // registro: p.ej. "demasiado fácil de adivinar…"). Fallback alineado a la política (>=10).
         setError(msg || "Elige una contraseña de al menos 10 caracteres, larga y poco predecible.");

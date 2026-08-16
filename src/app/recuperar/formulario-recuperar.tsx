@@ -4,6 +4,7 @@ import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
+import { postJson } from "@/lib/cliente-http";
 
 /**
  * FORMULARIO de recuperación de contraseña (isla cliente). POST /api/auth/forgot-password { email }.
@@ -29,19 +30,15 @@ export function FormularioRecuperar() {
     setAviso("");
     setEstado("enviando");
     try {
-      const res = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      if (res.status === 429) {
+      const r = await postJson("/api/auth/forgot-password", { email: email.trim() });
+      if (r.status === 429) {
         // Mostrarlo NO abre enumeración: los rate-limit se evalúan ANTES del findUnique, así que el
         // 429 es idéntico para una dirección real y una inventada.
         setAviso("Demasiados intentos. Espera un momento antes de volver a probar.");
         setEstado("idle");
         return;
       }
-      if (res.ok) {
+      if (r.ok) {
         setEstado("hecho"); // respuesta uniforme (sin enumeración)
         return;
       }

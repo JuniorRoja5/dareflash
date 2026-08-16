@@ -22,6 +22,7 @@ import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
+import { postJson } from "@/lib/cliente-http";
 
 const estiloDisplay = {
   fontFamily: "var(--font-display)",
@@ -39,14 +40,10 @@ export function TarjetaVerificacion() {
     if (!token) return;
     setEstado("enviando");
     try {
-      const res = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-      const data: unknown = await res.json().catch(() => ({}));
+      const r = await postJson("/api/auth/verify", { token });
+      const data: unknown = r.data;
       const msg = typeof data === "object" && data && "message" in data ? String(data.message) : "";
-      if (res.ok) {
+      if (r.ok) {
         setMensaje(msg || "Cuenta verificada. Ya puedes iniciar sesion.");
         setEstado("ok");
       } else {
@@ -130,15 +127,11 @@ function Reenviar() {
     e.preventDefault();
     setEnviando(true);
     try {
-      const res = await fetch("/api/auth/resend-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      if (res.ok) {
+      const r = await postJson("/api/auth/resend-verification", { email });
+      if (r.ok) {
         // Respuesta UNIFORME: no revela si la cuenta existe (sin enumeracion).
         setResultado("Si corresponde, te hemos reenviado el correo de verificación.");
-      } else if (res.status === 429) {
+      } else if (r.status === 429) {
         // Mostrar el 429 NO abre enumeracion: en resend-verification/route.ts los dos rateLimit()
         // se evaluan ANTES del findUnique, asi que el 429 es IDENTICO para una direccion real y
         // una inventada. No revela nada. No "arreglarlo" ocultandolo.

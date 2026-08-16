@@ -6,6 +6,8 @@ import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
+import { postJson } from "@/lib/cliente-http";
+import { mensajeError, MSG_LOGIN } from "@/lib/mensajes-error";
 import { rutaSiguienteSegura } from "@/lib/ruta-siguiente";
 
 /**
@@ -20,28 +22,6 @@ import { rutaSiguienteSegura } from "@/lib/ruta-siguiente";
  * del envío (`window.location`) y se valida contra open-redirect en `rutaSiguienteSegura`.
  */
 type Estado = "idle" | "enviando";
-
-/** Lee `error.code` de la respuesta del endpoint de forma defensiva. */
-function codigoDe(data: unknown): string {
-  if (typeof data === "object" && data && "error" in data) {
-    const err = (data as { error?: unknown }).error;
-    if (typeof err === "object" && err && "code" in err) {
-      return String((err as { code?: unknown }).code ?? "");
-    }
-  }
-  return "";
-}
-
-/** Mapea (status, code) a copy humano. EMAIL_NOT_VERIFIED se trata aparte (con reenvío). */
-function mensajeError(status: number, code: string): string {
-  if (status === 429 || code === "RATE_LIMITED") return "Demasiados intentos, espera un momento.";
-  if (status === 503 || code === "OVERLOADED")
-    return "El servicio está ocupado. Reinténtalo en unos segundos.";
-  // Credenciales malas = MISMO mensaje para email inexistente y contraseña incorrecta (sin enumeración).
-  if (status === 401 || code === "INVALID_CREDENTIALS") return "Correo o contraseña incorrectos.";
-  if (status === 400) return "Revisa el correo y la contraseña.";
-  return "No se pudo iniciar sesión. Reintenta.";
-}
 
 export function FormularioLogin() {
   const router = useRouter();
@@ -62,12 +42,8 @@ export function FormularioLogin() {
     setReenviado(null);
     setEstado("enviando");
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
-      if (res.ok) {
+      const r = await postJson("/api/auth/login", { email: email.trim(), password });
+      if (r.ok) {
         // `?siguiente` (ruta local validada) o "/" por defecto. Se lee al enviar: no
         // necesita Suspense y solo importa en el éxito.
         const siguiente = new URLSearchParams(window.location.search).get("siguiente");
@@ -75,12 +51,10 @@ export function FormularioLogin() {
         router.refresh();
         return;
       }
-      const data: unknown = await res.json().catch(() => ({}));
-      const code = codigoDe(data);
-      if (code === "EMAIL_NOT_VERIFIED") {
+      if (r.code === "EMAIL_NOT_VERIFIED") {
         setSinVerificar(true);
       } else {
-        setError(mensajeError(res.status, code));
+        setError(mensajeError(r.status, r.code, MSG_LOGIN));
       }
       setEstado("idle");
     } catch {
@@ -91,14 +65,10 @@ export function FormularioLogin() {
 
   async function reenviarVerificacion(): Promise<void> {
     try {
-      const res = await fetch("/api/auth/resend-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
+      const r = await postJson("/api/auth/resend-verification", { email: email.trim() });
       // Respuesta UNIFORME (sin enumeración), como el endpoint.
       setReenviado(
-        res.status === 429
+        r.status === 429
           ? "Demasiados intentos. Espera un momento."
           : "Si corresponde, te hemos reenviado el correo de verificación.",
       );
