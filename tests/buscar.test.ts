@@ -1,10 +1,12 @@
 /**
- * BÚSQUEDA (A1) — usuarios y retos, CON DIENTES contra la BD real (FULLTEXT + keyset):
+ * BÚSQUEDA (A1 + P3: parciales de palabra) — usuarios y retos, CON DIENTES contra la BD real:
  *  - ORDEN: match exacto > prefijo > relevancia FULLTEXT > scoreAutoridad DESC > id (el score NO
  *    invierte la exactitud).
  *  - KEYSET: paginar cubre TODOS sin repetir ni saltar.
- *  - Consulta CORTA (<3): usuarios caen a prefijo indexado (no mira displayName); retos -> vacío.
- *  - SOLO PÚBLICOS: fuera borrados/baneados/sin-username y retos no-PUBLISHED; el DTO no filtra privados.
+ *  - PARCIALES: prefijo indexado (username/displayName/title) + FULLTEXT BOOLEAN word-prefix (`sal*`).
+ *  - Consulta CORTA (<3): prefijo indexado sobre username Y displayName (usuarios) y title (retos).
+ *  - SEGURIDAD: operadores de BOOLEAN MODE tratados como literal (no inyectan).
+ *  - SOLO PÚBLICOS: fuera borrados/baneados y retos no-PUBLISHED; el DTO no filtra privados.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -131,16 +133,39 @@ describe("buscarUsuarios", () => {
     expect(new Set(vistos.slice(2))).toEqual(new Set(["z1", "z2"])); // fulltext al final
   });
 
-  it("consulta corta (<3): prefijo indexado sobre username; NO mira displayName", async () => {
-    await crearUsuario({ username: "an", score: 0 });
-    await crearUsuario({ username: "andres", score: 5 });
-    await crearUsuario({ username: "zzz", displayName: "an cosa", score: 99 });
+  it("consulta corta (<3): PREFIJO indexado sobre username Y displayName (P3)", async () => {
+    await crearUsuario({ username: "an", score: 0 }); // prefijo username
+    await crearUsuario({ username: "andres", score: 5 }); // prefijo username
+    await crearUsuario({ username: "zzz", displayName: "an cosa", score: 99 }); // prefijo displayName
+    await crearUsuario({ username: "xxx", displayName: "no coincide", score: 99 }); // ni uno ni otro
 
     const { items } = await buscarUsuarios(prisma, "an", null);
     const nombres = items.map((u) => u.username);
-    expect(nombres).toContain("an");
-    expect(nombres).toContain("andres");
-    expect(nombres).not.toContain("zzz");
+    expect(nombres).toEqual(expect.arrayContaining(["an", "andres", "zzz"]));
+    expect(nombres).not.toContain("xxx"); // el prefijo NO es un full scan
+  });
+
+  it("P3: prefijo corto encuentra 'yuyu' por 'yu' (el caso real destapado)", async () => {
+    await crearUsuario({ username: "yuyu", score: 0 });
+    const { items } = await buscarUsuarios(prisma, "yu", null);
+    expect(items.map((u) => u.username)).toContain("yuyu");
+  });
+
+  it("P3: word-prefix BOOLEAN encuentra por PARCIAL de palabra en displayName ('yuy' -> 'yuyu G')", async () => {
+    await crearUsuario({ username: "u_a", displayName: "Yuyu Grande", score: 0 });
+    const { items } = await buscarUsuarios(prisma, "yuy", null);
+    expect(items.map((u) => u.username)).toContain("u_a");
+  });
+
+  it("P3 SEGURIDAD: los operadores de BOOLEAN MODE se tratan como LITERAL (no inyectan)", async () => {
+    await crearUsuario({ username: "target1", displayName: "salto mortal", score: 0 });
+    // El usuario mete operadores de fulltext: se neutralizan; el término es "salto" (word-prefix).
+    for (const q of ["sal*", "+sal -x", 'sal")', "@sal"]) {
+      const { items } = await buscarUsuarios(prisma, q, null);
+      expect(items.map((u) => u.username)).toContain("target1"); // encuentra igual, sin reventar
+    }
+    // Un término SOLO de operadores no revienta ni devuelve basura.
+    await expect(buscarUsuarios(prisma, "+++", null)).resolves.toBeDefined();
   });
 
   it("solo PÚBLICOS: fuera borrados/baneados; el DTO no lleva campos privados", async () => {
@@ -179,12 +204,33 @@ describe("buscarRetos", () => {
     expect(items.map((r) => r.title)).toEqual(["baile", "Reto de baile"]);
   });
 
-  it("consulta corta (<3) -> vacío (sin full scan)", async () => {
+  it("consulta corta (<3): PREFIJO indexado sobre title (P3: ya NO vacío)", async () => {
     const creador = await crearUsuario({ username: "creador2" });
-    await crearReto(creador, { title: "ab reto" });
+    await crearReto(creador, { title: "ab reto" }); // prefijo "ab"
+    await crearReto(creador, { title: "otro reto" }); // no coincide
 
-    const { items, proximoCursor } = await buscarRetos(prisma, "ab", null);
-    expect(items).toEqual([]);
-    expect(proximoCursor).toBeNull();
+    const { items } = await buscarRetos(prisma, "ab", null);
+    expect(items.map((r) => r.title)).toEqual(["ab reto"]);
+  });
+
+  it("P3: word-prefix BOOLEAN encuentra 'sal' -> '…salto…' (parcial de palabra en el título)", async () => {
+    const creador = await crearUsuario({ username: "creador3" });
+    await crearReto(creador, { title: "Tu mejor salto en caja", score: 0 });
+    await crearReto(creador, { title: "Receta en 60 segundos", score: 999 }); // no empieza por sal
+
+    const { items } = await buscarRetos(prisma, "sal", null);
+    const titulos = items.map((r) => r.title);
+    expect(titulos).toContain("Tu mejor salto en caja");
+    expect(titulos).not.toContain("Receta en 60 segundos");
+  });
+
+  it("P3: exacto rankea por ENCIMA del word-prefix (salto exacto > '…salto…')", async () => {
+    const creador = await crearUsuario({ username: "creador4" });
+    await crearReto(creador, { title: "Tu mejor salto en caja", score: 999 }); // word-prefix, score alto
+    await crearReto(creador, { title: "salto", score: 0 }); // EXACTO, score bajo
+
+    const { items } = await buscarRetos(prisma, "salto", null);
+    // El exacto va primero AUNQUE tenga menos scoreAutoridad (la exactitud domina).
+    expect(items[0]?.title).toBe("salto");
   });
 });

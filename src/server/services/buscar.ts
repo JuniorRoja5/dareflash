@@ -1,14 +1,20 @@
 /**
- * BÚSQUEDA (Fase 1) — usuarios y retos. Escala y futuro-proof:
- *   - TEXTO por índice FULLTEXT de MariaDB (MATCH..AGAINST), nunca `LIKE '%x%'` (full scan).
- *   - Orden ESTABLE en 4 dimensiones: (1) match EXACTO/PREFIJO, (2) relevancia FULLTEXT, (3)
- *     `scoreAutoridad` DESC (columna indexada que recalcula el worker), (4) `id` (desempate). Las tres
- *     primeras se combinan en un `orden` DESC; la búsqueda LEE `scoreAutoridad`, no lo calcula al vuelo.
+ * BÚSQUEDA (Fase 1 + P3: PARCIALES de palabra) — usuarios y retos. Escala y futuro-proof:
+ *   - TEXTO indexado, nunca `LIKE '%x%'` (full scan). Dos vías, ambas por índice:
+ *       · PREFIJO izquierda-anclado `LIKE 'x%'` sobre `username`/`displayName` (usuarios) y `title`
+ *         (retos) -> usa índice btree (UNIQUE de username; `*_idx` de displayName/title, ver migración
+ *         `buscar_prefijo_indices`). Encuentra lo que EMPIEZA por el término.
+ *       · FULLTEXT en BOOLEAN MODE con WORD-PREFIX `palabra*` (>= BUSCAR_MIN_FULLTEXT) -> encuentra
+ *         PALABRAS que empiezan por el término dentro del texto ("sal*" -> "salto"), por índice fulltext.
+ *   - Orden ESTABLE en 4 dimensiones: (1) EXACTO/PREFIJO, (2) relevancia FULLTEXT, (3) `scoreAutoridad`
+ *     DESC (columna indexada que recalcula el worker), (4) `id` (desempate). Las tres primeras se
+ *     combinan en un `orden` DESC; la búsqueda LEE `scoreAutoridad`, no lo calcula al vuelo.
  *   - Paginación KEYSET (no OFFSET): el cursor lleva (orden, scoreAutoridad, id) y la página siguiente
  *     filtra "estrictamente después" en ese orden -> no repite ni salta filas al insertarse otras.
- *   - Consulta CORTA (< BUSCAR_MIN_FULLTEXT, bajo el token mínimo de FULLTEXT): usuarios caen a un
- *     PREFIJO indexado sobre `username` (`LIKE 'ab%'`, usa el índice UNIQUE); retos NO (no hay índice
- *     de prefijo sobre `title` -> se evita el full scan devolviendo vacío).
+ *   - Consulta CORTA (< BUSCAR_MIN_FULLTEXT, bajo el token mínimo de FULLTEXT): SOLO prefijo indexado
+ *     (username/displayName/title); no hay fulltext posible bajo el token mínimo.
+ *   - SEGURIDAD FULLTEXT: el término se NEUTRALIZA antes de BOOLEAN MODE (fuera los operadores
+ *     `+ - > < ( ) ~ * " @`); el `*` de word-prefix lo añade el servidor. Nunca inyección de sintaxis.
  *   - SOLO contenido PÚBLICO: usuarios con perfil público (no borrados/baneados, con username); retos
  *     PUBLISHED. El DTO expone SOLO campos públicos (jamás email ni campos privados).
  */
@@ -74,6 +80,25 @@ function escaparLike(v: string): string {
   return v.replace(/[\\%_]/g, "\\$&");
 }
 
+/**
+ * Convierte el término en una EXPRESIÓN segura para MATCH..AGAINST(... IN BOOLEAN MODE) con word-prefix:
+ * NEUTRALIZA los operadores de BOOLEAN MODE (`+ - > < ( ) ~ * " @`) sustituyéndolos por espacio (así el
+ * usuario no inyecta sintaxis fulltext), colapsa espacios y añade el `*` de word-prefix por PALABRA
+ * (`salto* caja*`). Devuelve "" si tras limpiar no queda nada (p.ej. el término eran solo operadores):
+ * en ese caso el que llama cae a solo-prefijo.
+ */
+function expresionBoolean(termino: string): string {
+  const limpio = termino
+    .replace(/[+\-><()~*"@]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!limpio) return "";
+  return limpio
+    .split(" ")
+    .map((palabra) => `${palabra}*`)
+    .join(" ");
+}
+
 /** Condición keyset "estrictamente después de `c`" sobre (orden DESC, scoreAutoridad DESC, id ASC). */
 function condicionKeyset(c: CursorBusqueda | null): Prisma.Sql {
   if (!c) return Prisma.empty;
@@ -116,8 +141,9 @@ type FilaUsuario = FilaOrden & {
 };
 
 /**
- * Busca USUARIOS públicos por `q`. FULLTEXT (>= BUSCAR_MIN_FULLTEXT) con orden exacto/prefijo ->
- * relevancia -> scoreAutoridad -> id (keyset). Consulta corta -> prefijo indexado sobre username.
+ * Busca USUARIOS públicos por `q`. PREFIJO indexado (username y displayName) + FULLTEXT BOOLEAN
+ * word-prefix (>= BUSCAR_MIN_FULLTEXT); orden exacto/prefijo -> relevancia -> scoreAutoridad -> id
+ * (keyset). Consulta corta -> solo prefijo (username y displayName).
  */
 export async function buscarUsuarios(
   db: PrismaClient,
@@ -129,26 +155,32 @@ export async function buscarUsuarios(
   if (!termino) return { items: [], proximoCursor: null };
   const c = decodificarCursor(cursor);
   const prefijo = `${escaparLike(termino)}%`;
+  const expr = expresionBoolean(termino);
+  const usarFulltext = termino.length >= BUSCAR_MIN_FULLTEXT && expr !== "";
 
-  const interior =
-    termino.length < BUSCAR_MIN_FULLTEXT
-      ? // FALLBACK corto: prefijo indexado sobre username (usa el UNIQUE, sin full scan). `orden` = 0
-        // (constante) -> el keyset degenera a (scoreAutoridad DESC, id ASC).
-        Prisma.sql`
-          SELECT id, username, displayName, image, scoreAutoridad, CAST(0 AS DOUBLE) AS orden
-          FROM \`User\`
-          WHERE deletedAt IS NULL AND bannedAt IS NULL AND username IS NOT NULL
-            AND username LIKE ${prefijo}`
-      : // FULLTEXT: incluye también exactos/prefijos que el fulltext pudiera no capturar.
-        Prisma.sql`
-          SELECT id, username, displayName, image, scoreAutoridad,
-            ((CASE WHEN username = ${termino} THEN 2 WHEN username LIKE ${prefijo} THEN 1 ELSE 0 END)
-              * ${RANGO_FACTOR}
-              + MATCH(username, displayName) AGAINST (${termino} IN NATURAL LANGUAGE MODE)) AS orden
-          FROM \`User\`
-          WHERE deletedAt IS NULL AND bannedAt IS NULL AND username IS NOT NULL
-            AND (MATCH(username, displayName) AGAINST (${termino} IN NATURAL LANGUAGE MODE)
-                 OR username = ${termino} OR username LIKE ${prefijo})`;
+  // Exactitud: username EXACTO (2) > prefijo en username/displayName (1) > solo por fulltext (0).
+  const rango = Prisma.sql`CASE
+    WHEN username = ${termino} THEN 2
+    WHEN username LIKE ${prefijo} OR displayName LIKE ${prefijo} THEN 1
+    ELSE 0 END`;
+
+  const interior = usarFulltext
+    ? // FULLTEXT BOOLEAN word-prefix + prefijo indexado + exacto (relevancia como 2ª dimensión).
+      Prisma.sql`
+        SELECT id, username, displayName, image, scoreAutoridad,
+          (${rango} * ${RANGO_FACTOR}
+            + MATCH(username, displayName) AGAINST (${expr} IN BOOLEAN MODE)) AS orden
+        FROM \`User\`
+        WHERE deletedAt IS NULL AND bannedAt IS NULL AND username IS NOT NULL
+          AND (MATCH(username, displayName) AGAINST (${expr} IN BOOLEAN MODE)
+               OR username = ${termino} OR username LIKE ${prefijo} OR displayName LIKE ${prefijo})`
+    : // CORTO (o término sin contenido para fulltext): solo PREFIJO indexado (username y displayName).
+      Prisma.sql`
+        SELECT id, username, displayName, image, scoreAutoridad,
+          (${rango} * ${RANGO_FACTOR}) AS orden
+        FROM \`User\`
+        WHERE deletedAt IS NULL AND bannedAt IS NULL AND username IS NOT NULL
+          AND (username LIKE ${prefijo} OR displayName LIKE ${prefijo})`;
 
   const filas = await db.$queryRaw<FilaUsuario[]>(Prisma.sql`
     SELECT t.id, t.username, t.displayName, t.image, t.orden, t.scoreAutoridad
@@ -178,8 +210,9 @@ type FilaReto = FilaOrden & {
 };
 
 /**
- * Busca RETOS PUBLISHED por `q`. FULLTEXT sobre `title` con el mismo orden. Consulta corta -> vacío (no
- * hay índice de prefijo sobre `title`; se evita el full scan a propósito).
+ * Busca RETOS PUBLISHED por `q`. PREFIJO indexado sobre `title` (`LIKE 'x%'`) + FULLTEXT BOOLEAN
+ * word-prefix (>= BUSCAR_MIN_FULLTEXT), mismo orden. Consulta CORTA -> solo prefijo (ya indexado con el
+ * btree de `title`), NO vacío.
  */
 export async function buscarRetos(
   db: PrismaClient,
@@ -188,19 +221,30 @@ export async function buscarRetos(
   limite: number = BUSCAR_LIMITE,
 ): Promise<PaginaBusqueda<RetoBusqueda>> {
   const termino = q.trim();
-  if (!termino || termino.length < BUSCAR_MIN_FULLTEXT) return { items: [], proximoCursor: null };
+  if (!termino) return { items: [], proximoCursor: null };
   const c = decodificarCursor(cursor);
   const prefijo = `${escaparLike(termino)}%`;
+  const expr = expresionBoolean(termino);
+  const usarFulltext = termino.length >= BUSCAR_MIN_FULLTEXT && expr !== "";
 
-  const interior = Prisma.sql`
-    SELECT id, title, category, prizeAmountCents, prizeCurrency, deadline, scoreAutoridad,
-      ((CASE WHEN title = ${termino} THEN 2 WHEN title LIKE ${prefijo} THEN 1 ELSE 0 END)
-        * ${RANGO_FACTOR}
-        + MATCH(title) AGAINST (${termino} IN NATURAL LANGUAGE MODE)) AS orden
-    FROM \`Challenge\`
-    WHERE status = 'PUBLISHED'
-      AND (MATCH(title) AGAINST (${termino} IN NATURAL LANGUAGE MODE)
-           OR title = ${termino} OR title LIKE ${prefijo})`;
+  const rango = Prisma.sql`CASE
+    WHEN title = ${termino} THEN 2
+    WHEN title LIKE ${prefijo} THEN 1
+    ELSE 0 END`;
+
+  const interior = usarFulltext
+    ? Prisma.sql`
+        SELECT id, title, category, prizeAmountCents, prizeCurrency, deadline, scoreAutoridad,
+          (${rango} * ${RANGO_FACTOR} + MATCH(title) AGAINST (${expr} IN BOOLEAN MODE)) AS orden
+        FROM \`Challenge\`
+        WHERE status = 'PUBLISHED'
+          AND (MATCH(title) AGAINST (${expr} IN BOOLEAN MODE)
+               OR title = ${termino} OR title LIKE ${prefijo})`
+    : Prisma.sql`
+        SELECT id, title, category, prizeAmountCents, prizeCurrency, deadline, scoreAutoridad,
+          (${rango} * ${RANGO_FACTOR}) AS orden
+        FROM \`Challenge\`
+        WHERE status = 'PUBLISHED' AND title LIKE ${prefijo}`;
 
   const filas = await db.$queryRaw<FilaReto[]>(Prisma.sql`
     SELECT t.id, t.title, t.category, t.prizeAmountCents, t.prizeCurrency, t.deadline, t.orden,
