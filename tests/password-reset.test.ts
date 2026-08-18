@@ -55,9 +55,23 @@ async function crearUsuario(email: string): Promise<string> {
   return u.id;
 }
 
-/** Deja que el trabajo fire-and-forget de la ruta (findUnique + token + encolado) termine. */
-function flush(): Promise<void> {
-  return new Promise((r) => setTimeout(r, 60));
+/**
+ * Espera (poll) a que el trabajo FIRE-AND-FORGET de la ruta (findUnique + token + encolado) aterrice
+ * para `email`: token PASSWORD_RESET + correo encolado. Sustituye a un `setTimeout` fijo, que bajo
+ * carga (tests en paralelo) se quedaba corto -> flaky. Tope generoso; si nunca llega, se sale y el
+ * assert falla con un mensaje claro (no cuelga).
+ */
+async function esperarForgot(email: string): Promise<void> {
+  const limite = Date.now() + 5000;
+  for (;;) {
+    const tok = await prisma.verificationToken.findFirst({
+      where: { identifier: email, purpose: "PASSWORD_RESET" },
+    });
+    const correos = await prisma.job.count({ where: { type: "SEND_EMAIL" } });
+    if (tok && correos >= 1) return;
+    if (Date.now() >= limite) return;
+    await new Promise((r) => setTimeout(r, 10));
+  }
 }
 
 function reqForgot(email: string): Request {
@@ -82,7 +96,7 @@ describe("forgot-password: respuesta UNIFORME (sin enumeracion)", () => {
     expect(resNo.status).toBe(resExiste.status);
     expect(bodyNo).toEqual(bodyExiste);
 
-    await flush(); // que el trabajo en segundo plano acabe antes del resetDb del siguiente test
+    await esperarForgot("existe@test.com"); // drena el trabajo en 2o plano antes del resetDb del siguiente test
   });
 
   it("DIENTES del efecto: solo la cuenta EXISTENTE acaba con token PASSWORD_RESET + correo encolado", async () => {
@@ -90,7 +104,7 @@ describe("forgot-password: respuesta UNIFORME (sin enumeracion)", () => {
 
     await forgotPOST(reqForgot("existe@test.com"));
     await forgotPOST(reqForgot("noexiste@test.com"));
-    await flush();
+    await esperarForgot("existe@test.com");
 
     // Existe -> un token de reset y un job de correo. Inexistente -> nada (pero la RESPUESTA fue igual).
     const tokens = await prisma.verificationToken.findMany();
