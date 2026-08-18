@@ -38,6 +38,12 @@ export const MSG_BUSCAR: ContextoMensajeError = {
   generico: "No hemos podido buscar ahora mismo. Reinténtalo.",
 };
 
+/** Copy de CERRAR SESIÓN. Sin cuerpo (no hay 400 de validación real); un mismo mensaje sobrio. */
+export const MSG_LOGOUT: ContextoMensajeError = {
+  validacion: "No hemos podido cerrar la sesión. Reinténtalo.",
+  generico: "No hemos podido cerrar la sesión. Reinténtalo.",
+};
+
 /**
  * Mapea `(status, code)` a copy humano. Orden: primero los codigos compartidos (rate-limit, servicio
  * ocupado), luego —solo si el contexto lo pide— credenciales invalidas, luego validacion (400) y por

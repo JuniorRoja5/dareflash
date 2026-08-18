@@ -1,6 +1,5 @@
-import { Avatar } from "@/components/ui/avatar";
-
 import { CtaCrear } from "./cta-crear";
+import { MenuCuenta } from "./menu-cuenta";
 
 /** Iconos inline (trazo 1.6 px, currentColor), misma familia severa. */
 function IconoLupa() {
@@ -35,23 +34,6 @@ function IconoCampana() {
     >
       <path d="M18 8a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 14 18 8z" />
       <path d="M10.5 20a2 2 0 0 0 3 0" />
-    </svg>
-  );
-}
-
-function IconoChevron() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4 text-text-dim"
-      aria-hidden
-    >
-      <path d="M6 9l6 6 6-6" />
     </svg>
   );
 }
@@ -104,19 +86,8 @@ export function BarraSuperior({
           </span>
         </button>
 
-        {/* Avatar + chevron (maqueta) */}
-        <button
-          type="button"
-          aria-label="Tu cuenta"
-          className="flex items-center gap-1 rounded-full"
-        >
-          <Avatar
-            nombre={usuario?.nombre ?? "Invitado"}
-            imagen={usuario?.imagen ?? null}
-            tamano="sm"
-          />
-          <IconoChevron />
-        </button>
+        {/* Menú de cuenta (avatar + chevron -> desplegable real con "Cerrar sesión") */}
+        <MenuCuenta usuario={usuario} />
       </div>
     </header>
   );

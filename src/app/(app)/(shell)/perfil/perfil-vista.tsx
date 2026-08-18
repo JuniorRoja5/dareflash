@@ -7,6 +7,8 @@ import { InsigniaNivel } from "@/components/ui/insignia-nivel";
 import { CeldaVideo } from "./celda-video";
 import type { EstadoVideo } from "./perfil-logic";
 
+import { CerrarSesion } from "../cerrar-sesion";
+
 /**
  * Celda de la rejilla. `poster` firmado cuando el vídeo está PUBLICADO; "" cuando no (aún no se
  * reproduce). `estado` SOLO viaja en el perfil PROPIO: el perfil público de otro NUNCA lo incluye,
@@ -143,6 +145,9 @@ export function PerfilVista({
                 <Boton href="/perfil/editar" variante="secundario" className="mt-3 w-full py-3">
                   Editar perfil
                 </Boton>
+                {/* Cerrar sesión: acción de cuenta de baja jerarquía (fantasma). Aquí es la vía que
+                    alcanza el MÓVIL, donde no hay barra superior con menú. */}
+                <CerrarSesion className="mt-3" />
               </>
             ) : null}
           </div>
