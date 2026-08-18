@@ -320,9 +320,13 @@ export function FeedInicio({
   }, []);
 
   // UNLOCK del audio al PRIMER gesto del usuario (el navegador exige un gesto para permitir sonido).
-  // Un ÚNICO listener en el contenedor del feed: al primer pointerdown/keydown desbloquea y se
-  // auto-retira. Si la preferencia es "con sonido", ademas activa el sonido del vídeo activo IN-STACK
-  // (aquí, dentro del gesto); los siguientes (scroll) suenan solos porque ya hay activación.
+  // Un ÚNICO listener en el contenedor del feed. Se escucha `pointerup` (NO `pointerdown`): en TOUCH el
+  // pointerdown NO otorga activación de usuario —la otorga el pointerup/touchend—, así que activar el
+  // sonido en pointerdown lo bloquea el navegador. Además un SCROLL dispara `pointercancel` (no
+  // pointerup), así que este listener solo salta en TAPS reales (que sí activan) y NO en scroll puro
+  // (por eso el icono no miente: un scroll sin tap puede no desbloquear, es esperado). Al saltar:
+  // desbloquea y, si la preferencia es sonido, activa el vídeo activo IN-STACK (dentro del gesto);
+  // los siguientes suenan solos porque ya hay activación. Se auto-retira (`once`).
   useEffect(() => {
     const cont = columna.current;
     if (!cont || audioDesbloqueado) return;
@@ -330,10 +334,10 @@ export function FeedInicio({
       setAudioDesbloqueado(true);
       if (!silenciado) activarSonidoVideoActivo();
     };
-    cont.addEventListener("pointerdown", desbloquear, { once: true });
+    cont.addEventListener("pointerup", desbloquear, { once: true });
     cont.addEventListener("keydown", desbloquear, { once: true });
     return () => {
-      cont.removeEventListener("pointerdown", desbloquear);
+      cont.removeEventListener("pointerup", desbloquear);
       cont.removeEventListener("keydown", desbloquear);
     };
   }, [audioDesbloqueado, silenciado, activarSonidoVideoActivo]);
