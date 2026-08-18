@@ -73,18 +73,20 @@ export function BarraSuperior({
 }) {
   return (
     <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-line bg-surface px-8 py-3">
-      {/* Buscador (maqueta, no funcional) */}
-      <div className="relative w-full max-w-md">
+      {/* Buscador: form GET a /buscar (cero JS). Al enviar (Enter) navega a /buscar?q=... y allí la isla
+          de búsqueda arranca con esa consulta. */}
+      <form action="/buscar" role="search" className="relative w-full max-w-md">
         <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-text-dim">
           <IconoLupa />
         </span>
         <input
           type="search"
+          name="q"
           placeholder="Buscar retos, personas…"
           aria-label="Buscar"
           className="min-h-[44px] w-full rounded-full border border-line bg-raised pr-4 pl-11 text-sm text-text placeholder:text-text-dim focus:border-text focus:outline-none"
         />
-      </div>
+      </form>
 
       <div className="ml-auto flex items-center gap-3">
         {/* Crear reto — magenta persistente (atenuado a secundario en /inicio) */}

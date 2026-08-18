@@ -67,6 +67,12 @@ async function aRespuesta<T>(res: Response): Promise<RespuestaHttp<T>> {
   return { ok: res.ok, status: res.status, code: codigoDe(data), data };
 }
 
+/** GET JSON (lecturas públicas: p.ej. la búsqueda). Sin cuerpo ni CSRF; misma forma de retorno. */
+export async function getJson<T = unknown>(url: string): Promise<RespuestaHttp<T>> {
+  const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+  return aRespuesta<T>(res);
+}
+
 /** POST JSON SIN CSRF (login, register, recuperar, resend, unlock, verify, reset). */
 export async function postJson<T = unknown>(url: string, body: unknown): Promise<RespuestaHttp<T>> {
   const res = await fetch(url, {

@@ -32,6 +32,12 @@ export const MSG_REGISTRO: ContextoMensajeError = {
   generico: "No se pudo crear la cuenta. Reintenta.",
 };
 
+/** Copy del BUSCADOR (búsqueda pública). */
+export const MSG_BUSCAR: ContextoMensajeError = {
+  validacion: "Escribe al menos 2 caracteres para buscar.",
+  generico: "No hemos podido buscar ahora mismo. Reinténtalo.",
+};
+
 /**
  * Mapea `(status, code)` a copy humano. Orden: primero los codigos compartidos (rate-limit, servicio
  * ocupado), luego —solo si el contexto lo pide— credenciales invalidas, luego validacion (400) y por

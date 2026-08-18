@@ -14,8 +14,8 @@ import { TarjetaReto } from "./tarjeta-reto";
  * (offset del mock + Date.now()) y se pasan a cada marcador; antes del montaje van como null y el
  * marcador muestra su placeholder (sin Date.now() en render ni mismatch de hidratacion).
  */
-export function FeedRetos() {
-  const [categoria, setCategoria] = useState<string>(CATEGORIA_TODOS);
+export function FeedRetos({ categoriaInicial = null }: { categoriaInicial?: string | null }) {
+  const [categoria, setCategoria] = useState<string>(categoriaInicial ?? CATEGORIA_TODOS);
   const [deadlines, setDeadlines] = useState<Record<string, number> | null>(null);
 
   useEffect(() => {

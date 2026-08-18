@@ -1,4 +1,5 @@
 import { FeedRetos } from "./feed-retos";
+import { categoriaValida } from "../buscar/buscar-logica";
 
 export const metadata = { title: "Retos · DareFlash" };
 
@@ -8,8 +9,16 @@ export const metadata = { title: "Retos · DareFlash" };
  * contenedor que portada/ranking/perfil (`max-w-7xl` + mismo padding) para que el ancho case entre
  * pantallas. Tratamiento del brief: el marcador manda; "Participar" secundario, sin magenta de
  * contenido. Datos de PRUEBA; sin backend.
+ *
+ * `?categoria=` (de los chips de /buscar) preselecciona el filtro: se valida contra las categorías
+ * conocidas y se pasa como estado inicial al feed (cliente). Un valor desconocido -> "Todos".
  */
-export default function RetosPage() {
+export default async function RetosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ categoria?: string }>;
+}) {
+  const categoriaInicial = categoriaValida((await searchParams).categoria);
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
       {/* El UNICO magenta de accion de la pantalla es "Crear reto" del cromo (top bar en escritorio,
@@ -23,7 +32,7 @@ export default function RetosPage() {
       >
         Retos activos
       </h1>
-      <FeedRetos />
+      <FeedRetos categoriaInicial={categoriaInicial} />
     </div>
   );
 }

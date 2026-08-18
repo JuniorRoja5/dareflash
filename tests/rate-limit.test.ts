@@ -19,7 +19,15 @@ beforeEach(async () => {
 
 describe("rate limiting", () => {
   it("permite hasta el limite y luego bloquea, dentro de la misma ventana", async () => {
-    const opts = { key: "login:ip:test", limit: 3, windowMs: 60_000 };
+    // `now` FIJO: sin el, las 4 llamadas usan `new Date()` y bajo carga pueden cruzar el borde de la
+    // ventana de 60 s (el contador se reinicia) -> el 4o dejaria de bloquear -> flaky. Fijarlo las mete
+    // a todas en la MISMA ventana, que es lo que la prueba afirma.
+    const opts = {
+      key: "login:ip:test",
+      limit: 3,
+      windowMs: 60_000,
+      now: new Date("2026-01-15T10:00:00Z"),
+    };
 
     const r1 = await rateLimit(prisma, opts);
     const r2 = await rateLimit(prisma, opts);

@@ -17,8 +17,9 @@ export const CATEGORIAS = CATEGORIES.map((c) => ({ clave: c.key, nombre: c.es })
 
 export type CategoriaClave = CategoryKey;
 
-/** clave -> etiqueta legible de una categoria (para la pildora de la tarjeta). */
-export function nombreCategoria(clave: CategoriaClave): string {
+/** clave -> etiqueta legible de una categoria. Acepta `string` (una clave desconocida se devuelve tal
+ *  cual): asi vale tambien para la categoria cruda de un resultado de busqueda. */
+export function nombreCategoria(clave: string): string {
   return CATEGORIES.find((c) => c.key === clave)?.es ?? clave;
 }
 
