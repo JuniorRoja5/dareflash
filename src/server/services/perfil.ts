@@ -32,8 +32,9 @@ import {
   normalizarNombre,
   normalizarYoutube,
 } from "@/app/(app)/(shell)/perfil/perfil-logic";
-import { VideoFailureReasonSchema } from "@/config/constants";
+import { esHandleReservado, VideoFailureReasonSchema } from "@/config/constants";
 import { type ModerationStatus, Prisma } from "@/generated/prisma/client";
+import { HANDLE_RE } from "@/lib/handle-formato";
 import type { Db } from "@/server/db/types";
 
 // ============================================================================
@@ -243,9 +244,29 @@ const youtubeSchema = z
   )
   .transform((s) => s || null);
 
-/** Cuerpo aceptado por la actualización de perfil: nombre + (opcionales) bio y enlaces. */
+/**
+ * Nombre de usuario (handle). Normaliza a minúsculas + recorta ANTES de validar (se guarda así; la
+ * unicidad es case-insensitive). Formato con el `HANDLE_RE` compartido (misma regla que el generador de
+ * P1) y RECHAZO de reservados (rutas + marca), la lista única de `constants`. La UNICIDAD la decide la
+ * constraint de la BD (la ruta traduce el P2002 a copy humano), no un findUnique (evita la carrera).
+ */
+export const usernameSchema = z
+  .string()
+  .transform((s) => s.trim().toLowerCase())
+  .pipe(
+    z
+      .string()
+      .regex(
+        HANDLE_RE,
+        "El nombre de usuario debe tener entre 3 y 30 caracteres: minúsculas, números, punto o guion bajo.",
+      ),
+  )
+  .refine((s) => !esHandleReservado(s), "Ese nombre de usuario no está disponible.");
+
+/** Cuerpo aceptado por la actualización de perfil: nombre + (opcionales) username, bio y enlaces. */
 export const actualizarPerfilSchema = z.object({
   displayName: displayNameSchema,
+  username: usernameSchema.optional(),
   bio: bioSchema.optional(),
   website: websiteSchema.optional(),
   instagram: instagramSchema.optional(),
@@ -262,18 +283,24 @@ export async function actualizarPerfil(
   db: Db,
   userId: string,
   datos: ActualizarPerfilInput,
-): Promise<{ displayName: string }> {
+): Promise<{ displayName: string; username: string }> {
   const data: Prisma.UserUpdateInput = { displayName: datos.displayName };
+  if (datos.username !== undefined) data.username = datos.username;
   if (datos.bio !== undefined) data.bio = datos.bio;
   if (datos.website !== undefined) data.website = datos.website;
   if (datos.instagram !== undefined) data.instagram = datos.instagram;
   if (datos.youtube !== undefined) data.youtube = datos.youtube;
+  // Un `username` duplicado revienta con P2002 (constraint UNIQUE): NO se hace findUnique-luego-update
+  // (carrera). La ruta traduce ese P2002 a copy humano (`esViolacionUnicaDeUsername`).
   const actualizado = await db.user.update({
     where: { id: userId },
     data,
-    select: { displayName: true },
+    select: { displayName: true, username: true },
   });
-  return { displayName: actualizado.displayName ?? datos.displayName };
+  return {
+    displayName: actualizado.displayName ?? datos.displayName,
+    username: actualizado.username,
+  };
 }
 
 // ============================================================================

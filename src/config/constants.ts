@@ -128,6 +128,48 @@ export const RECALCULO_SCORES_CADENCIA_MS = 60 * 60 * 1000; // 1 h
 export const RECALCULO_SCORES_LOTE = 500; // filas (por entidad) recalculadas por barrido
 
 /**
+ * HANDLES RESERVADOS (fuente única) para la edición manual del username (P2). Dos motivos:
+ *  1. RUTAS: un handle que choque con un segmento de la app (`/admin`, `/buscar`, `/u`…) rompería el
+ *     enrutado o el perfil `/u/[username]`. Se listan las rutas de primer nivel reales + `u`.
+ *  2. MARCA / impersonación: nadie debe poder hacerse pasar por la plataforma o su equipo.
+ * Comparación en minúsculas (el username se almacena y valida en minúsculas).
+ */
+export const HANDLES_RESERVADOS = [
+  // rutas / segmentos
+  "admin",
+  "api",
+  "buscar",
+  "retos",
+  "perfil",
+  "editar",
+  "crear",
+  "ranking",
+  "inicio",
+  "feed",
+  "entrar",
+  "verify",
+  "unlock",
+  "recuperar",
+  "restablecer",
+  "login",
+  "register",
+  "logout",
+  "boost",
+  "u",
+  "settings",
+  // marca / impersonación
+  "dareflash",
+  "support",
+  "oficial",
+  "staff",
+] as const;
+
+/** ¿El handle (ya en minúsculas o no) choca con un reservado? */
+export function esHandleReservado(handle: string): boolean {
+  return (HANDLES_RESERVADOS as readonly string[]).includes(handle.trim().toLowerCase());
+}
+
+/**
  * Motivo de un Video en FAILED (String tipado con Zod, no enum de Prisma; convencion del proyecto).
  * TRANSCODE_ERROR: Bunny reporto Error/UploadFailed. TOO_LONG: transcodifico bien pero supera 90 s.
  * UPLOAD_INCOMPLETE: la subida no llego a completarse (credencial caducada sin Finished, u objeto

@@ -13,8 +13,9 @@
  */
 import { randomBytes } from "node:crypto";
 
-/** Formato canónico del handle (compartido con la validación de la edición manual y el backfill). */
-export const HANDLE_RE = /^[a-z0-9._]{3,30}$/;
+// Formato canónico: fuente única en `@/lib/handle-formato` (cliente-seguro). Se re-exporta para que
+// quien ya importaba `HANDLE_RE` desde aquí no cambie.
+export { HANDLE_RE } from "@/lib/handle-formato";
 
 /** Base neutra (no derivada de datos personales). */
 export const HANDLE_PREFIJO = "user";
