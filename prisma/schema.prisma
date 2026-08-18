@@ -144,6 +144,7 @@ model User {
   @@index([role])
   @@index([deletedAt])
   @@index([scoreAutoridad]) // orden por autoridad en la busqueda (keyset: scoreAutoridad DESC, id)
+  @@index([displayName]) // btree para prefijo izquierda-anclado (displayName LIKE 'x%') indexado
   @@fulltext([username, displayName]) // busqueda de usuarios por texto (MATCH..AGAINST)
 }
 
@@ -255,6 +256,9 @@ model Challenge {
   @@index([status, deadline]) // retos vigentes / a cerrar, calculado por consulta
   @@index([createdById])
   @@index([scoreAutoridad]) // orden por autoridad en la busqueda (keyset)
+  // btree para prefijo izquierda-anclado (title LIKE 'x%') indexado. Nombre EXPLICITO para no chocar
+  // con el FULLTEXT (que Prisma nombraria igual, `Challenge_title_idx`).
+  @@index([title], map: "Challenge_title_btree_idx")
   @@fulltext([title]) // busqueda de retos por texto (MATCH..AGAINST)
 }
 
