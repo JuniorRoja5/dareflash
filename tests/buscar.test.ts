@@ -106,6 +106,30 @@ describe("buscarUsuarios", () => {
     expect(new Set(vistos).size).toBe(total); // sin repetidos
   });
 
+  it("keyset cruza fronteras de ORDEN distinta (exacto/prefijo/fulltext) sin repetir ni saltar", async () => {
+    // Mezcla de rangos para "ana": exacto, prefijo y fulltext-only (por displayName). Con limite=1 cada
+    // página cruza una frontera de `orden` (DOUBLE) DISTINTA -> fija explícitamente el caso del float.
+    await crearUsuario({ username: "ana", displayName: "x", score: 0 }); // exacto (rango 2)
+    await crearUsuario({ username: "anabel", displayName: "x", score: 0 }); // prefijo (rango 1)
+    await crearUsuario({ username: "z1", displayName: "soy ana", score: 0 }); // fulltext (rango 0)
+    await crearUsuario({ username: "z2", displayName: "hola ana", score: 0 }); // fulltext (rango 0)
+
+    const vistos: string[] = [];
+    let cursor: string | null = null;
+    for (let p = 0; p < 10; p++) {
+      const pagina = await buscarUsuarios(prisma, "ana", cursor, 1);
+      expect(pagina.items.length).toBeLessThanOrEqual(1);
+      vistos.push(...pagina.items.map((u) => u.username!));
+      if (!pagina.proximoCursor) break;
+      cursor = pagina.proximoCursor;
+    }
+    expect(vistos).toHaveLength(4);
+    expect(new Set(vistos).size).toBe(4); // sin repetidos
+    expect(vistos[0]).toBe("ana"); // exacto primero
+    expect(vistos[1]).toBe("anabel"); // prefijo segundo
+    expect(new Set(vistos.slice(2))).toEqual(new Set(["z1", "z2"])); // fulltext al final
+  });
+
   it("consulta corta (<3): prefijo indexado sobre username; NO mira displayName", async () => {
     await crearUsuario({ username: "an", score: 0 });
     await crearUsuario({ username: "andres", score: 5 });

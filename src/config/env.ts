@@ -117,6 +117,12 @@ const serverSchema = z.object({
   /** Observabilidad. */
   SENTRY_DSN: z.url().optional(),
   /**
+   * Cache de la BUSQUEDA (Redis, ya montado en el compose). OPCIONAL: sin ella la busqueda funciona
+   * igual (va directa a la BD); con ella, las consultas calientes se sirven de cache (TTL corto). Un
+   * fallo de Redis NO rompe la busqueda (degrada a la BD). En prod: `redis://redis:6379`.
+   */
+  REDIS_URL: z.string().min(1).optional(),
+  /**
    * Modo de la limpieza de HUERFANOS en Bunny (reconciliacion Parte B, DESTRUCTIVA). Por defecto
    * "dry-run": el barrido LOGuea que borraria pero NO borra nada. Junior lo pone a "borrar" en el
    * .env del VPS SOLO tras revisar los logs del dry-run. Ausente => dry-run => despliegue SEGURO.

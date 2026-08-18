@@ -123,6 +123,7 @@ export const RECON_PUBLICADOS_TOPE_PCT = 0.2; // ni mas del 20% de las sondeadas
  */
 export const BUSCAR_LIMITE = 20;
 export const BUSCAR_MIN_FULLTEXT = 3;
+export const BUSCAR_CACHE_TTL_SEC = 45; // TTL corto de la cache Redis por (q,tipo,cursor): descarga la BD
 export const RECALCULO_SCORES_CADENCIA_MS = 60 * 60 * 1000; // 1 h
 export const RECALCULO_SCORES_LOTE = 500; // filas (por entidad) recalculadas por barrido
 
@@ -331,6 +332,9 @@ export const RATE_LIMITS = {
   // Subir avatar: DECODIFICA y RECOMPRIME una imagen (CPU + memoria). Cubo por USUARIO mas estrecho,
   // para que nadie funda el VPS a base de subir imagenes de 5 MB en bucle.
   UPLOAD_AVATAR_PER_USER: { limit: 10, windowMs: 15 * 60 * 1000 }, // 10 / 15 min por usuario
+  // Busqueda (publica, sin sesion): acota abuso/scraping por IP. Holgado para un buscador con debounce
+  // (varias pulsaciones por consulta); la cache de Redis absorbe ademas las consultas calientes.
+  BUSCAR_PER_IP: { limit: 60, windowMs: 60 * 1000 }, // 60 / min por IP
 } as const;
 
 // ============================================================================
