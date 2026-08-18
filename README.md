@@ -168,18 +168,45 @@ docker compose -f docker-compose.prod.yml logs -f web
 
 **Migraciones** — desde el servicio `migrate` (imagen de la etapa `builder`, que SÍ lleva el
 esquema y el CLI de Prisma; la imagen `standalone` de `web` **no**). Es un one-off (perfil
-`tools`, no arranca con `up -d`). En el VPS `prisma migrate deploy` funciona:
+`tools`, no arranca con `up -d`). En el VPS `prisma migrate deploy` funciona. Usa el script,
+que reconstruye la imagen y **verifica** que ve todas las migraciones antes de aplicar:
 
 ```bash
-docker compose -f docker-compose.prod.yml run --rm migrate
+./scripts/migrate-prod.sh
 ```
+
+> ⚠️ **Reconstruye SIEMPRE la imagen `migrate` (`--build`).** `docker compose run migrate`
+> **reutiliza** la imagen existente; NO la reconstruye sin `--build`. Y `up -d --build` **no**
+> toca `migrate` (está en el perfil `tools`, fuera de `up`). Si no se fuerza el build, la imagen
+> queda congelada de un deploy anterior y **no contiene las carpetas de migración nuevas** →
+> `migrate deploy` dice `"N migrations found … No pending"` en falso y `migrate resolve` falla
+> con **P3017**. El `Dockerfile` es correcto (el `builder` hace `COPY . .`, recursivo): el fallo
+> era construir de menos, no copiar de menos. El script hace el `--build` y el `ls` de
+> verificación por ti; a mano, el equivalente mínimo es:
+>
+> ```bash
+> docker compose -f docker-compose.prod.yml run --rm --build migrate
+> ```
+
+**Reconciliar una migración aplicada A MANO** (p.ej. `20260818120000_username_not_null`, cuyo
+SQL se ejecutó a mano en prod pero no quedó registrado en `_prisma_migrations`): regístrala
+**sin re-ejecutar el SQL**. El `--build` es obligatorio aquí también — con la imagen vieja la
+carpeta no está y `resolve` vuelve a dar **P3017**:
+
+```bash
+docker compose -f docker-compose.prod.yml run --rm --build migrate \
+  npx prisma migrate resolve --applied 20260818120000_username_not_null
+```
+
+Hazlo **antes** del primer `./scripts/migrate-prod.sh` posterior: así el `migrate deploy` la
+ve ya registrada y no intenta re-aplicar su SQL.
 
 **Primer admin** — el script [`scripts/create-admin.ts`](scripts/create-admin.ts) es TypeScript
 y necesita `tsx` + el código fuente, así que se ejecuta desde la **misma imagen `migrate`**
-(no desde `web`), sobreescribiendo el comando:
+(no desde `web`), sobreescribiendo el comando. `--build` por el mismo motivo (imagen fresca):
 
 ```bash
-docker compose -f docker-compose.prod.yml run --rm \
+docker compose -f docker-compose.prod.yml run --rm --build \
   -e ADMIN_EMAIL=admin@dareflash.com -e ADMIN_PASSWORD='...' \
   migrate npx tsx scripts/create-admin.ts
 ```
