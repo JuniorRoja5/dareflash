@@ -17,6 +17,7 @@ import {
   CONFIRM_LOTE,
   RECON_HUERFANOS_GRACIA_MS,
   RECON_HUERFANOS_PAGINA,
+  RECALCULO_SCORES_LOTE,
   RECON_PUBLICADOS_LOTE_POR_CICLO,
   RECON_PUBLICADOS_TOPE_FILAS,
   RECON_PUBLICADOS_TOPE_PCT,
@@ -32,6 +33,7 @@ import { bucleWorker, contarFallidos } from "@/server/jobs/worker";
 import { clienteBunnyReal } from "@/server/services/bunny";
 import { limpiarHuerfanosBunny } from "@/server/services/reconciliacion-huerfanos";
 import { reconciliarPublicadosDesaparecidos } from "@/server/services/reconciliacion-publicados";
+import { recalcularScoresAutoridad } from "@/server/services/recalculo-scores";
 import { confirmarVideosPendientes } from "@/server/services/video-confirmacion";
 import { reconciliarVideosAbandonados } from "@/server/services/video-reconciliacion";
 
@@ -169,6 +171,13 @@ async function main(): Promise<void> {
           log: (m) => console.log(m),
         },
       ),
+    // Recalculo del scoreAutoridad de la busqueda (usuarios + retos), cadencia BAJA, cursor rotatorio.
+    recalcularScores: (now) =>
+      recalcularScoresAutoridad(prisma, {
+        now,
+        lote: RECALCULO_SCORES_LOTE,
+        log: (m) => console.log(m),
+      }),
     log: (m) => console.log(m),
   });
 

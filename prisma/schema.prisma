@@ -105,6 +105,13 @@ model User {
   walletBalanceCents Int @default(0) // dinero en centimos (moneda unica de la app).
   boostBalance       Int @default(0) // creditos de Boost disponibles (ver BoostLedger).
 
+  // --- Busqueda (A1) ---
+  // SCORE DE AUTORIDAD para ORDENAR resultados de busqueda. Cache DENORMALIZADO e INDEXADO que el
+  // WORKER recalcula en barridos de baja cadencia (nunca al vuelo; la busqueda solo LEE esta columna).
+  // Punto UNICO de calculo: `calcularScoreAutoridad`. HOY combina senales existentes (nº de videos
+  // publicados + recencia); Fase 3 sumara votos, Fase 4 nivel/puntos/likes.
+  scoreAutoridad Int @default(0)
+
   // --- Ciclo de vida (RGPD). ---
   // SOFT DELETE + ANONIMIZACION: al borrar una cuenta NO se borran filas de
   // ledger/voto (son registro contable/antifraude, y ademas no tienen FK). El
@@ -133,6 +140,8 @@ model User {
 
   @@index([role])
   @@index([deletedAt])
+  @@index([scoreAutoridad]) // orden por autoridad en la busqueda (keyset: scoreAutoridad DESC, id)
+  @@fulltext([username, displayName]) // busqueda de usuarios por texto (MATCH..AGAINST)
 }
 
 model Account {
@@ -230,6 +239,11 @@ model Challenge {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Busqueda (A1): score de autoridad DENORMALIZADO e INDEXADO, recalculado por el worker (nunca al
+  // vuelo). HOY: premio + proximidad de deadline + activo>cerrado. Ver User.scoreAutoridad y
+  // `calcularScoreAutoridad` (punto unico de calculo).
+  scoreAutoridad Int @default(0)
+
   createdBy   User              @relation("ChallengeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   submissions Submission[]
   results     ChallengeResult[]
@@ -237,6 +251,8 @@ model Challenge {
   @@index([category])
   @@index([status, deadline]) // retos vigentes / a cerrar, calculado por consulta
   @@index([createdById])
+  @@index([scoreAutoridad]) // orden por autoridad en la busqueda (keyset)
+  @@fulltext([title]) // busqueda de retos por texto (MATCH..AGAINST)
 }
 
 /// Participacion de un usuario en un reto, enlazando un video.

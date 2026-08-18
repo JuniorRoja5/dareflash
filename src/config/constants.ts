@@ -116,6 +116,17 @@ export const RECON_PUBLICADOS_TOPE_FILAS = 50; // nunca degradar mas de 50 filas
 export const RECON_PUBLICADOS_TOPE_PCT = 0.2; // ni mas del 20% de las sondeadas (lo que sea MENOR)
 
 /**
+ * BUSQUEDA (Fase 1). `BUSCAR_LIMITE`: filas por pagina (keyset). `BUSCAR_MIN_FULLTEXT`: longitud minima
+ * para usar FULLTEXT (el token minimo de InnoDB es 3; por debajo, usuarios caen a prefijo indexado y
+ * los retos a vacio). El RECALCULO del scoreAutoridad lo hace el WORKER en un barrido de BAJA cadencia
+ * con cursor keyset rotatorio (patron de las reconciliaciones): coste FIJO por ciclo.
+ */
+export const BUSCAR_LIMITE = 20;
+export const BUSCAR_MIN_FULLTEXT = 3;
+export const RECALCULO_SCORES_CADENCIA_MS = 60 * 60 * 1000; // 1 h
+export const RECALCULO_SCORES_LOTE = 500; // filas (por entidad) recalculadas por barrido
+
+/**
  * Motivo de un Video en FAILED (String tipado con Zod, no enum de Prisma; convencion del proyecto).
  * TRANSCODE_ERROR: Bunny reporto Error/UploadFailed. TOO_LONG: transcodifico bien pero supera 90 s.
  * UPLOAD_INCOMPLETE: la subida no llego a completarse (credencial caducada sin Finished, u objeto

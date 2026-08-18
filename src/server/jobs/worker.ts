@@ -16,6 +16,7 @@ import {
   JOB_FAILED_ALERT_THRESHOLD,
   JOB_FAILED_RETENTION_DAYS,
   RATE_LIMIT_PURGE_RETENER_MS,
+  RECALCULO_SCORES_CADENCIA_MS,
   RECON_CADENCIA_MS,
   RECON_HUERFANOS_CADENCIA_MS,
   RECON_PUBLICADOS_CADENCIA_MS,
@@ -28,6 +29,7 @@ import { sanearError } from "@/server/observability/sanitize-error";
 import { claimJobs } from "@/server/services/jobs";
 import type { ResultadoHuerfanos } from "@/server/services/reconciliacion-huerfanos";
 import type { ResultadoPublicados } from "@/server/services/reconciliacion-publicados";
+import type { ResultadoRecalculo } from "@/server/services/recalculo-scores";
 import { escribirEstado, leerEstado } from "@/server/services/system-state";
 import { cadenciaConfirmMs, type ResultadoConfirm } from "@/server/services/video-confirmacion";
 import type { ResultadoReconciliacion } from "@/server/services/video-reconciliacion";
@@ -523,6 +525,12 @@ export interface OpcionesBucle {
    */
   reconciliarPublicados?: (now: Date) => Promise<ResultadoPublicados>;
   publicadosCadaMs?: number;
+  /**
+   * RECALCULO del scoreAutoridad de la busqueda (usuarios y retos). Barrido de BAJA cadencia con cursor
+   * keyset rotatorio. Sin el, no se recalcula (p. ej. en tests que no lo usan).
+   */
+  recalcularScores?: (now: Date) => Promise<ResultadoRecalculo>;
+  scoresCadaMs?: number;
 }
 
 /**
@@ -544,6 +552,7 @@ export async function bucleWorker(
   let proximoRecon = 0;
   let proximoHuerfanos = 0;
   let proximoPublicados = 0;
+  let proximoScores = 0;
   // Ultima marca de wake HONRADA (event-kick). Comparacion por igualdad de STRING, NUNCA contra el
   // reloj: no depende de sincronia web/worker. En reinicio arranca null -> la primera marca existente
   // fuerza UN barrido (recoge PENDING previos).
@@ -689,6 +698,19 @@ export async function bucleWorker(
         o.log?.(`[worker] publicados: barrido fallo (${sanearError(e)}); reintento luego.`);
       }
       proximoPublicados = t.getTime() + cada;
+    }
+
+    // RECALCULO del scoreAutoridad de la busqueda (usuarios + retos). Cadencia BAJA propia; cursor keyset
+    // rotatorio; try/catch propio (un fallo no rompe el bucle). Solo LEE senales existentes y escribe la
+    // columna que la busqueda ordena.
+    if (o.recalcularScores && t.getTime() >= proximoScores) {
+      const cada = o.scoresCadaMs ?? RECALCULO_SCORES_CADENCIA_MS;
+      try {
+        await o.recalcularScores(t);
+      } catch (e) {
+        o.log?.(`[worker] scores: barrido fallo (${sanearError(e)}); reintento luego.`);
+      }
+      proximoScores = t.getTime() + cada;
     }
 
     if (o.parar()) break;

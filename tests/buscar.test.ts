@@ -1,0 +1,168 @@
+/**
+ * BÚSQUEDA (A1) — usuarios y retos, CON DIENTES contra la BD real (FULLTEXT + keyset):
+ *  - ORDEN: match exacto > prefijo > relevancia FULLTEXT > scoreAutoridad DESC > id (el score NO
+ *    invierte la exactitud).
+ *  - KEYSET: paginar cubre TODOS sin repetir ni saltar.
+ *  - Consulta CORTA (<3): usuarios caen a prefijo indexado (no mira displayName); retos -> vacío.
+ *  - SOLO PÚBLICOS: fuera borrados/baneados/sin-username y retos no-PUBLISHED; el DTO no filtra privados.
+ */
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+
+import type { PrismaClient } from "../src/generated/prisma/client";
+import { buscarRetos, buscarUsuarios } from "../src/server/services/buscar";
+
+import { createTestPrisma, resetDb } from "./helpers/db";
+
+let prisma: PrismaClient;
+
+beforeAll(() => {
+  prisma = createTestPrisma();
+});
+afterAll(async () => {
+  await prisma.$disconnect();
+});
+beforeEach(async () => {
+  await resetDb(prisma);
+});
+
+async function crearUsuario(o: {
+  username?: string | null;
+  displayName?: string | null;
+  score?: number;
+  deletedAt?: Date | null;
+  bannedAt?: Date | null;
+  image?: string | null;
+  email?: string | null;
+}): Promise<string> {
+  const u = await prisma.user.create({
+    data: {
+      username: o.username ?? null,
+      displayName: o.displayName ?? null,
+      image: o.image ?? null,
+      email: o.email ?? null,
+      scoreAutoridad: o.score ?? 0,
+      deletedAt: o.deletedAt ?? null,
+      bannedAt: o.bannedAt ?? null,
+      passwordHash: "x",
+    },
+    select: { id: true },
+  });
+  return u.id;
+}
+
+async function crearReto(
+  creador: string,
+  o: { title: string; status?: string; score?: number; prize?: number; deadline?: Date },
+): Promise<string> {
+  const r = await prisma.challenge.create({
+    data: {
+      title: o.title,
+      category: "fitness",
+      status: o.status ?? "PUBLISHED",
+      prizeAmountCents: o.prize ?? 0,
+      prizeCurrency: "EUR",
+      startsAt: new Date("2026-01-01T00:00:00Z"),
+      deadline: o.deadline ?? new Date("2026-12-01T00:00:00Z"),
+      createdById: creador,
+      scoreAutoridad: o.score ?? 0,
+    },
+    select: { id: true },
+  });
+  return r.id;
+}
+
+describe("buscarUsuarios", () => {
+  it("orden: exacto > prefijo > fulltext, aunque el fulltext tenga MÁS score", async () => {
+    await crearUsuario({ username: "ana", displayName: "Ana G", score: 0 }); // exacto
+    await crearUsuario({ username: "anatomia", displayName: "sin match", score: 500 }); // prefijo
+    await crearUsuario({ username: "zzz", displayName: "soy ana la crack", score: 999 }); // fulltext
+
+    const { items } = await buscarUsuarios(prisma, "ana", null);
+    expect(items.map((u) => u.username)).toEqual(["ana", "anatomia", "zzz"]);
+  });
+
+  it("mismo rango -> scoreAutoridad DESC decide", async () => {
+    await crearUsuario({ username: "u1", displayName: "reto fitness", score: 10 });
+    await crearUsuario({ username: "u2", displayName: "reto fitness", score: 50 });
+
+    const { items } = await buscarUsuarios(prisma, "fitness", null);
+    expect(items.map((u) => u.username)).toEqual(["u2", "u1"]);
+  });
+
+  it("keyset: paginar cubre TODOS sin repetir ni saltar", async () => {
+    const total = 5;
+    for (let i = 0; i < total; i++) await crearUsuario({ username: `pref${i}`, score: i });
+
+    const vistos: string[] = [];
+    let cursor: string | null = null;
+    for (let p = 0; p < 10; p++) {
+      const pagina = await buscarUsuarios(prisma, "pref", cursor, 2);
+      expect(pagina.items.length).toBeLessThanOrEqual(2);
+      vistos.push(...pagina.items.map((u) => u.username!));
+      if (!pagina.proximoCursor) break;
+      cursor = pagina.proximoCursor;
+    }
+    expect(vistos).toHaveLength(total);
+    expect(new Set(vistos).size).toBe(total); // sin repetidos
+  });
+
+  it("consulta corta (<3): prefijo indexado sobre username; NO mira displayName", async () => {
+    await crearUsuario({ username: "an", score: 0 });
+    await crearUsuario({ username: "andres", score: 5 });
+    await crearUsuario({ username: "zzz", displayName: "an cosa", score: 99 });
+
+    const { items } = await buscarUsuarios(prisma, "an", null);
+    const nombres = items.map((u) => u.username);
+    expect(nombres).toContain("an");
+    expect(nombres).toContain("andres");
+    expect(nombres).not.toContain("zzz");
+  });
+
+  it("solo PÚBLICOS: fuera borrados/baneados/sin-username; el DTO no lleva campos privados", async () => {
+    await crearUsuario({ username: "publico1", displayName: "Ana publica", score: 0 });
+    await crearUsuario({
+      username: "borrado1",
+      displayName: "Ana borrada",
+      deletedAt: new Date(),
+      score: 100,
+    });
+    await crearUsuario({
+      username: "baneado1",
+      displayName: "Ana baneada",
+      bannedAt: new Date(),
+      score: 100,
+    });
+    await crearUsuario({
+      username: null,
+      displayName: "Ana sin handle",
+      email: "sec@test.com",
+      score: 100,
+    });
+
+    const { items } = await buscarUsuarios(prisma, "ana", null);
+    expect(items.map((u) => u.username)).toEqual(["publico1"]);
+    expect(Object.keys(items[0]!).sort()).toEqual(["displayName", "id", "image", "username"]);
+    expect(JSON.stringify(items)).not.toContain("sec@test.com");
+  });
+});
+
+describe("buscarRetos", () => {
+  it("solo PUBLISHED; orden exacto > fulltext", async () => {
+    const creador = await crearUsuario({ username: "creador1" });
+    await crearReto(creador, { title: "Reto de baile", status: "PUBLISHED", score: 0 });
+    await crearReto(creador, { title: "baile", status: "PUBLISHED", score: 999 });
+    await crearReto(creador, { title: "baile secreto", status: "DRAFT", score: 999 });
+
+    const { items } = await buscarRetos(prisma, "baile", null);
+    expect(items.map((r) => r.title)).toEqual(["baile", "Reto de baile"]);
+  });
+
+  it("consulta corta (<3) -> vacío (sin full scan)", async () => {
+    const creador = await crearUsuario({ username: "creador2" });
+    await crearReto(creador, { title: "ab reto" });
+
+    const { items, proximoCursor } = await buscarRetos(prisma, "ab", null);
+    expect(items).toEqual([]);
+    expect(proximoCursor).toBeNull();
+  });
+});
