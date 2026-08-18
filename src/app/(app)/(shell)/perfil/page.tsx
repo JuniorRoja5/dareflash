@@ -35,7 +35,7 @@ export default async function PerfilPage() {
 
   return (
     <PerfilVista
-      nombre={perfil.displayName ?? perfil.username ?? "Tu perfil"}
+      displayName={perfil.displayName}
       handle={perfil.username}
       imagen={perfil.image}
       bio={perfil.bio}

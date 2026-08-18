@@ -4,6 +4,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 
 import { PildoraCategoria } from "@/components/ui/pildora";
 import { ReproductorHls } from "@/components/ui/reproductor-hls";
+import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
 import type { PostFeed } from "@/server/services/feed";
 
 import { COMENTARIOS_FEED, formatearContador } from "./inicio-datos";
@@ -147,6 +148,9 @@ function PostInicio({
   // listener del contenedor (fase de burbuja) desbloquee el audio y flipe `mutedEfectivo`. Sin esto,
   // si el PRIMER gesto es el botón, el onClick leería el estado ya cambiado y mutearía en vez de sonar.
   const intentoRef = useRef(muted);
+  // Identidad: displayName prominente; @handle debajo (o de nombre si no hay displayName).
+  const nombre = nombreMostrado(post.displayName, post.username);
+  const conHandle = mostrarHandleSecundario(post.displayName);
   return (
     <section
       ref={alRef}
@@ -172,7 +176,8 @@ function PostInicio({
         {/* Info sobre el video — solo movil. `pointer-events-none`: los taps la ATRAVIESAN y llegan a la
             capa de pausa/reanudar del player (no es un target interactivo). */}
         <div className="pointer-events-none absolute bottom-0 left-0 z-10 w-3/4 p-4 pb-24 lg:hidden">
-          <p className="text-base font-semibold text-white">@{post.username}</p>
+          <p className="text-base font-semibold text-white">{conHandle ? nombre : `@${nombre}`}</p>
+          {conHandle ? <p className="text-sm text-white/80">@{post.username}</p> : null}
           <p className="mt-1 line-clamp-2 text-sm text-white/90">Reto: {post.retoTitulo}</p>
           {post.categoria ? (
             <div className="mt-2">
@@ -223,10 +228,13 @@ function PostInicio({
 /** Panel de comentarios de escritorio (superficie v2). Cabecera del video ACTIVO (datos reales); la
  *  lista de comentarios es placeholder (el modelo `Comment` llega en la Fase 1). */
 function PanelComentarios({ post }: { post: PostFeed }) {
+  const nombre = nombreMostrado(post.displayName, post.username);
+  const conHandle = mostrarHandleSecundario(post.displayName);
   return (
     <aside className="hidden border-l border-line bg-surface shadow-[var(--df-shadow-lg)] lg:flex lg:h-[100svh] lg:flex-col lg:overflow-hidden">
       <div className="border-b border-line p-4">
-        <p className="font-semibold text-text">@{post.username}</p>
+        <p className="font-semibold text-text">{conHandle ? nombre : `@${nombre}`}</p>
+        {conHandle ? <p className="text-sm text-text-dim">@{post.username}</p> : null}
         <p className="mt-1 line-clamp-2 text-sm text-text-dim">Reto: {post.retoTitulo}</p>
         <div className="mt-2 flex items-center gap-2">
           {post.categoria ? <PildoraCategoria>{post.categoria}</PildoraCategoria> : null}
