@@ -124,6 +124,8 @@ function PostInicio({
   post,
   alRef,
   muted,
+  mostrarHint,
+  esActivo,
   onToggleSilencio,
   onNoDisponible,
 }: {
@@ -132,6 +134,10 @@ function PostInicio({
   /** Mute EFECTIVO (preferencia del usuario O permiso del navegador aún sin desbloquear). El icono y
    *  el aria se pintan según esto: NUNCA mienten sobre lo que se oye de verdad. */
   muted: boolean;
+  /** ¿Mostrar el rótulo "toca para activar el sonido"? (audio bloqueado + preferencia sonido). */
+  mostrarHint: boolean;
+  /** ¿Es el vídeo ACTIVO? El rótulo solo se pinta sobre él. */
+  esActivo: boolean;
   /** Recibe el SNAPSHOT del mute efectivo capturado ANTES del unlock (así el 1er clic no se pierde). */
   onToggleSilencio: (estabaMudo: boolean) => void;
   /** El vídeo ya no existe en el origen: se retira este slide del scroll. */
@@ -173,6 +179,17 @@ function PostInicio({
               <PildoraCategoria>{post.categoria}</PildoraCategoria>
             </div>
           ) : null}
+        </div>
+        {/* RÓTULO "toca para activar el sonido" — arriba-centro, discreto (no tapa descripción abajo ni
+            acciones a la derecha). Solo sobre el vídeo ACTIVO mientras el audio esté bloqueado y la
+            preferencia sea sonido; se desvanece suave al desbloquear. `pointer-events-none`: el tap lo
+            atraviesa y desbloquea igual. Permanece montado (opacidad) para animar la salida. */}
+        <div
+          aria-hidden={!(mostrarHint && esActivo)}
+          className={`pointer-events-none absolute top-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-void/70 px-3 py-1.5 text-xs font-medium whitespace-nowrap text-white backdrop-blur-sm transition-opacity duration-[var(--df-dur-reveal)] ease-mechanical ${mostrarHint && esActivo ? "opacity-100" : "opacity-0"}`}
+        >
+          <IconoSonido silenciado={false} />
+          Toca para activar el sonido
         </div>
       </div>
 
@@ -297,6 +314,9 @@ export function FeedInicio({
   const [silenciado, setSilenciado] = useState(false);
   const [audioDesbloqueado, setAudioDesbloqueado] = useState(false);
   const mutedEfectivo = silenciado || !audioDesbloqueado;
+  // Rótulo "toca para activar el sonido": SOLO mientras el audio está bloqueado y la preferencia es
+  // sonido. Si el usuario silencia a propósito (silenciado), no se muestra; al desbloquear, desaparece.
+  const mostrarHintSonido = !audioDesbloqueado && !silenciado;
   // Guarda anti-solape de la paginacion: es un ref (no se pinta), asi que no dispara renders.
   const cargandoRef = useRef(false);
   const columna = useRef<HTMLDivElement | null>(null);
@@ -414,6 +434,8 @@ export function FeedInicio({
               if (el) secciones.current[i] = el;
             }}
             muted={mutedEfectivo}
+            mostrarHint={mostrarHintSonido}
+            esActivo={i === activo}
             onToggleSilencio={(estabaMudo) => {
               // Decide según el SNAPSHOT (lo que el usuario VEÍA al pulsar), no según el estado ya
               // cambiado por el unlock: si estaba mudo, quiere sonido (desbloquea + preferencia = sonido);
