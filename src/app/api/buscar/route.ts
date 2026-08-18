@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { BUSCAR_LIMITE } from "@/config/constants";
 import { apiError, apiOk, clientIpKey, depsRuta } from "@/server/http/api";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,9 @@ const QuerySchema = z.object({
   q: z.string().trim().min(2, "Escribe al menos 2 caracteres.").max(100),
   tipo: z.enum(["usuarios", "retos"]),
   cursor: z.string().max(500).optional(),
+  // `limite` OPCIONAL (sugerencias piden pocas). Entero en [1, BUSCAR_LIMITE]: fuera de rango -> 400
+  // (no se sirve más de lo permitido). Ausente -> el servicio usa su default (BUSCAR_LIMITE).
+  limite: z.coerce.number().int().min(1).max(BUSCAR_LIMITE).optional(),
 });
 
 export async function GET(req: Request) {
@@ -23,6 +27,7 @@ export async function GET(req: Request) {
     q: url.searchParams.get("q") ?? "",
     tipo: url.searchParams.get("tipo") ?? "",
     cursor: url.searchParams.get("cursor") ?? undefined,
+    limite: url.searchParams.get("limite") ?? undefined,
   });
   if (!parsed.success) {
     return apiError(
@@ -31,7 +36,7 @@ export async function GET(req: Request) {
       400,
     );
   }
-  const { q, tipo, cursor } = parsed.data;
+  const { q, tipo, cursor, limite } = parsed.data;
 
   const { env, prisma } = await depsRuta();
   const { RATE_LIMITS, BUSCAR_CACHE_TTL_SEC } = await import("@/config/constants");
@@ -51,14 +56,16 @@ export async function GET(req: Request) {
 
   try {
     const cache = getCacheBusqueda();
-    const clave = `buscar:${tipo}:${q}:${cursor ?? ""}`;
+    // `limite` en la CLAVE: una respuesta de 6 y una de 20 para la misma (q,tipo,cursor) NO deben
+    // compartir entrada de caché.
+    const clave = `buscar:${tipo}:${q}:${cursor ?? ""}:${limite ?? ""}`;
     const pagina =
       tipo === "usuarios"
         ? await buscarConCache(cache, clave, BUSCAR_CACHE_TTL_SEC, () =>
-            buscarUsuarios(prisma, q, cursor ?? null),
+            buscarUsuarios(prisma, q, cursor ?? null, limite),
           )
         : await buscarConCache(cache, clave, BUSCAR_CACHE_TTL_SEC, () =>
-            buscarRetos(prisma, q, cursor ?? null),
+            buscarRetos(prisma, q, cursor ?? null, limite),
           );
     return apiOk(pagina as unknown as Record<string, unknown>);
   } catch (e) {
