@@ -73,6 +73,16 @@ describe("GET /api/buscar", () => {
     expect((await GET(reqBuscar({ q: "ana", tipo: "otro" }))).status).toBe(400);
   });
 
+  it("limite (sugerencias): acota el nº de resultados; fuera de [1,20] -> 400", async () => {
+    for (let i = 0; i < 4; i++) await crearUsuario({ username: `anauser${i}`, displayName: "Ana" });
+    const res = await GET(reqBuscar({ q: "ana", tipo: "usuarios", limite: "2" }));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { items: unknown[] };
+    expect(body.items.length).toBeLessThanOrEqual(2);
+    // Un limite absurdo se rechaza (no se sirve más de lo permitido).
+    expect((await GET(reqBuscar({ q: "ana", tipo: "usuarios", limite: "9999" }))).status).toBe(400);
+  });
+
   it("el DTO NO filtra campos privados (email fuera)", async () => {
     await crearUsuario({ username: "publicoana", displayName: "Ana", email: "sec@test.com" });
     const res = await GET(reqBuscar({ q: "ana", tipo: "usuarios" }));

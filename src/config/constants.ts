@@ -122,6 +122,8 @@ export const RECON_PUBLICADOS_TOPE_PCT = 0.2; // ni mas del 20% de las sondeadas
  * con cursor keyset rotatorio (patron de las reconciliaciones): coste FIJO por ciclo.
  */
 export const BUSCAR_LIMITE = 20;
+/** Tope del desplegable de SUGERENCIAS de la barra (P4): pocas por tipo, respuesta ligera. */
+export const BUSCAR_SUGERENCIAS_LIMITE = 6;
 export const BUSCAR_MIN_FULLTEXT = 3;
 export const BUSCAR_CACHE_TTL_SEC = 45; // TTL corto de la cache Redis por (q,tipo,cursor): descarga la BD
 export const RECALCULO_SCORES_CADENCIA_MS = 60 * 60 * 1000; // 1 h

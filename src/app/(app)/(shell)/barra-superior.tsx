@@ -1,25 +1,8 @@
+import { BuscadorBarra } from "./buscador-barra";
 import { CtaCrear } from "./cta-crear";
 import { MenuCuenta } from "./menu-cuenta";
 
 /** Iconos inline (trazo 1.6 px, currentColor), misma familia severa. */
-function IconoLupa() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-5 w-5"
-      aria-hidden
-    >
-      <circle cx="11" cy="11" r="7" />
-      <path d="M20 20l-3.5-3.5" />
-    </svg>
-  );
-}
-
 function IconoCampana() {
   return (
     <svg
@@ -55,20 +38,9 @@ export function BarraSuperior({
 }) {
   return (
     <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-line bg-surface px-8 py-3">
-      {/* Buscador: form GET a /buscar (cero JS). Al enviar (Enter) navega a /buscar?q=... y allí la isla
-          de búsqueda arranca con esa consulta. */}
-      <form action="/buscar" role="search" className="relative w-full max-w-md">
-        <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-text-dim">
-          <IconoLupa />
-        </span>
-        <input
-          type="search"
-          name="q"
-          placeholder="Buscar retos, personas…"
-          aria-label="Buscar"
-          className="min-h-[44px] w-full rounded-full border border-line bg-raised pr-4 pl-11 text-sm text-text placeholder:text-text-dim focus:border-text focus:outline-none"
-        />
-      </form>
+      {/* Buscador con desplegable de sugerencias (isla cliente). Conserva el <form action="/buscar">
+          dentro, así el Enter sigue navegando a /buscar sin JS (mejora progresiva). */}
+      <BuscadorBarra />
 
       <div className="ml-auto flex items-center gap-3">
         {/* Crear reto — magenta persistente (atenuado a secundario en /inicio) */}
