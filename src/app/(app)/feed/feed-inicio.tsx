@@ -301,22 +301,42 @@ export function FeedInicio({
   const cargandoRef = useRef(false);
   const columna = useRef<HTMLDivElement | null>(null);
   const secciones = useRef<HTMLElement[]>([]);
+  // Índice del vídeo ACTIVO en un ref, para leerlo SIN closure obsoleto desde el listener de unlock.
+  const activoRef = useRef(0);
+  useEffect(() => {
+    activoRef.current = activo;
+  }, [activo]);
+
+  // Activa el sonido del vídeo ACTIVO EN EL MISMO STACK del gesto: pone `muted=false` y reproduce. Es la
+  // ÚNICA forma de que el navegador deje pasar de mudo a audible un vídeo autoplayado (la activación por
+  // gesto es in-stack; un unmute async —en el efecto del player— NO se honra). El `play()` posterior
+  // cubre el caso en que el navegador pause al desmutear. Solo refs -> callback estable.
+  const activarSonidoVideoActivo = useCallback((): void => {
+    const v = secciones.current[activoRef.current]?.querySelector("video");
+    if (v) {
+      v.muted = false;
+      void v.play().catch(() => {});
+    }
+  }, []);
 
   // UNLOCK del audio al PRIMER gesto del usuario (el navegador exige un gesto para permitir sonido).
   // Un ÚNICO listener en el contenedor del feed: al primer pointerdown/keydown desbloquea y se
-  // auto-retira. Si la preferencia es "con sonido", el vídeo activo pasa a sonar en ese mismo gesto y
-  // los siguientes (scroll) también, porque `mutedEfectivo` deja de forzar el mute.
+  // auto-retira. Si la preferencia es "con sonido", ademas activa el sonido del vídeo activo IN-STACK
+  // (aquí, dentro del gesto); los siguientes (scroll) suenan solos porque ya hay activación.
   useEffect(() => {
     const cont = columna.current;
     if (!cont || audioDesbloqueado) return;
-    const desbloquear = (): void => setAudioDesbloqueado(true);
+    const desbloquear = (): void => {
+      setAudioDesbloqueado(true);
+      if (!silenciado) activarSonidoVideoActivo();
+    };
     cont.addEventListener("pointerdown", desbloquear, { once: true });
     cont.addEventListener("keydown", desbloquear, { once: true });
     return () => {
       cont.removeEventListener("pointerdown", desbloquear);
       cont.removeEventListener("keydown", desbloquear);
     };
-  }, [audioDesbloqueado]);
+  }, [audioDesbloqueado, silenciado, activarSonidoVideoActivo]);
 
   // Detecta el video ACTIVO. Se re-suscribe cuando cambia el numero de posts (al anexar pagina) para
   // observar tambien las secciones nuevas.
@@ -397,6 +417,7 @@ export function FeedInicio({
               if (estabaMudo) {
                 setAudioDesbloqueado(true);
                 setSilenciado(false);
+                activarSonidoVideoActivo(); // IN-STACK: suena ya, no espera al efecto async del player
               } else {
                 setSilenciado(true);
               }
