@@ -12,6 +12,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { issueCsrfToken } from "../src/server/auth/csrf";
+import { Prisma } from "../src/generated/prisma/client";
 
 const SECRET = "TEST-FIXTURE-auth-secret-suficientemente-largo-1";
 const APP_URL = "http://test.local";
@@ -62,7 +63,7 @@ describe("PATCH /api/perfil (autorización)", () => {
     mocks.rateLimit.mockReset();
     mocks.actualizarPerfil.mockReset();
     mocks.rateLimit.mockResolvedValue({ allowed: true, remaining: 10, resetAt: new Date() });
-    mocks.actualizarPerfil.mockResolvedValue({ displayName: "Ana Gómez" });
+    mocks.actualizarPerfil.mockResolvedValue({ displayName: "Ana Gómez", username: "ana" });
   });
 
   it("anónimo -> 401 y NO toca la BD", async () => {
@@ -123,5 +124,22 @@ describe("PATCH /api/perfil (autorización)", () => {
     const res = await patch({ displayName: "Ana" });
     expect(res.status).toBe(429);
     expect(mocks.actualizarPerfil).not.toHaveBeenCalled();
+  });
+
+  it("username DUPLICADO (P2002) -> 409 con copy humano, nunca error crudo", async () => {
+    mocks.getCurrentUser.mockResolvedValue(SESSION);
+    // El servicio revienta con el P2002 de username en la forma REAL del adapter MariaDB.
+    const p2002 = new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+      code: "P2002",
+      clientVersion: "test",
+      meta: { driverAdapterError: { cause: { constraint: { index: "User_username_key" } } } },
+    });
+    mocks.actualizarPerfil.mockRejectedValue(p2002);
+    const res = await patch({ displayName: "Ana", username: "tomado" });
+    // DIENTES: sin el catch de la ruta, el P2002 escaparía (no sería 409 con este copy).
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error?: { code?: string; message?: string } };
+    expect(body.error?.code).toBe("USERNAME_TAKEN");
+    expect(body.error?.message).toMatch(/ya está en uso/i);
   });
 });

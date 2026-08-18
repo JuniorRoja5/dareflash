@@ -5,6 +5,9 @@
  * único gate real (re-valida con Zod / re-decodifica la imagen). Mismo patrón que `crear-logic.ts`:
  * la función pura viaja al bundle del navegador sin arrastrar Zod ni Prisma.
  */
+import { HANDLE_RE, USERNAME_MIN, USERNAME_MAX } from "@/lib/handle-formato";
+
+export { USERNAME_MIN, USERNAME_MAX };
 
 /** Longitud del nombre visible (displayName). 2 evita nombres de un carácter; 40 cabe en la UI. */
 export const NOMBRE_MIN = 2;
@@ -31,6 +34,24 @@ export function nombreEsValido(nombre: string): boolean {
   const s = normalizarNombre(nombre);
   if (s.length < NOMBRE_MIN || s.length > NOMBRE_MAX) return false;
   return PATRON_NOMBRE.test(s);
+}
+
+// ---------------------------------------------------------------------------
+// Nombre de usuario (handle público) — reglas de UX del formulario (P2)
+// ---------------------------------------------------------------------------
+
+/** Normaliza el handle a como se guardaría: recorta y pasa a minúsculas (la unicidad es _ci). */
+export function normalizarUsername(v: string): string {
+  return v.trim().toLowerCase();
+}
+
+/**
+ * ¿El handle tiene el FORMATO válido? (UX del formulario). Valida sobre la forma normalizada, con el
+ * mismo `HANDLE_RE` que usa el servidor. NO comprueba reservados ni unicidad: eso es gate del servidor
+ * (la lista de reservados es server-only; el duplicado lo decide la constraint de la BD).
+ */
+export function usernameEsValido(v: string): boolean {
+  return HANDLE_RE.test(normalizarUsername(v));
 }
 
 // ---------------------------------------------------------------------------

@@ -35,6 +35,16 @@ export const PATCH = mutatingRoute(async (req, { user, env, prisma }) => {
   }
 
   // userId de la SESIÓN, jamás del cuerpo: la actualización solo puede tocar la propia fila.
-  const { displayName } = await actualizarPerfil(prisma, user.userId, parsed.data);
-  return apiOk({ ok: true, displayName });
+  try {
+    const { displayName, username } = await actualizarPerfil(prisma, user.userId, parsed.data);
+    return apiOk({ ok: true, displayName, username });
+  } catch (e) {
+    // Un `username` ya en uso choca con la UNIQUE (P2002). Se traduce a copy humano (409), NUNCA se
+    // deja escapar el error crudo. `esViolacionUnicaDeUsername` suena la forma real del adapter MariaDB.
+    const { esViolacionUnicaDeUsername } = await import("@/server/auth/registration");
+    if (esViolacionUnicaDeUsername(e)) {
+      return apiError("USERNAME_TAKEN", "Ese nombre de usuario ya está en uso.", 409);
+    }
+    throw e;
+  }
 });

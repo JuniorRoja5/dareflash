@@ -12,8 +12,10 @@ import {
   AVATAR_TIPOS,
   BIO_MAX,
   NOMBRE_MAX,
+  USERNAME_MAX,
   avatarExcedeTope,
   nombreEsValido,
+  usernameEsValido,
 } from "../perfil-logic";
 
 type EstadoNombre = "idle" | "guardando" | "guardado";
@@ -52,6 +54,8 @@ export function FormularioEditarPerfil({
 }) {
   const router = useRouter();
   const [nombre, setNombre] = useState(nombreInicial);
+  const [username, setUsername] = useState(usuario);
+  const [errorUsername, setErrorUsername] = useState<string | undefined>(undefined);
   const [bio, setBio] = useState(bioInicial);
   const [website, setWebsite] = useState(websiteInicial);
   const [instagram, setInstagram] = useState(instagramInicial);
@@ -86,10 +90,18 @@ export function FormularioEditarPerfil({
       return;
     }
     setErrorNombre(undefined);
+    if (!usernameEsValido(username)) {
+      setErrorUsername(
+        "El nombre de usuario debe tener 3-30 caracteres: minúsculas, números, punto o guion bajo.",
+      );
+      return;
+    }
+    setErrorUsername(undefined);
     setEstadoNombre("guardando");
     try {
-      const r = await patchJsonCsrf<{ displayName?: string }>("/api/perfil", {
+      const r = await patchJsonCsrf<{ displayName?: string; username?: string }>("/api/perfil", {
         displayName: nombre,
+        username,
         bio,
         website,
         instagram,
@@ -97,11 +109,15 @@ export function FormularioEditarPerfil({
       });
       if (r.ok) {
         if (typeof r.data.displayName === "string") setNombre(r.data.displayName);
+        // El servidor devuelve el handle YA normalizado (minúsculas): reflejarlo en el campo.
+        if (typeof r.data.username === "string") setUsername(r.data.username);
         setEstadoNombre("guardado");
         return;
       }
       if (r.status === 401) {
         setErrorNombre("Tu sesión ha caducado. Vuelve a iniciar sesión para guardar.");
+      } else if (r.code === "USERNAME_TAKEN") {
+        setErrorUsername("Ese nombre de usuario ya está en uso.");
       } else if (r.status === 429) {
         setErrorNombre("Has guardado muchas veces seguidas. Espera un momento.");
       } else {
@@ -281,6 +297,23 @@ export function FormularioEditarPerfil({
               }}
               error={errorNombre}
               disabled={nombreOcupado}
+            />
+            <Campo
+              id="perfil-username"
+              label="Nombre de usuario"
+              placeholder="tu_usuario"
+              maxLength={USERNAME_MAX}
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                if (errorUsername) setErrorUsername(undefined);
+                if (estadoNombre === "guardado") setEstadoNombre("idle");
+              }}
+              error={errorUsername}
+              disabled={nombreOcupado}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
             />
             <Campo
               id="perfil-bio"
