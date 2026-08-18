@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Boton } from "@/components/ui/boton";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
+import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
 
 import { CeldaVideo } from "./celda-video";
 import type { EstadoVideo } from "./perfil-logic";
@@ -58,7 +59,7 @@ function Estadistica({ valor, etiqueta }: { valor: number; etiqueta: string }) {
  * solo en el perfil propio (es una acción sobre uno mismo).
  */
 export function PerfilVista({
-  nombre,
+  displayName,
   handle,
   imagen,
   bio,
@@ -71,8 +72,9 @@ export function PerfilVista({
   videos,
   esPropio,
 }: {
-  nombre: string;
-  handle: string | null;
+  /** Nombre visible (opcional). Si falta, el `handle` hace de nombre. */
+  displayName: string | null;
+  handle: string;
   imagen: string | null;
   bio: string | null;
   website: string | null;
@@ -84,6 +86,10 @@ export function PerfilVista({
   videos: VideoCelda[];
   esPropio: boolean;
 }) {
+  // Identidad (modelo TikTok/YouTube): el displayName manda; el @handle va debajo y solo si hay
+  // displayName (si no, el @handle ES el nombre prominente). Fuente única: `nombreMostrado`.
+  const nombre = nombreMostrado(displayName, handle);
+  const conHandle = mostrarHandleSecundario(displayName);
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
       <div className="lg:grid lg:grid-cols-[320px_1fr] lg:gap-8">
@@ -91,10 +97,13 @@ export function PerfilVista({
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md">
             <div className="flex flex-col items-center text-center">
-              <Avatar nombre={handle ?? nombre} tamano="xl" imagen={imagen} />
+              <Avatar nombre={nombre} tamano="xl" imagen={imagen} />
               <p className="mt-3 max-w-full truncate text-lg font-semibold text-text">
-                {handle ? `@${handle}` : nombre}
+                {conHandle ? nombre : `@${nombre}`}
               </p>
+              {conHandle ? (
+                <p className="mt-0.5 max-w-full truncate text-sm text-text-dim">@{handle}</p>
+              ) : null}
               <div className="mt-2">
                 <InsigniaNivel puntos={puntos} />
               </div>

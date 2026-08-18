@@ -132,7 +132,7 @@ function ColumnaPodio({ fila, puesto }: { fila: FilaRankVista; puesto: 1 | 2 | 3
         className="mt-3 max-w-[15ch] truncate font-semibold text-text"
         style={{ fontSize: geo.nombre }}
       >
-        {fila.username}
+        @{fila.username}
       </p>
       <div className="mt-1">
         <Puntos valor={fila.puntos} tam={geo.pts} />
@@ -202,7 +202,7 @@ function TarjetaMovil({
         color={color}
       />
       <div className={`flex flex-col ${destacado ? "min-w-0 items-start" : "items-center"}`}>
-        <p className="max-w-[16ch] truncate font-semibold text-text">{fila.username}</p>
+        <p className="max-w-[16ch] truncate font-semibold text-text">@{fila.username}</p>
         <div className="mt-0.5">
           <Puntos valor={fila.puntos} tam={destacado ? "20px" : "16px"} />
         </div>

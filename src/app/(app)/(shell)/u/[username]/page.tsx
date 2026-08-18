@@ -42,7 +42,7 @@ export default async function PerfilPublicoPage({
 
   return (
     <PerfilVista
-      nombre={perfil.displayName ?? perfil.username ?? "Perfil"}
+      displayName={perfil.displayName}
       handle={perfil.username}
       imagen={perfil.image}
       bio={perfil.bio}

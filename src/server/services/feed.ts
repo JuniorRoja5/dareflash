@@ -24,6 +24,8 @@ import type { Db } from "@/server/db/types";
 /** Un post del feed, listo para pintar. `categoria` es el nombre ya resuelto (o null si no participa). */
 export interface PostFeed {
   id: string;
+  /** Nombre visible (opcional). Si falta, el `username` hace de nombre en la UI. */
+  displayName: string | null;
   username: string;
   retoTitulo: string;
   categoria: string | null;
@@ -88,6 +90,7 @@ export async function feedPublicado(
     const urls = opts.firmar(v.bunnyVideoId);
     return {
       id: v.id,
+      displayName: v.user.displayName,
       username: v.user.username,
       retoTitulo: sub?.challenge.title ?? v.title ?? "Vídeo",
       categoria: nombreCategoria(sub?.challenge.category),
