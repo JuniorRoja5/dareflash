@@ -1,0 +1,16 @@
+{
+  // TYPE-CHECK de TEST/TOOLING (solo dev). El `tsconfig.json` raíz —el que usa `next build`— EXCLUYE
+  // `vitest.config.ts` y `tests/` a propósito: esa carpeta está en `.dockerignore`, no entra en la
+  // imagen, y si el build de producción los type-chequeara no resolvería `./tests/helpers/*` y rompería
+  // (ver el fallo de despliegue de fix-build-typecheck-tests). Este proyecto RECUPERA esa cobertura en
+  // dev: hereda las mismas reglas estrictas del raíz pero vuelve a INCLUIR los ficheros de test y la
+  // config de vitest. Los imports a `@/…` se resuelven solos (TS los arrastra). Lo corre `npm run
+  // typecheck` junto al del raíz (pre-commit), así no se pierde ni un tipo de `tests/`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Sin buildinfo propio: evita que su `.tsbuildinfo` choque con el del type-check del raíz.
+    "incremental": false
+  },
+  "include": ["vitest.config.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules"]
+}

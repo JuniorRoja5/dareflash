@@ -11,7 +11,7 @@
     "start": "next start",
     "worker": "node --conditions=react-server --import tsx scripts/worker.ts",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write .",
