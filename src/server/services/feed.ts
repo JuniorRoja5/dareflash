@@ -88,7 +88,7 @@ export async function feedPublicado(
     const urls = opts.firmar(v.bunnyVideoId);
     return {
       id: v.id,
-      username: v.user.username ?? "usuario",
+      username: v.user.username,
       retoTitulo: sub?.challenge.title ?? v.title ?? "Vídeo",
       categoria: nombreCategoria(sub?.challenge.category),
       votos: sub?.voteCount ?? 0,

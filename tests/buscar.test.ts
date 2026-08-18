@@ -8,6 +8,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { generarHandle } from "../src/server/auth/handle";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { buscarRetos, buscarUsuarios } from "../src/server/services/buscar";
 
@@ -26,7 +27,7 @@ beforeEach(async () => {
 });
 
 async function crearUsuario(o: {
-  username?: string | null;
+  username?: string;
   displayName?: string | null;
   score?: number;
   deletedAt?: Date | null;
@@ -36,7 +37,7 @@ async function crearUsuario(o: {
 }): Promise<string> {
   const u = await prisma.user.create({
     data: {
-      username: o.username ?? null,
+      username: o.username ?? generarHandle(),
       displayName: o.displayName ?? null,
       image: o.image ?? null,
       email: o.email ?? null,
@@ -142,11 +143,14 @@ describe("buscarUsuarios", () => {
     expect(nombres).not.toContain("zzz");
   });
 
-  it("solo PÚBLICOS: fuera borrados/baneados/sin-username; el DTO no lleva campos privados", async () => {
+  it("solo PÚBLICOS: fuera borrados/baneados; el DTO no lleva campos privados", async () => {
+    // NOTA: el caso "sin username" ya no existe -> `username` es NOT NULL (P1), toda cuenta lleva
+    // handle. Quedan las exclusiones que SÍ son posibles: borrado (deletedAt) y baneado (bannedAt).
     await crearUsuario({ username: "publico1", displayName: "Ana publica", score: 0 });
     await crearUsuario({
       username: "borrado1",
       displayName: "Ana borrada",
+      email: "sec@test.com",
       deletedAt: new Date(),
       score: 100,
     });
@@ -154,12 +158,6 @@ describe("buscarUsuarios", () => {
       username: "baneado1",
       displayName: "Ana baneada",
       bannedAt: new Date(),
-      score: 100,
-    });
-    await crearUsuario({
-      username: null,
-      displayName: "Ana sin handle",
-      email: "sec@test.com",
       score: 100,
     });
 

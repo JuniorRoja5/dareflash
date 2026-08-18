@@ -11,6 +11,7 @@ import argon2 from "argon2";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarHandle } from "../src/server/auth/handle";
 import { login } from "../src/server/auth/login";
 import { hashPassword, needsRehash } from "../src/server/auth/password";
 
@@ -38,7 +39,7 @@ const PARAMS_VIEJOS = {
 
 async function crearUsuario(email: string, passwordHash: string): Promise<string> {
   const u = await prisma.user.create({
-    data: { email, emailVerified: new Date(), passwordHash },
+    data: { email, username: generarHandle(), emailVerified: new Date(), passwordHash },
     select: { id: true },
   });
   return u.id;

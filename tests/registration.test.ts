@@ -3,9 +3,14 @@ import { performance } from "node:perf_hooks";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { Prisma } from "../src/generated/prisma/client";
+import { generarHandle, HANDLE_MAX_INTENTOS, HANDLE_RE } from "../src/server/auth/handle";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/server/auth/password";
-import { esViolacionUnicaDeEmail, registerUser } from "../src/server/auth/registration";
+import {
+  esViolacionUnicaDeEmail,
+  esViolacionUnicaDeUsername,
+  registerUser,
+} from "../src/server/auth/registration";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
 
@@ -61,7 +66,9 @@ describe("registro: sin oraculo por tiempo ni carrera", () => {
     const H = await costeArgon2();
 
     const existente = "existe@test.com";
-    await prisma.user.create({ data: { email: existente, passwordHash: "x", birthDate: BIRTH } });
+    await prisma.user.create({
+      data: { email: existente, username: generarHandle(), passwordHash: "x", birthDate: BIRTH },
+    });
 
     const N = 6;
     const tExist: number[] = [];
@@ -101,12 +108,16 @@ describe("registro: sin oraculo por tiempo ni carrera", () => {
       const existing = await prisma.user.findUnique({ where: { email: e }, select: { id: true } });
       if (existing) return; // camino RAPIDO: no llega a hashear
       await hashPassword(PASS); // camino LENTO: solo los nuevos pagan el argon2
-      await prisma.user.create({ data: { email: e, passwordHash: "x", birthDate: BIRTH } });
+      await prisma.user.create({
+        data: { email: e, username: generarHandle(), passwordHash: "x", birthDate: BIRTH },
+      });
     }
 
     const H = await costeArgon2();
     const existente = "existe@test.com";
-    await prisma.user.create({ data: { email: existente, passwordHash: "x", birthDate: BIRTH } });
+    await prisma.user.create({
+      data: { email: existente, username: generarHandle(), passwordHash: "x", birthDate: BIRTH },
+    });
 
     const N = 6;
     const tExist: number[] = [];
@@ -153,7 +164,14 @@ describe("registro: el no-op silencioso SOLO cubre la constraint de email", () =
     expect(esViolacionUnicaDeEmail(new Error("otro fallo"))).toBe(false);
   });
 
-  it("registerUser: el P2002 de email es no-op; el de OTRA columna se PROPAGA (no 'te enviamos un correo' en falso)", async () => {
+  it("reconoce el P2002 de username (la colision RECUPERABLE del handle auto-generado)", () => {
+    expect(esViolacionUnicaDeUsername(p2002Adapter("User_username_key"))).toBe(true);
+    expect(esViolacionUnicaDeUsername(p2002Clasico(["username"]))).toBe(true);
+    expect(esViolacionUnicaDeUsername(p2002Adapter("User_email_key"))).toBe(false);
+    expect(esViolacionUnicaDeUsername(new Error("otro fallo"))).toBe(false);
+  });
+
+  it("registerUser: el P2002 de email es no-op; OTRA columna unica se PROPAGA sin reintentar", async () => {
     const input = {
       email: "x@test.com",
       password: PASS,
@@ -161,18 +179,92 @@ describe("registro: el no-op silencioso SOLO cubre la constraint de email", () =
       appUrl: "https://x.test",
     };
 
-    // Choque en email -> no-op silencioso (resuelve sin lanzar).
+    // Choque en email -> no-op silencioso (resuelve sin lanzar), UN solo intento.
+    let intentosEmail = 0;
     const dbEmail = {
-      user: { create: async () => Promise.reject(p2002Adapter("User_email_key")) },
+      user: {
+        create: async () => {
+          intentosEmail++;
+          return Promise.reject(p2002Adapter("User_email_key"));
+        },
+      },
     } as unknown as PrismaClient;
     await expect(registerUser(dbEmail, input)).resolves.toBeUndefined();
+    expect(intentosEmail).toBe(1);
 
-    // Choque en username (u otra unica futura) -> se relanza, NO se oculta.
-    const dbUsername = {
-      user: { create: async () => Promise.reject(p2002Adapter("User_username_key")) },
+    // Choque en OTRA unica (ni email ni username) -> se relanza YA, sin reintentar.
+    let intentosOtra = 0;
+    const dbOtra = {
+      user: {
+        create: async () => {
+          intentosOtra++;
+          return Promise.reject(p2002Adapter("User_algo_key"));
+        },
+      },
     } as unknown as PrismaClient;
-    await expect(registerUser(dbUsername, input)).rejects.toBeInstanceOf(
+    await expect(registerUser(dbOtra, input)).rejects.toBeInstanceOf(
       Prisma.PrismaClientKnownRequestError,
     );
+    expect(intentosOtra).toBe(1);
+  });
+
+  it("colision de username: REGENERA y reintenta hasta HANDLE_MAX_INTENTOS y solo entonces propaga", async () => {
+    const input = {
+      email: "y@test.com",
+      password: PASS,
+      birthDate: BIRTH,
+      appUrl: "https://x.test",
+    };
+    let intentos = 0;
+    const dbSiempreChoca = {
+      user: {
+        create: async () => {
+          intentos++;
+          return Promise.reject(p2002Adapter("User_username_key"));
+        },
+      },
+    } as unknown as PrismaClient;
+    await expect(registerUser(dbSiempreChoca, input)).rejects.toBeInstanceOf(
+      Prisma.PrismaClientKnownRequestError,
+    );
+    // Reintentó (no se rindió al primer choque) y quedó acotado (no bucle infinito).
+    expect(intentos).toBe(HANDLE_MAX_INTENTOS);
+  });
+});
+
+describe("registro: username auto-generado (nunca NULL)", () => {
+  it("asigna un handle VÁLIDO y no-nulo al crear la cuenta", async () => {
+    await registerUser(prisma, {
+      email: "nuevo@test.com",
+      password: PASS,
+      birthDate: BIRTH,
+      appUrl: "https://x.test",
+    });
+    const u = await prisma.user.findUnique({
+      where: { email: "nuevo@test.com" },
+      select: { username: true },
+    });
+    expect(u?.username).toMatch(HANDLE_RE);
+  });
+
+  it("DIENTES contra la BD real: si el handle generado ya existe, REGENERA y crea igualmente", async () => {
+    // Un usuario ya ocupa el handle "usertaken001".
+    await prisma.user.create({ data: { email: "ocupa@test.com", username: "usertaken001" } });
+
+    // El generador inyectado devuelve primero el ocupado (choca con el UNIQUE real) y luego uno libre.
+    const secuencia = ["usertaken001", "userfresh002"];
+    let i = 0;
+    await registerUser(
+      prisma,
+      { email: "nueva@test.com", password: PASS, birthDate: BIRTH, appUrl: "https://x.test" },
+      { generarHandle: () => secuencia[i++]! },
+    );
+
+    const creada = await prisma.user.findUnique({
+      where: { email: "nueva@test.com" },
+      select: { username: true },
+    });
+    expect(creada?.username).toBe("userfresh002"); // se quedó con el segundo (el primero chocaba)
+    expect(i).toBe(2); // regeneró exactamente una vez
   });
 });

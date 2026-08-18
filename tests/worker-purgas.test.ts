@@ -14,6 +14,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { JOB_FAILED_RETENTION_DAYS, RATE_LIMIT_PURGE_RETENER_MS } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarHandle } from "../src/server/auth/handle";
 import { purgeExpiredSessions } from "../src/server/auth/session";
 import type { EmailAdapter, EmailMessage } from "../src/server/email/adapter";
 import { avisarSiFallidos, podarFailed, podarRateLimit } from "../src/server/jobs/worker";
@@ -84,7 +85,9 @@ describe("purga de RateLimit", () => {
 describe("purga de sesiones caducadas", () => {
   it("borra las caducadas y respeta las vigentes", async () => {
     const now = new Date("2026-08-02T12:00:00.000Z");
-    const userId = (await prisma.user.create({ data: {}, select: { id: true } })).id;
+    const userId = (
+      await prisma.user.create({ data: { username: generarHandle() }, select: { id: true } })
+    ).id;
     await prisma.session.create({
       data: { sessionToken: "hash-caducada", userId, expires: new Date(now.getTime() - 1000) },
     });

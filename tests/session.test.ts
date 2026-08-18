@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { SESSION_MAX_PER_USER, SESSION_TTL_BY_ROLE, SESSION_TTL_MS } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarHandle } from "../src/server/auth/handle";
 import { banUser, changePassword, changeRole } from "../src/server/auth/account";
 import {
   createSession,
@@ -29,7 +30,13 @@ beforeEach(async () => {
 
 async function crearUsuario(email: string, over: Record<string, unknown> = {}): Promise<string> {
   const u = await prisma.user.create({
-    data: { email, emailVerified: new Date(), passwordHash: "TEST-FIXTURE-hash-viejo", ...over },
+    data: {
+      email,
+      emailVerified: new Date(),
+      passwordHash: "TEST-FIXTURE-hash-viejo",
+      username: generarHandle(),
+      ...over,
+    },
     select: { id: true },
   });
   return u.id;

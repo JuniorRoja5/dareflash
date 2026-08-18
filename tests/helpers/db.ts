@@ -11,6 +11,7 @@
  */
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
+import { generarHandle } from "../../src/server/auth/handle";
 import { PrismaClient } from "../../src/generated/prisma/client";
 
 /** URL BASE (servidor + BD base). Se puede sobreescribir con TEST_DATABASE_URL (p.ej. en CI). */
@@ -104,13 +105,20 @@ export async function resetDb(prisma: PrismaClient): Promise<void> {
   }
 }
 
-/** Crea un usuario minimo valido y devuelve su id. */
+/** Crea un usuario minimo valido y devuelve su id. `username` es NOT NULL: se auto-genera uno unico
+ *  (mismo generador que produccion) salvo que el override lo fije. */
 export async function crearUsuario(
   prisma: PrismaClient,
-  overrides: { pointsBalance?: number; walletBalanceCents?: number; boostBalance?: number } = {},
+  overrides: {
+    username?: string;
+    pointsBalance?: number;
+    walletBalanceCents?: number;
+    boostBalance?: number;
+  } = {},
 ): Promise<string> {
   const u = await prisma.user.create({
     data: {
+      username: overrides.username ?? generarHandle(),
       pointsBalance: overrides.pointsBalance ?? 0,
       walletBalanceCents: overrides.walletBalanceCents ?? 0,
       boostBalance: overrides.boostBalance ?? 0,

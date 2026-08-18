@@ -5,6 +5,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarHandle } from "../src/server/auth/handle";
 import { recalcularScoresAutoridad } from "../src/server/services/recalculo-scores";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
@@ -22,7 +23,10 @@ beforeEach(async () => {
 });
 
 async function usuario(): Promise<string> {
-  const u = await prisma.user.create({ data: { passwordHash: "x" }, select: { id: true } });
+  const u = await prisma.user.create({
+    data: { username: generarHandle(), passwordHash: "x" },
+    select: { id: true },
+  });
   return u.id;
 }
 

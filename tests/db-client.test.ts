@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarHandle } from "../src/server/auth/handle";
 
 import { resetDb } from "./helpers/db";
 
@@ -48,7 +49,12 @@ beforeEach(async () => {
 describe("prisma Proxy contra la BD de tests", () => {
   it("1) delegado de modelo: user.create / findUnique", async () => {
     const created = await prisma.user.create({
-      data: { email: "proxy@test.com", passwordHash: "x", birthDate: BIRTH },
+      data: {
+        email: "proxy@test.com",
+        username: generarHandle(),
+        passwordHash: "x",
+        birthDate: BIRTH,
+      },
       select: { id: true },
     });
     const found = await prisma.user.findUnique({
@@ -61,7 +67,9 @@ describe("prisma Proxy contra la BD de tests", () => {
   it("2) metodo del cliente que necesita `this`: $transaction (valida el .bind del Proxy)", async () => {
     const email = "tx@test.com";
     await prisma.$transaction(async (tx) => {
-      await tx.user.create({ data: { email, passwordHash: "x", birthDate: BIRTH } });
+      await tx.user.create({
+        data: { email, username: generarHandle(), passwordHash: "x", birthDate: BIRTH },
+      });
     });
     expect(await prisma.user.count({ where: { email } })).toBe(1);
   });

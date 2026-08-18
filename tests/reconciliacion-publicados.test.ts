@@ -10,6 +10,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarHandle } from "../src/server/auth/handle";
 import { BunnyNotFoundError, type ClienteBunny } from "../src/server/services/bunny";
 import {
   decidirPublicado,
@@ -51,7 +52,7 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   await resetDb(prisma);
-  await prisma.user.create({ data: { id: "dueno", passwordHash: "x" } });
+  await prisma.user.create({ data: { id: "dueno", username: generarHandle(), passwordHash: "x" } });
 });
 
 async function crearPublicado(bunnyVideoId: string): Promise<string> {

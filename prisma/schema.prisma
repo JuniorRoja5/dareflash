@@ -60,7 +60,7 @@ model User {
   // suplantaciones por diferencia de mayusculas). Se asume y se deja escrito.
   email         String?   @unique // opcional a nivel Auth.js; en registro propio se exige
   emailVerified DateTime? // Auth.js: fecha de verificacion. Sin esto no hay acciones con efectos.
-  username      String?   @unique // handle publico
+  username      String    @unique // handle publico, SIEMPRE presente (auto-generado; ver server/auth/handle.ts)
   displayName   String?
   image         String? // avatar (URL)
   bio           String?   @db.Text
@@ -117,10 +117,13 @@ model User {
   // ledger/voto (son registro contable/antifraude, y ademas no tienen FK). El
   // servicio de anonimizacion, en una transaccion:
   //   1. Pone `deletedAt = now()`.
-  //   2. Pone a NULL los datos personales y los campos UNIQUE: email, username,
-  //      displayName, image, bio, passwordHash, birthDate.
-  //      (email y username DEBEN quedar a NULL o la direccion quedaria ocupada
-  //       para siempre y la persona no podria volver a registrarse.)
+  //   2. Pone a NULL los datos personales y el UNIQUE de email:
+  //      email, displayName, image, bio, passwordHash, birthDate.
+  //      (email DEBE quedar a NULL o la direccion quedaria ocupada para siempre y la
+  //       persona no podria volver a registrarse; el registro es POR EMAIL.)
+  //      username NO puede ir a NULL (columna NOT NULL): se sustituye por un TOMBSTONE
+  //      neutro (p.ej. `del_<aleatorio>`, formato `^[a-z0-9._]{3,30}$`) que libera el
+  //      handle humano para reuso sin dejar el campo vacio. NO poner username = NULL.
   //   3. Los ledgers/votos conservan su `userId` (huerfano, sin FK): la contabilidad
   //      queda integra pero desvinculada de la identidad.
   deletedAt DateTime? // soft delete

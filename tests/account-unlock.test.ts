@@ -8,6 +8,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarHandle } from "../src/server/auth/handle";
 import { requestAccountUnlockEmail } from "../src/server/auth/account-unlock";
 import { rateLimit, resetRateLimit } from "../src/server/security/rate-limit";
 
@@ -26,7 +27,9 @@ beforeEach(async () => {
 });
 
 async function crearUsuario(email: string): Promise<void> {
-  await prisma.user.create({ data: { email, passwordHash: "TEST-FIXTURE-hash" } });
+  await prisma.user.create({
+    data: { email, username: generarHandle(), passwordHash: "TEST-FIXTURE-hash" },
+  });
 }
 
 const KEYS = { unlockAcctKey: "unlock:acct:a", unlockIpKey: "unlock:ip:x" };

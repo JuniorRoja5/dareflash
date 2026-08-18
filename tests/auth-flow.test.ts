@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarHandle } from "../src/server/auth/handle";
 import { login } from "../src/server/auth/login";
 import { hashPassword } from "../src/server/auth/password";
 import { registerUser } from "../src/server/auth/registration";
@@ -44,7 +45,9 @@ describe("registro", () => {
   });
 
   it("email existente: no-op (sin enumeracion) — no crea un segundo usuario", async () => {
-    await prisma.user.create({ data: { email: "ya@test.com", passwordHash: "x" } });
+    await prisma.user.create({
+      data: { email: "ya@test.com", username: generarHandle(), passwordHash: "x" },
+    });
     await registerUser(prisma, {
       email: "ya@test.com",
       password: "TEST-FIXTURE-pass-otra-larga",
@@ -61,6 +64,7 @@ describe("login", () => {
     await prisma.user.create({
       data: {
         email,
+        username: generarHandle(),
         passwordHash: await hashPassword(password),
         emailVerified: verificado ? new Date() : null,
       },

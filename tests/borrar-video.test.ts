@@ -12,6 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import { issueCsrfToken } from "../src/server/auth/csrf";
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarHandle } from "../src/server/auth/handle";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
 
@@ -52,7 +53,7 @@ function sesion(userId: string) {
 }
 
 async function crearUsuarioConVideo(userId: string): Promise<string> {
-  await prisma.user.create({ data: { id: userId, passwordHash: "x" } });
+  await prisma.user.create({ data: { id: userId, username: generarHandle(), passwordHash: "x" } });
   const v = await prisma.video.create({
     data: { userId, bunnyVideoId: `bunny-${userId}`, status: "PUBLISHED" },
     select: { id: true },
@@ -99,7 +100,9 @@ describe("DELETE /api/videos/[id] (autorizacion por dueno)", () => {
 
   it("OTRO usuario NO puede borrar: 404, video INTACTO y NADA encolado", async () => {
     const videoId = await crearUsuarioConVideo("dueno");
-    await prisma.user.create({ data: { id: "intruso", passwordHash: "x" } });
+    await prisma.user.create({
+      data: { id: "intruso", username: generarHandle(), passwordHash: "x" },
+    });
     const ses = sesion("intruso");
     mocks.getCurrentUser.mockResolvedValue(ses);
 

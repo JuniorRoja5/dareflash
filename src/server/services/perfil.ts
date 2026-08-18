@@ -50,7 +50,7 @@ export interface VideoPublico {
 /** Perfil PUBLICO. Contrato: aqui NUNCA hay email, birthDate, saldo del monedero, Boost ni hash. */
 export interface PerfilPublico {
   id: string;
-  username: string | null;
+  username: string;
   displayName: string | null;
   image: string | null;
   /** Bio y enlaces (v1): informacion PUBLICA del perfil. `instagram`/`youtube` son HANDLES. */
@@ -91,7 +91,7 @@ const SELECT_VIDEO_PUBLICO = {
 /** Fila publica del usuario tal cual la devuelve el `select` de arriba (sin datos privados). */
 type FilaUsuarioPublico = {
   id: string;
-  username: string | null;
+  username: string;
   displayName: string | null;
   image: string | null;
   bio: string | null;
@@ -335,7 +335,7 @@ export interface MiVideo {
 /** MI perfil: identidad + stats públicas (reutiliza el select público) + vídeos CON estado. */
 export interface MiPerfil {
   id: string;
-  username: string | null;
+  username: string;
   displayName: string | null;
   image: string | null;
   bio: string | null;

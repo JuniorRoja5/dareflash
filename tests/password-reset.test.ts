@@ -11,6 +11,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarHandle } from "../src/server/auth/handle";
 import { createEmailToken } from "../src/server/auth/email-token";
 import { requestPasswordReset, resetPassword } from "../src/server/auth/password-reset";
 
@@ -49,7 +50,7 @@ const NUEVA = "TEST-FIXTURE-password-nueva-larga-1";
 
 async function crearUsuario(email: string): Promise<string> {
   const u = await prisma.user.create({
-    data: { email, passwordHash: HASH_ORIGINAL },
+    data: { email, username: generarHandle(), passwordHash: HASH_ORIGINAL },
     select: { id: true },
   });
   return u.id;

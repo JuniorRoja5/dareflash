@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarHandle } from "../src/server/auth/handle";
 import {
   confirmEmailVerification,
   createEmailVerification,
@@ -23,7 +24,10 @@ beforeEach(async () => {
 });
 
 async function crearUsuarioSinVerificar(email: string): Promise<string> {
-  const u = await prisma.user.create({ data: { email }, select: { id: true } });
+  const u = await prisma.user.create({
+    data: { email, username: generarHandle() },
+    select: { id: true },
+  });
   return u.id;
 }
 

@@ -22,6 +22,7 @@ import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { requestEmailVerification } from "@/server/services/email-verification";
 
+import { generarHandle, HANDLE_MAX_INTENTOS } from "./handle";
 import { hashPassword } from "./password";
 
 /**
@@ -47,19 +48,34 @@ export function objetivoDeViolacionUnica(e: Prisma.PrismaClientKnownRequestError
 
 /**
  * ¿Es un P2002 causado por la constraint UNICA de `email`? SOLO ese caso es el no-op
- * silencioso del registro. User tiene otra columna unica (username, hoy NULL en el
- * alta); si algun dia el alta viola OTRA constraint unica, NO debe tragarse en silencio
- * (el usuario veria "te hemos enviado un correo" sin que exista cuenta): se relanza.
+ * silencioso del registro. User tiene otra columna unica (`username`, ahora SIEMPRE
+ * asignado en el alta, ver mas abajo); si el alta viola OTRA constraint unica que NO sea
+ * la colision de handle (que se reintenta), NO debe tragarse en silencio (el usuario veria
+ * "te hemos enviado un correo" sin que exista cuenta): se relanza.
  */
 export function esViolacionUnicaDeEmail(e: unknown): boolean {
   if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") return false;
   return /email/i.test(objetivoDeViolacionUnica(e));
 }
 
+/**
+ * ¿Es un P2002 causado por la constraint UNICA de `username`? Es el caso RECUPERABLE del alta:
+ * el handle auto-generado ha chocado con uno ya existente -> se regenera y se reintenta (acotado).
+ * NO es un error a mostrar al usuario (el handle es interno en el registro; se personaliza luego).
+ */
+export function esViolacionUnicaDeUsername(e: unknown): boolean {
+  if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") return false;
+  return /username/i.test(objetivoDeViolacionUnica(e));
+}
+
 export async function registerUser(
   db: PrismaClient,
   input: { email: string; password: string; birthDate: Date; appUrl: string; now?: Date },
+  // `generarHandle` inyectable SOLO para test (forzar una colision de handle y ver el reintento).
+  // Produccion usa el generador real por defecto.
+  deps: { generarHandle?: () => string } = {},
 ): Promise<void> {
+  const nuevoHandle = deps.generarHandle ?? generarHandle;
   // Normalizacion en la capa de aplicacion (no depender de la collation de MariaDB).
   const email = input.email.trim().toLowerCase();
 
@@ -67,22 +83,30 @@ export async function registerUser(
   // o no la cuenta, asi no hay diferencia de tiempo que delate cuentas existentes.
   const passwordHash = await hashPassword(input.password);
 
-  try {
-    // Insertar directo; la UNIQUE de `email` decide. Esto tambien cierra la carrera de
-    // dos registros simultaneos del mismo email (uno crea, el otro choca -> P2002).
-    await db.user.create({
-      data: {
-        email,
-        passwordHash,
-        birthDate: input.birthDate,
-        emailVerified: null, // sin verificar: sin acciones con efectos
-      },
-    });
-  } catch (e) {
-    // SOLO el choque en `email` es el no-op silencioso; cualquier otra constraint unica
-    // se relanza (no ocultar un fallo real detras de "te hemos enviado un correo").
-    if (esViolacionUnicaDeEmail(e)) return;
-    throw e;
+  // Insertar directo; la UNIQUE de `email` decide (cierra tambien la carrera de dos registros
+  // simultaneos del mismo email: uno crea, el otro choca -> P2002). El `username` se auto-genera
+  // (handle NEUTRAL; nunca NULL) y, si choca con uno existente, se REGENERA y se reintenta (acotado):
+  // no hay findUnique-luego-create, la constraint es el arbitro.
+  for (let intento = 0; ; intento++) {
+    try {
+      await db.user.create({
+        data: {
+          email,
+          username: nuevoHandle(),
+          passwordHash,
+          birthDate: input.birthDate,
+          emailVerified: null, // sin verificar: sin acciones con efectos
+        },
+      });
+      break; // creado
+    } catch (e) {
+      // Choque en `email` -> no-op silencioso (sin enumeracion).
+      if (esViolacionUnicaDeEmail(e)) return;
+      // Choque en `username` -> el handle aleatorio ya existia; regenerar y reintentar (acotado).
+      if (esViolacionUnicaDeUsername(e) && intento < HANDLE_MAX_INTENTOS - 1) continue;
+      // Cualquier otra cosa (o agotar los reintentos) es un fallo real: no ocultarlo.
+      throw e;
+    }
   }
 
   // Solo si la cuenta es NUEVA se encola el correo de verificacion (enlace desde appUrl).
