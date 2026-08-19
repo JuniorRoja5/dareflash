@@ -77,6 +77,12 @@ model User {
   // --- Autorizacion y cumplimiento ---
   role Role @default(USER)
 
+  // Permiso de CREAR RETOS concedido por-usuario (Fase 2). Hoy solo el ADMIN crea; este flag deja
+  // habilitar a usuarios concretos SIN tocar codigo. La DECISION vive en UN solo sitio:
+  // `usuarioPuedeCrearRetos` (src/lib/permisos.ts) = role ADMIN || este flag. Prohibido cablear
+  // `role === "ADMIN"` en otro lado.
+  puedeCrearRetos Boolean @default(false)
+
   // NULLABLE a proposito: el adaptador de Auth.js crea el usuario en el alta por
   // OAuth (Google) con lo que da el proveedor (email, nombre, imagen), y Google NO
   // devuelve fecha de nacimiento. Si fuera obligatoria, el alta con Google fallaria.
