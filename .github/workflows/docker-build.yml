@@ -1,0 +1,37 @@
+# Red de seguridad del build (Fase 2 · M1). Ejecuta el build de Docker REAL —el que respeta
+# `.dockerignore`— en cada push, para cazar del lado del servidor los fallos que un `next build` local
+# NO ve. Caso que motivó esto: `tests/` está en `.dockerignore` (no entra en la imagen) pero
+# `vitest.config.ts` sí; si el type-check de producción los mirara, el build rompería sólo dentro de la
+# imagen. El pre-push (`test:build-sin-env`) cubre OTRA propiedad (compilar sin variables) y se queda.
+name: docker-build
+
+# Cualquier rama (cubre también main como backstop). No usamos PRs.
+on:
+  push:
+    branches: ["**"]
+
+jobs:
+  build:
+    name: Build de producción (respeta .dockerignore)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Crear el .env vacío que esperan los env_file
+        # Los `env_file` de docker-compose.prod.yml apuntan a ${HOME}/dareflash-config/.env, que NO
+        # existe en el runner; sin esto, `docker compose build` fallaría por FICHERO DE ENTORNO ausente,
+        # no por un fallo de build. El env_file es de RUNTIME, no de build: un fichero VACÍO satisface la
+        # ruta y mantiene el build SIN variables (que es justo como construye producción). NO se inyectan
+        # secretos: si el build empezara a exigir variables, queremos que CI lo detecte.
+        run: |
+          mkdir -p "$HOME/dareflash-config"
+          touch "$HOME/dareflash-config/.env"
+
+      - name: Validar el compose (verja barata)
+        run: docker compose -f docker-compose.prod.yml config -q
+
+      - name: Build de las imágenes de producción
+        # SIN nombres de servicio: construye web + migrate + worker y respeta la regla de no arrastrar
+        # imágenes cacheadas por listar servicios. Respeta `.dockerignore`. El job FALLA si el build falla.
+        run: docker compose -f docker-compose.prod.yml build
