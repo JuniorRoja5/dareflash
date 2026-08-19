@@ -14,6 +14,8 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
 import { DEFAULT_CURRENCY } from "../src/config/constants";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { slugDesdeTitulo } from "../src/lib/reto-slug";
+import { generarPublicCode } from "../src/server/services/reto-codigo";
 
 /**
  * GUARDA DE SEGURIDAD (dura, aborta — no avisa).
@@ -102,6 +104,8 @@ async function main() {
     await prisma.challenge.create({
       data: {
         title: "🏋️ Reto de ejemplo",
+        slug: slugDesdeTitulo("🏋️ Reto de ejemplo") || "reto-de-ejemplo",
+        publicCode: generarPublicCode(),
         description: "Reto de desarrollo con emoji para verificar utf8mb4.",
         category: "🎭 Humor",
         status: "PUBLISHED",

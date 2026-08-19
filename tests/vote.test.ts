@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarPublicCode } from "../src/server/services/reto-codigo";
 import { castVote } from "../src/server/services/votes";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
@@ -23,6 +24,8 @@ async function crearSubmission(prisma: PrismaClient) {
   const challenge = await prisma.challenge.create({
     data: {
       title: "Reto test",
+      slug: "reto",
+      publicCode: generarPublicCode(),
       category: "TEST",
       prizeCurrency: "USD",
       startsAt: new Date(),
@@ -80,5 +83,54 @@ describe("voto", () => {
     const votos = await prisma.vote.count({ where: { submissionId } });
     expect(votos).toBe(15);
     expect(submission.voteCount).toBe(15);
+  });
+
+  it("NO único por reto (M2): mismo usuario, MISMO reto, 2 submissions distintas -> 2 votos permitidos en BD", async () => {
+    // La política "cuántos votos por reto" (Challenge.maxVotesPerUser) vive en la app (Fase 3), NO en
+    // una constraint: la BD debe permitir 2 votos del mismo usuario en el mismo reto (submissions
+    // distintas). El único UNIQUE del voto es [userId, submissionId] (no repetir el MISMO vídeo).
+    const autor = await crearUsuario(prisma);
+    const challenge = await prisma.challenge.create({
+      data: {
+        title: "Reto multivoto",
+        slug: "reto",
+        publicCode: generarPublicCode(),
+        category: "TEST",
+        maxVotesPerUser: 2, // aunque exista, NO lo impone la BD
+        prizeCurrency: "USD",
+        startsAt: new Date(),
+        deadline: new Date(Date.now() + 86_400_000),
+        createdById: autor,
+      },
+      select: { id: true },
+    });
+    // Dos submissions del MISMO reto, de AUTORES distintos (Submission es @@unique([challengeId, userId])
+    // -> un usuario no participa dos veces en el mismo reto; para tener 2 vídeos que votar, 2 autores).
+    const subs: string[] = [];
+    for (let i = 0; i < 2; i++) {
+      const participante = await crearUsuario(prisma);
+      const video = await prisma.video.create({
+        data: { userId: participante, bunnyVideoId: `bunny-${challenge.id}-${i}` },
+        select: { id: true },
+      });
+      const s = await prisma.submission.create({
+        data: { challengeId: challenge.id, userId: participante, videoId: video.id },
+        select: { id: true },
+      });
+      subs.push(s.id);
+    }
+
+    const votante = await crearUsuario(prisma);
+    // Dos votos del MISMO usuario en el MISMO reto (submissions distintas): la BD los acepta.
+    for (const submissionId of subs) {
+      await prisma.vote.create({
+        data: { userId: votante, submissionId, challengeId: challenge.id },
+      });
+    }
+
+    const votos = await prisma.vote.count({
+      where: { userId: votante, challengeId: challenge.id },
+    });
+    expect(votos).toBe(2); // sin @@unique([userId, challengeId]): la BD NO impone 1-por-reto
   });
 });

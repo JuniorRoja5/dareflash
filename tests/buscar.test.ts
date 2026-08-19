@@ -12,6 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { generarHandle } from "../src/server/auth/handle";
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarPublicCode } from "../src/server/services/reto-codigo";
 import { buscarRetos, buscarUsuarios } from "../src/server/services/buscar";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
@@ -60,6 +61,8 @@ async function crearReto(
   const r = await prisma.challenge.create({
     data: {
       title: o.title,
+      slug: "reto",
+      publicCode: generarPublicCode(),
       category: "fitness",
       status: o.status ?? "PUBLISHED",
       prizeAmountCents: o.prize ?? 0,

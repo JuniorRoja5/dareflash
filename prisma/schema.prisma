@@ -231,6 +231,23 @@ model Challenge {
   category    String // key de CATEGORIES en constants (las 14 confirmadas por el propietario)
   status      String  @default("DRAFT") // DRAFT, PUBLISHED, CLOSED (union en constants)
 
+  // --- URL del reto (Fase 2): /retos/{publicCode}-{slug} ---
+  // publicCode: clave AUTORITATIVA, corta y UNICA (base32 sin confusos, generada con reintento; ver
+  // server/services/reto-codigo). slug: COSMETICO (SEO), NO unico; el route de detalle resuelve por
+  // publicCode y hara 301 al canonico si el slug no cuadra (trabajo posterior).
+  slug       String
+  publicCode String @unique
+
+  // Reglas del reto en campo PROPIO, separado de description (que es la presentacion/gancho).
+  rules String? @db.Text
+
+  // Nº de ganadores configurable por reto (dominio: >= 1; lo valida el schema de creacion futuro).
+  winnersCount Int @default(1)
+
+  // Politica de votos por usuario y reto (0 = sin limite). Se APLICA en la transaccion del voto en
+  // Fase 3; aqui solo la columna con su default. Por eso el indice del Vote NO es @@unique (ver Vote).
+  maxVotesPerUser Int @default(1)
+
   // Premio en enteros (centimos) desde el dia 1: si entrara mas tarde, alguien lo
   // meteria como decimal. 0 = aun sin premio. La moneda la fija la app desde
   // DEFAULT_CURRENCY (constants); no se incrusta como default del esquema.
@@ -358,15 +375,14 @@ model Vote {
   userId       String
   submissionId String
 
-  // challengeId DENORMALIZADO (copiado de Submission al votar). Hoy el UNIQUE de
-  // abajo impide votar dos veces el MISMO video, pero no impide votar los N videos
-  // de un mismo reto; si todos votan todo, el recuento deja de ordenar nada.
-  // La regla real ("1 voto por reto" / "N por reto" / "sin limite") es decision de
-  // producto PENDIENTE, pero la POSIBILIDAD de imponerla no puede quedar pendiente:
-  // anadir esta columna con la tabla llena costaria una fortuna. Si el producto
-  // confirma "1 voto por reto", @@index([userId, challengeId]) pasa a @@unique.
-  // Ademas sirve al antifraude de la Fase 3 (votos de un usuario dentro de un reto)
-  // sin cruzar con Submission.
+  // challengeId DENORMALIZADO (copiado de Submission al votar). El UNIQUE de abajo
+  // impide votar dos veces el MISMO video, pero no impide votar los N videos de un
+  // mismo reto. La politica de cuantos votos por reto es CONFIGURABLE por reto
+  // (Challenge.maxVotesPerUser; 0 = sin limite) y se APLICA en la transaccion del
+  // voto en Fase 3 -> el indice de abajo NO se convierte en @@unique (seria una
+  // regla fija incompatible con la politica configurable). El indice existe para
+  // el antifraude de la Fase 3 (votos de un usuario dentro de un reto) sin cruzar
+  // con Submission, y por si esa columna hiciera falta con la tabla ya llena.
   challengeId String
 
   // IP HASHEADA, nunca en claro (seccion 5). Dato personal de antifraude con
@@ -380,8 +396,9 @@ model Vote {
   @@index([submissionId])
   // Antifraude: "cuenta nueva que vota >5 veces en los primeros 10 min".
   @@index([userId, createdAt])
-  // Votos de un usuario en un reto (antifraude Fase 3). Pasa a @@unique si el
-  // producto confirma "1 voto por reto".
+  // Votos de un usuario en un reto (antifraude Fase 3). NO es @@unique: la politica
+  // "cuantos votos por reto" es configurable (Challenge.maxVotesPerUser) y vive en
+  // la app, no en una constraint fija.
   @@index([userId, challengeId])
 }
 

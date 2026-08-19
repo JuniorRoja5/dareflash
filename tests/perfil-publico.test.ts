@@ -11,6 +11,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { ModerationStatus, PrismaClient } from "../src/generated/prisma/client";
+import { generarPublicCode } from "../src/server/services/reto-codigo";
 import {
   aPerfilPublico,
   estadoDeVideo,
@@ -145,6 +146,8 @@ describe("perfil público contra la BD real", () => {
     const ch = await prisma.challenge.create({
       data: {
         title: "Reto X",
+        slug: "reto",
+        publicCode: generarPublicCode(),
         category: "fitness",
         prizeCurrency: "EUR",
         startsAt: new Date(),

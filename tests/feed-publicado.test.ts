@@ -7,6 +7,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { ModerationStatus, PrismaClient } from "../src/generated/prisma/client";
+import { generarPublicCode } from "../src/server/services/reto-codigo";
 import { feedPublicado, type Firmante } from "../src/server/services/feed";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
@@ -163,6 +164,8 @@ describe("feedPublicado", () => {
     const ch = await prisma.challenge.create({
       data: {
         title: "Reto de fitness",
+        slug: "reto",
+        publicCode: generarPublicCode(),
         category: "fitness",
         prizeCurrency: "EUR",
         startsAt: new Date(),
@@ -184,6 +187,8 @@ describe("feedPublicado", () => {
     const chOculto = await prisma.challenge.create({
       data: {
         title: "Reto oculto",
+        slug: "reto",
+        publicCode: generarPublicCode(),
         category: "gaming",
         prizeCurrency: "EUR",
         startsAt: new Date(),

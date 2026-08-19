@@ -13,9 +13,14 @@
  */
 import { randomBytes } from "node:crypto";
 
+import { codigoBase32 } from "@/lib/codigo-base32";
+
 // Formato canónico: fuente única en `@/lib/handle-formato` (cliente-seguro). Se re-exporta para que
 // quien ya importaba `HANDLE_RE` desde aquí no cambie.
 export { HANDLE_RE } from "@/lib/handle-formato";
+// Alfabeto: fuente única en `@/lib/codigo-base32` (compartido con el publicCode de los retos). Se
+// re-exporta con el nombre de siempre para no romper a quien lo importaba.
+export { CODIGO_BASE32_ALFABETO as HANDLE_ALFABETO } from "@/lib/codigo-base32";
 
 /** Base neutra (no derivada de datos personales). */
 export const HANDLE_PREFIJO = "user";
@@ -26,29 +31,18 @@ export const HANDLE_SUFIJO_LEN = 8;
 /** Reintentos acotados ante colisión del UNIQUE antes de rendirse (fallo real, no bucle infinito). */
 export const HANDLE_MAX_INTENTOS = 5;
 
-/**
- * Alfabeto de 32 caracteres (24 letras + 8 dígitos) SIN confusos (l, o, 0, 1). Longitud potencia de
- * dos: cada byte se mapea con `& 31` -> distribución uniforme, sin sesgo de módulo. Todos caen dentro
- * de `HANDLE_RE`.
- */
-export const HANDLE_ALFABETO = "abcdefghijkmnpqrstuvwxyz23456789";
-
 /** PURA: prefijo + sufijo. Aislada para testear el ensamblado sin aleatoriedad. */
 export function construirHandle(sufijo: string): string {
   return `${HANDLE_PREFIJO}${sufijo}`;
 }
 
 /**
- * PURA: mapea bytes -> sufijo del alfabeto seguro (un carácter por byte, `& 31`). Determinista: con los
- * mismos bytes da el mismo sufijo, así el test fija bytes y comprueba la salida exacta. Necesita al
- * menos `HANDLE_SUFIJO_LEN` bytes.
+ * PURA: mapea bytes -> sufijo (base32 sin confusos, longitud `HANDLE_SUFIJO_LEN`). Delega en la
+ * primitiva compartida `codigoBase32`: comportamiento IDÉNTICO al de antes (mismos bytes -> mismo
+ * sufijo), sus tests siguen verdes. Necesita al menos `HANDLE_SUFIJO_LEN` bytes.
  */
 export function sufijoDesdeBytes(bytes: Uint8Array): string {
-  let s = "";
-  for (let i = 0; i < HANDLE_SUFIJO_LEN; i++) {
-    s += HANDLE_ALFABETO[bytes[i]! & 31];
-  }
-  return s;
+  return codigoBase32(bytes, HANDLE_SUFIJO_LEN);
 }
 
 /** Genera un handle aleatorio válido (impura: `randomBytes`). Cada llamada es un candidato nuevo. */
