@@ -3,10 +3,11 @@ import Link from "next/link";
 import { Boton } from "@/components/ui/boton";
 import { Marcador } from "@/components/ui/marcador";
 import { PildoraCategoria } from "@/components/ui/pildora";
+import type { RetoPublicoVista } from "@/server/services/retos-publico";
 
-import { nombreCategoria, type RetoSemilla } from "./retos-datos";
+import { nombreCategoria } from "./retos-datos";
 
-/** Triangulo de "play" del placeholder de video (SVG inline; nada de emojis como iconos). */
+/** Triangulo de "play" del placeholder de la miniatura (SVG inline; nada de emojis como iconos). */
 function IconoPlay() {
   return (
     <svg viewBox="0 0 24 24" className="h-8 w-8 text-text-dim" fill="currentColor" aria-hidden>
@@ -16,36 +17,15 @@ function IconoPlay() {
 }
 
 /**
- * TARJETA DE RETO — ADAPTATIVA (brief v2 + regla de dispositivo). UNA sola tarjeta que REFLOWA por
- * ancho, sin duplicar DOM ni ocultar-una-por-breakpoint:
- *   - Movil (<lg): `flex-col` → miniatura VERTICAL 9:16 arriba, cuerpo debajo (rejilla de 2 tiles).
- *   - Escritorio (lg): `flex-row` → miniatura APAISADA 16:9 a la izquierda (~2/5), cuerpo a la derecha.
- *
- * EL MARCADOR (firma: premio en lima + cuenta atras) es UN SOLO nodo, SUPERPUESTO al pie de la
- * miniatura (como el muro de verticales del Inicio): asi se ve SIEMPRE dentro del viewport en movil
- * (no cae bajo el fold como caeria en el cuerpo de un tile 9:16 a pantalla completa) y sigue sobre la
- * miniatura al reflowar a apaisada. Va a tamaño "lista" para caber en el tile estrecho de 2 columnas;
- * el halo lima (`--df-glow-lima`) lo realza como firma aunque sea compacto.
- *
- * v2 (piel, no estructura): superficie GLASS + sombra suave (`--df-shadow-md`), realce en hover
- * (`--df-glow-hover`), brillo `df-sheen` sobre la miniatura.
- *
- * A11Y: sin interactivos anidados. Miniatura (oculta a lectores) y titulo enlazan a /retos/[id];
- * "Participar" es accion aparte, secundaria, NUNCA magenta (el magenta de la pantalla es "Crear reto"
- * del cromo). `deadlineMs` puede ser null mientras el feed calcula los plazos en cliente.
+ * TARJETA DE RETO (datos REALES). Presentación intacta (brief v2, reflowa por ancho): miniatura
+ * VERTICAL 9:16 en móvil / APAISADA en lg, con el MARCADOR (premio en lima + cuenta atrás) superpuesto
+ * abajo. Enlaza a la URL canónica `/retos/{publicCode}-{slug}`. Solo campos de la doc: título, premio,
+ * cierre y categoría (nada de autor/votos/miniatura maqueta). "Participar" es acción aparte, secundaria.
  */
-export function TarjetaReto({
-  reto,
-  deadlineMs,
-}: {
-  reto: RetoSemilla;
-  deadlineMs: number | null;
-}) {
-  const href = `/retos/${reto.id}`;
+export function TarjetaReto({ reto }: { reto: RetoPublicoVista }) {
+  const href = `/retos/${reto.publicCode}-${reto.slug}`;
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md transition-[transform,box-shadow] duration-[var(--df-dur-fast)] ease-mechanical hover:-translate-y-1 hover:shadow-[var(--df-glow-hover)] lg:flex-row">
-      {/* Miniatura = placeholder de video. Vertical 9:16 en movil; apaisada 16:9 (~2/5) en lg.
-          Un solo nodo que cambia de aspecto/ancho: no hay dos miniaturas. */}
       <Link
         href={href}
         aria-hidden
@@ -55,23 +35,24 @@ export function TarjetaReto({
         <span className="pointer-events-none absolute top-2.5 left-2.5 z-10">
           <PildoraCategoria>{nombreCategoria(reto.categoria)}</PildoraCategoria>
         </span>
-        <span className="absolute inset-0 flex flex-col items-center justify-center gap-1.5">
+        <span className="absolute inset-0 flex items-center justify-center">
           <IconoPlay />
-          <span className="line-clamp-1 px-3 text-center text-2xs text-text-dim">
-            {reto.miniaturaPlaceholder}
-          </span>
         </span>
         {/* MARCADOR — firma, superpuesto abajo (siempre visible). Halo lima. */}
         <span
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 block border-t border-line bg-void/70 px-2.5 py-2"
           style={{ filter: "var(--df-glow-lima)" }}
         >
-          <Marcador cents={reto.premioCents} deadlineMs={deadlineMs} tamano="lista" apilarEnMovil />
+          <Marcador
+            cents={reto.premioCents}
+            deadlineMs={reto.deadlineMs}
+            tamano="lista"
+            apilarEnMovil
+          />
         </span>
       </Link>
 
       <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 lg:p-4">
-        {/* Titulo (enlace accesible al reto). */}
         <h2 className="min-w-0">
           <Link
             href={href}
@@ -81,10 +62,9 @@ export function TarjetaReto({
           </Link>
         </h2>
 
-        {/* Participar (secundario, NUNCA magenta), anclado abajo. */}
         <div className="mt-auto flex flex-wrap items-center gap-2">
-          <Boton variante="secundario" className="ml-auto px-4">
-            Participar
+          <Boton href={href} variante="secundario" className="ml-auto px-4">
+            Ver reto
           </Boton>
         </div>
       </div>

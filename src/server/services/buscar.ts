@@ -41,9 +41,11 @@ export interface UsuarioBusqueda {
   image: string | null;
 }
 
-/** DTO PÚBLICO de un reto en resultados. */
+/** DTO PÚBLICO de un reto en resultados. `publicCode`+`slug` -> URL canónica /retos/{code}-{slug}. */
 export interface RetoBusqueda {
   id: string;
+  publicCode: string;
+  slug: string;
   title: string;
   category: string;
   prizeAmountCents: number;
@@ -202,6 +204,8 @@ export async function buscarUsuarios(
 // ============================================================================
 
 type FilaReto = FilaOrden & {
+  publicCode: string;
+  slug: string;
   title: string;
   category: string;
   prizeAmountCents: unknown;
@@ -234,21 +238,21 @@ export async function buscarRetos(
 
   const interior = usarFulltext
     ? Prisma.sql`
-        SELECT id, title, category, prizeAmountCents, prizeCurrency, deadline, scoreAutoridad,
+        SELECT id, publicCode, slug, title, category, prizeAmountCents, prizeCurrency, deadline, scoreAutoridad,
           (${rango} * ${RANGO_FACTOR} + MATCH(title) AGAINST (${expr} IN BOOLEAN MODE)) AS orden
         FROM \`Challenge\`
         WHERE status = 'PUBLISHED'
           AND (MATCH(title) AGAINST (${expr} IN BOOLEAN MODE)
                OR title = ${termino} OR title LIKE ${prefijo})`
     : Prisma.sql`
-        SELECT id, title, category, prizeAmountCents, prizeCurrency, deadline, scoreAutoridad,
+        SELECT id, publicCode, slug, title, category, prizeAmountCents, prizeCurrency, deadline, scoreAutoridad,
           (${rango} * ${RANGO_FACTOR}) AS orden
         FROM \`Challenge\`
         WHERE status = 'PUBLISHED' AND title LIKE ${prefijo}`;
 
   const filas = await db.$queryRaw<FilaReto[]>(Prisma.sql`
-    SELECT t.id, t.title, t.category, t.prizeAmountCents, t.prizeCurrency, t.deadline, t.orden,
-      t.scoreAutoridad
+    SELECT t.id, t.publicCode, t.slug, t.title, t.category, t.prizeAmountCents, t.prizeCurrency,
+      t.deadline, t.orden, t.scoreAutoridad
     FROM ( ${interior} ) t
     ${condicionKeyset(c)}
     ORDER BY t.orden DESC, t.scoreAutoridad DESC, t.id ASC
@@ -256,6 +260,8 @@ export async function buscarRetos(
 
   return paginar(filas, limite, (f) => ({
     id: f.id,
+    publicCode: f.publicCode,
+    slug: f.slug,
     title: f.title,
     category: f.category,
     prizeAmountCents: Number(f.prizeAmountCents),

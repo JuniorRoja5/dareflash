@@ -207,7 +207,7 @@ export function BuscarCliente({
               : (res.items as RetoItem[]).map((r) => (
                   <li key={r.id}>
                     <Link
-                      href={`/retos/${r.id}`}
+                      href={`/retos/${r.publicCode}-${r.slug}`}
                       className="df-rise flex flex-col gap-1 rounded-sm border border-line bg-surface/60 p-3 shadow-[var(--df-shadow-sm)] transition-colors duration-150 ease-mechanical hover:bg-surface"
                     >
                       <span className="truncate font-semibold text-text">{r.title}</span>

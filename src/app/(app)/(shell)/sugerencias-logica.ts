@@ -15,6 +15,8 @@ export type SugerenciaUsuario = {
 export type SugerenciaReto = {
   tipo: "reto";
   id: string;
+  publicCode: string;
+  slug: string;
   title: string;
   category: string;
 };
@@ -41,15 +43,17 @@ export function construirSugerencias(
   const r: Sugerencia[] = retos.map((x) => ({
     tipo: "reto",
     id: x.id,
+    publicCode: x.publicCode,
+    slug: x.slug,
     title: x.title,
     category: x.category,
   }));
   return [...u, ...r];
 }
 
-/** DESTINO al elegir una sugerencia: perfil público del usuario, o detalle del reto. */
+/** DESTINO al elegir una sugerencia: perfil público del usuario, o detalle CANÓNICO del reto. */
 export function destinoSugerencia(s: Sugerencia): string {
-  return s.tipo === "usuario" ? `/u/${s.username}` : `/retos/${s.id}`;
+  return s.tipo === "usuario" ? `/u/${s.username}` : `/retos/${s.publicCode}-${s.slug}`;
 }
 
 /** URL de "ver todos" / Enter sin opción activa: la página `/buscar` con la consulta (tipo por defecto). */

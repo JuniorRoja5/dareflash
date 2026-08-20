@@ -20,8 +20,12 @@ const usuario = (
   displayName: o.displayName ?? null,
   image: null,
 });
-const reto = (o: Partial<{ id: string; title: string; category: string }>) => ({
+const reto = (
+  o: Partial<{ id: string; publicCode: string; slug: string; title: string; category: string }>,
+) => ({
   id: o.id ?? "r1",
+  publicCode: o.publicCode ?? "abcd2345",
+  slug: o.slug ?? "salto",
   title: o.title ?? "Salto",
   category: o.category ?? "fitness",
   prizeAmountCents: 0,
@@ -56,7 +60,7 @@ describe("construirSugerencias", () => {
 });
 
 describe("destinoSugerencia", () => {
-  it("usuario -> /u/[username]; reto -> /retos/[id]", () => {
+  it("usuario -> /u/[username]; reto -> /retos/{publicCode}-{slug} (canónico)", () => {
     const u: Sugerencia = {
       tipo: "usuario",
       id: "x",
@@ -64,9 +68,16 @@ describe("destinoSugerencia", () => {
       displayName: null,
       image: null,
     };
-    const r: Sugerencia = { tipo: "reto", id: "reto-42", title: "Salto", category: "fitness" };
+    const r: Sugerencia = {
+      tipo: "reto",
+      id: "reto-42",
+      publicCode: "a7f3abcd",
+      slug: "salto-mas-largo",
+      title: "Salto",
+      category: "fitness",
+    };
     expect(destinoSugerencia(u)).toBe("/u/yuyu");
-    expect(destinoSugerencia(r)).toBe("/retos/reto-42");
+    expect(destinoSugerencia(r)).toBe("/retos/a7f3abcd-salto-mas-largo");
   });
 });
 

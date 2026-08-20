@@ -1,17 +1,13 @@
-import { FeedRetos } from "./feed-retos";
 import { categoriaValida } from "../buscar/buscar-logica";
+import { FeedRetos } from "./feed-retos";
 
 export const metadata = { title: "Retos · DareFlash" };
+export const dynamic = "force-dynamic";
 
 /**
- * RETOS — el feed (Paso C · unidad 2, re-maquetado a lo ancho en la Rama E). Estructura del boceto 2
- * ("Retos activos"): encabezado + fila de filtros + rejilla de tarjetas. Dentro del (shell), mismo
- * contenedor que portada/ranking/perfil (`max-w-7xl` + mismo padding) para que el ancho case entre
- * pantallas. Tratamiento del brief: el marcador manda; "Participar" secundario, sin magenta de
- * contenido. Datos de PRUEBA; sin backend.
- *
- * `?categoria=` (de los chips de /buscar) preselecciona el filtro: se valida contra las categorías
- * conocidas y se pasa como estado inicial al feed (cliente). Un valor desconocido -> "Todos".
+ * RETOS — listado PÚBLICO con datos REALES. Activos = PUBLISHED con cierre futuro (orden por cierre más
+ * próximo); Cerrados en su pestaña aparte. `?categoria=` (chips de /buscar) preselecciona el filtro. El
+ * único magenta de acción es "Crear reto" del cromo (admin); aquí las tarjetas solo enlazan al detalle.
  */
 export default async function RetosPage({
   searchParams,
@@ -19,10 +15,18 @@ export default async function RetosPage({
   searchParams: Promise<{ categoria?: string }>;
 }) {
   const categoriaInicial = categoriaValida((await searchParams).categoria);
+
+  const { prisma } = await import("@/server/db/client");
+  const { listarRetosPublicos, listarRetosCerrados } =
+    await import("@/server/services/retos-publico");
+  const ahora = new Date();
+  const [activos, cerrados] = await Promise.all([
+    listarRetosPublicos(prisma, ahora),
+    listarRetosCerrados(prisma, ahora),
+  ]);
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
-      {/* El UNICO magenta de accion de la pantalla es "Crear reto" del cromo (top bar en escritorio,
-          nav [+] en movil): no se repite aqui. "Participar" en cada tarjeta es secundario. */}
       <h1
         className="mb-5 text-2xl leading-none text-text"
         style={{
@@ -32,7 +36,7 @@ export default async function RetosPage({
       >
         Retos activos
       </h1>
-      <FeedRetos categoriaInicial={categoriaInicial} />
+      <FeedRetos activos={activos} cerrados={cerrados} categoriaInicial={categoriaInicial} />
     </div>
   );
 }
