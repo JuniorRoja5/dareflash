@@ -12,16 +12,13 @@ const APP_URL = "http://test.local";
 
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
-  findUniqueUser: vi.fn(),
   crearRetoAdmin: vi.fn(),
   publicarReto: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ env: { APP_URL, AUTH_SECRET: SECRET } }));
 vi.mock("@/server/auth/current-user", () => ({ getCurrentUser: mocks.getCurrentUser }));
-vi.mock("@/server/db/client", () => ({
-  prisma: { user: { findUnique: mocks.findUniqueUser } },
-}));
+vi.mock("@/server/db/client", () => ({ prisma: {} }));
 vi.mock("@/server/services/retos-admin", async (orig) => {
   const real = await orig<typeof import("@/server/services/retos-admin")>();
   return { ...real, crearRetoAdmin: mocks.crearRetoAdmin, publicarReto: mocks.publicarReto };
@@ -70,10 +67,8 @@ const publicar = (session: typeof ADMIN, id: string, opts = {}) =>
 
 beforeEach(() => {
   mocks.getCurrentUser.mockReset();
-  mocks.findUniqueUser.mockReset();
   mocks.crearRetoAdmin.mockReset();
   mocks.publicarReto.mockReset();
-  mocks.findUniqueUser.mockResolvedValue({ role: "ADMIN", puedeCrearRetos: false });
   mocks.crearRetoAdmin.mockResolvedValue({
     id: "r1",
     publicCode: "abcd2345",
