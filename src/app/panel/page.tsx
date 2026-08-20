@@ -1,37 +1,43 @@
-import { Boton } from "@/components/ui/boton";
+import { CrearReto } from "./crear-reto";
+import { ListaRetos } from "./lista-retos";
 
 export const metadata = { title: "Panel · DareFlash" };
+export const dynamic = "force-dynamic";
 
 /**
- * Inicio del PANEL DE ADMIN. Contenido MÍNIMO (M4): anuncia dónde irá "Crear reto" sin botones muertos
- * que engañen — el CTA está deshabilitado con copy honesto ("próximamente"). El formulario y el
- * endpoint de crear reto llegan en el siguiente mensaje. El guard del acceso vive en el layout.
+ * Inicio del PANEL DE ADMIN (M5): crear reto (queda DRAFT) + lista de retos con su estado y la acción
+ * Publicar en los borradores. El acceso lo protege el layout (requireRole ADMIN); los endpoints se
+ * reprotegen a sí mismos. Solo el admin crea/publica (decisión de producto). Datos reales.
  */
-export default function PanelPage() {
-  return (
-    <div className="df-rise">
-      <h1
-        className="text-2xl leading-none text-text"
-        style={{
-          fontFamily: "var(--font-display)",
-          fontVariationSettings: '"wght" 720, "wdth" 112',
-        }}
-      >
-        Administración
-      </h1>
-      <p className="mt-2 text-sm text-text-dim">
-        Desde aquí gestionarás la plataforma. La creación de retos llega en el siguiente paso.
-      </p>
+export default async function PanelPage() {
+  const { prisma } = await import("@/server/db/client");
+  const { listarRetosAdmin } = await import("@/server/services/retos-admin");
+  const retos = await listarRetosAdmin(prisma);
 
-      <section className="mt-8 rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)]">
-        <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">Retos</h2>
-        <p className="mt-2 max-w-prose text-sm text-text-dim">
-          Aquí crearás y publicarás retos con su premio, plazo, número de ganadores y reglas.
+  return (
+    <div className="df-rise space-y-8">
+      <div>
+        <h1
+          className="text-2xl leading-none text-text"
+          style={{
+            fontFamily: "var(--font-display)",
+            fontVariationSettings: '"wght" 720, "wdth" 112',
+          }}
+        >
+          Retos
+        </h1>
+        <p className="mt-2 text-sm text-text-dim">
+          Crea un reto (se guarda como borrador) y publícalo cuando esté listo.
         </p>
-        {/* Único magenta de la pantalla, DESHABILITADO a propósito: no engaña (aún no hay flujo). */}
-        <Boton variante="principal" disabled className="mt-4">
-          Crear reto — próximamente
-        </Boton>
+      </div>
+
+      <CrearReto />
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold tracking-widest text-text-dim uppercase">
+          Retos existentes
+        </h2>
+        <ListaRetos retos={retos} />
       </section>
     </div>
   );
