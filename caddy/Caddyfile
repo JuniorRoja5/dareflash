@@ -14,6 +14,14 @@ dareflash.com {
 		file_server
 	}
 
+	# PORTADAS de reto: igual que los avatares, desde el volumen `portadas_data` (/srv/portadas).
+	# /portadas/{publicCode}.webp -> /srv/portadas/{publicCode}.webp. `?v=` invalida la cache al cambiar.
+	handle_path /portadas/* {
+		root * /srv/portadas
+		header Cache-Control "public, max-age=86400"
+		file_server
+	}
+
 	# Todo lo demas -> la app.
 	handle {
 		reverse_proxy web:3000 {

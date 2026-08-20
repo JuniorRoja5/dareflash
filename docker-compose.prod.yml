@@ -76,6 +76,8 @@ services:
       # Avatares: la app (env.AVATARS_DIR=/srv/avatars) ESCRIBE aqui; Caddy lo sirve en /avatars/*
       # (mismo volumen, montado abajo en `caddy` en solo-lectura). Volumen nombrado -> persiste.
       - avatars_data:/srv/avatars
+      # Portadas de reto (env.PORTADAS_DIR=/srv/portadas): mismo patron que los avatares.
+      - portadas_data:/srv/portadas
     networks:
       - internal
 
@@ -154,6 +156,8 @@ services:
       # Avatares: MISMO volumen que escribe `web`, aqui en SOLO-LECTURA. Caddy los sirve como
       # estaticos en /avatars/* (ver Caddyfile), fuera de la app.
       - avatars_data:/srv/avatars:ro
+      # Portadas de reto: igual, servidas en /portadas/* (ver Caddyfile).
+      - portadas_data:/srv/portadas:ro
     depends_on:
       - web
     networks:
@@ -165,6 +169,7 @@ volumes:
   caddy_data:
   caddy_config:
   avatars_data: # avatares subidos (WebP); escrito por `web`, servido por `caddy`
+  portadas_data: # portadas de reto (WebP); escrito por `web`, servido por `caddy`
 
 networks:
   internal:

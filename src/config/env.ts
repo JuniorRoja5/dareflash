@@ -73,6 +73,13 @@ const serverSchema = z.object({
    */
   AVATARS_DIR: z.string().min(1).default("/srv/avatars"),
 
+  /**
+   * Directorio PERSISTENTE de las PORTADAS de reto (WebP), mismo patrón y motivos que AVATARS_DIR:
+   * volumen montado en `web` (escribe la app) y en `caddy` (lo sirve en /portadas/*). Ruta de
+   * contenedor, no secreto -> opcional con default.
+   */
+  PORTADAS_DIR: z.string().min(1).default("/srv/portadas"),
+
   // --- Se promueven a obligatorias en su paso (ver comentario de cada una) ---
   /** Paso 8 — cola de trabajos disparada por cron. */
   CRON_SECRET: z.string().min(1).optional(),

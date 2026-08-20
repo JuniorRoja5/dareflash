@@ -1,23 +1,27 @@
-import { apiError, apiOk } from "@/server/http/api";
+import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/panel/retos — CREAR un reto (queda DRAFT). Se protege A SÍ MISMO (no confía en el guard del
- * layout del panel): pasa por `mutatingRoute` (Origin + sesión + CSRF) y exige ADMIN con
- * `requireRole("ADMIN")` (helper canónico; nada de `role === "ADMIN"` a mano). Valida con Zod;
- * `createdById` = admin de la SESIÓN, jamás del cuerpo.
+ * POST /api/panel/retos — CREAR un reto (queda DRAFT), con PORTADA opcional. `multipart/form-data`:
+ * los campos del reto + un fichero `portada` opcional. Conserva TODO M5: `mutatingRoute`
+ * (Origin/sesión/CSRF) + `requireRole("ADMIN")` (admin-only, decisión cerrada; nada de `role==="ADMIN"`
+ * a mano), Zod de los campos, publicCode/slug, `status="DRAFT"`, `createdById` = admin de la SESIÓN.
  *
- * ADMIN-ONLY (decisión de producto, cerrada: los usuarios NUNCA crean retos). Por eso el gate es
- * `requireRole("ADMIN")` a secas. NO se consulta el flag por-usuario de M3 (`usuarioPuedeCrearRetos`):
- * con `requireRole("ADMIN")` delante sería INERTE y engañoso (parecería que un grant a un no-admin
- * funciona, y no puede). Si algún día se quisieran creadores no-admin, se RELAJA este `requireRole` y
- * se pasa la decisión a `usuarioPuedeCrearRetos` (su fuente única).
+ * PORTADA: si viene, se SANEA con el pipeline compartido `procesarImagen` (tipo por bytes, tamaño antes
+ * de decodificar, strip EXIF, WebP; modo "contener" = conserva el aspecto). Se valida ANTES de crear el
+ * reto (fallo -> no se crea nada); tras crear se escribe `{publicCode}.webp` en el volumen y se apunta
+ * `coverImage` a la URL pública (con `?v=`). Sin portada -> `coverImage=null` y el reto se crea igual.
+ * Rate-limit por usuario porque el procesado cuesta CPU/memoria.
  */
-export const POST = mutatingRoute(async (req, { prisma }) => {
+export const POST = mutatingRoute(async (req, { env, prisma }) => {
   const { requireRole } = await import("@/server/auth/rbac");
   const { crearRetoSchema, crearRetoAdmin } = await import("@/server/services/retos-admin");
+  const { procesarImagen, ImagenInvalidaError } = await import("@/server/services/imagen");
+  const { RATE_LIMITS, PORTADA_MAX_BYTES, PORTADA_MAX_LADO } = await import("@/config/constants");
+  const { rateLimit } = await import("@/server/security/rate-limit");
+  const { sanearError } = await import("@/server/observability/sanitize-error");
 
   let admin;
   try {
@@ -26,13 +30,36 @@ export const POST = mutatingRoute(async (req, { prisma }) => {
     return apiError("FORBIDDEN", "No tienes permiso para crear retos.", 403);
   }
 
-  let body: unknown;
+  // Rate-limit por usuario (el procesado de la portada cuesta CPU).
+  const rl = await rateLimit(prisma, {
+    key: `crearreto:user:${rateLimitKey(env.AUTH_SECRET, admin.userId)}`,
+    ...RATE_LIMITS.CREAR_RETO_PER_USER,
+  });
+  if (!rl.allowed) {
+    return apiError("RATE_LIMITED", "Has creado muchos retos seguidos. Espera un momento.", 429);
+  }
+
+  let form: FormData;
   try {
-    body = await req.json();
+    form = await req.formData();
   } catch {
     return apiError("BAD_REQUEST", "No hemos podido leer los datos. Inténtalo de nuevo.", 400);
   }
-  const parsed = crearRetoSchema(new Date()).safeParse(body);
+  const campo = (k: string): string | undefined => {
+    const v = form.get(k);
+    return typeof v === "string" ? v : undefined;
+  };
+  const parsed = crearRetoSchema(new Date()).safeParse({
+    title: campo("title"),
+    description: campo("description"),
+    category: campo("category"),
+    rules: campo("rules"),
+    prizeAmountCents: campo("prizeAmountCents"),
+    startsAt: campo("startsAt"),
+    deadline: campo("deadline"),
+    winnersCount: campo("winnersCount"),
+    maxVotesPerUser: campo("maxVotesPerUser"),
+  });
   if (!parsed.success) {
     return apiError(
       "VALIDATION",
@@ -41,6 +68,50 @@ export const POST = mutatingRoute(async (req, { prisma }) => {
     );
   }
 
+  // Portada OPCIONAL: se SANEA antes de crear el reto (si falla, no se crea nada).
+  let portada: Buffer | null = null;
+  const ficheroPortada = form.get("portada");
+  if (ficheroPortada instanceof File && ficheroPortada.size > 0) {
+    const bytes = new Uint8Array(await ficheroPortada.arrayBuffer());
+    try {
+      portada = (
+        await procesarImagen(bytes, {
+          maxBytes: PORTADA_MAX_BYTES,
+          modo: { tipo: "contener", maxLado: PORTADA_MAX_LADO },
+        })
+      ).buffer;
+    } catch (e) {
+      if (e instanceof ImagenInvalidaError) {
+        return apiError(`PORTADA_${e.motivo}`, e.message, e.motivo === "TAMANO" ? 413 : 400);
+      }
+      console.error("[panel/retos] fallo procesando la portada:", sanearError(e));
+      return apiError(
+        "PORTADA_ERROR",
+        "No hemos podido procesar la portada. Prueba con otra.",
+        400,
+      );
+    }
+  }
+
   const reto = await crearRetoAdmin(prisma, admin.userId, parsed.data);
+
+  // Guardar la portada (si hay) y apuntar coverImage. Un fallo de disco NO aborta la creación: el reto
+  // queda sin portada (la tarjeta usa el placeholder), y se registra saneado.
+  if (portada) {
+    try {
+      const { writeFile, mkdir } = await import("node:fs/promises");
+      const { join } = await import("node:path");
+      await mkdir(env.PORTADAS_DIR, { recursive: true });
+      const nombre = `${reto.publicCode}.webp`; // publicCode base32: sin traversal
+      await writeFile(join(env.PORTADAS_DIR, nombre), portada);
+      const coverImage = `/portadas/${nombre}?v=${Date.now()}`;
+      await prisma.challenge.update({ where: { id: reto.id }, data: { coverImage } });
+    } catch (e) {
+      const code = e instanceof Error && "code" in e ? String((e as { code?: unknown }).code) : "?";
+      console.error(`[panel/retos] fallo guardando la portada (code=${code}):`, sanearError(e));
+      // No se aborta: el reto existe sin portada.
+    }
+  }
+
   return apiOk({ ok: true, id: reto.id, publicCode: reto.publicCode });
 });

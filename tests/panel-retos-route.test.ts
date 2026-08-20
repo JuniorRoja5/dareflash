@@ -1,24 +1,36 @@
 /**
- * Endpoints del panel: crear y publicar reto (M5). Cada uno se protege A SÍ MISMO con
- * requireRole("ADMIN"). Con DIENTES: un USER recibe 403 y el servicio NO se llama (si se quitara el
- * requireRole, el USER crearía/publicaría -> este test caería). CSRF forjado con la función real.
+ * Endpoints del panel: crear (multipart, con portada opcional) y publicar reto. Cada uno se protege a
+ * sí mismo con requireRole("ADMIN"). Con DIENTES: un USER recibe 403 y el servicio NO se llama; crear
+ * SIN imagen funciona (coverImage no se toca); crear CON imagen la sanea, la escribe en el volumen y
+ * apunta coverImage. CSRF forjado con la función real.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import sharp from "sharp";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
 const SECRET = "TEST-FIXTURE-panel-retos-secret-suficientemente-largo";
 const APP_URL = "http://test.local";
+const PORTADAS_DIR = mkdtempSync(join(tmpdir(), "df-portadas-"));
 
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
+  rateLimit: vi.fn(),
   crearRetoAdmin: vi.fn(),
   publicarReto: vi.fn(),
+  challengeUpdate: vi.fn(),
 }));
 
-vi.mock("@/config/env", () => ({ env: { APP_URL, AUTH_SECRET: SECRET } }));
+vi.mock("@/config/env", () => ({ env: { APP_URL, AUTH_SECRET: SECRET, PORTADAS_DIR } }));
 vi.mock("@/server/auth/current-user", () => ({ getCurrentUser: mocks.getCurrentUser }));
-vi.mock("@/server/db/client", () => ({ prisma: {} }));
+vi.mock("@/server/db/client", () => ({
+  prisma: { challenge: { update: mocks.challengeUpdate } },
+}));
+vi.mock("@/server/security/rate-limit", () => ({ rateLimit: mocks.rateLimit }));
 vi.mock("@/server/services/retos-admin", async (orig) => {
   const real = await orig<typeof import("@/server/services/retos-admin")>();
   return { ...real, crearRetoAdmin: mocks.crearRetoAdmin, publicarReto: mocks.publicarReto };
@@ -30,45 +42,53 @@ import { POST as PUBLICAR } from "../src/app/api/panel/retos/[id]/publicar/route
 const ADMIN = { userId: "admin-1", sessionId: "sess-a", role: "ADMIN", emailVerified: new Date() };
 const USER = { userId: "user-1", sessionId: "sess-u", role: "USER", emailVerified: new Date() };
 
-function bodyValido(over: Record<string, unknown> = {}) {
+function campos(over: Record<string, string> = {}) {
   return {
     title: "Salto en caja",
     category: "fitness",
-    prizeAmountCents: 2000,
+    prizeAmountCents: "2000",
     startsAt: "2999-01-01T00:00:00.000Z",
     deadline: "2999-02-01T00:00:00.000Z",
-    winnersCount: 1,
-    maxVotesPerUser: 1,
+    winnersCount: "1",
+    maxVotesPerUser: "1",
     ...over,
   };
 }
 
-function req(
-  url: string,
+function reqCrear(
+  data: Record<string, string>,
   session: { sessionId: string },
-  body: unknown,
-  opts: { origin?: string; csrf?: string | null } = {},
+  opts: { origin?: string; csrf?: string | null; portada?: Buffer } = {},
 ): Request {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    Origin: opts.origin ?? APP_URL,
-  };
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(data)) fd.set(k, v);
+  if (opts.portada) {
+    fd.set("portada", new File([new Uint8Array(opts.portada)], "p.png", { type: "image/png" }));
+  }
+  const headers: Record<string, string> = { Origin: opts.origin ?? APP_URL };
   if (opts.csrf !== null)
     headers["X-CSRF-Token"] = opts.csrf ?? issueCsrfToken(SECRET, session.sessionId);
-  return new Request(url, { method: "POST", headers, body: JSON.stringify(body ?? {}) });
+  return new Request("http://test.local/api/panel/retos", { method: "POST", headers, body: fd });
 }
 
-const crear = (session: typeof ADMIN, body: unknown, opts = {}) =>
-  CREAR(req("http://test.local/api/panel/retos", session, body, opts), {});
-const publicar = (session: typeof ADMIN, id: string, opts = {}) =>
-  PUBLICAR(req(`http://test.local/api/panel/retos/${id}/publicar`, session, {}, opts), {
-    params: Promise.resolve({ id }),
-  });
+const crear = (session: typeof ADMIN, data = campos(), opts = {}) =>
+  CREAR(reqCrear(data, session, opts), {});
+const publicar = (session: typeof ADMIN, id: string) =>
+  PUBLICAR(
+    new Request(`http://test.local/api/panel/retos/${id}/publicar`, {
+      method: "POST",
+      headers: { Origin: APP_URL, "X-CSRF-Token": issueCsrfToken(SECRET, session.sessionId) },
+    }),
+    { params: Promise.resolve({ id }) },
+  );
 
 beforeEach(() => {
   mocks.getCurrentUser.mockReset();
+  mocks.rateLimit.mockReset();
   mocks.crearRetoAdmin.mockReset();
   mocks.publicarReto.mockReset();
+  mocks.challengeUpdate.mockReset();
+  mocks.rateLimit.mockResolvedValue({ allowed: true });
   mocks.crearRetoAdmin.mockResolvedValue({
     id: "r1",
     publicCode: "abcd2345",
@@ -78,32 +98,51 @@ beforeEach(() => {
   mocks.publicarReto.mockResolvedValue({ publicado: true });
 });
 
-describe("POST /api/panel/retos (crear)", () => {
-  it("ADMIN -> 200 y crea con createdById = admin de la SESIÓN", async () => {
+afterAll(() => rmSync(PORTADAS_DIR, { recursive: true, force: true }));
+
+describe("POST /api/panel/retos (crear, multipart)", () => {
+  it("ADMIN sin portada -> 200; crea con createdById = admin; NO toca coverImage", async () => {
     mocks.getCurrentUser.mockResolvedValue(ADMIN);
-    const res = await crear(ADMIN, bodyValido());
+    const res = await crear(ADMIN);
     expect(res.status).toBe(200);
     expect(mocks.crearRetoAdmin).toHaveBeenCalledTimes(1);
     expect(mocks.crearRetoAdmin.mock.calls[0]![1]).toBe("admin-1");
+    expect(mocks.challengeUpdate).not.toHaveBeenCalled(); // sin portada -> coverImage queda null
+  });
+
+  it("ADMIN con portada -> la sanea, la escribe como {publicCode}.webp y apunta coverImage", async () => {
+    mocks.getCurrentUser.mockResolvedValue(ADMIN);
+    const png = await sharp({
+      create: { width: 400, height: 200, channels: 3, background: { r: 10, g: 200, b: 90 } },
+    })
+      .png()
+      .toBuffer();
+    const res = await crear(ADMIN, campos(), { portada: png });
+    expect(res.status).toBe(200);
+    // WebP escrito en el volumen con el nombre del publicCode.
+    expect(readdirSync(PORTADAS_DIR)).toContain("abcd2345.webp");
+    // coverImage apuntando a la URL publica (con ?v=).
+    const arg = mocks.challengeUpdate.mock.calls[0]![0] as { data: { coverImage: string } };
+    expect(arg.data.coverImage).toMatch(/^\/portadas\/abcd2345\.webp\?v=\d+$/);
   });
 
   it("USER -> 403 y NO crea (dientes del requireRole)", async () => {
     mocks.getCurrentUser.mockResolvedValue(USER);
-    const res = await crear(USER, bodyValido());
+    const res = await crear(USER);
     expect(res.status).toBe(403);
     expect(mocks.crearRetoAdmin).not.toHaveBeenCalled();
   });
 
   it("categoría inválida -> 400 y NO crea", async () => {
     mocks.getCurrentUser.mockResolvedValue(ADMIN);
-    const res = await crear(ADMIN, bodyValido({ category: "inexistente" }));
+    const res = await crear(ADMIN, campos({ category: "inexistente" }));
     expect(res.status).toBe(400);
     expect(mocks.crearRetoAdmin).not.toHaveBeenCalled();
   });
 
-  it("sin token CSRF -> 403 (mutatingRoute) y NO crea", async () => {
+  it("sin token CSRF -> 403 y NO crea", async () => {
     mocks.getCurrentUser.mockResolvedValue(ADMIN);
-    const res = await crear(ADMIN, bodyValido(), { csrf: null });
+    const res = await crear(ADMIN, campos(), { csrf: null });
     expect(res.status).toBe(403);
     expect(mocks.crearRetoAdmin).not.toHaveBeenCalled();
   });

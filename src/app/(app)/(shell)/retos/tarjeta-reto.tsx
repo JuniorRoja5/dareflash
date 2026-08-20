@@ -32,11 +32,21 @@ export function TarjetaReto({ reto }: { reto: RetoPublicoVista }) {
         tabIndex={-1}
         className="df-sheen relative block aspect-[9/16] shrink-0 bg-raised lg:aspect-video lg:w-[44%]"
       >
+        {/* Portada real (servida por Caddy, no next/image) o placeholder si no hay. */}
+        {reto.coverImage ? (
+          // eslint-disable-next-line @next/next/no-img-element -- estático servido por Caddy en /portadas/*
+          <img
+            src={reto.coverImage}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center">
+            <IconoPlay />
+          </span>
+        )}
         <span className="pointer-events-none absolute top-2.5 left-2.5 z-10">
           <PildoraCategoria>{nombreCategoria(reto.categoria)}</PildoraCategoria>
-        </span>
-        <span className="absolute inset-0 flex items-center justify-center">
-          <IconoPlay />
         </span>
         {/* MARCADOR — firma, superpuesto abajo (siempre visible). Halo lima. */}
         <span

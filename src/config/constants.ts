@@ -130,6 +130,15 @@ export const RECALCULO_SCORES_CADENCIA_MS = 60 * 60 * 1000; // 1 h
 export const RECALCULO_SCORES_LOTE = 500; // filas (por entidad) recalculadas por barrido
 
 /**
+ * PORTADA de reto (Fase 2). Límite de bytes de ENTRADA (seguridad del servidor: acota memoria/CPU del
+ * decodificado ANTES de tocar la imagen) y lado máximo de SALIDA (encaja en un cuadro conservando el
+ * aspecto; el recorte por slot lo hace el object-cover de la tarjeta). Mayor que el avatar porque una
+ * portada apaisada 16:9 grande pesa más, pero sigue acotado.
+ */
+export const PORTADA_MAX_BYTES = 8 * 1024 * 1024; // 8 MB
+export const PORTADA_MAX_LADO = 1280; // px
+
+/**
  * HANDLES RESERVADOS (fuente única) para la edición manual del username (P2). Dos motivos:
  *  1. RUTAS: un handle que choque con un segmento de la app (`/admin`, `/buscar`, `/u`…) rompería el
  *     enrutado o el perfil `/u/[username]`. Se listan las rutas de primer nivel reales + `u`.
@@ -376,6 +385,8 @@ export const RATE_LIMITS = {
   // Subir avatar: DECODIFICA y RECOMPRIME una imagen (CPU + memoria). Cubo por USUARIO mas estrecho,
   // para que nadie funda el VPS a base de subir imagenes de 5 MB en bucle.
   UPLOAD_AVATAR_PER_USER: { limit: 10, windowMs: 15 * 60 * 1000 }, // 10 / 15 min por usuario
+  // Crear reto (admin): el procesado de la portada cuesta CPU/memoria -> mismo trato que el avatar.
+  CREAR_RETO_PER_USER: { limit: 20, windowMs: 15 * 60 * 1000 }, // 20 / 15 min por usuario
   // Busqueda (publica, sin sesion): acota abuso/scraping por IP. Holgado para un buscador con debounce
   // (varias pulsaciones por consulta); la cache de Redis absorbe ademas las consultas calientes.
   BUSCAR_PER_IP: { limit: 60, windowMs: 60 * 1000 }, // 60 / min por IP

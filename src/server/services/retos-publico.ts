@@ -19,6 +19,8 @@ export interface RetoPublicoVista {
   premioCents: number;
   /** Cierre ABSOLUTO en ms (deadline.getTime()); el cliente pinta la cuenta atrás. */
   deadlineMs: number;
+  /** URL pública de la portada (Caddy) o null (placeholder). */
+  coverImage: string | null;
 }
 
 /** Detalle del reto (además de la tarjeta): descripción, reglas, nº de ganadores, moneda, estado. */
@@ -37,6 +39,7 @@ const SELECT_VISTA = {
   category: true,
   prizeAmountCents: true,
   deadline: true,
+  coverImage: true,
 } as const;
 
 type FilaVista = {
@@ -46,6 +49,7 @@ type FilaVista = {
   category: string;
   prizeAmountCents: number;
   deadline: Date;
+  coverImage: string | null;
 };
 
 function aVista(f: FilaVista): RetoPublicoVista {
@@ -56,6 +60,7 @@ function aVista(f: FilaVista): RetoPublicoVista {
     categoria: f.category,
     premioCents: f.prizeAmountCents,
     deadlineMs: f.deadline.getTime(),
+    coverImage: f.coverImage,
   };
 }
 

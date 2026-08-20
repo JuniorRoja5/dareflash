@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { CATEGORIES } from "@/config/constants";
-import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
+import { mensajeDe, obtenerCsrfToken } from "@/lib/cliente-http";
 import { importeACentimos } from "@/lib/dinero";
+import { AVATAR_TIPOS, avatarExcedeTope } from "@/app/(app)/(shell)/perfil/perfil-logic";
 
 type Estado = "idle" | "enviando" | "creado";
 
@@ -22,9 +23,10 @@ function aIsoUtc(valorLocal: string): string | null {
 }
 
 /**
- * Formulario de CREAR RETO (panel admin). El reto se guarda como DRAFT; publicar es una acción aparte.
- * Validación de aquí = UX; el gate es el servidor (Zod). Único magenta de la pantalla = "Crear reto".
- * El premio se introduce como importe y se envía en CÉNTIMOS enteros (sin float). Fechas -> ISO UTC.
+ * Formulario de CREAR RETO (panel admin), `multipart/form-data`. El reto se guarda como DRAFT; publicar
+ * es aparte. Validación de aquí = UX; el gate es el servidor (Zod + sanitizado de imagen). Único magenta
+ * = "Crear reto". El premio va en CÉNTIMOS enteros (sin float); las fechas a ISO UTC. PORTADA opcional
+ * (mismos tipos/tope que el avatar; el servidor la re-valida y sanea).
  */
 export function CrearReto() {
   const router = useRouter();
@@ -37,10 +39,55 @@ export function CrearReto() {
   const [cierre, setCierre] = useState("");
   const [ganadores, setGanadores] = useState("1");
   const [votos, setVotos] = useState("1");
+  const [portada, setPortada] = useState<File | null>(null);
+  const [previa, setPrevia] = useState<string | null>(null);
   const [estado, setEstado] = useState<Estado>("idle");
   const [error, setError] = useState<string | undefined>(undefined);
+  const previaRef = useRef<string | null>(null);
 
   const ocupado = estado === "enviando";
+
+  // La object URL de la vista previa se revoca al cambiarla o al desmontar (sin fuga de memoria).
+  useEffect(() => {
+    return () => {
+      if (previaRef.current) URL.revokeObjectURL(previaRef.current);
+    };
+  }, []);
+
+  function onElegirPortada(e: React.ChangeEvent<HTMLInputElement>): void {
+    setError(undefined);
+    const f = e.target.files?.[0] ?? null;
+    if (f && !AVATAR_TIPOS.includes(f.type as (typeof AVATAR_TIPOS)[number])) {
+      setPortada(null);
+      setError("La portada debe ser una imagen JPG, PNG o WebP.");
+      return;
+    }
+    if (f && avatarExcedeTope(f.size)) {
+      setPortada(null);
+      setError("La portada es demasiado grande. Prueba con una imagen más ligera.");
+      return;
+    }
+    if (previaRef.current) URL.revokeObjectURL(previaRef.current);
+    const url = f ? URL.createObjectURL(f) : null;
+    previaRef.current = url;
+    setPrevia(url);
+    setPortada(f);
+  }
+
+  function reiniciar(): void {
+    setTitulo("");
+    setDescripcion("");
+    setReglas("");
+    setPremio("0");
+    setApertura("");
+    setCierre("");
+    setGanadores("1");
+    setVotos("1");
+    if (previaRef.current) URL.revokeObjectURL(previaRef.current);
+    previaRef.current = null;
+    setPrevia(null);
+    setPortada(null);
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
@@ -67,37 +114,38 @@ export function CrearReto() {
 
     setEstado("enviando");
     try {
-      const r = await postJsonCsrf<{ id?: string }>("/api/panel/retos", {
-        title: titulo,
-        description: descripcion,
-        category: categoria,
-        rules: reglas,
-        prizeAmountCents: centimos,
-        startsAt,
-        deadline,
-        winnersCount: Number(ganadores),
-        maxVotesPerUser: Number(votos),
+      const cuerpo = new FormData();
+      cuerpo.set("title", titulo);
+      cuerpo.set("description", descripcion);
+      cuerpo.set("category", categoria);
+      cuerpo.set("rules", reglas);
+      cuerpo.set("prizeAmountCents", String(centimos));
+      cuerpo.set("startsAt", startsAt);
+      cuerpo.set("deadline", deadline);
+      cuerpo.set("winnersCount", ganadores);
+      cuerpo.set("maxVotesPerUser", votos);
+      if (portada) cuerpo.set("portada", portada);
+
+      // Multipart (no JSON): token CSRF del helper compartido, fetch propio.
+      const csrfToken = await obtenerCsrfToken();
+      const res = await fetch("/api/panel/retos", {
+        method: "POST",
+        credentials: "include",
+        headers: { "X-CSRF-Token": csrfToken },
+        body: cuerpo,
       });
-      if (r.ok) {
+      if (res.ok) {
         setEstado("creado");
-        setTitulo("");
-        setDescripcion("");
-        setReglas("");
-        setPremio("0");
-        setApertura("");
-        setCierre("");
-        setGanadores("1");
-        setVotos("1");
+        reiniciar();
         router.refresh(); // el nuevo borrador aparece en la lista
         return;
       }
       setEstado("idle");
-      if (r.status === 401) {
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
         setError("Tu sesión ha caducado. Vuelve a iniciar sesión.");
       } else {
-        setError(
-          mensajeDe(r.data) || "No hemos podido crear el reto. Revisa los datos e inténtalo.",
-        );
+        setError(mensajeDe(data) || "No hemos podido crear el reto. Revisa los datos e inténtalo.");
       }
     } catch (err) {
       setEstado("idle");
@@ -172,6 +220,44 @@ export function CrearReto() {
           onChange={(e) => setPremio(e.target.value)}
           disabled={ocupado}
         />
+
+        {/* PORTADA opcional. */}
+        <div className="lg:col-span-2">
+          <label className="mb-1.5 block text-sm font-medium text-text">
+            Portada <span className="text-text-dim">(opcional)</span>
+          </label>
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-28 shrink-0 overflow-hidden rounded-sm border border-line bg-raised">
+              {previa ? (
+                // eslint-disable-next-line @next/next/no-img-element -- previsualización local (object URL)
+                <img
+                  src={previa}
+                  alt="Vista previa de la portada"
+                  className="h-full w-full object-cover"
+                />
+              ) : null}
+            </div>
+            <div>
+              <label
+                htmlFor="reto-portada"
+                className={`inline-flex min-h-[44px] cursor-pointer items-center rounded-sm border border-line bg-raised px-4 text-sm font-semibold text-text transition-colors duration-150 ease-mechanical hover:bg-surface ${ocupado ? "pointer-events-none opacity-60" : ""}`}
+              >
+                {portada ? "Cambiar imagen" : "Elegir imagen"}
+              </label>
+              <input
+                id="reto-portada"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                disabled={ocupado}
+                onChange={onElegirPortada}
+              />
+              <p className="mt-2 text-2xs tracking-widest text-text-dim uppercase">
+                JPG, PNG o WebP · se recorta a lo ancho de la tarjeta
+              </p>
+            </div>
+          </div>
+        </div>
 
         <div className="lg:col-span-2">
           <label htmlFor="reto-reglas" className="mb-1.5 block text-sm font-medium text-text">

@@ -244,6 +244,11 @@ model Challenge {
   slug       String
   publicCode String @unique
 
+  // Portada OPCIONAL subida por el admin al crear (Fase 2). URL publica servida por Caddy desde el
+  // volumen `portadas_data` (/portadas/{publicCode}.webp?v=...), mismo patron que el avatar. NULL = sin
+  // portada -> la tarjeta usa el placeholder. Sin edicion tras crear (futuro).
+  coverImage String?
+
   // Reglas del reto en campo PROPIO, separado de description (que es la presentacion/gancho).
   rules String? @db.Text
 
