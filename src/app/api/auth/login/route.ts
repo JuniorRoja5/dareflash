@@ -94,7 +94,8 @@ export async function POST(req: Request) {
     await resetRateLimit(prisma, acctKey);
     // La cookie SOLO se fija ahora, tras verificar la contrasena.
     await setSessionCookie(result.session.rawToken, result.session.expires);
-    return apiOk({ ok: true });
+    // `role` ADITIVO: el formulario decide el destino (destinoTrasLogin); no cambia nada mas.
+    return apiOk({ ok: true, role: result.role });
   } catch (e) {
     if (esArgon2Sobrecargado(e)) {
       return apiError("OVERLOADED", "Servicio ocupado, reintenta en unos segundos.", 503);

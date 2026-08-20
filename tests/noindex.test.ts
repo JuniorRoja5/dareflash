@@ -18,9 +18,14 @@ describe("bloqueo de indexacion (pestillo de lanzamiento)", () => {
     expect(xRobots?.value).toMatch(/noindex/);
   });
 
-  it("robots.txt devuelve Disallow: / para todos los agentes", () => {
+  it("robots.txt bloquea TODO el sitio (pestillo Fase 1) y el panel de admin explícitamente", () => {
     const salida = robots();
     const reglas = Array.isArray(salida.rules) ? salida.rules : [salida.rules];
-    expect(reglas.some((r) => r.userAgent === "*" && r.disallow === "/")).toBe(true);
+    const star = reglas.find((r) => r.userAgent === "*");
+    expect(star, "debe existir una regla para el agente *").toBeTruthy();
+    const disallow = star!.disallow;
+    const rutas = Array.isArray(disallow) ? disallow : disallow ? [disallow] : [];
+    expect(rutas).toContain("/"); // pestillo de lanzamiento: sigue vigente
+    expect(rutas).toContain("/panel"); // el panel NUNCA se indexa (sobrevive si se levanta "/")
   });
 });

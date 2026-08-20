@@ -8,6 +8,7 @@ import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { postJson } from "@/lib/cliente-http";
 import { mensajeError, MSG_LOGIN } from "@/lib/mensajes-error";
+import { destinoTrasLogin } from "@/lib/destino-login";
 import { rutaSiguienteSegura } from "@/lib/ruta-siguiente";
 
 /**
@@ -42,12 +43,15 @@ export function FormularioLogin() {
     setReenviado(null);
     setEstado("enviando");
     try {
-      const r = await postJson("/api/auth/login", { email: email.trim(), password });
+      const r = await postJson<{ role?: string }>("/api/auth/login", {
+        email: email.trim(),
+        password,
+      });
       if (r.ok) {
-        // `?siguiente` (ruta local validada) o "/" por defecto. Se lee al enviar: no
-        // necesita Suspense y solo importa en el éxito.
+        // Destino por FUENTE ÚNICA: respeta `?siguiente` local (validado contra open-redirect) y, si no
+        // lo hay, lleva al ADMIN a su panel y al resto a la home. Se lee al enviar (no necesita Suspense).
         const siguiente = new URLSearchParams(window.location.search).get("siguiente");
-        router.push(rutaSiguienteSegura(siguiente));
+        router.push(destinoTrasLogin(r.data.role ?? "USER", rutaSiguienteSegura(siguiente)));
         router.refresh();
         return;
       }

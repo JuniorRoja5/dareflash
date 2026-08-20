@@ -8,6 +8,9 @@ import type { MetadataRoute } from "next";
  */
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: { userAgent: "*", disallow: "/" },
+    // "/" = pestillo TEMPORAL de Fase 1 (todo el sitio, decision de Junior). "/panel" = PERMANENTE:
+    // el panel de admin NO se indexa jamas, aunque algun dia se levante el bloqueo global de arriba.
+    // Defensa en profundidad (+ noindex en el head del panel + requireRole en su layout).
+    rules: { userAgent: "*", disallow: ["/", "/panel"] },
   };
 }
