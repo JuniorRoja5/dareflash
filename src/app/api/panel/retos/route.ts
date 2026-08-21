@@ -96,7 +96,10 @@ export const POST = mutatingRoute(async (req, { env, prisma }) => {
   const reto = await crearRetoAdmin(prisma, admin.userId, parsed.data);
 
   // Guardar la portada (si hay) y apuntar coverImage. Un fallo de disco NO aborta la creación: el reto
-  // queda sin portada (la tarjeta usa el placeholder), y se registra saneado.
+  // queda sin portada (la tarjeta usa el placeholder). PERO el fallo NO es silencioso —fue justo lo que
+  // ocultó el bug de permisos (EACCES en un /srv/portadas de root)—: se registra el code/errno CLARO y
+  // se AVISA al admin en la respuesta para que sepa que debe reintentar la portada.
+  let portadaGuardada = true;
   if (portada) {
     try {
       const { writeFile, mkdir } = await import("node:fs/promises");
@@ -107,11 +110,30 @@ export const POST = mutatingRoute(async (req, { env, prisma }) => {
       const coverImage = `/portadas/${nombre}?v=${Date.now()}`;
       await prisma.challenge.update({ where: { id: reto.id }, data: { coverImage } });
     } catch (e) {
-      const code = e instanceof Error && "code" in e ? String((e as { code?: unknown }).code) : "?";
-      console.error(`[panel/retos] fallo guardando la portada (code=${code}):`, sanearError(e));
+      portadaGuardada = false;
+      const err = e as { code?: unknown; errno?: unknown; syscall?: unknown };
+      const code = typeof err.code === "string" ? err.code : "?";
+      const errno = typeof err.errno === "number" ? err.errno : "?";
+      const syscall = typeof err.syscall === "string" ? err.syscall : "?";
+      // Pista directa: EACCES aquí = el volumen se montó sobre un dir de root (permisos). Ver Dockerfile.
+      console.error(
+        `[panel/retos] NO se pudo guardar la portada del reto ${reto.publicCode} ` +
+          `(code=${code} errno=${errno} syscall=${syscall}; EACCES => revisar permisos de PORTADAS_DIR):`,
+        sanearError(e),
+      );
       // No se aborta: el reto existe sin portada.
     }
   }
 
-  return apiOk({ ok: true, id: reto.id, publicCode: reto.publicCode });
+  // 200 igualmente (el reto SÍ se creó), pero si la portada falló se avisa explícitamente en vez de un
+  // "ok" a secas. El cliente puede mostrar el aviso; los tests comprueban el flag.
+  return apiOk({
+    ok: true,
+    id: reto.id,
+    publicCode: reto.publicCode,
+    portadaGuardada,
+    ...(portadaGuardada
+      ? {}
+      : { aviso: "El reto se creó, pero no se pudo guardar la portada. Inténtalo de nuevo." }),
+  });
 });

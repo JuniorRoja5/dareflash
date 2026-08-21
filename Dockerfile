@@ -63,6 +63,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 # el dueño -> nextjs escribe; caddy lo lee en solo-lectura. Ver docker-compose.prod.yml.
 RUN mkdir -p /srv/avatars && chown nextjs:nodejs /srv/avatars
 
+# Punto de montaje del volumen de PORTADAS con el dueño correcto. Mismo motivo que avatares: `web` corre
+# como nextjs (uid 1001) y escribe aqui (env.PORTADAS_DIR=/srv/portadas); si el volumen se monta sobre un
+# dir de root, writeFile da EACCES y la portada se pierde. Creando el dir con este dueño ANTES de montar,
+# un volumen NUEVO hereda el dueño -> nextjs escribe; caddy lo lee en solo-lectura. Ver docker-compose.prod.yml.
+RUN mkdir -p /srv/portadas && chown nextjs:nodejs /srv/portadas
+
 USER nextjs
 ENV PORT=3000 HOSTNAME=0.0.0.0
 EXPOSE 3000

@@ -126,6 +126,26 @@ describe("POST /api/panel/retos (crear, multipart)", () => {
     expect(arg.data.coverImage).toMatch(/^\/portadas\/abcd2345\.webp\?v=\d+$/);
   });
 
+  it("DIENTES: si la portada NO se puede guardar, el reto se crea igual pero AVISA (no ok a secas)", async () => {
+    mocks.getCurrentUser.mockResolvedValue(ADMIN);
+    // Simula el fallo de persistencia (p.ej. EACCES por permisos del volumen): el update peta.
+    mocks.challengeUpdate.mockRejectedValueOnce(
+      Object.assign(new Error("EACCES"), { code: "EACCES", errno: -13, syscall: "open" }),
+    );
+    const png = await sharp({
+      create: { width: 400, height: 200, channels: 3, background: { r: 10, g: 200, b: 90 } },
+    })
+      .png()
+      .toBuffer();
+    const res = await crear(ADMIN, campos(), { portada: png });
+    // El reto SÍ se creó -> 200; pero el fallo de portada es VISIBLE, no silencioso.
+    expect(res.status).toBe(200);
+    expect(mocks.crearRetoAdmin).toHaveBeenCalledTimes(1);
+    const body = (await res.json()) as { portadaGuardada?: boolean; aviso?: string };
+    expect(body.portadaGuardada).toBe(false);
+    expect(body.aviso).toMatch(/portada/i);
+  });
+
   it("USER -> 403 y NO crea (dientes del requireRole)", async () => {
     mocks.getCurrentUser.mockResolvedValue(USER);
     const res = await crear(USER);

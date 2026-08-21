@@ -43,6 +43,7 @@ export function CrearReto() {
   const [previa, setPrevia] = useState<string | null>(null);
   const [estado, setEstado] = useState<Estado>("idle");
   const [error, setError] = useState<string | undefined>(undefined);
+  const [aviso, setAviso] = useState<string | undefined>(undefined);
   const previaRef = useRef<string | null>(null);
 
   const ocupado = estado === "enviando";
@@ -93,6 +94,7 @@ export function CrearReto() {
     e.preventDefault();
     setEstado("idle");
     setError(undefined);
+    setAviso(undefined);
 
     if (titulo.trim().length < 3) {
       setError("Escribe un título de al menos 3 caracteres.");
@@ -135,6 +137,13 @@ export function CrearReto() {
         body: cuerpo,
       });
       if (res.ok) {
+        // El reto se creó. Si la portada no se pudo guardar, el servidor lo avisa (portadaGuardada:false):
+        // se muestra el aviso para que el admin sepa que la tarjeta saldrá sin portada.
+        const ok = (await res.json().catch(() => ({}))) as {
+          portadaGuardada?: boolean;
+          aviso?: string;
+        };
+        if (ok.portadaGuardada === false) setAviso(ok.aviso ?? "La portada no se pudo guardar.");
         setEstado("creado");
         reiniciar();
         router.refresh(); // el nuevo borrador aparece en la lista
@@ -331,6 +340,13 @@ export function CrearReto() {
       {estado === "creado" ? (
         <p role="status" className="mt-3 text-sm text-ok">
           Reto creado como borrador. Publícalo desde la lista cuando esté listo.
+        </p>
+      ) : null}
+      {aviso ? (
+        // El reto sí se creó; esto avisa de que la PORTADA no se guardó (no engaña: la tarjeta saldrá
+        // sin portada). Va en alarm porque es un fallo real, aunque parcial.
+        <p role="alert" className="mt-2 text-sm text-alarm">
+          {aviso}
         </p>
       ) : null}
     </form>
