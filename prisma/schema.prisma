@@ -218,6 +218,12 @@ model Video {
   failureReason String?
   title         String?
 
+  // CATEGORIA de un video LIBRE (Fase 2, subida sin reto): key de CATEGORIES. NULL en las
+  // participaciones (su categoria es la del RETO, via Submission->Challenge: fuente unica, NO se
+  // duplica aqui) y en videos libres antiguos (sin backfill). La resolucion de feed/perfil: con
+  // Submission publicada -> categoria del reto; sin Submission -> este campo.
+  category String?
+
   // REEMPLAZO en vuelo (Fase 2). Un Video de reemplazo apunta a la Submission que sustituira: se crea
   // SIN Submission propia (respeta el @@unique([challengeId,userId])). Mientras este seteado, el video
   // NO aparece en el feed; cuando pasa a PUBLISHED, el SWAP (cliente o worker) repunta esa Submission a

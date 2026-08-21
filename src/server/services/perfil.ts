@@ -37,6 +37,8 @@ import { type ModerationStatus, Prisma } from "@/generated/prisma/client";
 import { HANDLE_RE } from "@/lib/handle-formato";
 import type { Db } from "@/server/db/types";
 
+import { categoriaKeyDeVideo } from "./categoria-video";
+
 // ============================================================================
 // A) CONSULTAS PÚBLICAS (Rama 3)
 // ============================================================================
@@ -46,6 +48,8 @@ export interface VideoPublico {
   id: string;
   bunnyVideoId: string;
   title: string | null;
+  /** Categoria (KEY de CATEGORIES) o null: reto via Submission publicada, o Video.category si es libre. */
+  categoria: string | null;
 }
 
 /** Perfil PUBLICO. Contrato: aqui NUNCA hay email, birthDate, saldo del monedero, Boost ni hash. */
@@ -87,7 +91,25 @@ const SELECT_VIDEO_PUBLICO = {
   id: true,
   bunnyVideoId: true,
   title: true,
+  category: true,
+  submission: { select: { status: true, challenge: { select: { category: true } } } },
 } satisfies Prisma.VideoSelect;
+
+/** Fila del video publico -> DTO, resolviendo la categoria (reto via Submission, o libre). */
+function aVideoPublico(f: {
+  id: string;
+  bunnyVideoId: string;
+  title: string | null;
+  category: string | null;
+  submission: { status: string; challenge: { category: string } } | null;
+}): VideoPublico {
+  return {
+    id: f.id,
+    bunnyVideoId: f.bunnyVideoId,
+    title: f.title,
+    categoria: categoriaKeyDeVideo({ submission: f.submission, category: f.category }),
+  };
+}
 
 /** Fila publica del usuario tal cual la devuelve el `select` de arriba (sin datos privados). */
 type FilaUsuarioPublico = {
@@ -137,7 +159,9 @@ async function cargarPerfil(db: Db, where: Prisma.UserWhereInput): Promise<Perfi
 
   const [videos, retosGanados] = await Promise.all([
     db.video.findMany({
-      where: { userId: usuario.id, status: "PUBLISHED" },
+      // `reemplazaSubmissionId: null` excluye un reemplazo en vuelo (aun PUBLISHED no es una pieza propia
+      // de la rejilla; tras el swap pasa a ser la participacion y el viejo queda REMOVED).
+      where: { userId: usuario.id, status: "PUBLISHED", reemplazaSubmissionId: null },
       select: SELECT_VIDEO_PUBLICO,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     }),
@@ -145,7 +169,7 @@ async function cargarPerfil(db: Db, where: Prisma.UserWhereInput): Promise<Perfi
     db.challengeResult.count({ where: { userId: usuario.id } }),
   ]);
 
-  return aPerfilPublico(usuario, retosGanados, videos);
+  return aPerfilPublico(usuario, retosGanados, videos.map(aVideoPublico));
 }
 
 /**
@@ -323,6 +347,8 @@ const SELECT_MI_VIDEO = {
   title: true,
   status: true,
   failureReason: true,
+  category: true,
+  submission: { select: { status: true, challenge: { select: { category: true } } } },
 } satisfies Prisma.VideoSelect;
 
 /**
@@ -357,6 +383,8 @@ export interface MiVideo {
   bunnyVideoId: string;
   title: string | null;
   estado: EstadoVideo;
+  /** Categoria (KEY) o null: reto via Submission publicada, o Video.category si es libre. */
+  categoria: string | null;
 }
 
 /** MI perfil: identidad + stats públicas (reutiliza el select público) + vídeos CON estado. */
@@ -387,7 +415,13 @@ export async function miPerfil(db: Db, userId: string): Promise<MiPerfil | null>
 
   const [videos, retosGanados] = await Promise.all([
     db.video.findMany({
-      where: { userId: usuario.id, status: { in: [...ESTADOS_MIS_VIDEOS] } },
+      // Excluye reemplazos en vuelo (misma razon que el camino publico): no son piezas propias de la
+      // rejilla; tras el swap el nuevo pasa a ser la participacion y el viejo queda REMOVED.
+      where: {
+        userId: usuario.id,
+        status: { in: [...ESTADOS_MIS_VIDEOS] },
+        reemplazaSubmissionId: null,
+      },
       select: SELECT_MI_VIDEO,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     }),
@@ -410,6 +444,7 @@ export async function miPerfil(db: Db, userId: string): Promise<MiPerfil | null>
       bunnyVideoId: v.bunnyVideoId,
       title: v.title,
       estado: estadoDeVideo(v.status, v.failureReason),
+      categoria: categoriaKeyDeVideo({ submission: v.submission, category: v.category }),
     })),
   };
 }

@@ -38,6 +38,7 @@ export default async function PerfilPublicoPage({
     id: v.id,
     title: v.title,
     poster: firmarReproduccion(v.bunnyVideoId).poster,
+    categoria: v.categoria,
   }));
 
   return (

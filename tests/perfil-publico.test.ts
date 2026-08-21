@@ -138,6 +138,51 @@ describe("perfil público contra la BD real", () => {
     }
   });
 
+  it("categoría en la rejilla por AMBAS vías: participación -> reto; libre -> Video.category", async () => {
+    const u = await prisma.user.create({ data: { username: "creador_cat" }, select: { id: true } });
+    // Vídeo LIBRE con su propia categoría.
+    await prisma.video.create({
+      data: {
+        userId: u.id,
+        status: "PUBLISHED",
+        bunnyVideoId: "b-libre-cat",
+        title: "Libre",
+        category: "gaming",
+      },
+    });
+    // PARTICIPACIÓN: la categoría sale del RETO (Submission publicada), NO del Video (que es null).
+    const vidPart = await prisma.video.create({
+      data: {
+        userId: u.id,
+        status: "PUBLISHED",
+        bunnyVideoId: "b-part-cat",
+        title: "Participación",
+      },
+      select: { id: true },
+    });
+    const reto = await prisma.challenge.create({
+      data: {
+        title: "Reto fitness",
+        slug: "reto",
+        publicCode: generarPublicCode(),
+        category: "fitness",
+        prizeCurrency: "USD",
+        startsAt: new Date(),
+        deadline: new Date(Date.now() + 1000),
+        createdById: u.id,
+      },
+      select: { id: true },
+    });
+    await prisma.submission.create({
+      data: { challengeId: reto.id, userId: u.id, videoId: vidPart.id, status: "PUBLISHED" },
+    });
+
+    const perfil = await perfilPublicoPorUsername(prisma, "creador_cat");
+    const cats = new Map(perfil!.videos.map((v) => [v.bunnyVideoId, v.categoria]));
+    expect(cats.get("b-libre-cat")).toBe("gaming"); // vía Video.category
+    expect(cats.get("b-part-cat")).toBe("fitness"); // vía Submission->Challenge (no del Video)
+  });
+
   it("retosGanados = número de filas ChallengeResult del usuario", async () => {
     const u = await prisma.user.create({
       data: { username: "ganador", pointsBalance: 0 },

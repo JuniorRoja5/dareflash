@@ -21,6 +21,8 @@ import "server-only";
 import { CATEGORIES } from "@/config/constants";
 import type { Db } from "@/server/db/types";
 
+import { categoriaKeyDeVideo } from "./categoria-video";
+
 /** Un post del feed, listo para pintar. `categoria` es el nombre ya resuelto (o null si no participa). */
 export interface PostFeed {
   id: string;
@@ -64,15 +66,19 @@ export async function feedPublicado(
   const filas = await db.video.findMany({
     // `reemplazaSubmissionId: null` excluye los REEMPLAZOS en vuelo (un Video de reemplazo, aun tras
     // pasar a PUBLISHED, no debe salir en el feed hasta que el swap lo convierta en la participacion).
+    // Un video SIN Submission aparece SOLO si tiene `category` (subida libre); asi un video suelto sin
+    // categoria (o un reemplazo antes de tener submission) no se cuela.
     where: {
       status: "PUBLISHED",
       reemplazaSubmissionId: null,
       user: { deletedAt: null, bannedAt: null },
+      OR: [{ submission: { isNot: null } }, { category: { not: null } }],
     },
     select: {
       id: true,
       bunnyVideoId: true,
       title: true,
+      category: true,
       user: { select: { username: true, displayName: true } },
       submission: {
         select: {
@@ -93,13 +99,15 @@ export async function feedPublicado(
   const items: PostFeed[] = visibles.map((v) => {
     // Submission visible solo si su propio status es PUBLISHED (el mas restrictivo gana).
     const sub = v.submission && v.submission.status === "PUBLISHED" ? v.submission : null;
+    // Categoria: con Submission publicada -> la del reto; sin ella -> la del video libre (Video.category).
+    const claveCategoria = categoriaKeyDeVideo({ submission: v.submission, category: v.category });
     const urls = opts.firmar(v.bunnyVideoId);
     return {
       id: v.id,
       displayName: v.user.displayName,
       username: v.user.username,
       retoTitulo: sub?.challenge.title ?? v.title ?? "Vídeo",
-      categoria: nombreCategoria(sub?.challenge.category),
+      categoria: nombreCategoria(claveCategoria),
       votos: sub?.voteCount ?? 0,
       src: urls.src,
       poster: urls.poster,

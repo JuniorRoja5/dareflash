@@ -16,7 +16,14 @@ import { CerrarSesion } from "../cerrar-sesion";
  * así que la etiqueta de estado no puede aparecer —ni filtrarse— fuera del dueño. El render de la
  * celda (póster + play + modal para publicados, icono + estado para el resto) vive en `celda-video`.
  */
-export type VideoCelda = { id: string; title: string | null; poster: string; estado?: EstadoVideo };
+export type VideoCelda = {
+  id: string;
+  title: string | null;
+  poster: string;
+  estado?: EstadoVideo;
+  /** Categoria (KEY de CATEGORIES) o null; se pinta como chip en la celda publicada. */
+  categoria?: string | null;
+};
 
 /** Enlace externo del perfil: SIEMPRE rel="nofollow noopener" + target _blank (no confiamos la URL). */
 function EnlaceExterno({ href, children }: { href: string; children: ReactNode }) {

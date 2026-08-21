@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * credencial de corta duracion, NUNCA la clave de API.
  */
 export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
-  const { RATE_LIMITS, BUNNY_TUS_CREDENTIAL_TTL_SEC, CONFIRM_WAKE_KEY } =
+  const { RATE_LIMITS, BUNNY_TUS_CREDENTIAL_TTL_SEC, CONFIRM_WAKE_KEY, CATEGORIES } =
     await import("@/config/constants");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { crearObjetoVideo, credencialSubidaTus, clienteBunnyReal } =
@@ -30,6 +30,7 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
   const schema = z.object({
     title: z.string().trim().min(1).max(200).optional(),
     challengeId: z.string().trim().min(1).max(64).optional(),
+    category: z.string().trim().min(1).max(40).optional(),
   });
   let body: unknown;
   try {
@@ -40,6 +41,16 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
   const parsed = schema.safeParse(body ?? {});
   if (!parsed.success) return apiError("VALIDATION", "Datos invalidos.", 400);
   const challengeId = parsed.data.challengeId ?? null;
+
+  // CATEGORIA: obligatoria en la subida LIBRE (sin reto) y debe ser una de las 14; en una PARTICIPACION
+  // se IGNORA (la categoria es la del reto, fuente unica via Submission->Challenge).
+  let categoriaLibre: string | null = null;
+  if (!challengeId) {
+    const cat = parsed.data.category;
+    const valida = cat !== undefined && CATEGORIES.some((c) => c.key === cat);
+    if (!valida) return apiError("VALIDATION", "Elige una categoria de la lista.", 400);
+    categoriaLibre = cat;
+  }
 
   // Si es participacion, el reto debe estar ABIERTO (PUBLISHED y sin cerrar): no se participa en un
   // borrador ni en un reto cerrado. Se valida ANTES de tocar Bunny.
@@ -88,9 +99,14 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
         await escribirEstado(tx, CONFIRM_WAKE_KEY, String(Date.now()));
         return { tipo: "ok" as const, videoDbId: r.videoId, esReemplazo: r.modo === "reemplazo" };
       }
-      // Subida libre: Video PENDING, sin Submission.
+      // Subida libre: Video PENDING con su categoria propia, sin Submission.
       const v = await tx.video.create({
-        data: { userId: user.userId, bunnyVideoId: guid, title: tituloUsuario },
+        data: {
+          userId: user.userId,
+          bunnyVideoId: guid,
+          title: tituloUsuario,
+          category: categoriaLibre,
+        },
         select: { id: true },
       });
       await escribirEstado(tx, CONFIRM_WAKE_KEY, String(Date.now()));

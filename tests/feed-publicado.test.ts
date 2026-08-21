@@ -36,6 +36,7 @@ async function crearVideo(input: {
   bunny: string;
   title: string;
   createdAt: Date;
+  category?: string | null; // un video LIBRE necesita categoria para salir en el feed (2c)
 }): Promise<string> {
   const v = await prisma.video.create({
     data: {
@@ -44,6 +45,7 @@ async function crearVideo(input: {
       bunnyVideoId: input.bunny,
       title: input.title,
       createdAt: input.createdAt,
+      category: input.category ?? null,
     },
     select: { id: true },
   });
@@ -62,6 +64,7 @@ describe("feedPublicado", () => {
       bunny: "b-viejo",
       title: "Viejo",
       createdAt: new Date("2026-01-01T00:00:00Z"),
+      category: "fitness", // video libre: con categoria sale en el feed
     });
     await crearVideo({
       userId: u.id,
@@ -69,6 +72,7 @@ describe("feedPublicado", () => {
       bunny: "b-pend",
       title: "Pendiente",
       createdAt: new Date("2026-02-01T00:00:00Z"),
+      category: "fitness",
     });
     await crearVideo({
       userId: u.id,
@@ -76,6 +80,7 @@ describe("feedPublicado", () => {
       bunny: "b-nuevo",
       title: "Nuevo",
       createdAt: new Date("2026-03-01T00:00:00Z"),
+      category: "fitness",
     });
 
     const { items, nextCursor } = await feedPublicado(prisma, { firmar: firmarFake });
@@ -97,6 +102,7 @@ describe("feedPublicado", () => {
         bunny: `b-${i}`,
         title: `V${i}`,
         createdAt: new Date(Date.UTC(2026, 0, i + 1)),
+        category: "fitness",
       });
     }
 
@@ -124,6 +130,7 @@ describe("feedPublicado", () => {
       bunny: "b-normal",
       title: "Normal",
       createdAt: new Date("2026-06-01T00:00:00Z"),
+      category: "fitness",
     });
     // Un vídeo de reemplazo: PUBLISHED pero con el puntero seteado -> NO debe salir en el feed.
     await prisma.video.create({
@@ -139,6 +146,31 @@ describe("feedPublicado", () => {
 
     const { items } = await feedPublicado(prisma, { firmar: firmarFake });
     expect(items.map((i) => i.retoTitulo)).toEqual(["Normal"]); // el reemplazo NO aparece
+  });
+
+  it("categoría por AMBAS vías: libre con category -> Video.category; sin submission NI category -> excluido", async () => {
+    const u = await prisma.user.create({ data: { username: "cat" }, select: { id: true } });
+    const idLibre = await crearVideo({
+      userId: u.id,
+      status: "PUBLISHED",
+      bunny: "b-libre",
+      title: "Vídeo libre",
+      createdAt: new Date("2026-07-02T00:00:00Z"),
+      category: "gaming", // libre -> su categoría sale de Video.category
+    });
+    // Sin submission NI category: NO debe aparecer (evita vídeos sueltos sin categoría).
+    await crearVideo({
+      userId: u.id,
+      status: "PUBLISHED",
+      bunny: "b-suelto",
+      title: "Suelto sin categoría",
+      createdAt: new Date("2026-07-01T00:00:00Z"),
+      category: null,
+    });
+
+    const { items } = await feedPublicado(prisma, { firmar: firmarFake });
+    expect(items.map((i) => i.id)).toEqual([idLibre]); // el suelto sin categoría, fuera
+    expect(items[0]!.categoria).toBe("Gaming"); // key "gaming" -> "Gaming" (vía Video.category)
   });
 
   it("excluye vídeos de usuarios borrados o baneados", async () => {

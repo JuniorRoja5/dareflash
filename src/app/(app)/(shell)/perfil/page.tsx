@@ -31,6 +31,7 @@ export default async function PerfilPage() {
     // Solo el vídeo PUBLICADO tiene póster firmable; los demás muestran su estado, sin miniatura.
     poster: v.estado === "publicado" ? firmarReproduccion(v.bunnyVideoId).poster : "",
     estado: v.estado,
+    categoria: v.categoria,
   }));
 
   return (

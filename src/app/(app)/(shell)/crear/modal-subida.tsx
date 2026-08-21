@@ -72,6 +72,7 @@ export function ModalSubida({
   onSubido?: (videoDbId: string) => void;
 }) {
   const [titulo, setTitulo] = useState("");
+  const [categoria, setCategoria] = useState<string>(CATEGORIAS[0]?.clave ?? "");
   const [errorTitulo, setErrorTitulo] = useState<string | undefined>(undefined);
   const [fichero, setFichero] = useState<File | null>(null);
   const [errorFichero, setErrorFichero] = useState<string | undefined>(undefined);
@@ -248,7 +249,11 @@ export function ModalSubida({
     try {
       const cred = await postJsonCsrf<{ videoDbId?: string; esReemplazo?: boolean }>(
         "/api/videos/upload-credential",
-        { title: titulo.trim(), ...(challengeId ? { challengeId } : {}) },
+        {
+          title: titulo.trim(),
+          // Participacion -> challengeId (la categoria la pone el reto). Libre -> categoria elegida.
+          ...(challengeId ? { challengeId } : { category: categoria }),
+        },
       );
       if (!cred.ok) throw new Error(cred.status === 401 ? "SIN_SESION" : "CREDENCIAL");
       const credencial: unknown = cred.data;
@@ -375,26 +380,30 @@ export function ModalSubida({
               disabled={ocupado}
             />
 
-            <div>
-              <label
-                htmlFor="subida-categoria"
-                className="mb-1.5 block text-sm font-medium text-text"
-              >
-                Categoría
-              </label>
-              <select
-                id="subida-categoria"
-                defaultValue={CATEGORIAS[0]?.clave}
-                disabled={ocupado}
-                className="min-h-[44px] w-full rounded-sm border border-line bg-surface px-3.5 text-base text-text focus:border-text focus:bg-raised disabled:opacity-60"
-              >
-                {CATEGORIAS.map((c) => (
-                  <option key={c.clave} value={c.clave}>
-                    {c.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Categoría: SOLO en la subida libre (obligatoria). En una participación la pone el reto. */}
+            {challengeId ? null : (
+              <div>
+                <label
+                  htmlFor="subida-categoria"
+                  className="mb-1.5 block text-sm font-medium text-text"
+                >
+                  Categoría
+                </label>
+                <select
+                  id="subida-categoria"
+                  value={categoria}
+                  onChange={(e) => setCategoria(e.target.value)}
+                  disabled={ocupado}
+                  className="min-h-[44px] w-full rounded-sm border border-line bg-surface px-3.5 text-base text-text focus:border-text focus:bg-raised disabled:opacity-60"
+                >
+                  {CATEGORIAS.map((c) => (
+                    <option key={c.clave} value={c.clave}>
+                      {c.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* MINIATURA opcional. */}
             <div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { ModalReproductor } from "@/components/ui/modal-reproductor";
 
+import { nombreCategoria } from "../retos/retos-datos";
 import { BorrarVideo } from "./borrar-video";
 import type { EstadoVideo } from "./perfil-logic";
 import type { VideoCelda } from "./perfil-vista";
@@ -59,6 +60,11 @@ export function CeldaVideo({ video, esPropio = false }: { video: VideoCelda; esP
           <span className="relative">
             <IconoPlay />
           </span>
+          {video.categoria ? (
+            <span className="absolute top-1.5 left-1.5 rounded-full bg-void/70 px-2 py-0.5 text-2xs font-semibold tracking-wide text-text backdrop-blur-sm">
+              {nombreCategoria(video.categoria)}
+            </span>
+          ) : null}
         </button>
       ) : (
         <div
