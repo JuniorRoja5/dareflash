@@ -31,18 +31,22 @@ export default async function PanelLayout({ children }: { children: ReactNode })
 
   return (
     <div className="min-h-screen bg-void text-text">
-      <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-line bg-surface px-6 py-3">
+      <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-line bg-surface px-5 py-3 lg:px-6">
         <span className="text-sm font-semibold tracking-widest text-text-dim uppercase">
-          Panel · Admin
+          Panel <span className="text-text">· Admin</span>
         </span>
         <div className="ml-auto flex items-center gap-4">
           <span className="max-w-[40ch] truncate text-sm text-text-dim">{nombre}</span>
           <SalirPanel />
         </div>
       </header>
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8 lg:flex-row lg:gap-8">
-        <PanelNav />
-        <main className="min-w-0 flex-1">{children}</main>
+      {/* Dashboard a ANCHO COMPLETO: barra lateral persistente (escritorio) + área principal que usa todo
+          el ancho restante. En móvil la barra cae a una fila superior desplazable (dentro de PanelNav). */}
+      <div className="lg:flex lg:items-start">
+        <aside className="lg:sticky lg:top-[57px] lg:h-[calc(100vh-57px)] lg:w-60 lg:shrink-0 lg:overflow-y-auto lg:border-r lg:border-line lg:bg-surface/40">
+          <PanelNav />
+        </aside>
+        <main className="min-w-0 flex-1 px-5 py-8 lg:px-8 lg:py-10">{children}</main>
       </div>
     </div>
   );
