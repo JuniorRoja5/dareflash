@@ -150,7 +150,10 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
         <h2 className="mb-3 text-sm font-semibold tracking-widest text-text-dim uppercase">
           Participaciones
         </h2>
-        <ParticipacionesReto participaciones={participacionesUI} />
+        <ParticipacionesReto
+          participaciones={participacionesUI}
+          esAdmin={usuario?.role === "ADMIN"}
+        />
       </section>
     </div>
   );

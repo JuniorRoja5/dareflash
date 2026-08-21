@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { ModalReproductor } from "@/components/ui/modal-reproductor";
+import { postJsonCsrf } from "@/lib/cliente-http";
 import { nombreMostrado } from "@/lib/identidad";
 
 /** Una participación ya lista para pintar: póster firmado + datos del autor. */
@@ -23,7 +25,14 @@ export interface ParticipacionUI {
  * iframe). Solo llegan aquí participaciones VISIBLES (Submission+Video PUBLISHED). La propia se marca
  * "Tú". Votos en lima (dinero-adyacente: es la moneda del reto), tabular.
  */
-export function ParticipacionesReto({ participaciones }: { participaciones: ParticipacionUI[] }) {
+export function ParticipacionesReto({
+  participaciones,
+  esAdmin = false,
+}: {
+  participaciones: ParticipacionUI[];
+  /** El admin ve un botón "Retirar" por participación (moderación reactiva). */
+  esAdmin?: boolean;
+}) {
   if (participaciones.length === 0) {
     return (
       <p className="rounded-sm border border-line bg-surface/40 p-8 text-center text-sm text-text-dim">
@@ -35,14 +44,20 @@ export function ParticipacionesReto({ participaciones }: { participaciones: Part
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {participaciones.map((p) => (
         <li key={p.submissionId}>
-          <Celda participacion={p} />
+          <Celda participacion={p} esAdmin={esAdmin} />
         </li>
       ))}
     </ul>
   );
 }
 
-function Celda({ participacion: p }: { participacion: ParticipacionUI }) {
+function Celda({
+  participacion: p,
+  esAdmin,
+}: {
+  participacion: ParticipacionUI;
+  esAdmin: boolean;
+}) {
   const [abierto, setAbierto] = useState(false);
   const autor = nombreMostrado(p.displayName, p.username);
   const etiqueta = p.title?.trim() ? `Reproducir «${p.title}»` : `Reproducir el vídeo de ${autor}`;
@@ -71,10 +86,64 @@ function Celda({ participacion: p }: { participacion: ParticipacionUI }) {
         </span>
       </button>
       <p className="mt-1.5 truncate text-xs text-text-dim">{autor}</p>
+      {esAdmin ? <BotonRetirar submissionId={p.submissionId} /> : null}
       {abierto ? (
         <ModalReproductor id={p.videoId} titulo={p.title} onCerrar={() => setAbierto(false)} />
       ) : null}
     </div>
+  );
+}
+
+/** Retirar (solo admin): oculta la participación de reto/feed/perfil (preserva el objeto en Bunny). */
+function BotonRetirar({ submissionId }: { submissionId: string }) {
+  const router = useRouter();
+  const [fase, setFase] = useState<"idle" | "confirmar" | "enviando" | "error">("idle");
+
+  async function retirar(): Promise<void> {
+    setFase("enviando");
+    try {
+      const r = await postJsonCsrf(`/api/panel/participaciones/${submissionId}/retirar`, {});
+      if (r.ok) {
+        router.refresh();
+        return;
+      }
+      setFase("error");
+    } catch {
+      setFase("error");
+    }
+  }
+
+  if (fase === "confirmar") {
+    return (
+      <div className="mt-1 flex items-center gap-2 text-2xs">
+        <span className="text-text-dim">¿Retirar?</span>
+        <button
+          type="button"
+          onClick={retirar}
+          className="rounded-sm border border-line px-2 py-0.5 font-medium text-alarm hover:bg-raised"
+        >
+          Sí
+        </button>
+        <button
+          type="button"
+          onClick={() => setFase("idle")}
+          className="rounded-sm border border-line px-2 py-0.5 text-text-dim hover:bg-raised"
+        >
+          No
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setFase("confirmar")}
+      disabled={fase === "enviando"}
+      className="mt-1 text-2xs font-medium text-text-dim underline-offset-2 hover:text-alarm hover:underline disabled:opacity-40"
+    >
+      {fase === "enviando" ? "Retirando…" : fase === "error" ? "Reintentar retirar" : "Retirar"}
+    </button>
   );
 }
 

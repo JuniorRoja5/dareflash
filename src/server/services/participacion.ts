@@ -140,6 +140,36 @@ export async function completarReemplazo(
 }
 
 /**
+ * RETIRAR una participación (moderación reactiva del ADMIN, Fase 2 · 2e). Marca la Submission Y su Video
+ * como REMOVED -> desaparece del reto, del feed y del perfil (todos filtran REMOVED). Diferencia CLAVE
+ * con el borrado del dueño: NO encola `BUNNY_DELETE_VIDEO`. El objeto en Bunny se CONSERVA (evidencia /
+ * preservación de contenido): el barrido de huérfanos ya conserva los REMOVED. Retirar = OCULTAR, no
+ * destruir. IDEMPOTENTE (guardas `status != REMOVED`). Devuelve si existía la participación.
+ */
+export async function retirarParticipacion(
+  db: PrismaClient,
+  submissionId: string,
+): Promise<{ retirada: boolean }> {
+  return db.$transaction(async (tx) => {
+    const sub = await tx.submission.findUnique({
+      where: { id: submissionId },
+      select: { videoId: true },
+    });
+    if (!sub) return { retirada: false };
+    await tx.submission.updateMany({
+      where: { id: submissionId, status: { not: "REMOVED" } },
+      data: { status: "REMOVED" },
+    });
+    // El Video tambien REMOVED (quita del feed/perfil). NO se encola borrado en Bunny: se preserva.
+    await tx.video.updateMany({
+      where: { id: sub.videoId, status: { not: "REMOVED" } },
+      data: { status: "REMOVED" },
+    });
+    return { retirada: true };
+  });
+}
+
+/**
  * Se llama JUSTO tras publicar un Video (confirmación del worker). Si el Video es un REEMPLAZO
  * (`reemplazaSubmissionId` seteado) -> completa el swap (red de seguridad ante un cliente que se fue).
  * Si es una PRIMERA participación (tiene Submission propia en PENDING) -> publica esa Submission
