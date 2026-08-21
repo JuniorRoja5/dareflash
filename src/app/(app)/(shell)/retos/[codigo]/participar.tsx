@@ -21,12 +21,15 @@ export function BotonParticipar({
   slug,
   autenticado,
   activo,
+  yaParticipa = false,
 }: {
   challengeId: string;
   publicCode: string;
   slug: string;
   autenticado: boolean;
   activo: boolean;
+  /** Si el usuario ya tiene una participación publicada, el CTA pasa a "Reemplazar" (conecta con 2b). */
+  yaParticipa?: boolean;
 }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
@@ -48,7 +51,7 @@ export function BotonParticipar({
           autenticado ? setAbierto(true) : router.push(enlaceEntrarParaParticipar(publicCode, slug))
         }
       >
-        Participar
+        {yaParticipa ? "Reemplazar mi vídeo" : "Participar"}
       </Boton>
       {abierto ? (
         <ModalSubida
