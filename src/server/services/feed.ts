@@ -62,7 +62,13 @@ export async function feedPublicado(
   );
 
   const filas = await db.video.findMany({
-    where: { status: "PUBLISHED", user: { deletedAt: null, bannedAt: null } },
+    // `reemplazaSubmissionId: null` excluye los REEMPLAZOS en vuelo (un Video de reemplazo, aun tras
+    // pasar a PUBLISHED, no debe salir en el feed hasta que el swap lo convierta en la participacion).
+    where: {
+      status: "PUBLISHED",
+      reemplazaSubmissionId: null,
+      user: { deletedAt: null, bannedAt: null },
+    },
     select: {
       id: true,
       bunnyVideoId: true,

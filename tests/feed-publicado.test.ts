@@ -116,6 +116,31 @@ describe("feedPublicado", () => {
     expect(new Set(ids).size).toBe(3); // sin solapamiento entre páginas
   });
 
+  it("excluye REEMPLAZOS en vuelo (Video PUBLISHED con reemplazaSubmissionId): no se cuelan en el feed", async () => {
+    const u = await prisma.user.create({ data: { username: "repl" }, select: { id: true } });
+    await crearVideo({
+      userId: u.id,
+      status: "PUBLISHED",
+      bunny: "b-normal",
+      title: "Normal",
+      createdAt: new Date("2026-06-01T00:00:00Z"),
+    });
+    // Un vídeo de reemplazo: PUBLISHED pero con el puntero seteado -> NO debe salir en el feed.
+    await prisma.video.create({
+      data: {
+        userId: u.id,
+        status: "PUBLISHED",
+        bunnyVideoId: "b-reemplazo",
+        title: "Reemplazo en vuelo",
+        reemplazaSubmissionId: "sub-cualquiera",
+        createdAt: new Date("2026-06-02T00:00:00Z"),
+      },
+    });
+
+    const { items } = await feedPublicado(prisma, { firmar: firmarFake });
+    expect(items.map((i) => i.retoTitulo)).toEqual(["Normal"]); // el reemplazo NO aparece
+  });
+
   it("excluye vídeos de usuarios borrados o baneados", async () => {
     const bor = await prisma.user.create({
       data: { username: "bor", deletedAt: new Date() },

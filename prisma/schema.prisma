@@ -217,6 +217,15 @@ model Video {
   // Prisma: TRANSCODE_ERROR | TOO_LONG. Distingue el fallo tecnico de la sobreduracion.
   failureReason String?
   title         String?
+
+  // REEMPLAZO en vuelo (Fase 2). Un Video de reemplazo apunta a la Submission que sustituira: se crea
+  // SIN Submission propia (respeta el @@unique([challengeId,userId])). Mientras este seteado, el video
+  // NO aparece en el feed; cuando pasa a PUBLISHED, el SWAP (cliente o worker) repunta esa Submission a
+  // este video, marca el video viejo REMOVED (+ encola su borrado en Bunny) y limpia este puntero. NULL
+  // = video normal (subida libre o primera participacion). SIN FK: el swap comprueba la fila a mano y
+  // un reemplazo abandonado se recupera por el worker.
+  reemplazaSubmissionId String?
+
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
@@ -225,6 +234,8 @@ model Video {
 
   @@index([userId])
   @@index([status])
+  // El worker completa reemplazos abandonados: busca PUBLISHED con este puntero seteado.
+  @@index([reemplazaSubmissionId])
 }
 
 /// Un reto. Pieza central del producto: tiene PREMIO. Lo sensible al tiempo se

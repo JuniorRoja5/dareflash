@@ -125,8 +125,17 @@ export async function confirmarVideosPendientes(
 
     const count = await aplicarTransicion(db, v.id, t);
     if (count > 0) {
-      if (t.destino === "PUBLISHED") publicados += 1;
-      else fallidos += 1;
+      if (t.destino === "PUBLISHED") {
+        publicados += 1;
+        // Recién publicado: publica su participación (primera) o completa el reemplazo (red de
+        // seguridad si el cliente se fue). Independiente por vídeo: un fallo aquí no corta el barrido.
+        try {
+          const { publicarParticipacionSiProcede } = await import("./participacion");
+          await publicarParticipacionSiProcede(db, v.id);
+        } catch (e) {
+          opts.log?.(`[confirm] participación de ${v.id} no pudo publicarse: ${sanearError(e)}`);
+        }
+      } else fallidos += 1;
     }
   }
 

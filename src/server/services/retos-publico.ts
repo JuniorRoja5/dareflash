@@ -23,8 +23,10 @@ export interface RetoPublicoVista {
   coverImage: string | null;
 }
 
-/** Detalle del reto (además de la tarjeta): descripción, reglas, nº de ganadores, moneda, estado. */
+/** Detalle del reto (además de la tarjeta): id (para participar), descripción, reglas, ganadores... */
 export interface RetoPublicoDetalle extends RetoPublicoVista {
+  /** id interno del reto (challengeId): lo usa "Participar" para la subida; NO va en la tarjeta. */
+  id: string;
   descripcion: string | null;
   reglas: string | null;
   winnersCount: number;
@@ -105,6 +107,7 @@ export async function retoPublicoPorCode(
     where: { publicCode, status: { not: "DRAFT" } },
     select: {
       ...SELECT_VISTA,
+      id: true,
       prizeCurrency: true,
       description: true,
       rules: true,
@@ -115,6 +118,7 @@ export async function retoPublicoPorCode(
   if (!f) return null;
   return {
     ...aVista(f),
+    id: f.id,
     descripcion: f.description,
     reglas: f.rules,
     winnersCount: f.winnersCount,

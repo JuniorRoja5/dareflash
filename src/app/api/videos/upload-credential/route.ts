@@ -22,10 +22,15 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
   const { crearObjetoVideo, credencialSubidaTus, clienteBunnyReal } =
     await import("@/server/services/bunny");
   const { escribirEstado } = await import("@/server/services/system-state");
+  const { iniciarParticipacion } = await import("@/server/services/participacion");
   const { sanearError } = await import("@/server/observability/sanitize-error");
 
-  // Titulo OPCIONAL (metadato del objeto en Bunny; el titulo definitivo se fija al publicar).
-  const schema = z.object({ title: z.string().trim().min(1).max(200).optional() });
+  // Titulo OPCIONAL (metadato del objeto en Bunny; el titulo definitivo se fija al publicar). `challengeId`
+  // OPCIONAL: si viene, es una PARTICIPACION en ese reto (crea/actualiza Submission); si no, subida libre.
+  const schema = z.object({
+    title: z.string().trim().min(1).max(200).optional(),
+    challengeId: z.string().trim().min(1).max(64).optional(),
+  });
   let body: unknown;
   try {
     body = await req.json();
@@ -34,6 +39,19 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
   }
   const parsed = schema.safeParse(body ?? {});
   if (!parsed.success) return apiError("VALIDATION", "Datos invalidos.", 400);
+  const challengeId = parsed.data.challengeId ?? null;
+
+  // Si es participacion, el reto debe estar ABIERTO (PUBLISHED y sin cerrar): no se participa en un
+  // borrador ni en un reto cerrado. Se valida ANTES de tocar Bunny.
+  if (challengeId) {
+    const reto = await prisma.challenge.findUnique({
+      where: { id: challengeId },
+      select: { status: true, deadline: true },
+    });
+    if (!reto || reto.status !== "PUBLISHED" || reto.deadline <= new Date()) {
+      return apiError("RETO_NO_DISPONIBLE", "Este reto no admite participaciones.", 409);
+    }
+  }
 
   // Rate-limit por usuario, consumido ANTES de tocar Bunny (no se crean objetos en masa).
   const rlKey = `createvideo:user:${rateLimitKey(env.AUTH_SECRET, user.userId)}`;
@@ -57,19 +75,46 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     //    confirm, ATOMICO en una transaccion: si se crea la fila, hay marca; si algo falla, ninguna
     //    de las dos. El worker leera la marca en su tick y forzara un barrido (event-kick: colapsa el
     //    arranque en frio de la deteccion sin sondear Bunny en vacio).
-    const videoDbId = await prisma.$transaction(async (tx) => {
+    const resultado = await prisma.$transaction(async (tx) => {
+      if (challengeId) {
+        // Participacion: crea Video (+ Submission en primera; o Video de REEMPLAZO sin 2a Submission).
+        const r = await iniciarParticipacion(tx, {
+          challengeId,
+          userId: user.userId,
+          bunnyGuid: guid,
+          title: tituloUsuario,
+        });
+        if (r.modo === "bloqueada") return { tipo: "bloqueada" as const };
+        await escribirEstado(tx, CONFIRM_WAKE_KEY, String(Date.now()));
+        return { tipo: "ok" as const, videoDbId: r.videoId, esReemplazo: r.modo === "reemplazo" };
+      }
+      // Subida libre: Video PENDING, sin Submission.
       const v = await tx.video.create({
         data: { userId: user.userId, bunnyVideoId: guid, title: tituloUsuario },
         select: { id: true },
       });
       await escribirEstado(tx, CONFIRM_WAKE_KEY, String(Date.now()));
-      return v.id;
+      return { tipo: "ok" as const, videoDbId: v.id, esReemplazo: false };
     });
 
-    // 3. La credencial de corta duracion (sin la clave de API) + el id de la fila Video (ADITIVO): el
-    //    cliente lo necesita para fijar una miniatura opcional y, mas adelante, para su participacion.
+    if (resultado.tipo === "bloqueada") {
+      // El objeto en Bunny ya se creo; sin fila Video queda HUERFANO y lo barre la limpieza. No se
+      // participa: la anterior fue retirada por moderacion.
+      return apiError(
+        "PARTICIPACION_BLOQUEADA",
+        "Tu participacion en este reto fue retirada y no puedes volver a participar.",
+        409,
+      );
+    }
+
+    // 3. La credencial de corta duracion (sin la clave de API) + el id de la fila Video (ADITIVO) + si
+    //    es un REEMPLAZO (el cliente confirmara el swap cuando el video nuevo este PUBLISHED).
     const credencial = credencialSubidaTus(config, guid, BUNNY_TUS_CREDENTIAL_TTL_SEC);
-    return apiOk({ ...credencial, videoDbId });
+    return apiOk({
+      ...credencial,
+      videoDbId: resultado.videoDbId,
+      esReemplazo: resultado.esReemplazo,
+    });
   } catch (e) {
     console.error("[videos/upload-credential] fallo preparando la subida:", sanearError(e));
     return apiError("UPLOAD_INIT_FAILED", "No se pudo preparar la subida. Reintenta.", 502);

@@ -179,6 +179,32 @@ export function ModalSubida({
     setMiniatura(f);
   };
 
+  // RUTA RÁPIDA del reemplazo: cuando el vídeo nuevo pasa a PUBLISHED, confirma el swap para que la
+  // participación cambie al instante. Sondea `reproduccion` (200 = PUBLISHED) unas veces y llama a
+  // `confirmar-reemplazo`. Best-effort SIN tocar estado (el modal puede cerrarse): si no llega, el
+  // worker completa el swap igual (red de seguridad).
+  const confirmarReemplazo = async (videoDbId: string): Promise<void> => {
+    for (let intento = 0; intento < 12; intento++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      try {
+        const pub = await fetch(`/api/videos/${videoDbId}/reproduccion`, {
+          credentials: "include",
+        });
+        if (pub.ok) {
+          const csrfToken = await obtenerCsrfToken();
+          await fetch(`/api/videos/${videoDbId}/confirmar-reemplazo`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "X-CSRF-Token": csrfToken },
+          });
+          return;
+        }
+      } catch {
+        // red intermitente: se reintenta; si nunca cuaja, el worker lo completa.
+      }
+    }
+  };
+
   // Tras la subida OK: si el dueño eligió miniatura, la envía a Bunny (Set Thumbnail). No bloquea: un
   // fallo deja la miniatura automática y se avisa.
   const aplicarMiniatura = async (videoDbId: string): Promise<void> => {
@@ -220,14 +246,15 @@ export function ModalSubida({
     setAviso(undefined);
 
     try {
-      const cred = await postJsonCsrf<{ videoDbId?: string }>("/api/videos/upload-credential", {
-        title: titulo.trim(),
-        ...(challengeId ? { challengeId } : {}),
-      });
+      const cred = await postJsonCsrf<{ videoDbId?: string; esReemplazo?: boolean }>(
+        "/api/videos/upload-credential",
+        { title: titulo.trim(), ...(challengeId ? { challengeId } : {}) },
+      );
       if (!cred.ok) throw new Error(cred.status === 401 ? "SIN_SESION" : "CREDENCIAL");
       const credencial: unknown = cred.data;
       if (!credencialValida(credencial)) throw new Error("CREDENCIAL");
       const videoDbId = cred.data.videoDbId ?? null;
+      const esReemplazo = cred.data.esReemplazo === true;
 
       const opciones = opcionesTus(credencial, { filetype: fichero.type, title: titulo.trim() });
       const tus = await import("tus-js-client");
@@ -245,6 +272,7 @@ export function ModalSubida({
           setFase("subido");
           if (videoDbId) {
             void aplicarMiniatura(videoDbId);
+            if (esReemplazo) void confirmarReemplazo(videoDbId);
             onSubido?.(videoDbId);
           }
         },

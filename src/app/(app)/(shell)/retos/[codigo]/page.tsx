@@ -1,10 +1,10 @@
 import { notFound, permanentRedirect } from "next/navigation";
 
-import { Boton } from "@/components/ui/boton";
 import { Marcador } from "@/components/ui/marcador";
 import { PildoraCategoria } from "@/components/ui/pildora";
 
 import { nombreCategoria } from "../retos-datos";
+import { BotonParticipar } from "./participar";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +20,17 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
   const { prisma } = await import("@/server/db/client");
   const { resolverRetoDetalle } = await import("@/server/services/retos-publico");
 
+  const { getCurrentUser } = await import("@/server/auth/current-user");
+
   const r = await resolverRetoDetalle(prisma, codigo);
   if (r.tipo === "noEncontrado") notFound();
   if (r.tipo === "redirect") permanentRedirect(r.a);
   const reto = r.reto;
+
+  const usuario = await getCurrentUser();
+  // Reto abierto = PUBLISHED con cierre futuro. Solo entonces se admite participar.
+  const ahora = new Date();
+  const activo = reto.status === "PUBLISHED" && reto.deadlineMs > ahora.getTime();
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 lg:px-8 lg:py-12">
@@ -83,11 +90,15 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
             </section>
           ) : null}
 
-          {/* Participar: acción del tramo siguiente. CTA deshabilitado HONESTO (no engaña). */}
+          {/* Participar: invitado -> login; logueado -> modal de subida con el challengeId. */}
           <div className="mt-8">
-            <Boton variante="principal" disabled className="w-full py-3.5">
-              Participar — próximamente
-            </Boton>
+            <BotonParticipar
+              challengeId={reto.id}
+              publicCode={reto.publicCode}
+              slug={reto.slug}
+              autenticado={usuario !== null}
+              activo={activo}
+            />
           </div>
         </div>
       </article>
