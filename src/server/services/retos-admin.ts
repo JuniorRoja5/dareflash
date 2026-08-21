@@ -116,6 +116,52 @@ export async function crearRetoAdmin(
   );
 }
 
+export interface RetoEditado {
+  id: string;
+  publicCode: string;
+  slug: string;
+  status: string;
+}
+
+/**
+ * EDITA un reto ya creado (DRAFT o PUBLISHED). Reglas duras:
+ *  - `publicCode` NUNCA cambia (clave estable): NO va en `data`; se recibe para recomputar el slug.
+ *  - `status` NUNCA cambia aquí (editar ≠ publicar/despublicar): NO va en `data`.
+ *  - `coverImage` NO se toca aquí (la portada la gestiona el endpoint, igual que en crear).
+ *  - Si cambia el título, el slug se regenera; las URLs viejas hacen 308 al canónico -> sin enlaces rotos.
+ * Devuelve `null` si el reto no existe (el endpoint traduce a 404). El caller pasa el `publicCode` que ya
+ * cargó (para el 404 y para nombrar la portada), evitando una segunda consulta.
+ */
+export async function editarRetoAdmin(
+  db: Db,
+  id: string,
+  publicCode: string,
+  datos: CrearRetoInput,
+): Promise<RetoEditado | null> {
+  const res = await db.challenge.updateMany({
+    where: { id },
+    data: {
+      title: datos.title,
+      slug: slugDesdeTitulo(datos.title) || publicCode, // mismo fallback que crear
+      description: datos.description,
+      rules: datos.rules,
+      category: datos.category,
+      prizeAmountCents: datos.prizeAmountCents,
+      startsAt: datos.startsAt,
+      deadline: datos.deadline,
+      winnersCount: datos.winnersCount,
+      maxVotesPerUser: datos.maxVotesPerUser,
+      // publicCode, status y coverImage AUSENTES a propósito (invariantes de la edición).
+    },
+  });
+  if (res.count === 0) return null; // no existe
+  const fila = await db.challenge.findUnique({
+    where: { id },
+    select: { id: true, publicCode: true, slug: true, status: true },
+  });
+  return fila;
+}
+
 /**
  * Publica un reto: DRAFT -> PUBLISHED. IDEMPOTENTE y seguro: `updateMany` con `status: "DRAFT"` en el
  * WHERE -> si ya estaba PUBLISHED (o no existe) afecta a 0 filas, sin error. Devuelve si cambió algo.
@@ -128,30 +174,46 @@ export async function publicarReto(db: Db, id: string): Promise<{ publicado: boo
   return { publicado: res.count > 0 };
 }
 
-/** Fila de la lista de retos del panel (todos los estados). */
+/**
+ * Fila de la lista de retos del panel (todos los estados). Incluye los campos EDITABLES (descripción,
+ * reglas, apertura, ganadores, votos, portada) para poder PRECARGAR el formulario de edición en el
+ * cliente sin una segunda petición. La tabla del panel muestra solo un subconjunto; la edición usa todo.
+ */
 export interface RetoAdminFila {
   id: string;
   title: string;
+  description: string | null;
+  rules: string | null;
   category: string;
   status: string;
   prizeAmountCents: number;
   prizeCurrency: string;
+  startsAt: Date;
   deadline: Date;
+  winnersCount: number;
+  maxVotesPerUser: number;
+  coverImage: string | null;
   publicCode: string;
 }
 
-/** Lista los retos para el panel (más nuevos primero), con su estado. */
+/** Lista los retos para el panel (más nuevos primero), con su estado y los campos para editar. */
 export async function listarRetosAdmin(db: Db): Promise<RetoAdminFila[]> {
   const filas = await db.challenge.findMany({
     orderBy: [{ createdAt: "desc" }],
     select: {
       id: true,
       title: true,
+      description: true,
+      rules: true,
       category: true,
       status: true,
       prizeAmountCents: true,
       prizeCurrency: true,
+      startsAt: true,
       deadline: true,
+      winnersCount: true,
+      maxVotesPerUser: true,
+      coverImage: true,
       publicCode: true,
     },
   });

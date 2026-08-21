@@ -9,7 +9,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { buscarRetos } from "../src/server/services/buscar";
-import { crearRetoAdmin, crearRetoSchema, publicarReto } from "../src/server/services/retos-admin";
+import {
+  crearRetoAdmin,
+  crearRetoSchema,
+  editarRetoAdmin,
+  publicarReto,
+} from "../src/server/services/retos-admin";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
@@ -119,5 +124,38 @@ describe("crearRetoAdmin + publicarReto (BD)", () => {
 
     // Idempotente: volver a publicar no cambia nada.
     expect(await publicarReto(prisma, reto.id)).toEqual({ publicado: false });
+  });
+
+  it("DIENTES editar: cambia título -> regenera slug, MANTIENE publicCode y status; conserva coverImage", async () => {
+    const admin = await crearUsuario(prisma, { username: "admined" });
+    const reto = await crearRetoValido(admin);
+    // Publica (status PUBLISHED) y pon una portada, para probar que NINGUNO cambia al editar.
+    await publicarReto(prisma, reto.id);
+    await prisma.challenge.update({
+      where: { id: reto.id },
+      data: { coverImage: "/portadas/x.webp?v=1" },
+    });
+
+    const datos = crearRetoSchema(NOW).parse(baseInput({ title: "Otro título distinto" }));
+    const editado = await editarRetoAdmin(prisma, reto.id, reto.publicCode, datos);
+
+    expect(editado).not.toBeNull();
+    expect(editado!.publicCode).toBe(reto.publicCode); // INVARIANTE: no cambia
+    expect(editado!.slug).toBe("otro-titulo-distinto"); // regenerado del nuevo título
+    expect(editado!.status).toBe("PUBLISHED"); // editar NO despublica
+
+    const fila = await prisma.challenge.findUnique({
+      where: { id: reto.id },
+      select: { title: true, status: true, publicCode: true, coverImage: true },
+    });
+    expect(fila?.title).toBe("Otro título distinto");
+    expect(fila?.status).toBe("PUBLISHED");
+    expect(fila?.publicCode).toBe(reto.publicCode);
+    expect(fila?.coverImage).toBe("/portadas/x.webp?v=1"); // editarRetoAdmin NO toca la portada
+  });
+
+  it("editar un id inexistente -> null (el endpoint lo traduce a 404)", async () => {
+    const datos = crearRetoSchema(NOW).parse(baseInput());
+    expect(await editarRetoAdmin(prisma, "no-existe", "abcd2345", datos)).toBeNull();
   });
 });

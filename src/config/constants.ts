@@ -387,6 +387,9 @@ export const RATE_LIMITS = {
   UPLOAD_AVATAR_PER_USER: { limit: 10, windowMs: 15 * 60 * 1000 }, // 10 / 15 min por usuario
   // Crear reto (admin): el procesado de la portada cuesta CPU/memoria -> mismo trato que el avatar.
   CREAR_RETO_PER_USER: { limit: 20, windowMs: 15 * 60 * 1000 }, // 20 / 15 min por usuario
+  // Editar reto (admin): puede traer una portada nueva (mismo coste de decodificado/recompresión que
+  // crear), así que se acota igual. Cubo por usuario independiente del de crear.
+  EDITAR_RETO_PER_USER: { limit: 30, windowMs: 15 * 60 * 1000 }, // 30 / 15 min por usuario
   // Busqueda (publica, sin sesion): acota abuso/scraping por IP. Holgado para un buscador con debounce
   // (varias pulsaciones por consulta); la cache de Redis absorbe ademas las consultas calientes.
   BUSCAR_PER_IP: { limit: 60, windowMs: 60 * 1000 }, // 60 / min por IP

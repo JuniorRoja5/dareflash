@@ -1,13 +1,13 @@
-import { CrearReto } from "../crear-reto";
-import { ListaRetos } from "../lista-retos";
+import { RetosPanel } from "../retos-panel";
 
 export const metadata = { title: "Retos · Panel" };
 export const dynamic = "force-dynamic";
 
 /**
- * Sección RETOS del panel (M5, funcional): crear reto (queda DRAFT) + lista con su estado y la acción
- * Publicar en los borradores. Acceso protegido por el layout (requireRole ADMIN); los endpoints se
- * reprotegen a sí mismos. Solo el admin crea/publica. Datos reales.
+ * Sección RETOS del panel (funcional): crear reto (queda DRAFT), EDITAR (DRAFT o PUBLISHED) y publicar
+ * los borradores. Acceso protegido por el layout (requireRole ADMIN); los endpoints se reprotegen a sí
+ * mismos. Solo el admin crea/edita/publica. Datos reales. La interacción crear/editar vive en el island
+ * `RetosPanel` (comparte estado entre formulario y lista).
  */
 export default async function RetosPanelPage() {
   const { prisma } = await import("@/server/db/client");
@@ -27,18 +27,12 @@ export default async function RetosPanelPage() {
           Retos
         </h1>
         <p className="mt-2 text-sm text-text-dim">
-          Crea un reto (se guarda como borrador) y publícalo cuando esté listo.
+          Crea un reto (se guarda como borrador), edítalo cuando quieras y publícalo cuando esté
+          listo.
         </p>
       </div>
 
-      <CrearReto />
-
-      <section>
-        <h2 className="mb-3 text-sm font-semibold tracking-widest text-text-dim uppercase">
-          Retos existentes
-        </h2>
-        <ListaRetos retos={retos} />
-      </section>
+      <RetosPanel retos={retos} />
     </div>
   );
 }

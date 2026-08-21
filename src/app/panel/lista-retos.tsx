@@ -54,11 +54,30 @@ function Publicar({ id }: { id: string }) {
   );
 }
 
+function Editar({ onEditar }: { onEditar: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onEditar}
+      className="min-h-[36px] rounded-sm border border-line px-3 text-sm font-medium text-text transition-colors duration-150 ease-mechanical hover:bg-raised"
+    >
+      Editar
+    </button>
+  );
+}
+
 /**
- * Lista de retos del panel (todos los estados). Cada borrador lleva la acción Publicar (DRAFT ->
- * PUBLISHED). Tras publicar, `router.refresh()` recarga el server component y el estado se actualiza.
+ * Lista de retos del panel (todos los estados). Cada fila lleva Editar (DRAFT o PUBLISHED) y, en los
+ * borradores, Publicar (DRAFT -> PUBLISHED). Tras publicar, `router.refresh()` recarga el server
+ * component. Editar delega en el padre (`onEditar`), que precarga el formulario con ese reto.
  */
-export function ListaRetos({ retos }: { retos: RetoAdminFila[] }) {
+export function ListaRetos({
+  retos,
+  onEditar,
+}: {
+  retos: RetoAdminFila[];
+  onEditar: (reto: RetoAdminFila) => void;
+}) {
   if (retos.length === 0) {
     return (
       <p className="rounded-sm border border-line bg-surface/40 p-6 text-center text-sm text-text-dim">
@@ -78,21 +97,20 @@ export function ListaRetos({ retos }: { retos: RetoAdminFila[] }) {
             </p>
           </div>
           {/* premio en lima (acento de dinero), tabular */}
-          <span className="font-semibold tabular-nums text-ok">
+          <span className="font-semibold tabular-nums text-money">
             {centimosAImporte(r.prizeAmountCents)} {r.prizeCurrency}
           </span>
           <span
             className={`rounded-full px-2.5 py-0.5 text-2xs font-semibold tracking-widest uppercase ${
-              r.status === "PUBLISHED"
-                ? "bg-ok/15 text-ok"
-                : r.status === "DRAFT"
-                  ? "bg-raised text-text-dim"
-                  : "bg-raised text-text-dim"
+              r.status === "PUBLISHED" ? "bg-ok/15 text-ok" : "bg-raised text-text-dim"
             }`}
           >
             {ETIQUETA_ESTADO[r.status] ?? r.status}
           </span>
-          {r.status === "DRAFT" ? <Publicar id={r.id} /> : null}
+          <div className="flex items-center gap-2">
+            <Editar onEditar={() => onEditar(r)} />
+            {r.status === "DRAFT" ? <Publicar id={r.id} /> : null}
+          </div>
         </li>
       ))}
     </ul>
