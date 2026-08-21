@@ -95,6 +95,7 @@ function dobleCliente(listVideos: ClienteBunny["listVideos"]): {
     deleteVideo: async ({ videoId }) => {
       borrados.push(videoId);
     },
+    setThumbnail: async () => {},
   };
   return { cliente, borrados };
 }

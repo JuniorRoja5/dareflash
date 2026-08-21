@@ -34,6 +34,12 @@ describe("procesarImagen · seguridad (dientes)", () => {
     }
   });
 
+  it("formato de salida JPEG cuando se pide (la miniatura de Bunny es thumbnail.jpg)", async () => {
+    const out = await procesarImagen(await imagen("png"), { ...CONTENER, formato: "jpeg" });
+    expect(out.contentType).toBe("image/jpeg");
+    expect((await sharp(out.buffer).metadata()).format).toBe("jpeg");
+  });
+
   it("rechaza NO-imagen (texto renombrado) y formatos no permitidos (GIF)", async () => {
     // .txt renombrado a .png: los BYTES son texto -> no es una imagen decodificable.
     await expect(

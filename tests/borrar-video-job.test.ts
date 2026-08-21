@@ -30,6 +30,7 @@ function registroCon(deleteVideo: (input: { videoId: string }) => Promise<void>)
         getVideo: async () => ({ status: 4, length: 0 }),
         listVideos: async () => ({ items: [], totalItems: 0 }),
         deleteVideo,
+        setThumbnail: async () => {},
       },
       config: { libraryId: "lib", apiKey: "key" },
     },

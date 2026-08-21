@@ -139,6 +139,15 @@ export const PORTADA_MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 export const PORTADA_MAX_LADO = 1280; // px
 
 /**
+ * MINIATURA personalizada de video (Fase 2, opcional, subida por el dueño). Se procesa con el pipeline
+ * compartido (modo "contener", salida JPEG porque Bunny sirve thumbnail.jpg) y se envía a Bunny Set
+ * Thumbnail. Límite de bytes de ENTRADA (acota memoria/CPU antes de decodificar) y lado máximo de
+ * SALIDA (una miniatura 16:9 no necesita más de 1280 de ancho).
+ */
+export const MINIATURA_MAX_BYTES = 8 * 1024 * 1024; // 8 MB
+export const MINIATURA_MAX_LADO = 1280; // px
+
+/**
  * HANDLES RESERVADOS (fuente única) para la edición manual del username (P2). Dos motivos:
  *  1. RUTAS: un handle que choque con un segmento de la app (`/admin`, `/buscar`, `/u`…) rompería el
  *     enrutado o el perfil `/u/[username]`. Se listan las rutas de primer nivel reales + `u`.
@@ -385,6 +394,9 @@ export const RATE_LIMITS = {
   // Subir avatar: DECODIFICA y RECOMPRIME una imagen (CPU + memoria). Cubo por USUARIO mas estrecho,
   // para que nadie funda el VPS a base de subir imagenes de 5 MB en bucle.
   UPLOAD_AVATAR_PER_USER: { limit: 10, windowMs: 15 * 60 * 1000 }, // 10 / 15 min por usuario
+  // Miniatura de video (dueño): decodifica y recomprime una imagen (CPU + memoria) y llama a Bunny.
+  // Mismo trato que el avatar; por usuario.
+  UPLOAD_THUMBNAIL_PER_USER: { limit: 15, windowMs: 15 * 60 * 1000 }, // 15 / 15 min por usuario
   // Crear reto (admin): el procesado de la portada cuesta CPU/memoria -> mismo trato que el avatar.
   CREAR_RETO_PER_USER: { limit: 20, windowMs: 15 * 60 * 1000 }, // 20 / 15 min por usuario
   // Editar reto (admin): puede traer una portada nueva (mismo coste de decodificado/recompresión que

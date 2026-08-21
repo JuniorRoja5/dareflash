@@ -41,17 +41,23 @@ export type ModoImagen =
   | { tipo: "cuadrado"; lado: number; position?: "attention" | "centre" }
   | { tipo: "contener"; maxLado: number };
 
+/** Formato de SALIDA. `webp` por defecto (avatar/portada); `jpeg` para destinos que lo exigen (la
+ *  miniatura de Bunny se sirve como thumbnail.jpg). No cambia el saneo, solo el códec de salida. */
+export type FormatoSalida = "webp" | "jpeg";
+
 export interface OpcionesImagen {
   maxBytes: number;
   modo: ModoImagen;
-  /** Calidad WebP (default 82). */
+  /** Calidad de recompresión (default 82). */
   calidad?: number;
+  /** Formato de salida (default "webp"). */
+  formato?: FormatoSalida;
 }
 
-/** Imagen ya saneada: búfer WebP + su Content-Type + dimensiones reales de salida. */
+/** Imagen ya saneada: búfer + su Content-Type + dimensiones reales de salida. */
 export interface ImagenProcesada {
   buffer: Buffer;
-  contentType: "image/webp";
+  contentType: "image/webp" | "image/jpeg";
   ancho: number;
   alto: number;
 }
@@ -102,16 +108,20 @@ export async function procesarImagen(
     });
   }
 
+  const formatoSalida = opciones.formato ?? "webp";
+  const codificado =
+    formatoSalida === "jpeg" ? pipe.jpeg({ quality: calidad }) : pipe.webp({ quality: calidad });
+
   let out: { data: Buffer; info: OutputInfo };
   try {
-    out = await pipe.webp({ quality: calidad }).toBuffer({ resolveWithObject: true });
+    out = await codificado.toBuffer({ resolveWithObject: true });
   } catch {
     throw new ImagenInvalidaError("CORRUPTO", "No se pudo procesar la imagen. Prueba con otra.");
   }
 
   return {
     buffer: out.data,
-    contentType: "image/webp",
+    contentType: formatoSalida === "jpeg" ? "image/jpeg" : "image/webp",
     ancho: out.info.width,
     alto: out.info.height,
   };

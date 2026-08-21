@@ -74,6 +74,9 @@ describe("crearObjetoVideo", () => {
       async deleteVideo() {
         // no se usa en este test
       },
+      async setThumbnail() {
+        // no se usa en este test
+      },
     };
     const guid = await crearObjetoVideo(doble, CONFIG, "Mi video");
     expect(guid).toBe("guid-del-doble");

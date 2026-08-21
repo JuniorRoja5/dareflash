@@ -57,6 +57,7 @@ function registroFake(adapter: EmailAdapter): Registro {
           getVideo: async () => ({ status: 4, length: 0 }),
           listVideos: async () => ({ items: [], totalItems: 0 }),
           deleteVideo: async () => {},
+          setThumbnail: async () => {},
         },
         config: { libraryId: "lib", apiKey: "key" },
       },

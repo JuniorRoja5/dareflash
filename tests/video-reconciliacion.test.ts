@@ -24,6 +24,7 @@ function dobleBunny(getVideo: ClienteBunny["getVideo"]): ClienteBunny {
     // interfaz que la Parte B extendio.
     listVideos: async () => ({ items: [], totalItems: 0 }),
     deleteVideo: async () => {},
+    setThumbnail: async () => {},
   };
 }
 

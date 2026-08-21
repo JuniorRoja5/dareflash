@@ -68,6 +68,19 @@ export interface ClienteBunny {
   }>;
   /** Borra un objeto de video de Bunny (Delete Video). IRREVERSIBLE: solo lo llama la limpieza. */
   deleteVideo(input: { libraryId: string; apiKey: string; videoId: string }): Promise<void>;
+  /**
+   * Fija la MINIATURA de un video (Set Thumbnail de Bunny). Verificado en la doc oficial (ago 2026):
+   * POST /library/{libraryId}/videos/{videoId}/thumbnail, cabecera AccessKey, y el fichero como binario
+   * en el cuerpo (application/octet-stream). Solo servidor (la API key nunca sale). Bunny sirve la
+   * miniatura como thumbnail.jpg, por eso se sube JPEG.
+   */
+  setThumbnail(input: {
+    libraryId: string;
+    apiKey: string;
+    videoId: string;
+    imagen: Buffer;
+    contentType: string;
+  }): Promise<void>;
 }
 
 /** Cliente HTTP real de Bunny (fetch). La clave de API va en la cabecera AccessKey, solo servidor. */
@@ -142,6 +155,14 @@ export const clienteBunnyReal: ClienteBunny = {
     if (res.status === 404) return;
     if (!res.ok) throw new Error(`Bunny deleteVideo: HTTP ${res.status}`);
   },
+  async setThumbnail({ libraryId, apiKey, videoId, imagen, contentType }) {
+    const res = await fetch(`${API_BASE}/library/${libraryId}/videos/${videoId}/thumbnail`, {
+      method: "POST",
+      headers: { AccessKey: apiKey, "Content-Type": contentType, Accept: "application/json" },
+      body: new Uint8Array(imagen),
+    });
+    if (!res.ok) throw new Error(`Bunny setThumbnail: HTTP ${res.status}`);
+  },
 };
 
 /**
@@ -159,6 +180,27 @@ export async function crearObjetoVideo(
     title,
   });
   return guid;
+}
+
+/**
+ * Fija la miniatura del video en Bunny. Envoltorio del cliente inyectable: la ruta procesa el fichero
+ * con el pipeline compartido (JPEG, modo "contener") y llama aquí. La API key sale de la config (env en
+ * el borde), jamás del cliente. Un fallo se propaga para que la ruta lo trate (no aborta el video).
+ */
+export async function establecerMiniatura(
+  cliente: ClienteBunny,
+  config: ConfigBunny,
+  videoGuid: string,
+  imagen: Buffer,
+  contentType: string,
+): Promise<void> {
+  await cliente.setThumbnail({
+    libraryId: config.libraryId,
+    apiKey: config.apiKey,
+    videoId: videoGuid,
+    imagen,
+    contentType,
+  });
 }
 
 /**

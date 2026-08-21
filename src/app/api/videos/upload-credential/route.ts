@@ -57,16 +57,19 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     //    confirm, ATOMICO en una transaccion: si se crea la fila, hay marca; si algo falla, ninguna
     //    de las dos. El worker leera la marca en su tick y forzara un barrido (event-kick: colapsa el
     //    arranque en frio de la deteccion sin sondear Bunny en vacio).
-    await prisma.$transaction(async (tx) => {
-      await tx.video.create({
+    const videoDbId = await prisma.$transaction(async (tx) => {
+      const v = await tx.video.create({
         data: { userId: user.userId, bunnyVideoId: guid, title: tituloUsuario },
+        select: { id: true },
       });
       await escribirEstado(tx, CONFIRM_WAKE_KEY, String(Date.now()));
+      return v.id;
     });
 
-    // 3. Solo la credencial de corta duracion (sin la clave de API).
+    // 3. La credencial de corta duracion (sin la clave de API) + el id de la fila Video (ADITIVO): el
+    //    cliente lo necesita para fijar una miniatura opcional y, mas adelante, para su participacion.
     const credencial = credencialSubidaTus(config, guid, BUNNY_TUS_CREDENTIAL_TTL_SEC);
-    return apiOk({ ...credencial });
+    return apiOk({ ...credencial, videoDbId });
   } catch (e) {
     console.error("[videos/upload-credential] fallo preparando la subida:", sanearError(e));
     return apiError("UPLOAD_INIT_FAILED", "No se pudo preparar la subida. Reintenta.", 502);
