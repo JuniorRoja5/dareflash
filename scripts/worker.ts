@@ -58,6 +58,10 @@ async function main(): Promise<void> {
     bunny: {
       cliente: clienteBunnyReal,
       config: { libraryId: env.BUNNY_STREAM_LIBRARY_ID, apiKey: env.BUNNY_STREAM_API_KEY },
+      // Purga del CDN (job BUNNY_PURGE_THUMBNAIL): otra API y otra clave. La clave es OPCIONAL; si
+      // falta, el job lo avisa en el log y no purga (la miniatura tarda en refrescarse, nada mas).
+      cdnHostname: env.BUNNY_CDN_HOSTNAME,
+      purgeApiKey: env.BUNNY_PURGE_API_KEY,
     },
   });
   const workerToken = randomUUID();

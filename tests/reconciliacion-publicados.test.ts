@@ -40,6 +40,7 @@ function clienteFake(
     listVideos: async () => ({ items: [], totalItems: 0 }),
     deleteVideo: async () => {},
     setThumbnail: async () => {},
+    purgeUrl: async () => {},
   };
 }
 

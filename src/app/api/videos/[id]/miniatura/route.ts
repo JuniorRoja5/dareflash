@@ -3,6 +3,9 @@ import { mutatingRoute } from "@/server/auth/mutating-route";
 
 export const dynamic = "force-dynamic";
 
+/** Tipo de job de purga del CDN tras fijar la miniatura (union en constants: JobType). */
+const BUNNY_PURGE_THUMBNAIL = "BUNNY_PURGE_THUMBNAIL";
+
 /**
  * POST /api/videos/[id]/miniatura — el DUEÑO fija una MINIATURA personalizada de SU vídeo (opcional).
  * `multipart/form-data` con el campo `imagen`. `mutatingRoute` (Origin/sesión/CSRF) + AUTORIZACIÓN POR
@@ -13,6 +16,9 @@ export const dynamic = "force-dynamic";
  * Bunny sirve la miniatura como thumbnail.jpg) y se envía a Bunny (Set Thumbnail; la API key es
  * server-only). La miniatura es OPCIONAL: si Bunny falla, se responde error suave y el vídeo conserva la
  * miniatura automática — el cliente lo trata como aviso, no como fallo de la subida.
+ *
+ * Tras fijarla se ENCOLA la PURGA del CDN (`BUNNY_PURGE_THUMBNAIL`). Sin ella la miniatura nueva no
+ * llega a verse: Bunny la sirve siempre en la misma ruta y el borde tiene cacheada la automática.
  */
 export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (req, { user, env, prisma }, { params }) => {
@@ -92,6 +98,27 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
         "No se pudo aplicar la miniatura. Se usará una automática; puedes reintentar.",
         502,
       );
+    }
+
+    // La miniatura YA está en el origen de Bunny, pero el borde sigue sirviendo la que cacheó antes
+    // (siempre es la misma ruta, /{guid}/thumbnail.jpg) — por eso se veía en Bunny y no en DareFlash.
+    // Se ENCOLA la purga del CDN: por la cola y no inline porque purgar puede tardar segundos y, si
+    // Bunny falla, el reintento lo recupera. El fallo al encolar NO tumba la respuesta: la miniatura
+    // está puesta; solo tardaría en refrescarse.
+    try {
+      await prisma.job.create({
+        data: {
+          type: BUNNY_PURGE_THUMBNAIL,
+          payload: { bunnyVideoId: video.bunnyVideoId },
+          runAt: new Date(),
+          // Clave de idempotencia por GUID **y momento**: dos peticiones a la vez para la MISMA
+          // miniatura se deduplican, pero un cambio POSTERIOR de miniatura tiene que poder purgar
+          // otra vez (con la clave solo por GUID, la segunda miniatura no se vería nunca).
+          idempotencyKey: `bunny:purge-thumb:${video.bunnyVideoId}:${Date.now()}`,
+        },
+      });
+    } catch (e) {
+      console.error("[videos/miniatura] no se pudo encolar la purga del CDN:", sanearError(e));
     }
 
     return apiOk({ ok: true });

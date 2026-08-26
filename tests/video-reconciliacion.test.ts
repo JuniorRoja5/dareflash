@@ -25,6 +25,7 @@ function dobleBunny(getVideo: ClienteBunny["getVideo"]): ClienteBunny {
     listVideos: async () => ({ items: [], totalItems: 0 }),
     deleteVideo: async () => {},
     setThumbnail: async () => {},
+    purgeUrl: async () => {},
   };
 }
 

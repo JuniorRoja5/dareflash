@@ -58,13 +58,13 @@ describe("retirarParticipacion", () => {
     const p = await participacionPublicada("victima");
 
     // Antes: visible.
-    expect((await listarParticipacionesVisibles(prisma, challengeId)).length).toBe(1);
+    expect((await listarParticipacionesVisibles(prisma, challengeId)).items.length).toBe(1);
 
     const r = await retirarParticipacion(prisma, p.submissionId);
     expect(r.retirada).toBe(true);
 
     // Después: fuera del reto.
-    expect((await listarParticipacionesVisibles(prisma, challengeId)).length).toBe(0);
+    expect((await listarParticipacionesVisibles(prisma, challengeId)).items.length).toBe(0);
 
     const sub = await prisma.submission.findUnique({
       where: { id: p.submissionId },

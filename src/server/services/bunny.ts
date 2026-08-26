@@ -19,6 +19,8 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 const API_BASE = "https://video.bunnycdn.com";
+/** API de CUENTA de Bunny (purga de CDN). Distinta de la de Stream, y con clave propia. */
+const PURGE_BASE = "https://api.bunny.net";
 /** Endpoint TUS de Bunny (el mismo para toda la cuenta; el objeto lo identifica VideoId). */
 export const ENDPOINT_TUS = `${API_BASE}/tusupload`;
 
@@ -81,6 +83,14 @@ export interface ClienteBunny {
     imagen: Buffer;
     contentType: string;
   }): Promise<void>;
+  /**
+   * PURGA una URL del CDN. Otra API (api.bunny.net, la de CUENTA) y otra clave (`purgeApiKey`,
+   * distinta de la API key de Stream). Verificado en la doc oficial (ago 2026):
+   * POST https://api.bunny.net/purge?url=<url>&async=false, cabecera AccessKey, 200 = purgada.
+   * `async=false` hace que Bunny NO responda hasta haber purgado: cuando el job termina, el borde ya
+   * sirve el objeto nuevo (con async=true responderia antes de purgar y el job daria un exito falso).
+   */
+  purgeUrl(input: { purgeApiKey: string; url: string }): Promise<void>;
 }
 
 /** Cliente HTTP real de Bunny (fetch). La clave de API va en la cabecera AccessKey, solo servidor. */
@@ -163,6 +173,14 @@ export const clienteBunnyReal: ClienteBunny = {
     });
     if (!res.ok) throw new Error(`Bunny setThumbnail: HTTP ${res.status}`);
   },
+  async purgeUrl({ purgeApiKey, url }) {
+    const endpoint = `${PURGE_BASE}/purge?url=${encodeURIComponent(url)}&async=false`;
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { AccessKey: purgeApiKey, Accept: "application/json" },
+    });
+    if (!res.ok) throw new Error(`Bunny purgeUrl: HTTP ${res.status}`);
+  },
 };
 
 /**
@@ -201,6 +219,44 @@ export async function establecerMiniatura(
     imagen,
     contentType,
   });
+}
+
+/**
+ * URL (SIN FIRMAR) del objeto de miniatura de un video en el CDN. Es la CLAVE DE CACHE del borde, y
+ * por eso es lo que se purga: la clave NO incluye la query string (ver `purgarMiniatura`), asi que la
+ * URL pelada identifica al mismo objeto que sirve la URL firmada del poster.
+ */
+export function urlMiniatura(hostname: string, videoGuid: string): string {
+  return `https://${hostname}/${videoGuid}/thumbnail.jpg`;
+}
+
+/**
+ * PURGA en el CDN la miniatura de un video. Se llama DESPUES de fijar una miniatura personalizada.
+ *
+ * POR QUE HACE FALTA (el fallo real que arregla): la miniatura personalizada se veia en el panel de
+ * Bunny pero NO en DareFlash. Bunny Stream sirve SIEMPRE la miniatura en la misma ruta,
+ * `/{guid}/thumbnail.jpg`; la AUTOMATICA ya se habia cacheado en el borde antes de que el usuario
+ * subiera la suya, y el borde no vuelve a preguntar al origen hasta que caduque. El objeto cambio en
+ * origen, la URL no: sin purga, se sigue sirviendo la vieja.
+ *
+ * POR QUE NO SE ARREGLA CON UN `?v=` (comprobado en la doc, no de memoria):
+ *   1. En una pull-zone de Bunny la query string NO forma parte de la clave de cache por defecto
+ *      (es lo que permite que la reproduccion funcione: el `token`/`expires` del poster firmado
+ *      CAMBIAN en cada peticion y aun asi hay acierto de cache). Un `?v=` seria ignorado igual.
+ *   2. Peor: Bunny incluye por defecto los parametros de la query EN LA FIRMA del token. Anadir un
+ *      `v=` sin meterlo en el hash convertiria en 403 el poster de TODOS los videos. El cache-bust
+ *      no solo no arreglaria nada: romperia lo que hoy funciona.
+ *
+ * Requiere la clave de la API de CUENTA (`BUNNY_PURGE_API_KEY`). Idempotente: purgar una URL ya
+ * purgada es un no-op correcto, por eso el job puede reintentarse sin cuidado.
+ */
+export async function purgarMiniatura(
+  cliente: ClienteBunny,
+  purgeApiKey: string,
+  hostname: string,
+  videoGuid: string,
+): Promise<void> {
+  await cliente.purgeUrl({ purgeApiKey, url: urlMiniatura(hostname, videoGuid) });
 }
 
 /**

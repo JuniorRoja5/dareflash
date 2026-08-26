@@ -23,9 +23,12 @@ const COPY_MI_ESTADO: Record<string, { texto: string; tono: "neutro" | "alarma" 
 /**
  * DETALLE de un reto público: `/retos/{publicCode}-{slug}`. Resuelve por `publicCode` (clave
  * autoritativa): inexistente/DRAFT -> notFound() (404); si el slug de la URL no es el canónico ->
- * permanentRedirect (308) a la URL canónica. Muestra datos REALES + las participaciones VISIBLES
- * (Submission+Video PUBLISHED), más votadas primero, con el reproductor firmado. El dueño ve su propia
- * participación marcada y su estado (procesando/fallida) + Reemplazar.
+ * permanentRedirect (308) a la URL canónica.
+ *
+ * MAQUETA a ANCHO COMPLETO (`max-w-7xl`, como /inicio y /retos): en escritorio la FICHA del reto ocupa
+ * una columna y las PARTICIPACIONES las otras dos —lo que la gente viene a ver manda el ancho—; en
+ * móvil se apilan. La primera página de participaciones llega ya renderizada del servidor con su
+ * póster firmado; el resto las pagina el cliente por cursor.
  */
 export default async function RetoDetallePage({ params }: { params: Promise<{ codigo: string }> }) {
   const { codigo } = await params;
@@ -46,13 +49,13 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
   const ahora = new Date();
   const activo = reto.status === "PUBLISHED" && reto.deadlineMs > ahora.getTime();
 
-  const [participaciones, mi] = await Promise.all([
+  const [pagina, mi] = await Promise.all([
     listarParticipacionesVisibles(prisma, reto.id),
     usuario ? miParticipacion(prisma, reto.id, usuario.userId) : Promise.resolve(null),
   ]);
 
-  // Firma el póster de cada participación (el player firma su propia URL vía el endpoint) y marca la mía.
-  const participacionesUI: ParticipacionUI[] = participaciones.map((p) => ({
+  // Firma el póster de cada participación (el player firma su propia URL vía el endpoint firmado).
+  const participacionesUI: ParticipacionUI[] = pagina.items.map((p) => ({
     submissionId: p.submissionId,
     videoId: p.videoId,
     title: p.title,
@@ -60,101 +63,114 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
     username: p.username,
     displayName: p.displayName,
     votos: p.votos,
-    esMio: mi?.submissionId === p.submissionId,
   }));
   const miEstado = mi ? COPY_MI_ESTADO[mi.estado] : undefined;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8 lg:px-8 lg:py-12">
-      <article className="df-rise overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md">
-        {/* Portada real (servida por Caddy) si hay; banner apaisado. */}
-        {reto.coverImage ? (
-          // eslint-disable-next-line @next/next/no-img-element -- estático servido por Caddy en /portadas/*
-          <img
-            src={reto.coverImage}
-            alt=""
-            className="aspect-video w-full border-b border-line object-cover"
-          />
-        ) : null}
-        <div className="p-6 lg:p-8">
-          <PildoraCategoria>{nombreCategoria(reto.categoria)}</PildoraCategoria>
-          <h1
-            className="mt-3 text-2xl leading-tight text-text"
-            style={{
-              fontFamily: "var(--font-display)",
-              fontVariationSettings: '"wght" 720, "wdth" 112',
-            }}
-          >
-            {reto.titulo}
-          </h1>
+    <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
+      <div className="grid gap-8 lg:grid-cols-3 lg:items-start">
+        {/* FICHA del reto — una columna en escritorio, primera tarjeta en móvil. */}
+        <article className="df-rise overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md">
+          {/* Portada real (servida por Caddy) si hay; banner apaisado. */}
+          {reto.coverImage ? (
+            // eslint-disable-next-line @next/next/no-img-element -- estático servido por Caddy en /portadas/*
+            <img
+              src={reto.coverImage}
+              alt=""
+              className="aspect-video w-full border-b border-line object-cover"
+            />
+          ) : null}
+          <div className="p-6">
+            <PildoraCategoria>{nombreCategoria(reto.categoria)}</PildoraCategoria>
+            <h1
+              className="mt-3 text-2xl leading-tight text-text"
+              style={{
+                fontFamily: "var(--font-display)",
+                fontVariationSettings: '"wght" 720, "wdth" 112',
+              }}
+            >
+              {reto.titulo}
+            </h1>
 
-          {/* Marcador: premio (en lima) + cuenta atrás al cierre. */}
-          <div className="mt-5">
-            <Marcador cents={reto.premioCents} deadlineMs={reto.deadlineMs} tamano="tarjeta" />
-          </div>
+            {/* Marcador: premio (en lima) + cuenta atrás al cierre. Unidad indivisible. */}
+            <div className="mt-5">
+              <Marcador
+                cents={reto.premioCents}
+                deadlineMs={reto.deadlineMs}
+                tamano="tarjeta"
+                apilarEnMovil
+              />
+            </div>
 
-          <dl className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div>
+            <dl className="mt-6">
               <dt className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
                 Ganadores
               </dt>
               <dd className="mt-1 text-sm text-text">
                 {reto.winnersCount === 1 ? "1 ganador" : `${reto.winnersCount} ganadores`}
               </dd>
-            </div>
-          </dl>
+            </dl>
 
-          {reto.descripcion ? (
-            <section className="mt-6">
-              <h2 className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
-                Descripción
-              </h2>
-              <p className="mt-2 text-sm whitespace-pre-line text-text-dim">{reto.descripcion}</p>
-            </section>
-          ) : null}
-
-          {reto.reglas ? (
-            <section className="mt-6">
-              <h2 className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
-                Reglas
-              </h2>
-              <p className="mt-2 text-sm whitespace-pre-line text-text-dim">{reto.reglas}</p>
-            </section>
-          ) : null}
-
-          {/* Participar: invitado -> login; logueado -> modal de subida con el challengeId. Si ya
-              participó (publicada), el CTA pasa a "Reemplazar". */}
-          <div className="mt-8">
-            <BotonParticipar
-              challengeId={reto.id}
-              publicCode={reto.publicCode}
-              slug={reto.slug}
-              autenticado={usuario !== null}
-              activo={activo}
-              yaParticipa={mi?.estado === "publicada"}
-            />
-            {miEstado ? (
-              <p
-                role="status"
-                className={`mt-2 text-sm ${miEstado.tono === "alarma" ? "text-alarm" : "text-text-dim"}`}
-              >
-                {miEstado.texto}
-              </p>
+            {reto.descripcion ? (
+              <section className="mt-6">
+                <h2 className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
+                  Descripción
+                </h2>
+                <p className="mt-2 text-sm whitespace-pre-line text-text-dim">{reto.descripcion}</p>
+              </section>
             ) : null}
-          </div>
-        </div>
-      </article>
 
-      {/* Participaciones REALES (Submission+Video PUBLISHED), más votadas primero. */}
-      <section className="mt-6">
-        <h2 className="mb-3 text-sm font-semibold tracking-widest text-text-dim uppercase">
-          Participaciones
-        </h2>
-        <ParticipacionesReto
-          participaciones={participacionesUI}
-          esAdmin={usuario?.role === "ADMIN"}
-        />
-      </section>
+            {reto.reglas ? (
+              <section className="mt-6">
+                <h2 className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
+                  Reglas
+                </h2>
+                <p className="mt-2 text-sm whitespace-pre-line text-text-dim">{reto.reglas}</p>
+              </section>
+            ) : null}
+
+            {/* Participar: invitado -> login; logueado -> modal de subida con el challengeId. Si ya
+                participó (publicada), el CTA pasa a "Reemplazar". */}
+            <div className="mt-8">
+              <BotonParticipar
+                challengeId={reto.id}
+                publicCode={reto.publicCode}
+                slug={reto.slug}
+                autenticado={usuario !== null}
+                activo={activo}
+                yaParticipa={mi?.estado === "publicada"}
+              />
+              {miEstado ? (
+                <p
+                  role="status"
+                  className={`mt-2 text-sm ${miEstado.tono === "alarma" ? "text-alarm" : "text-text-dim"}`}
+                >
+                  {miEstado.texto}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </article>
+
+        {/* PARTICIPACIONES reales (Submission+Video PUBLISHED), más votadas primero. */}
+        <section className="df-rise lg:col-span-2" style={{ animationDelay: "80ms" }}>
+          <h2
+            className="mb-4 text-xl leading-none text-text"
+            style={{
+              fontFamily: "var(--font-display)",
+              fontVariationSettings: '"wght" 720, "wdth" 112',
+            }}
+          >
+            Participaciones
+          </h2>
+          <ParticipacionesReto
+            challengeId={reto.id}
+            participaciones={participacionesUI}
+            cursorInicial={pagina.nextCursor}
+            miSubmissionId={mi?.submissionId ?? null}
+          />
+        </section>
+      </div>
     </div>
   );
 }

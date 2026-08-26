@@ -98,6 +98,17 @@ const serverSchema = z.object({
    * publica/scrapeable. Debe estar en el .env del VPS ANTES de desplegar esta rama, o crash-loop.
    */
   BUNNY_TOKEN_AUTH_KEY: z.string().min(1),
+  /**
+   * Clave de la API DE CUENTA de Bunny (api.bunny.net), la unica que autoriza PURGAR el CDN. Es una
+   * TERCERA clave, distinta de la API key de Stream y de la de token auth.
+   *
+   * OPCIONAL A PROPOSITO: promoverla a obligatoria tumbaria el despliegue vivo en cuanto se
+   * desplegase esta rama sin haberla puesto antes en el .env del VPS (crash-loop). Sin ella, fijar
+   * una miniatura personalizada sigue funcionando pero NO se purga el borde: la miniatura nueva no
+   * se ve hasta que caduca la cacheada. El job lo registra con un aviso explicito en vez de fallar
+   * en silencio. En cuanto este en el .env del VPS, la purga empieza a hacerse sola.
+   */
+  BUNNY_PURGE_API_KEY: z.string().min(1).optional(),
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
   /**

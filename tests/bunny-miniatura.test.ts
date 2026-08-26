@@ -15,6 +15,7 @@ function clienteFake(over: Partial<ClienteBunny> = {}): ClienteBunny {
     listVideos: vi.fn(),
     deleteVideo: vi.fn(),
     setThumbnail: vi.fn().mockResolvedValue(undefined),
+    purgeUrl: vi.fn().mockResolvedValue(undefined),
     ...over,
   };
 }

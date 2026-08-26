@@ -18,12 +18,16 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import type { JobModel } from "@/generated/prisma/models";
 import type { EmailAdapter, EmailMessage } from "@/server/email/adapter";
+import { urlMiniatura } from "@/server/services/bunny";
 import type { ClienteBunny, ConfigBunny } from "@/server/services/bunny";
 
 export type PoliticaReaper = "FAIL" | "REQUEUE";
 
 /** Payload del job BUNNY_DELETE_VIDEO: solo el GUID del objeto en Bunny (no dato personal). */
 const BunnyDeletePayloadSchema = z.object({ bunnyVideoId: z.string().min(1) });
+
+/** Payload del job BUNNY_PURGE_THUMBNAIL: el GUID cuyo thumbnail.jpg hay que purgar del borde. */
+const BunnyPurgeThumbPayloadSchema = z.object({ bunnyVideoId: z.string().min(1) });
 
 export interface DefTipoJob {
   /** Ejecuta el trabajo. Lanza en fallo. */
@@ -47,7 +51,17 @@ export type Registro = Record<string, DefTipoJob>;
 export interface DepsRegistro {
   emailAdapter: EmailAdapter;
   /** Cliente de Bunny + su config (libraryId/apiKey) para el borrado del objeto por la cola. */
-  bunny: { cliente: ClienteBunny; config: ConfigBunny };
+  bunny: {
+    cliente: ClienteBunny;
+    config: ConfigBunny;
+    /**
+     * Hostname de la pull-zone y clave de la API DE CUENTA, SOLO para purgar el CDN. La clave es
+     * OPCIONAL (ver `BUNNY_PURGE_API_KEY` en env.ts): sin ella el job de purga no puede trabajar y
+     * lo dice en el log, en vez de fingir exito.
+     */
+    cdnHostname: string;
+    purgeApiKey?: string | undefined;
+  };
 }
 
 /** Construye el registro de tipos con sus dependencias. */
@@ -90,6 +104,45 @@ export function construirRegistro(deps: DepsRegistro): Registro {
       // Si acaba en FAILED, conserva el GUID (interno, no personal) para saber que objeto quedo sin borrar.
       resumenFallo(job) {
         const p = BunnyDeletePayloadSchema.safeParse(job.payload);
+        return p.success ? { bunnyVideoId: p.data.bunnyVideoId } : null;
+      },
+    },
+
+    /**
+     * Purga en el CDN el `thumbnail.jpg` de un video cuyo DUEÑO acaba de fijar una miniatura
+     * PERSONALIZADA. Sin esto la miniatura nueva no llega a verse: el borde sigue sirviendo la
+     * automatica que cacheo antes (el detalle esta en `purgarMiniatura`).
+     *
+     * Va por la COLA y no inline en la ruta por dos motivos: purgar con `async=false` puede tardar
+     * segundos (no se hace esperar a quien acaba de subir una imagen) y, si Bunny falla, el reintento
+     * con backoff lo recupera en vez de dejar la miniatura vieja para siempre. IDEMPOTENTE de verdad
+     * (purgar dos veces la misma URL es un no-op correcto) -> reaper REQUEUE.
+     */
+    BUNNY_PURGE_THUMBNAIL: {
+      reaper: "REQUEUE", // idempotente: purgar de mas no rompe nada
+      async handler(job) {
+        const { bunnyVideoId } = BunnyPurgeThumbPayloadSchema.parse(job.payload);
+        // SIN CLAVE DE PURGA: se avisa y se da por HECHO, no se lanza. Lanzar significa "reintentame",
+        // y ningun reintento va a hacer aparecer una variable de entorno que no esta: solo llenaria la
+        // cola de FAILED y dispararia el aviso de acumulacion, tapando fallos de verdad. La
+        // consecuencia real (la miniatura tarda en refrescarse) queda dicha en el log.
+        if (!deps.bunny.purgeApiKey) {
+          console.warn(
+            `[jobs] BUNNY_PURGE_THUMBNAIL: falta BUNNY_PURGE_API_KEY en el .env; NO se purga el CDN ` +
+              `(guid ${bunnyVideoId}). La miniatura personalizada no se vera hasta que caduque la cacheada.`,
+          );
+          return;
+        }
+        // La URL la construye `urlMiniatura` (punto unico): si la ruta del objeto en Bunny cambiara,
+        // se cambia ahi y purga y poster siguen apuntando al MISMO sitio.
+        await deps.bunny.cliente.purgeUrl({
+          purgeApiKey: deps.bunny.purgeApiKey,
+          url: urlMiniatura(deps.bunny.cdnHostname, bunnyVideoId),
+        });
+      },
+      // Si acaba en FAILED, el GUID (interno, no personal) dice que miniatura quedo sin refrescar.
+      resumenFallo(job) {
+        const p = BunnyPurgeThumbPayloadSchema.safeParse(job.payload);
         return p.success ? { bunnyVideoId: p.data.bunnyVideoId } : null;
       },
     },

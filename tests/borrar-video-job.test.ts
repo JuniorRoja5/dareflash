@@ -31,8 +31,10 @@ function registroCon(deleteVideo: (input: { videoId: string }) => Promise<void>)
         listVideos: async () => ({ items: [], totalItems: 0 }),
         deleteVideo,
         setThumbnail: async () => {},
+        purgeUrl: async () => {},
       },
       config: { libraryId: "lib", apiKey: "key" },
+      cdnHostname: "cdn.test",
     },
   });
 }
