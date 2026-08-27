@@ -2,7 +2,7 @@ import "server-only";
 
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
-import { DB_CONNECTION_LIMIT } from "@/config/constants";
+import { DB_ACQUIRE_TIMEOUT_MS, DB_MINIMUM_IDLE } from "@/config/constants";
 import { env } from "@/config/env";
 import { PrismaClient } from "@/generated/prisma/client";
 
@@ -28,16 +28,24 @@ import { PrismaClient } from "@/generated/prisma/client";
 function createPrismaClient(): PrismaClient {
   const url = new URL(env.DATABASE_URL);
 
-  // Prisma 7 se conecta con un driver adapter. Construimos el pool con un
-  // `connectionLimit` EXPLICITO (no el `connection_limit` de la URL, que usa el
-  // CLI de migraciones): el pool del runtime es cosa nuestra y debe ser bajo.
+  // Prisma 7 se conecta con un driver adapter. Construimos el pool con sus limites EXPLICITOS (no el
+  // `connection_limit` de la URL, que usa el CLI de migraciones): el pool del runtime es cosa nuestra.
   const adapter = new PrismaMariaDb({
     host: url.hostname,
     port: url.port ? Number(url.port) : 3306,
     user: decodeURIComponent(url.username),
     password: decodeURIComponent(url.password),
     database: url.pathname.replace(/^\//, ""),
-    connectionLimit: DB_CONNECTION_LIMIT,
+    // Tamano del pool: del entorno (afinable sin recompilar), con el default de constants.
+    connectionLimit: env.DB_CONNECTION_LIMIT,
+    // Espera MAXIMA por una conexion libre. EXPLICITO: el default del driver son 10 s, que el usuario
+    // lee como un cuelgue. Si el pool se agota, mejor un error rapido y visible en los logs que un
+    // "Entrando..." parado diez segundos sin que quede rastro de por que.
+    acquireTimeout: DB_ACQUIRE_TIMEOUT_MS,
+    // Conexiones ociosas que se mantienen abiertas. EXPLICITO porque el default del driver es
+    // `minimumIdle = connectionLimit`: sin esto, el pool abriria y sostendria las 15 aunque no se use
+    // ninguna, y el numero de conexiones abiertas dejaria de servir para saber si hay saturacion.
+    minimumIdle: DB_MINIMUM_IDLE,
     // Todo en UTC: la conexion no debe reinterpretar fechas segun zona horaria.
     timezone: "Z",
   });

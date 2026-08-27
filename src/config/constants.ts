@@ -7,11 +7,54 @@
 import { z } from "zod";
 
 /**
- * Limite de conexiones del pool contra MariaDB. Bajo y explicito: el plan
- * compartido de Hostinger limita las conexiones simultaneas.
- * PENDIENTE: confirmar el limite real del plan de Hostinger. 5 es provisional.
+ * Limite POR DEFECTO de conexiones del pool contra MariaDB (se puede sobreescribir con la variable
+ * DB_CONNECTION_LIMIT, ver env.ts, para afinar en produccion SIN recompilar la imagen).
+ *
+ * HISTORIA (importante, no volver a bajarlo "por si acaso"): valia 5 porque el plan COMPARTIDO de
+ * Hostinger limitaba las conexiones simultaneas. Ese plan ya no existe: produccion es un VPS con su
+ * propio MariaDB, cuyo `max_connections` por defecto es 151. La razon de aquel 5 se fue con el hosting.
+ *
+ * Y 5 era un TECHO REAL, no una precaucion barata: CADA render de una ruta del shell consulta la BD
+ * (el layout resuelve la sesion + la cuenta de la barra = 2 consultas), y Next dispara MUCHAS
+ * peticiones `_rsc` de prefetch a la vez al navegar. Con 5 huecos, un pico de navegacion los ocupa y
+ * la siguiente peticion que necesite BD (el login, por ejemplo) ESPERA a que se libere uno.
+ *
+ * 15 sigue siendo conservador: web(15) + worker(15) = 30, muy por debajo de 151 (ver
+ * MARIADB_MAX_CONNECTIONS_DEFECTO y el test que vigila ese margen).
  */
-export const DB_CONNECTION_LIMIT = 5;
+export const DB_CONNECTION_LIMIT_DEFECTO = 15;
+
+/**
+ * Cuanto espera una peticion a que se libere una conexion del pool antes de RENDIRSE.
+ *
+ * EXPLICITO a proposito: el default del driver `mariadb` es 10 000 ms, y diez segundos de espera son
+ * indistinguibles de un cuelgue para quien esta mirando la pantalla ("Entrando..." parado). Con 6 s,
+ * si alguna vez se agota el pool la peticion FALLA RAPIDO y con un error que sale en los logs, en vez
+ * de quedarse colgada en silencio. Es un cambio de diagnostico, no solo de tiempo: un fallo visible se
+ * arregla; un cuelgue silencioso se investiga a ciegas durante dias.
+ *
+ * INVARIANTE: debe ser MENOR que el default del driver (si no, se pierde la propiedad de "fallar
+ * antes de que el usuario lo lea como un cuelgue"). Lo vigila un test.
+ */
+export const DB_ACQUIRE_TIMEOUT_MS = 6_000;
+
+/** Default del driver `mariadb` para `acquireTimeout` (verificado en su pool-options.js). */
+export const DB_ACQUIRE_TIMEOUT_DRIVER_DEFECTO_MS = 10_000;
+
+/**
+ * Conexiones OCIOSAS que el pool mantiene abiertas. El driver, si no se le dice nada, usa
+ * `minimumIdle = connectionLimit`: abriria y mantendria las 15 aunque no se use ninguna.
+ *
+ * Se fija BAJO por dos motivos. Uno: el VPS es pequeno y cada conexion cuesta memoria en MariaDB.
+ * Dos —y este importa para diagnosticar— asi el numero de conexiones abiertas VUELVE A SIGNIFICAR
+ * ALGO: con `minimumIdle = connectionLimit`, un `SHOW PROCESSLIST` devuelve el maximo del pool tanto
+ * si el sistema esta saturado como si esta dormido, y contar conexiones no distingue un caso del otro.
+ * Con este valor, muchas conexiones abiertas = trabajo de verdad.
+ */
+export const DB_MINIMUM_IDLE = 4;
+
+/** `max_connections` por defecto de MariaDB. El techo contra el que se mide el margen de los pools. */
+export const MARIADB_MAX_CONNECTIONS_DEFECTO = 151;
 
 /**
  * Moneda por defecto de la app. Toda la documentacion de producto esta en dolares

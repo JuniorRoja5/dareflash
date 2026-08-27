@@ -40,6 +40,8 @@ import "server-only";
 
 import { z } from "zod";
 
+import { DB_CONNECTION_LIMIT_DEFECTO } from "./constants";
+
 /**
  * Variables de SERVIDOR (privadas). Nunca llegan al navegador.
  *
@@ -56,6 +58,23 @@ const serverSchema = z.object({
   DATABASE_URL: z
     .string()
     .min(1, "DATABASE_URL es obligatoria: cadena de conexion de MySQL/MariaDB"),
+
+  /**
+   * Tamano del pool de conexiones del RUNTIME contra MariaDB. OPCIONAL con default (ver
+   * DB_CONNECTION_LIMIT_DEFECTO): no es un secreto ni algo sin lo que la app no pueda arrancar, y
+   * marcarla obligatoria tumbaria el despliegue vivo sin aportar nada.
+   *
+   * Existe para poder AFINARLO EN CALIENTE: si el pool se queda corto (o largo) en produccion, se
+   * cambia en el .env del VPS y se reinicia el servicio, sin reconstruir la imagen. El tope de 100
+   * no es decorativo: evita que un dedazo (un 1500 por un 15) deje sin conexiones a MariaDB, que las
+   * reparte entre TODOS los clientes —incluido el worker y la consola de administracion.
+   */
+  DB_CONNECTION_LIMIT: z.coerce
+    .number()
+    .int("DB_CONNECTION_LIMIT debe ser un numero entero.")
+    .min(1, "DB_CONNECTION_LIMIT debe ser al menos 1.")
+    .max(100, "DB_CONNECTION_LIMIT no puede pasar de 100 (dejaria a MariaDB sin conexiones).")
+    .default(DB_CONNECTION_LIMIT_DEFECTO),
 
   /**
    * Paso 6 — secreto de servidor. OBLIGATORIO: se usa como clave HMAC del token CSRF
