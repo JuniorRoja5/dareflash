@@ -2,54 +2,10 @@ import Link from "next/link";
 
 import { ICONO_SECCION } from "./panel-iconos";
 import { SECCIONES_PANEL } from "./secciones";
+import { TarjetaMetrica, TarjetaProximamente } from "./tarjetas";
 
 export const metadata = { title: "Panel · DareFlash" };
 export const dynamic = "force-dynamic";
-
-const ESTILO_CIFRA = {
-  fontFamily: "var(--font-display)",
-  fontVariationSettings: '"wght" 780, "wdth" 118',
-} as const;
-
-/** Tarjeta de métrica REAL: número grande (tabular) + etiqueta. `acento` la resalta (dinero -> lima). */
-function TarjetaMetrica({
-  valor,
-  etiqueta,
-  acento = false,
-}: {
-  valor: number;
-  etiqueta: string;
-  acento?: boolean;
-}) {
-  return (
-    <div className="rounded-sm border border-line bg-surface/60 p-5 shadow-[var(--df-shadow-md)]">
-      <p
-        className={`text-3xl leading-none tabular-nums ${acento ? "text-money" : "text-text"}`}
-        style={ESTILO_CIFRA}
-      >
-        {valor.toLocaleString("es-ES")}
-      </p>
-      <p className="mt-2 text-2xs font-semibold tracking-widest text-text-dim uppercase">
-        {etiqueta}
-      </p>
-    </div>
-  );
-}
-
-/** Tarjeta de métrica SIN backend todavía: honesta ("próximamente"), nunca un 0 inventado. */
-function TarjetaProximamente({ etiqueta }: { etiqueta: string }) {
-  return (
-    <div className="rounded-sm border border-dashed border-line bg-surface/30 p-5">
-      <p className="text-3xl leading-none text-text-dim" style={ESTILO_CIFRA}>
-        —
-      </p>
-      <p className="mt-2 text-2xs font-semibold tracking-widest text-text-dim uppercase">
-        {etiqueta}
-      </p>
-      <p className="mt-1 text-2xs tracking-widest text-text-dim uppercase">Próximamente</p>
-    </div>
-  );
-}
 
 /**
  * RESUMEN del panel (portada del dashboard). Métricas REALES de la BD (conteos de retos y usuarios) +
@@ -67,7 +23,13 @@ export default async function ResumenPage() {
   return (
     <div className="df-rise space-y-10">
       <div>
-        <h1 className="text-2xl leading-none text-text" style={ESTILO_CIFRA}>
+        <h1
+          className="text-2xl leading-none text-text"
+          style={{
+            fontFamily: "var(--font-display)",
+            fontVariationSettings: '"wght" 720, "wdth" 112',
+          }}
+        >
           Resumen
         </h1>
         <p className="mt-2 text-sm text-text-dim">

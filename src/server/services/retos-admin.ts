@@ -196,26 +196,39 @@ export interface RetoAdminFila {
   publicCode: string;
 }
 
+/** Campos que se piden en las dos consultas del panel (lista y ficha de uno). Fuente única. */
+const SELECT_RETO_ADMIN = {
+  id: true,
+  title: true,
+  description: true,
+  rules: true,
+  category: true,
+  status: true,
+  prizeAmountCents: true,
+  prizeCurrency: true,
+  startsAt: true,
+  deadline: true,
+  winnersCount: true,
+  maxVotesPerUser: true,
+  coverImage: true,
+  publicCode: true,
+} as const;
+
+/**
+ * UN reto por su id, para la pantalla de gestión del panel. Devuelve `null` si no existe (la página
+ * responde 404). A diferencia de la vista pública, aquí SÍ se sirven los DRAFT: el panel es justo
+ * donde el admin gestiona un borrador antes de publicarlo.
+ */
+export async function retoAdminPorId(db: Db, id: string): Promise<RetoAdminFila | null> {
+  const f = await db.challenge.findUnique({ where: { id }, select: SELECT_RETO_ADMIN });
+  return f ? { ...f, prizeAmountCents: Number(f.prizeAmountCents) } : null;
+}
+
 /** Lista los retos para el panel (más nuevos primero), con su estado y los campos para editar. */
 export async function listarRetosAdmin(db: Db): Promise<RetoAdminFila[]> {
   const filas = await db.challenge.findMany({
     orderBy: [{ createdAt: "desc" }],
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      rules: true,
-      category: true,
-      status: true,
-      prizeAmountCents: true,
-      prizeCurrency: true,
-      startsAt: true,
-      deadline: true,
-      winnersCount: true,
-      maxVotesPerUser: true,
-      coverImage: true,
-      publicCode: true,
-    },
+    select: SELECT_RETO_ADMIN,
   });
   return filas.map((f) => ({ ...f, prizeAmountCents: Number(f.prizeAmountCents) }));
 }

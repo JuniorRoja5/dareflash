@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -134,6 +135,14 @@ export function ListaRetos({
               </td>
               <td className="px-4 py-3">
                 <div className="flex items-center justify-end gap-2">
+                  {/* Gestionar = moderar sus participaciones y ver sus estadísticas. Va PRIMERO
+                      porque es lo que más se hace con un reto ya creado. */}
+                  <Link
+                    href={`/panel/retos/${r.id}`}
+                    className="inline-flex min-h-[36px] items-center rounded-sm border border-line px-3 text-sm font-medium text-text transition-colors duration-150 ease-mechanical hover:bg-raised"
+                  >
+                    Gestionar
+                  </Link>
                   <BotonEditar onEditar={() => onEditar(r)} />
                   {r.status === "DRAFT" ? <Publicar id={r.id} /> : null}
                 </div>

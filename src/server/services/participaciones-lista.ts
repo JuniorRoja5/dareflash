@@ -85,6 +85,25 @@ function decodificarCursor(raw: string | null | undefined): PosicionCursor | nul
 }
 
 /**
+ * KEYSET explícito: "estrictamente DESPUÉS de esta tupla en el orden [votos ↓, creado ↓, id ↓]". Es la
+ * traducción a Prisma de `(voteCount, createdAt, id) < (v, t, i)`. Lo comparten la lista PÚBLICA y la
+ * del PANEL: el orden y el cursor son los mismos, solo cambia QUÉ estados entran (el `where` base).
+ */
+function filtroDespuesDe(desde: PosicionCursor | null) {
+  if (!desde) return {};
+  return {
+    OR: [
+      { voteCount: { lt: desde.votos } },
+      { voteCount: desde.votos, createdAt: { lt: new Date(desde.creadoMs) } },
+      { voteCount: desde.votos, createdAt: new Date(desde.creadoMs), id: { lt: desde.id } },
+    ],
+  };
+}
+
+/** Orden ÚNICO de las participaciones de un reto (público y panel ven el mismo ranking). */
+const ORDEN = [{ voteCount: "desc" }, { createdAt: "desc" }, { id: "desc" }] as const;
+
+/**
  * Lista una PÁGINA de participaciones VISIBLES (Submission PUBLISHED + Video PUBLISHED), más votadas
  * primero. La primera página la sirve el Server Component del detalle; las siguientes, el endpoint
  * público `/api/retos/{id}/participaciones?cursor=…`.
@@ -98,28 +117,12 @@ export async function listarParticipacionesVisibles(
     Math.max(1, Math.floor(opts.limit ?? PARTICIPACIONES_LIMITE_DEFECTO)),
     PARTICIPACIONES_LIMITE_MAX,
   );
-  const desde = decodificarCursor(opts.cursor);
-
-  // KEYSET explícito: "estrictamente DESPUÉS de esta tupla en el orden [votos ↓, creado ↓, id ↓]".
-  // Es la traducción a Prisma de `(voteCount, createdAt, id) < (v, t, i)`.
-  const despuesDe = desde
-    ? {
-        OR: [
-          { voteCount: { lt: desde.votos } },
-          { voteCount: desde.votos, createdAt: { lt: new Date(desde.creadoMs) } },
-          {
-            voteCount: desde.votos,
-            createdAt: new Date(desde.creadoMs),
-            id: { lt: desde.id },
-          },
-        ],
-      }
-    : {};
+  const despuesDe = filtroDespuesDe(decodificarCursor(opts.cursor));
 
   const filas = await db.submission.findMany({
     where: { challengeId, status: "PUBLISHED", video: { status: "PUBLISHED" }, ...despuesDe },
     // El `id` desempata (orden TOTAL): sin él la tupla del cursor es ambigua. Ver cabecera.
-    orderBy: [{ voteCount: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    orderBy: [...ORDEN],
     // Una fila de más = "¿hay página siguiente?" sin un COUNT aparte.
     take: limite + 1,
     select: {
@@ -183,4 +186,100 @@ export async function miParticipacion(
           ? "fallida"
           : "retirada"; // REMOVED / REJECTED
   return { submissionId: sub.id, videoId: sub.video.id, estado };
+}
+
+/**
+ * Estado de una participación tal y como lo lee el ADMIN en el panel. Es la MISMA derivación que ve el
+ * dueño en su detalle, pero nombrada desde la moderación. Copy humano, nunca PENDING/FAILED/REMOVED.
+ */
+export type EstadoParticipacionAdmin = "visible" | "procesando" | "no-publicada" | "retirada";
+
+export interface ParticipacionAdmin extends ParticipacionVista {
+  estado: EstadoParticipacionAdmin;
+  creadaEn: Date;
+  /** Solo un vídeo PUBLISHED es reproducible (lo reexige el endpoint firmado); el resto, no. */
+  reproducible: boolean;
+}
+
+export interface PaginaParticipacionesAdmin {
+  items: ParticipacionAdmin[];
+  nextCursor: string | null;
+}
+
+/**
+ * Deriva el estado visible para el panel. REMOVED en cualquiera de los dos manda (una participación
+ * retirada está retirada, aunque su vídeo siguiera publicado y al revés). Después, el vídeo decide.
+ */
+function estadoAdmin(sub: string, video: string): EstadoParticipacionAdmin {
+  if (sub === "REMOVED" || video === "REMOVED") return "retirada";
+  if (video === "PUBLISHED") return sub === "PUBLISHED" ? "visible" : "procesando";
+  if (video === "PENDING") return "procesando";
+  return "no-publicada"; // FAILED / REJECTED
+}
+
+/**
+ * Lista una PÁGINA de participaciones de un reto PARA EL PANEL: TODAS, en cualquier estado (visibles,
+ * en proceso, no publicadas y retiradas). Es la diferencia con la lista pública, que solo devuelve las
+ * visibles — moderar exige ver también lo que el público NO ve, y comprobar que una retirada sigue
+ * retirada.
+ *
+ * MISMO orden y MISMO cursor que la pública (se comparten `ORDEN` y `filtroDespuesDe`): el admin ve el
+ * ranking en el mismo orden que la gente, con las ocultas intercaladas donde les toca.
+ *
+ * El GUARD de rol NO vive aquí: lo pone el endpoint (`requireRole("ADMIN")`), como el resto de
+ * servicios. Este módulo solo consulta.
+ */
+export async function listarParticipacionesAdmin(
+  db: Db,
+  challengeId: string,
+  opts: { cursor?: string | null; limit?: number } = {},
+): Promise<PaginaParticipacionesAdmin> {
+  const limite = Math.min(
+    Math.max(1, Math.floor(opts.limit ?? PARTICIPACIONES_LIMITE_DEFECTO)),
+    PARTICIPACIONES_LIMITE_MAX,
+  );
+  const despuesDe = filtroDespuesDe(decodificarCursor(opts.cursor));
+
+  const filas = await db.submission.findMany({
+    where: { challengeId, ...despuesDe },
+    orderBy: [...ORDEN],
+    take: limite + 1,
+    select: {
+      id: true,
+      status: true,
+      voteCount: true,
+      createdAt: true,
+      video: { select: { id: true, bunnyVideoId: true, title: true, status: true } },
+      user: { select: { username: true, displayName: true } },
+    },
+  });
+
+  const hayMas = filas.length > limite;
+  const visibles = hayMas ? filas.slice(0, limite) : filas;
+
+  const items: ParticipacionAdmin[] = visibles.map((f) => ({
+    submissionId: f.id,
+    videoId: f.video.id,
+    bunnyVideoId: f.video.bunnyVideoId,
+    title: f.video.title,
+    votos: f.voteCount,
+    username: f.user.username,
+    displayName: f.user.displayName,
+    estado: estadoAdmin(f.status, f.video.status),
+    creadaEn: f.createdAt,
+    reproducible: f.video.status === "PUBLISHED",
+  }));
+
+  const ultima = visibles[visibles.length - 1];
+  return {
+    items,
+    nextCursor:
+      hayMas && ultima
+        ? codificarCursor({
+            votos: ultima.voteCount,
+            creadoMs: ultima.createdAt.getTime(),
+            id: ultima.id,
+          })
+        : null,
+  };
 }
