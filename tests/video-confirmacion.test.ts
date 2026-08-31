@@ -28,7 +28,6 @@ function dobleBunny(getVideo: ClienteBunny["getVideo"]): ClienteBunny {
     listVideos: async () => ({ items: [], totalItems: 0 }),
     deleteVideo: async () => {},
     setThumbnail: async () => {},
-    purgeUrl: async () => {},
   };
 }
 
@@ -95,7 +94,7 @@ describe("confirmarVideosPendientes / aplicarTransicion (BD)", () => {
 
     const r = await confirmarVideosPendientes(
       prisma,
-      dobleBunny(async () => ({ status: 4, length: 42 })),
+      dobleBunny(async () => ({ status: 4, length: 42, thumbnailFileName: null })),
       CONFIG,
       opts(),
     );
@@ -114,7 +113,9 @@ describe("confirmarVideosPendientes / aplicarTransicion (BD)", () => {
     await prisma.video.create({ data: { userId, bunnyVideoId: "long", status: "PENDING" } });
 
     const cliente = dobleBunny(async ({ videoId }) =>
-      videoId === "err" ? { status: 5, length: 0 } : { status: 4, length: 120 },
+      videoId === "err"
+        ? { status: 5, length: 0, thumbnailFileName: null }
+        : { status: 4, length: 120, thumbnailFileName: null },
     );
     const r = await confirmarVideosPendientes(prisma, cliente, CONFIG, opts());
 
@@ -136,7 +137,7 @@ describe("confirmarVideosPendientes / aplicarTransicion (BD)", () => {
   it("IDEMPOTENTE: la segunda vuelta no republica (ya no esta en PENDING)", async () => {
     const userId = await crearUsuario(prisma);
     await prisma.video.create({ data: { userId, bunnyVideoId: "g1", status: "PENDING" } });
-    const cliente = dobleBunny(async () => ({ status: 4, length: 30 }));
+    const cliente = dobleBunny(async () => ({ status: 4, length: 30, thumbnailFileName: null }));
 
     const r1 = await confirmarVideosPendientes(prisma, cliente, CONFIG, opts());
     const r2 = await confirmarVideosPendientes(prisma, cliente, CONFIG, opts());
@@ -151,7 +152,7 @@ describe("confirmarVideosPendientes / aplicarTransicion (BD)", () => {
 
     const r = await confirmarVideosPendientes(
       prisma,
-      dobleBunny(async () => ({ status: 4, length: 30 })),
+      dobleBunny(async () => ({ status: 4, length: 30, thumbnailFileName: null })),
       CONFIG,
       opts(),
     );
@@ -203,7 +204,7 @@ describe("confirmarVideosPendientes / aplicarTransicion (BD)", () => {
 
     const r = await confirmarVideosPendientes(
       prisma,
-      dobleBunny(async () => ({ status: 4, length: 30 })),
+      dobleBunny(async () => ({ status: 4, length: 30, thumbnailFileName: null })),
       CONFIG,
       opts(),
     );

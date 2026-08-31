@@ -59,7 +59,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
     submissionId: p.submissionId,
     videoId: p.videoId,
     title: p.title,
-    poster: firmarReproduccion(p.bunnyVideoId).poster,
+    poster: firmarReproduccion(p.bunnyVideoId, p.thumbnailFileName).poster,
     username: p.username,
     displayName: p.displayName,
     votos: p.votos,

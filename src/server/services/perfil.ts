@@ -47,6 +47,9 @@ import { categoriaKeyDeVideo } from "./categoria-video";
 export interface VideoPublico {
   id: string;
   bunnyVideoId: string;
+  /** Nombre del fichero de miniatura en Bunny (null = el frame automatico). Va SIEMPRE con el
+   *  bunnyVideoId: firmar el poster sin el devuelve la miniatura equivocada. */
+  thumbnailFileName: string | null;
   title: string | null;
   /** Categoria (KEY de CATEGORIES) o null: reto via Submission publicada, o Video.category si es libre. */
   categoria: string | null;
@@ -90,6 +93,7 @@ export const SELECT_USUARIO_PUBLICO = {
 const SELECT_VIDEO_PUBLICO = {
   id: true,
   bunnyVideoId: true,
+  thumbnailFileName: true,
   title: true,
   category: true,
   submission: { select: { status: true, challenge: { select: { category: true } } } },
@@ -99,6 +103,7 @@ const SELECT_VIDEO_PUBLICO = {
 function aVideoPublico(f: {
   id: string;
   bunnyVideoId: string;
+  thumbnailFileName: string | null;
   title: string | null;
   category: string | null;
   submission: { status: string; challenge: { category: string } } | null;
@@ -106,6 +111,7 @@ function aVideoPublico(f: {
   return {
     id: f.id,
     bunnyVideoId: f.bunnyVideoId,
+    thumbnailFileName: f.thumbnailFileName,
     title: f.title,
     categoria: categoriaKeyDeVideo({ submission: f.submission, category: f.category }),
   };
@@ -344,6 +350,7 @@ const ESTADOS_MIS_VIDEOS = ["PENDING", "PUBLISHED", "FAILED"] as const;
 const SELECT_MI_VIDEO = {
   id: true,
   bunnyVideoId: true,
+  thumbnailFileName: true,
   title: true,
   status: true,
   failureReason: true,
@@ -381,6 +388,9 @@ export function estadoDeVideo(status: ModerationStatus, failureReason: string | 
 export interface MiVideo {
   id: string;
   bunnyVideoId: string;
+  /** Nombre del fichero de miniatura en Bunny (null = el frame automatico). Va SIEMPRE con el
+   *  bunnyVideoId: firmar el poster sin el devuelve la miniatura equivocada. */
+  thumbnailFileName: string | null;
   title: string | null;
   estado: EstadoVideo;
   /** Categoria (KEY) o null: reto via Submission publicada, o Video.category si es libre. */
@@ -442,6 +452,7 @@ export async function miPerfil(db: Db, userId: string): Promise<MiPerfil | null>
     videos: videos.map((v) => ({
       id: v.id,
       bunnyVideoId: v.bunnyVideoId,
+      thumbnailFileName: v.thumbnailFileName,
       title: v.title,
       estado: estadoDeVideo(v.status, v.failureReason),
       categoria: categoriaKeyDeVideo({ submission: v.submission, category: v.category }),

@@ -30,7 +30,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   try {
     const video = await prisma.video.findUnique({
       where: { id },
-      select: { bunnyVideoId: true, status: true },
+      select: { bunnyVideoId: true, thumbnailFileName: true, status: true },
     });
     // El guardarrail (solo PUBLISHED) vive en `reproduccionFirmada` (puro, testeado): null -> 404.
     const urls = reproduccionFirmada(video, {

@@ -63,7 +63,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         submissionId: p.submissionId,
         videoId: p.videoId,
         title: p.title,
-        poster: firmarReproduccion(p.bunnyVideoId).poster,
+        poster: firmarReproduccion(p.bunnyVideoId, p.thumbnailFileName).poster,
         username: p.username,
         displayName: p.displayName,
         votos: p.votos,

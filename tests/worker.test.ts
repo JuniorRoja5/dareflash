@@ -54,14 +54,12 @@ function registroFake(adapter: EmailAdapter): Registro {
       bunny: {
         cliente: {
           crearVideo: async () => ({ guid: "x" }),
-          getVideo: async () => ({ status: 4, length: 0 }),
+          getVideo: async () => ({ status: 4, length: 0, thumbnailFileName: null }),
           listVideos: async () => ({ items: [], totalItems: 0 }),
           deleteVideo: async () => {},
           setThumbnail: async () => {},
-          purgeUrl: async () => {},
         },
         config: { libraryId: "lib", apiKey: "key" },
-        cdnHostname: "cdn.test",
       },
     }),
     LEDGER_TEST: { reaper: "REQUEUE", async handler() {} },

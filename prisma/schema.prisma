@@ -218,6 +218,20 @@ model Video {
   failureReason String?
   title         String?
 
+  // NOMBRE del fichero de miniatura EN BUNNY. Bunny NO sirve siempre la miniatura como
+  // `thumbnail.jpg`: ese es el frame AUTOMATICO que extrae al transcodificar. Cuando el dueno sube
+  // una miniatura PERSONALIZADA, Bunny la guarda con un nombre propio (p.ej.
+  // `thumbnail_eaffe862.jpg`) y lo publica en el campo `thumbnailFileName` de su API; `thumbnail.jpg`
+  // sigue existiendo con el frame automatico. Verificado contra la biblioteca real.
+  //
+  // NULL = no sabemos de ninguna personalizada -> se usa `thumbnail.jpg` (correcto para todo video
+  // sin miniatura propia, que es la inmensa mayoria). Por eso la columna es NULLABLE y NO necesita
+  // backfill: el valor ausente YA significa lo correcto.
+  //
+  // Se guarda porque hay que construir la URL del poster en CADA render de feed/perfil/rejilla, y
+  // preguntarselo a Bunny por video y por render seria inviable.
+  thumbnailFileName String?
+
   // CATEGORIA de un video LIBRE (Fase 2, subida sin reto): key de CATEGORIES. NULL en las
   // participaciones (su categoria es la del RETO, via Submission->Challenge: fuente unica, NO se
   // duplica aqui) y en videos libres antiguos (sin backfill). La resolucion de feed/perfil: con

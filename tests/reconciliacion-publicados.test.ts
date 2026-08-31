@@ -35,12 +35,11 @@ function clienteFake(
       const c = mapa[videoId] ?? "existe";
       if (c === "404") throw new BunnyNotFoundError(videoId);
       if (c === "error") throw new Error("red caida");
-      return { status: 4, length: 10 };
+      return { status: 4, length: 10, thumbnailFileName: null };
     },
     listVideos: async () => ({ items: [], totalItems: 0 }),
     deleteVideo: async () => {},
     setThumbnail: async () => {},
-    purgeUrl: async () => {},
   };
 }
 

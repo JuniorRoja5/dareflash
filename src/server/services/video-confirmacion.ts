@@ -46,11 +46,19 @@ export async function aplicarTransicion(
   db: PrismaClient,
   videoId: string,
   t: Transicion,
+  /**
+   * Nombre del fichero de miniatura que Bunny acaba de reportar. Se guarda EN LA MISMA escritura que
+   * la publicacion: el dueno pudo fijar una miniatura personalizada durante la subida, y este es el
+   * primer momento en que Bunny nos dice como la llamo. Sin esto, el poster pediria el frame
+   * automatico. `undefined`/`null` no toca la columna (no se pisa un nombre bueno con un vacio).
+   */
+  thumbnailFileName?: string | null,
 ): Promise<number> {
   if (t.destino === "PENDING") return 0;
+  const miniatura = thumbnailFileName ? { thumbnailFileName } : {};
   const data =
     t.destino === "PUBLISHED"
-      ? { status: "PUBLISHED" as const, durationSec: t.durationSec }
+      ? { status: "PUBLISHED" as const, durationSec: t.durationSec, ...miniatura }
       : { status: "FAILED" as const, failureReason: t.failureReason };
   const r = await db.video.updateMany({ where: { id: videoId, status: "PENDING" }, data });
   return r.count;
@@ -96,7 +104,7 @@ export async function confirmarVideosPendientes(
   let pendientes = 0;
 
   for (const v of videos) {
-    let info: { status: number; length: number };
+    let info: { status: number; length: number; thumbnailFileName: string | null };
     try {
       info = await cliente.getVideo({
         libraryId: config.libraryId,
@@ -123,7 +131,7 @@ export async function confirmarVideosPendientes(
       continue;
     }
 
-    const count = await aplicarTransicion(db, v.id, t);
+    const count = await aplicarTransicion(db, v.id, t, info.thumbnailFileName);
     if (count > 0) {
       if (t.destino === "PUBLISHED") {
         publicados += 1;

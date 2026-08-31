@@ -43,7 +43,10 @@ export interface PaginaFeed {
 }
 
 /** Firma la reproduccion de un video ya conocido como PUBLISHED. Inyectable (testeable sin `env`). */
-export type Firmante = (bunnyVideoId: string) => { src: string; poster: string };
+export type Firmante = (
+  bunnyVideoId: string,
+  thumbnailFileName: string | null,
+) => { src: string; poster: string };
 
 export const FEED_LIMITE_DEFECTO = 8;
 export const FEED_LIMITE_MAX = 20;
@@ -77,6 +80,7 @@ export async function feedPublicado(
     select: {
       id: true,
       bunnyVideoId: true,
+      thumbnailFileName: true,
       title: true,
       category: true,
       user: { select: { username: true, displayName: true } },
@@ -101,7 +105,7 @@ export async function feedPublicado(
     const sub = v.submission && v.submission.status === "PUBLISHED" ? v.submission : null;
     // Categoria: con Submission publicada -> la del reto; sin ella -> la del video libre (Video.category).
     const claveCategoria = categoriaKeyDeVideo({ submission: v.submission, category: v.category });
-    const urls = opts.firmar(v.bunnyVideoId);
+    const urls = opts.firmar(v.bunnyVideoId, v.thumbnailFileName);
     return {
       id: v.id,
       displayName: v.user.displayName,

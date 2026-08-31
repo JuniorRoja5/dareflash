@@ -90,13 +90,12 @@ function dobleCliente(listVideos: ClienteBunny["listVideos"]): {
   const borrados: string[] = [];
   const cliente: ClienteBunny = {
     crearVideo: async () => ({ guid: "no-usado" }),
-    getVideo: async () => ({ status: 0, length: 0 }),
+    getVideo: async () => ({ status: 0, length: 0, thumbnailFileName: null }),
     listVideos,
     deleteVideo: async ({ videoId }) => {
       borrados.push(videoId);
     },
     setThumbnail: async () => {},
-    purgeUrl: async () => {},
   };
   return { cliente, borrados };
 }

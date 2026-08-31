@@ -25,7 +25,6 @@ function dobleBunny(getVideo: ClienteBunny["getVideo"]): ClienteBunny {
     listVideos: async () => ({ items: [], totalItems: 0 }),
     deleteVideo: async () => {},
     setThumbnail: async () => {},
-    purgeUrl: async () => {},
   };
 }
 
@@ -53,7 +52,7 @@ describe("reconciliarVideosAbandonados (BD)", () => {
     await crearPending("g4", viejo());
     const r = await reconciliarVideosAbandonados(
       prisma,
-      dobleBunny(async () => ({ status: 4, length: 42 })),
+      dobleBunny(async () => ({ status: 4, length: 42, thumbnailFileName: null })),
       CONFIG,
       opts(),
     );
@@ -70,7 +69,7 @@ describe("reconciliarVideosAbandonados (BD)", () => {
     await crearPending("g5", viejo());
     const r = await reconciliarVideosAbandonados(
       prisma,
-      dobleBunny(async () => ({ status: 5, length: 0 })),
+      dobleBunny(async () => ({ status: 5, length: 0, thumbnailFileName: null })),
       CONFIG,
       opts(),
     );
@@ -87,7 +86,7 @@ describe("reconciliarVideosAbandonados (BD)", () => {
     await crearPending("g2", viejo());
     const r = await reconciliarVideosAbandonados(
       prisma,
-      dobleBunny(async () => ({ status: 2, length: 0 })),
+      dobleBunny(async () => ({ status: 2, length: 0, thumbnailFileName: null })),
       CONFIG,
       opts(),
     );
@@ -143,7 +142,7 @@ describe("reconciliarVideosAbandonados (BD)", () => {
     await crearPending("gnew", new Date(Date.now() - 1 * 60 * 60 * 1000));
     const r = await reconciliarVideosAbandonados(
       prisma,
-      dobleBunny(async () => ({ status: 2, length: 0 })),
+      dobleBunny(async () => ({ status: 2, length: 0, thumbnailFileName: null })),
       CONFIG,
       opts(),
     );
@@ -156,7 +155,7 @@ describe("reconciliarVideosAbandonados (BD)", () => {
 
   it("IDEMPOTENTE: la segunda vuelta no re-toca (ya no esta en PENDING)", async () => {
     await crearPending("gidem", viejo());
-    const cliente = dobleBunny(async () => ({ status: 4, length: 30 }));
+    const cliente = dobleBunny(async () => ({ status: 4, length: 30, thumbnailFileName: null }));
     const r1 = await reconciliarVideosAbandonados(prisma, cliente, CONFIG, opts());
     const r2 = await reconciliarVideosAbandonados(prisma, cliente, CONFIG, opts());
     expect(r1.rescatados).toBe(1);

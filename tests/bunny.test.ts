@@ -66,7 +66,7 @@ describe("crearObjetoVideo", () => {
         return { guid: "guid-del-doble" };
       },
       async getVideo() {
-        return { status: 0, length: 0 }; // no se usa en este test
+        return { status: 0, length: 0, thumbnailFileName: null }; // no se usa en este test
       },
       async listVideos() {
         return { items: [], totalItems: 0 }; // no se usa en este test
@@ -75,9 +75,6 @@ describe("crearObjetoVideo", () => {
         // no se usa en este test
       },
       async setThumbnail() {
-        // no se usa en este test
-      },
-      async purgeUrl() {
         // no se usa en este test
       },
     };

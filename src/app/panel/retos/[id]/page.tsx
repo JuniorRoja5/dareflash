@@ -60,7 +60,7 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
     submissionId: p.submissionId,
     videoId: p.videoId,
     title: p.title,
-    poster: p.reproducible ? firmarReproduccion(p.bunnyVideoId).poster : "",
+    poster: p.reproducible ? firmarReproduccion(p.bunnyVideoId, p.thumbnailFileName).poster : "",
     username: p.username,
     displayName: p.displayName,
     votos: p.votos,

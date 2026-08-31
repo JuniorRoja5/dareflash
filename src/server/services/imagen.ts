@@ -42,7 +42,7 @@ export type ModoImagen =
   | { tipo: "contener"; maxLado: number };
 
 /** Formato de SALIDA. `webp` por defecto (avatar/portada); `jpeg` para destinos que lo exigen (la
- *  miniatura de Bunny se sirve como thumbnail.jpg). No cambia el saneo, solo el códec de salida. */
+ *  miniatura de Bunny se sirve en JPEG). No cambia el saneo, solo el códec de salida. */
 export type FormatoSalida = "webp" | "jpeg";
 
 export interface OpcionesImagen {

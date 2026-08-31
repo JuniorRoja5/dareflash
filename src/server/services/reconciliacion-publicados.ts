@@ -56,22 +56,27 @@ export function decidirPublicado(sondeo: SondeoBunny): DecisionPublicado {
   }
 }
 
-/** Clasifica el resultado de getVideo (404 tipado -> no-existe; red/HTTP -> transitorio; ok -> existe). */
+/**
+ * Clasifica el resultado de getVideo (404 tipado -> no-existe; red/HTTP -> transitorio; ok -> existe)
+ * y, de paso, devuelve el NOMBRE DE MINIATURA que venia en esa misma respuesta: ya se ha pagado la
+ * llamada, asi que aprovecharla para refrescar el nombre no cuesta nada.
+ */
 async function sondear(
   cliente: ClienteBunny,
   config: ConfigBunny,
   bunnyVideoId: string,
-): Promise<SondeoBunny> {
+): Promise<{ sondeo: SondeoBunny; thumbnailFileName: string | null }> {
   try {
-    await cliente.getVideo({
+    const info = await cliente.getVideo({
       libraryId: config.libraryId,
       apiKey: config.apiKey,
       videoId: bunnyVideoId,
     });
-    return "existe";
+    return { sondeo: "existe", thumbnailFileName: info.thumbnailFileName };
   } catch (e) {
-    if (e instanceof BunnyNotFoundError) return "no-existe";
-    return "error-transitorio"; // red/HTTP: NUNCA degradar por un transitorio
+    if (e instanceof BunnyNotFoundError) return { sondeo: "no-existe", thumbnailFileName: null };
+    // red/HTTP: NUNCA degradar por un transitorio
+    return { sondeo: "error-transitorio", thumbnailFileName: null };
   }
 }
 
@@ -118,7 +123,7 @@ export async function reconciliarPublicadosDesaparecidos(
   const cursor = (await leerEstado(db, RECON_PUBLICADOS_CURSOR_KEY)) ?? "";
   const filas = await db.video.findMany({
     where: { status: "PUBLISHED", id: { gt: cursor } },
-    select: { id: true, bunnyVideoId: true },
+    select: { id: true, bunnyVideoId: true, thumbnailFileName: true },
     orderBy: { id: "asc" },
     take: opts.lotePorCiclo,
   });
@@ -128,11 +133,31 @@ export async function reconciliarPublicadosDesaparecidos(
   const candidatosIds: { id: string; bunnyVideoId: string }[] = [];
   for (const fila of filas) {
     revisados += 1;
-    const d = decidirPublicado(await sondear(cliente, config, fila.bunnyVideoId));
+    const r = await sondear(cliente, config, fila.bunnyVideoId);
+    const d = decidirPublicado(r.sondeo);
     if (d.accion === "degradar") {
       candidatosIds.push({ id: fila.id, bunnyVideoId: fila.bunnyVideoId });
     } else if (d.accion === "reintentar") {
       reintentos += 1;
+    } else if (r.thumbnailFileName && r.thumbnailFileName !== fila.thumbnailFileName) {
+      // El objeto existe y Bunny dice que su miniatura se llama de otra forma que la que tenemos
+      // guardada: se refresca. Cubre el video al que se le cambio la miniatura DESPUES de publicarlo
+      // y, sobre todo, los videos anteriores a esta columna (que la tienen a NULL y por tanto pedian
+      // el frame automatico).
+      //
+      // NO se gobierna por `modo`: el dry-run existe para no DEGRADAR filas a ciegas —una accion
+      // destructiva—, no para congelar una correccion de dato. Y si se gobernara, no serviria de
+      // nada: produccion corre en dry-run por defecto, asi que el arreglo no llegaria nunca.
+      // Condicionado a seguir PUBLISHED, como el resto de escrituras de este barrido.
+      const w = await db.video.updateMany({
+        where: { id: fila.id, status: "PUBLISHED" },
+        data: { thumbnailFileName: r.thumbnailFileName },
+      });
+      if (w.count > 0) {
+        opts.log?.(
+          `[worker] publicados: miniatura de ${fila.id} refrescada -> ${r.thumbnailFileName}`,
+        );
+      }
     }
   }
 

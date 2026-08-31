@@ -3,9 +3,6 @@ import { mutatingRoute } from "@/server/auth/mutating-route";
 
 export const dynamic = "force-dynamic";
 
-/** Tipo de job de purga del CDN tras fijar la miniatura (union en constants: JobType). */
-const BUNNY_PURGE_THUMBNAIL = "BUNNY_PURGE_THUMBNAIL";
-
 /**
  * POST /api/videos/[id]/miniatura — el DUEÑO fija una MINIATURA personalizada de SU vídeo (opcional).
  * `multipart/form-data` con el campo `imagen`. `mutatingRoute` (Origin/sesión/CSRF) + AUTORIZACIÓN POR
@@ -13,12 +10,13 @@ const BUNNY_PURGE_THUMBNAIL = "BUNNY_PURGE_THUMBNAIL";
  * otro -> 404 (no revela vídeos ajenos), NUNCA se fía de un owner del cliente.
  *
  * La imagen se SANEA con el pipeline compartido (`procesarImagen`, modo "contener", salida JPEG porque
- * Bunny sirve la miniatura como thumbnail.jpg) y se envía a Bunny (Set Thumbnail; la API key es
+ * Bunny sirve las miniaturas en JPEG) y se envía a Bunny (Set Thumbnail; la API key es
  * server-only). La miniatura es OPCIONAL: si Bunny falla, se responde error suave y el vídeo conserva la
  * miniatura automática — el cliente lo trata como aviso, no como fallo de la subida.
  *
- * Tras fijarla se ENCOLA la PURGA del CDN (`BUNNY_PURGE_THUMBNAIL`). Sin ella la miniatura nueva no
- * llega a verse: Bunny la sirve siempre en la misma ruta y el borde tiene cacheada la automática.
+ * Tras fijarla se guarda el NOMBRE que Bunny le ha dado (`Video.thumbnailFileName`): sin eso el
+ * póster seguiría pidiendo `thumbnail.jpg`, que es el frame automático, y la personalizada no se
+ * vería en DareFlash aunque sí se viera en Bunny.
  */
 export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (req, { user, env, prisma }, { params }) => {
@@ -100,25 +98,33 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
       );
     }
 
-    // La miniatura YA está en el origen de Bunny, pero el borde sigue sirviendo la que cacheó antes
-    // (siempre es la misma ruta, /{guid}/thumbnail.jpg) — por eso se veía en Bunny y no en DareFlash.
-    // Se ENCOLA la purga del CDN: por la cola y no inline porque purgar puede tardar segundos y, si
-    // Bunny falla, el reintento lo recupera. El fallo al encolar NO tumba la respuesta: la miniatura
-    // está puesta; solo tardaría en refrescarse.
+    // Bunny NO guarda la miniatura personalizada como `thumbnail.jpg` (ese sigue siendo el frame
+    // automatico): le pone un nombre propio y lo publica en `thumbnailFileName`. Se le pregunta AQUI
+    // MISMO y se guarda, porque es lo unico que hace que el poster apunte al fichero correcto.
+    //
+    // Por que en la ruta y no solo en los barridos del worker: el confirm solo mira videos PENDING,
+    // asi que un video YA PUBLICADO al que se le cambia la miniatura no pasaria por el, y tendria que
+    // esperar al barrido de reconciliacion —cadencia de HORAS—. Cambiar tu miniatura y verla horas
+    // despues no es aceptable. El confirm/reconciliacion siguen capturandolo como red de seguridad.
+    //
+    // Un fallo aqui NO tumba la respuesta: la miniatura esta puesta en Bunny; solo tardaria en verse.
     try {
-      await prisma.job.create({
-        data: {
-          type: BUNNY_PURGE_THUMBNAIL,
-          payload: { bunnyVideoId: video.bunnyVideoId },
-          runAt: new Date(),
-          // Clave de idempotencia por GUID **y momento**: dos peticiones a la vez para la MISMA
-          // miniatura se deduplican, pero un cambio POSTERIOR de miniatura tiene que poder purgar
-          // otra vez (con la clave solo por GUID, la segunda miniatura no se vería nunca).
-          idempotencyKey: `bunny:purge-thumb:${video.bunnyVideoId}:${Date.now()}`,
-        },
+      const info = await clienteBunnyReal.getVideo({
+        libraryId: env.BUNNY_STREAM_LIBRARY_ID,
+        apiKey: env.BUNNY_STREAM_API_KEY,
+        videoId: video.bunnyVideoId,
       });
+      if (info.thumbnailFileName) {
+        await prisma.video.update({
+          where: { id },
+          data: { thumbnailFileName: info.thumbnailFileName },
+        });
+      }
     } catch (e) {
-      console.error("[videos/miniatura] no se pudo encolar la purga del CDN:", sanearError(e));
+      console.error(
+        "[videos/miniatura] no se pudo guardar el nombre de la miniatura:",
+        sanearError(e),
+      );
     }
 
     return apiOk({ ok: true });

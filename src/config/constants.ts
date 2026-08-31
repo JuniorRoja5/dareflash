@@ -183,7 +183,7 @@ export const PORTADA_MAX_LADO = 1280; // px
 
 /**
  * MINIATURA personalizada de video (Fase 2, opcional, subida por el dueño). Se procesa con el pipeline
- * compartido (modo "contener", salida JPEG porque Bunny sirve thumbnail.jpg) y se envía a Bunny Set
+ * compartido (modo "contener", salida JPEG porque Bunny sirve las miniaturas en JPEG) y se envía a Bunny Set
  * Thumbnail. Límite de bytes de ENTRADA (acota memoria/CPU antes de decodificar) y lado máximo de
  * SALIDA (una miniatura 16:9 no necesita más de 1280 de ancho).
  */
@@ -504,10 +504,6 @@ export const JobTypeSchema = z.enum([
   // Borrado del objeto en Bunny cuando el DUEÑO borra su video. Va por la COLA (no inline) para no
   // dejar el objeto huerfano si Bunny falla: idempotente (404 = ya no existe = exito) y reintentable.
   "BUNNY_DELETE_VIDEO",
-  // Purga en el CDN de la miniatura (thumbnail.jpg) tras fijar una PERSONALIZADA. Sin esto la
-  // miniatura nueva no se ve: el borde sigue sirviendo la automatica que cacheo antes (ver
-  // purgarMiniatura en services/bunny.ts). Idempotente: purgar dos veces la misma URL no rompe nada.
-  "BUNNY_PURGE_THUMBNAIL",
 ]);
 export type JobType = z.infer<typeof JobTypeSchema>;
 

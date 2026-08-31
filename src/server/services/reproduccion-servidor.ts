@@ -14,8 +14,18 @@ import { env } from "@/config/env";
 
 import { firmarUrlHls } from "./bunny";
 
-export function firmarReproduccion(bunnyVideoId: string): { src: string; poster: string } {
+export function firmarReproduccion(
+  bunnyVideoId: string,
+  /**
+   * `Video.thumbnailFileName`. OBLIGATORIO pasarlo (aunque sea `null`) en todo sitio que firme un
+   * poster: omitirlo devuelve el frame AUTOMATICO de Bunny en vez de la miniatura personalizada, que
+   * es exactamente el fallo que se arreglo aqui. `null` es la respuesta correcta cuando no hay
+   * miniatura propia; lo que no vale es olvidarse del campo en el `select`.
+   */
+  thumbnailFileName: string | null,
+): { src: string; poster: string } {
   return firmarUrlHls({
+    thumbnailFile: thumbnailFileName,
     hostname: env.BUNNY_CDN_HOSTNAME,
     videoId: bunnyVideoId,
     claveToken: env.BUNNY_TOKEN_AUTH_KEY,

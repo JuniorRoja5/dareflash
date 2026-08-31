@@ -19,8 +19,6 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 const API_BASE = "https://video.bunnycdn.com";
-/** API de CUENTA de Bunny (purga de CDN). Distinta de la de Stream, y con clave propia. */
-const PURGE_BASE = "https://api.bunny.net";
 /** Endpoint TUS de Bunny (el mismo para toda la cuenta; el objeto lo identifica VideoId). */
 export const ENDPOINT_TUS = `${API_BASE}/tusupload`;
 
@@ -54,12 +52,16 @@ export interface ClienteBunny {
     apiKey: string;
     title: string;
   }): Promise<{ guid: string }>;
-  /** Estado de transcodificacion (0-8) y duracion en segundos de un video (Get Video de Bunny). */
+  /**
+   * Estado de transcodificacion (0-8), duracion en segundos y NOMBRE DEL FICHERO DE MINIATURA de un
+   * video (Get Video de Bunny). `thumbnailFileName` es null si Bunny no lo informa; ahi el llamante
+   * usa el nombre por defecto (ver NOMBRE_MINIATURA_DEFECTO).
+   */
   getVideo(input: {
     libraryId: string;
     apiKey: string;
     videoId: string;
-  }): Promise<{ status: number; length: number }>;
+  }): Promise<{ status: number; length: number; thumbnailFileName: string | null }>;
   /**
    * Lista PAGINADA de la biblioteca (List Videos de Bunny). Solo se mapea lo que la limpieza de
    * huerfanos necesita: guid, status y dateUploaded de cada objeto, y el total para paginar.
@@ -74,7 +76,8 @@ export interface ClienteBunny {
    * Fija la MINIATURA de un video (Set Thumbnail de Bunny). Verificado en la doc oficial (ago 2026):
    * POST /library/{libraryId}/videos/{videoId}/thumbnail, cabecera AccessKey, y el fichero como binario
    * en el cuerpo (application/octet-stream). Solo servidor (la API key nunca sale). Bunny sirve la
-   * miniatura como thumbnail.jpg, por eso se sube JPEG.
+   * miniatura en JPEG, por eso se sube JPEG. OJO: NO la guarda como `thumbnail.jpg` —ese es el frame
+   * automatico—, sino con un nombre propio que publica en `thumbnailFileName` (ver Video.thumbnailFileName).
    */
   setThumbnail(input: {
     libraryId: string;
@@ -83,14 +86,6 @@ export interface ClienteBunny {
     imagen: Buffer;
     contentType: string;
   }): Promise<void>;
-  /**
-   * PURGA una URL del CDN. Otra API (api.bunny.net, la de CUENTA) y otra clave (`purgeApiKey`,
-   * distinta de la API key de Stream). Verificado en la doc oficial (ago 2026):
-   * POST https://api.bunny.net/purge?url=<url>&async=false, cabecera AccessKey, 200 = purgada.
-   * `async=false` hace que Bunny NO responda hasta haber purgado: cuando el job termina, el borde ya
-   * sirve el objeto nuevo (con async=true responderia antes de purgar y el job daria un exito falso).
-   */
-  purgeUrl(input: { purgeApiKey: string; url: string }): Promise<void>;
 }
 
 /** Cliente HTTP real de Bunny (fetch). La clave de API va en la cabecera AccessKey, solo servidor. */
@@ -130,8 +125,16 @@ export const clienteBunnyReal: ClienteBunny = {
     if (typeof status !== "number") {
       throw new Error("Bunny getVideo: respuesta sin status numerico");
     }
+    // Mapeo DEFENSIVO del nombre de miniatura: el campo es NULLABLE en la API de Bunny y puede no
+    // venir. Ausente/mal tipado -> null, y el llamante cae al nombre por defecto. Que falte NO es un
+    // error: significa "no hay miniatura personalizada", que es el caso normal.
+    const thumb = (data as { thumbnailFileName?: unknown }).thumbnailFileName;
     // `length` (duracion en segundos) solo esta disponible tras transcodificar; antes puede faltar.
-    return { status, length: typeof length === "number" ? length : 0 };
+    return {
+      status,
+      length: typeof length === "number" ? length : 0,
+      thumbnailFileName: typeof thumb === "string" && thumb.length > 0 ? thumb : null,
+    };
   },
   async listVideos({ libraryId, apiKey, page, perPage }) {
     const res = await fetch(
@@ -173,14 +176,6 @@ export const clienteBunnyReal: ClienteBunny = {
     });
     if (!res.ok) throw new Error(`Bunny setThumbnail: HTTP ${res.status}`);
   },
-  async purgeUrl({ purgeApiKey, url }) {
-    const endpoint = `${PURGE_BASE}/purge?url=${encodeURIComponent(url)}&async=false`;
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { AccessKey: purgeApiKey, Accept: "application/json" },
-    });
-    if (!res.ok) throw new Error(`Bunny purgeUrl: HTTP ${res.status}`);
-  },
 };
 
 /**
@@ -219,44 +214,6 @@ export async function establecerMiniatura(
     imagen,
     contentType,
   });
-}
-
-/**
- * URL (SIN FIRMAR) del objeto de miniatura de un video en el CDN. Es la CLAVE DE CACHE del borde, y
- * por eso es lo que se purga: la clave NO incluye la query string (ver `purgarMiniatura`), asi que la
- * URL pelada identifica al mismo objeto que sirve la URL firmada del poster.
- */
-export function urlMiniatura(hostname: string, videoGuid: string): string {
-  return `https://${hostname}/${videoGuid}/thumbnail.jpg`;
-}
-
-/**
- * PURGA en el CDN la miniatura de un video. Se llama DESPUES de fijar una miniatura personalizada.
- *
- * POR QUE HACE FALTA (el fallo real que arregla): la miniatura personalizada se veia en el panel de
- * Bunny pero NO en DareFlash. Bunny Stream sirve SIEMPRE la miniatura en la misma ruta,
- * `/{guid}/thumbnail.jpg`; la AUTOMATICA ya se habia cacheado en el borde antes de que el usuario
- * subiera la suya, y el borde no vuelve a preguntar al origen hasta que caduque. El objeto cambio en
- * origen, la URL no: sin purga, se sigue sirviendo la vieja.
- *
- * POR QUE NO SE ARREGLA CON UN `?v=` (comprobado en la doc, no de memoria):
- *   1. En una pull-zone de Bunny la query string NO forma parte de la clave de cache por defecto
- *      (es lo que permite que la reproduccion funcione: el `token`/`expires` del poster firmado
- *      CAMBIAN en cada peticion y aun asi hay acierto de cache). Un `?v=` seria ignorado igual.
- *   2. Peor: Bunny incluye por defecto los parametros de la query EN LA FIRMA del token. Anadir un
- *      `v=` sin meterlo en el hash convertiria en 403 el poster de TODOS los videos. El cache-bust
- *      no solo no arreglaria nada: romperia lo que hoy funciona.
- *
- * Requiere la clave de la API de CUENTA (`BUNNY_PURGE_API_KEY`). Idempotente: purgar una URL ya
- * purgada es un no-op correcto, por eso el job puede reintentarse sin cuidado.
- */
-export async function purgarMiniatura(
-  cliente: ClienteBunny,
-  purgeApiKey: string,
-  hostname: string,
-  videoGuid: string,
-): Promise<void> {
-  await cliente.purgeUrl({ purgeApiKey, url: urlMiniatura(hostname, videoGuid) });
 }
 
 /**
@@ -303,13 +260,50 @@ export function credencialSubidaTus(
  *
  * La `claveToken` es la de TOKEN AUTHENTICATION de la pull-zone, DISTINTA de la API key (firmar con la
  * API key da 403). `ahoraMs` es inyectable (tests / vectores conocidos).
+ *
+ * ┌─ NO ANADIR PARAMETROS A ESTA QUERY (cache-bust `?v=` y similares) ─────────────────────────────┐
+ * │ Se propuso una vez para refrescar miniaturas y NO habria funcionado, por dos motivos, los dos  │
+ * │ comprobados en la doc de Bunny:                                                                │
+ * │  1. La pull-zone NO mete la query string en la clave de cache. Es lo que permite que la        │
+ * │     reproduccion funcione: `token`/`expires` CAMBIAN en cada peticion y aun asi hay acierto de │
+ * │     cache. Un `?v=` seria ignorado.                                                            │
+ * │  2. Bunny incluye los parametros de la query EN LA FIRMA. Anadir uno sin meterlo en el hash de │
+ * │     arriba convertiria en 403 el poster de TODOS los videos.                                   │
+ * │ Para servir una miniatura distinta se cambia el FICHERO (`thumbnailFile`), no la query.        │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
+/**
+ * Nombre del fichero de miniatura cuando NO hay uno personalizado: el frame que Bunny extrae solo al
+ * transcodificar. Es el UNICO sitio donde puede aparecer literal (lo vigila un test): construir la
+ * URL del poster con este nombre a mano fue justo el fallo que se arreglo aqui.
+ */
+export const NOMBRE_MINIATURA_DEFECTO = "thumbnail.jpg";
+
+/**
+ * Sanea el nombre de miniatura que viene de la API de BUNNY antes de meterlo en una URL. El valor
+ * cruza una frontera de confianza (servicio externo -> ruta que construimos nosotros), asi que se
+ * valida en vez de concatenarse a ciegas: solo un nombre de fichero PLANO (sin `/`, sin `..`, sin
+ * query). Cualquier cosa rara cae al nombre por defecto en vez de fabricar una URL torcida.
+ */
+function nombreMiniaturaSeguro(nombre: string | null | undefined): string {
+  if (!nombre) return NOMBRE_MINIATURA_DEFECTO;
+  return /^[A-Za-z0-9._-]{1,128}$/.test(nombre) && !nombre.includes("..")
+    ? nombre
+    : NOMBRE_MINIATURA_DEFECTO;
+}
+
 export function firmarUrlHls(input: {
   hostname: string;
   videoId: string;
   claveToken: string;
   expiraEnSeg: number;
   ahoraMs?: number;
+  /**
+   * Nombre del fichero de miniatura EN BUNNY (`Video.thumbnailFileName`). Ausente/null -> el frame
+   * automatico. NO afecta a la FIRMA: el token cubre el DIRECTORIO `/{videoId}/` entero, asi que
+   * autoriza cualquier fichero de esa carpeta, se llame como se llame.
+   */
+  thumbnailFile?: string | null;
 }): { src: string; poster: string } {
   const expires = Math.floor((input.ahoraMs ?? Date.now()) / 1000) + input.expiraEnSeg;
   const tokenPath = `/${input.videoId}/`;
@@ -324,7 +318,10 @@ export function firmarUrlHls(input: {
     .replace(/=/g, "");
   const query = `?token=${token}&token_path=${encodeURIComponent(tokenPath)}&expires=${expires}`;
   const base = `https://${input.hostname}/${input.videoId}`;
-  return { src: `${base}/playlist.m3u8${query}`, poster: `${base}/thumbnail.jpg${query}` };
+  return {
+    src: `${base}/playlist.m3u8${query}`,
+    poster: `${base}/${nombreMiniaturaSeguro(input.thumbnailFile)}${query}`,
+  };
 }
 
 /**
@@ -333,7 +330,7 @@ export function firmarUrlHls(input: {
  * 404, sin URL). Un video no publicado JAMAS es reproducible.
  */
 export function reproduccionFirmada(
-  video: { bunnyVideoId: string; status: string } | null,
+  video: { bunnyVideoId: string; status: string; thumbnailFileName?: string | null } | null,
   cfg: { hostname: string; claveToken: string; expiraEnSeg: number; ahoraMs?: number },
 ): { src: string; poster: string } | null {
   if (!video || video.status !== "PUBLISHED") return null;
@@ -343,5 +340,6 @@ export function reproduccionFirmada(
     claveToken: cfg.claveToken,
     expiraEnSeg: cfg.expiraEnSeg,
     ahoraMs: cfg.ahoraMs,
+    thumbnailFile: video.thumbnailFileName,
   });
 }

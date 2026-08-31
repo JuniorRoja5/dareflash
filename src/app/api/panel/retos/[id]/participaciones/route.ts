@@ -59,7 +59,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         title: p.title,
         // Póster SOLO si el vídeo es reproducible: firmar el de uno sin publicar daría una imagen rota
         // (el objeto puede no existir aún en Bunny). "" = la vista pinta un marcador, no un hueco roto.
-        poster: p.reproducible ? firmarReproduccion(p.bunnyVideoId).poster : "",
+        poster: p.reproducible
+          ? firmarReproduccion(p.bunnyVideoId, p.thumbnailFileName).poster
+          : "",
         username: p.username,
         displayName: p.displayName,
         votos: p.votos,

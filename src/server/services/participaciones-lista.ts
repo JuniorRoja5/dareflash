@@ -31,6 +31,9 @@ export interface ParticipacionVista {
   submissionId: string;
   videoId: string;
   bunnyVideoId: string;
+  /** Nombre del fichero de miniatura en Bunny (null = el frame automatico). Va SIEMPRE con el
+   *  bunnyVideoId: firmar el poster sin el devuelve la miniatura equivocada. */
+  thumbnailFileName: string | null;
   title: string | null;
   votos: number;
   username: string;
@@ -129,7 +132,7 @@ export async function listarParticipacionesVisibles(
       id: true,
       voteCount: true,
       createdAt: true,
-      video: { select: { id: true, bunnyVideoId: true, title: true } },
+      video: { select: { id: true, bunnyVideoId: true, thumbnailFileName: true, title: true } },
       user: { select: { username: true, displayName: true } },
     },
   });
@@ -141,6 +144,7 @@ export async function listarParticipacionesVisibles(
     submissionId: f.id,
     videoId: f.video.id,
     bunnyVideoId: f.video.bunnyVideoId,
+    thumbnailFileName: f.video.thumbnailFileName,
     title: f.video.title,
     votos: f.voteCount,
     username: f.user.username,
@@ -249,7 +253,15 @@ export async function listarParticipacionesAdmin(
       status: true,
       voteCount: true,
       createdAt: true,
-      video: { select: { id: true, bunnyVideoId: true, title: true, status: true } },
+      video: {
+        select: {
+          id: true,
+          bunnyVideoId: true,
+          thumbnailFileName: true,
+          title: true,
+          status: true,
+        },
+      },
       user: { select: { username: true, displayName: true } },
     },
   });
@@ -261,6 +273,7 @@ export async function listarParticipacionesAdmin(
     submissionId: f.id,
     videoId: f.video.id,
     bunnyVideoId: f.video.bunnyVideoId,
+    thumbnailFileName: f.video.thumbnailFileName,
     title: f.video.title,
     votos: f.voteCount,
     username: f.user.username,

@@ -37,7 +37,7 @@ export default async function PerfilPublicoPage({
   const videos = perfil.videos.map((v) => ({
     id: v.id,
     title: v.title,
-    poster: firmarReproduccion(v.bunnyVideoId).poster,
+    poster: firmarReproduccion(v.bunnyVideoId, v.thumbnailFileName).poster,
     categoria: v.categoria,
   }));
 

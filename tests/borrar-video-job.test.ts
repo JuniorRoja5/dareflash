@@ -27,14 +27,12 @@ function registroCon(deleteVideo: (input: { videoId: string }) => Promise<void>)
     bunny: {
       cliente: {
         crearVideo: async () => ({ guid: "x" }),
-        getVideo: async () => ({ status: 4, length: 0 }),
+        getVideo: async () => ({ status: 4, length: 0, thumbnailFileName: null }),
         listVideos: async () => ({ items: [], totalItems: 0 }),
         deleteVideo,
         setThumbnail: async () => {},
-        purgeUrl: async () => {},
       },
       config: { libraryId: "lib", apiKey: "key" },
-      cdnHostname: "cdn.test",
     },
   });
 }

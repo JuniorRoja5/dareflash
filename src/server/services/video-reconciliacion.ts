@@ -63,12 +63,16 @@ export async function reconciliarVideosAbandonados(
 
   for (const v of videos) {
     let t: Transicion;
+    // Fuera del `try` a proposito: en la rama del 404 no hay `info`, y aun asi hay que aplicar la
+    // transicion. `null` = "no sabemos el nombre" -> `aplicarTransicion` no toca esa columna.
+    let miniatura: string | null = null;
     try {
       const info = await cliente.getVideo({
         libraryId: config.libraryId,
         apiKey: config.apiKey,
         videoId: v.bunnyVideoId,
       });
+      miniatura = info.thumbnailFileName;
       const base = decidirTransicion(info.status, info.length, opts.maxSeg);
       // Pasado el umbral, "procesando"/"inesperado" ya no van a terminar (credencial caducada).
       t =
@@ -89,7 +93,7 @@ export async function reconciliarVideosAbandonados(
       }
     }
 
-    const count = await aplicarTransicion(db, v.id, t);
+    const count = await aplicarTransicion(db, v.id, t, miniatura);
     if (count > 0) {
       if (t.destino === "PUBLISHED") rescatados += 1;
       else if (t.failureReason === "UPLOAD_INCOMPLETE") incompletos += 1;
