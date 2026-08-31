@@ -2,6 +2,32 @@
 # Caddy es el unico servicio que expone 80/443. Proxy al servicio `web` de la red
 # interna del compose. Los certificados se guardan en el volumen caddy_data.
 
+# OPCIONES GLOBALES. Van SIEMPRE en el primer bloque del fichero (bloque sin nombre); si se ponen
+# despues, Caddy no arranca.
+{
+	# SIN HTTP/3. El default de Caddy es `h1 h2 h3`, y ese h3 nos rompia el hard-refresh en produccion.
+	#
+	# EL FALLO, medido (no deducido): Caddy anuncia `Alt-Svc: h3=":443"; ma=2592000` en cada respuesta.
+	# En una navegacion normal el navegador REUTILIZA la conexion TCP caliente y va por h2, asi que todo
+	# parece ir bien; pero un hard-refresh abre conexion NUEVA, y ahi el navegador intenta el h3
+	# anunciado. QUIC va por UDP, y en la ruta entre el cliente y este VPS el UDP no llega: la peticion
+	# se queda colgada sin establecer conexion (en el HAR: sin respuesta y sin tiempos) en vez de caer
+	# de vuelta a TCP. De ahi que fallara SOLO al forzar recarga.
+	#
+	# COMPROBADO AISLANDO LA VARIABLE, sin tocar produccion: apagando h3 SOLO en el navegador
+	# (network.http.http3.enable=false) el hard-refresh dejo de fallar, 10 de 10. Se descarto IPv6 (el
+	# dominio no tiene AAAA) y el servidor (10 de 10 en ~0.04 s con curl desde el propio VPS).
+	#
+	# El coste de quitarlo es despreciable: h3 es una mejora de latencia menor y h2 sobre TCP es
+	# universal. Una recarga que se cuelga vale mucho mas que ese margen.
+	#
+	# Sintaxis verificada en la doc de Caddy (caddyserver.com/docs/caddyfile/options), no de memoria.
+	# Nota de la propia doc: activar h2 implica h1 (limitacion de la libreria estandar de Go).
+	servers {
+		protocols h1 h2
+	}
+}
+
 # Dominio principal.
 dareflash.com {
 	# AVATARES: estaticos desde el volumen `avatars_data` (montado en /srv/avatars), servidos por
