@@ -50,7 +50,6 @@ function campos(over: Record<string, string> = {}) {
     startsAt: "2999-01-01T00:00:00.000Z",
     deadline: "2999-02-01T00:00:00.000Z",
     winnersCount: "1",
-    maxVotesPerUser: "1",
     ...over,
   };
 }

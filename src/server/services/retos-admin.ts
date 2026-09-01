@@ -25,7 +25,7 @@ const REGLAS_MAX = 4000;
 /**
  * Schema de creación de reto. FACTORÍA con `now` para poder testear "el cierre debe estar en el futuro"
  * de forma determinista. Reglas de dominio: título 3-120; categoría ∈ CATEGORIES; premio entero >= 0 en
- * céntimos; apertura < cierre y cierre en el futuro (UTC); ganadores >= 1; votos/usuario >= 0. El
+ * céntimos; apertura < cierre y cierre en el futuro (UTC); ganadores >= 1. El
  * `status` NO viene del cuerpo: la creación es SIEMPRE DRAFT (publicar es una acción aparte).
  */
 export function crearRetoSchema(now: Date) {
@@ -59,10 +59,6 @@ export function crearRetoSchema(now: Date) {
         .number({ message: "El número de ganadores debe ser un número." })
         .int("El número de ganadores debe ser entero.")
         .min(1, "Debe haber al menos 1 ganador."),
-      maxVotesPerUser: z.coerce
-        .number({ message: "Los votos por usuario deben ser un número." })
-        .int("Los votos por usuario deben ser un número entero.")
-        .min(0, "Los votos por usuario no pueden ser negativos."),
     })
     .refine((d) => d.startsAt < d.deadline, {
       message: "El cierre debe ser posterior a la apertura.",
@@ -108,7 +104,6 @@ export async function crearRetoAdmin(
         startsAt: datos.startsAt,
         deadline: datos.deadline,
         winnersCount: datos.winnersCount,
-        maxVotesPerUser: datos.maxVotesPerUser,
         createdById: adminId,
       },
       select: { id: true, publicCode: true, slug: true, status: true },
@@ -150,7 +145,6 @@ export async function editarRetoAdmin(
       startsAt: datos.startsAt,
       deadline: datos.deadline,
       winnersCount: datos.winnersCount,
-      maxVotesPerUser: datos.maxVotesPerUser,
       // publicCode, status y coverImage AUSENTES a propósito (invariantes de la edición).
     },
   });
@@ -176,7 +170,7 @@ export async function publicarReto(db: Db, id: string): Promise<{ publicado: boo
 
 /**
  * Fila de la lista de retos del panel (todos los estados). Incluye los campos EDITABLES (descripción,
- * reglas, apertura, ganadores, votos, portada) para poder PRECARGAR el formulario de edición en el
+ * reglas, apertura, ganadores, portada) para poder PRECARGAR el formulario de edición en el
  * cliente sin una segunda petición. La tabla del panel muestra solo un subconjunto; la edición usa todo.
  */
 export interface RetoAdminFila {
@@ -191,7 +185,6 @@ export interface RetoAdminFila {
   startsAt: Date;
   deadline: Date;
   winnersCount: number;
-  maxVotesPerUser: number;
   coverImage: string | null;
   publicCode: string;
 }
@@ -209,7 +202,6 @@ const SELECT_RETO_ADMIN = {
   startsAt: true,
   deadline: true,
   winnersCount: true,
-  maxVotesPerUser: true,
   coverImage: true,
   publicCode: true,
 } as const;

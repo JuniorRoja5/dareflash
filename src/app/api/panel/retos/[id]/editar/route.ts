@@ -61,7 +61,6 @@ export const POST = mutatingRoute(
       startsAt: campo("startsAt"),
       deadline: campo("deadline"),
       winnersCount: campo("winnersCount"),
-      maxVotesPerUser: campo("maxVotesPerUser"),
     });
     if (!parsed.success) {
       return apiError(

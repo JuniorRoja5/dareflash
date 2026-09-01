@@ -28,7 +28,6 @@ function baseInput(over: Record<string, unknown> = {}) {
     startsAt: "2026-08-21T00:00:00.000Z",
     deadline: "2026-08-28T00:00:00.000Z",
     winnersCount: 1,
-    maxVotesPerUser: 1,
     ...over,
   };
 }

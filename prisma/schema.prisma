@@ -286,10 +286,6 @@ model Challenge {
   // Nº de ganadores configurable por reto (dominio: >= 1; lo valida el schema de creacion futuro).
   winnersCount Int @default(1)
 
-  // Politica de votos por usuario y reto (0 = sin limite). Se APLICA en la transaccion del voto en
-  // Fase 3; aqui solo la columna con su default. Por eso el indice del Vote NO es @@unique (ver Vote).
-  maxVotesPerUser Int @default(1)
-
   // Premio en enteros (centimos) desde el dia 1: si entrara mas tarde, alguien lo
   // meteria como decimal. 0 = aun sin premio. La moneda la fija la app desde
   // DEFAULT_CURRENCY (constants); no se incrusta como default del esquema.
@@ -400,31 +396,40 @@ model ChallengeResult {
 // ANTIFRAUDE: VOTO
 // ============================================================================
 
-/// Voto de un usuario a una submission.
+/// Voto de un usuario DENTRO DE UN RETO.
 ///
-/// ANTIFRAUDE ESTRUCTURAL — un usuario no puede votar dos veces la misma
-/// submission: lo IMPIDE la base de datos con `@@unique([userId, submissionId])`.
-/// No es una comprobacion en codigo (que sufre condiciones de carrera): es una
-/// restriccion UNIQUE. Dos INSERT simultaneos -> uno gana, el otro recibe error
-/// de clave duplicada. El servicio de voto inserta el Vote e incrementa
-/// Submission.voteCount en la MISMA transaccion; si el INSERT viola el UNIQUE,
-/// la transaccion entera se revierte y el contador no sube.
+/// EL MODELO: una fila por (usuario, reto), con `submissionId` MUTABLE.
+///   - votar  = INSERT
+///   - mover  = UPDATE de `submissionId` (la misma fila cambia de destino)
+///   - quitar = DELETE
+/// No hay "historial de a quien votaste antes": el voto es UNO y esta donde esta.
+///
+/// UN VOTO POR RETO, ESTRUCTURAL — lo IMPIDE la base de datos con
+/// `@@unique([userId, challengeId])`, no una comprobacion en codigo (que sufre
+/// condiciones de carrera). Dos INSERT simultaneos a participaciones distintas del
+/// mismo reto -> uno gana, el otro recibe error de clave duplicada, su transaccion
+/// revierte entera y el contador no sube.
+///
+/// POR QUE UNA CONSTRAINT FIJA Y NO UNA POLITICA CONFIGURABLE: hubo una columna
+/// `Challenge.maxVotesPerUser` pensada para permitir N votos por reto. Se retiro al
+/// implementar la votacion, por el MISMO criterio que el @@unique de Submission:
+/// QUITAR un unique cuando el producto lo pida es una migracion trivial; ANADIRLO
+/// cuando ya hay datos que lo violan es un infierno. Y una politica configurable que
+/// el codigo no aplica es peor que no tenerla: el admin cree que configura algo que
+/// el sistema ignora. Cuando exista un evento que admita varios votos, se relaja aqui.
 ///
 /// Sin FK a User/Submission a proposito (igual que los ledgers): el registro de
 /// voto es material de auditoria antifraude y debe sobrevivir desvinculado.
 model Vote {
-  id           String @id @default(cuid())
-  userId       String
+  id     String @id @default(cuid())
+  userId String
+
+  /// A QUE participacion apunta el voto AHORA MISMO. Cambia al mover el voto.
   submissionId String
 
-  // challengeId DENORMALIZADO (copiado de Submission al votar). El UNIQUE de abajo
-  // impide votar dos veces el MISMO video, pero no impide votar los N videos de un
-  // mismo reto. La politica de cuantos votos por reto es CONFIGURABLE por reto
-  // (Challenge.maxVotesPerUser; 0 = sin limite) y se APLICA en la transaccion del
-  // voto en Fase 3 -> el indice de abajo NO se convierte en @@unique (seria una
-  // regla fija incompatible con la politica configurable). El indice existe para
-  // el antifraude de la Fase 3 (votos de un usuario dentro de un reto) sin cruzar
-  // con Submission, y por si esa columna hiciera falta con la tabla ya llena.
+  /// challengeId DENORMALIZADO (copiado de Submission al votar; jamas del cliente).
+  /// Es la mitad del UNIQUE que garantiza "un voto por reto", asi que NO es un simple
+  /// cache: sin el, la regla no se podria imponer en la BD sin cruzar con Submission.
   challengeId String
 
   // IP HASHEADA, nunca en claro (seccion 5). Dato personal de antifraude con
@@ -434,14 +439,12 @@ model Vote {
   ipHash    String?
   createdAt DateTime @default(now())
 
-  @@unique([userId, submissionId])
+  /// LA REGLA: un voto por usuario y reto. Cubre tambien las busquedas por
+  /// [userId, challengeId], asi que no hace falta un @@index suelto para eso.
+  @@unique([userId, challengeId])
   @@index([submissionId])
   // Antifraude: "cuenta nueva que vota >5 veces en los primeros 10 min".
   @@index([userId, createdAt])
-  // Votos de un usuario en un reto (antifraude Fase 3). NO es @@unique: la politica
-  // "cuantos votos por reto" es configurable (Challenge.maxVotesPerUser) y vive en
-  // la app, no en una constraint fija.
-  @@index([userId, challengeId])
 }
 
 // ============================================================================

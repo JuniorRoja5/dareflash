@@ -118,6 +118,13 @@ export async function completarReemplazo(
     });
     await tx.video.update({ where: { id: nuevo.id }, data: { reemplazaSubmissionId: null } });
 
+    // RESET DE VOTOS, en ESTA MISMA transacción. Los votos son del VÍDEO que la comunidad vio, no de
+    // la participación como etiqueta: si cambias el vídeo, empiezas de cero. Heredarlos permitiría
+    // acumular votos con un vídeo y luego cambiarlo por otro. Va dentro de la transacción del swap a
+    // propósito: fuera, un fallo entre medias dejaría el vídeo nuevo con los votos del viejo.
+    const { resetearVotosDeParticipacion } = await import("./votes");
+    await resetearVotosDeParticipacion(tx, sub.id);
+
     // Marca el Video VIEJO REMOVED (si no lo estaba) y encola su borrado en Bunny (idempotente por key).
     const viejo = await tx.video.findUnique({
       where: { id: viejoVideoId },

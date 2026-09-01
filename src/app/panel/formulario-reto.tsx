@@ -61,7 +61,6 @@ export function FormularioReto({
   const [apertura, setApertura] = useState(reto ? aInputLocal(reto.startsAt) : "");
   const [cierre, setCierre] = useState(reto ? aInputLocal(reto.deadline) : "");
   const [ganadores, setGanadores] = useState(reto ? String(reto.winnersCount) : "1");
-  const [votos, setVotos] = useState(reto ? String(reto.maxVotesPerUser) : "1");
   const [portada, setPortada] = useState<File | null>(null);
   // Previa: object URL de un fichero recién elegido, o la portada ACTUAL (URL de Caddy) al editar.
   const [previa, setPrevia] = useState<string | null>(reto?.coverImage ?? null);
@@ -106,7 +105,6 @@ export function FormularioReto({
     setApertura("");
     setCierre("");
     setGanadores("1");
-    setVotos("1");
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     objectUrlRef.current = null;
     setPrevia(null);
@@ -148,7 +146,6 @@ export function FormularioReto({
       cuerpo.set("startsAt", startsAt);
       cuerpo.set("deadline", deadline);
       cuerpo.set("winnersCount", ganadores);
-      cuerpo.set("maxVotesPerUser", votos);
       if (portada) cuerpo.set("portada", portada); // al editar sin fichero nuevo, se conserva la actual
 
       const url = esEdicion ? `/api/panel/retos/${reto.id}/editar` : "/api/panel/retos";
@@ -347,16 +344,6 @@ export function FormularioReto({
           step={1}
           value={ganadores}
           onChange={(e) => setGanadores(e.target.value)}
-          disabled={ocupado}
-        />
-        <Campo
-          id="reto-votos"
-          label="Votos por usuario (0 = sin límite)"
-          type="number"
-          min={0}
-          step={1}
-          value={votos}
-          onChange={(e) => setVotos(e.target.value)}
           disabled={ocupado}
         />
       </div>
