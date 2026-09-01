@@ -403,6 +403,30 @@ export const JOB_FAILED_RETENTION_DAYS = 90;
 export const VOTO_IPHASH_RETENCION_MS = 90 * 24 * 60 * 60 * 1000; // 90 dias
 
 /**
+ * GATE DE "VISTO" — segundos de REPRODUCCION antes de que el reproductor marque la participacion
+ * como vista. FUENTE UNICA: la usan el reproductor (que cuenta) y la documentacion del endpoint.
+ *
+ * PEQUENO A PROPOSITO. Es FRICCION, no una garantia: el servidor no puede comprobar que el video se
+ * haya reproducido de verdad —la marca la pide el cliente y es SPOOFEABLE—. Sirve para que votar
+ * exija al menos abrir el video, no para impedir el fraude; contra eso esta el pago manual. Subirlo
+ * castigaria al usuario honrado sin estorbar a quien falsifica la llamada.
+ */
+export const VISTO_SEGUNDOS_MINIMOS = 3;
+
+/**
+ * Cuanto vive la marca de "visto". GENEROSO: el flujo natural es ver y votar seguido, pero alguien
+ * puede ver varios videos y volver a votar despues, o abrir el modal, distraerse y volver. Media hora
+ * cubre eso de sobra sin que la marca sea eterna.
+ */
+export const VISTO_TTL_SEC = 30 * 60; // 30 min
+
+/**
+ * Copy del rechazo cuando se vota sin haber visto el video. Se fija AQUI porque lo emite el servidor
+ * (convencion de la API: `error.message` ya trae copy humano) y lo consumira la ruta de voto.
+ */
+export const MSG_VOTO_SIN_VER = "Reproduce este vídeo para poder votarlo.";
+
+/**
  * Umbral de AVISO al admin por acumulacion de jobs FAILED. Al CRUZARLO (hacia arriba) el
  * worker envia UN aviso —directo por SMTP, fuera de la cola— y calla hasta que el contador
  * baje del umbral y lo cruce de nuevo. Configurable aqui, no incrustado en el codigo.
@@ -454,6 +478,10 @@ export const RATE_LIMITS = {
   // Miniatura de video (dueño): decodifica y recomprime una imagen (CPU + memoria) y llama a Bunny.
   // Mismo trato que el avatar; por usuario.
   UPLOAD_THUMBNAIL_PER_USER: { limit: 15, windowMs: 15 * 60 * 1000 }, // 15 / 15 min por usuario
+  // Marca de "visto": la dispara el reproductor, asi que un usuario que baja por el feed la llama
+  // MUCHAS veces de forma legitima. El cubo es GENEROSO a proposito —no es una accion con efectos,
+  // solo una marca efimera—; existe para que nadie martillee el endpoint, no para racionar el uso.
+  VISTO_PER_USER: { limit: 200, windowMs: 15 * 60 * 1000 }, // 200 / 15 min por usuario
   // Crear reto (admin): el procesado de la portada cuesta CPU/memoria -> mismo trato que el avatar.
   CREAR_RETO_PER_USER: { limit: 20, windowMs: 15 * 60 * 1000 }, // 20 / 15 min por usuario
   // Editar reto (admin): puede traer una portada nueva (mismo coste de decodificado/recompresión que

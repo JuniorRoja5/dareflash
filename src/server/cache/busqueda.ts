@@ -5,9 +5,7 @@
  */
 import "server-only";
 
-import Redis from "ioredis";
-
-import { env } from "@/config/env";
+import { getRedis } from "./redis";
 
 /** Interfaz mínima de caché (inyectable en tests con un doble en memoria). */
 export interface CacheBusqueda {
@@ -28,24 +26,17 @@ const cacheNula: CacheBusqueda = {
 let memo: CacheBusqueda | null = null;
 
 /**
- * Devuelve la caché de búsqueda: Redis si `REDIS_URL` está configurada, o la caché NULA si no.
- * Memoiza (una conexión por proceso). `lazyConnect` + sin cola offline + 1 reintento: si Redis no está,
- * las operaciones fallan RÁPIDO y `buscarConCache` cae a la BD sin colgar la petición.
+ * Devuelve la caché de búsqueda: Redis si `REDIS_URL` está configurada, o la caché NULA si no. La
+ * conexión y su configuración (fallo rápido cuando Redis no está) viven en `./redis`, compartidas.
  */
 export function getCacheBusqueda(): CacheBusqueda {
   if (memo) return memo;
-  const url = env.REDIS_URL;
-  if (!url) {
+  // La conexión la construye `getRedis` (una por proceso, compartida con los demás usos de Redis).
+  const redis = getRedis();
+  if (!redis) {
     memo = cacheNula;
     return memo;
   }
-  const redis = new Redis(url, {
-    lazyConnect: true,
-    enableOfflineQueue: false,
-    maxRetriesPerRequest: 1,
-  });
-  // Un error de conexión NO debe tumbar el proceso; las operaciones se capturan en `buscarConCache`.
-  redis.on("error", () => {});
   memo = {
     get: (clave) => redis.get(clave),
     async set(clave, valor, ttlSec) {
