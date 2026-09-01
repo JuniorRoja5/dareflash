@@ -59,7 +59,20 @@ export type ResultadoVoto =
   /** Mover al sitio donde ya estaba: no-op. */
   | { estado: "sin-cambio" }
   | { estado: "quitado" }
-  | { estado: "rechazado"; motivo: MotivoRechazo };
+  | { estado: "rechazado"; motivo: Exclude<MotivoRechazo, "YA_VOTO_OTRA"> }
+  /**
+   * Tienes el voto en OTRA participación de este reto. Lleva DÓNDE está hoy, porque la ruta ofrecerá
+   * moverlo y quien pregunta necesita poder nombrarlo ("ya votaste esta otra, ¿la cambio?").
+   *
+   * No es una fuga: es el voto del PROPIO usuario que pregunta, su dato. Y sale gratis: para distinguir
+   * "has vuelto a pulsar en la misma" de "la tienes en otra" ya hay que leer ese voto; devolver su
+   * `submissionId` ahorra a la ruta una segunda consulta para lo mismo.
+   *
+   * OPCIONAL a propósito: falta en la única carrera en la que no se sabe —el propio usuario retiró su
+   * voto entre el conflicto de unicidad y la lectura—, y ahí inventar un id sería mentir. Quien lo
+   * consuma usa copy genérico si no viene, en vez de tener una rama que no se puede poner en rojo.
+   */
+  | { estado: "rechazado"; motivo: "YA_VOTO_OTRA"; votoActualEn?: string };
 
 export interface EmitirVotoInput {
   userId: string;
@@ -195,7 +208,10 @@ export async function emitirVoto(db: PrismaClient, input: EmitirVotoInput): Prom
     });
     return existente?.submissionId === input.submissionId
       ? { estado: "ya-votada" }
-      : { estado: "rechazado", motivo: "YA_VOTO_OTRA" };
+      : // `votoActualEn` sale de la MISMA lectura que acaba de distinguir los dos casos: no cuesta una
+        // consulta más. Es `undefined` solo si el voto desapareció entre el UNIQUE y este `findUnique`
+        // (el propio usuario lo retiró desde otra pestaña), y entonces se dice que no se sabe.
+        { estado: "rechazado", motivo: "YA_VOTO_OTRA", votoActualEn: existente?.submissionId };
   }
 }
 

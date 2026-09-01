@@ -39,7 +39,7 @@ const BodySchema = z.object({ permitirMover: z.boolean().optional() });
  * pasa es que el estado actual no la admite. Un 400 diría "cliente mal escrito" y un 403 diría "no
  * eres quién", y ninguna de las dos es cierta cuando el reto simplemente se cerró.
  */
-function rechazo(motivo: MotivoRechazo) {
+function rechazo(motivo: Exclude<MotivoRechazo, "YA_VOTO_OTRA">) {
   switch (motivo) {
     case "SIN_PARTICIPACION":
     case "NO_PUBLICADA":
@@ -50,21 +50,26 @@ function rechazo(motivo: MotivoRechazo) {
       return apiError("RETO_CERRADO", MSG_VOTO_RETO_CERRADO, 409);
     case "SIN_VOTO":
       return apiError("SIN_VOTO", MSG_VOTO_SIN_VOTO, 409);
-    case "YA_VOTO_OTRA":
-      // No debería llegar aquí (el POST lo intercepta antes para ofrecer mover), pero si un camino
-      // futuro lo trae, se responde con la señal accionable y no con un error mudo.
-      return requiereMover();
   }
 }
 
-/** Ni éxito ni error: "tienes el voto en otra, ¿lo muevo?". 200, porque hay una acción que ofrecer. */
-function requiereMover() {
-  return apiOk({ estado: "requiere-mover", mensaje: MSG_VOTO_YA_VOTO_OTRA });
+/**
+ * Ni éxito ni error: "tienes el voto en otra, ¿lo muevo?". 200, porque hay una acción que ofrecer.
+ *
+ * Lleva `votoActualEn` —la participación donde el voto está HOY— para que el diálogo de la Pieza 3
+ * pueda nombrarla en vez de preguntar en abstracto. Es el voto del propio usuario, así que no revela
+ * nada que él no sepa ya. Puede faltar (ver `ResultadoVoto`): quien lo pinte usa copy genérico.
+ */
+function requiereMover(votoActualEn?: string) {
+  return apiOk({ estado: "requiere-mover", mensaje: MSG_VOTO_YA_VOTO_OTRA, votoActualEn });
 }
 
 /** El estado tipado del servicio se devuelve tal cual; la Pieza 3 decide qué pintar con él. */
 function respuesta(r: ResultadoVoto) {
-  return r.estado === "rechazado" ? rechazo(r.motivo) : apiOk({ ...r });
+  if (r.estado !== "rechazado") return apiOk({ ...r });
+  // `YA_VOTO_OTRA` no es un rechazo hacia fuera: es la pregunta. El tipo lo separa del resto, así que
+  // `rechazo()` ya no necesita una rama defensiva para él — el compilador garantiza que no llega.
+  return r.motivo === "YA_VOTO_OTRA" ? requiereMover(r.votoActualEn) : rechazo(r.motivo);
 }
 
 /**
@@ -148,7 +153,7 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
     const r = await emitirVoto(prisma, { userId: user.userId, submissionId, ipHash });
 
     if (r.estado === "rechazado" && r.motivo === "YA_VOTO_OTRA") {
-      if (!permitirMover) return requiereMover();
+      if (!permitirMover) return requiereMover(r.votoActualEn);
       // Mover es una operación ENTERA del servicio, con sus dos filas bloqueadas en orden y todo
       // revalidado dentro de la transacción. La ruta ORQUESTA, no reimplementa: si entre las dos
       // llamadas cambia algo (el reto se cierra, o el usuario mueve su voto desde otra pestaña),

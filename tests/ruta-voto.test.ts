@@ -279,6 +279,9 @@ describe("emitir-o-mover en un solo viaje", () => {
     expect(res.status).toBe(200); // NO es un error: es una pregunta que la UI puede hacer
     expect(body.estado).toBe("requiere-mover");
     expect(typeof body.mensaje).toBe("string");
+    // Y DICE DÓNDE está hoy el voto, para que el diálogo pueda nombrarlo. Es `subA` (el ORIGEN), no
+    // `subB` (a donde se pide votar): devolver el destino sería devolver lo que el cliente ya mandó.
+    expect(body.votoActualEn).toBe(subA);
     // El voto sigue donde estaba y los contadores no se han tocado.
     expect((await votos(subA)).voteCount).toBe(1);
     expect((await votos(subB)).voteCount).toBe(0);
@@ -305,6 +308,20 @@ describe("emitir-o-mover en un solo viaje", () => {
     });
     expect((await votos(subA)).voteCount).toBe(0);
     expect((await votos(subB)).voteCount).toBe(1);
+  });
+
+  it("`votoActualEn` se lee fresco: tras mover, señala el sitio NUEVO", async () => {
+    const subA = await crearParticipacion();
+    const subB = await crearParticipacion();
+    const subC = await crearParticipacion();
+    const votante = await crearUsuario(prisma);
+    for (const s of [subA, subB, subC]) await marcarVisto(votante, s);
+    await votar(votante, subA);
+    await votar(votante, subB, { cuerpo: { permitirMover: true } });
+
+    const { body } = await votar(votante, subC);
+
+    expect(body.votoActualEn).toBe(subB); // no `subA`: es el estado de hoy, no el primero que hubo
   });
 
   it("permitirMover al sitio donde ya está: no-op (ni duplica ni descuenta)", async () => {
@@ -359,6 +376,9 @@ describe("emitir-o-mover en un solo viaje", () => {
     const { body } = await votar(votante, subB, { cuerpo: { challengeId: "otro-inventado" } });
 
     expect(body.estado).toBe("requiere-mover");
+    // El voto que se ofrece mover es el del reto REAL (derivado de la Submission), no el que el
+    // cuerpo decía: por eso el id que sale es el de la participación de ese mismo reto.
+    expect(body.votoActualEn).toBe(subA);
     expect(await prisma.vote.count()).toBe(1);
   });
 });

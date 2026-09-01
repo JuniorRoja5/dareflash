@@ -102,9 +102,12 @@ describe("un voto por usuario y reto (estructural, lo impone la BD)", () => {
     expect(await emitirVoto(prisma, { userId: votante, submissionId: a.submissionId })).toEqual({
       estado: "votado",
     });
+    // El rechazo dice DÓNDE está el voto (`a`, el origen — no `b`, que es lo que se acaba de pedir):
+    // la ruta ofrecerá moverlo y necesita poder nombrarlo sin volver a consultar la BD.
     expect(await emitirVoto(prisma, { userId: votante, submissionId: b.submissionId })).toEqual({
       estado: "rechazado",
       motivo: "YA_VOTO_OTRA",
+      votoActualEn: a.submissionId,
     });
 
     expect(await prisma.vote.count({ where: { userId: votante, challengeId: reto } })).toBe(1);
