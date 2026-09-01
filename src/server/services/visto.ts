@@ -82,6 +82,31 @@ export type ResultadoVisto =
   { marcado: true } | { marcado: false; motivo: "SIN_PARTICIPACION" | "NO_PUBLICADA" };
 
 /**
+ * ¿Esta participación se puede ver públicamente? "Regla del más restrictivo": la Submission Y su vídeo
+ * tienen que estar PUBLISHED, igual que en el resto del sistema.
+ *
+ * Vive aquí, y no duplicada en cada consumidor, porque la usan las DOS puertas de la participación
+ * (marcar visto y votar) y la respuesta que dan tiene que ser LA MISMA: si una considerase visible algo
+ * que la otra no, la diferencia sería un oráculo para enumerar lo oculto. Devuelve el motivo, no un
+ * booleano, para que quien llame pueda distinguirlos internamente — aunque hacia fuera colapsen los dos
+ * en el mismo 404.
+ */
+export async function visibilidadParticipacion(
+  db: PrismaClient,
+  submissionId: string,
+): Promise<{ visible: true } | { visible: false; motivo: "SIN_PARTICIPACION" | "NO_PUBLICADA" }> {
+  const sub = await db.submission.findUnique({
+    where: { id: submissionId },
+    select: { status: true, video: { select: { status: true } } },
+  });
+  if (!sub) return { visible: false, motivo: "SIN_PARTICIPACION" };
+  if (sub.status !== "PUBLISHED" || sub.video.status !== "PUBLISHED") {
+    return { visible: false, motivo: "NO_PUBLICADA" };
+  }
+  return { visible: true };
+}
+
+/**
  * Deja la marca "este usuario ha visto esta participación".
  *
  * Solo para participaciones PUBLICADAS, con la misma "regla del más restrictivo" que usa el resto del
@@ -93,14 +118,8 @@ export async function marcarVisto(
   input: { userId: string; submissionId: string },
   almacen: AlmacenVisto = getAlmacenVisto(),
 ): Promise<ResultadoVisto> {
-  const sub = await db.submission.findUnique({
-    where: { id: input.submissionId },
-    select: { status: true, video: { select: { status: true } } },
-  });
-  if (!sub) return { marcado: false, motivo: "SIN_PARTICIPACION" };
-  if (sub.status !== "PUBLISHED" || sub.video.status !== "PUBLISHED") {
-    return { marcado: false, motivo: "NO_PUBLICADA" };
-  }
+  const v = await visibilidadParticipacion(db, input.submissionId);
+  if (!v.visible) return { marcado: false, motivo: v.motivo };
 
   try {
     await almacen.marcar(claveVisto(input.userId, input.submissionId), VISTO_TTL_SEC);

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { MSG_NO_DISPONIBLE, RATE_LIMITS } from "@/config/constants";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 
@@ -31,10 +32,9 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (_req, { user, env, prisma }, { params }) => {
     const { marcarVisto } = await import("@/server/services/visto");
     const { rateLimit } = await import("@/server/security/rate-limit");
-    const { RATE_LIMITS } = await import("@/config/constants");
 
     const parsed = ParamsSchema.safeParse(await params);
-    if (!parsed.success) return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
+    if (!parsed.success) return apiError("NOT_FOUND", MSG_NO_DISPONIBLE, 404);
 
     // Cubo por USUARIO (no por IP): la marca es por usuario y la sesión ya está resuelta. Generoso,
     // porque bajar por el feed la dispara muchas veces de forma legítima.
@@ -51,9 +51,10 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
       submissionId: parsed.data.id,
     });
 
-    // Inexistente y no-publicada dan el MISMO 404: una participación que no se ve públicamente no
-    // tiene por qué revelar que existe (mismo criterio que el resto de la API).
-    if (!r.marcado) return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
+    // Inexistente y no-publicada dan el MISMO 404, y el MISMO que da la ruta de voto (por eso el copy
+    // sale de una constante compartida): una participación que no se ve públicamente no tiene por qué
+    // revelar que existe, y dos textos distintos entre rutas serían un oráculo para enumerarlas.
+    if (!r.marcado) return apiError("NOT_FOUND", MSG_NO_DISPONIBLE, 404);
     return apiOk({ ok: true });
   },
 );

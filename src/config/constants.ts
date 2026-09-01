@@ -427,6 +427,24 @@ export const VISTO_TTL_SEC = 30 * 60; // 30 min
 export const MSG_VOTO_SIN_VER = "Reproduce este vídeo para poder votarlo.";
 
 /**
+ * Copy de los rechazos de la ruta de voto. Aqui, y no dentro de la ruta, por la misma razon que el de
+ * arriba: el servidor emite copy humano ya listo (`error.message`), nunca un codigo crudo, y la Pieza 3
+ * lo pinta tal cual sin traducir nada.
+ *
+ * `MSG_NO_DISPONIBLE` es DELIBERADAMENTE COMPARTIDO por "no existe" y "no esta publicada", y por TODAS
+ * las rutas que hablan de una participacion (voto y visto). Es un invariante de seguridad, no estilo:
+ * dos textos distintos —o dos `code` distintos— convertirian la respuesta en un oraculo con el que
+ * enumerar que participaciones existen pero estan ocultas o retiradas. Por eso vive en un solo sitio:
+ * separado en dos literales, alguien "mejoraria" uno y abriria el oraculo sin enterarse.
+ */
+export const MSG_NO_DISPONIBLE = "Vídeo no disponible.";
+export const MSG_VOTO_AUTOVOTO = "No puedes votar tu propia participación.";
+export const MSG_VOTO_RETO_CERRADO = "Este reto ya no admite votos.";
+export const MSG_VOTO_SIN_VOTO = "No tienes ningún voto puesto aquí.";
+/** No es un error: es la pregunta que la Pieza 3 le hara al usuario para pedirle consentimiento. */
+export const MSG_VOTO_YA_VOTO_OTRA = "Ya has votado otra participación de este reto.";
+
+/**
  * Umbral de AVISO al admin por acumulacion de jobs FAILED. Al CRUZARLO (hacia arriba) el
  * worker envia UN aviso —directo por SMTP, fuera de la cola— y calla hasta que el contador
  * baje del umbral y lo cruce de nuevo. Configurable aqui, no incrustado en el codigo.
@@ -482,6 +500,11 @@ export const RATE_LIMITS = {
   // MUCHAS veces de forma legitima. El cubo es GENEROSO a proposito —no es una accion con efectos,
   // solo una marca efimera—; existe para que nadie martillee el endpoint, no para racionar el uso.
   VISTO_PER_USER: { limit: 200, windowMs: 15 * 60 * 1000 }, // 200 / 15 min por usuario
+  // Votar: el modelo es UN voto por reto, asi que el uso legitimo es bajo (votar, quiza mover una o
+  // dos veces mientras se decide, quiza quitarlo). Mas ajustado que el de "visto" porque aqui SI hay
+  // efectos: mueve contadores. No pretende frenar el fraude —eso es el gate, el no-autovoto y el
+  // unique de la BD—, sino que nadie martillee el endpoint.
+  VOTO_PER_USER: { limit: 60, windowMs: 15 * 60 * 1000 }, // 60 / 15 min por usuario
   // Crear reto (admin): el procesado de la portada cuesta CPU/memoria -> mismo trato que el avatar.
   CREAR_RETO_PER_USER: { limit: 20, windowMs: 15 * 60 * 1000 }, // 20 / 15 min por usuario
   // Editar reto (admin): puede traer una portada nueva (mismo coste de decodificado/recompresión que
