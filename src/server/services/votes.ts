@@ -344,3 +344,52 @@ export async function resetearVotosDeParticipacion(tx: Db, submissionId: string)
   await tx.submission.update({ where: { id: submissionId }, data: { voteCount: 0 } });
   return count;
 }
+
+/** Filas por tanda del barrido de retención. Igual que las purgas del worker: tandas pequeñas. */
+const RETENCION_LOTE = 1000;
+/** Tope de tandas por ciclo: si no drena, sigue en el siguiente (nunca un bucle sin fin). */
+const RETENCION_MAX_TANDAS = 1000;
+
+/**
+ * RETENCIÓN de la IP hasheada de los votos: pone `ipHash = NULL` en los votos más viejos que la
+ * ventana. **Borra la IP, NO el voto**: la fila sobrevive —cuenta para el reto— y lo único que caduca
+ * es el dato personal.
+ *
+ * Por qué existe: el esquema documentaba "retención de 90 días" y NO había nada que la aplicara. El
+ * tipo de job `RETENTION_PURGE` estaba en la unión sin handler, sin cadencia y sin llamante: una
+ * protección escrita que no existía. Esto la hace real, y se cablea como los demás barridos del
+ * worker (poda de Job, de RateLimit, de sesiones), no como job de cola: es mantenimiento periódico
+ * del sistema, no un trabajo sobre una entidad concreta.
+ *
+ * POR TANDAS, como el resto: un solo `UPDATE` sobre millones de filas bloquearía la tabla. Devuelve
+ * cuántas anonimizó y si drenó del todo, para que el worker lo DIGA en el log si se quedó corto en
+ * vez de callarse.
+ *
+ * IDEMPOTENTE por construcción: la condición incluye `ipHash IS NOT NULL`, así que una fila ya
+ * anonimizada deja de cumplirla. Correr el barrido dos veces seguidas da 0 la segunda. Ese `IS NOT
+ * NULL` no es cosmético: sin él las mismas filas seguirían casando para siempre y el bucle de tandas
+ * no terminaría nunca de "drenar".
+ *
+ * NOTA DE ESCALA (medir antes de actuar): la condición no tiene índice propio. Con la tabla `Vote`
+ * grande y casi toda ya anonimizada, cada barrido recorrerá el tramo ya purgado antes de encontrar
+ * trabajo. Hoy da igual (barrido diario, tabla pequeña). Cuando se note, la respuesta es un índice
+ * `[ipHash, createdAt]` —que acota el recorrido a las filas que AÚN tienen IP— o un cursor en
+ * `SystemState` como el de la reconciliación de publicados.
+ */
+export async function purgarIpHashDeVotos(
+  db: PrismaClient,
+  input: { now?: Date; retenerMs: number },
+): Promise<{ total: number; drenado: boolean }> {
+  const limite = new Date((input.now ?? new Date()).getTime() - input.retenerMs);
+  let total = 0;
+  for (let i = 0; i < RETENCION_MAX_TANDAS; i += 1) {
+    const anonimizadas = await db.$executeRaw(
+      Prisma.sql`UPDATE \`Vote\` SET \`ipHash\` = NULL
+                 WHERE \`ipHash\` IS NOT NULL AND \`createdAt\` < ${limite}
+                 LIMIT ${Prisma.raw(String(RETENCION_LOTE))}`,
+    );
+    total += anonimizadas;
+    if (anonimizadas < RETENCION_LOTE) return { total, drenado: true };
+  }
+  return { total, drenado: false };
+}

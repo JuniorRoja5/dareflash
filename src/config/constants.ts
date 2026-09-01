@@ -389,6 +389,20 @@ export const JOB_DONE_RETENTION_DAYS = 7;
 export const JOB_FAILED_RETENTION_DAYS = 90;
 
 /**
+ * RETENCION de la IP HASHEADA de un voto (`Vote.ipHash`). Pasado este plazo se pone a NULL.
+ *
+ * FUENTE UNICA del plazo: el esquema lo documenta ("retencion de 90 dias") y el barrido lo lee de
+ * aqui. Antes el numero solo existia en un comentario y no habia nada que lo aplicara: una promesa
+ * escrita que el codigo no cumplia.
+ *
+ * SE BORRA LA IP, NO EL VOTO: la fila sobrevive —es el voto de alguien, cuenta para el reto— y lo
+ * unico que caduca es el dato PERSONAL. El ipHash sirve para detectar fraude reciente ("un video con
+ * >30% de votos desde IPs similares"); pasados 90 dias ese analisis ya no se hace y guardarlo solo
+ * seria acumular datos personales sin proposito.
+ */
+export const VOTO_IPHASH_RETENCION_MS = 90 * 24 * 60 * 60 * 1000; // 90 dias
+
+/**
  * Umbral de AVISO al admin por acumulacion de jobs FAILED. Al CRUZARLO (hacia arriba) el
  * worker envia UN aviso —directo por SMTP, fuera de la cola— y calla hasta que el contador
  * baje del umbral y lo cruce de nuevo. Configurable aqui, no incrustado en el codigo.
@@ -499,7 +513,10 @@ export const JobTypeSchema = z.enum([
   "RANKING_RESET",
   "SEND_EMAIL",
   "LEDGER_RECONCILE",
-  "RETENTION_PURGE",
+  // Aqui habia un "RETENTION_PURGE" que NUNCA existio: ni handler, ni cadencia, ni llamante. Se
+  // retira porque la retencion YA es real y NO es un job de cola: es un BARRIDO recurrente del
+  // worker, como la poda de Job, la de RateLimit y la de sesiones caducadas (ver `bucleWorker`).
+  // Dejar el tipo aqui volveria a sugerir una proteccion inexistente, que es justo lo que fallaba.
   "PAYOUT_PROCESS",
   // Borrado del objeto en Bunny cuando el DUEÑO borra su video. Va por la COLA (no inline) para no
   // dejar el objeto huerfano si Bunny falla: idempotente (404 = ya no existe = exito) y reintentable.

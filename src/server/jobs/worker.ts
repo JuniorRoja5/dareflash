@@ -20,6 +20,7 @@ import {
   RECON_CADENCIA_MS,
   RECON_HUERFANOS_CADENCIA_MS,
   RECON_PUBLICADOS_CADENCIA_MS,
+  VOTO_IPHASH_RETENCION_MS,
 } from "@/config/constants";
 import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -27,6 +28,7 @@ import { purgeExpiredSessions } from "@/server/auth/session";
 import type { EmailAdapter, EmailMessage } from "@/server/email/adapter";
 import { sanearError } from "@/server/observability/sanitize-error";
 import { claimJobs } from "@/server/services/jobs";
+import { purgarIpHashDeVotos } from "@/server/services/votes";
 import type { ResultadoHuerfanos } from "@/server/services/reconciliacion-huerfanos";
 import type { ResultadoPublicados } from "@/server/services/reconciliacion-publicados";
 import type { ResultadoRecalculo } from "@/server/services/recalculo-scores";
@@ -484,6 +486,11 @@ export interface OpcionesBucle {
   failedRetenerDias?: number;
   /** Holgura de RateLimit: se borran ventanas mas viejas que esto. Por defecto 2 h. */
   rateLimitRetenerMs?: number;
+  /**
+   * Ventana de RETENCION de la IP hasheada de los votos. Por defecto VOTO_IPHASH_RETENCION_MS
+   * (90 dias). Inyectable para poder testear la caducidad sin esperar tres meses.
+   */
+  votoIpHashRetenerMs?: number;
   /** Cada cuanto se comprueba el aviso de FAILED. Por defecto 60 s. */
   avisoCadaMs?: number;
   /** Umbral de FAILED para avisar al admin. Por defecto JOB_FAILED_ALERT_THRESHOLD (10). */
@@ -585,13 +592,20 @@ export async function bucleWorker(
         retenerMs: o.rateLimitRetenerMs ?? RATE_LIMIT_PURGE_RETENER_MS,
       });
       const sesiones = await purgeExpiredSessions(db, t);
+      // RETENCION de datos personales: la IP hasheada de los votos caduca. Va aqui, con el resto de
+      // purgas y su misma cadencia, porque es lo mismo: mantenimiento periodico. NO borra votos,
+      // solo pone su ipHash a NULL (ver purgarIpHashDeVotos).
+      const ipVotos = await purgarIpHashDeVotos(db, {
+        now: t,
+        retenerMs: o.votoIpHashRetenerMs ?? VOTO_IPHASH_RETENCION_MS,
+      });
       const failed = await podarFailed(db, {
         now: t,
         dias: o.failedRetenerDias ?? JOB_FAILED_RETENTION_DAYS,
       });
       o.log?.(
         `[worker] poda: DONE=${done.total} RateLimit=${rateLimit.total} ` +
-          `Session=${sesiones.total} FAILED=${failed.total}`,
+          `Session=${sesiones.total} FAILED=${failed.total} ipHash-votos=${ipVotos.total}`,
       );
       // No silencioso: si alguna purga alcanzo el tope de tandas (no drenó), se DICE en el log;
       // sigue en el proximo ciclo. (Antes `drenado` se calculaba y se tiraba: comentario que
@@ -601,6 +615,7 @@ export async function bucleWorker(
         ["RateLimit", rateLimit],
         ["Session", sesiones],
         ["FAILED", failed],
+        ["ipHash-votos", ipVotos],
       ] as const) {
         if (!r.drenado) {
           o.log?.(
