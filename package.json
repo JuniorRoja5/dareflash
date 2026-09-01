@@ -18,7 +18,8 @@
     "format:check": "prettier --check .",
     "prepare": "node scripts/prepare.mjs",
     "postinstall": "prisma generate",
-    "test:build-sin-env": "node scripts/check-build-sin-env.mjs"
+    "test:build-sin-env": "node scripts/check-build-sin-env.mjs",
+    "flake:busqueda": "tsx --conditions=react-server tests/reproducir-flake-busqueda.ts"
   },
   "overrides": {
     "sharp": "^0.35.0",
