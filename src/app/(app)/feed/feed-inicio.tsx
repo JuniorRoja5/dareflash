@@ -37,10 +37,16 @@ const IconoComentario = () => (
     <path d="M5 5h14v10H9l-4 4z" />
   </IconoAccion>
 );
-// VOTAR = check/tick propio (nuestra gramatica). Bold, negro (hereda text-void del circulo magenta).
+// VOTAR = RAYO (decision de marca, Sergio). Dibujado con el MISMO sistema que el resto de acciones:
+// icono de LINEA (IconoAccion pone fill=none + stroke=currentColor, uniones redondeadas), no una
+// silueta rellena. Mantiene el `bold` que ya tenia y hereda su color y tamano del contenedor
+// (negro sobre el circulo magenta) — aqui solo cambia la FORMA.
+// FUENTE UNICA: el rayo se define aqui y en ningun sitio mas. Cuando el boton de voto real lo
+// necesite, se reutiliza este; si acaba haciendo falta en varias pantallas se EXTRAE a un componente
+// compartido, nunca se copia. (Fase 6: el Boost llevara icono PROPIO, distinto de este rayo.)
 const IconoVoto = () => (
   <IconoAccion bold>
-    <path d="M5 12.5l4.5 4.5L19 7" />
+    <path d="M13 3 5 14h5l-1 7 8-11h-5l1-7Z" />
   </IconoAccion>
 );
 const IconoCompartir = () => (
