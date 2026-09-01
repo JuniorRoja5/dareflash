@@ -7,9 +7,19 @@
  * y el sitio se queda sin la protección sin que nadie se entere. Es exactamente la clase de regresión
  * que no se ve revisando un diff.
  *
- * NO comprueba sintaxis (de eso se encarga `caddy validate`, que se pasó con la imagen real antes de
- * commitear) ni que lleguen al navegador (eso es la verificación EN VIVO con `curl -sI` tras
- * desplegar, que es la otra mitad de esta pieza). Fija las DECISIONES.
+ * LO QUE ESTE TEST NO PUEDE PROBAR — y la lección salió cara, así que conviene leerla antes de
+ * confiar en él: leer el Caddyfile (o su config adaptada) NO dice si la cabecera ALCANZA cada tipo de
+ * respuesta. La primera versión de esta pieza pasaba este test en verde y, aun así, en producción los
+ * 404 de `/avatars/*` salían sin ninguna cabecera y con el `Server` asomando, porque Caddy descarta
+ * las cabeceras al componer una respuesta de ERROR. Un test de estructura no lo veía.
+ *
+ * Para comprobar de verdad hay que PEDIR respuestas de cada tipo y mirarlas:
+ *   - en vivo, tras desplegar: `curl -sI https://dareflash.com/` y también sobre un estático que NO
+ *     exista (`/avatars/noexiste.webp`), que es el caso que se escapó;
+ *   - en local, sin desplegar: levantar la imagen real de Caddy con este mismo fichero (cambiando el
+ *     sitio a `:PUERTO` y `auto_https off`) y hacer los mismos `curl`. Así se encontró el fallo.
+ *
+ * Fija las DECISIONES; la cobertura de "llega a todas las respuestas" es de esos `curl`.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -38,9 +48,17 @@ describe("Caddyfile · cabeceras de seguridad presentes", () => {
 
   it("se definen UNA vez (snippet) y se importan donde hagan falta: nada de listas copiadas", () => {
     expect(CONFIG).toMatch(/\(cabeceras_seguridad\)\s*\{/);
-    // Importado en los dos sitios (apex y www); definido en uno solo.
-    expect(CONFIG.match(/import cabeceras_seguridad/g)).toHaveLength(2);
+    // Importado en el apex, en www y en el camino de error. La LISTA existe una sola vez: si alguien
+    // copia las cabeceras en vez de importar el snippet, este segundo aserto se cae.
+    expect((CONFIG.match(/import cabeceras_seguridad/g) ?? []).length).toBeGreaterThanOrEqual(3);
     expect(CONFIG.match(/X-Frame-Options/g)).toHaveLength(1);
+  });
+
+  it("las respuestas de ERROR de Caddy también las llevan (el agujero de los 404 estáticos)", () => {
+    // Caddy compone las respuestas de error DESCARTANDO las cabeceras acumuladas: sin este bloque, un
+    // 404 de `/avatars/*` sale desnudo y con el `Server` puesto. Pasó en producción.
+    const errores = /handle_errors\s*\{([\s\S]*?)\n\t\}/.exec(CONFIG)?.[1] ?? "";
+    expect(errores).toMatch(/import cabeceras_seguridad/);
   });
 });
 

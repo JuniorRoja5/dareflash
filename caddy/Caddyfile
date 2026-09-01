@@ -133,6 +133,28 @@ dareflash.com {
 			header_up X-Real-IP {remote_host}
 		}
 	}
+
+	# RESPUESTAS DE ERROR — el agujero que aparecio en la verificacion en vivo.
+	#
+	# QUE PASABA: `curl -sI /avatars/noexiste.webp` devolvia un 404 SIN una sola cabecera de seguridad
+	# y CON `Server: Caddy`. La primera lectura fue que el `header` de sitio no envolvia los
+	# `handle_path`; NO era eso. Reproducido en local con la imagen real de Caddy:
+	#   /avatars/existe.webp  (200) -> las 6 cabeceras y sin Server.  El header SI envuelve.
+	#   /avatars/noexiste.webp (404) -> ninguna, y Server asomando.
+	# Lo que las pierde es el camino de ERROR: cuando un handler falla (el file_server con un fichero
+	# que no existe), Caddy descarta las cabeceras acumuladas y compone la respuesta de error desde
+	# cero. Por eso solo se veia en los 404 de los estaticos.
+	#
+	# `handle_errors` es ese camino, y aqui se vuelve a aplicar el MISMO snippet: sigue habiendo una
+	# sola definicion de la lista.
+	#
+	# OJO, comprobado: esto NO se traga los errores de la APP. Un 404 que devuelve Next llega por
+	# `reverse_proxy` como una respuesta normal —no como un error de Caddy—, conserva su cuerpo y ya
+	# recibia las cabeceras. `handle_errors` solo entra cuando el error lo genera Caddy.
+	handle_errors {
+		import cabeceras_seguridad
+		respond "{err.status_code} {err.status_text}" {err.status_code}
+	}
 }
 
 # www -> apex (301). Evita contenido duplicado y unifica el dominio canonico.
