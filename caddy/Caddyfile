@@ -28,8 +28,82 @@
 	}
 }
 
+# ============================================================================
+# CABECERAS DE SEGURIDAD — UN SOLO SITIO
+# ============================================================================
+# Van en Caddy y no en `next.config.ts` porque Caddy es la UNICA capa que ve TODAS las respuestas:
+# la app SI, pero tambien los estaticos de /avatars/* y /portadas/*, que sirve el propio Caddy y que
+# nunca pasan por Next. Puestas en Next, esos ficheros se quedarian sin cabeceras.
+#
+# El `X-Robots-Tag: noindex` sigue donde estaba (next.config.ts, con su test). No se toca ni se
+# duplica aqui: duplicarlo daria dos fuentes de verdad para la misma decision.
+#
+# Se define como SNIPPET y se importa en los dos sitios (apex y www) para no copiar la lista.
+(cabeceras_seguridad) {
+	header {
+		# HSTS CONSERVADOR Y A PROPOSITO:
+		#  - `max-age=86400` (1 dia), no un ano. HSTS es PEGAJOSO: el navegador recuerda el valor y
+		#    se niega a hablar por HTTP durante todo ese tiempo. Si algo fuera mal con el
+		#    certificado, con un ano encima no habria vuelta atras para quien ya lo recibio. Se sube
+		#    cuando llevemos semanas sin un solo fallo de HTTPS.
+		#  - SIN `includeSubDomains`. `mail.dareflash.com` es OTRA maquina (el cPanel que entrega el
+		#    correo, ver README); forzarle HTTPS desde aqui podria dejar sin acceso a algo que no
+		#    controlamos ni servimos.
+		#  - SIN `preload`. Entrar en la lista de precarga de los navegadores es practicamente
+		#    irreversible y exige `includeSubDomains` + un ano. Ni una cosa ni la otra, todavia.
+		Strict-Transport-Security "max-age=86400"
+
+		# El navegador respeta el Content-Type que enviamos en vez de adivinarlo. Sin esto, un fichero
+		# subido por un usuario podria acabar interpretandose como algo ejecutable.
+		X-Content-Type-Options "nosniff"
+
+		# ANTI-CLICKJACKING. La app NO se embebe en ningun iframe, asi que se prohibe del todo. Se
+		# ponen las DOS: `frame-ancestors` (CSP, la moderna, la que mandan los navegadores actuales) y
+		# `X-Frame-Options` (la vieja, para clientes que aun no miren la CSP). No se contradicen.
+		X-Frame-Options "DENY"
+
+		# No filtrar la URL COMPLETA a terceros: fuera de nuestro origen solo viaja el origen, y a un
+		# destino HTTP no viaja nada. Las URLs de reto llevan su codigo publico; no tienen por que
+		# acabar en el Referer de un tercero.
+		Referrer-Policy "strict-origin-when-cross-origin"
+
+		# APIs del navegador que la app NO usa: apagadas. Las que SI usa se dejan en `self`:
+		#  - `autoplay`: el feed reproduce solo. Apagarlo lo romperia.
+		#  - `fullscreen` y `picture-in-picture`: los ofrece el reproductor de video.
+		#  - `camera`/`microphone`: comprobado que NO se usan (no hay `getUserMedia` en el codigo);
+		#    el video se sube como fichero, no se graba en el navegador.
+		Permissions-Policy "accelerometer=(), autoplay=(self), camera=(), display-capture=(), encrypted-media=(self), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(self), usb=()"
+
+		# CSP en REPORT-ONLY: NO bloquea nada, solo AVISA en la consola del navegador de lo que
+		# bloquearia. Es el paso previo obligatorio: pasar a enforce sin saber el conjunto exacto de
+		# origenes romperia la reproduccion o el login sin avisar.
+		#
+		# ORIGENES ABIERTOS, uno a uno y por que:
+		#  - `img-src ... data:` -> los posters del CDN y los data: URI de iconos inline.
+		#  - `media-src ... blob:` -> hls.js reproduce por MediaSource: el <video> apunta a un blob:,
+		#    no a una URL. Sin `blob:` no se ve NADA. El host del CDN es para el HLS NATIVO de Safari,
+		#    que si apunta al .m3u8 directamente.
+		#  - `worker-src ... blob:` -> hls.js demultiplexa en un Web Worker que crea desde un blob.
+		#  - `connect-src` -> el CDN (playlist y segmentos, que pide hls.js con su loader propio) y
+		#    `video.bunnycdn.com`, que es el endpoint TUS al que el navegador sube el video DIRECTO.
+		#  - `script-src 'unsafe-inline'` -> Next inyecta scripts en linea para arrancar React y el
+		#    payload RSC. Quitarlo exige nonces por peticion; es el trabajo previo a poner enforce.
+		#  - `frame-ancestors 'none'` -> lo mismo que X-Frame-Options, en la version moderna.
+		#
+		# El host del CDN esta FIJADO a proposito (no un comodin `*.b-cdn.net`, que valdria para la
+		# zona de cualquier otro cliente de Bunny). Debe coincidir con `BUNNY_CDN_HOSTNAME` del .env;
+		# si no coincidiera, la verificacion en vivo lo vera como violacion reportada, no como rotura.
+		Content-Security-Policy-Report-Only "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: https://vz-d313c251-6e3.b-cdn.net; media-src 'self' blob: https://vz-d313c251-6e3.b-cdn.net; worker-src 'self' blob:; connect-src 'self' https://vz-d313c251-6e3.b-cdn.net https://video.bunnycdn.com; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:"
+
+		# El nombre y la version del servidor no ayudan a nadie salvo a quien busca vulnerabilidades.
+		-Server
+	}
+}
+
 # Dominio principal.
 dareflash.com {
+	import cabeceras_seguridad
+
 	# AVATARES: estaticos desde el volumen `avatars_data` (montado en /srv/avatars), servidos por
 	# Caddy FUERA de la app. `handle_path` quita el prefijo /avatars, asi /avatars/{id}.webp -> el
 	# fichero /srv/avatars/{id}.webp. La app escribe con un `?v=` cambiante para invalidar la cache
@@ -63,5 +137,8 @@ dareflash.com {
 
 # www -> apex (301). Evita contenido duplicado y unifica el dominio canonico.
 www.dareflash.com {
+	# Tambien aqui: una redireccion es una respuesta HTTPS mas, y es donde aterriza quien teclea el
+	# dominio con www. Que reciba el HSTS en ese primer contacto es justo el momento util.
+	import cabeceras_seguridad
 	redir https://dareflash.com{uri} permanent
 }
