@@ -39,22 +39,40 @@ function avisar(): void {
   for (const o of oyentes) o();
 }
 
-/**
- * Estado inicial que viene del SERVIDOR, una vez por reto y carga de página.
- *
- * NO PISA lo que ya haya: cada montaje del botón sembraría otra vez con el valor del payload, que es
- * el de la carga y no conoce lo que el usuario acaba de hacer. Sin esta guarda, abrir el modal después
- * de votar en el rail devolvería el botón a "Votar".
- */
-export function sembrarVoto(retoId: string, participacionId: string | null): void {
-  if (votoPorReto.has(retoId)) return;
-  votoPorReto.set(retoId, participacionId);
-  avisar();
-}
-
-/** Dónde tengo el voto de este reto. `undefined` = todavía no se ha sembrado nada. */
+/** Dónde tengo el voto de este reto. `undefined` = el store todavía no sabe nada de este reto. */
 export function votoEnReto(retoId: string): string | null | undefined {
   return votoPorReto.get(retoId);
+}
+
+/**
+ * QUÉ VOTO ENSEÑAR: lo que sepa el store y, si no sabe nada de este reto, lo que trajo el payload.
+ * PURA — no escribe nada. Por eso la vista puede llamarla en cada render sin tocar estado compartido
+ * ni avisar a otros componentes a media renderización.
+ *
+ * OJO CON EL `??`: aquí NO vale `votoEnReto(reto) ?? miVoto`. `undefined` y `null` significan cosas
+ * DISTINTAS —"no sé" y "sé que no tienes voto"— y `??` los trata igual, así que en cuanto el usuario
+ * QUITA su voto (store = `null`) el fallback lo resucitaría con el valor del payload. La comprobación
+ * tiene que ser explícita contra `undefined`.
+ */
+export function votoVisible(retoId: string, miVoto: string | null): string | null {
+  const conocido = votoPorReto.get(retoId);
+  return conocido === undefined ? miVoto : conocido;
+}
+
+/**
+ * SIEMBRA PEREZOSA, dentro del handler de la acción y nunca en render. Fija el estado del payload solo
+ * si el store aún no sabe nada de este reto.
+ *
+ * Hace falta para conservar el ORIGEN del movimiento: al mover, el store tiene que saber de dónde sale
+ * el voto para restarle 1. Sin esto, la primera acción de la página creería que no había voto previo y
+ * el contador del origen se quedaría alto.
+ *
+ * NO avisa a los oyentes: no cambia NADA de lo que se está pintando (`votoVisible` ya devolvía este
+ * mismo valor), y el `aplicar` que viene justo detrás avisa igualmente.
+ */
+function sembrarSiFalta(retoId: string, miVoto: string | null | undefined): void {
+  if (miVoto === undefined || votoPorReto.has(retoId)) return;
+  votoPorReto.set(retoId, miVoto);
 }
 
 /** Lo que hay que sumarle al recuento que trajo el payload de esta participación. */
@@ -147,11 +165,18 @@ function copyDe(data: unknown): string {
  * botón sin cambiar, o al revés).
  */
 export async function accionVotar(
-  input: { retoId: string; participacionId: string; permitirMover?: boolean },
+  input: {
+    retoId: string;
+    participacionId: string;
+    permitirMover?: boolean;
+    /** Voto que traía el payload, para la siembra perezosa (ver `sembrarSiFalta`). */
+    miVoto?: string | null;
+  },
   opts: { transporte?: TransporteVoto } = {},
 ): Promise<ResultadoAccion> {
   const { retoId, participacionId } = input;
   if (enCurso.has(retoId)) return { estado: "ocupado" };
+  sembrarSiFalta(retoId, input.miVoto);
   const previo = votoPorReto.get(retoId) ?? null;
   if (previo === participacionId) return { estado: "hecho" }; // ya votada: nada que hacer
 
@@ -192,11 +217,12 @@ export async function accionVotar(
 
 /** QUITAR el voto de esta participación. Mismo optimismo con reversión. */
 export async function accionQuitar(
-  input: { retoId: string; participacionId: string },
+  input: { retoId: string; participacionId: string; miVoto?: string | null },
   opts: { transporte?: TransporteVoto } = {},
 ): Promise<ResultadoAccion> {
   const { retoId, participacionId } = input;
   if (enCurso.has(retoId)) return { estado: "ocupado" };
+  sembrarSiFalta(retoId, input.miVoto);
   const previo = votoPorReto.get(retoId) ?? null;
   if (previo !== participacionId) return { estado: "hecho" }; // no hay voto aquí que quitar
 

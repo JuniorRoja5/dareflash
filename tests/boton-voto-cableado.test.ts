@@ -86,6 +86,20 @@ describe("el estado viene del payload, no de una ida y vuelta", () => {
     expect(src).not.toMatch(/useState.*votado/i);
   });
 
+  it("el RENDER no escribe en el store compartido", () => {
+    const src = leer(BOTON);
+    // Escribir durante el render avisa a otros componentes a media renderización, y en SSR toca un
+    // Map de ámbito de módulo que el proceso comparte entre peticiones de usuarios distintos.
+    // El estado inicial sale del prop por la vía PURA, y la siembra ocurre dentro del handler.
+    expect(src).toContain("votoVisible(retoId, miVoto)");
+    expect(src).not.toMatch(/^\s*sembrar/m);
+  });
+
+  it("no queda ninguna puerta para sembrar desde fuera del handler", () => {
+    // La siembra es interna al store: si volviera a exportarse, alguien la llamaría en un render.
+    expect(leer("src/lib/voto-cliente.ts")).not.toMatch(/export function sembrar/);
+  });
+
   it("el texto y el aria salen de tablas de copy, nunca del código del estado", () => {
     const src = leer(BOTON);
     expect(src).toContain("TEXTO[estado]");

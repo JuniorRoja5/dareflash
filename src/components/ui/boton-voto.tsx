@@ -9,9 +9,8 @@ import {
   accionVotar,
   deltaDe,
   estadoBoton,
-  sembrarVoto,
   suscribirVotos,
-  votoEnReto,
+  votoVisible,
 } from "@/lib/voto-cliente";
 
 import { ContadorVotos } from "./contador-votos";
@@ -79,8 +78,15 @@ export function RecuentoVotos({
   return <ContadorVotos votos={votos + delta} className={className} />;
 }
 
-/** Suscripción a los DOS registros (vistas y votos) con la forma de `useSyncExternalStore`. */
-function useEstadoVoto(retoId: string, participacionId: string) {
+/**
+ * Suscripción a los DOS registros (vistas y votos), con la forma de `useSyncExternalStore`.
+ *
+ * SOLO LEE. El estado inicial sale del prop `miVoto` a través de `votoVisible`, que es pura: el render
+ * no escribe en el store compartido ni avisa a otros componentes a media renderización. Y como el
+ * fallback ya devuelve el valor del payload desde el PRIMER render —también en el snapshot del
+ * servidor—, no hay parpadeo ni desajuste de hidratación: el botón nace pintado.
+ */
+function useEstadoVoto(retoId: string, participacionId: string, miVoto: string | null) {
   const visto = useSyncExternalStore(
     suscribirVistas,
     () => estaVista(participacionId),
@@ -88,8 +94,8 @@ function useEstadoVoto(retoId: string, participacionId: string) {
   );
   const votoActual = useSyncExternalStore(
     suscribirVotos,
-    () => votoEnReto(retoId),
-    () => undefined,
+    () => votoVisible(retoId, miVoto),
+    () => miVoto, // en el servidor no hay store: manda el payload, que es justo lo que hay que pintar
   );
   const delta = useSyncExternalStore(
     suscribirVotos,
@@ -124,11 +130,9 @@ export function BotonVoto({
   esMia = false,
   variante = "barra",
 }: BotonVotoProps) {
-  // Siembra durante el render: `sembrarVoto` NO pisa lo que ya haya, así que llamarlo en cada montaje
-  // (y en cada render) es idempotente. En un efecto llegaría un frame tarde y el botón parpadearía.
-  sembrarVoto(retoId, miVoto);
-
-  const { visto, votoActual, delta } = useEstadoVoto(retoId, participacionId);
+  // El render NO escribe en el store: `useEstadoVoto` solo lee, con el prop como respaldo. La siembra
+  // ocurre perezosamente dentro del handler, justo antes de aplicar el cambio (ver `voto-cliente`).
+  const { visto, votoActual, delta } = useEstadoVoto(retoId, participacionId, miVoto);
   const [aviso, setAviso] = useState<string | null>(null);
   const [mover, setMover] = useState<{ mensaje: string; votoActualEn: string | null } | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -155,10 +159,12 @@ export function BotonVoto({
 
     setOcupado(true);
     try {
+      // `miVoto` viaja con la acción: es lo que permite sembrar el estado previo justo antes de
+      // aplicar, y con él el ORIGEN del movimiento (a quién hay que restarle el voto).
       const r =
         estado === "votado"
-          ? await accionQuitar({ retoId, participacionId })
-          : await accionVotar({ retoId, participacionId });
+          ? await accionQuitar({ retoId, participacionId, miVoto })
+          : await accionVotar({ retoId, participacionId, miVoto });
       if (r.estado === "requiere-mover") {
         setMover({ mensaje: r.mensaje, votoActualEn: r.votoActualEn });
       } else if (r.estado === "sin-ver" || r.estado === "rechazado") {
@@ -167,18 +173,18 @@ export function BotonVoto({
     } finally {
       setOcupado(false);
     }
-  }, [estado, retoId, participacionId]);
+  }, [estado, retoId, participacionId, miVoto]);
 
   const confirmarMover = useCallback(async () => {
     setMover(null);
     setOcupado(true);
     try {
-      const r = await accionVotar({ retoId, participacionId, permitirMover: true });
+      const r = await accionVotar({ retoId, participacionId, permitirMover: true, miVoto });
       if (r.estado === "sin-ver" || r.estado === "rechazado") setAviso(r.mensaje);
     } finally {
       setOcupado(false);
     }
-  }, [retoId, participacionId]);
+  }, [retoId, participacionId, miVoto]);
 
   const votado = estado === "votado";
   const bloqueado = estado === "cerrado" || estado === "no-votable" || estado === "sin-ver";

@@ -22,10 +22,10 @@ import {
   deltaDe,
   estadoBoton,
   olvidarVotos,
-  sembrarVoto,
   suscribirVotos,
   type TransporteVoto,
   votoEnReto,
+  votoVisible,
 } from "../src/lib/voto-cliente";
 
 const RETO = "reto-1";
@@ -68,30 +68,66 @@ function transporte(
 beforeEach(() => olvidarVotos());
 afterEach(() => olvidarVotos());
 
-describe("siembra desde el payload", () => {
-  it("el estado sale del servidor, no de una ida y vuelta", () => {
-    sembrarVoto(RETO, A);
-    expect(votoEnReto(RETO)).toBe(A);
-    expect(deltaDe(A)).toBe(0); // el recuento del payload YA lo incluye: el delta es solo lo TUYO de ahora
+describe("estado inicial desde el payload, SIN escribir en el render", () => {
+  it("el botón nace pintado: sin store, manda el payload (no hay parpadeo)", () => {
+    // `votoVisible` es PURA: la vista la llama en cada render sin tocar estado compartido. Y devuelve
+    // el valor bueno desde el PRIMER render, así que no hay un fotograma con el botón equivocado.
+    expect(votoVisible(RETO, A)).toBe(A);
+    expect(votoVisible(RETO, null)).toBeNull();
+    expect(votoEnReto(RETO)).toBeUndefined(); // ...y leerlo NO ha sembrado nada
+    expect(deltaDe(A)).toBe(0); // el recuento del payload YA lo incluye: el delta es solo lo TUYO
   });
 
-  it("una segunda siembra NO pisa lo que el usuario acaba de hacer", async () => {
-    sembrarVoto(RETO, null);
-    await accionVotar({ retoId: RETO, participacionId: A }, transporte());
-    expect(votoEnReto(RETO)).toBe(A);
+  it("un voto QUITADO no resucita con el payload", async () => {
+    // El `null` del store ("sé que no tienes voto") NO es lo mismo que `undefined` ("no sé"). Con un
+    // `votoEnReto(reto) ?? miVoto` los dos caerían al payload y el botón volvería a "Votado".
+    const { transporte: t } = transporte();
+    await accionQuitar({ retoId: RETO, participacionId: A, miVoto: A }, { transporte: t });
 
-    // Otro montaje del botón (abrir el modal tras votar en el rail) siembra con el valor de la CARGA.
-    sembrarVoto(RETO, null);
+    expect(votoEnReto(RETO)).toBeNull();
+    expect(votoVisible(RETO, A)).toBeNull();
+  });
 
-    expect(votoEnReto(RETO)).toBe(A); // si pisara, el botón volvería a "Votar"
+  it("lo que el usuario acaba de hacer manda sobre el payload de la carga", async () => {
+    await accionVotar({ retoId: RETO, participacionId: A, miVoto: null }, transporte());
+
+    // Otro montaje del botón (abrir el modal tras votar en el rail) llega con el valor de la CARGA.
+    expect(votoVisible(RETO, null)).toBe(A); // si el payload pisara, volvería a "Votar"
     expect(deltaDe(A)).toBe(1);
+  });
+
+  it("la siembra perezosa conserva el ORIGEN del movimiento", async () => {
+    // Primera acción de la página: el store no sabe nada, y el origen solo puede salir del payload.
+    // Sin sembrar antes de aplicar, el contador de A se quedaría alto.
+    const { transporte: t } = transporte({ votar: ok({ estado: "movido" }) });
+    await accionVotar(
+      { retoId: RETO, participacionId: B, permitirMover: true, miVoto: A },
+      { transporte: t },
+    );
+
+    expect(votoEnReto(RETO)).toBe(B);
+    expect(deltaDe(A)).toBe(-1);
+    expect(deltaDe(B)).toBe(1);
+  });
+
+  it("la siembra NO pisa el estado ya vivo aunque el payload venga viejo", async () => {
+    await accionVotar({ retoId: RETO, participacionId: A, miVoto: null }, transporte());
+    // Segunda acción con un payload obsoleto (el del primer render, que decía "sin voto").
+    const { transporte: t } = transporte({ votar: ok({ estado: "movido" }) });
+    await accionVotar(
+      { retoId: RETO, participacionId: B, permitirMover: true, miVoto: null },
+      { transporte: t },
+    );
+
+    expect(votoEnReto(RETO)).toBe(B);
+    expect(deltaDe(A)).toBe(0); // +1 del voto y −1 del movimiento: cuadra
+    expect(deltaDe(B)).toBe(1);
   });
 
   it("avisa a los suscritos (la celda y el modal se enteran a la vez)", async () => {
     const oyente = vi.fn();
     const baja = suscribirVotos(oyente);
-    sembrarVoto(RETO, null);
-    await accionVotar({ retoId: RETO, participacionId: A }, transporte());
+    await accionVotar({ retoId: RETO, participacionId: A, miVoto: null }, transporte());
     expect(oyente).toHaveBeenCalled();
     baja();
   });
@@ -99,12 +135,11 @@ describe("siembra desde el payload", () => {
 
 describe("votar", () => {
   it("deja el voto y suma 1 al recuento", async () => {
-    sembrarVoto(RETO, null);
     const { transporte: t, llamadas } = transporte();
 
-    expect(await accionVotar({ retoId: RETO, participacionId: A }, { transporte: t })).toEqual({
-      estado: "hecho",
-    });
+    expect(
+      await accionVotar({ retoId: RETO, participacionId: A, miVoto: null }, { transporte: t }),
+    ).toEqual({ estado: "hecho" });
     expect(votoEnReto(RETO)).toBe(A);
     expect(deltaDe(A)).toBe(1);
     // Sin consentimiento explícito NO se pide mover.
@@ -112,22 +147,20 @@ describe("votar", () => {
   });
 
   it("votar la que ya tienes votada no vuelve a llamar ni recuenta", async () => {
-    sembrarVoto(RETO, A);
     const { transporte: t } = transporte();
 
-    expect(await accionVotar({ retoId: RETO, participacionId: A }, { transporte: t })).toEqual({
-      estado: "hecho",
-    });
+    expect(
+      await accionVotar({ retoId: RETO, participacionId: A, miVoto: A }, { transporte: t }),
+    ).toEqual({ estado: "hecho" });
     expect(t.votar).not.toHaveBeenCalled();
     expect(deltaDe(A)).toBe(0);
   });
 
   it("dos pulsaciones seguidas en el mismo reto no lanzan dos peticiones", async () => {
-    sembrarVoto(RETO, null);
     const { transporte: t } = transporte();
     const [r1, r2] = await Promise.all([
-      accionVotar({ retoId: RETO, participacionId: A }, { transporte: t }),
-      accionVotar({ retoId: RETO, participacionId: B }, { transporte: t }),
+      accionVotar({ retoId: RETO, participacionId: A, miVoto: null }, { transporte: t }),
+      accionVotar({ retoId: RETO, participacionId: B, miVoto: null }, { transporte: t }),
     ]);
     expect([r1.estado, r2.estado].sort()).toEqual(["hecho", "ocupado"]);
     expect(t.votar).toHaveBeenCalledTimes(1);
@@ -136,12 +169,15 @@ describe("votar", () => {
 
 describe("mover", () => {
   it("sin consentimiento: revierte y devuelve la señal con DÓNDE está el voto", async () => {
-    sembrarVoto(RETO, null); // el cliente cree que no ha votado; el servidor sabe que sí
+    // El cliente cree que no ha votado (payload `null`); el servidor sabe que sí.
     const { transporte: t } = transporte({
       votar: ok({ estado: "requiere-mover", votoActualEn: A, mensaje: "Ya has votado otra." }),
     });
 
-    const r = await accionVotar({ retoId: RETO, participacionId: B }, { transporte: t });
+    const r = await accionVotar(
+      { retoId: RETO, participacionId: B, miVoto: null },
+      { transporte: t },
+    );
 
     expect(r).toEqual({
       estado: "requiere-mover",
@@ -154,11 +190,10 @@ describe("mover", () => {
   });
 
   it("con consentimiento: −1 en el origen y +1 aquí, en una sola acción", async () => {
-    sembrarVoto(RETO, A);
     const { transporte: t, llamadas } = transporte({ votar: ok({ estado: "movido" }) });
 
     const r = await accionVotar(
-      { retoId: RETO, participacionId: B, permitirMover: true },
+      { retoId: RETO, participacionId: B, permitirMover: true, miVoto: A },
       { transporte: t },
     );
 
@@ -170,10 +205,12 @@ describe("mover", () => {
   });
 
   it("mover y volver deja los deltas a cero (no acumula fantasmas)", async () => {
-    sembrarVoto(RETO, A);
     const { transporte: t } = transporte({ votar: ok({ estado: "movido" }) });
 
-    await accionVotar({ retoId: RETO, participacionId: B, permitirMover: true }, { transporte: t });
+    await accionVotar(
+      { retoId: RETO, participacionId: B, permitirMover: true, miVoto: A },
+      { transporte: t },
+    );
     await accionVotar({ retoId: RETO, participacionId: A, permitirMover: true }, { transporte: t });
 
     expect(votoEnReto(RETO)).toBe(A);
@@ -184,21 +221,19 @@ describe("mover", () => {
 
 describe("quitar", () => {
   it("quita el voto y resta 1", async () => {
-    sembrarVoto(RETO, A);
     const { transporte: t } = transporte();
 
-    expect(await accionQuitar({ retoId: RETO, participacionId: A }, { transporte: t })).toEqual({
-      estado: "hecho",
-    });
+    expect(
+      await accionQuitar({ retoId: RETO, participacionId: A, miVoto: A }, { transporte: t }),
+    ).toEqual({ estado: "hecho" });
     expect(votoEnReto(RETO)).toBeNull();
     expect(deltaDe(A)).toBe(-1);
   });
 
   it("quitar donde NO tienes el voto no toca nada ni llama", async () => {
-    sembrarVoto(RETO, A);
     const { transporte: t } = transporte();
 
-    await accionQuitar({ retoId: RETO, participacionId: B }, { transporte: t });
+    await accionQuitar({ retoId: RETO, participacionId: B, miVoto: A }, { transporte: t });
 
     expect(t.quitar).not.toHaveBeenCalled();
     expect(votoEnReto(RETO)).toBe(A);
@@ -206,9 +241,8 @@ describe("quitar", () => {
   });
 
   it("votar y quitar deja el recuento como estaba", async () => {
-    sembrarVoto(RETO, null);
     const { transporte: t } = transporte();
-    await accionVotar({ retoId: RETO, participacionId: A }, { transporte: t });
+    await accionVotar({ retoId: RETO, participacionId: A, miVoto: null }, { transporte: t });
     await accionQuitar({ retoId: RETO, participacionId: A }, { transporte: t });
     expect(deltaDe(A)).toBe(0);
     expect(votoEnReto(RETO)).toBeNull();
@@ -222,10 +256,12 @@ describe("el optimismo se deshace ENTERO cuando el servidor dice que no", () => 
     ["la participación ya no existe", err("NOT_FOUND", "Vídeo no disponible.", 404)],
     ["la red se cae", new Error("network")],
   ])("%s -> ni voto ni delta, y copy HUMANO", async (_caso, respuesta) => {
-    sembrarVoto(RETO, null);
     const { transporte: t } = transporte({ votar: respuesta });
 
-    const r = await accionVotar({ retoId: RETO, participacionId: A }, { transporte: t });
+    const r = await accionVotar(
+      { retoId: RETO, participacionId: A, miVoto: null },
+      { transporte: t },
+    );
 
     expect(r.estado).toBe("rechazado");
     expect(votoEnReto(RETO)).toBeNull();
@@ -237,12 +273,14 @@ describe("el optimismo se deshace ENTERO cuando el servidor dice que no", () => 
   });
 
   it("un movimiento fallido devuelve el voto a su sitio, con los dos deltas", async () => {
-    sembrarVoto(RETO, A);
     const { transporte: t } = transporte({
       votar: err("RETO_CERRADO", "Este reto ya no admite votos."),
     });
 
-    await accionVotar({ retoId: RETO, participacionId: B, permitirMover: true }, { transporte: t });
+    await accionVotar(
+      { retoId: RETO, participacionId: B, permitirMover: true, miVoto: A },
+      { transporte: t },
+    );
 
     expect(votoEnReto(RETO)).toBe(A);
     expect(deltaDe(A)).toBe(0); // no se queda con el −1 del optimismo
@@ -250,22 +288,23 @@ describe("el optimismo se deshace ENTERO cuando el servidor dice que no", () => 
   });
 
   it("un quitar fallido deja el voto donde estaba", async () => {
-    sembrarVoto(RETO, A);
     const { transporte: t } = transporte({
       quitar: err("RETO_CERRADO", "Este reto ya no admite votos."),
     });
 
-    await accionQuitar({ retoId: RETO, participacionId: A }, { transporte: t });
+    await accionQuitar({ retoId: RETO, participacionId: A, miVoto: A }, { transporte: t });
 
     expect(votoEnReto(RETO)).toBe(A);
     expect(deltaDe(A)).toBe(0);
   });
 
   it("el gate caducado se distingue del resto: pide reproducir, no reintentar", async () => {
-    sembrarVoto(RETO, null);
     const { transporte: t } = transporte({ votar: err("SIN_VER", MSG_VOTO_SIN_VER) });
 
-    const r = await accionVotar({ retoId: RETO, participacionId: A }, { transporte: t });
+    const r = await accionVotar(
+      { retoId: RETO, participacionId: A, miVoto: null },
+      { transporte: t },
+    );
 
     expect(r).toEqual({ estado: "sin-ver", mensaje: MSG_VOTO_SIN_VER });
     expect(deltaDe(A)).toBe(0);
