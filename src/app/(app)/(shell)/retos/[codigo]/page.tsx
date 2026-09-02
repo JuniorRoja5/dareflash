@@ -86,8 +86,10 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
   const miEstado = mi ? COPY_MI_ESTADO[mi.estado] : undefined;
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
-      <div className="grid gap-8 lg:grid-cols-3 lg:items-start">
+    <div className="mx-auto w-full max-w-7xl px-4 py-5 lg:px-8 lg:py-12">
+      {/* En móvil la ficha y las participaciones se aprietan: la ficha ocupaba la pantalla entera y
+          empujaba las participaciones fuera de vista. En lg todo se queda como estaba. */}
+      <div className="grid gap-5 lg:grid-cols-3 lg:items-start lg:gap-8">
         {/* FICHA del reto — una columna en escritorio, primera tarjeta en móvil. */}
         <article className="df-rise overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md">
           {/* Portada real (servida por Caddy) si hay; banner apaisado. */}
@@ -96,13 +98,14 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
             <img
               src={reto.coverImage}
               alt=""
-              className="aspect-video w-full border-b border-line object-cover"
+              /* Banner más bajo en móvil: 16:9 se comía un tercio de la pantalla antes del título. */
+              className="aspect-[16/7] w-full border-b border-line object-cover lg:aspect-video"
             />
           ) : null}
-          <div className="p-6">
+          <div className="p-4 lg:p-6">
             <PildoraCategoria>{nombreCategoria(reto.categoria)}</PildoraCategoria>
             <h1
-              className="mt-3 text-2xl leading-tight text-text"
+              className="mt-2 text-xl leading-tight text-text lg:mt-3 lg:text-2xl"
               style={{
                 fontFamily: "var(--font-display)",
                 fontVariationSettings: '"wght" 720, "wdth" 112',
@@ -112,7 +115,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
             </h1>
 
             {/* Marcador: premio (en lima) + cuenta atrás al cierre. Unidad indivisible. */}
-            <div className="mt-5">
+            <div className="mt-4 lg:mt-5">
               <Marcador
                 cents={reto.premioCents}
                 deadlineMs={reto.deadlineMs}
@@ -121,7 +124,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
               />
             </div>
 
-            <dl className="mt-6">
+            <dl className="mt-4 lg:mt-6">
               <dt className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
                 Ganadores
               </dt>
@@ -131,7 +134,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
             </dl>
 
             {reto.descripcion ? (
-              <section className="mt-6">
+              <section className="mt-4 lg:mt-6">
                 <h2 className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
                   Descripción
                 </h2>
@@ -140,7 +143,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
             ) : null}
 
             {reto.reglas ? (
-              <section className="mt-6">
+              <section className="mt-4 lg:mt-6">
                 <h2 className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
                   Reglas
                 </h2>
@@ -150,7 +153,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
 
             {/* Participar: invitado -> login; logueado -> modal de subida con el challengeId. Si ya
                 participó (publicada), el CTA pasa a "Reemplazar". */}
-            <div className="mt-8">
+            <div className="mt-5 lg:mt-8">
               <BotonParticipar
                 challengeId={reto.id}
                 publicCode={reto.publicCode}
@@ -174,7 +177,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
         {/* PARTICIPACIONES reales (Submission+Video PUBLISHED), más votadas primero. */}
         <section className="df-rise lg:col-span-2" style={{ animationDelay: "80ms" }}>
           <h2
-            className="mb-4 text-xl leading-none text-text"
+            className="mb-3 text-lg leading-none text-text lg:mb-4 lg:text-xl"
             style={{
               fontFamily: "var(--font-display)",
               fontVariationSettings: '"wght" 720, "wdth" 112',

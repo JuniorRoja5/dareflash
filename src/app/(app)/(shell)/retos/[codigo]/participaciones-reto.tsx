@@ -140,7 +140,10 @@ export function ParticipacionesReto({
 
   return (
     <>
-      <ul role="list" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {/* DOS columnas ya en móvil. Con una sola y miniaturas 9:16, cada participación ocupaba más de
+          una pantalla: ver quién participa costaba un scroll por persona. Es una rejilla de VISTAZO;
+          la reproducción inmersiva sigue estando al tocar, en el feed del reto. */}
+      <ul role="list" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3">
         {items.map((p, i) => (
           <li key={p.submissionId}>
             <Celda
@@ -296,6 +299,7 @@ function Celda({
         className="group block w-full overflow-hidden rounded-sm border border-line transition-[transform,box-shadow] duration-[var(--df-dur-fast)] ease-mechanical hover:-translate-y-0.5 hover:shadow-[var(--df-shadow-md)] focus-visible:-translate-y-0.5 focus-visible:shadow-[var(--df-shadow-md)] focus-visible:outline-none"
       >
         <CajaVideo
+          proporcion="miniatura"
           // Blurred-fill: el MISMO póster, escalado y difuminado, rellena los lados en escritorio.
           relleno={
             <div

@@ -30,7 +30,9 @@ export function TarjetaReto({ reto }: { reto: RetoPublicoVista }) {
         href={href}
         aria-hidden
         tabIndex={-1}
-        className="df-sheen relative block aspect-[9/16] shrink-0 bg-raised lg:aspect-video lg:w-[44%]"
+        /* Portada APAISADA en móvil: con 9:16 y dos columnas, dos retos llenaban la pantalla entera.
+           Es una portada para decidir si entras, no un vídeo que se reproduce aquí. */
+        className="df-sheen relative block aspect-[4/3] shrink-0 bg-raised lg:aspect-video lg:w-[44%]"
       >
         {/* Portada real (servida por Caddy, no next/image) o placeholder si no hay. */}
         {reto.coverImage ? (

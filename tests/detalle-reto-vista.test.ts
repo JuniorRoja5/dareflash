@@ -111,7 +111,10 @@ describe("maqueta", () => {
     expect(detalle).toBe(listado);
   });
 
-  it("la rejilla de participaciones se ensancha en escritorio (no se queda en una columna)", () => {
-    expect(VISTA_PARTICIPACIONES).toMatch(/grid[^"]*sm:grid-cols-2[^"]*xl:grid-cols-3/);
+  it("la rejilla de participaciones nunca es de UNA columna, y se ensancha en escritorio", () => {
+    // La decisión original era "en escritorio no se queda en una columna". Desde la pieza de densidad
+    // es más fuerte: ni siquiera en MÓVIL hay una sola columna, porque con miniaturas a ancho completo
+    // ver quién participa costaba un scroll por persona. Sigue ensanchándose en xl.
+    expect(VISTA_PARTICIPACIONES).toMatch(/grid grid-cols-2[^"]*xl:grid-cols-3/);
   });
 });
