@@ -3,6 +3,8 @@
 import type { LoaderCallbacks, LoaderConfiguration, LoaderContext } from "hls.js";
 import { type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
 
+import { crearMarcadorVisto } from "@/lib/visto-cliente";
+
 import { CajaVideo } from "./caja-video";
 
 /**
@@ -46,6 +48,7 @@ export function ReproductorHls({
   variante,
   silenciado: silenciadoProp,
   onNoDisponible,
+  participacionVista = null,
 }: {
   src: string;
   poster: string;
@@ -54,6 +57,13 @@ export function ReproductorHls({
   silenciado?: boolean;
   /** Se invoca cuando el vídeo ya no existe (fallo permanente): el feed lo usa para retirarlo del scroll. */
   onNoDisponible?: () => void;
+  /**
+   * Participación cuya reproducción hay que marcar como "vista" (el gate que exige la ruta de voto).
+   * `null` = no marcar, y es el DEFECTO: un invitado (no tiene sesión con la que marcar), una subida
+   * libre sin participación, o la rejilla del perfil, donde no se vota. Quien la pasa asume que hay
+   * sesión; el servidor lo vuelve a comprobar de todas formas.
+   */
+  participacionVista?: string | null;
 }) {
   const esFeed = variante === "feed";
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -221,6 +231,20 @@ export function ReproductorHls({
       video.removeEventListener("ended", parar);
     };
   }, [esFeed, src, intento]);
+
+  // GATE DE "VISTO": marca la participación cuando se lleva reproducida de verdad (no de reloj) la
+  // constante `VISTO_SEGUNDOS_MINIMOS`. TODA la decisión —cuánto se ha visto, cuándo avisar, si
+  // reintentar— vive en `lib/visto-cliente`, que se testea en Node; aquí solo queda conectar el evento.
+  // `timeupdate` basta: al pausar deja de dispararse y `currentTime` no avanza, así que la pausa no
+  // suma sin tener que escuchar `play`/`pause`.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !participacionVista) return;
+    const marcador = crearMarcadorVisto(participacionVista, { haySesion: true });
+    const alAvanzar = (): void => marcador.tiempo(video.currentTime);
+    video.addEventListener("timeupdate", alAvanzar);
+    return () => video.removeEventListener("timeupdate", alAvanzar);
+  }, [participacionVista, src, intento]);
 
   // Fallo PERMANENTE (el vídeo ya no existe): avisa al contenedor. El feed lo aprovecha para retirar el
   // slide del scroll; el detalle no pasa handler y se queda solo con el mensaje terminal.

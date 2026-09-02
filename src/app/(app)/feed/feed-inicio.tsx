@@ -130,6 +130,7 @@ function Accion({
 function PostInicio({
   post,
   alRef,
+  haySesion,
   muted,
   mostrarHint,
   esActivo,
@@ -138,6 +139,8 @@ function PostInicio({
 }: {
   post: PostFeed;
   alRef: (el: HTMLElement | null) => void;
+  /** ¿Marcar la reproducción como "vista"? Solo con sesión y solo si el vídeo ES una participación. */
+  haySesion: boolean;
   /** Mute EFECTIVO (preferencia del usuario O permiso del navegador aún sin desbloquear). El icono y
    *  el aria se pintan según esto: NUNCA mienten sobre lo que se oye de verdad. */
   muted: boolean;
@@ -174,6 +177,9 @@ function PostInicio({
             poster={post.poster}
             silenciado={muted}
             onNoDisponible={onNoDisponible}
+            /* Gate de "visto": null para invitados y para las subidas LIBRES (sin participación no
+               hay nada que votar, así que no hay nada que marcar). */
+            participacionVista={haySesion ? post.participacionId : null}
           />
         </div>
         {/* Scrim (velo) — solo movil (en desktop el video queda limpio) */}
@@ -311,9 +317,13 @@ function Flecha({
 export function FeedInicio({
   postsIniciales,
   cursorInicial,
+  haySesion = false,
 }: {
   postsIniciales: PostFeed[];
   cursorInicial: string | null;
+  /** ¿Hay sesión? Solo decide si el reproductor marca "visto" (un invitado no marca). El feed es
+   *  público: esto NO oculta ni protege nada, y la seguridad real la aplica siempre el endpoint. */
+  haySesion?: boolean;
 }) {
   const [posts, setPosts] = useState<PostFeed[]>(postsIniciales);
   const [cursor, setCursor] = useState<string | null>(cursorInicial);
@@ -447,6 +457,7 @@ export function FeedInicio({
             alRef={(el) => {
               if (el) secciones.current[i] = el;
             }}
+            haySesion={haySesion}
             muted={mutedEfectivo}
             mostrarHint={mostrarHintSonido}
             esActivo={i === activo}

@@ -31,10 +31,16 @@ export function ModalReproductor({
   id,
   titulo,
   onCerrar,
+  participacionVista = null,
 }: {
   id: string;
   titulo: string | null;
   onCerrar: () => void;
+  /**
+   * Participación a marcar como "vista" mientras se reproduce (el gate que exige la ruta de voto).
+   * `null` = no marcar: invitado, o una rejilla donde no se vota (perfil). Va TAL CUAL al reproductor.
+   */
+  participacionVista?: string | null;
 }) {
   const [estado, setEstado] = useState<Estado>({ fase: "cargando" });
   const [intento, setIntento] = useState(0);
@@ -169,7 +175,12 @@ export function ModalReproductor({
               </button>
             </MensajeCaja>
           ) : (
-            <ReproductorHls variante="detalle" src={estado.src} poster={estado.poster} />
+            <ReproductorHls
+              variante="detalle"
+              src={estado.src}
+              poster={estado.poster}
+              participacionVista={participacionVista}
+            />
           )}
         </div>
       </div>

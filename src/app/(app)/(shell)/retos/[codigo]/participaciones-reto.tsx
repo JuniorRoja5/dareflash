@@ -40,10 +40,14 @@ export function ParticipacionesReto({
   participaciones,
   cursorInicial,
   miSubmissionId = null,
+  haySesion = false,
 }: {
   challengeId: string;
   participaciones: ParticipacionUI[];
   cursorInicial: string | null;
+  /** ¿Hay sesión? Solo decide si el reproductor marca "visto" (un invitado no marca). La vista es
+   *  pública: esto NO oculta ni protege nada, y el endpoint lo comprueba igualmente. */
+  haySesion?: boolean;
   /** Id de MI participación (si participo): marca la mía con "Tú" sin consultar la sesión aquí. */
   miSubmissionId?: string | null;
 }) {
@@ -87,7 +91,12 @@ export function ParticipacionesReto({
       <ul role="list" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {items.map((p, i) => (
           <li key={p.submissionId}>
-            <Celda participacion={p} puesto={i + 1} esMio={p.submissionId === miSubmissionId} />
+            <Celda
+              participacion={p}
+              puesto={i + 1}
+              esMio={p.submissionId === miSubmissionId}
+              haySesion={haySesion}
+            />
           </li>
         ))}
       </ul>
@@ -122,10 +131,13 @@ function Celda({
   participacion: p,
   puesto,
   esMio,
+  haySesion,
 }: {
   participacion: ParticipacionUI;
   puesto: number;
   esMio: boolean;
+  /** ¿Marcar la reproducción como "vista"? Solo con sesión. */
+  haySesion: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
   const autor = nombreMostrado(p.displayName, p.username);
@@ -201,7 +213,14 @@ function Celda({
       {p.title?.trim() ? <p className="truncate text-2xs text-text-dim">{p.title}</p> : null}
 
       {abierto ? (
-        <ModalReproductor id={p.videoId} titulo={p.title} onCerrar={() => setAbierto(false)} />
+        <ModalReproductor
+          id={p.videoId}
+          titulo={p.title}
+          onCerrar={() => setAbierto(false)}
+          /* El id de la PARTICIPACIÓN, no el del vídeo: es de lo que hablan las rutas del gate y
+             del voto, y pasarles un id de Video daría 404. Sin sesión, no se marca. */
+          participacionVista={haySesion ? p.submissionId : null}
+        />
       ) : null}
     </div>
   );

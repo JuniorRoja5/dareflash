@@ -34,6 +34,14 @@ export interface PostFeed {
   votos: number;
   src: string;
   poster: string;
+  /**
+   * Participacion a la que pertenece el video, si lo es. `null` en una subida LIBRE (sin reto): no se
+   * vota, asi que tampoco se marca como vista.
+   *
+   * Hace falta APARTE del `id` de arriba, que es el del VIDEO: las rutas de participacion
+   * (`/api/participaciones/[id]/…`) hablan de Submission, y pasarles un id de Video daria 404.
+   */
+  participacionId: string | null;
 }
 
 export interface PaginaFeed {
@@ -86,6 +94,7 @@ export async function feedPublicado(
       user: { select: { username: true, displayName: true } },
       submission: {
         select: {
+          id: true,
           status: true,
           voteCount: true,
           challenge: { select: { title: true, category: true } },
@@ -115,6 +124,8 @@ export async function feedPublicado(
       votos: sub?.voteCount ?? 0,
       src: urls.src,
       poster: urls.poster,
+      // Del MISMO `sub` que ya filtra por "publicada": una participacion oculta no sale como votable.
+      participacionId: sub?.id ?? null,
     };
   });
 

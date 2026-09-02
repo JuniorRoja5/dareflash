@@ -1,0 +1,70 @@
+/**
+ * CABLEADO del gate de "visto" (test ESTRUCTURAL).
+ *
+ * `visto-cliente.test.ts` prueba la lógica, y lo prueba bien. Pero la lógica no sirve de nada si nadie
+ * la llama, y ESO —un `useEffect` y unas props de React— no se puede ejecutar aquí: los tests corren en
+ * Node sin DOM. Sin este fichero, alguien puede borrar la prop del feed, o dejar de escuchar
+ * `timeupdate`, y las 18 pruebas de la lógica siguen verdes mientras el gate deja de existir en la app.
+ *
+ * Fija una DECISIÓN, no un resultado. Como el resto de tests estructurales del repo: se toca rompiendo
+ * el invariante a propósito y confirmando que se pone rojo.
+ */
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+const raiz = path.resolve(__dirname, "..");
+const leer = (rel: string): string => readFileSync(path.join(raiz, rel), "utf8");
+
+const REPRODUCTOR = "src/components/ui/reproductor-hls.tsx";
+const FEED = "src/app/(app)/feed/feed-inicio.tsx";
+const DETALLE = "src/app/(app)/(shell)/retos/[codigo]/participaciones-reto.tsx";
+const MODAL = "src/components/ui/modal-reproductor.tsx";
+const LOGICA = "src/lib/visto-cliente.ts";
+
+describe("el reproductor mide y marca", () => {
+  it("usa el marcador de `lib/visto-cliente` y escucha `timeupdate`", () => {
+    const src = leer(REPRODUCTOR);
+    expect(src).toContain("crearMarcadorVisto");
+    // `timeupdate` es lo que hace que la PAUSA no sume sin escribir código para ello. Cambiarlo por un
+    // `setInterval` mediría reloj de pared y el vídeo pausado contaría como visto.
+    expect(src).toMatch(/addEventListener\(\s*["']timeupdate["']/);
+    expect(src).toMatch(/removeEventListener\(\s*["']timeupdate["']/); // sin fuga al desmontar
+  });
+
+  it("no marca nada si no le pasan participación (invitado, o vídeo no votable)", () => {
+    const src = leer(REPRODUCTOR);
+    expect(src).toMatch(/if \(!video \|\| !participacionVista\) return;/);
+  });
+});
+
+describe("las pantallas le pasan la PARTICIPACIÓN, y solo con sesión", () => {
+  it.each([
+    ["el feed", FEED, "post.participacionId"],
+    ["el detalle del reto", DETALLE, "p.submissionId"],
+  ])("%s condiciona la marca a la sesión", (_caso, fichero, campo) => {
+    const src = leer(fichero);
+    // El id que viaja es el de la SUBMISSION, nunca el del vídeo: las rutas de participación no
+    // aceptan un id de Video (darían 404), y el gate quedaría permanentemente cerrado.
+    expect(src).toContain(`participacionVista={haySesion ? ${campo} : null}`);
+  });
+
+  it("el modal del detalle propaga la prop al reproductor (no la traga)", () => {
+    expect(leer(MODAL)).toContain("participacionVista={participacionVista}");
+  });
+});
+
+describe("umbral de fuente única", () => {
+  it("la lógica importa `VISTO_SEGUNDOS_MINIMOS`; no hay un número escrito a mano", () => {
+    const src = leer(LOGICA);
+    expect(src).toContain("VISTO_SEGUNDOS_MINIMOS");
+    // El umbral por defecto sale de la constante, no de un literal. (`SALTO_MAX_SEG` sí es un literal
+    // a propósito: describe cómo dispara `timeupdate` el navegador, no una regla de producto.)
+    expect(src).toMatch(/opts\.minimoSeg \?\? VISTO_SEGUNDOS_MINIMOS/);
+  });
+
+  it("el reproductor NO decide el umbral: se lo deja a la lógica", () => {
+    expect(leer(REPRODUCTOR)).not.toContain("minimoSeg");
+  });
+});

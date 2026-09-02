@@ -231,7 +231,7 @@ describe("feedPublicado", () => {
       },
       select: { id: true },
     });
-    await prisma.submission.create({
+    const subPub = await prisma.submission.create({
       data: {
         challengeId: ch.id,
         userId: u.id,
@@ -239,6 +239,7 @@ describe("feedPublicado", () => {
         status: "PUBLISHED",
         voteCount: 42,
       },
+      select: { id: true },
     });
 
     const chOculto = await prisma.challenge.create({
@@ -271,8 +272,15 @@ describe("feedPublicado", () => {
     expect(pub.retoTitulo).toBe("Reto de fitness");
     expect(pub.categoria).toBe("Fitness"); // key "fitness" -> nombre "Fitness"
 
+    // El id de la PARTICIPACION, aparte del id del VIDEO: es de lo que hablan las rutas del gate de
+    // "visto" y del voto, y pasarles un id de Video daria 404.
+    expect(pub.participacionId).toBe(subPub.id);
+    expect(pub.participacionId).not.toBe(pub.id);
+
     const sinPub = items.find((i) => i.id === idSinPub)!;
     expect(sinPub.votos).toBe(0);
+    // Submission NO publicada -> no se vota, asi que tampoco se ofrece para marcar como vista.
+    expect(sinPub.participacionId).toBeNull();
     expect(sinPub.retoTitulo).toBe("Título del vídeo sin submission publicada");
     expect(sinPub.categoria).toBeNull();
   });

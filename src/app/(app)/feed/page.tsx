@@ -11,10 +11,15 @@ export const dynamic = "force-dynamic";
  */
 export default async function FeedPage() {
   const { prisma } = await import("@/server/db/client");
+  const { getCurrentUser } = await import("@/server/auth/current-user");
   const { feedPublicado } = await import("@/server/services/feed");
   const { firmarReproduccion } = await import("@/server/services/reproduccion-servidor");
 
   const { items, nextCursor } = await feedPublicado(prisma, { firmar: firmarReproduccion });
+  // Solo para saber si el reproductor debe marcar "visto" (un invitado no marca: no tiene sesión con
+  // la que hacerlo). NO es una barrera: el feed es público y la seguridad real la aplica el endpoint.
+  // `getCurrentUser` está memoizado por petición, así que no añade consulta si algo más ya lo pidió.
+  const haySesion = (await getCurrentUser()) !== null;
 
   if (items.length === 0) {
     return (
@@ -27,5 +32,5 @@ export default async function FeedPage() {
     );
   }
 
-  return <FeedInicio postsIniciales={items} cursorInicial={nextCursor} />;
+  return <FeedInicio postsIniciales={items} cursorInicial={nextCursor} haySesion={haySesion} />;
 }
