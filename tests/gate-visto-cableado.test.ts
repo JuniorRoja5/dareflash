@@ -39,19 +39,31 @@ describe("el reproductor mide y marca", () => {
   });
 });
 
-describe("las pantallas le pasan la PARTICIPACIÓN, y solo con sesión", () => {
+describe("las pantallas le pasan la PARTICIPACIÓN y la SESIÓN, por separado", () => {
   it.each([
     ["el feed", FEED, "post.participacionId"],
     ["el detalle del reto", DETALLE, "p.submissionId"],
-  ])("%s condiciona la marca a la sesión", (_caso, fichero, campo) => {
+  ])("%s pasa el id de la Submission y la sesión REAL", (_caso, fichero, campo) => {
     const src = leer(fichero);
     // El id que viaja es el de la SUBMISSION, nunca el del vídeo: las rutas de participación no
-    // aceptan un id de Video (darían 404), y el gate quedaría permanentemente cerrado.
-    expect(src).toContain(`participacionVista={haySesion ? ${campo} : null}`);
+    // aceptan un id de Video (darían 404) y el gate quedaría cerrado para siempre, en silencio.
+    expect(src).toContain(`participacionVista={${campo}}`);
+    expect(src).toContain("haySesion={haySesion}");
+    // Y NO se colapsan en una sola prop: hacerlo obliga a dar por hecha la sesión dentro del player
+    // y deja la guarda `sin-sesion` sin poder ser falsa nunca (fue exactamente el fallo que hubo).
+    expect(src).not.toMatch(/participacionVista=\{haySesion \?/);
   });
 
-  it("el modal del detalle propaga la prop al reproductor (no la traga)", () => {
-    expect(leer(MODAL)).toContain("participacionVista={participacionVista}");
+  it("el modal del detalle propaga AMBAS al reproductor (no se traga ninguna)", () => {
+    const src = leer(MODAL);
+    expect(src).toContain("participacionVista={participacionVista}");
+    expect(src).toContain("haySesion={haySesion}");
+  });
+
+  it("el reproductor no da por hecha la sesión: se la pasa a la lógica", () => {
+    const src = leer(REPRODUCTOR);
+    expect(src).toContain("crearMarcadorVisto(participacionVista, { haySesion })");
+    expect(src).not.toContain("haySesion: true");
   });
 });
 

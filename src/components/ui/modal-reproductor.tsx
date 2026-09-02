@@ -32,6 +32,7 @@ export function ModalReproductor({
   titulo,
   onCerrar,
   participacionVista = null,
+  haySesion = false,
 }: {
   id: string;
   titulo: string | null;
@@ -41,6 +42,9 @@ export function ModalReproductor({
    * `null` = no marcar: invitado, o una rejilla donde no se vota (perfil). Va TAL CUAL al reproductor.
    */
   participacionVista?: string | null;
+  /** ¿Hay sesión? Sin ella no se marca "visto". Va aparte de `participacionVista`: una es del
+   *  vídeo y la otra del usuario. Se pasan las dos TAL CUAL al reproductor. */
+  haySesion?: boolean;
 }) {
   const [estado, setEstado] = useState<Estado>({ fase: "cargando" });
   const [intento, setIntento] = useState(0);
@@ -180,6 +184,7 @@ export function ModalReproductor({
               src={estado.src}
               poster={estado.poster}
               participacionVista={participacionVista}
+              haySesion={haySesion}
             />
           )}
         </div>

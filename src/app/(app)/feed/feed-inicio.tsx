@@ -177,9 +177,11 @@ function PostInicio({
             poster={post.poster}
             silenciado={muted}
             onNoDisponible={onNoDisponible}
-            /* Gate de "visto": null para invitados y para las subidas LIBRES (sin participación no
-               hay nada que votar, así que no hay nada que marcar). */
-            participacionVista={haySesion ? post.participacionId : null}
+            /* Gate de "visto". Dos datos SEPARADOS: si el vídeo es una participación votable (del
+               vídeo; null en una subida libre) y si hay sesión (del usuario). El player los junta,
+               y así la guarda de sesión recibe el dato real en vez de uno dado por hecho. */
+            participacionVista={post.participacionId}
+            haySesion={haySesion}
           />
         </div>
         {/* Scrim (velo) — solo movil (en desktop el video queda limpio) */}

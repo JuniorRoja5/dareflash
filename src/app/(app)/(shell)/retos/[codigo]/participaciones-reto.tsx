@@ -218,8 +218,10 @@ function Celda({
           titulo={p.title}
           onCerrar={() => setAbierto(false)}
           /* El id de la PARTICIPACIÓN, no el del vídeo: es de lo que hablan las rutas del gate y
-             del voto, y pasarles un id de Video daría 404. Sin sesión, no se marca. */
-          participacionVista={haySesion ? p.submissionId : null}
+             del voto, y pasarles un id de Video daría 404. La sesión viaja aparte: es del usuario,
+             no del vídeo, y así la guarda `sin-sesion` recibe el dato real. */
+          participacionVista={p.submissionId}
+          haySesion={haySesion}
         />
       ) : null}
     </div>

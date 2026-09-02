@@ -49,6 +49,7 @@ export function ReproductorHls({
   silenciado: silenciadoProp,
   onNoDisponible,
   participacionVista = null,
+  haySesion = false,
 }: {
   src: string;
   poster: string;
@@ -59,11 +60,17 @@ export function ReproductorHls({
   onNoDisponible?: () => void;
   /**
    * Participación cuya reproducción hay que marcar como "vista" (el gate que exige la ruta de voto).
-   * `null` = no marcar, y es el DEFECTO: un invitado (no tiene sesión con la que marcar), una subida
-   * libre sin participación, o la rejilla del perfil, donde no se vota. Quien la pasa asume que hay
-   * sesión; el servidor lo vuelve a comprobar de todas formas.
+   * `null` = este vídeo no es una participación votable: una subida libre sin reto, o la rejilla del
+   * perfil. Es una propiedad del VÍDEO, y por eso va SEPARADA de `haySesion`, que es del USUARIO.
    */
   participacionVista?: string | null;
+  /**
+   * ¿Hay sesión? Va aparte a propósito. Mezclarlo en `participacionVista` (pasando `null` para el
+   * invitado) obligaba a dar por hecha la sesión aquí abajo, y la guarda `sin-sesion` de
+   * `lib/visto-cliente` —la que evita gastar una llamada para que el servidor conteste 401— quedaba
+   * decorativa: nunca podía ser falsa. Ahora el dato real llega hasta ella.
+   */
+  haySesion?: boolean;
 }) {
   const esFeed = variante === "feed";
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -240,11 +247,11 @@ export function ReproductorHls({
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !participacionVista) return;
-    const marcador = crearMarcadorVisto(participacionVista, { haySesion: true });
+    const marcador = crearMarcadorVisto(participacionVista, { haySesion });
     const alAvanzar = (): void => marcador.tiempo(video.currentTime);
     video.addEventListener("timeupdate", alAvanzar);
     return () => video.removeEventListener("timeupdate", alAvanzar);
-  }, [participacionVista, src, intento]);
+  }, [participacionVista, haySesion, src, intento]);
 
   // Fallo PERMANENTE (el vídeo ya no existe): avisa al contenedor. El feed lo aprovecha para retirar el
   // slide del scroll; el detalle no pasa handler y se queda solo con el mensaje terminal.
