@@ -159,7 +159,7 @@ function PostInicio({
       className="relative flex h-[100svh] snap-start items-center justify-center lg:gap-5"
     >
       {/* VIDEO real (HLS firmado). En desktop, tira 9:16 centrada con filete; en movil, a sangre. */}
-      <div className="relative h-full w-full overflow-hidden bg-raised lg:h-[86svh] lg:aspect-[9/16] lg:w-auto lg:rounded-sm lg:border lg:border-line">
+      <div className="relative h-full w-full overflow-hidden bg-raised lg:h-[calc(100svh-2rem)] lg:aspect-[9/16] lg:w-auto lg:rounded-sm lg:border lg:border-line">
         <div className="absolute inset-0">
           {/* Mute EFECTIVO GLOBAL: lo calcula el feed (preferencia + permiso del navegador); el player
               solo lo aplica. El tap-pausa y la barra de progreso viven dentro del player.
@@ -277,9 +277,23 @@ function PanelComentarios({ post }: { post: PostFeed }) {
           </li>
         ))}
       </ul>
-      <p className="shrink-0 border-t border-line p-3 text-2xs text-text-dim">
-        Los comentarios llegan en una fase posterior.
-      </p>
+      {/* Caja de comentar: el panel terminaba en una nota suelta y no tenía DÓNDE escribir, así que el
+          pie quedaba vacío y descolgado. Va DESHABILITADA y lo dice: la conversación llega en una fase
+          posterior y aquí no se finge que funcione — es la misma regla que las tarjetas "próximamente". */}
+      <div className="shrink-0 border-t border-line p-3">
+        <div className="flex items-center gap-2 rounded-sm border border-line bg-raised/60 px-3 py-2">
+          <input
+            type="text"
+            disabled
+            aria-label="Comentar (próximamente)"
+            placeholder="Comentar…"
+            className="min-w-0 flex-1 bg-transparent text-sm text-text placeholder:text-text-dim focus:outline-none disabled:cursor-not-allowed"
+          />
+          <span className="shrink-0 text-2xs font-semibold tracking-wide text-text-dim uppercase">
+            Próximamente
+          </span>
+        </div>
+      </div>
     </aside>
   );
 }
@@ -526,46 +540,55 @@ export function FeedVertical({
   };
 
   return (
-    <div className="relative lg:grid lg:h-[100svh] lg:grid-cols-[1fr_360px]">
-      <div
-        ref={columna}
-        className="h-[100svh] snap-y snap-mandatory overflow-y-auto overscroll-y-contain"
-      >
-        {posts.map((post, i) => (
-          <PostInicio
-            key={post.id}
-            post={post}
-            alRef={(el) => {
-              if (el) secciones.current[i] = el;
-            }}
-            haySesion={haySesion}
-            muted={mutedEfectivo}
-            mostrarHint={mostrarHintSonido}
-            esActivo={i === activo}
-            onToggleSilencio={(estabaMudo) => {
-              // Decide según el SNAPSHOT (lo que el usuario VEÍA al pulsar), no según el estado ya
-              // cambiado por el unlock: si estaba mudo, quiere sonido (desbloquea + preferencia = sonido);
-              // si sonaba, mutea (opt-in).
-              if (estabaMudo) {
-                setAudioDesbloqueado(true);
-                setSilenciado(false);
-                activarSonidoVideoActivo(); // IN-STACK: suena ya, no espera al efecto async del player
-              } else {
-                setSilenciado(true);
-              }
-            }}
-            onNoDisponible={() => quitarPost(post.id)}
+    <div className="lg:grid lg:h-[100svh] lg:grid-cols-[minmax(0,1fr)_380px]">
+      {/* Columna del vídeo. `relative` AQUÍ (no en la rejilla entera) para que las flechas se anclen a
+          ESTA columna: antes colgaban de la rejilla con un `right-[376px]` calculado a mano contra el
+          ancho del panel, así que cualquier cambio de ese ancho las descuadraba. */}
+      <div className="relative min-w-0">
+        <div
+          ref={columna}
+          className="h-[100svh] snap-y snap-mandatory overflow-y-auto overscroll-y-contain"
+        >
+          {posts.map((post, i) => (
+            <PostInicio
+              key={post.id}
+              post={post}
+              alRef={(el) => {
+                if (el) secciones.current[i] = el;
+              }}
+              haySesion={haySesion}
+              muted={mutedEfectivo}
+              mostrarHint={mostrarHintSonido}
+              esActivo={i === activo}
+              onToggleSilencio={(estabaMudo) => {
+                // Decide según el SNAPSHOT (lo que el usuario VEÍA al pulsar), no según el estado ya
+                // cambiado por el unlock: si estaba mudo, quiere sonido (desbloquea + preferencia = sonido);
+                // si sonaba, mutea (opt-in).
+                if (estabaMudo) {
+                  setAudioDesbloqueado(true);
+                  setSilenciado(false);
+                  activarSonidoVideoActivo(); // IN-STACK: suena ya, no espera al efecto async del player
+                } else {
+                  setSilenciado(true);
+                }
+              }}
+              onNoDisponible={() => quitarPost(post.id)}
+            />
+          ))}
+        </div>
+
+        {/* Flechas de navegación — solo escritorio, ancladas al borde derecho de SU columna. */}
+        <div className="pointer-events-none absolute top-1/2 right-4 hidden -translate-y-1/2 flex-col gap-3 lg:flex">
+          <Flecha dir="up" onClick={() => irA(activo - 1)} disabled={activo === 0} />
+          <Flecha
+            dir="down"
+            onClick={() => irA(activo + 1)}
+            disabled={activo >= posts.length - 1}
           />
-        ))}
+        </div>
       </div>
 
       {posts.length > 0 ? <PanelComentarios post={posts[activo] ?? posts[0]!} /> : null}
-
-      {/* Flechas de navegacion — solo desktop, fijas junto al panel */}
-      <div className="pointer-events-none absolute top-1/2 right-[376px] hidden -translate-y-1/2 flex-col gap-3 lg:flex">
-        <Flecha dir="up" onClick={() => irA(activo - 1)} disabled={activo === 0} />
-        <Flecha dir="down" onClick={() => irA(activo + 1)} disabled={activo >= posts.length - 1} />
-      </div>
     </div>
   );
 }

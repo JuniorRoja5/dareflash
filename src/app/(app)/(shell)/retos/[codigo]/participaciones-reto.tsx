@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { FeedVertical, fuenteReto } from "@/components/feed/feed-vertical";
 import { RecuentoVotos } from "@/components/ui/boton-voto";
 import { CajaVideo } from "@/components/ui/caja-video";
+import { crearControlCapa } from "@/lib/capa-historial";
 import { getJson } from "@/lib/cliente-http";
 import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
 import type { PostFeed } from "@/server/services/feed";
@@ -72,23 +74,39 @@ export function ParticipacionesReto({
   // La fuente se memoiza: si se creara en cada render, el efecto de paginación del feed la vería
   // cambiar cada vez y pediría página sin parar.
   const fuente = useMemo(() => fuenteReto(challengeId), [challengeId]);
-  const cerrar = useCallback(() => setAbiertoEn(null), []);
+  const abierto = abiertoEn !== null;
 
-  // Con el feed abierto, el fondo NO se desplaza (si no, al cerrar apareces en otro punto de la
-  // rejilla) y Escape cierra, como en cualquier capa a pantalla completa.
+  // Cerrar NO pone el estado a `null` directamente: pide un `back()` y deja que el `popstate` lo haga.
+  // Así el botón, Escape y el gesto de ATRÁS del móvil recorren el mismo camino y el historial no se
+  // queda con una entrada de más. Ver `lib/capa-historial`.
+  const cerrar = useCallback(() => {
+    if (typeof window !== "undefined") crearControlCapa(window.history).pedirCierre();
+  }, []);
+
+  // Con el feed abierto: el fondo NO se desplaza (si no, al cerrar apareces en otro punto de la
+  // rejilla), Escape cierra, y —lo que faltaba— hay una ENTRADA DE HISTORIAL, así que el atrás del
+  // navegador cierra la capa en vez de sacarte del reto.
   useEffect(() => {
-    if (abiertoEn === null) return;
+    if (!abierto) return;
+    const control = crearControlCapa(window.history);
+    control.abrir();
+
     const scrollPrevio = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const alTeclado = (e: KeyboardEvent): void => {
-      if (e.key === "Escape") cerrar();
+      if (e.key === "Escape") control.pedirCierre();
+    };
+    const alVolver = (e: PopStateEvent): void => {
+      if (control.debeCerrar(e.state)) setAbiertoEn(null);
     };
     document.addEventListener("keydown", alTeclado);
+    window.addEventListener("popstate", alVolver);
     return () => {
       document.body.style.overflow = scrollPrevio;
       document.removeEventListener("keydown", alTeclado);
+      window.removeEventListener("popstate", alVolver);
     };
-  }, [abiertoEn, cerrar]);
+  }, [abierto]);
 
   async function cargarMas(): Promise<void> {
     if (cursor === null || cargando) return;
@@ -200,7 +218,13 @@ function FeedDelReto({
   onCerrar: () => void;
 }) {
   const posts: PostFeed[] = items.map((p) => p.post);
-  return (
+
+  // PORTAL A <body>, y no es cosmético: la capa se monta dentro de una `<section className="df-rise">`,
+  // que ANIMA `transform`. Un ancestro con transform crea BLOQUE CONTENEDOR para `position: fixed`, así
+  // que el `inset-0` NO se resolvía contra el viewport sino contra esa sección — de ahí que en móvil el
+  // rail de acciones no cupiera y que en escritorio la capa dejara media pantalla fuera. Es exactamente
+  // por esto que `ModalReproductor` portaliza; al reutilizar el feed sin portal se heredó la trampa.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 bg-void"
       role="dialog"
@@ -234,7 +258,8 @@ function FeedDelReto({
           <path d="M15 18l-6-6 6-6" />
         </svg>
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

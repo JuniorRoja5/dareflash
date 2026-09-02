@@ -141,7 +141,8 @@ describe("el modal deja de ser el destino del toque", () => {
   it("la celda abre el feed del reto, no un reproductor propio", () => {
     const src = leer(DETALLE);
     expect(src).toContain("onAbrir");
-    expect(src).not.toContain("ModalReproductor");
+    // Sobre el CÓDIGO: un comentario que explica por qué el modal ya no está no es el modal.
+    expect(soloCodigo(src)).not.toContain("ModalReproductor");
   });
 
   it("el modal SIGUE existiendo para el perfil y el panel (allí no hay feed que acotar)", () => {
@@ -167,5 +168,53 @@ describe("se abre POR la participación que se tocó", () => {
     // instante antes de saltar.
     expect(feed).toContain("useState(indiceInicial)");
     expect(feed).toContain("secciones.current[indiceInicial]?.scrollIntoView");
+  });
+});
+
+/**
+ * MONTAJE DE LA CAPA. Dos regresiones reales vistas en producción, y las dos son cosas que no se
+ * pueden renderizar en Node — así que se fijan por estructura, que es lo único que puede ponerse rojo.
+ */
+describe("la capa se monta en el <body>, no dentro de la página", () => {
+  it("va por PORTAL: si no, un ancestro con `transform` le roba el viewport", () => {
+    const src = leer(DETALLE);
+    // `.df-rise` (la sección que la contiene) ANIMA `transform`, y eso crea bloque contenedor para
+    // `position: fixed`. Sin portal, el `inset-0` se resolvía contra esa sección: en móvil el rail de
+    // acciones no cabía y en escritorio la capa dejaba media pantalla fuera.
+    expect(src).toContain("createPortal(");
+    expect(src).toContain("document.body");
+  });
+
+  it("el detalle sigue teniendo la clase que causa el problema (el portal no es opcional)", () => {
+    // Si alguien quita `df-rise` de la sección, el portal parecerá innecesario. Este test deja claro
+    // que la razón sigue ahí: la animación de `transform` es una decisión de diseño, no un accidente.
+    expect(leer("src/app/(app)/(shell)/retos/[codigo]/page.tsx")).toContain("df-rise");
+    expect(leer("src/app/globals.css")).toMatch(/@keyframes df-rise[\s\S]*?transform/);
+  });
+});
+
+describe("el atrás del móvil cierra la capa", () => {
+  it("abrir la capa pone una entrada de historial y se escucha `popstate`", () => {
+    const src = leer(DETALLE);
+    expect(src).toContain("crearControlCapa");
+    expect(src).toContain('addEventListener("popstate"');
+    // Cerrar NO pone el estado a null a mano: pide `back()` y deja que `popstate` cierre, para que el
+    // botón, Escape y el gesto de atrás acaben en el mismo sitio y el historial no se descuadre.
+    expect(src).toContain("control.pedirCierre()");
+  });
+});
+
+describe("escritorio: sin números mágicos ni hueco muerto", () => {
+  it("las flechas se anclan a SU columna, no a un desplazamiento calculado a mano", () => {
+    // `right-[376px]` era el ancho del panel + 16 px escrito a mano: cambiar el panel lo descuadraba.
+    expect(soloCodigo(leer(FEED))).not.toMatch(/right-\[\d+px\]/);
+  });
+
+  it("el panel de comentarios tiene DÓNDE escribir, y dice que aún no funciona", () => {
+    const src = leer(FEED);
+    expect(src).toContain("<input");
+    expect(src).toContain("disabled");
+    // CERO datos falsos: la caja no finge funcionar.
+    expect(src).toContain("Próximamente");
   });
 });
