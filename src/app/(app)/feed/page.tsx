@@ -15,11 +15,15 @@ export default async function FeedPage() {
   const { feedPublicado } = await import("@/server/services/feed");
   const { firmarReproduccion } = await import("@/server/services/reproduccion-servidor");
 
-  const { items, nextCursor } = await feedPublicado(prisma, { firmar: firmarReproduccion });
-  // Solo para saber si el reproductor debe marcar "visto" (un invitado no marca: no tiene sesión con
-  // la que hacerlo). NO es una barrera: el feed es público y la seguridad real la aplica el endpoint.
-  // `getCurrentUser` está memoizado por petición, así que no añade consulta si algo más ya lo pidió.
-  const haySesion = (await getCurrentUser()) !== null;
+  // El usuario decide DOS cosas, ninguna de ellas una barrera (el feed es público y la seguridad real
+  // la aplica el endpoint): si el reproductor marca "visto", y de quién es el voto que trae el payload
+  // para que el botón nazca bien pintado. `getCurrentUser` está memoizado por petición.
+  const usuario = await getCurrentUser();
+  const haySesion = usuario !== null;
+  const { items, nextCursor } = await feedPublicado(prisma, {
+    firmar: firmarReproduccion,
+    userId: usuario?.userId ?? null,
+  });
 
   if (items.length === 0) {
     return (

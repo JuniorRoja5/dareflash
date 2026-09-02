@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import { BotonVoto, RecuentoVotos } from "@/components/ui/boton-voto";
 import { CajaVideo } from "@/components/ui/caja-video";
-import { ContadorVotos } from "@/components/ui/contador-votos";
 import { ModalReproductor } from "@/components/ui/modal-reproductor";
 import { getJson } from "@/lib/cliente-http";
 import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
@@ -41,6 +41,8 @@ export function ParticipacionesReto({
   cursorInicial,
   miSubmissionId = null,
   haySesion = false,
+  retoAbierto = false,
+  miVoto = null,
 }: {
   challengeId: string;
   participaciones: ParticipacionUI[];
@@ -48,6 +50,10 @@ export function ParticipacionesReto({
   /** ¿Hay sesión? Solo decide si el reproductor marca "visto" (un invitado no marca). La vista es
    *  pública: esto NO oculta ni protege nada, y el endpoint lo comprueba igualmente. */
   haySesion?: boolean;
+  /** ¿El reto admite votos AHORA? Misma regla que aplica el servidor (`lib/reto-ventana`). */
+  retoAbierto?: boolean;
+  /** Participación de ESTE reto donde ya tengo el voto. Del payload: el botón nace bien pintado. */
+  miVoto?: string | null;
   /** Id de MI participación (si participo): marca la mía con "Tú" sin consultar la sesión aquí. */
   miSubmissionId?: string | null;
 }) {
@@ -96,6 +102,9 @@ export function ParticipacionesReto({
               puesto={i + 1}
               esMio={p.submissionId === miSubmissionId}
               haySesion={haySesion}
+              challengeId={challengeId}
+              retoAbierto={retoAbierto}
+              miVoto={miVoto}
             />
           </li>
         ))}
@@ -132,12 +141,18 @@ function Celda({
   puesto,
   esMio,
   haySesion,
+  challengeId,
+  retoAbierto,
+  miVoto,
 }: {
   participacion: ParticipacionUI;
   puesto: number;
   esMio: boolean;
   /** ¿Marcar la reproducción como "vista"? Solo con sesión. */
   haySesion: boolean;
+  challengeId: string;
+  retoAbierto: boolean;
+  miVoto: string | null;
 }) {
   const [abierto, setAbierto] = useState(false);
   const autor = nombreMostrado(p.displayName, p.username);
@@ -184,7 +199,7 @@ function Celda({
               {/* Votos: NEUTROS (la primitiva manda). No llevan lima: la lima es DINERO, y un voto
                   no es dinero; el premio del reto ya ocupa ese color en la cabecera. */}
               <span className="pointer-events-none absolute right-2 bottom-2 flex items-center gap-1 rounded-full bg-void/70 px-2 py-0.5 text-2xs font-semibold text-text backdrop-blur-sm">
-                <ContadorVotos votos={p.votos} />
+                <RecuentoVotos participacionId={p.submissionId} votos={p.votos} />
                 <span>{p.votos === 1 ? "voto" : "votos"}</span>
               </span>
             </>
@@ -222,6 +237,19 @@ function Celda({
              no del vídeo, y así la guarda `sin-sesion` recibe el dato real. */
           participacionVista={p.submissionId}
           haySesion={haySesion}
+          /* El botón vive donde hay reproductor. En la CELDA no: allí el usuario aún no ha reproducido
+             nada, así que nacería siempre bloqueado por el gate — la celda solo enseña el recuento. */
+          acciones={
+            <BotonVoto
+              retoId={challengeId}
+              participacionId={p.submissionId}
+              votos={p.votos}
+              miVoto={miVoto}
+              retoAbierto={retoAbierto}
+              haySesion={haySesion}
+              esMia={esMio}
+            />
+          }
         />
       ) : null}
     </div>

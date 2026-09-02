@@ -45,14 +45,29 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
   const reto = r.reto;
 
   const usuario = await getCurrentUser();
-  // Reto abierto = PUBLISHED con cierre futuro. Solo entonces se admite participar.
+  const { retoEstaAbierto } = await import("@/lib/reto-ventana");
+  // Reto abierto: la MISMA regla que aplica el servidor al votar (`lib/reto-ventana`). Antes aquí se
+  // miraba solo el cierre, así que un reto publicado pero aún sin empezar se pintaba abierto y el voto
+  // se rechazaba con RETO_CERRADO.
   const ahora = new Date();
-  const activo = reto.status === "PUBLISHED" && reto.deadlineMs > ahora.getTime();
+  const activo = retoEstaAbierto(
+    { status: reto.status, startsAt: reto.startsAtMs, deadline: reto.deadlineMs },
+    ahora,
+  );
 
-  const [pagina, mi] = await Promise.all([
+  const [pagina, mi, votoPropio] = await Promise.all([
     listarParticipacionesVisibles(prisma, reto.id),
     usuario ? miParticipacion(prisma, reto.id, usuario.userId) : Promise.resolve(null),
+    // MI VOTO en este reto, del payload: así el botón nace pintado bien y no tras el primer tap. Una
+    // sola consulta por la clave única (userId + challengeId), y solo si hay sesión.
+    usuario
+      ? prisma.vote.findUnique({
+          where: { userId_challengeId: { userId: usuario.userId, challengeId: reto.id } },
+          select: { submissionId: true },
+        })
+      : Promise.resolve(null),
   ]);
+  const miVoto = votoPropio?.submissionId ?? null;
 
   // Firma el póster de cada participación (el player firma su propia URL vía el endpoint firmado).
   const participacionesUI: ParticipacionUI[] = pagina.items.map((p) => ({
@@ -169,6 +184,8 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
             cursorInicial={pagina.nextCursor}
             miSubmissionId={mi?.submissionId ?? null}
             haySesion={usuario !== null}
+            retoAbierto={activo}
+            miVoto={miVoto}
           />
         </section>
       </div>

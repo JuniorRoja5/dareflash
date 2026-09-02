@@ -33,6 +33,7 @@ export function ModalReproductor({
   onCerrar,
   participacionVista = null,
   haySesion = false,
+  acciones = null,
 }: {
   id: string;
   titulo: string | null;
@@ -45,6 +46,9 @@ export function ModalReproductor({
   /** ¿Hay sesión? Sin ella no se marca "visto". Va aparte de `participacionVista`: una es del
    *  vídeo y la otra del usuario. Se pasan las dos TAL CUAL al reproductor. */
   haySesion?: boolean;
+  /** Acciones bajo el vídeo (el botón de votar). Se INYECTA en vez de construirse aquí: el modal es
+   *  una primitiva de reproducción y no tiene por qué saber nada de votos. */
+  acciones?: React.ReactNode;
 }) {
   const [estado, setEstado] = useState<Estado>({ fase: "cargando" });
   const [intento, setIntento] = useState(0);
@@ -188,6 +192,10 @@ export function ModalReproductor({
             />
           )}
         </div>
+
+        {/* Acciones BAJO el vídeo (el botón de votar), fuera de la caja negra: es donde el pulgar llega
+            en móvil y donde no tapa el vídeo. Solo se reserva sitio si hay algo que poner. */}
+        {acciones ? <div className="mt-4 flex justify-center">{acciones}</div> : null}
       </div>
     </div>,
     document.body,

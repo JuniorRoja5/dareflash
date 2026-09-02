@@ -32,6 +32,7 @@
  */
 import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { retoEstaAbierto } from "@/lib/reto-ventana";
 import type { Db } from "@/server/db/types";
 
 import { LEDGER_TX_OPTIONS } from "./ledger";
@@ -118,10 +119,9 @@ async function destinoVotable(
   // El autovoto se corta ANTES que la ventana: si es tuya, el motivo útil es ese, no "cerrado".
   if (sub.userId === userId) return { ok: false, motivo: "AUTOVOTO" };
 
-  const c = sub.challenge;
-  const abierto =
-    c.status === "PUBLISHED" && c.startsAt.getTime() <= ahora.getTime() && c.deadline > ahora;
-  if (!abierto) return { ok: false, motivo: "RETO_CERRADO" };
+  // La regla vive en `lib/reto-ventana`, compartida con la UI: si el botón de votar usara una regla
+  // parecida pero distinta, prometería lo que esta función rechaza.
+  if (!retoEstaAbierto(sub.challenge, ahora)) return { ok: false, motivo: "RETO_CERRADO" };
 
   return { ok: true, challengeId: sub.challengeId };
 }
@@ -133,7 +133,7 @@ async function retoAbierto(tx: Db, challengeId: string, ahora: Date): Promise<bo
     select: { status: true, startsAt: true, deadline: true },
   });
   if (!c) return false;
-  return c.status === "PUBLISHED" && c.startsAt.getTime() <= ahora.getTime() && c.deadline > ahora;
+  return retoEstaAbierto(c, ahora); // misma regla que el destino y que la UI
 }
 
 function esViolacionDeUnicidad(e: unknown): boolean {

@@ -285,3 +285,123 @@ describe("feedPublicado", () => {
     expect(sinPub.categoria).toBeNull();
   });
 });
+
+/**
+ * ESTADO DE VOTO EN EL PAYLOAD (Pieza 3B). El botón tiene que pintar bien EN LA CARGA, y para eso el
+ * feed debe traer: a qué reto pertenece, si admite votos AHORA, y dónde tiene el usuario su voto.
+ * Sin esto haría falta una ida y vuelta por cada vídeo del feed.
+ */
+describe("estado de voto en el payload", () => {
+  /** Un reto con su participación publicada. `desfase` mueve la ventana para probar abierto/cerrado. */
+  async function retoConParticipacion(opts: {
+    autor: string;
+    bunny: string;
+    startsAt?: Date;
+    deadline?: Date;
+    status?: string;
+  }) {
+    const videoId = await crearVideo({
+      userId: opts.autor,
+      status: "PUBLISHED",
+      bunny: opts.bunny,
+      title: "t",
+      createdAt: new Date(),
+    });
+    const ch = await prisma.challenge.create({
+      data: {
+        title: "Reto",
+        slug: "reto",
+        publicCode: generarPublicCode(),
+        category: "fitness",
+        prizeCurrency: "EUR",
+        status: opts.status ?? "PUBLISHED",
+        startsAt: opts.startsAt ?? new Date(Date.now() - 3_600_000),
+        deadline: opts.deadline ?? new Date(Date.now() + 3_600_000),
+        createdById: opts.autor,
+      },
+      select: { id: true },
+    });
+    const sub = await prisma.submission.create({
+      data: { challengeId: ch.id, userId: opts.autor, videoId, status: "PUBLISHED" },
+      select: { id: true },
+    });
+    return { videoId, challengeId: ch.id, submissionId: sub.id };
+  }
+
+  it("trae el reto y su ventana; un reto AÚN SIN EMPEZAR no sale como abierto", async () => {
+    const autor = await prisma.user.create({ data: { username: "a1" }, select: { id: true } });
+    const ahora = await retoConParticipacion({ autor: autor.id, bunny: "b-1" });
+    const futuro = await retoConParticipacion({
+      autor: autor.id,
+      bunny: "b-2",
+      startsAt: new Date(Date.now() + 86_400_000),
+      deadline: new Date(Date.now() + 172_800_000),
+    });
+
+    const { items } = await feedPublicado(prisma, { firmar: firmarFake });
+    const abierto = items.find((i) => i.id === ahora.videoId)!;
+    const sinEmpezar = items.find((i) => i.id === futuro.videoId)!;
+
+    expect(abierto.retoId).toBe(ahora.challengeId);
+    expect(abierto.retoAbierto).toBe(true);
+    // Misma regla que aplica el servidor al votar: si esto dijera `true`, el botón prometería un voto
+    // que la API rechazaría con RETO_CERRADO.
+    expect(sinEmpezar.retoAbierto).toBe(false);
+  });
+
+  it("`miVoto` señala DÓNDE votó el usuario, y solo en el reto que le corresponde", async () => {
+    const autor = await prisma.user.create({ data: { username: "a2" }, select: { id: true } });
+    const votante = await prisma.user.create({ data: { username: "v2" }, select: { id: true } });
+    const uno = await retoConParticipacion({ autor: autor.id, bunny: "b-3" });
+    const otro = await retoConParticipacion({ autor: autor.id, bunny: "b-4" });
+    await prisma.vote.create({
+      data: {
+        userId: votante.id,
+        challengeId: uno.challengeId,
+        submissionId: uno.submissionId,
+      },
+    });
+
+    const { items } = await feedPublicado(prisma, { firmar: firmarFake, userId: votante.id });
+
+    expect(items.find((i) => i.id === uno.videoId)!.miVoto).toBe(uno.submissionId);
+    // El voto de OTRO reto no se contagia: la clave es el reto, no el usuario a secas.
+    expect(items.find((i) => i.id === otro.videoId)!.miVoto).toBeNull();
+  });
+
+  it("un INVITADO no tiene voto, y el voto de otro usuario no se filtra", async () => {
+    const autor = await prisma.user.create({ data: { username: "a3" }, select: { id: true } });
+    const otro = await prisma.user.create({ data: { username: "v3" }, select: { id: true } });
+    const r = await retoConParticipacion({ autor: autor.id, bunny: "b-5" });
+    await prisma.vote.create({
+      data: { userId: otro.id, challengeId: r.challengeId, submissionId: r.submissionId },
+    });
+
+    const sinSesion = await feedPublicado(prisma, { firmar: firmarFake });
+    expect(sinSesion.items[0]!.miVoto).toBeNull();
+
+    // Y con OTRA sesión tampoco: `miVoto` es MÍO, no "el último voto que haya".
+    const tercero = await prisma.user.create({ data: { username: "v4" }, select: { id: true } });
+    const conOtra = await feedPublicado(prisma, { firmar: firmarFake, userId: tercero.id });
+    expect(conOtra.items[0]!.miVoto).toBeNull();
+  });
+
+  it("una subida LIBRE no tiene reto ni voto (no hay nada que votar)", async () => {
+    const u = await prisma.user.create({ data: { username: "libre" }, select: { id: true } });
+    const id = await crearVideo({
+      userId: u.id,
+      status: "PUBLISHED",
+      bunny: "b-libre",
+      title: "suelto",
+      createdAt: new Date(),
+      category: "fitness",
+    });
+
+    const { items } = await feedPublicado(prisma, { firmar: firmarFake, userId: u.id });
+    const libre = items.find((i) => i.id === id)!;
+
+    expect(libre.retoId).toBeNull();
+    expect(libre.retoAbierto).toBe(false);
+    expect(libre.miVoto).toBeNull();
+  });
+});

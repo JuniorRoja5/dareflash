@@ -32,6 +32,10 @@ export interface RetoPublicoDetalle extends RetoPublicoVista {
   winnersCount: number;
   prizeCurrency: string;
   status: string;
+  /** APERTURA absoluta en ms. Va SOLO en el detalle (la tarjeta no la necesita): hace falta para
+   *  decidir si el reto esta abierto con la MISMA regla que el servidor (`lib/reto-ventana`) — un
+   *  reto PUBLISHED pero aun sin empezar no admite votos, y sin este dato la vista no lo sabia. */
+  startsAtMs: number;
 }
 
 const SELECT_VISTA = {
@@ -113,6 +117,7 @@ export async function retoPublicoPorCode(
       rules: true,
       winnersCount: true,
       status: true,
+      startsAt: true,
     },
   });
   if (!f) return null;
@@ -124,6 +129,7 @@ export async function retoPublicoPorCode(
     winnersCount: f.winnersCount,
     prizeCurrency: f.prizeCurrency,
     status: f.status,
+    startsAtMs: f.startsAt.getTime(),
   };
 }
 

@@ -2,6 +2,7 @@
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
+import { BotonVoto } from "@/components/ui/boton-voto";
 import { PildoraCategoria } from "@/components/ui/pildora";
 import { ReproductorHls } from "@/components/ui/reproductor-hls";
 import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
@@ -37,18 +38,10 @@ const IconoComentario = () => (
     <path d="M5 5h14v10H9l-4 4z" />
   </IconoAccion>
 );
-// VOTAR = RAYO (decision de marca, Sergio). Dibujado con el MISMO sistema que el resto de acciones:
-// icono de LINEA (IconoAccion pone fill=none + stroke=currentColor, uniones redondeadas), no una
-// silueta rellena. Mantiene el `bold` que ya tenia y hereda su color y tamano del contenedor
-// (negro sobre el circulo magenta) — aqui solo cambia la FORMA.
-// FUENTE UNICA: el rayo se define aqui y en ningun sitio mas. Cuando el boton de voto real lo
-// necesite, se reutiliza este; si acaba haciendo falta en varias pantallas se EXTRAE a un componente
-// compartido, nunca se copia. (Fase 6: el Boost llevara icono PROPIO, distinto de este rayo.)
-const IconoVoto = () => (
-  <IconoAccion bold>
-    <path d="M13 3 5 14h5l-1 7 8-11h-5l1-7Z" />
-  </IconoAccion>
-);
+// VOTAR = RAYO (decision de marca, Sergio). Ya NO se define aqui: cuando llego el boton de voto real
+// se EXTRAJO a `components/ui/boton-voto` —como decia su propio comentario que habia que hacer— y esta
+// pantalla lo consume desde alli. Copiar el path en dos sitios era la unica salida que no valia.
+// (Fase 6: el Boost llevara icono PROPIO, distinto de este rayo.)
 const IconoCompartir = () => (
   <IconoAccion>
     <path d="M12 15V4" />
@@ -216,7 +209,21 @@ function PostInicio({
       <div className="absolute right-2 bottom-24 z-10 flex flex-col items-center gap-5 lg:static lg:right-auto lg:bottom-auto">
         <Accion label="Me gusta" valor={0} icono={<IconoCorazon />} />
         <Accion label="Comentar" valor={0} icono={<IconoComentario />} />
-        <Accion label="Votar" valor={post.votos} icono={<IconoVoto />} destacado />
+        {/* VOTAR: el unico magenta de contenido de la pantalla. Solo si el video ES una participacion
+            —una subida libre no pertenece a ningun reto, asi que no hay nada que votar y no se pinta un
+            boton muerto—. Todo su estado (visto, mi voto, reto abierto) sale del payload y de los
+            registros compartidos; ver `components/ui/boton-voto`. */}
+        {post.participacionId && post.retoId ? (
+          <BotonVoto
+            variante="rail"
+            retoId={post.retoId}
+            participacionId={post.participacionId}
+            votos={post.votos}
+            miVoto={post.miVoto}
+            retoAbierto={post.retoAbierto}
+            haySesion={haySesion}
+          />
+        ) : null}
         <Accion label="Compartir" valor={0} icono={<IconoCompartir />} />
         {/* MUTE GLOBAL: última acción de la columna, DEBAJO de Compartir (antes tapaba la descripción
             abajo-izquierda). Mismo look de icono que las acciones pero SIN contador (no tiene número).

@@ -19,6 +19,7 @@
 import "server-only";
 
 import { CATEGORIES } from "@/config/constants";
+import { retoEstaAbierto } from "@/lib/reto-ventana";
 import type { Db } from "@/server/db/types";
 
 import { categoriaKeyDeVideo } from "./categoria-video";
@@ -42,6 +43,18 @@ export interface PostFeed {
    * (`/api/participaciones/[id]/…`) hablan de Submission, y pasarles un id de Video daria 404.
    */
   participacionId: string | null;
+  /** Reto al que pertenece. `null` en una subida LIBRE. Es la CLAVE del estado de voto en cliente:
+   *  la regla del producto es "un voto por reto", asi que el boton necesita saber de que reto habla. */
+  retoId: string | null;
+  /** ¿Admite votos AHORA? Misma regla que aplica el servidor al votar (`lib/reto-ventana`), para que
+   *  el boton no prometa lo que la API va a rechazar. `false` sin participacion. */
+  retoAbierto: boolean;
+  /**
+   * Participacion de ESTE reto donde el usuario ya tiene su voto (`null` = no ha votado, o es un
+   * invitado). Va en el payload para que el boton pinte el estado correcto EN LA CARGA y no tras el
+   * primer tap: sin esto haria falta una ida y vuelta por cada video del feed.
+   */
+  miVoto: string | null;
 }
 
 export interface PaginaFeed {
@@ -67,7 +80,16 @@ function nombreCategoria(key: string | null | undefined): string | null {
 
 export async function feedPublicado(
   db: Db,
-  opts: { cursor?: string | null; limit?: number; firmar: Firmante },
+  opts: {
+    cursor?: string | null;
+    limit?: number;
+    firmar: Firmante;
+    /** Usuario en sesion, para resolver `miVoto`. Sin el (invitado), `miVoto` es siempre `null` y NO
+     *  se consulta nada: el feed es publico y no debe pagar una consulta por un dato que no aplica. */
+    userId?: string | null;
+    /** "ahora" inyectable, para poder testear la ventana del reto de forma determinista. */
+    ahora?: Date;
+  },
 ): Promise<PaginaFeed> {
   const limite = Math.min(
     Math.max(1, Math.floor(opts.limit ?? FEED_LIMITE_DEFECTO)),
@@ -97,7 +119,10 @@ export async function feedPublicado(
           id: true,
           status: true,
           voteCount: true,
-          challenge: { select: { title: true, category: true } },
+          challengeId: true,
+          challenge: {
+            select: { title: true, category: true, status: true, startsAt: true, deadline: true },
+          },
         },
       },
     },
@@ -108,6 +133,25 @@ export async function feedPublicado(
 
   const hayMas = filas.length > limite;
   const visibles = hayMas ? filas.slice(0, limite) : filas;
+
+  // MI VOTO, en UNA sola consulta para toda la pagina (no una por video): los retos de los videos
+  // visibles, cruzados con mis votos. Sin sesion no se consulta nada.
+  const retosVisibles = [
+    ...new Set(
+      visibles
+        .map((v) => (v.submission?.status === "PUBLISHED" ? v.submission.challengeId : null))
+        .filter((id): id is string => id !== null),
+    ),
+  ];
+  const misVotos = new Map<string, string>();
+  if (opts.userId && retosVisibles.length > 0) {
+    const filas = await db.vote.findMany({
+      where: { userId: opts.userId, challengeId: { in: retosVisibles } },
+      select: { challengeId: true, submissionId: true },
+    });
+    for (const f of filas) misVotos.set(f.challengeId, f.submissionId);
+  }
+  const ahora = opts.ahora ?? new Date();
 
   const items: PostFeed[] = visibles.map((v) => {
     // Submission visible solo si su propio status es PUBLISHED (el mas restrictivo gana).
@@ -126,6 +170,9 @@ export async function feedPublicado(
       poster: urls.poster,
       // Del MISMO `sub` que ya filtra por "publicada": una participacion oculta no sale como votable.
       participacionId: sub?.id ?? null,
+      retoId: sub?.challengeId ?? null,
+      retoAbierto: sub ? retoEstaAbierto(sub.challenge, ahora) : false,
+      miVoto: sub ? (misVotos.get(sub.challengeId) ?? null) : null,
     };
   });
 
