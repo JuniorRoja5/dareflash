@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { BotonVoto, RecuentoVotos } from "@/components/ui/boton-voto";
+import { FeedVertical, fuenteReto } from "@/components/feed/feed-vertical";
+import { RecuentoVotos } from "@/components/ui/boton-voto";
 import { CajaVideo } from "@/components/ui/caja-video";
-import { ModalReproductor } from "@/components/ui/modal-reproductor";
 import { getJson } from "@/lib/cliente-http";
 import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
+import type { PostFeed } from "@/server/services/feed";
 
 /** Una participación ya lista para pintar: póster firmado en el servidor + datos del autor. */
 export interface ParticipacionUI {
@@ -18,6 +19,15 @@ export interface ParticipacionUI {
   username: string;
   displayName: string | null;
   votos: number;
+  retoId: string;
+  retoAbierto: boolean;
+  miVoto: string | null;
+  /**
+   * El MISMO ítem, ya en la forma que pinta el feed. Lo construye el servidor con el mapeador
+   * compartido (`lib/post-de-participacion`), igual para la primera página que para las siguientes.
+   * Viaja junto al resto en vez de derivarse aquí para que no haya una tercera copia del mapeo.
+   */
+  post: PostFeed;
 }
 
 /**
@@ -41,8 +51,6 @@ export function ParticipacionesReto({
   cursorInicial,
   miSubmissionId = null,
   haySesion = false,
-  retoAbierto = false,
-  miVoto = null,
 }: {
   challengeId: string;
   participaciones: ParticipacionUI[];
@@ -50,10 +58,6 @@ export function ParticipacionesReto({
   /** ¿Hay sesión? Solo decide si el reproductor marca "visto" (un invitado no marca). La vista es
    *  pública: esto NO oculta ni protege nada, y el endpoint lo comprueba igualmente. */
   haySesion?: boolean;
-  /** ¿El reto admite votos AHORA? Misma regla que aplica el servidor (`lib/reto-ventana`). */
-  retoAbierto?: boolean;
-  /** Participación de ESTE reto donde ya tengo el voto. Del payload: el botón nace bien pintado. */
-  miVoto?: string | null;
   /** Id de MI participación (si participo): marca la mía con "Tú" sin consultar la sesión aquí. */
   miSubmissionId?: string | null;
 }) {
@@ -61,6 +65,30 @@ export function ParticipacionesReto({
   const [cursor, setCursor] = useState<string | null>(cursorInicial);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(false);
+  // Índice de la participación por la que está abierto el feed del reto (`null` = cerrado). Vive AQUÍ
+  // y no en cada celda porque el feed necesita la lista ENTERA para poder deslizar, no una sola.
+  const [abiertoEn, setAbiertoEn] = useState<number | null>(null);
+
+  // La fuente se memoiza: si se creara en cada render, el efecto de paginación del feed la vería
+  // cambiar cada vez y pediría página sin parar.
+  const fuente = useMemo(() => fuenteReto(challengeId), [challengeId]);
+  const cerrar = useCallback(() => setAbiertoEn(null), []);
+
+  // Con el feed abierto, el fondo NO se desplaza (si no, al cerrar apareces en otro punto de la
+  // rejilla) y Escape cierra, como en cualquier capa a pantalla completa.
+  useEffect(() => {
+    if (abiertoEn === null) return;
+    const scrollPrevio = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const alTeclado = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") cerrar();
+    };
+    document.addEventListener("keydown", alTeclado);
+    return () => {
+      document.body.style.overflow = scrollPrevio;
+      document.removeEventListener("keydown", alTeclado);
+    };
+  }, [abiertoEn, cerrar]);
 
   async function cargarMas(): Promise<void> {
     if (cursor === null || cargando) return;
@@ -101,10 +129,8 @@ export function ParticipacionesReto({
               participacion={p}
               puesto={i + 1}
               esMio={p.submissionId === miSubmissionId}
-              haySesion={haySesion}
               challengeId={challengeId}
-              retoAbierto={retoAbierto}
-              miVoto={miVoto}
+              onAbrir={() => setAbiertoEn(i)}
             />
           </li>
         ))}
@@ -127,7 +153,88 @@ export function ParticipacionesReto({
           ) : null}
         </div>
       ) : null}
+
+      {abiertoEn !== null ? (
+        <FeedDelReto
+          items={items}
+          cursor={cursor}
+          indice={abiertoEn}
+          fuente={fuente}
+          haySesion={haySesion}
+          onCerrar={cerrar}
+        />
+      ) : null}
     </>
+  );
+}
+
+/**
+ * FEED DEL RETO — la MISMA experiencia inmersiva del feed global, acotada a este reto y abierta por la
+ * participación que se tocó. Sustituye al reproductor en modal que había antes.
+ *
+ * ┌─ POR QUÉ EL MISMO COMPONENTE Y NO UNO PROPIO ──────────────────────────────────────────────────┐
+ * │ El modal era una SEGUNDA superficie de reproducción que había que mantener en paralelo: cada    │
+ * │ cosa que llegue (likes, comentarios, Boost) habría que cablearla dos veces o quedaría coja       │
+ * │ aquí. Y, sobre todo, el feed carga y SUELTA los vídeos por visibilidad —por eso aguanta cientos  │
+ * │ sin montar cientos de `<video>`—; reconstruirlo habría sido heredar el problema en vez de la     │
+ * │ solución. Lo único que cambia entre los dos feeds es de dónde salen las páginas siguientes.      │
+ * └────────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * ARRANCA CON LO QUE LA REJILLA YA TIENE en memoria, no con una consulta nueva: así se puede deslizar
+ * hacia ARRIBA desde el vídeo por el que se entró (los anteriores ya estaban cargados) y hacia abajo se
+ * sigue paginando con la keyset del reto desde el mismo cursor.
+ */
+function FeedDelReto({
+  items,
+  cursor,
+  indice,
+  fuente,
+  haySesion,
+  onCerrar,
+}: {
+  items: ParticipacionUI[];
+  cursor: string | null;
+  indice: number;
+  fuente: ReturnType<typeof fuenteReto>;
+  haySesion: boolean;
+  onCerrar: () => void;
+}) {
+  const posts: PostFeed[] = items.map((p) => p.post);
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-void"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Vídeos del reto"
+    >
+      <FeedVertical
+        postsIniciales={posts}
+        cursorInicial={cursor}
+        fuente={fuente}
+        indiceInicial={indice}
+        haySesion={haySesion}
+      />
+      <button
+        type="button"
+        onClick={onCerrar}
+        aria-label="Volver al reto"
+        className="absolute top-4 left-4 z-[60] grid h-10 w-10 place-items-center rounded-full bg-void/60 text-white backdrop-blur-sm transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-void/80"
+        style={{ top: "calc(1rem + env(safe-area-inset-top))" }}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+      </button>
+    </div>
   );
 }
 
@@ -140,21 +247,16 @@ function Celda({
   participacion: p,
   puesto,
   esMio,
-  haySesion,
   challengeId,
-  retoAbierto,
-  miVoto,
+  onAbrir,
 }: {
   participacion: ParticipacionUI;
   puesto: number;
   esMio: boolean;
-  /** ¿Marcar la reproducción como "vista"? Solo con sesión. */
-  haySesion: boolean;
   challengeId: string;
-  retoAbierto: boolean;
-  miVoto: string | null;
+  /** Abre el FEED DEL RETO por esta participación. La celda no reproduce nada por su cuenta. */
+  onAbrir: () => void;
 }) {
-  const [abierto, setAbierto] = useState(false);
   const autor = nombreMostrado(p.displayName, p.username);
   const etiqueta = p.title?.trim() ? `Reproducir «${p.title}»` : `Reproducir el vídeo de ${autor}`;
   const fondo = `url("${p.poster}")`;
@@ -163,7 +265,7 @@ function Celda({
     <div className="flex flex-col">
       <button
         type="button"
-        onClick={() => setAbierto(true)}
+        onClick={onAbrir}
         aria-label={etiqueta}
         title={p.title ?? undefined}
         className="group block w-full overflow-hidden rounded-sm border border-line transition-[transform,box-shadow] duration-[var(--df-dur-fast)] ease-mechanical hover:-translate-y-0.5 hover:shadow-[var(--df-shadow-md)] focus-visible:-translate-y-0.5 focus-visible:shadow-[var(--df-shadow-md)] focus-visible:outline-none"
@@ -203,7 +305,9 @@ function Celda({
                   retoId={challengeId}
                   participacionId={p.submissionId}
                   votos={p.votos}
-                  miVoto={miVoto}
+                  /* El `miVoto` del PROPIO ítem: dice si su `votos` ya contaba el voto del usuario,
+                     que es lo que `votosMostrados` necesita para reconciliar sin acumular deltas. */
+                  miVoto={p.miVoto}
                 />
                 <span>{p.votos === 1 ? "voto" : "votos"}</span>
               </span>
@@ -231,32 +335,6 @@ function Celda({
         ) : null}
       </div>
       {p.title?.trim() ? <p className="truncate text-2xs text-text-dim">{p.title}</p> : null}
-
-      {abierto ? (
-        <ModalReproductor
-          id={p.videoId}
-          titulo={p.title}
-          onCerrar={() => setAbierto(false)}
-          /* El id de la PARTICIPACIÓN, no el del vídeo: es de lo que hablan las rutas del gate y
-             del voto, y pasarles un id de Video daría 404. La sesión viaja aparte: es del usuario,
-             no del vídeo, y así la guarda `sin-sesion` recibe el dato real. */
-          participacionVista={p.submissionId}
-          haySesion={haySesion}
-          /* El botón vive donde hay reproductor. En la CELDA no: allí el usuario aún no ha reproducido
-             nada, así que nacería siempre bloqueado por el gate — la celda solo enseña el recuento. */
-          acciones={
-            <BotonVoto
-              retoId={challengeId}
-              participacionId={p.submissionId}
-              votos={p.votos}
-              miVoto={miVoto}
-              retoAbierto={retoAbierto}
-              haySesion={haySesion}
-              esMia={esMio}
-            />
-          }
-        />
-      ) : null}
     </div>
   );
 }

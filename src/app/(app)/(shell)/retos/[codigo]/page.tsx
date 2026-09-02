@@ -38,6 +38,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
   const { listarParticipacionesVisibles, miParticipacion } =
     await import("@/server/services/participaciones-lista");
   const { firmarReproduccion } = await import("@/server/services/reproduccion-servidor");
+  const { postDeParticipacion } = await import("@/lib/post-de-participacion");
 
   const r = await resolverRetoDetalle(prisma, codigo);
   if (r.tipo === "noEncontrado") notFound();
@@ -55,30 +56,33 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
     ahora,
   );
 
-  const [pagina, mi, votoPropio] = await Promise.all([
-    listarParticipacionesVisibles(prisma, reto.id),
+  const [pagina, mi] = await Promise.all([
+    // `miVoto` viene YA en cada ítem (una sola consulta dentro del servicio): el botón de voto nace
+    // pintado bien, tanto en la rejilla como en el feed del reto, sin una ida y vuelta por pantalla.
+    listarParticipacionesVisibles(prisma, reto.id, { userId: usuario?.userId ?? null }),
     usuario ? miParticipacion(prisma, reto.id, usuario.userId) : Promise.resolve(null),
-    // MI VOTO en este reto, del payload: así el botón nace pintado bien y no tras el primer tap. Una
-    // sola consulta por la clave única (userId + challengeId), y solo si hay sesión.
-    usuario
-      ? prisma.vote.findUnique({
-          where: { userId_challengeId: { userId: usuario.userId, challengeId: reto.id } },
-          select: { submissionId: true },
-        })
-      : Promise.resolve(null),
   ]);
-  const miVoto = votoPropio?.submissionId ?? null;
 
   // Firma el póster de cada participación (el player firma su propia URL vía el endpoint firmado).
-  const participacionesUI: ParticipacionUI[] = pagina.items.map((p) => ({
-    submissionId: p.submissionId,
-    videoId: p.videoId,
-    title: p.title,
-    poster: firmarReproduccion(p.bunnyVideoId, p.thumbnailFileName).poster,
-    username: p.username,
-    displayName: p.displayName,
-    votos: p.votos,
-  }));
+  const contextoReto = { titulo: reto.titulo, categoria: nombreCategoria(reto.categoria) };
+  const participacionesUI: ParticipacionUI[] = pagina.items.map((p) => {
+    const urls = firmarReproduccion(p.bunnyVideoId, p.thumbnailFileName);
+    return {
+      submissionId: p.submissionId,
+      videoId: p.videoId,
+      title: p.title,
+      poster: urls.poster,
+      username: p.username,
+      displayName: p.displayName,
+      votos: p.votos,
+      retoId: p.retoId,
+      retoAbierto: p.retoAbierto,
+      miVoto: p.miVoto,
+      // La forma que pinta el feed, con el MISMO mapeador que usa el endpoint de paginación: la
+      // primera página y las siguientes no pueden salir distintas.
+      post: postDeParticipacion(p, contextoReto, urls),
+    };
+  });
   const miEstado = mi ? COPY_MI_ESTADO[mi.estado] : undefined;
 
   return (
@@ -184,8 +188,6 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
             cursorInicial={pagina.nextCursor}
             miSubmissionId={mi?.submissionId ?? null}
             haySesion={usuario !== null}
-            retoAbierto={activo}
-            miVoto={miVoto}
           />
         </section>
       </div>

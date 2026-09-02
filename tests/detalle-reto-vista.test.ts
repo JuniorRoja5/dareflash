@@ -38,13 +38,16 @@ function anchoContenedor(fuente: string): string | undefined {
 }
 
 describe("presentación de las participaciones", () => {
-  it("usa las primitivas del sistema: CajaVideo + ModalReproductor", () => {
+  it("usa las primitivas del sistema: CajaVideo para la rejilla, el FEED para reproducir", () => {
     // CajaVideo es la regla CERRADA de formato de vídeo. Una rejilla propia con su `aspect-[9/16]`
     // a mano se saldría del sistema y volvería a divergir del feed/perfil en cuanto cambie la regla.
     expect(VISTA_PARTICIPACIONES).toContain('from "@/components/ui/caja-video"');
     expect(VISTA_PARTICIPACIONES).toContain("<CajaVideo");
-    expect(VISTA_PARTICIPACIONES).toContain('from "@/components/ui/modal-reproductor"');
-    expect(VISTA_PARTICIPACIONES).toContain("<ModalReproductor");
+    // Y para REPRODUCIR se reutiliza el feed —la misma experiencia inmersiva, acotada al reto—, no un
+    // reproductor propio: era una segunda superficie que había que mantener en paralelo.
+    expect(VISTA_PARTICIPACIONES).toContain('from "@/components/feed/feed-vertical"');
+    expect(VISTA_PARTICIPACIONES).toContain("<FeedVertical");
+    expect(VISTA_PARTICIPACIONES).not.toContain("<ModalReproductor");
   });
 
   it("muestra autor y votos con las piezas compartidas (misma lectura que el feed)", () => {

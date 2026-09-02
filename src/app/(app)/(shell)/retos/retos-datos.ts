@@ -19,9 +19,7 @@ export type CategoriaClave = CategoryKey;
 
 /** clave -> etiqueta legible de una categoria. Acepta `string` (una clave desconocida se devuelve tal
  *  cual): asi vale tambien para la categoria cruda de un resultado de busqueda. */
-export function nombreCategoria(clave: string): string {
-  return CATEGORIES.find((c) => c.key === clave)?.es ?? clave;
-}
+export { nombreCategoria } from "@/lib/categorias";
 
 /** Clave del filtro "Todos" (no es una categoria: no puede chocar con ninguna `clave`). */
 export const CATEGORIA_TODOS = "todos" as const;

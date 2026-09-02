@@ -40,34 +40,53 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   if (!parsed.success) return apiError("BAD_REQUEST", "Parámetros de página inválidos.", 400);
 
   const { prisma } = await depsRuta();
+  const { getCurrentUser } = await import("@/server/auth/current-user");
   const { listarParticipacionesVisibles } = await import("@/server/services/participaciones-lista");
   const { firmarReproduccion } = await import("@/server/services/reproduccion-servidor");
+  const { nombreCategoria } = await import("@/lib/categorias");
+  const { postDeParticipacion } = await import("@/lib/post-de-participacion");
   const { sanearError } = await import("@/server/observability/sanitize-error");
 
   try {
     const reto = await prisma.challenge.findFirst({
       where: { id: params.data.id, status: { not: "DRAFT" } },
-      select: { id: true },
+      select: { id: true, title: true, category: true },
     });
     if (!reto) return apiError("NOT_FOUND", "Reto no disponible.", 404);
 
+    // Sigue siendo PÚBLICO: sin sesión esto es `null`, `miVoto` sale `null` y no se consulta el voto.
+    // Con sesión, las páginas SIGUIENTES traen el voto propio igual que la primera — si no, el botón
+    // de una participación paginada nacería como "no has votado" aunque sí lo hubieras hecho.
+    const usuario = await getCurrentUser();
     const { items, nextCursor } = await listarParticipacionesVisibles(prisma, reto.id, {
       cursor: parsed.data.cursor ?? null,
       limit: parsed.data.limit,
+      userId: usuario?.userId ?? null,
     });
 
-    // El `bunnyVideoId` NO sale de aquí (es la referencia interna en Bunny): solo el póster firmado y
-    // el `videoId` de BD, que es lo único que el reproductor necesita para pedir su URL al endpoint.
+    const contexto = { titulo: reto.title, categoria: nombreCategoria(reto.category) };
+
+    // El `bunnyVideoId` NO sale de aquí (es la referencia interna en Bunny): solo las URLs FIRMADAS y
+    // el `videoId` de BD. Cada ítem viaja en DOS formas a la vez porque esta página alimenta a dos
+    // consumidores: la rejilla (que quiere `title` y `poster`) y el feed del reto (que quiere la forma
+    // `PostFeed` completa). Se construyen con el MISMO mapeador compartido, así que no pueden divergir.
     return apiOk({
-      items: items.map((p) => ({
-        submissionId: p.submissionId,
-        videoId: p.videoId,
-        title: p.title,
-        poster: firmarReproduccion(p.bunnyVideoId, p.thumbnailFileName).poster,
-        username: p.username,
-        displayName: p.displayName,
-        votos: p.votos,
-      })),
+      items: items.map((p) => {
+        const urls = firmarReproduccion(p.bunnyVideoId, p.thumbnailFileName);
+        return {
+          submissionId: p.submissionId,
+          videoId: p.videoId,
+          title: p.title,
+          poster: urls.poster,
+          username: p.username,
+          displayName: p.displayName,
+          votos: p.votos,
+          retoId: p.retoId,
+          retoAbierto: p.retoAbierto,
+          miVoto: p.miVoto,
+          post: postDeParticipacion(p, contexto, urls),
+        };
+      }),
       nextCursor,
     });
   } catch (e) {

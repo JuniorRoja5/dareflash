@@ -1,4 +1,4 @@
-import { FeedInicio } from "./feed-inicio";
+import { FeedVertical } from "@/components/feed/feed-vertical";
 
 export const metadata = { title: "Feed · DareFlash" };
 export const dynamic = "force-dynamic";
@@ -36,5 +36,5 @@ export default async function FeedPage() {
     );
   }
 
-  return <FeedInicio postsIniciales={items} cursorInicial={nextCursor} haySesion={haySesion} />;
+  return <FeedVertical postsIniciales={items} cursorInicial={nextCursor} haySesion={haySesion} />;
 }

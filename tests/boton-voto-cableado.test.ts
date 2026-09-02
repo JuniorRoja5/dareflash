@@ -18,15 +18,19 @@ const raiz = path.resolve(__dirname, "..");
 const leer = (rel: string): string => readFileSync(path.join(raiz, rel), "utf8");
 
 const BOTON = "src/components/ui/boton-voto.tsx";
-const FEED = "src/app/(app)/feed/feed-inicio.tsx";
+const FEED = "src/components/feed/feed-vertical.tsx";
 const DETALLE = "src/app/(app)/(shell)/retos/[codigo]/participaciones-reto.tsx";
-const MODAL = "src/components/ui/modal-reproductor.tsx";
 
 describe("un solo componente de botón", () => {
-  it("el feed y el detalle lo IMPORTAN, no lo reimplementan", () => {
-    for (const f of [FEED, DETALLE]) {
-      expect(leer(f)).toContain('from "@/components/ui/boton-voto"');
-    }
+  it("el feed lo IMPORTA, no lo reimplementa", () => {
+    expect(leer(FEED)).toContain('from "@/components/ui/boton-voto"');
+  });
+
+  it("el detalle del reto NO monta un botón propio: lo hereda del feed", () => {
+    // Desde que tocar una participación abre el FEED DEL RETO (y no un modal), la única superficie de
+    // reproducción es el feed, y el botón vive dentro de él. Si el detalle volviera a montar el suyo,
+    // habría dos sitios que mantener y uno se quedaría atrás — que es justo lo que pasaba con el modal.
+    expect(leer(DETALLE)).not.toContain("<BotonVoto");
   });
 
   it("el rayo se define UNA vez, en el componente compartido", () => {
@@ -38,7 +42,7 @@ describe("un solo componente de botón", () => {
   });
 
   it("ninguna pantalla dibuja su propio botón magenta de voto", () => {
-    // `bg-action` es el magenta de acción; el único que puede llevarlo aquí es el componente.
+    // `bg-action` es el magenta de acción; el único que puede llevarlo es el componente compartido.
     expect(leer(DETALLE)).not.toContain("bg-action");
   });
 });
@@ -51,12 +55,11 @@ describe("placement: botón donde hay reproductor, nunca en la celda", () => {
     expect(src).toContain("post.participacionId && post.retoId ?");
   });
 
-  it("el detalle lo monta DENTRO del modal (donde hay reproductor), vía `acciones`", () => {
+  it("el detalle abre el FEED DEL RETO, que ya trae el botón dentro", () => {
     const src = leer(DETALLE);
-    const modal = src.slice(src.indexOf("<ModalReproductor"));
-    expect(modal).toContain("acciones={");
-    expect(modal).toContain("<BotonVoto");
-    expect(leer(MODAL)).toContain("{acciones}");
+    expect(src).toContain("<FeedVertical");
+    // Y ya no queda un reproductor en modal como destino del toque: era la segunda superficie.
+    expect(src).not.toContain("<ModalReproductor");
   });
 
   it("la CELDA de la rejilla no lleva botón: solo el recuento compartido", () => {
@@ -76,12 +79,10 @@ describe("placement: botón donde hay reproductor, nunca en la celda", () => {
 });
 
 describe("el estado viene del payload, no de una ida y vuelta", () => {
-  it("las dos superficies pasan `miVoto` y `retoAbierto` al botón", () => {
-    for (const f of [FEED, DETALLE]) {
-      const src = leer(f);
-      expect(src).toMatch(/miVoto=\{/);
-      expect(src).toMatch(/retoAbierto=\{/);
-    }
+  it("el feed pasa `miVoto` y `retoAbierto` al botón, de su propio ítem", () => {
+    const src = leer(FEED);
+    expect(src).toMatch(/miVoto=\{post\.miVoto\}/);
+    expect(src).toMatch(/retoAbierto=\{post\.retoAbierto\}/);
   });
 
   it("el botón deriva su estado con `estadoBoton`, sin decidirlo a mano", () => {

@@ -251,3 +251,130 @@ describe("estructura de la consulta", () => {
     expect(codigo).not.toMatch(/\bOFFSET\b/i);
   });
 });
+
+/**
+ * CAMPOS DE VOTO EN EL PAYLOAD (feed del reto). Desde que tocar una participación abre el feed acotado
+ * al reto, cada ítem tiene que traer lo mismo que el del feed global: a qué reto pertenece, si admite
+ * votos AHORA y dónde tiene el usuario su voto. Es la lección de `participacionId`: si falta un campo,
+ * el botón nace mal SOLO en esa pantalla y en silencio, así que se afirma contra la BD real.
+ */
+describe("campos de voto del ítem", () => {
+  it("trae el reto y su ventana, con la MISMA regla que aplica el servidor al votar", async () => {
+    const p = await participar({ videoStatus: "PUBLISHED", subStatus: "PUBLISHED" });
+
+    const abierto = await listarParticipacionesVisibles(prisma, challengeId);
+    expect(abierto.items[0]).toMatchObject({ submissionId: p.submissionId, retoId: challengeId });
+    expect(abierto.items[0]!.retoAbierto).toBe(true);
+
+    // Un reto AÚN SIN EMPEZAR no admite votos: si esto dijera `true`, el botón prometería un voto que
+    // la API rechazaría con RETO_CERRADO.
+    await prisma.challenge.update({
+      where: { id: challengeId },
+      data: { startsAt: new Date("2998-01-01T00:00:00Z") },
+    });
+    const sinEmpezar = await listarParticipacionesVisibles(prisma, challengeId);
+    expect(sinEmpezar.items[0]!.retoAbierto).toBe(false);
+
+    // Y uno ya cerrado, tampoco.
+    await prisma.challenge.update({
+      where: { id: challengeId },
+      data: {
+        startsAt: new Date("2026-01-01T00:00:00Z"),
+        deadline: new Date("2026-01-02T00:00:00Z"),
+      },
+    });
+    const cerrado = await listarParticipacionesVisibles(prisma, challengeId);
+    expect(cerrado.items[0]!.retoAbierto).toBe(false);
+  });
+
+  it("`miVoto` señala dónde votó ESE usuario, en TODOS los ítems de la página", async () => {
+    const a = await participar({ videoStatus: "PUBLISHED", subStatus: "PUBLISHED", votos: 5 });
+    const b = await participar({ videoStatus: "PUBLISHED", subStatus: "PUBLISHED", votos: 3 });
+    const votante = await crearUsuario(prisma, { username: "votante" });
+    await prisma.vote.create({
+      data: { userId: votante, challengeId, submissionId: b.submissionId },
+    });
+
+    const { items } = await listarParticipacionesVisibles(prisma, challengeId, { userId: votante });
+
+    // Va en CADA ítem, no solo en el votado: el botón de la participación A necesita saber que el
+    // usuario ya tiene voto en este reto para poder ofrecerle moverlo.
+    expect(items.map((i) => i.miVoto)).toEqual([b.submissionId, b.submissionId]);
+    expect(items.map((i) => i.submissionId)).toEqual([a.submissionId, b.submissionId]);
+  });
+
+  it("un INVITADO no tiene voto, y el de OTRO usuario no se filtra", async () => {
+    const p = await participar({ videoStatus: "PUBLISHED", subStatus: "PUBLISHED" });
+    const otro = await crearUsuario(prisma, { username: "otro" });
+    await prisma.vote.create({
+      data: { userId: otro, challengeId, submissionId: p.submissionId },
+    });
+
+    const sinSesion = await listarParticipacionesVisibles(prisma, challengeId);
+    expect(sinSesion.items[0]!.miVoto).toBeNull();
+
+    const tercero = await crearUsuario(prisma, { username: "tercero" });
+    const conOtra = await listarParticipacionesVisibles(prisma, challengeId, { userId: tercero });
+    expect(conOtra.items[0]!.miVoto).toBeNull(); // es MI voto, no "el último que haya"
+  });
+
+  it("el voto de OTRO reto no se contagia a este", async () => {
+    const p = await participar({ videoStatus: "PUBLISHED", subStatus: "PUBLISHED" });
+    const votante = await crearUsuario(prisma, { username: "cruzado" });
+    const admin = await crearUsuario(prisma, { username: "admin2" });
+    const otroReto = await prisma.challenge.create({
+      data: {
+        title: "Otro",
+        slug: "otro",
+        publicCode: "retop002",
+        category: "fitness",
+        status: "PUBLISHED",
+        prizeCurrency: "USD",
+        startsAt: new Date("2026-01-01T00:00:00Z"),
+        deadline: new Date("2999-01-01T00:00:00Z"),
+        createdById: admin,
+      },
+      select: { id: true },
+    });
+    const videoOtro = await prisma.video.create({
+      data: { userId: admin, bunnyVideoId: "bunny-otro", status: "PUBLISHED" },
+      select: { id: true },
+    });
+    const subOtro = await prisma.submission.create({
+      data: { challengeId: otroReto.id, userId: admin, videoId: videoOtro.id, status: "PUBLISHED" },
+      select: { id: true },
+    });
+    await prisma.vote.create({
+      data: { userId: votante, challengeId: otroReto.id, submissionId: subOtro.id },
+    });
+
+    // Buscar "el último voto del usuario" en vez de por (userId + challengeId) devolvería ESTE.
+    const { items } = await listarParticipacionesVisibles(prisma, challengeId, { userId: votante });
+    expect(items[0]!.miVoto).toBeNull();
+    expect(items[0]!.submissionId).toBe(p.submissionId);
+  });
+
+  it("las páginas SIGUIENTES traen el voto igual que la primera", async () => {
+    const uno = await participar({ videoStatus: "PUBLISHED", subStatus: "PUBLISHED", votos: 9 });
+    const dos = await participar({ videoStatus: "PUBLISHED", subStatus: "PUBLISHED", votos: 1 });
+    const votante = await crearUsuario(prisma, { username: "paginado" });
+    await prisma.vote.create({
+      data: { userId: votante, challengeId, submissionId: uno.submissionId },
+    });
+
+    const p1 = await listarParticipacionesVisibles(prisma, challengeId, {
+      limit: 1,
+      userId: votante,
+    });
+    const p2 = await listarParticipacionesVisibles(prisma, challengeId, {
+      limit: 1,
+      cursor: p1.nextCursor,
+      userId: votante,
+    });
+
+    // Sin esto, el botón de una participación paginada nacería como "no has votado" aunque sí.
+    expect(p2.items[0]!.submissionId).toBe(dos.submissionId);
+    expect(p2.items[0]!.miVoto).toBe(uno.submissionId);
+    expect(p2.items[0]!.retoAbierto).toBe(true);
+  });
+});

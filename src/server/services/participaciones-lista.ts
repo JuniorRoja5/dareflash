@@ -25,9 +25,16 @@
  */
 import "server-only";
 
+import { retoEstaAbierto } from "@/lib/reto-ventana";
 import type { Db } from "@/server/db/types";
 
-export interface ParticipacionVista {
+/**
+ * Lo que TODA participación lleva, la vea el público o el panel. Se separa de `ParticipacionVista`
+ * porque los campos de VOTO (`retoId`, `retoAbierto`, `miVoto`) solo tienen sentido en la vista
+ * pública: en el panel no se vota, y arrastrarlos ahí obligaría a consultar el voto del ADMIN para
+ * nada. Antes `ParticipacionAdmin` heredaba de `ParticipacionVista` a secas y se los habría comido.
+ */
+export interface ParticipacionBase {
   submissionId: string;
   videoId: string;
   bunnyVideoId: string;
@@ -38,6 +45,23 @@ export interface ParticipacionVista {
   votos: number;
   username: string;
   displayName: string | null;
+}
+
+/** Participación tal como la ve el PÚBLICO: lo de arriba + lo que el botón de voto necesita. */
+export interface ParticipacionVista extends ParticipacionBase {
+  /**
+   * Reto al que pertenece. Constante en toda la página (es UN reto), pero va en cada ítem a propósito:
+   * es la CLAVE del estado de voto en cliente ("un voto por reto") y así el ítem tiene la MISMA forma
+   * que el del feed, que es lo que permite que un solo componente pinte los dos.
+   */
+  retoId: string;
+  /** ¿Admite votos AHORA? MISMA regla que aplica el servidor al votar (`lib/reto-ventana`). */
+  retoAbierto: boolean;
+  /**
+   * Participación de este reto donde el usuario ya tiene su voto (`null` = no ha votado, o invitado).
+   * Va en el payload para que el botón pinte bien EN LA CARGA y no tras el primer tap.
+   */
+  miVoto: string | null;
 }
 
 /** Estado de MI participación en el reto (para el dueño): visible / procesando / fallida / retirada. */
@@ -114,7 +138,14 @@ const ORDEN = [{ voteCount: "desc" }, { createdAt: "desc" }, { id: "desc" }] as 
 export async function listarParticipacionesVisibles(
   db: Db,
   challengeId: string,
-  opts: { cursor?: string | null; limit?: number } = {},
+  opts: {
+    cursor?: string | null;
+    limit?: number;
+    /** Usuario en sesión, para resolver `miVoto`. Sin él (invitado) NO se consulta nada. */
+    userId?: string | null;
+    /** "ahora" inyectable, para testear la ventana del reto de forma determinista. */
+    ahora?: Date;
+  } = {},
 ): Promise<PaginaParticipaciones> {
   const limite = Math.min(
     Math.max(1, Math.floor(opts.limit ?? PARTICIPACIONES_LIMITE_DEFECTO)),
@@ -122,20 +153,40 @@ export async function listarParticipacionesVisibles(
   );
   const despuesDe = filtroDespuesDe(decodificarCursor(opts.cursor));
 
-  const filas = await db.submission.findMany({
-    where: { challengeId, status: "PUBLISHED", video: { status: "PUBLISHED" }, ...despuesDe },
-    // El `id` desempata (orden TOTAL): sin él la tupla del cursor es ambigua. Ver cabecera.
-    orderBy: [...ORDEN],
-    // Una fila de más = "¿hay página siguiente?" sin un COUNT aparte.
-    take: limite + 1,
-    select: {
-      id: true,
-      voteCount: true,
-      createdAt: true,
-      video: { select: { id: true, bunnyVideoId: true, thumbnailFileName: true, title: true } },
-      user: { select: { username: true, displayName: true } },
-    },
-  });
+  // Las tres lecturas van EN PARALELO: ninguna depende de las otras.
+  //
+  // MI VOTO es UNA sola consulta por página —y por la clave ÚNICA (userId + challengeId), no por
+  // `userId` a secas—: aquí solo hay un reto, así que ni hace falta agrupar. Buscar "el último voto
+  // del usuario" devolvería el de OTRO reto y contagiaría el estado entre retos.
+  const [reto, voto, filas] = await Promise.all([
+    db.challenge.findUnique({
+      where: { id: challengeId },
+      select: { status: true, startsAt: true, deadline: true },
+    }),
+    opts.userId
+      ? db.vote.findUnique({
+          where: { userId_challengeId: { userId: opts.userId, challengeId } },
+          select: { submissionId: true },
+        })
+      : Promise.resolve(null),
+    db.submission.findMany({
+      where: { challengeId, status: "PUBLISHED", video: { status: "PUBLISHED" }, ...despuesDe },
+      // El `id` desempata (orden TOTAL): sin él la tupla del cursor es ambigua. Ver cabecera.
+      orderBy: [...ORDEN],
+      // Una fila de más = "¿hay página siguiente?" sin un COUNT aparte.
+      take: limite + 1,
+      select: {
+        id: true,
+        voteCount: true,
+        createdAt: true,
+        video: { select: { id: true, bunnyVideoId: true, thumbnailFileName: true, title: true } },
+        user: { select: { username: true, displayName: true } },
+      },
+    }),
+  ]);
+
+  const abierto = reto ? retoEstaAbierto(reto, opts.ahora ?? new Date()) : false;
+  const miVoto = voto?.submissionId ?? null;
 
   const hayMas = filas.length > limite;
   const visibles = hayMas ? filas.slice(0, limite) : filas;
@@ -149,6 +200,9 @@ export async function listarParticipacionesVisibles(
     votos: f.voteCount,
     username: f.user.username,
     displayName: f.user.displayName,
+    retoId: challengeId,
+    retoAbierto: abierto,
+    miVoto,
   }));
 
   const ultima = visibles[visibles.length - 1];
@@ -198,7 +252,7 @@ export async function miParticipacion(
  */
 export type EstadoParticipacionAdmin = "visible" | "procesando" | "no-publicada" | "retirada";
 
-export interface ParticipacionAdmin extends ParticipacionVista {
+export interface ParticipacionAdmin extends ParticipacionBase {
   estado: EstadoParticipacionAdmin;
   creadaEn: Date;
   /** Solo un vídeo PUBLISHED es reproducible (lo reexige el endpoint firmado); el resto, no. */

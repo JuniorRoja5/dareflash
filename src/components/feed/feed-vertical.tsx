@@ -8,7 +8,7 @@ import { ReproductorHls } from "@/components/ui/reproductor-hls";
 import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
 import type { PostFeed } from "@/server/services/feed";
 
-import { COMENTARIOS_FEED, formatearContador } from "./inicio-datos";
+import { COMENTARIOS_FEED, formatearContador } from "./feed-datos";
 
 /** Iconos de accion: trazo 1.8 px, currentColor (blanco sobre video; negro dentro del circulo de VOTA). */
 function IconoAccion({ children, bold = false }: { children: ReactNode; bold?: boolean }) {
@@ -318,25 +318,90 @@ function Flecha({
 }
 
 /**
- * FEED de Inicio — vertical, scroll-snap, un video por pantalla. La PRIMERA página llega ya renderizada
- * del servidor (`postsIniciales` + `cursorInicial`); al acercarse al final, el cliente pide la
- * siguiente a `/api/feed?cursor=...` y la anexa (scroll infinito). MOVIL: inmersivo a sangre completa.
- * DESKTOP (lg): columna de feed + panel de comentarios FIJO del video ACTIVO; flechas ↑/↓ navegan.
+ * DE DÓNDE SALEN LAS PÁGINAS SIGUIENTES. Es lo ÚNICO que distingue al feed global del feed de un reto:
+ * el resto —reproducción, carga/descarga por visibilidad, mute global, gate de "visto", botón de voto,
+ * comentarios— es idéntico, así que el componente es UNO SOLO y se parametriza por aquí.
+ *
+ * Devuelve items ya en forma `PostFeed`: la conversión la hace cada fuente, no el componente. Así el
+ * feed no sabe nada de endpoints ni de formas de payload.
+ *
+ * El CURSOR es OPACO: el global usa el id del último vídeo y el del reto la tupla keyset de su ranking
+ * (votos, instante, id). El componente solo lo guarda y lo devuelve — nunca lo interpreta, que es lo
+ * que permite que las dos paginaciones sean keyset sin que él se entere de la diferencia.
  */
-export function FeedInicio({
+export interface FuenteFeed {
+  siguientePagina(cursor: string): Promise<{ items: PostFeed[]; nextCursor: string | null }>;
+}
+
+/** Fuente GLOBAL (`/api/feed`): el feed de inicio, todos los vídeos publicados. */
+export const fuenteGlobal: FuenteFeed = {
+  async siguientePagina(cursor) {
+    const res = await fetch(`/api/feed?cursor=${encodeURIComponent(cursor)}`);
+    if (!res.ok) throw new Error("feed");
+    return (await res.json()) as { items: PostFeed[]; nextCursor: string | null };
+  },
+};
+
+/**
+ * Fuente de UN RETO (`/api/retos/{id}/participaciones`): solo sus participaciones, en su orden de
+ * RANKING (votos, instante, id). Es la misma keyset que ya usaba la rejilla del detalle — no hay una
+ * paginación nueva ni, por supuesto, un OFFSET: el cursor viaja opaco y el feed ni lo mira.
+ *
+ * Deslizar dentro de este feed NO puede sacarte del reto, y eso no lo garantiza el componente sino
+ * esta fuente: es el único sitio de donde salen más vídeos, y solo devuelve los de este reto.
+ *
+ * El endpoint sirve a DOS consumidores (rejilla y feed), así que cada ítem trae su forma de feed ya
+ * construida en `post`; aquí solo se extrae. Construirla otra vez en el cliente sería una tercera copia
+ * del mapeo que podría divergir de las otras dos.
+ */
+export function fuenteReto(retoId: string): FuenteFeed {
+  const base = `/api/retos/${encodeURIComponent(retoId)}/participaciones`;
+  return {
+    async siguientePagina(cursor) {
+      const res = await fetch(`${base}?cursor=${encodeURIComponent(cursor)}`);
+      if (!res.ok) throw new Error("participaciones");
+      const data = (await res.json()) as {
+        items: { post: PostFeed }[];
+        nextCursor: string | null;
+      };
+      return { items: data.items.map((i) => i.post), nextCursor: data.nextCursor };
+    },
+  };
+}
+
+/**
+ * FEED VERTICAL — scroll-snap, un vídeo por pantalla. La PRIMERA página llega ya renderizada
+ * (`postsIniciales` + `cursorInicial`); al acercarse al final pide la siguiente a su `fuente` y la
+ * anexa. MOVIL: inmersivo a sangre completa. DESKTOP (lg): columna de feed + panel de comentarios FIJO
+ * del vídeo ACTIVO; flechas ↑/↓ navegan.
+ *
+ * Lo usan DOS superficies: el feed de inicio (fuente global) y el feed de un reto (fuente del reto,
+ * abierto en la participación que se tocó). No hay dos componentes: forkearlo habría significado
+ * mantener dos veces la carga/descarga por visibilidad —que es lo que hace que cientos de vídeos no
+ * monten cientos de `<video>`— y cablear dos veces cada cosa que llegue (likes, comentarios, Boost).
+ */
+export function FeedVertical({
   postsIniciales,
   cursorInicial,
   haySesion = false,
+  fuente = fuenteGlobal,
+  indiceInicial = 0,
 }: {
   postsIniciales: PostFeed[];
   cursorInicial: string | null;
   /** ¿Hay sesión? Solo decide si el reproductor marca "visto" (un invitado no marca). El feed es
    *  público: esto NO oculta ni protege nada, y la seguridad real la aplica siempre el endpoint. */
   haySesion?: boolean;
+  /** De dónde salen las páginas siguientes. Por defecto, el feed global. */
+  fuente?: FuenteFeed;
+  /** Índice del vídeo por el que abrir. Lo usa el feed de un reto para entrar por el que se tocó. */
+  indiceInicial?: number;
 }) {
   const [posts, setPosts] = useState<PostFeed[]>(postsIniciales);
   const [cursor, setCursor] = useState<string | null>(cursorInicial);
-  const [activo, setActivo] = useState(0);
+  // Arranca en el índice pedido, NO en 0: si se pusiera a 0 y luego se corrigiera, el vídeo 0
+  // autoreproduciría un instante antes de saltar al que el usuario tocó.
+  const [activo, setActivo] = useState(indiceInicial);
   // MUTE del feed — DOS estados (una sola preferencia GLOBAL para todos los vídeos):
   //  - `silenciado`: PREFERENCIA del usuario (arranca en false = quiere sonido; el botón la togglea =
   //    mute opt-in).
@@ -395,6 +460,15 @@ export function FeedInicio({
     };
   }, [audioDesbloqueado, silenciado, activarSonidoVideoActivo]);
 
+  // ENTRAR por el vídeo pedido (feed de un reto: el que se tocó en la rejilla). Sin animación y una
+  // sola vez: es la posición de partida, no un desplazamiento que el usuario deba ver.
+  useEffect(() => {
+    if (indiceInicial <= 0) return;
+    secciones.current[indiceInicial]?.scrollIntoView({ behavior: "auto", block: "start" });
+    // Solo al montar: si dependiera de `posts`, cada página anexada devolvería al usuario al principio.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Detecta el video ACTIVO. Se re-suscribe cuando cambia el numero de posts (al anexar pagina) para
   // observar tambien las secciones nuevas.
   useEffect(() => {
@@ -421,9 +495,7 @@ export function FeedInicio({
     cargandoRef.current = true;
     void (async () => {
       try {
-        const res = await fetch(`/api/feed?cursor=${encodeURIComponent(cursor)}`);
-        if (!res.ok) return;
-        const data = (await res.json()) as { items: PostFeed[]; nextCursor: string | null };
+        const data = await fuente.siguientePagina(cursor);
         if (!vivo) return;
         setPosts((prev) => [...prev, ...data.items]);
         setCursor(data.nextCursor);
@@ -436,7 +508,7 @@ export function FeedInicio({
     return () => {
       vivo = false;
     };
-  }, [activo, cursor, posts.length]);
+  }, [activo, cursor, posts.length, fuente]);
 
   // Un vídeo cuyo objeto ya no existe (404/410) se retira del scroll: no debe ocupar un slide roto.
   // Esto es robustez de cliente, NO moderación (Fase 5: el servidor filtra los REMOVED del feed).

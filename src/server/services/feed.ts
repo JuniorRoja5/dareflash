@@ -18,7 +18,7 @@
  */
 import "server-only";
 
-import { CATEGORIES } from "@/config/constants";
+import { nombreCategoria } from "@/lib/categorias";
 import { retoEstaAbierto } from "@/lib/reto-ventana";
 import type { Db } from "@/server/db/types";
 
@@ -71,12 +71,6 @@ export type Firmante = (
 
 export const FEED_LIMITE_DEFECTO = 8;
 export const FEED_LIMITE_MAX = 20;
-
-/** Nombre visible de una categoria por su `key`; si la key no esta en el maestro, se muestra tal cual. */
-function nombreCategoria(key: string | null | undefined): string | null {
-  if (!key) return null;
-  return CATEGORIES.find((c) => c.key === key)?.es ?? key;
-}
 
 export async function feedPublicado(
   db: Db,
