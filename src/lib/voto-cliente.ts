@@ -1,19 +1,20 @@
 /**
- * ESTADO DE VOTO EN CLIENTE — dónde tengo el voto de cada reto y qué le he sumado al recuento.
+ * ESTADO DE VOTO EN CLIENTE — dónde tengo el voto de cada reto.
  *
  * Mismo patrón que el registro de "vistas" (`visto-cliente`) y por la misma razón: el botón del rail
  * del feed y el del modal del detalle son DOS montajes distintos del mismo componente, y la celda de
  * la rejilla es un tercero. Con estado local por componente se contradirían entre sí — votas en el
  * modal, lo cierras, y la celda de debajo sigue enseñando el número viejo.
  *
- * ┌─ POR QUÉ DOS MAPAS Y NO UNO ───────────────────────────────────────────────────────────────────┐
- * │ `votoPorReto`: dónde está mi voto, POR RETO. La regla del producto es "un voto por reto", así    │
- * │   que el reto es la clave natural: mover el voto es cambiar ESE valor, y por eso el origen se    │
- * │   descubre solo (no hay que buscarlo por ninguna lista).                                         │
- * │ `deltaPorParticipacion`: lo que YO he sumado o restado al recuento que vino del servidor. Se     │
- * │   guarda el DELTA, no el total: el total de partida lo trae cada superficie en su payload y       │
- * │   puede ser distinto (dos páginas del feed cargadas en momentos distintos). Guardar totales       │
- * │   obligaría a decidir cuál gana; con deltas, cada superficie suma el suyo y ninguna miente.       │
+ * ┌─ SE GUARDA UNA POSICIÓN, NO UNA CANTIDAD ──────────────────────────────────────────────────────┐
+ * │ `votoPorReto` (dónde está mi voto, por reto) es TODO el estado compartido. La regla del producto │
+ * │ es "un voto por reto", así que el reto es la clave natural: mover el voto es cambiar ESE valor,   │
+ * │ y por eso el origen del movimiento se descubre solo.                                             │
+ * │                                                                                                  │
+ * │ Hubo además un mapa de DELTAS por participación, y fue un bug en producción (recuentos de 2       │
+ * │ donde debía haber 1, y −1 al quitar). Un delta es RELATIVO a un total concreto; el mapa era       │
+ * │ compartido y cada superficie se lo aplicaba a SU total, capturado en otro momento. La cantidad    │
+ * │ NO se comparte: cada superficie deriva su número con `votosMostrados` contra su propio payload.  │
  * └────────────────────────────────────────────────────────────────────────────────────────────────┘
  *
  * OPTIMISTA SOLO EN TU PROPIA ACCIÓN, y con reversión: se aplica el cambio antes de la respuesta y se
@@ -27,10 +28,15 @@ import { delCsrf, mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 // Estado
 // ---------------------------------------------------------------------------------------------
 
-/** retoId -> participación donde tengo el voto (`null` = no he votado en ese reto). */
+/**
+ * retoId -> participación donde tengo el voto (`null` = no he votado en ese reto).
+ *
+ * Es el ÚNICO estado compartido, y es una POSICIÓN, no una cantidad. Antes había además un mapa de
+ * deltas (participación -> lo que yo le había sumado) y ahí estaba el bug de producción: un delta es
+ * RELATIVO a un total concreto, pero el mapa era compartido y cada superficie lo aplicaba a SU total,
+ * capturado en otro momento. De ahí salían un 2 donde debía haber 1 y un −1 que no existe.
+ */
 const votoPorReto = new Map<string, string | null>();
-/** participacionId -> lo que YO le he sumado al recuento del servidor. */
-const deltaPorParticipacion = new Map<string, number>();
 /** Retos con una acción en vuelo: dos pulsaciones seguidas no lanzan dos peticiones. */
 const enCurso = new Set<string>();
 const oyentes = new Set<() => void>();
@@ -75,9 +81,37 @@ function sembrarSiFalta(retoId: string, miVoto: string | null | undefined): void
   votoPorReto.set(retoId, miVoto);
 }
 
-/** Lo que hay que sumarle al recuento que trajo el payload de esta participación. */
-export function deltaDe(participacionId: string): number {
-  return deltaPorParticipacion.get(participacionId) ?? 0;
+/**
+ * QUÉ NÚMERO ENSEÑAR. Cada superficie reconcilia contra SU PROPIO total, sin acumular nada.
+ *
+ * ┌─ POR QUÉ ES ABSOLUTO Y NO UN DELTA ────────────────────────────────────────────────────────────┐
+ * │ El payload de cada superficie trae dos cosas: `votos` (el total que vio el servidor en ESE       │
+ * │ instante) y `miVoto` (dónde estaba mi voto en ESE instante). Con las dos se sabe si ese total ya │
+ * │ contaba mi voto — y con eso se puede pasar del estado de entonces al de AHORA sin sumas          │
+ * │ acumuladas:                                                                                     │
+ * │                                                                                                 │
+ * │      mostrado = votos − (el total ya me contaba aquí) + (mi voto está aquí ahora)               │
+ * │                                                                                                 │
+ * │ IDEMPOTENTE por construcción: aplicarlo a un payload que YA refleja el voto da el mismo número   │
+ * │ (−1 +1). Ese era el "2 donde debía haber 1". Y AISLADO: dos superficies con totales de momentos  │
+ * │ distintos llegan cada una a su propio resultado correcto, sin contaminarse. Ese era el "−1".      │
+ * │                                                                                                 │
+ * │ El resultado solo puede moverse ±1 respecto del total del payload, así que no puede ser absurdo. │
+ * │ El `max(0)` es un cinturón para un payload incoherente (`miVoto` aquí con total 0, que no        │
+ * │ debería ocurrir): ver un número desactualizado es malo; ver uno IMPOSIBLE es peor.               │
+ * └────────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+export function votosMostrados(input: {
+  retoId: string;
+  participacionId: string;
+  /** Total que traía el payload de ESTA superficie. */
+  votos: number;
+  /** Voto del usuario en este reto SEGÚN ESE MISMO payload. */
+  miVoto: string | null;
+}): number {
+  const yaContado = input.miVoto === input.participacionId ? 1 : 0;
+  const ahora = votoVisible(input.retoId, input.miVoto) === input.participacionId ? 1 : 0;
+  return Math.max(0, input.votos - yaContado + ahora);
 }
 
 export function suscribirVotos(oyente: () => void): () => void {
@@ -90,27 +124,20 @@ export function suscribirVotos(oyente: () => void): () => void {
 /** Vacía el estado. Para los tests, y para cuando cambia la sesión (el voto era de otro usuario). */
 export function olvidarVotos(): void {
   votoPorReto.clear();
-  deltaPorParticipacion.clear();
   enCurso.clear();
   avisar();
 }
 
-function sumarDelta(participacionId: string, n: number): void {
-  const v = (deltaPorParticipacion.get(participacionId) ?? 0) + n;
-  if (v === 0) deltaPorParticipacion.delete(participacionId);
-  else deltaPorParticipacion.set(participacionId, v);
-}
-
 /**
- * Aplica el movimiento de voto de un reto: baja el origen (si lo había), sube el destino (si lo hay) y
- * apunta dónde queda. Sirve para votar (`destino`), quitar (`null`) y mover, que son la misma
- * operación con distintos extremos — escribirlas por separado era garantizar que una se desincronice.
+ * Mueve el voto de un reto a `destino` (`null` = quitarlo). Votar, mover y quitar son la misma
+ * operación con distintos extremos.
+ *
+ * Ya no lleva contabilidad de ninguna clase: solo apunta DÓNDE está el voto. Los recuentos los deriva
+ * cada superficie con `votosMostrados` contra su propio total, que es lo que hace imposible el doble
+ * conteo y los negativos.
  */
 function aplicar(retoId: string, destino: string | null): void {
-  const origen = votoPorReto.get(retoId) ?? null;
-  if (origen === destino) return;
-  if (origen) sumarDelta(origen, -1);
-  if (destino) sumarDelta(destino, 1);
+  if ((votoPorReto.get(retoId) ?? null) === destino) return;
   votoPorReto.set(retoId, destino);
   avisar();
 }

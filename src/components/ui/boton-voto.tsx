@@ -7,9 +7,9 @@ import { estaVista, suscribirVistas } from "@/lib/visto-cliente";
 import {
   accionQuitar,
   accionVotar,
-  deltaDe,
   estadoBoton,
   suscribirVotos,
+  votosMostrados,
   votoVisible,
 } from "@/lib/voto-cliente";
 
@@ -62,20 +62,26 @@ export function IconoVoto({ className = "h-5 w-5" }: { className?: string }) {
  * dos sitios de la misma pantalla contándose cosas distintas.
  */
 export function RecuentoVotos({
+  retoId,
   participacionId,
   votos,
+  miVoto,
   className = "",
 }: {
+  retoId: string;
   participacionId: string;
+  /** Total del payload de ESTA superficie. */
   votos: number;
+  /** Voto del usuario en este reto SEGÚN ESE MISMO payload: dice si `votos` ya lo contaba. */
+  miVoto: string | null;
   className?: string;
 }) {
-  const delta = useSyncExternalStore(
+  const mostrados = useSyncExternalStore(
     suscribirVotos,
-    () => deltaDe(participacionId),
-    () => 0,
+    () => votosMostrados({ retoId, participacionId, votos, miVoto }),
+    () => votos, // en el servidor no hay store: manda el total del payload, tal cual
   );
-  return <ContadorVotos votos={votos + delta} className={className} />;
+  return <ContadorVotos votos={mostrados} className={className} />;
 }
 
 /**
@@ -86,7 +92,12 @@ export function RecuentoVotos({
  * fallback ya devuelve el valor del payload desde el PRIMER render —también en el snapshot del
  * servidor—, no hay parpadeo ni desajuste de hidratación: el botón nace pintado.
  */
-function useEstadoVoto(retoId: string, participacionId: string, miVoto: string | null) {
+function useEstadoVoto(
+  retoId: string,
+  participacionId: string,
+  miVoto: string | null,
+  votos: number,
+) {
   const visto = useSyncExternalStore(
     suscribirVistas,
     () => estaVista(participacionId),
@@ -97,12 +108,12 @@ function useEstadoVoto(retoId: string, participacionId: string, miVoto: string |
     () => votoVisible(retoId, miVoto),
     () => miVoto, // en el servidor no hay store: manda el payload, que es justo lo que hay que pintar
   );
-  const delta = useSyncExternalStore(
+  const mostrados = useSyncExternalStore(
     suscribirVotos,
-    () => deltaDe(participacionId),
-    () => 0,
+    () => votosMostrados({ retoId, participacionId, votos, miVoto }),
+    () => votos,
   );
-  return { visto, votoActual, delta };
+  return { visto, votoActual, mostrados };
 }
 
 export interface BotonVotoProps {
@@ -132,7 +143,7 @@ export function BotonVoto({
 }: BotonVotoProps) {
   // El render NO escribe en el store: `useEstadoVoto` solo lee, con el prop como respaldo. La siembra
   // ocurre perezosamente dentro del handler, justo antes de aplicar el cambio (ver `voto-cliente`).
-  const { visto, votoActual, delta } = useEstadoVoto(retoId, participacionId, miVoto);
+  const { visto, votoActual, mostrados } = useEstadoVoto(retoId, participacionId, miVoto, votos);
   const [aviso, setAviso] = useState<string | null>(null);
   const [mover, setMover] = useState<{ mensaje: string; votoActualEn: string | null } | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -192,7 +203,7 @@ export function BotonVoto({
 
   const contador = (
     <span className="tabular-nums">
-      <ContadorVotos votos={votos + delta} />
+      <ContadorVotos votos={mostrados} />
     </span>
   );
 

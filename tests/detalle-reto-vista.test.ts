@@ -49,8 +49,8 @@ describe("presentación de las participaciones", () => {
 
   it("muestra autor y votos con las piezas compartidas (misma lectura que el feed)", () => {
     expect(VISTA_PARTICIPACIONES).toContain('from "@/lib/identidad"');
-    // El recuento pasa por `RecuentoVotos` (Pieza 3B), que envuelve a `ContadorVotos` añadiéndole el
-    // delta optimista compartido. La decisión que fija este test sigue siendo la misma —el número lo
+    // El recuento pasa por `RecuentoVotos` (Pieza 3B), que envuelve a `ContadorVotos` reconciliando
+    // el voto propio contra el total de esta superficie. La decisión que fija este test es la misma —el número lo
     // pinta una primitiva compartida, no un `toLocaleString` a mano—, pero ahora la celda tiene que
     // usar la versión que se entera de TUS votos: si volviera al `ContadorVotos` crudo, votar en el
     // modal y cerrarlo dejaría la celda de debajo con el número viejo.

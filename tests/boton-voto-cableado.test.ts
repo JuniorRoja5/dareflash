@@ -63,10 +63,15 @@ describe("placement: botón donde hay reproductor, nunca en la celda", () => {
     const src = leer(DETALLE);
     const celda = src.slice(src.indexOf("function Celda"), src.indexOf("<ModalReproductor"));
     expect(celda).not.toContain("<BotonVoto");
-    // Y el recuento es el COMPARTIDO (respeta tu delta), no el crudo: si no, votar en el modal y
-    // cerrarlo dejaría la celda de debajo con el número viejo.
+    // Y el recuento es el RECONCILIADO, no el crudo: si no, votar en el modal y cerrarlo dejaría la
+    // celda de debajo con el número viejo.
     expect(celda).toContain("<RecuentoVotos");
     expect(celda).not.toContain("<ContadorVotos");
+    // Reconciliar exige el payload ENTERO de esta superficie: su total Y su `miVoto` (que es lo que
+    // dice si ese total ya contaba el voto). Sin `miVoto` solo se puede acumular un delta, que fue
+    // el bug de producción — el 2 donde debía haber 1 y el −1 al quitar.
+    expect(celda).toMatch(/miVoto={/);
+    expect(celda).toMatch(/retoId={/);
   });
 });
 
@@ -98,6 +103,15 @@ describe("el estado viene del payload, no de una ida y vuelta", () => {
   it("no queda ninguna puerta para sembrar desde fuera del handler", () => {
     // La siembra es interna al store: si volviera a exportarse, alguien la llamaría en un render.
     expect(leer("src/lib/voto-cliente.ts")).not.toMatch(/export function sembrar/);
+  });
+
+  it("el recuento NO se acumula: se reconcilia contra el total de cada superficie", () => {
+    const store = leer("src/lib/voto-cliente.ts");
+    // El estado compartido es una POSICIÓN (dónde está el voto), nunca una CANTIDAD. Un mapa de
+    // deltas volvería a aplicar el ajuste de una pantalla al total de otra.
+    expect(store).not.toMatch(/const deltaw* = new Map/);
+    expect(store).not.toMatch(/export function deltaDe/);
+    expect(leer(BOTON)).toContain("votosMostrados({ retoId, participacionId, votos, miVoto })");
   });
 
   it("el texto y el aria salen de tablas de copy, nunca del código del estado", () => {

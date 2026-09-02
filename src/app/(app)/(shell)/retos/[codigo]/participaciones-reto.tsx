@@ -199,7 +199,12 @@ function Celda({
               {/* Votos: NEUTROS (la primitiva manda). No llevan lima: la lima es DINERO, y un voto
                   no es dinero; el premio del reto ya ocupa ese color en la cabecera. */}
               <span className="pointer-events-none absolute right-2 bottom-2 flex items-center gap-1 rounded-full bg-void/70 px-2 py-0.5 text-2xs font-semibold text-text backdrop-blur-sm">
-                <RecuentoVotos participacionId={p.submissionId} votos={p.votos} />
+                <RecuentoVotos
+                  retoId={challengeId}
+                  participacionId={p.submissionId}
+                  votos={p.votos}
+                  miVoto={miVoto}
+                />
                 <span>{p.votos === 1 ? "voto" : "votos"}</span>
               </span>
             </>
