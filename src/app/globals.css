@@ -102,6 +102,17 @@
     transparent 60%
   );
   --df-glow-money: radial-gradient(900px 520px at 4% 106%, rgb(217 243 43 / 0.06), transparent 60%);
+  /* VELO del fondo de vídeo (Inicio). Oscurece el loop para que el hero, el marcador, el CTA y las
+     stats se lean encima. Se DERIVA de `--color-void` con `color-mix` en vez de escribir un rgba a
+     mano: si la paleta cambia, el velo cambia con ella. Más denso abajo, donde cae el contenido con
+     más texto. El oscurecido va AQUÍ y no horneado en el vídeo: así se ajusta sin volver a exportar
+     el asset, y el mismo velo hace de telón cuando el vídeo no se monta (móvil / movimiento reducido). */
+  --df-velo-fondo: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--color-void) 74%, transparent),
+    color-mix(in srgb, var(--color-void) 88%, transparent) 55%,
+    color-mix(in srgb, var(--color-void) 96%, transparent)
+  );
   /* SOMBRAS SUAVES (oscuras: profundidad sin negro duro) */
   --df-shadow-sm: 0 10px 26px -14px rgb(0 0 0 / 0.6);
   --df-shadow-md: 0 24px 54px -26px rgb(0 0 0 / 0.72);

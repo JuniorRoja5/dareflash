@@ -427,6 +427,16 @@ export const VISTO_TTL_SEC = 30 * 60; // 30 min
 export const MSG_VOTO_SIN_VER = "Reproduce este vídeo para poder votarlo.";
 
 /**
+ * Vídeo de fondo en bucle de la HOME, servido por la CDN de assets de Bunny.
+ *
+ * Es una CONSTANTE y no una variable de entorno a proposito: el asset es PUBLICO (sin Token Auth), asi
+ * que no hay nada que ocultar, y `env.ts` valida de forma perezosa pero el build de produccion corre
+ * SIN variables — promoverla a env obligatoria seria meter una URL publica en el camino que tumba el
+ * despliegue si falta. Fuente UNICA: nadie la escribe en un JSX.
+ */
+export const VIDEO_FONDO_HOME = "https://dareflash-assets.b-cdn.net/fondo-home.mp4";
+
+/**
  * Copy de los rechazos de la ruta de voto. Aqui, y no dentro de la ruta, por la misma razon que el de
  * arriba: el servidor emite copy humano ya listo (`error.message`), nunca un codigo crudo, y la Pieza 3
  * lo pinta tal cual sin traducir nada.
