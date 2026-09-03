@@ -186,8 +186,14 @@
     color-scheme: dark; /* oscuro siempre: el producto es video a pantalla completa */
     background-color: var(--color-void);
   }
+  /* `body` NO repinta el fondo: lo pinta `html` (arriba) y de ahí sale el lienzo de la página.
+     Ponerlo en los dos parecía inofensivo y no lo era. El orden de pintado del contexto de apilado
+     raíz es: fondo de `html` -> hijos con z-index NEGATIVO -> bloques en flujo. El fondo de `body`
+     cae en ese último grupo, así que se pintaba ENCIMA de cualquier capa `-z-10` y tapaba el vídeo
+     de fondo de Inicio por completo. Con `body` transparente, el lienzo lo sigue dando `html` —el
+     resto de pantallas se ven exactamente igual— y la capa de fondo queda por encima de él y por
+     debajo del contenido, que es donde tiene que estar. */
   body {
-    background-color: var(--color-void);
     color: var(--color-text);
     font-family: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;

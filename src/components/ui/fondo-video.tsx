@@ -15,11 +15,19 @@ import { CONSULTA_ESCRITORIO, CONSULTA_MOVIMIENTO, debeMontarVideoFondo } from "
  * │   elemento no llega a existir, así que sus bytes no se piden nunca (ver `lib/fondo-video`).      │
  * └────────────────────────────────────────────────────────────────────────────────────────────────┘
  *
- * DÓNDE MONTARLO: es `position: fixed`, así que NINGÚN ancestro puede tener `transform`, `filter` ni
- * `overflow: clip` — cualquiera de los tres le crea un bloque contenedor y el `inset-0` deja de ser el
- * viewport. En Inicio eso descarta colgarlo del `<section className="df-rise">` (anima transform) y del
- * contenedor de página (lleva `overflow-x-clip`): va como HERMANO de ambos. Es la misma trampa que nos
+ * DÓNDE MONTARLO: es `position: fixed`, así que ningún ancestro puede crearle un BLOQUE CONTENEDOR —
+ * lo hacen `transform`, `filter`, `perspective`, `backdrop-filter`, `will-change` de cualquiera de
+ * ellos, y `contain`—, porque entonces el `inset-0` deja de ser el viewport. En Inicio eso descarta
+ * colgarlo del `<section className="df-rise">`, que ANIMA `transform`: es la misma trampa que nos
  * mordió con la capa del feed del reto.
+ *
+ * (El contenedor de página lleva además `overflow-x-clip`. Eso NO crea bloque contenedor —solo
+ * recorta—, pero recortaría igual esta capa, así que montarla FUERA resuelve las dos cosas de una vez.)
+ *
+ * Y VA POR ENCIMA DEL FONDO BASE: con `-z-10` la capa se pinta después del fondo de `html` y antes del
+ * contenido. Por eso `body` NO puede repintar un `void` opaco —lo tenía y tapaba el vídeo entero—: el
+ * fondo de `body` es un bloque en flujo y esos se pintan DESPUÉS de los z-index negativos. Ver el
+ * comentario de `body` en `globals.css`.
  *
  * NO COMPITE CON EL CTA: el velo es oscuro y liso, sin glow magenta añadido. El vídeo ya trae sus rayos
  * horneados, y el único magenta de ACCIÓN de la pantalla sigue siendo "Crear reto".

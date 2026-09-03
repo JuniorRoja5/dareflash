@@ -147,3 +147,18 @@ describe("fuente única: la URL y el velo", () => {
     expect(soloCodigo(leer(COMPONENTE))).not.toContain("glow-accion");
   });
 });
+
+describe("el fondo base no puede tapar la capa", () => {
+  it("`body` NO repinta un fondo opaco: lo pinta `html`", () => {
+    // ESTO se coló hasta la revisión. El orden de pintado del contexto de apilado raíz es: fondo de
+    // `html` -> hijos con z-index NEGATIVO -> bloques en flujo. El fondo de `body` cae en el último
+    // grupo, así que un `background-color` ahí se pinta ENCIMA de la capa `-z-10` y el vídeo no se ve.
+    // Reproducido y confirmado en Chromium real antes de arreglarlo.
+    const css = leer(CSS);
+    const body = css.slice(css.indexOf("\n  body {"), css.indexOf("}", css.indexOf("\n  body {")));
+    expect(body).not.toContain("background");
+    // Y el lienzo lo sigue dando `html`: quitarlo de los dos dejaría la página en blanco.
+    const html = css.slice(css.indexOf("\n  html {"), css.indexOf("}", css.indexOf("\n  html {")));
+    expect(html).toContain("background-color: var(--color-void)");
+  });
+});
