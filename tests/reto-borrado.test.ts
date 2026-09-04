@@ -9,6 +9,9 @@
  * contenido de terceros — que es exactamente el daño del que la gracia de 7 días quiere proteger. Los
  * vídeos siguen siendo de sus autores y siguen en su perfil; lo que desaparece es el RETO.
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { RETO_GRACIA_BORRADO_MS } from "../src/config/constants";
@@ -218,5 +221,33 @@ describe("borrar un reto NO destruye los vídeos de sus participantes", () => {
       select: { status: true },
     });
     expect(v.status).toBe("PUBLISHED");
+  });
+});
+
+/**
+ * EL COPY NO PROMETE LO QUE EL SISTEMA NO HACE.
+ *
+ * Al vencer la gracia NO se destruye nada: el reto queda oculto y deja de poder restaurarse. Decir
+ * "se borrará" prometía una destrucción que no ocurre — y prometer una protección (o un efecto)
+ * inexistente es peor que no prometer nada.
+ */
+describe("la UI dice lo que de verdad pasa", () => {
+  const leer = (): string =>
+    readFileSync(path.resolve(__dirname, "..", "src/app/panel/lista-retos.tsx"), "utf8")
+      .replace(/\{?\/\*[\s\S]*?\*\/\}?/g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+
+  it("ningún texto visible promete un borrado que no ocurre", () => {
+    const src = leer();
+    // Se habla de OCULTAR, que es lo que el sistema hace de verdad.
+    expect(src).toContain("Ocultar, 7 días para deshacer");
+    expect(src).toContain("Ocultar sin vuelta atrás");
+    expect(src).not.toContain("Se borrará");
+    expect(src).not.toContain("Borrar ya");
+  });
+
+  it("dice explícitamente que los vídeos de los participantes se conservan", () => {
+    // Es la duda que tiene cualquier admin antes de pulsar, y la respuesta estaba solo en el código.
+    expect(leer()).toContain("Los vídeos de los participantes se conservan");
   });
 });

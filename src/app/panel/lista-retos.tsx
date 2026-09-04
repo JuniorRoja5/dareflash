@@ -75,8 +75,12 @@ const PINTURA_ESTADO: Record<EstadoRetoAdmin, { texto: string; clase: string }> 
   programado: { texto: "Programado", clase: "bg-raised text-text" },
   abierto: { texto: "Abierto", clase: "bg-ok/15 text-ok" },
   cerrado: { texto: "Cerrado", clase: "bg-raised text-text-dim" },
-  "en-borrado": { texto: "Se borrará", clase: "bg-alarm/15 text-alarm" },
-  borrado: { texto: "Borrado", clase: "bg-alarm/10 text-alarm" },
+  // OJO con el copy de estos dos: NADA se destruye. El reto se OCULTA del público y los vídeos de
+  // sus participantes siguen en el perfil de sus autores (decisión cerrada). Lo único que cambia al
+  // vencer la gracia es que deja de poder deshacerse — así que las etiquetas dicen eso y no "borrado",
+  // que prometía una destrucción que el sistema no hace.
+  "en-borrado": { texto: "Oculto · reversible", clase: "bg-alarm/15 text-alarm" },
+  borrado: { texto: "Oculto", clase: "bg-alarm/10 text-alarm" },
 };
 
 function PildoraEstado({ estado }: { estado: EstadoRetoAdmin }) {
@@ -90,7 +94,7 @@ function PildoraEstado({ estado }: { estado: EstadoRetoAdmin }) {
   );
 }
 
-/** Días que quedan de la gracia, para que el admin sepa cuánto le queda para arrepentirse. */
+/** Días que quedan para PODER DESHACER. Pasados, el ocultado se queda; nada se destruye. */
 function diasRestantes(eliminaEnMs: number): number {
   return Math.max(0, Math.ceil((eliminaEnMs - Date.now()) / (24 * 60 * 60 * 1000)));
 }
@@ -120,19 +124,25 @@ function Borrar({ id, onHecho }: { id: string; onHecho: () => void }) {
   if (fase === "elegir") {
     return (
       <span className="flex flex-wrap items-center justify-end gap-2 text-2xs">
+        <span className="w-full text-right text-text-dim">
+          Los vídeos de los participantes se conservan en su perfil.
+        </span>
+        {/* Las dos OCULTAN el reto al instante; lo que las diferencia es si se puede deshacer. El
+            copy lo dice tal cual: prometer un "borrado" que el sistema no hace es peor que no
+            prometer nada, y los vídeos de los participantes se conservan en los dos casos. */}
         <button
           type="button"
           onClick={() => void borrar(false)}
           className="min-h-[32px] rounded-sm border border-line px-2 font-medium text-text transition-colors hover:bg-raised"
         >
-          Dejarlo 7 días y borrar
+          Ocultar, 7 días para deshacer
         </button>
         <button
           type="button"
           onClick={() => void borrar(true)}
           className="min-h-[32px] rounded-sm border border-line px-2 font-medium text-alarm transition-colors hover:bg-raised"
         >
-          Borrar ya
+          Ocultar sin vuelta atrás
         </button>
         <button
           type="button"
@@ -244,7 +254,7 @@ export function ListaRetos({
                 <PildoraEstado estado={estadoRetoAdmin(fila(r))} />
                 {r.eliminaEnMs !== null ? (
                   <p className="mt-1 text-2xs text-text-dim">
-                    Quedan {diasRestantes(r.eliminaEnMs)} d
+                    {diasRestantes(r.eliminaEnMs)} d para deshacer
                   </p>
                 ) : null}
               </td>

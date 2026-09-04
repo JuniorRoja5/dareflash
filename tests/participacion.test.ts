@@ -104,12 +104,28 @@ describe("iniciarParticipacion", () => {
     expect(retry.submissionId).not.toBe(primera.submissionId);
   });
 
-  it("Video REMOVED (retirado por moderación) -> bloqueada", async () => {
+  it("Video REMOVED por MODERACION -> bloqueada", async () => {
+    const primera = await iniciar();
+    if (primera.modo === "bloqueada") throw new Error("inesperado");
+    await setVideo(primera.videoId, "REMOVED");
+    await prisma.submission.update({
+      where: { id: primera.submissionId },
+      data: { status: "REMOVED", retiradaMotivo: "MODERACION", retiradaEn: new Date() },
+    });
+    const r = await iniciar();
+    expect(r.modo).toBe("bloqueada");
+  });
+
+  it("Video REMOVED SIN motivo (borrado del dueño, o fila antigua) -> NO bloquea", async () => {
+    // Este test decia antes que un REMOVED a secas bloqueaba, y esa era justo la regla equivocada:
+    // vetaba de por vida a quien borraba su propio video. Desde que la moderacion es un campo
+    // EXPLICITO, un estado de video por si solo no puede ser un veto — si nadie modero, no hay nada
+    // que vetar. Se re-expresa el invariante, no se afloja: la moderacion sigue bloqueando (arriba).
     const primera = await iniciar();
     if (primera.modo === "bloqueada") throw new Error("inesperado");
     await setVideo(primera.videoId, "REMOVED");
     const r = await iniciar();
-    expect(r.modo).toBe("bloqueada");
+    expect(r.modo).toBe("primera");
   });
 });
 

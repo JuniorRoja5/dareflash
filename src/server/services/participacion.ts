@@ -62,19 +62,12 @@ export async function iniciarParticipacion(
 
   if (!existente) return crearPrimera();
 
-  // MODERACIÓN: lo único que bloquea. Se comprueba PRIMERO y con el campo explícito.
+  // MODERACIÓN: lo ÚNICO que bloquea, y se comprueba con el campo explícito.
   if (existente.retiradaMotivo === "MODERACION") return { modo: "bloqueada", motivo: "MODERACION" };
 
   const estado = existente.video.status;
 
-  // Hueco LIBERABLE: o el dueño borró su vídeo, o la subida anterior nunca llegó a procesarse
-  // (FAILED). En los dos casos no queda nada que reemplazar: se libera el `unique` borrando la
-  // Submission vieja y se empieza de cero. (El Video queda; su objeto en Bunny lo barre la limpieza.)
-  if (existente.retiradaMotivo === "DUENO" || estado === "FAILED") {
-    await tx.submission.delete({ where: { id: existente.id } });
-    return crearPrimera();
-  }
-
+  // PARTICIPACIÓN VIVA: hay algo que reemplazar.
   if (estado === "PUBLISHED" || estado === "PENDING") {
     const v = await tx.video.create({
       data: { userId, bunnyVideoId: bunnyGuid, title, reemplazaSubmissionId: existente.id },
@@ -83,8 +76,23 @@ export async function iniciarParticipacion(
     return { modo: "reemplazo", videoId: v.id, submissionId: existente.id };
   }
 
-  // REJECTED (y cualquier estado futuro que no sea publicable): se trata como retirada de moderación.
-  return { modo: "bloqueada", motivo: estado };
+  // TODO LO DEMÁS es un hueco LIBERABLE: se borra la Submission vieja (libera el `unique`) y se
+  // empieza de cero. El Video queda; su objeto en Bunny lo barre la limpieza de huérfanos.
+  //
+  // ┌─ POR QUÉ AQUÍ NO PUEDE HABER UN `return bloqueada` ──────────────────────────────────────────┐
+  // │ Lo había, y vetaba a gente que no había hecho nada. Un borrado del dueño ANTERIOR a que        │
+  // │ existiera `retiradaMotivo` dejó filas con motivo NULL y vídeo REMOVED: no eran MODERACION, ni  │
+  // │ DUENO, ni FAILED, ni publicables, así que caían aquí y quedaban bloqueadas para siempre. El     │
+  // │ backfill no las podía arreglar porque de esas filas no consta que hubiera moderación — y no     │
+  // │ constaba porque NO la hubo.                                                                    │
+  // │                                                                                                │
+  // │ Desde que la moderación es un campo EXPLÍCITO, un estado de vídeo por sí solo NO puede ser un   │
+  // │ veto: si nadie moderó, no hay nada que vetar. Lo mismo vale para REJECTED (que hoy no lo        │
+  // │ escribe ningún camino) y para cualquier estado futuro. Así el estado inválido —"bloqueado sin   │
+  // │ que conste moderación"— deja de ser representable.                                             │
+  // └────────────────────────────────────────────────────────────────────────────────────────────────┘
+  await tx.submission.delete({ where: { id: existente.id } });
+  return crearPrimera();
 }
 
 /**
@@ -104,12 +112,13 @@ export async function puedeParticipar(
 ): Promise<{ puede: boolean }> {
   const existente = await db.submission.findUnique({
     where: { challengeId_userId: entrada },
-    select: { retiradaMotivo: true, video: { select: { status: true } } },
+    select: { retiradaMotivo: true },
   });
-  if (!existente) return { puede: true };
-  if (existente.retiradaMotivo === "MODERACION") return { puede: false };
-  if (existente.retiradaMotivo === "DUENO") return { puede: true };
-  return { puede: existente.video.status !== "REJECTED" };
+  // MISMA regla, EXACTAMENTE, que `iniciarParticipacion`: solo la moderación bloquea. Cuando las dos
+  // no coincidían, esta dejaba pasar y la otra bloqueaba — así que la petición creaba el objeto en
+  // Bunny y ERA la transacción la que la rechazaba: volvía el huérfano que esta guarda existe para
+  // evitar. Por eso ya no mira el estado del vídeo: mirar cosas distintas es cómo se separaron.
+  return { puede: existente?.retiradaMotivo !== "MODERACION" };
 }
 
 /**
