@@ -91,8 +91,16 @@ export function TarjetaVerificacion() {
           <p role="status" className="mb-6 mt-1.5 text-sm text-ok">
             {mensaje}
           </p>
-          <Boton href="/" variante="secundario" className="w-full">
-            Volver al inicio
+          {/* A INICIAR SESIÓN, no a la home. Verificar el correo NO deja al usuario dentro: acaba de
+              confirmar su dirección y lo siguiente que quiere es entrar. Mandarlo a la home le dejaba
+              en la misma pantalla de invitado y teniendo que buscar el login por su cuenta.
+              Es la ÚNICA acción de esta vista, así que le toca el magenta. */}
+          <Boton
+            href="/entrar"
+            variante="principal"
+            className="w-full py-3.5 shadow-[var(--df-cta-lift)]"
+          >
+            Iniciar sesión
           </Boton>
         </>
       )}
