@@ -257,6 +257,12 @@ export interface ParticipacionAdmin extends ParticipacionBase {
   creadaEn: Date;
   /** Solo un vídeo PUBLISHED es reproducible (lo reexige el endpoint firmado); el resto, no. */
   reproducible: boolean;
+  /**
+   * ¿Hay un veto de MODERACIÓN que el admin pueda levantar? Es lo que distingue "la retiré yo" de "el
+   * dueño borró su vídeo": las dos se ven "retirada" en la tabla, pero solo la primera bloquea al
+   * usuario, y solo la primera tiene algo que deshacer.
+   */
+  bloqueadaPorModeracion: boolean;
 }
 
 export interface PaginaParticipacionesAdmin {
@@ -305,6 +311,7 @@ export async function listarParticipacionesAdmin(
     select: {
       id: true,
       status: true,
+      retiradaMotivo: true,
       voteCount: true,
       createdAt: true,
       video: {
@@ -335,6 +342,7 @@ export async function listarParticipacionesAdmin(
     estado: estadoAdmin(f.status, f.video.status),
     creadaEn: f.createdAt,
     reproducible: f.video.status === "PUBLISHED",
+    bloqueadaPorModeracion: f.retiradaMotivo === "MODERACION",
   }));
 
   const ultima = visibles[visibles.length - 1];

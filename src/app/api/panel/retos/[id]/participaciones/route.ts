@@ -68,6 +68,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         estado: p.estado,
         creadaEnMs: p.creadaEn.getTime(),
         reproducible: p.reproducible,
+        bloqueadaPorModeracion: p.bloqueadaPorModeracion,
       })),
       nextCursor,
     });

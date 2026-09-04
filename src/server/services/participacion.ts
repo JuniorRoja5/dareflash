@@ -217,6 +217,44 @@ export async function retirarParticipacion(
 }
 
 /**
+ * LEVANTAR el bloqueo de moderación de una participación (ADMIN). Es el INVERSO de
+ * `retirarParticipacion`, y hasta ahora no existía: una retirada no tenía vuelta atrás, así que un
+ * error de moderación —o un caso que se revisa y se acepta— vetaba al usuario de ese reto para
+ * siempre, sin más arreglo que tocar la base de datos a mano.
+ *
+ * NO republica nada. La participación retirada SIGUE retirada y su vídeo no vuelve al feed: lo único
+ * que se levanta es el VETO a volver a participar. Republicar contenido que un moderador retiró es
+ * otra decisión, y mucho más delicada; esto solo devuelve al usuario el derecho a intentarlo con un
+ * vídeo nuevo.
+ *
+ * Se hace BORRANDO la Submission retirada, no poniendo su motivo a `null`: mientras exista ocupa el
+ * `@@unique([challengeId, userId])` y el usuario no podría crear una nueva. Es la misma vía que ya
+ * usa `iniciarParticipacion` para liberar el hueco de una subida fallida.
+ *
+ * IDEMPOTENTE: desbloquear dos veces no falla. Devuelve si había algo que desbloquear.
+ */
+export async function desbloquearParticipacion(
+  db: PrismaClient,
+  submissionId: string,
+): Promise<{ desbloqueada: boolean }> {
+  return db.$transaction(async (tx) => {
+    const sub = await tx.submission.findUnique({
+      where: { id: submissionId },
+      select: { id: true, retiradaMotivo: true },
+    });
+    // Solo se levanta un bloqueo de MODERACIÓN. Una participación VIVA no se toca (borrarla sería
+    // destruir contenido publicado), y una retirada por el DUEÑO no bloquea nada que levantar.
+    if (!sub || sub.retiradaMotivo !== "MODERACION") return { desbloqueada: false };
+
+    // Los votos de una participación retirada no valen para nada, y `Vote` no tiene FK (no hay
+    // cascada): se limpian aquí para no dejar filas apuntando a una submission que ya no existe.
+    const { resetearVotosDeParticipacion } = await import("./votes");
+    await resetearVotosDeParticipacion(tx, sub.id);
+    await tx.submission.delete({ where: { id: sub.id } });
+    return { desbloqueada: true };
+  });
+}
+/**
  * Se llama JUSTO tras publicar un Video (confirmación del worker). Si el Video es un REEMPLAZO
  * (`reemplazaSubmissionId` seteado) -> completa el swap (red de seguridad ante un cliente que se fue).
  * Si es una PRIMERA participación (tiene Submission propia en PENDING) -> publica esa Submission

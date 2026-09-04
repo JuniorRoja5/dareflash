@@ -21,6 +21,9 @@ export interface ParticipacionPanelUI {
   estado: EstadoParticipacionAdmin;
   creadaEnMs: number;
   reproducible: boolean;
+  /** ¿Hay un veto de MODERACION que levantar? Distingue "la retire yo" de "el dueno borro su video":
+   *  las dos se ven "retirada", pero solo la primera bloquea al usuario y solo ella tiene vuelta atras. */
+  bloqueadaPorModeracion: boolean;
 }
 
 /**
@@ -226,10 +229,15 @@ function Fila({ p, onRetirada }: { p: ParticipacionPanelUI; onRetirada: () => vo
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center justify-end gap-2">
-          {p.estado === "retirada" ? (
-            <span className="text-2xs text-text-dim">Ya retirada</span>
-          ) : (
+          {p.estado !== "retirada" ? (
             <Retirar submissionId={p.submissionId} autor={autor} onRetirada={onRetirada} />
+          ) : p.bloqueadaPorModeracion ? (
+            // Retirada POR MODERACIÓN: hay un veto que levantar. Antes esto era un rótulo muerto
+            // ("Ya retirada") y una retirada equivocada dejaba al usuario fuera del reto para siempre.
+            <Desbloquear submissionId={p.submissionId} autor={autor} onHecho={onRetirada} />
+          ) : (
+            // Retirada por el DUEÑO: no hay veto, así que no hay nada que deshacer.
+            <span className="text-2xs text-text-dim">La retiró su autor</span>
           )}
         </div>
       </td>
@@ -318,5 +326,77 @@ function IconoPlay() {
     >
       <path d="M9 6.5v11l9-5.5z" />
     </svg>
+  );
+}
+
+/**
+ * DESBLOQUEAR (solo admin). El INVERSO de Retirar, que hasta ahora no existía: una retirada
+ * equivocada dejaba al usuario fuera del reto para siempre y solo se arreglaba tocando la base de
+ * datos a mano.
+ *
+ * NO republica el vídeo retirado —eso sería revertir la decisión de moderación, que es otra cosa— y
+ * el copy lo dice, para que nadie pulse creyendo que restaura el contenido. Misma confirmación de dos
+ * pasos que Retirar: también afecta a un usuario real.
+ */
+function Desbloquear({
+  submissionId,
+  autor,
+  onHecho,
+}: {
+  submissionId: string;
+  autor: string;
+  onHecho: () => void;
+}) {
+  const [fase, setFase] = useState<"idle" | "confirmar" | "enviando" | "error">("idle");
+
+  async function desbloquear(): Promise<void> {
+    setFase("enviando");
+    try {
+      const r = await postJsonCsrf(`/api/panel/participaciones/${submissionId}/desbloquear`, {});
+      if (r.ok) {
+        onHecho();
+        return;
+      }
+      setFase("error");
+    } catch {
+      setFase("error");
+    }
+  }
+
+  if (fase === "confirmar") {
+    return (
+      <span className="flex items-center gap-2 text-2xs">
+        <span className="text-text-dim">¿Dejar que {autor} vuelva a participar?</span>
+        <button
+          type="button"
+          onClick={() => void desbloquear()}
+          className="min-h-[32px] rounded-sm border border-line px-2 font-medium text-text transition-colors hover:bg-raised"
+        >
+          Sí, desbloquear
+        </button>
+        <button
+          type="button"
+          onClick={() => setFase("idle")}
+          className="min-h-[32px] rounded-sm border border-line px-2 text-text-dim transition-colors hover:bg-raised"
+        >
+          Cancelar
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setFase("confirmar")}
+        disabled={fase === "enviando"}
+        title="Levanta el veto para que pueda subir otro vídeo. NO republica el que se retiró."
+        className="min-h-[36px] rounded-sm border border-line px-3 text-sm font-medium text-text-dim transition-colors duration-150 ease-mechanical hover:bg-raised hover:text-text disabled:opacity-40"
+      >
+        {fase === "enviando" ? "Desbloqueando…" : "Desbloquear"}
+      </button>
+      {fase === "error" ? <span className="text-2xs text-alarm">No se pudo</span> : null}
+    </span>
   );
 }

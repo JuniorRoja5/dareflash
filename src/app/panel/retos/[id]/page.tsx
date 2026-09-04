@@ -67,6 +67,7 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
     estado: p.estado,
     creadaEnMs: p.creadaEn.getTime(),
     reproducible: p.reproducible,
+    bloqueadaPorModeracion: p.bloqueadaPorModeracion,
   }));
 
   const categoria = CATEGORIES.find((c) => c.key === reto.category);
