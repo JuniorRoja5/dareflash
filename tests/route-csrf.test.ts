@@ -29,6 +29,9 @@ const API_DIR = join(process.cwd(), "src", "app", "api");
 //    (sin enumeracion) + rate-limit por IP y por direccion.
 //  - reset-password: el dueño llega desde el correo de reset, sin sesion. El token es de un solo uso
 //    y de 256 bits; ademas revoca TODAS las sesiones al aplicar la contrasena nueva.
+//  - confirmar-email: el dueño confirma su direccion NUEVA desde el correo, donde no hay sesion de
+//    DareFlash (la sesion que tuviera es de la cuenta VIEJA, y ademas se revoca al aplicar). El token
+//    es de un solo uso, de 256 bits, caduca en 24 h y su proposito va dentro del WHERE.
 const EXEMPT = new Set([
   "auth/login",
   "auth/register",
@@ -37,6 +40,7 @@ const EXEMPT = new Set([
   "auth/unlock",
   "auth/forgot-password",
   "auth/reset-password",
+  "auth/confirmar-email",
 ]);
 
 const METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;

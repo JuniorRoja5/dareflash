@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Boton } from "@/components/ui/boton";
 
+import { CambiarEmail } from "./cambiar-email";
 import { CambiarPassword } from "./cambiar-password";
 import { FormularioEditarPerfil } from "./formulario-editar-perfil";
 
@@ -43,6 +44,8 @@ export default async function EditarPerfilPage() {
   const perfil = await prisma.user.findUnique({
     where: { id: sesion.userId },
     select: {
+      email: true,
+      emailPendiente: true,
       displayName: true,
       username: true,
       image: true,
@@ -79,6 +82,12 @@ export default async function EditarPerfilPage() {
       >
         {/* Contraseña: va en la columna DERECHA bajo Perfil (el form la coloca). Sesión ya exigida
             arriba; el endpoint re-verifica (mutatingRoute). */}
+        {/* Correo ANTES que contrasena: es el dato que el usuario no podia ni ver, y el que manda
+            en su identidad de acceso. */}
+        <CambiarEmail
+          emailActual={perfil?.email ?? "—"}
+          pendienteInicial={perfil?.emailPendiente ?? null}
+        />
         <CambiarPassword />
       </FormularioEditarPerfil>
     </div>

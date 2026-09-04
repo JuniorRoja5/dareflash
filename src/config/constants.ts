@@ -639,5 +639,12 @@ export type JobType = z.infer<typeof JobTypeSchema>;
  * NO son intercambiables: el proposito se comprueba DENTRO del WHERE al consumir (ver
  * `src/server/auth/email-token.ts`), asi que un token de un proposito no vale para el otro.
  */
-export const VerificationPurposeSchema = z.enum(["EMAIL_VERIFY", "LOGIN_UNLOCK", "PASSWORD_RESET"]);
+export const VerificationPurposeSchema = z.enum([
+  "EMAIL_VERIFY",
+  "LOGIN_UNLOCK",
+  "PASSWORD_RESET",
+  // Confirmar una direccion NUEVA antes de aplicarla. Proposito PROPIO: un token de verificacion de
+  // alta no puede servir para cambiar el correo de una cuenta, ni al reves.
+  "EMAIL_CHANGE",
+]);
 export type VerificationPurpose = z.infer<typeof VerificationPurposeSchema>;

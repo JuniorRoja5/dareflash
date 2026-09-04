@@ -60,6 +60,11 @@ model User {
   // suplantaciones por diferencia de mayusculas). Se asume y se deja escrito.
   email         String?   @unique // opcional a nivel Auth.js; en registro propio se exige
   emailVerified DateTime? // Auth.js: fecha de verificacion. Sin esto no hay acciones con efectos.
+  /// Direccion NUEVA pedida por el usuario y aun SIN confirmar. Vive aparte de `email` a proposito:
+  /// hasta que no se demuestra que la controla, la cuenta sigue mandando a la direccion vieja. Sin
+  /// esta separacion, pedir un cambio bastaria para apoderarse de una cuenta desde una sesion robada.
+  /// SIN unique: dos personas pueden PEDIR la misma; la carrera la resuelve la confirmacion.
+  emailPendiente String?
   username      String    @unique // handle publico, SIEMPRE presente (auto-generado; ver server/auth/handle.ts)
   displayName   String?
   image         String? // avatar (URL)

@@ -7,11 +7,8 @@ import { useState } from "react";
 import { CATEGORIES } from "@/config/constants";
 import { postJsonCsrf } from "@/lib/cliente-http";
 import { centimosAImporte } from "@/lib/dinero";
-import {
-  type EstadoRetoAdmin,
-  estadoRetoAdmin,
-  type RetoAdminFila,
-} from "@/server/services/retos-admin";
+import { type EstadoRetoAdmin, estadoRetoAdmin } from "@/lib/estado-reto";
+import type { RetoAdminFila } from "@/server/services/retos-admin";
 
 const NOMBRE_CATEGORIA = new Map<string, string>(
   CATEGORIES.map((c) => [c.key, `${c.emoji} ${c.es}`]),
