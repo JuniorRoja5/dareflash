@@ -327,12 +327,32 @@ model Challenge {
 /// si `Submission.status = PUBLISHED` Y `Video.status = PUBLISHED`. Si divergen, el
 /// estado mas restrictivo decide (un video REMOVED oculta la submission aunque su
 /// propio status siga PUBLISHED).
+/// POR QUE se retiro una participacion. `null` = no esta retirada.
+///
+/// Existe porque las dos retiradas tienen consecuencias OPUESTAS y antes se deducian del mismo
+/// `ModerationStatus.REMOVED`, que no puede distinguirlas:
+///   - MODERACION: la retiro un admin -> el usuario NO puede volver a participar en ese reto.
+///   - DUENO: el propio usuario borro su video -> SI puede volver a participar; es SU contenido.
+/// Deducirlo del status vetaba de por vida a quien borraba su propio video, con un mensaje que ademas
+/// mentia ("retirada por moderacion"). Con este campo el estado "no se sabe cual de las dos fue" es
+/// IRREPRESENTABLE: o hay motivo, o no esta retirada.
+enum MotivoRetirada {
+  MODERACION
+  DUENO
+}
+
 model Submission {
   id          String           @id @default(cuid())
   challengeId String
   userId      String
   videoId     String           @unique // un video, una submission
   status      ModerationStatus @default(PENDING)
+
+  /// Por que se retiro (ver `MotivoRetirada`). `null` = viva. Es la UNICA fuente para decidir si el
+  /// usuario puede volver a participar: la regla NO mira `status` ni el estado del Video, que son
+  /// ambiguos. Va junto a `retiradaEn` para poder auditar cuando ocurrio.
+  retiradaMotivo MotivoRetirada?
+  retiradaEn     DateTime?
 
   // voteCount DENORMALIZADO: se actualiza en la MISMA transaccion que la
   // insercion del Vote (mismo patron que los saldos). Permite ORDER BY para
@@ -356,6 +376,8 @@ model Submission {
   @@unique([challengeId, userId])
   @@index([userId])
   @@index([status])
+  // Bloqueo por moderacion: se consulta al iniciar una participacion ("¿puede volver a participar?").
+  @@index([retiradaMotivo])
   // Ranking dentro de un reto: los mas votados primero. (Este indice ya cubre las
   // busquedas por challengeId como prefijo, asi que no hay un @@index([challengeId]) suelto.)
   @@index([challengeId, voteCount])

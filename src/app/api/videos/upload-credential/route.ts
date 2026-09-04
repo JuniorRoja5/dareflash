@@ -16,13 +16,18 @@ export const dynamic = "force-dynamic";
  * credencial de corta duracion, NUNCA la clave de API.
  */
 export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
-  const { RATE_LIMITS, BUNNY_TUS_CREDENTIAL_TTL_SEC, CONFIRM_WAKE_KEY, CATEGORIES } =
-    await import("@/config/constants");
+  const {
+    RATE_LIMITS,
+    BUNNY_TUS_CREDENTIAL_TTL_SEC,
+    CONFIRM_WAKE_KEY,
+    CATEGORIES,
+    MSG_PARTICIPACION_BLOQUEADA: MSG_BLOQUEADA,
+  } = await import("@/config/constants");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { crearObjetoVideo, credencialSubidaTus, clienteBunnyReal } =
     await import("@/server/services/bunny");
   const { escribirEstado } = await import("@/server/services/system-state");
-  const { iniciarParticipacion } = await import("@/server/services/participacion");
+  const { iniciarParticipacion, puedeParticipar } = await import("@/server/services/participacion");
   const { sanearError } = await import("@/server/observability/sanitize-error");
 
   // Titulo OPCIONAL (metadato del objeto en Bunny; el titulo definitivo se fija al publicar). `challengeId`
@@ -62,6 +67,14 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     if (!reto || reto.status !== "PUBLISHED" || reto.deadline <= new Date()) {
       return apiError("RETO_NO_DISPONIBLE", "Este reto no admite participaciones.", 409);
     }
+
+    // ELEGIBILIDAD, ANTES DE TOCAR BUNNY. Es lo mismo que vuelve a comprobar la transaccion de abajo,
+    // pero aqui la peticion se rechaza SIN haber creado nada. El orden inverso dejaba un objeto
+    // HUERFANO en Bunny en CADA 409 —el usuario lo veia como una subida colgada en "uploading"— y
+    // encima bloqueaba el reintento. La de abajo se queda como AUTORIDAD: entre las dos puede cambiar
+    // el estado, y la unica comprobacion que no tiene carrera es la que esta dentro de la transaccion.
+    const elegible = await puedeParticipar(prisma, { challengeId, userId: user.userId });
+    if (!elegible.puede) return apiError("PARTICIPACION_BLOQUEADA", MSG_BLOQUEADA, 409);
   }
 
   // Rate-limit por usuario, consumido ANTES de tocar Bunny (no se crean objetos en masa).
@@ -114,13 +127,10 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     });
 
     if (resultado.tipo === "bloqueada") {
-      // El objeto en Bunny ya se creo; sin fila Video queda HUERFANO y lo barre la limpieza. No se
-      // participa: la anterior fue retirada por moderacion.
-      return apiError(
-        "PARTICIPACION_BLOQUEADA",
-        "Tu participacion en este reto fue retirada y no puedes volver a participar.",
-        409,
-      );
+      // Solo se llega aqui si el estado cambio ENTRE la comprobacion previa y esta transaccion (un
+      // moderador retirando justo en medio). Es raro, y entonces si queda un huerfano que barre la
+      // limpieza; el caso normal ya se rechazo arriba SIN crear nada en Bunny.
+      return apiError("PARTICIPACION_BLOQUEADA", MSG_BLOQUEADA, 409);
     }
 
     // 3. La credencial de corta duracion (sin la clave de API) + el id de la fila Video (ADITIVO) + si

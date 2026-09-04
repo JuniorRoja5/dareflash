@@ -49,6 +49,17 @@ export const DELETE = mutatingRoute<{ params: Promise<{ id: string }> }>(
         data: { status: "REMOVED" },
       });
       if (r.count !== 1) return; // otra peticion gano la carrera: ya esta REMOVED y encolado.
+
+      // Si el video era una PARTICIPACION, su Submission se retira TAMBIEN, y marcada como retirada
+      // POR EL DUENO. Antes esto no se tocaba: la Submission quedaba viva apuntando a un video REMOVED,
+      // y la regla de re-participacion —que miraba el estado del video— leia eso como una retirada de
+      // MODERACION y vetaba al usuario del reto PARA SIEMPRE. Es su contenido: borrarlo no puede
+      // expulsarle. El updateMany por videoId toca SOLO la suya (videoId es unico), nunca la Submission
+      // a la que este video estuviera reemplazando.
+      await tx.submission.updateMany({
+        where: { videoId: video.id },
+        data: { status: "REMOVED", retiradaMotivo: "DUENO", retiradaEn: new Date() },
+      });
       await tx.job.create({
         data: {
           type: BUNNY_DELETE_VIDEO,

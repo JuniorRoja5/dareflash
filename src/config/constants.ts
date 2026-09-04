@@ -434,6 +434,14 @@ export const MSG_VOTO_SIN_VER = "Reproduce este vídeo para poder votarlo.";
  * SIN variables — promoverla a env obligatoria seria meter una URL publica en el camino que tumba el
  * despliegue si falta. Fuente UNICA: nadie la escribe en un JSX.
  */
+/**
+ * Copy del bloqueo por MODERACION al intentar participar. Dice la verdad —ahora solo se bloquea si un
+ * moderador retiro la participacion— y por eso NOMBRA al moderador: antes decia "fue retirada" a secas
+ * y se le soltaba tambien a quien simplemente habia borrado su propio video, que no habia hecho nada.
+ */
+export const MSG_PARTICIPACION_BLOQUEADA =
+  "Un moderador retiro tu participacion en este reto, asi que no puedes volver a participar.";
+
 export const VIDEO_FONDO_HOME = "https://dareflash-assets.b-cdn.net/fondo-home.mp4";
 
 /**

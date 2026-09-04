@@ -22,11 +22,20 @@ export type ResultadoIniciar =
  * Decide y crea la fila para una participación, DENTRO de la transacción de `upload-credential` (que ya
  * creó el objeto en Bunny y pasa aquí su `bunnyGuid`). Casos, según la participación existente del
  * usuario en el reto:
- *  - ninguna              -> PRIMERA: crea Video(PENDING) + Submission(PENDING).
- *  - existe, Video FAILED -> hueco INVÁLIDO: borra la Submission vieja (libera el unique) y crea fresca.
+ *  - ninguna                        -> PRIMERA: crea Video(PENDING) + Submission(PENDING).
+ *  - retirada por MODERACIÓN        -> BLOQUEADA: un admin la retiró; no se re-participa.
+ *  - retirada por el DUEÑO          -> hueco liberable: borra la Submission vieja y crea fresca.
+ *  - existe, Video FAILED           -> hueco INVÁLIDO: igual que arriba (la subida nunca se procesó).
  *  - existe, Video PUBLISHED/PENDING -> REEMPLAZO: crea SÓLO el Video con `reemplazaSubmissionId` = esa
  *    Submission (sin 2ª Submission; respeta el unique). El swap se completa cuando el Video esté PUBLISHED.
- *  - existe, Video REMOVED/REJECTED -> BLOQUEADA: participación retirada por moderación; no re-participa.
+ *
+ * ┌─ EL BLOQUEO SE DECIDE POR `retiradaMotivo`, NUNCA POR EL ESTADO DEL VÍDEO ──────────────────────┐
+ * │ Antes se miraba `video.status === "REMOVED"`, y a REMOVED se llega por DOS caminos con            │
+ * │ consecuencias opuestas: lo retiró un admin (debe bloquear) o el propio dueño borró su vídeo (no   │
+ * │ debe). Como el status no los distingue, borrar TU vídeo te vetaba del reto para siempre, con un   │
+ * │ mensaje que además mentía. Bloqueó una verificación en producción.                                │
+ * │ Ahora la única fuente es `retiradaMotivo`: o hay un motivo explícito, o no está retirada.         │
+ * └────────────────────────────────────────────────────────────────────────────────────────────────┘
  */
 export async function iniciarParticipacion(
   tx: Db,
@@ -36,7 +45,7 @@ export async function iniciarParticipacion(
 
   const existente = await tx.submission.findUnique({
     where: { challengeId_userId: { challengeId, userId } },
-    select: { id: true, video: { select: { status: true } } },
+    select: { id: true, retiradaMotivo: true, video: { select: { status: true } } },
   });
 
   const crearPrimera = async (): Promise<ResultadoIniciar> => {
@@ -53,11 +62,15 @@ export async function iniciarParticipacion(
 
   if (!existente) return crearPrimera();
 
+  // MODERACIÓN: lo único que bloquea. Se comprueba PRIMERO y con el campo explícito.
+  if (existente.retiradaMotivo === "MODERACION") return { modo: "bloqueada", motivo: "MODERACION" };
+
   const estado = existente.video.status;
 
-  if (estado === "FAILED") {
-    // Hueco inválido: la subida anterior no llegó a procesarse. Se libera el unique borrando la
-    // Submission vieja (el Video FAILED queda; su objeto en Bunny lo barre la limpieza de huérfanos).
+  // Hueco LIBERABLE: o el dueño borró su vídeo, o la subida anterior nunca llegó a procesarse
+  // (FAILED). En los dos casos no queda nada que reemplazar: se libera el `unique` borrando la
+  // Submission vieja y se empieza de cero. (El Video queda; su objeto en Bunny lo barre la limpieza.)
+  if (existente.retiradaMotivo === "DUENO" || estado === "FAILED") {
     await tx.submission.delete({ where: { id: existente.id } });
     return crearPrimera();
   }
@@ -70,8 +83,33 @@ export async function iniciarParticipacion(
     return { modo: "reemplazo", videoId: v.id, submissionId: existente.id };
   }
 
-  // REMOVED / REJECTED: retirada por moderación -> no se permite re-participar.
+  // REJECTED (y cualquier estado futuro que no sea publicable): se trata como retirada de moderación.
   return { modo: "bloqueada", motivo: estado };
+}
+
+/**
+ * ¿PUEDE este usuario participar en este reto? Consulta de SOLO LECTURA, sin efectos.
+ *
+ * Existe para poder rechazar ANTES de crear el objeto en Bunny. El orden era el inverso —se creaba el
+ * objeto y luego se comprobaba la regla—, así que CADA petición rechazada dejaba un huérfano en Bunny
+ * que el usuario veía como una subida colgada en "uploading".
+ *
+ * NO sustituye a la comprobación de `iniciarParticipacion`: esta es una guarda barata y de fuera de la
+ * transacción, y entre las dos puede cambiar el estado. La decisión con autoridad sigue siendo la de
+ * dentro de la transacción; esta solo evita el objeto huérfano en el caso normal.
+ */
+export async function puedeParticipar(
+  db: Db,
+  entrada: { challengeId: string; userId: string },
+): Promise<{ puede: boolean }> {
+  const existente = await db.submission.findUnique({
+    where: { challengeId_userId: entrada },
+    select: { retiradaMotivo: true, video: { select: { status: true } } },
+  });
+  if (!existente) return { puede: true };
+  if (existente.retiradaMotivo === "MODERACION") return { puede: false };
+  if (existente.retiradaMotivo === "DUENO") return { puede: true };
+  return { puede: existente.video.status !== "REJECTED" };
 }
 
 /**
@@ -163,9 +201,11 @@ export async function retirarParticipacion(
       select: { videoId: true },
     });
     if (!sub) return { retirada: false };
+    // El MOTIVO se graba junto al estado: es lo que hace que el bloqueo posterior sea cierto y no una
+    // deducción. Sin esto, esta retirada sería indistinguible de que el dueño borrara su vídeo.
     await tx.submission.updateMany({
       where: { id: submissionId, status: { not: "REMOVED" } },
-      data: { status: "REMOVED" },
+      data: { status: "REMOVED", retiradaMotivo: "MODERACION", retiradaEn: new Date() },
     });
     // El Video tambien REMOVED (quita del feed/perfil). NO se encola borrado en Bunny: se preserva.
     await tx.video.updateMany({
