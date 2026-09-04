@@ -181,6 +181,12 @@ model Session {
   expires      DateTime
   createdAt    DateTime @default(now()) // para el tope por usuario (borrar la mas antigua) y "ultima sesion"
 
+  /// ULTIMA VEZ que se USO esta sesion. Es lo que permite la caducidad por INACTIVIDAD, que es
+  /// distinta de `expires` (el tope absoluto): una sesion abandonada en un ordenador ajeno seguia
+  /// valiendo semanas aunque nadie la tocara. Se refresca de forma AMORTIGUADA (ver
+  /// SESION_REFRESCO_MIN_MS): escribir en cada peticion multiplicaria por N las escrituras.
+  lastSeenAt   DateTime @default(now())
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt]) // tope por usuario, ordenado por antiguedad

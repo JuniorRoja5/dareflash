@@ -330,8 +330,38 @@ export const LOGIN_UNLOCK_TTL_MS = 2 * 60 * 60 * 1000; // 2 h (ver acoplamiento 
  */
 export const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000; // 30 min
 
-/** Caducidad de sesion por defecto (USER). Explicita. */
-export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias
+/**
+ * Caducidad de sesion. DOS plazos, y hacen falta los dos:
+ *
+ *  - ABSOLUTO (`SESSION_TTL_MS`): desde que se inicia sesion, pase lo que pase. Acota cuanto vale un
+ *    token robado aunque el ladron lo use a diario.
+ *  - INACTIVIDAD (`SESSION_IDLE_MS`): desde el ultimo uso. Es el que faltaba, y es el que cubre el
+ *    caso real: una sesion abierta en un ordenador ajeno o en un movil perdido seguia valiendo un mes
+ *    aunque NADIE la tocara. Con el, se cierra sola.
+ *
+ * Y el plazo del ADMIN es mucho mas corto: su sesion abre el panel entero (moderar, retirar, crear
+ * retos). Un mes de sesion de administrador es un riesgo de otra categoria que un mes de sesion de
+ * espectador. La opcion de TTL por rol ya existia en `crearSesion`; hasta ahora no se usaba.
+ */
+export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 dias (USER)
+export const SESSION_IDLE_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias sin usarla (USER)
+export const SESSION_TTL_ELEVADO_MS = 24 * 60 * 60 * 1000; // 24 h (ADMIN / MODERATOR)
+export const SESSION_IDLE_ELEVADO_MS = 2 * 60 * 60 * 1000; // 2 h sin usarla (ADMIN / MODERATOR)
+
+/**
+ * Cada cuanto, COMO MUCHO, se reescribe `lastSeenAt`. Sin este freno, cada peticion —y una sola
+ * pantalla dispara varias— haria un UPDATE sobre la fila de sesion: multiplicaria las escrituras y
+ * pondria todas las peticiones de un usuario a competir por la misma fila. Con 5 min, el coste es
+ * despreciable y la precision de la inactividad sigue siendo de minutos, que es lo que importa.
+ */
+export const SESION_REFRESCO_MIN_MS = 5 * 60 * 1000; // 5 min
+
+/** Plazos que le tocan a un rol. Fuente UNICA: ni la creacion ni la validacion los eligen por su cuenta. */
+export function plazosSesion(rol: string): { ttlMs: number; idleMs: number } {
+  return rol === "ADMIN" || rol === "MODERATOR"
+    ? { ttlMs: SESSION_TTL_ELEVADO_MS, idleMs: SESSION_IDLE_ELEVADO_MS }
+    : { ttlMs: SESSION_TTL_MS, idleMs: SESSION_IDLE_MS };
+}
 
 /**
  * TTL de sesion POR ROL. El radio de dano de un token robado escala con el rol: un

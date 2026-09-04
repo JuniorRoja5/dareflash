@@ -18,7 +18,12 @@
  */
 import { createHash, randomBytes } from "node:crypto";
 
-import { SESSION_MAX_PER_USER, SESSION_TOKEN_BYTES, SESSION_TTL_MS } from "@/config/constants";
+import {
+  plazosSesion,
+  SESION_REFRESCO_MIN_MS,
+  SESSION_MAX_PER_USER,
+  SESSION_TOKEN_BYTES,
+} from "@/config/constants";
 import { Prisma } from "@/generated/prisma/client";
 import type { Db } from "@/server/db/types";
 
@@ -54,7 +59,15 @@ export async function createSession(
 ): Promise<CreatedSession> {
   const nowD = options.now ?? new Date();
   const rawToken = randomBytes(SESSION_TOKEN_BYTES).toString("base64url");
-  const expires = new Date(nowD.getTime() + (options.ttlMs ?? SESSION_TTL_MS));
+  // El TTL POR ROL se decide AQUI, no en quien llama: un sitio de llamada que se olvidara le daria a
+  // un ADMIN los 30 dias de un espectador, y la sesion de un admin abre el panel entero. Con la
+  // consulta aqui es imposible equivocarse; `options.ttlMs` sigue mandando si hace falta a medida.
+  let ttlMs = options.ttlMs;
+  if (ttlMs === undefined) {
+    const u = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
+    ttlMs = plazosSesion(u?.role ?? "USER").ttlMs;
+  }
+  const expires = new Date(nowD.getTime() + ttlMs);
 
   const created = await db.session.create({
     data: { sessionToken: hashToken(rawToken), userId, expires, createdAt: nowD },
@@ -87,6 +100,14 @@ export interface SessionUser {
  * Valida un token de sesion. Devuelve el usuario o `null`. Trata IGUAL (null):
  * token vacio, inexistente, manipulado (su hash no existe), CADUCADO, o de un
  * usuario baneado/borrado. La caducidad se comprueba en cada peticion.
+ *
+ * DOS caducidades, no una: el tope ABSOLUTO (`expires`) y la INACTIVIDAD (`lastSeenAt`). La segunda
+ * es la que cierra una sesion olvidada en un ordenador ajeno, que antes seguia valiendo un mes entero
+ * aunque nadie la usara. Los plazos dependen del ROL (`plazosSesion`): la sesion de un admin abre el
+ * panel entero y dura mucho menos.
+ *
+ * Al validar con exito se refresca `lastSeenAt`, pero solo si ha pasado `SESION_REFRESCO_MIN_MS`
+ * desde el ultimo refresco: si no, cada peticion escribiria en la fila de sesion.
  */
 export async function validateSession(
   db: Db,
@@ -101,6 +122,7 @@ export async function validateSession(
     select: {
       id: true,
       expires: true,
+      lastSeenAt: true,
       user: {
         select: { id: true, role: true, emailVerified: true, deletedAt: true, bannedAt: true },
       },
@@ -110,6 +132,20 @@ export async function validateSession(
   if (!row) return null;
   if (row.expires.getTime() <= nowD.getTime()) return null; // caducado == inexistente
   if (row.user.deletedAt !== null || row.user.bannedAt !== null) return null;
+
+  // INACTIVIDAD: se trata igual que el resto (null), y ademas se BORRA la fila. Una sesion muerta por
+  // abandono no tiene por que seguir ocupando sitio hasta que la purga llegue a su `expires`.
+  const { idleMs } = plazosSesion(row.user.role);
+  if (nowD.getTime() - row.lastSeenAt.getTime() > idleMs) {
+    await db.session.deleteMany({ where: { id: row.id } });
+    return null;
+  }
+
+  // Refresco AMORTIGUADO de la ultima actividad (ver SESION_REFRESCO_MIN_MS). No renueva `expires`:
+  // el tope absoluto no se mueve por usar la sesion, que es justo lo que lo hace un tope.
+  if (nowD.getTime() - row.lastSeenAt.getTime() > SESION_REFRESCO_MIN_MS) {
+    await db.session.updateMany({ where: { id: row.id }, data: { lastSeenAt: nowD } });
+  }
 
   return {
     userId: row.user.id,
