@@ -32,8 +32,11 @@ export function RetosPanel({ retos }: { retos: RetoAdminFila[] }) {
   }
 
   return (
-    <div className="space-y-8">
-      <div ref={formRef} className="scroll-mt-24">
+    // DOS COLUMNAS en escritorio: crear a la izquierda, listado a la derecha. En una sola columna el
+    // formulario empujaba la lista fuera de la pantalla, y el admin tenía que bajar cada vez para ver
+    // el efecto de lo que acababa de hacer. En móvil se apilan (el formulario primero).
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:items-start">
+      <div ref={formRef} className="scroll-mt-24 lg:sticky lg:top-6">
         <FormularioReto
           key={editando?.id ?? "crear"}
           reto={editando ?? undefined}
@@ -46,7 +49,7 @@ export function RetosPanel({ retos }: { retos: RetoAdminFila[] }) {
         <h2 className="mb-3 text-sm font-semibold tracking-widest text-text-dim uppercase">
           Retos existentes
         </h2>
-        <ListaRetos retos={retos} onEditar={editar} />
+        <ListaRetos retos={retos} onEditar={editar} onCambio={() => router.refresh()} />
       </section>
     </div>
   );

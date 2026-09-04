@@ -18,6 +18,7 @@ import {
   RATE_LIMIT_PURGE_RETENER_MS,
   RECALCULO_SCORES_CADENCIA_MS,
   RECON_CADENCIA_MS,
+  RETO_BORRADO_CADENCIA_MS,
   RECON_HUERFANOS_CADENCIA_MS,
   RECON_PUBLICADOS_CADENCIA_MS,
   VOTO_IPHASH_RETENCION_MS,
@@ -560,6 +561,7 @@ export async function bucleWorker(
   let proximoHuerfanos = 0;
   let proximoPublicados = 0;
   let proximoScores = 0;
+  let proximoBorrados = 0;
   // Ultima marca de wake HONRADA (event-kick). Comparacion por igualdad de STRING, NUNCA contra el
   // reloj: no depende de sincronia web/worker. En reinicio arranca null -> la primera marca existente
   // fuerza UN barrido (recoge PENDING previos).
@@ -726,6 +728,20 @@ export async function bucleWorker(
         o.log?.(`[worker] scores: barrido fallo (${sanearError(e)}); reintento luego.`);
       }
       proximoScores = t.getTime() + cada;
+    }
+
+    // RETOS BORRADOS cuya gracia vencio. Consumar el borrado es la unica pieza que convierte un
+    // "pendiente" en definitivo; si este barrido no corre, el reto se queda en gracia para siempre y
+    // el admin creeria que lo borro. No es urgente (cadencia de una hora) pero no puede faltar.
+    if (t.getTime() >= proximoBorrados) {
+      try {
+        const { consumarBorradosVencidos } = await import("@/server/services/retos-admin");
+        const { borrados } = await consumarBorradosVencidos(db, t);
+        if (borrados > 0) o.log?.(`[worker] retos: borrados consumados=${borrados}`);
+      } catch (e) {
+        o.log?.(`[worker] retos: barrido de borrados fallo (${sanearError(e)}); reintento luego.`);
+      }
+      proximoBorrados = t.getTime() + RETO_BORRADO_CADENCIA_MS;
     }
 
     if (o.parar()) break;

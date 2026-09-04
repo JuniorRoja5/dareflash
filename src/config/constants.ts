@@ -331,6 +331,16 @@ export const LOGIN_UNLOCK_TTL_MS = 2 * 60 * 60 * 1000; // 2 h (ver acoplamiento 
 export const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000; // 30 min
 
 /**
+ * GRACIA antes de que un reto borrado por el admin desaparezca del todo. Durante este plazo el reto ya
+ * NO se ve en publico, pero sigue en el panel con su cuenta atras y se puede RESTAURAR: es la red
+ * contra el borrado por error y contra las consecuencias de destruir algo que habia que conservar. El
+ * admin puede FORZAR el borrado inmediato si sabe lo que hace.
+ */
+export const RETO_GRACIA_BORRADO_MS = 7 * 24 * 60 * 60 * 1000; // 7 dias
+/** Cadencia del barrido que consuma los borrados vencidos. No es urgente: una vez por hora sobra. */
+export const RETO_BORRADO_CADENCIA_MS = 60 * 60 * 1000; // 1 h
+
+/**
  * Caducidad de sesion. DOS plazos, y hacen falta los dos:
  *
  *  - ABSOLUTO (`SESSION_TTL_MS`): desde que se inicia sesion, pase lo que pase. Acota cuanto vale un

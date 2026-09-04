@@ -274,6 +274,21 @@ model Challenge {
   category    String // key de CATEGORIES en constants (las 14 confirmadas por el propietario)
   status      String  @default("DRAFT") // DRAFT, PUBLISHED, CLOSED (union en constants)
 
+  /// BORRADO POR EL ADMIN, en dos tiempos y SIN destruir nada.
+  ///
+  /// `eliminacionProgramadaEn`: el admin pidio borrarlo y corre una GRACIA (7 dias) para
+  /// arrepentirse. El reto desaparece del PUBLICO ya, pero sigue en el panel con su cuenta atras y se
+  /// puede RESTAURAR. `deletedAt`: ya esta borrado (por el barrido al vencer el plazo, o porque el
+  /// admin lo forzo). En los dos casos sale de todas las vistas publicas.
+  ///
+  /// NUNCA hay borrado FISICO. Primero porque la FK de Submission es `onDelete: Restrict`: un reto con
+  /// participaciones no se puede borrar sin destruir ANTES el contenido de sus usuarios. Y sobre todo
+  /// porque destruir los videos de terceros como efecto colateral de que un admin borre un reto es
+  /// exactamente el riesgo que la gracia de 7 dias pretende cubrir. Los videos siguen siendo de sus
+  /// autores y siguen en su perfil; lo que desaparece es el RETO.
+  eliminacionProgramadaEn DateTime?
+  deletedAt               DateTime?
+
   // --- URL del reto (Fase 2): /retos/{publicCode}-{slug} ---
   // publicCode: clave AUTORITATIVA, corta y UNICA (base32 sin confusos, generada con reintento; ver
   // server/services/reto-codigo). slug: COSMETICO (SEO), NO unico; el route de detalle resuelve por

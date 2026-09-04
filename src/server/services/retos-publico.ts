@@ -8,6 +8,15 @@
  */
 import "server-only";
 
+/**
+ * Lo que el PUBLICO no puede ver nunca: un reto borrado, o uno con el borrado ya pedido (en su gracia
+ * de 7 dias). La gracia existe para que el ADMIN pueda arrepentirse, no para seguir enseñandolo.
+ *
+ * Va en una constante y no copiado en cada `where`: son varias consultas publicas y la que se olvide
+ * el filtro enseña un reto que el admin dio por borrado — el fallo silencioso tipico.
+ */
+export const NO_BORRADO = { deletedAt: null, eliminacionProgramadaEn: null } as const;
+
 import type { Db } from "@/server/db/types";
 
 /** Campos que necesita la TARJETA (doc): título, premio, cierre, categoría + la URL canónica. */
@@ -77,7 +86,7 @@ export async function listarRetosPublicos(
   limite = 100,
 ): Promise<RetoPublicoVista[]> {
   const filas = await db.challenge.findMany({
-    where: { status: "PUBLISHED", deadline: { gt: ahora } },
+    where: { ...NO_BORRADO, status: "PUBLISHED", deadline: { gt: ahora } },
     orderBy: [{ deadline: "asc" }, { id: "asc" }],
     take: limite,
     select: SELECT_VISTA,
@@ -93,6 +102,7 @@ export async function listarRetosCerrados(
 ): Promise<RetoPublicoVista[]> {
   const filas = await db.challenge.findMany({
     where: {
+      ...NO_BORRADO,
       OR: [{ status: "CLOSED" }, { status: "PUBLISHED", deadline: { lte: ahora } }],
     },
     orderBy: [{ deadline: "desc" }, { id: "asc" }],
@@ -108,7 +118,7 @@ export async function retoPublicoPorCode(
   publicCode: string,
 ): Promise<RetoPublicoDetalle | null> {
   const f = await db.challenge.findFirst({
-    where: { publicCode, status: { not: "DRAFT" } },
+    where: { ...NO_BORRADO, publicCode, status: { not: "DRAFT" } },
     select: {
       ...SELECT_VISTA,
       id: true,

@@ -6,6 +6,8 @@
  */
 import "server-only";
 
+import { RETO_GRACIA_BORRADO_MS } from "@/config/constants";
+
 import { z } from "zod";
 
 import { CATEGORIES, type CategoryKey, DEFAULT_CURRENCY } from "@/config/constants";
@@ -187,6 +189,10 @@ export interface RetoAdminFila {
   winnersCount: number;
   coverImage: string | null;
   publicCode: string;
+  /** Gracia de borrado en curso (ms) o null. El panel pinta la cuenta atras y ofrece restaurar. */
+  eliminaEnMs: number | null;
+  /** Ya borrado. Sigue en el panel como registro; fuera de todas las vistas publicas. */
+  borradoMs: number | null;
 }
 
 /** Campos que se piden en las dos consultas del panel (lista y ficha de uno). Fuente única. */
@@ -204,7 +210,26 @@ const SELECT_RETO_ADMIN = {
   winnersCount: true,
   coverImage: true,
   publicCode: true,
+  eliminacionProgramadaEn: true,
+  deletedAt: true,
 } as const;
+
+/** Fila del panel: los ms van planos para cruzar al cliente sin serializar Date. */
+type FilaCruda = { [K in keyof typeof SELECT_RETO_ADMIN]: unknown } & {
+  prizeAmountCents: number | bigint;
+  eliminacionProgramadaEn: Date | null;
+  deletedAt: Date | null;
+};
+
+function aFila(f: FilaCruda): RetoAdminFila {
+  const { eliminacionProgramadaEn, deletedAt, prizeAmountCents, ...resto } = f;
+  return {
+    ...(resto as unknown as Omit<RetoAdminFila, "prizeAmountCents" | "eliminaEnMs" | "borradoMs">),
+    prizeAmountCents: Number(prizeAmountCents),
+    eliminaEnMs: eliminacionProgramadaEn ? eliminacionProgramadaEn.getTime() : null,
+    borradoMs: deletedAt ? deletedAt.getTime() : null,
+  };
+}
 
 /**
  * UN reto por su id, para la pantalla de gestión del panel. Devuelve `null` si no existe (la página
@@ -213,7 +238,7 @@ const SELECT_RETO_ADMIN = {
  */
 export async function retoAdminPorId(db: Db, id: string): Promise<RetoAdminFila | null> {
   const f = await db.challenge.findUnique({ where: { id }, select: SELECT_RETO_ADMIN });
-  return f ? { ...f, prizeAmountCents: Number(f.prizeAmountCents) } : null;
+  return f ? aFila(f) : null;
 }
 
 /** Lista los retos para el panel (más nuevos primero), con su estado y los campos para editar. */
@@ -222,5 +247,99 @@ export async function listarRetosAdmin(db: Db): Promise<RetoAdminFila[]> {
     orderBy: [{ createdAt: "desc" }],
     select: SELECT_RETO_ADMIN,
   });
-  return filas.map((f) => ({ ...f, prizeAmountCents: Number(f.prizeAmountCents) }));
+  return filas.map(aFila);
+}
+
+/**
+ * ESTADO REAL de un reto en el panel. Se CALCULA, no se lee de la columna: `status` dice qué quiso el
+ * admin, no en qué punto está el reto AHORA. Un reto PUBLISHED cuyo plazo venció seguía pintándose
+ * "Publicado" en la lista, que es lo que el admin veía y no cuadraba con la realidad.
+ *
+ * "Programado" existe porque un reto puede estar publicado y aún sin abrir (`startsAt` futuro): antes
+ * era indistinguible de uno abierto, y son cosas distintas para quien administra.
+ */
+export type EstadoRetoAdmin =
+  "borrador" | "programado" | "abierto" | "cerrado" | "en-borrado" | "borrado";
+
+export function estadoRetoAdmin(
+  reto: {
+    status: string;
+    startsAt: Date;
+    deadline: Date;
+    eliminacionProgramadaEn: Date | null;
+    deletedAt: Date | null;
+  },
+  ahora: Date = new Date(),
+): EstadoRetoAdmin {
+  // El borrado manda sobre todo lo demás: un reto en camino de desaparecer no es "abierto".
+  if (reto.deletedAt) return "borrado";
+  if (reto.eliminacionProgramadaEn) return "en-borrado";
+  if (reto.status === "DRAFT") return "borrador";
+  if (reto.status === "CLOSED" || reto.deadline <= ahora) return "cerrado";
+  if (reto.startsAt > ahora) return "programado";
+  return "abierto";
+}
+
+/**
+ * BORRAR un reto (ADMIN), en dos modos y sin destruir nada de nadie.
+ *
+ *  - PROGRAMADO (por defecto): marca `eliminacionProgramadaEn = ahora + gracia`. El reto sale del
+ *    público YA, pero sigue en el panel con su cuenta atrás y se puede RESTAURAR. Es la red contra
+ *    el borrado por error y contra destruir algo que había que conservar.
+ *  - FORZADO: el admin sabe lo que hace y lo quiere fuera ahora. Marca `deletedAt`.
+ *
+ * En los DOS casos es un borrado LÓGICO. El físico ni se plantea: la FK de Submission es
+ * `onDelete: Restrict`, así que un reto con participaciones no se podría borrar sin destruir antes
+ * los vídeos de sus usuarios — que es exactamente el daño que la gracia pretende evitar. Los vídeos
+ * siguen siendo de sus autores y siguen en su perfil; lo que desaparece es el RETO.
+ *
+ * Idempotente: borrar dos veces no falla.
+ */
+export async function borrarReto(
+  db: Db,
+  id: string,
+  opts: { forzar?: boolean; ahora?: Date } = {},
+): Promise<{ borrado: boolean; eliminaEn: Date | null }> {
+  const ahora = opts.ahora ?? new Date();
+  const reto = await db.challenge.findUnique({ where: { id }, select: { deletedAt: true } });
+  if (!reto || reto.deletedAt) return { borrado: false, eliminaEn: null };
+
+  if (opts.forzar) {
+    await db.challenge.update({
+      where: { id },
+      data: { deletedAt: ahora, eliminacionProgramadaEn: null },
+    });
+    return { borrado: true, eliminaEn: null };
+  }
+  const eliminaEn = new Date(ahora.getTime() + RETO_GRACIA_BORRADO_MS);
+  await db.challenge.update({ where: { id }, data: { eliminacionProgramadaEn: eliminaEn } });
+  return { borrado: true, eliminaEn };
+}
+
+/**
+ * RESTAURAR un reto que estaba en su gracia de borrado. Solo mientras la gracia corre: una vez
+ * consumada (`deletedAt`), el admin ya tuvo sus 7 días y deshacerlo sería otra decisión.
+ */
+export async function restaurarReto(db: Db, id: string): Promise<{ restaurado: boolean }> {
+  const r = await db.challenge.updateMany({
+    where: { id, deletedAt: null, eliminacionProgramadaEn: { not: null } },
+    data: { eliminacionProgramadaEn: null },
+  });
+  return { restaurado: r.count === 1 };
+}
+
+/**
+ * BARRIDO: consuma los borrados cuya gracia ya venció. Lo llama el worker. Es la única pieza que
+ * convierte un borrado programado en definitivo, y lo hace por LOTES: un reto que sigue en gracia no
+ * se toca, y uno ya borrado tampoco (idempotente).
+ */
+export async function consumarBorradosVencidos(
+  db: Db,
+  ahora: Date = new Date(),
+): Promise<{ borrados: number }> {
+  const r = await db.challenge.updateMany({
+    where: { deletedAt: null, eliminacionProgramadaEn: { lte: ahora } },
+    data: { deletedAt: ahora, eliminacionProgramadaEn: null },
+  });
+  return { borrados: r.count };
 }

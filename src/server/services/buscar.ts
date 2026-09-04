@@ -241,14 +241,14 @@ export async function buscarRetos(
         SELECT id, publicCode, slug, title, category, prizeAmountCents, prizeCurrency, deadline, scoreAutoridad,
           (${rango} * ${RANGO_FACTOR} + MATCH(title) AGAINST (${expr} IN BOOLEAN MODE)) AS orden
         FROM \`Challenge\`
-        WHERE status = 'PUBLISHED'
+        WHERE status = 'PUBLISHED' AND deletedAt IS NULL AND eliminacionProgramadaEn IS NULL
           AND (MATCH(title) AGAINST (${expr} IN BOOLEAN MODE)
                OR title = ${termino} OR title LIKE ${prefijo})`
     : Prisma.sql`
         SELECT id, publicCode, slug, title, category, prizeAmountCents, prizeCurrency, deadline, scoreAutoridad,
           (${rango} * ${RANGO_FACTOR}) AS orden
         FROM \`Challenge\`
-        WHERE status = 'PUBLISHED' AND title LIKE ${prefijo}`;
+        WHERE status = 'PUBLISHED' AND deletedAt IS NULL AND eliminacionProgramadaEn IS NULL AND title LIKE ${prefijo}`;
 
   const filas = await db.$queryRaw<FilaReto[]>(Prisma.sql`
     SELECT t.id, t.publicCode, t.slug, t.title, t.category, t.prizeAmountCents, t.prizeCurrency,

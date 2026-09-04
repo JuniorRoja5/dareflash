@@ -99,7 +99,12 @@ export async function feedPublicado(
       status: "PUBLISHED",
       reemplazaSubmissionId: null,
       user: { deletedAt: null, bannedAt: null },
-      OR: [{ submission: { isNot: null } }, { category: { not: null } }],
+      // Un video cuya participacion pertenece a un reto BORRADO por el admin sale del feed: el
+      // reto ya no existe para el publico, asi que su contenido tampoco puede seguir apareciendo.
+      OR: [
+        { submission: { challenge: { deletedAt: null, eliminacionProgramadaEn: null } } },
+        { submission: null, category: { not: null } },
+      ],
     },
     select: {
       id: true,
