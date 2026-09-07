@@ -32,9 +32,14 @@ Un solo test: `npx vitest run tests/vote.test.ts` — o `npx vitest run -t "nomb
 [vitest.config.ts](vitest.config.ts) **deben coincidir** — si no, un worker se queda sin BD.
 
 Base de datos en local: `npx prisma migrate dev`, `npx prisma db seed`. `postinstall` ejecuta
-`prisma generate` (el cliente vive en `src/generated/`, gitignoreado). Producción y despliegue
-(VPS + Docker Compose + Caddy, migraciones, SMTP) están documentados en [README.md](README.md);
-consúltalo antes de tocar nada de infraestructura.
+`prisma generate` (el cliente vive en `src/generated/`, gitignoreado).
+
+**La operación no está en el repositorio.** El runbook de producción (despliegue, migraciones en
+el servidor, correo, copias, credenciales) vive **fuera**, y ahí se queda mientras el repositorio
+sea público: describe cómo entrar y qué hay dentro. Si necesitas un dato de infraestructura para
+una tarea, **pídelo** en vez de deducirlo o de volver a escribirlo aquí. Lo mismo con las
+auditorías de seguridad: `/security/audits/` está en `.gitignore` a propósito — un hallazgo
+abierto documentado en público es un mapa para quien ataque.
 
 Hooks de husky: **pre-commit** = lint-staged + `typecheck`; **pre-push** = `test:build-sin-env`;
 **commit-msg** = Conventional Commits (commitlint).
