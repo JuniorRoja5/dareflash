@@ -1,5 +1,5 @@
 /**
- * Hash y verificacion de contrasenas con Argon2id (verificado en el hosting de Hostinger).
+ * Hash y verificacion de contrasenas con Argon2id (verificado en el entorno de produccion).
  *
  * Recibe/develve strings; no toca la BD. Testeable desde Node y usable desde el script CLI del
  * admin, por eso NO lleva `import "server-only"` (no guarda secretos; basta la convencion de que

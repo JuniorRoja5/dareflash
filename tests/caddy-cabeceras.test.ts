@@ -77,7 +77,7 @@ describe("Caddyfile · HSTS conservador (aún no es irreversible)", () => {
     expect(hsts).not.toMatch(/preload/);
   });
 
-  it("sin `includeSubDomains` (mail.dareflash.com es OTRA máquina, no la servimos nosotros)", () => {
+  it("sin `includeSubDomains` (el subdominio del correo es OTRA máquina, no la servimos)", () => {
     expect(hsts).not.toMatch(/includeSubDomains/i);
   });
 });

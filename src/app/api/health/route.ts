@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
  *  1. Un health check prerenderizado no comprueba nada: devolveria una foto
  *     congelada del momento del build.
  *  2. Esta ruta lee `env` y consulta la base de datos. Si Next la prerenderizara,
- *     se evaluaria durante `next build` —donde Hostinger no tiene variables— y
+ *     se evaluaria durante `next build` —que corre sin variables— y
  *     tumbaria el despliegue. Ver la regla de acceso en `src/config/env.ts`.
  */
 export const dynamic = "force-dynamic";

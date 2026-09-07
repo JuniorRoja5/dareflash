@@ -2,7 +2,7 @@
  * TEST DE REGRESION: `next build` debe seguir compilando SIN ninguna variable
  * de entorno configurada.
  *
- * Por que existe: Docker (y antes Hostinger) compilan SIN ninguna variable configurada.
+ * Por que existe: Docker y CI compilan SIN ninguna variable configurada.
  * Si el build empezara a exigirlas, el despliegue se caeria. Ese es EXACTAMENTE el fallo
  * que dejo `next build` local en verde mientras el build de Docker reventaba.
  *

@@ -1,9 +1,9 @@
-# DareFlash — orquestacion de PRODUCCION en el VPS (Ubuntu 24.04 + Docker).
+# DareFlash — orquestacion de PRODUCCION.
 #
-# El .env vive FUERA del repo, en el servidor: ~/dareflash-config/.env
-# Contiene tanto MARIADB_* (para el servicio de BD) como las variables de la app
-# (DATABASE_URL apuntando al host `mariadb`, APP_URL, AUTH_SECRET, CRON_SECRET,
-# SMTP_*, etc.). Ningun secreto vive en el repositorio.
+# El .env vive FUERA del repo, en el entorno del servidor. Contiene tanto MARIADB_*
+# (para el servicio de BD) como las variables de la app (DATABASE_URL apuntando al
+# host `mariadb`, APP_URL, AUTH_SECRET, CRON_SECRET, SMTP_*, etc.). Ningun secreto
+# vive en el repositorio.
 #
 #   Levantar:   docker compose -f docker-compose.prod.yml up -d --build
 #   Migrar:     docker compose -f docker-compose.prod.yml exec web npx prisma migrate deploy
@@ -15,7 +15,7 @@ services:
   mariadb:
     image: mariadb:11.8
     restart: unless-stopped
-    # Techo de RECURSOS (KVM 1: 1 vCPU, ~4 GB). Claves NO-swarm que `docker compose up` respeta
+    # Techo de RECURSOS (la maquina: 1 vCPU, ~4 GB). Claves NO-swarm que `docker compose up` respeta
     # (mem_limit/mem_reservation/cpu_shares); NO `deploy.resources` (solo swarm). Son un TECHO DE
     # SEGURIDAD contra desmadres, holgado (~2-3x del pico normal), no un presupuesto ajustado: si un
     # servicio fuera justo con su techo, el techo esta mal (subirlo). `cpu_shares` es PESO relativo
@@ -88,9 +88,7 @@ services:
   # solo se ejecuta puntualmente con `run --rm`.
   #
   #   Migrar:       docker compose -f docker-compose.prod.yml run --rm migrate
-  #   Crear admin:  docker compose -f docker-compose.prod.yml run --rm \
-  #                   -e ADMIN_EMAIL=admin@dareflash.com -e ADMIN_PASSWORD=... \
-  #                   migrate npx tsx scripts/create-admin.ts
+  #   Crear admin:  ver scripts/create-admin.ts (necesita ADMIN_EMAIL y ADMIN_PASSWORD).
   migrate:
     build:
       context: .

@@ -10,9 +10,9 @@ import { z } from "zod";
  * Limite POR DEFECTO de conexiones del pool contra MariaDB (se puede sobreescribir con la variable
  * DB_CONNECTION_LIMIT, ver env.ts, para afinar en produccion SIN recompilar la imagen).
  *
- * HISTORIA (importante, no volver a bajarlo "por si acaso"): valia 5 porque el plan COMPARTIDO de
- * Hostinger limitaba las conexiones simultaneas. Ese plan ya no existe: produccion es un VPS con su
- * propio MariaDB, cuyo `max_connections` por defecto es 151. La razon de aquel 5 se fue con el hosting.
+ * HISTORIA (importante, no volver a bajarlo "por si acaso"): valia 5 porque el hosting COMPARTIDO de
+ * entonces limitaba las conexiones simultaneas. Ese plan ya no existe: hoy produccion tiene su propio
+ * MariaDB, cuyo `max_connections` por defecto es 151. La razon de aquel 5 se fue con aquel hosting.
  *
  * Y 5 era un TECHO REAL, no una precaucion barata: CADA render de una ruta del shell consulta la BD
  * (el layout resuelve la sesion + la cuenta de la barra = 2 consultas), y Next dispara MUCHAS
@@ -395,9 +395,9 @@ export const SESSION_COOKIE = "df_session";
 export const SESSION_TOKEN_BYTES = 32;
 
 /**
- * Maximo de correos que la cola envia por ejecucion. El SMTP de hosting compartido
- * suele limitar envios por hora; la cola respeta este ritmo, no vacia el lote de
- * golpe. Ajustable segun el limite real de Hostinger.
+ * Maximo de correos que la cola envia por ejecucion. Un SMTP compartido suele
+ * limitar envios por hora; la cola respeta este ritmo, no vacia el lote de
+ * golpe. Ajustable segun el limite real del proveedor de correo.
  */
 export const EMAIL_MAX_PER_QUEUE_RUN = 20;
 

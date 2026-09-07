@@ -2,7 +2,7 @@
  * Script `prepare` de npm.
  *
  * Instala los git hooks (husky) SOLO donde tienen sentido: un clon de
- * desarrollo con repositorio git. En el servidor de despliegue (Hostinger) no
+ * desarrollo con repositorio git. En el servidor de despliegue no
  * hay hooks que instalar, no aporta nada, y un fallo aqui tumbaria el build
  * entero. Por eso: se omite fuera de desarrollo y nunca lanza error.
  *

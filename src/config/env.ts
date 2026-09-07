@@ -5,7 +5,7 @@
  * Importa `env` desde aqui y usa el objeto tipado.
  *
  * CUANDO falla: en el ARRANQUE del servidor (ver `src/instrumentation.ts`),
- * NO en el build. Hostinger ejecuta `next build` sin ninguna variable
+ * NO en el build. El despliegue ejecuta `next build` sin ninguna variable
  * configurada; si la validacion se ejecutase al compilar, tumbaria el despliegue.
  * El criterio del documento de arquitectura es que la app *no arranque*,
  * no que *no compile*.
@@ -26,7 +26,7 @@
  *
  *   ❌ NO se puede leer `env` en AMBITO DE MODULO de nada que cuelgue de
  *      `src/app/**`, ni en componentes o layouts que se prerendericen de forma
- *      estatica. Se evaluaria durante el build de Hostinger, que compila SIN
+ *      estatica. Se evaluaria durante el build del despliegue, que compila SIN
  *      ninguna variable configurada -> excepcion -> despliegue caido.
  *
  * Si una pagina necesita configuracion: o se accede dentro del ambito de la
@@ -120,7 +120,7 @@ const serverSchema = z.object({
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
   /**
-   * Email por SMTP del servidor de correo de Hostinger (Paso 6). El envio pasa por
+   * Email por SMTP autenticado (Paso 6). El envio pasa por
    * la cola. Se promueven a obligatorias cuando se conecte el envio real.
    */
   EMAIL_FROM: z.email().optional(),
@@ -150,15 +150,15 @@ const serverSchema = z.object({
   REDIS_URL: z.string().min(1).optional(),
   /**
    * Modo de la limpieza de HUERFANOS en Bunny (reconciliacion Parte B, DESTRUCTIVA). Por defecto
-   * "dry-run": el barrido LOGuea que borraria pero NO borra nada. Junior lo pone a "borrar" en el
-   * .env del VPS SOLO tras revisar los logs del dry-run. Ausente => dry-run => despliegue SEGURO.
-   * NO es secreto (no hace falta hPanel para desplegar en modo seguro).
+   * "dry-run": el barrido LOGuea que borraria pero NO borra nada. Se pone a "borrar" en el entorno
+   * del servidor SOLO tras revisar los logs del dry-run. Ausente => dry-run => despliegue SEGURO.
+   * NO es secreto (no hace falta tocar el servidor para desplegar en modo seguro).
    */
   RECON_HUERFANOS_MODO: z.enum(["dry-run", "borrar"]).default("dry-run"),
   /**
    * Modo de la reconciliacion Parte C (PUBLICADOS desaparecidos). Por defecto "dry-run": LOGuea que
-   * degradaria pero NO muta. Junior lo pone a "actuar" tras revisar los logs del dry-run. INDEPENDIENTE
-   * de RECON_HUERFANOS_MODO. Ausente => dry-run => despliegue SEGURO. No es secreto (no pide hPanel).
+   * degradaria pero NO muta. Se pone a "actuar" tras revisar los logs del dry-run. INDEPENDIENTE
+   * de RECON_HUERFANOS_MODO. Ausente => dry-run => despliegue SEGURO. No es secreto.
    */
   RECON_PUBLICADOS_MODO: z.enum(["dry-run", "actuar"]).default("dry-run"),
 });
@@ -223,7 +223,7 @@ export function validateEnv(): Env {
         detalle,
         "",
         "Define esas variables en tu `.env` local (plantilla en `.env.example`)",
-        "o, en produccion, en el fichero de entorno del VPS (~/dareflash-config/.env).",
+        "o, en produccion, en el fichero de entorno del servidor (fuera del repo).",
       ].join("\n"),
     );
   }

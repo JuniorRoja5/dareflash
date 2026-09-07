@@ -5,7 +5,7 @@
  *    credenciales reales. Es el UNICO sitio donde el enlace de verificacion aparece
  *    en texto: no hay correo de verdad en dev y el desarrollador necesita el enlace.
  *    NUNCA se usa en produccion.
- *  - Adaptador SMTP (produccion): servidor de correo de Hostinger via nodemailer.
+ *  - Adaptador SMTP (produccion): servidor de correo propio via nodemailer.
  *
  * Cambiar de proveedor (si la entregabilidad diera problemas) es cuestion de
  * configuracion, para eso sirve esta abstraccion.
@@ -89,8 +89,8 @@ export function createSmtpEmailAdapter(): EmailAdapter {
           requireTLS: env.SMTP_PORT !== 465, // 587: STARTTLS OBLIGATORIO, nunca texto plano
           // TLS: la verificacion del certificado queda SIEMPRE activada (rejectUnauthorized
           // por defecto = true). Por esta conexion viajan credenciales; NO desactivarla jamas.
-          // Si la verificacion de nombre falla, se arregla el CERTIFICADO del servidor (AutoSSL
-          // que cubra mail.dareflash.com), NUNCA el cliente: desactivarla abre la puerta a un
+          // Si la verificacion de nombre falla, se arregla el CERTIFICADO del servidor (que cubra
+          // el host de SMTP_HOST), NUNCA el cliente: desactivarla abre la puerta a un
           // intermediario que robe las credenciales.
           // Timeouts PROPIOS del transporte, por DEBAJO del JOB_TIMEOUT_MS del worker (60 s): asi
           // un servidor colgado ABORTA el envio de verdad (no se queda en vuelo), y el timeout

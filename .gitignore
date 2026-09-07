@@ -39,6 +39,9 @@ yarn-error.log*
 
 # DareFlash: documentacion local (NO sincroniza con el repo)
 /Documentacion NO GIT/
+# Auditorias e informes de seguridad: NUNCA en el repo. Describen hallazgos abiertos con su ruta de
+# explotacion — publicarlos le ahorra el reconocimiento a quien ataque. Viven fuera, en otro canal.
+/security/audits/
 /PROMPT_AGENTE*.md
 /ARCHITECTURE_AND_SCAFFOLD.md
 

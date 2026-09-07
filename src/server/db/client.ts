@@ -16,7 +16,7 @@ import { PrismaClient } from "@/generated/prisma/client";
  * `prisma` de forma ESTATICA desde una cadena que Next evalua en `next build` (recogida de
  * datos de pagina), no se lee ninguna variable y el build no revienta. Esto elimina una
  * clase entera de fallo: antes bastaba un import estatico nuevo para tumbar el despliegue
- * (Hostinger/Docker compilan sin variables). `npm run test:build-sin-env` lo vigila.
+ * (Docker y CI compilan sin variables). `npm run test:build-sin-env` lo vigila.
  *
  * Por que singleton: en desarrollo el hot-reload de Next reevalua los modulos; sin cachear
  * en `globalThis` se crearia un PrismaClient (y un pool) nuevo en cada recarga, agotando el

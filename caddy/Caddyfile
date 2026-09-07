@@ -46,9 +46,8 @@
 		#    se niega a hablar por HTTP durante todo ese tiempo. Si algo fuera mal con el
 		#    certificado, con un ano encima no habria vuelta atras para quien ya lo recibio. Se sube
 		#    cuando llevemos semanas sin un solo fallo de HTTPS.
-		#  - SIN `includeSubDomains`. `mail.dareflash.com` es OTRA maquina (el cPanel que entrega el
-		#    correo, ver README); forzarle HTTPS desde aqui podria dejar sin acceso a algo que no
-		#    controlamos ni servimos.
+		#  - SIN `includeSubDomains`. El subdominio del correo lo sirve OTRA maquina, que ni
+		#    controlamos ni servimos desde aqui; forzarle HTTPS podria dejarla sin acceso.
 		#  - SIN `preload`. Entrar en la lista de precarga de los navegadores es practicamente
 		#    irreversible y exige `includeSubDomains` + un ano. Ni una cosa ni la otra, todavia.
 		Strict-Transport-Security "max-age=86400"
