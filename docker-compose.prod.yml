@@ -6,7 +6,7 @@
 # vive en el repositorio.
 #
 #   Levantar:   docker compose -f docker-compose.prod.yml up -d --build
-#   Migrar:     docker compose -f docker-compose.prod.yml exec web npx prisma migrate deploy
+#   Migrar:     ./scripts/migrate-prod.sh
 #   Logs:       docker compose -f docker-compose.prod.yml logs -f web
 #
 # Solo `caddy` publica puertos al exterior (80/443). mariadb y redis NO se exponen.
