@@ -8,6 +8,15 @@ import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { AVATAR_TIPOS, avatarExcedeTope } from "@/app/(app)/(shell)/perfil/perfil-logic";
 import { mensajeDe, obtenerCsrfToken, postJsonCsrf } from "@/lib/cliente-http";
+import {
+  clasificarFalloSubida,
+  copySubida,
+  esFallo,
+  estadoEnVuelo,
+  estadoTrasSondeo,
+  puedeReintentar,
+  type EstadoSubida,
+} from "@/lib/estado-subida";
 
 import { CATEGORIAS } from "../retos/retos-datos";
 import { tituloEsValido } from "./crear-logic";
@@ -49,7 +58,13 @@ function leerDuracionVideo(file: File): Promise<number> {
   });
 }
 
-type Fase = "idle" | "subiendo" | "subido" | "error";
+/**
+ * SONDEO de "¿ya es reproducible?". Cadencia y tope: 20 × 3 s = 1 min. Al agotarse NO se declara nada
+ * —el vídeo sigue en la cola de codificación de Bunny, que no promete plazo— y el copy de "en-cola" ya
+ * dice la verdad: aparecerá en el perfil cuando esté. Un tope alto solo añadiría peticiones.
+ */
+const SONDEO_MS = 3000;
+const SONDEOS_MAX = 20;
 
 /**
  * MODAL DE SUBIDA — overlay accesible reutilizable. Sube el vídeo DIRECTO a Bunny por TUS reanudable
@@ -78,9 +93,13 @@ export function ModalSubida({
   const [errorFichero, setErrorFichero] = useState<string | undefined>(undefined);
   const [miniatura, setMiniatura] = useState<File | null>(null);
   const [previaMini, setPreviaMini] = useState<string | null>(null);
-  const [fase, setFase] = useState<Fase>("idle");
+  // ESTADO REAL de la subida (fuente única en `@/lib/estado-subida`). `null` = aún en el formulario.
+  // Sustituye a la vieja `fase`, que metía "subiendo", "en cola" y "listo" en el mismo saco.
+  const [estado, setEstado] = useState<EstadoSubida | null>(null);
   const [progreso, setProgreso] = useState(0);
-  const [errorSubida, setErrorSubida] = useState<string | undefined>(undefined);
+  // Fallos ANTERIORES a que empiece a moverse un byte (sesión, elegibilidad, credencial): los explica
+  // el servidor con su propio mensaje humano, así que no se re-inventan aquí.
+  const [errorPrevio, setErrorPrevio] = useState<string | undefined>(undefined);
   const [aviso, setAviso] = useState<string | undefined>(undefined);
   // Puntero grueso (móvil/tablet). El modal se monta solo en cliente (tras un clic), así que se puede
   // leer `matchMedia` en el initializer sin riesgo de mismatch de hidratación (no está en el árbol SSR).
@@ -93,9 +112,17 @@ export function ModalSubida({
   const objectUrlRef = useRef<string | null>(null);
   const dialogoRef = useRef<HTMLDivElement>(null);
   const cerrarRef = useRef<HTMLButtonElement>(null);
+  // Bytes que HAN SALIDO. Es la señal que separa "no se pudo conectar" de "se cortó a mitad", y tiene
+  // que ser un ref: el `onError` de tus se cierra sobre el valor del render en el que se creó.
+  const bytesRef = useRef(0);
+  // El sondeo sobrevive al cierre del modal a propósito (completa el reemplazo aunque el usuario se
+  // vaya); esto solo evita pintar en un componente que ya no está.
+  const montadoRef = useRef(true);
   const tituloId = useId();
 
-  const ocupado = fase === "subiendo" || fase === "subido";
+  // Bloquea el formulario mientras la subida está viva. Un FALLO lo desbloquea: es lo que permite
+  // reintentar sin cerrar y volver a abrir.
+  const ocupado = estado !== null && !esFallo(estado);
   const entradas = entradasVideo(esTactil);
 
   // Monta: guarda foco previo, bloquea scroll del fondo, foca el botón cerrar. Desmonta: revierte +
@@ -106,6 +133,7 @@ export function ModalSubida({
     document.body.style.overflow = "hidden";
     cerrarRef.current?.focus();
     return () => {
+      montadoRef.current = false;
       document.body.style.overflow = scrollPrevio;
       previo?.focus?.();
       uploadRef.current?.abort();
@@ -166,13 +194,17 @@ export function ModalSubida({
     const f = e.target.files?.[0] ?? null;
     e.target.value = "";
     if (f && !AVATAR_TIPOS.includes(f.type as (typeof AVATAR_TIPOS)[number])) {
-      setErrorSubida("La miniatura debe ser una imagen JPG, PNG o WebP.");
+      // BUG QUE SE ARREGLA DE PASO: estos dos avisos se escribían en el estado de error de la SUBIDA,
+      // que solo se pintaba en la fase "error". Elegir una miniatura no pone el modal en esa fase, así
+      // que el mensaje se guardaba y no lo veía nadie: la imagen se rechazaba en silencio.
+      setErrorPrevio("La miniatura debe ser una imagen JPG, PNG o WebP.");
       return;
     }
     if (f && avatarExcedeTope(f.size)) {
-      setErrorSubida("La miniatura es demasiado grande. Prueba con una imagen más ligera.");
+      setErrorPrevio("La miniatura es demasiado grande. Prueba con una imagen más ligera.");
       return;
     }
+    setErrorPrevio(undefined);
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     const url = f ? URL.createObjectURL(f) : null;
     objectUrlRef.current = url;
@@ -180,29 +212,45 @@ export function ModalSubida({
     setMiniatura(f);
   };
 
-  // RUTA RÁPIDA del reemplazo: cuando el vídeo nuevo pasa a PUBLISHED, confirma el swap para que la
-  // participación cambie al instante. Sondea `reproduccion` (200 = PUBLISHED) unas veces y llama a
-  // `confirmar-reemplazo`. Best-effort SIN tocar estado (el modal puede cerrarse): si no llega, el
-  // worker completa el swap igual (red de seguridad).
-  const confirmarReemplazo = async (videoDbId: string): Promise<void> => {
-    for (let intento = 0; intento < 12; intento++) {
-      await new Promise((r) => setTimeout(r, 3000));
+  /**
+   * ¿Ya es reproducible? Sondea `GET /api/videos/[id]/reproduccion`, que responde 200 SOLO para un
+   * vídeo PUBLISHED — es decir, cuando el worker ya vio en Bunny que terminó de codificar. No hace
+   * falta un canal nuevo: esta es la señal que el sistema ya produce.
+   *
+   * Un 404 NO es un fallo: cubre "sigue en cola" y "falló", y no se pueden distinguir desde aquí. Por
+   * eso agotar los intentos devuelve `false` y la UI se queda en "en cola", nunca inventa un error.
+   *
+   * Es UN solo bucle para los dos consumidores (pintar "listo" y cerrar el reemplazo): antes había uno
+   * dedicado al swap, y dos bucles sondeando lo mismo se separan en cuanto alguien toca uno.
+   */
+  const sondearReproducible = async (videoDbId: string): Promise<boolean> => {
+    for (let intento = 0; intento < SONDEOS_MAX; intento++) {
+      await new Promise((r) => setTimeout(r, SONDEO_MS));
       try {
         const pub = await fetch(`/api/videos/${videoDbId}/reproduccion`, {
           credentials: "include",
         });
-        if (pub.ok) {
-          const csrfToken = await obtenerCsrfToken();
-          await fetch(`/api/videos/${videoDbId}/confirmar-reemplazo`, {
-            method: "POST",
-            credentials: "include",
-            headers: { "X-CSRF-Token": csrfToken },
-          });
-          return;
-        }
+        if (pub.ok) return true;
       } catch {
-        // red intermitente: se reintenta; si nunca cuaja, el worker lo completa.
+        // red intermitente: se reintenta; si nunca cuaja, el worker completa igual.
       }
+    }
+    return false;
+  };
+
+  // RUTA RÁPIDA del reemplazo: cuando el vídeo nuevo ya es reproducible, confirma el swap para que la
+  // participación cambie al instante. Best-effort: si no llega, el worker lo completa (red de
+  // seguridad). Sobrevive al cierre del modal a propósito.
+  const confirmarReemplazo = async (videoDbId: string): Promise<void> => {
+    try {
+      const csrfToken = await obtenerCsrfToken();
+      await fetch(`/api/videos/${videoDbId}/confirmar-reemplazo`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "X-CSRF-Token": csrfToken },
+      });
+    } catch {
+      // el worker completa el swap igual.
     }
   };
 
@@ -241,9 +289,12 @@ export function ModalSubida({
       return;
     }
 
-    setFase("subiendo");
+    // Todavía no sube nada: primero hay que pedir permiso. El paso a "subiendo" lo dispara el primer
+    // `onProgress`, es decir, cuando de verdad salen bytes.
+    setEstado("preparando");
     setProgreso(0);
-    setErrorSubida(undefined);
+    bytesRef.current = 0;
+    setErrorPrevio(undefined);
     setAviso(undefined);
 
     try {
@@ -255,9 +306,19 @@ export function ModalSubida({
           ...(challengeId ? { challengeId } : { category: categoria }),
         },
       );
-      if (!cred.ok) throw new Error(cred.status === 401 ? "SIN_SESION" : "CREDENCIAL");
+      if (!cred.ok) {
+        // El servidor ya explica en humano por qué no (sesión, elegibilidad, reto cerrado…). Se usa SU
+        // mensaje: repetirlo aquí sería una segunda fuente de verdad que se queda vieja.
+        throw new Error(
+          cred.status === 401
+            ? "Inicia sesión para publicar tu vídeo."
+            : mensajeDe(cred.data) || "No se pudo preparar la subida. Inténtalo de nuevo.",
+        );
+      }
       const credencial: unknown = cred.data;
-      if (!credencialValida(credencial)) throw new Error("CREDENCIAL");
+      if (!credencialValida(credencial)) {
+        throw new Error("No se pudo preparar la subida. Inténtalo de nuevo.");
+      }
       const videoDbId = cred.data.videoDbId ?? null;
       const esReemplazo = cred.data.esReemplazo === true;
 
@@ -268,30 +329,51 @@ export function ModalSubida({
         metadata: opciones.metadata,
         headers: opciones.headers,
         retryDelays: [0, 3000, 5000, 10000, 20000],
-        onProgress: (subido, total) => setProgreso(total ? Math.round((subido / total) * 100) : 0),
-        onError: () => {
-          setErrorSubida("No se pudo subir el vídeo. Revisa tu conexión e inténtalo de nuevo.");
-          setFase("error");
+        onProgress: (subido, total) => {
+          bytesRef.current = subido;
+          setProgreso(total ? Math.round((subido / total) * 100) : 0);
+          // Mientras haya bytes en vuelo el estado es "subiendo", pase lo que pase con el porcentaje.
+          setEstado(
+            estadoEnVuelo({ subidaCompleta: false, bytesEnviados: subido, bytesTotales: total }),
+          );
         },
+        // tus ya ha agotado sus reintentos cuando llega aquí, así que el fallo es persistente. Se lee
+        // la respuesta REAL: sin ella no hubo conexión; con ella, Bunny dijo algo y ese algo importa.
+        onError: (err) => {
+          const respuesta = (err as { originalResponse?: { getStatus(): number } | null })
+            .originalResponse;
+          setEstado(
+            clasificarFalloSubida({
+              bytesEnviados: bytesRef.current,
+              estadoHttp: respuesta ? respuesta.getStatus() : null,
+            }),
+          );
+        },
+        // Aquí —y solo aquí— la subida está CERRADA: el vídeo está entero en Bunny y entra en su cola
+        // de codificación. Hasta este punto no se le dice al usuario que está a salvo.
         onSuccess: () => {
-          setFase("subido");
-          if (videoDbId) {
-            void aplicarMiniatura(videoDbId);
-            if (esReemplazo) void confirmarReemplazo(videoDbId);
-            onSubido?.(videoDbId);
-          }
+          setEstado(estadoEnVuelo({ subidaCompleta: true, bytesEnviados: 0, bytesTotales: 0 }));
+          if (!videoDbId) return;
+          void aplicarMiniatura(videoDbId);
+          onSubido?.(videoDbId);
+          void (async () => {
+            const reproducible = await sondearReproducible(videoDbId);
+            if (reproducible && esReemplazo) await confirmarReemplazo(videoDbId);
+            // Agotar el sondeo NO es un fallo: se queda "en cola", que es la verdad.
+            if (montadoRef.current) setEstado(estadoTrasSondeo(reproducible));
+          })();
         },
       });
       uploadRef.current = upload;
       upload.start();
     } catch (err) {
-      const codigo = err instanceof Error ? err.message : "";
-      setErrorSubida(
-        codigo === "SIN_SESION"
-          ? "Inicia sesión para publicar tu vídeo."
+      // Fallo ANTES de que salga un byte: no es un estado de subida, es el servidor diciendo que no.
+      setErrorPrevio(
+        err instanceof Error && err.message
+          ? err.message
           : "No se pudo preparar la subida. Inténtalo de nuevo.",
       );
-      setFase("error");
+      setEstado(null);
     }
   };
 
@@ -437,7 +519,8 @@ export function ModalSubida({
             </div>
           </div>
 
-          {fase === "subiendo" ? (
+          {/* SUBIENDO: barra con progreso REAL de bytes. Es el único estado mientras van bytes. */}
+          {estado === "subiendo" ? (
             <div className="mt-5" aria-live="polite">
               <div className="h-2 w-full overflow-hidden rounded-full bg-raised">
                 <div
@@ -445,14 +528,22 @@ export function ModalSubida({
                   style={{ width: `${progreso}%` }}
                 />
               </div>
-              <p className="mt-1.5 text-sm tabular-nums text-text-dim">Subiendo… {progreso} %</p>
+              <p className="mt-1.5 text-sm tabular-nums text-text-dim">
+                {copySubida("subiendo")} {progreso} %
+              </p>
             </div>
           ) : null}
 
-          {fase === "subido" ? (
+          {/* EN COLA / LISTO: la subida ya cerró. Se distinguen a propósito — "en cola" explica que la
+              espera es normal y que el vídeo no se ha perdido; "listo" es la confirmación de verdad. */}
+          {estado === "en-cola" || estado === "listo" ? (
             <div className="mt-5">
-              <p className="text-center text-sm text-ok" role="status">
-                Subido. Lo estamos procesando; aparecerá cuando esté listo.
+              <p
+                className={`text-center text-sm ${estado === "listo" ? "text-ok" : "text-text-dim"}`}
+                role="status"
+                aria-live="polite"
+              >
+                {copySubida(estado)}
               </p>
               {aviso ? (
                 <p className="mt-2 text-center text-sm text-alarm" role="alert">
@@ -475,12 +566,25 @@ export function ModalSubida({
               disabled={ocupado}
               className="mt-5 w-full py-4"
             >
-              {fase === "subiendo" ? `Subiendo… ${progreso} %` : "Publicar"}
+              {estado === "subiendo"
+                ? `${copySubida("subiendo")} ${progreso} %`
+                : estado === "preparando"
+                  ? copySubida("preparando")
+                  : estado !== null && puedeReintentar(estado)
+                    ? "Reintentar"
+                    : "Publicar"}
             </Boton>
           )}
-          {fase === "error" && errorSubida ? (
+
+          {/* FALLO: el mensaje nombra la causa real. Un rechazo del fichero no ofrece reintentar. */}
+          {estado !== null && esFallo(estado) ? (
             <p className="mt-2 text-center text-sm text-alarm" role="status">
-              {errorSubida}
+              {copySubida(estado)}
+            </p>
+          ) : null}
+          {errorPrevio ? (
+            <p className="mt-2 text-center text-sm text-alarm" role="status">
+              {errorPrevio}
             </p>
           ) : null}
         </form>
