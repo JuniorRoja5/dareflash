@@ -65,24 +65,36 @@ export interface MetricasReto {
    * mientras no haya votación (Fase 3), pero es un agregado REAL de una columna real, no un hueco.
    */
   votos: number;
+  /**
+   * GANADORES declarados: filas de `ChallengeResult`. Sale del HECHO, no de recalcular el orden —es
+   * la misma fuente de la que beben el palmarés del perfil y el ranking, así que el panel no puede
+   * enseñar un número distinto del que se otorgó.
+   *
+   * 0 tiene tres significados posibles y NINGUNO es "no hay datos": el reto sigue abierto, cerró sin
+   * alcanzar el mínimo, o cerró en empate esperando al admin. Cuál de los tres lo dice
+   * `motivoCierre`, que ya está en la ficha.
+   */
+  ganadores: number;
 }
 
 /** Todas las cuentas en paralelo; `challengeId` es prefijo del índice [challengeId, voteCount]. */
 export async function metricasReto(db: Db, challengeId: string): Promise<MetricasReto> {
   const visible = { status: "PUBLISHED", video: { status: "PUBLISHED" } } as const;
 
-  const [participaciones, porUsuario, visibles, retiradas, enProceso, suma] = await Promise.all([
-    db.submission.count({ where: { challengeId } }),
-    db.submission.groupBy({ by: ["userId"], where: { challengeId } }),
-    db.submission.count({ where: { challengeId, ...visible } }),
-    db.submission.count({
-      where: { challengeId, OR: [{ status: "REMOVED" }, { video: { status: "REMOVED" } }] },
-    }),
-    db.submission.count({
-      where: { challengeId, status: { not: "REMOVED" }, video: { status: "PENDING" } },
-    }),
-    db.submission.aggregate({ where: { challengeId, ...visible }, _sum: { voteCount: true } }),
-  ]);
+  const [participaciones, porUsuario, visibles, retiradas, enProceso, suma, ganadores] =
+    await Promise.all([
+      db.submission.count({ where: { challengeId } }),
+      db.submission.groupBy({ by: ["userId"], where: { challengeId } }),
+      db.submission.count({ where: { challengeId, ...visible } }),
+      db.submission.count({
+        where: { challengeId, OR: [{ status: "REMOVED" }, { video: { status: "REMOVED" } }] },
+      }),
+      db.submission.count({
+        where: { challengeId, status: { not: "REMOVED" }, video: { status: "PENDING" } },
+      }),
+      db.submission.aggregate({ where: { challengeId, ...visible }, _sum: { voteCount: true } }),
+      db.challengeResult.count({ where: { challengeId } }),
+    ]);
 
   return {
     participaciones,
@@ -91,5 +103,6 @@ export async function metricasReto(db: Db, challengeId: string): Promise<Metrica
     retiradas,
     enProceso,
     votos: suma._sum.voteCount ?? 0,
+    ganadores,
   };
 }

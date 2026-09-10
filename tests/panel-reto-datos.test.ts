@@ -106,6 +106,9 @@ describe("metricasReto", () => {
       retiradas: 0,
       enProceso: 0,
       votos: 0,
+      // Un reto sin cerrar no tiene ganadores. El 0 aquí es un hecho, no un hueco: lo que significa
+      // (abierto / sin mínimo / empate pendiente) lo dice `motivoCierre`, no esta cifra.
+      ganadores: 0,
     });
   });
 

@@ -206,6 +206,14 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
             nota="Vídeo aún sin publicar"
           />
           <TarjetaMetrica valor={metricas.retiradas} etiqueta="Retiradas" nota="Por moderación" />
+          {/* GANADORES: sale de ChallengeResult, la misma fuente del palmarés y del ranking. Un 0 aquí
+              no es "sin datos" — es que el reto sigue abierto, cerró sin mínimo, o espera al admin por
+              un empate; cuál de los tres lo dice el bloque de arriba. */}
+          <TarjetaMetrica
+            valor={metricas.ganadores}
+            etiqueta="Ganadores"
+            nota="Declarados al cerrar"
+          />
           {/* Sin backend todavía: RAYA, nunca un número. Cada una se sustituye por una TarjetaMetrica
               en su fase, en este mismo hueco. */}
           <TarjetaProximamente etiqueta="Interacción por participación" fase={3} />
