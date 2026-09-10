@@ -41,6 +41,7 @@ import {
 import { sanearError } from "@/server/observability/sanitize-error";
 
 import { applyPoints } from "./ledger";
+import { periodoActual, recontarVictoriasDelPeriodo } from "./ranking";
 
 export interface ResultadoCierre {
   /** true si ESTA ejecución escribió el hecho (la primera). false si ya estaba cerrado o no tocaba. */
@@ -134,6 +135,14 @@ export async function cerrarRetoVencido(
           })),
           skipDuplicates: true,
         });
+        // El caché del ranking mensual se escribe en la MISMA transacción que el hecho: o están las
+        // dos cosas o no está ninguna. Con valor ABSOLUTO recontado, no incrementos, para que
+        // re-ejecutar el cierre converja (ver `recontarVictoriasDelPeriodo`).
+        await recontarVictoriasDelPeriodo(
+          tx,
+          decision.ganadores.map((g) => g.userId),
+          periodoActual(now),
+        );
       }
       return true;
     });
@@ -318,6 +327,12 @@ export async function resolverEmpate(
       })),
       skipDuplicates: true,
     });
+    // Mismo caché, misma transacción: resolver un empate produce victorias como cualquier cierre.
+    await recontarVictoriasDelPeriodo(
+      tx,
+      validacion.ganadores.map((g) => g.userId),
+      periodoActual(now),
+    );
     // La guarda de la carrera, igual que en el cierre: dos admins pulsando a la vez, uno solo escribe.
     await tx.challenge.updateMany({
       where: { id: challengeId, motivoCierre: "EMPATE_PENDIENTE" },

@@ -58,8 +58,9 @@ export function nombreBdWorker(): string {
  * cada consulta del pool usa una conexion distinta: el TRUNCATE correria en otra
  * conexion con las FK aun activas. Con el orden correcto no hace falta desactivarlas.
  */
-const DELETE_ORDER = [
+export const DELETE_ORDER = [
   "Vote",
+  "RankingMensual",
   "ChallengeResult",
   "Submission",
   "Challenge",

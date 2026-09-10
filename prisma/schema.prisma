@@ -472,6 +472,40 @@ model ChallengeResult {
   @@index([userId, createdAt]) // victorias por usuario y mes (TopRanking mensual, UTC)
 }
 
+/// RANKING MENSUAL MATERIALIZADO: victorias de un usuario en un mes natural (UTC).
+///
+/// POR QUE UNA TABLA Y NO UN GROUP BY EN VIVO. No es por volumen —hoy `ChallengeResult` tiene una
+/// fila por ganador y por reto, o sea nada—, es porque un agregado NO SE PUEDE PAGINAR POR KEYSET.
+/// El orden es "mas victorias primero", y las victorias son un COUNT: para continuar por cursor
+/// haria falta un `HAVING (COUNT(*), userId) < (?, ?)`, que ningun indice puede resolver; la base
+/// tendria que agrupar el mes entero y ordenarlo en memoria en CADA pagina. Con la cuenta ya escrita
+/// en una columna, el keyset es un rango sobre un indice y cuesta lo mismo con diez filas que con un
+/// millon. El invariante "keyset, nunca OFFSET" es lo que obliga a materializar, no el tamaño.
+///
+/// La verdad sigue siendo `ChallengeResult`: esta tabla es un CACHE, igual que `User.pointsBalance`
+/// respecto al ledger. Y como aquel, se escribe con el VALOR ABSOLUTO recontado dentro de la misma
+/// transaccion que crea los resultados, nunca con un INCREMENT: asi re-ejecutar un cierre converge al
+/// mismo numero en vez de sumar de mas.
+model RankingMensual {
+  id String @id @default(cuid())
+
+  /// Mes natural en UTC como CLAVE de texto `YYYY-MM` (ver src/lib/periodo.ts). Texto y no fecha a
+  /// proposito: se agrupa por igualdad exacta —el caso mas barato para el indice— y dos filas del
+  /// mismo mes no pueden diferir por un milisegundo.
+  periodo   String @db.Char(7)
+  userId    String
+  victorias Int    @default(0)
+
+  actualizadoEn DateTime @updatedAt
+
+  /// Un usuario, una fila por mes. Es lo que hace idempotente el recuento (upsert por esta clave).
+  @@unique([periodo, userId])
+  /// EL INDICE DEL KEYSET. Cubre `WHERE periodo = ?` + el orden `(victorias, userId)`. La consulta
+  /// ordena DESC por las DOS columnas para que sea un recorrido hacia atras de este mismo indice: con
+  /// direcciones mezcladas (victorias DESC, userId ASC) InnoDB no puede recorrerlo de una pasada.
+  @@index([periodo, victorias, userId])
+}
+
 // ============================================================================
 // ANTIFRAUDE: VOTO
 // ============================================================================
