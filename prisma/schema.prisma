@@ -312,6 +312,38 @@ model Challenge {
   // Nº de ganadores configurable por reto (dominio: >= 1; lo valida el schema de creacion futuro).
   winnersCount Int @default(1)
 
+  /// MINIMO de participaciones que CUENTAN (invariante 3: Submission PUBLISHED **y** Video PUBLISHED)
+  /// para que se declare ganador. NULL = el reto no exige minimo, que es el caso de todos los retos
+  /// existentes -> la migracion NO necesita backfill: la ausencia YA significa lo correcto. Si al
+  /// cerrar no se alcanza, el reto cierra igual pero sin resultado, sin premio y sin puntos.
+  minParticipaciones Int?
+
+  /// CUANDO se ejecuto el cierre. NULL = no cerrado todavia. Es el HECHO, no una intencion: se
+  /// escribe en la MISMA transaccion que los `ChallengeResult`, asi que "hay closedAt" y "estan los
+  /// resultados" son ciertos a la vez o ninguno de los dos. Es tambien la guarda de idempotencia del
+  /// cierre, y no depende de `status`, que un admin podria mover a mano.
+  closedAt DateTime?
+
+  /// POR QUE cerro como cerro (union en constants, `MotivoCierreSchema`):
+  /// CON_GANADORES | SIN_MINIMO | EMPATE_PENDIENTE.
+  /// Existe porque "cerro sin ganador" NO es derivable de que no haya `ChallengeResult`: un reto sin
+  /// resultados puede serlo por no alcanzar el minimo o porque hay un empate en la linea del premio
+  /// esperando al admin, y son cosas distintas para quien mira. Es la leccion del REMOVED: un estado
+  /// que significa dos cosas acaba mintiendo sobre una de las dos.
+  motivoCierre String?
+
+  /// CUANDO se completo el otorgamiento de PUNTOS del cierre. NULL = el hecho esta escrito pero los
+  /// premios pueden estar a medias.
+  ///
+  /// POR QUE hace falta una CUARTA columna, y no estaba en el encargo: los puntos van FUERA de la
+  /// transaccion del cierre (Prisma no anida transacciones interactivas), asi que existe una ventana
+  /// real entre "el reto ya consta cerrado" y "todos los puntos estan dados". Sin esta marca, el
+  /// barrido —que busca lo no cerrado— jamas volveria a mirar ese reto, y un proceso que muera en esa
+  /// ventana dejaria premios sin dar PARA SIEMPRE: la re-entrancia seria cierta llamando a mano a la
+  /// funcion, y falsa en produccion. Con ella, el barrido recoge tambien los cerrados sin premiar, y
+  /// la reparacion ocurre sola. Ademas ACOTA la re-entrada: una vez puesta, no se recalcula nada.
+  premiadosEn DateTime?
+
   // Premio en enteros (centimos) desde el dia 1: si entrara mas tarde, alguien lo
   // meteria como decimal. 0 = aun sin premio. La moneda la fija la app desde
   // DEFAULT_CURRENCY (constants); no se incrusta como default del esquema.

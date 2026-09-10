@@ -281,9 +281,14 @@ export async function publicarParticipacionSiProcede(
     await completarReemplazo(db, videoId);
     return;
   }
-  // Primera participación: publica su Submission si sigue PENDING (no pisa una REMOVED por moderación).
+  // Primera participación: publica su Submission si sigue PENDING (no pisa una REMOVED por moderación)
+  // Y SI SU RETO SIGUE ABIERTO. Lo segundo es un invariante de la Fase 4: el cierre computa las
+  // participaciones publicadas en su instante, así que un vídeo que termina de codificar DESPUÉS no
+  // puede aparecer como participación de un reto ya cerrado — quedaría listado entre las de un reto
+  // cuyo resultado ya está congelado, sin haber entrado nunca en el cómputo. La condición se pone en
+  // el `where` (no en un `if` previo) para que no haya ventana entre comprobar y escribir.
   await db.submission.updateMany({
-    where: { videoId, status: "PENDING" },
+    where: { videoId, status: "PENDING", challenge: { is: { closedAt: null } } },
     data: { status: "PUBLISHED" },
   });
 }

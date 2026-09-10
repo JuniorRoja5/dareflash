@@ -593,6 +593,22 @@ export type WalletEntryType = z.infer<typeof WalletEntryTypeSchema>;
 export const ChallengeStatusSchema = z.enum(["DRAFT", "PUBLISHED", "CLOSED"]);
 export type ChallengeStatus = z.infer<typeof ChallengeStatusSchema>;
 
+/**
+ * POR QUE cerro un reto (columna `Challenge.cierreMotivo`). Existe porque "cerro sin ganador" NO se
+ * deduce de que no haya `ChallengeResult`: hay cuatro formas de acabar sin ganador y significan cosas
+ * distintas. La semantica de cada valor vive junto a la decision, en `src/lib/cierre-reto.ts`.
+ */
+export const MotivoCierreSchema = z.enum(["CON_GANADORES", "SIN_MINIMO", "EMPATE_PENDIENTE"]);
+export type MotivoCierre = z.infer<typeof MotivoCierreSchema>;
+
+/**
+ * Cada cuanto barre el worker los retos vencidos sin cerrar. Un reto se cierra por el RELOJ, asi que
+ * el retraso maximo entre el deadline y el cierre es esta cadencia. Cinco minutos: lo bastante fino
+ * para que nadie mire un reto vencido y lo vea abierto un rato largo, y lo bastante grueso para que la
+ * consulta —indexada por [status, deadline]— no pese nada aunque no haya nada que cerrar.
+ */
+export const RETO_CIERRE_CADENCIA_MS = 5 * 60_000;
+
 /** Razon de un movimiento de creditos de Boost. */
 export const BoostReasonSchema = z.enum([
   "PURCHASE",
@@ -618,7 +634,12 @@ export type JobStatus = z.infer<typeof JobStatusSchema>;
 /** Tipos de job previstos. */
 export const JobTypeSchema = z.enum([
   "BOOST_EXPIRY",
-  "CHALLENGE_CLOSE",
+  // Aqui habia un "CHALLENGE_CLOSE". Se retira por la MISMA razon que se retiro "RETENTION_PURGE":
+  // no tiene handler ni llamante, y dejarlo sugiere un mecanismo que no existe. El cierre de retos NO
+  // es un job encolado sino un BARRIDO del worker (ver `cerrarRetosVencidos`), igual que el consumo de
+  // borrados: encolar un job al crear el reto obligaria a re-encolarlo si cambia el deadline y a
+  // limpiarlo si el reto se borra, mientras que el barrido se limita a mirar el reloj y es
+  // auto-reparable — si una vuelta se pierde, la siguiente lo recoge.
   "RANKING_RESET",
   "SEND_EMAIL",
   "LEDGER_RECONCILE",

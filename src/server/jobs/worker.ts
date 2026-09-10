@@ -19,6 +19,7 @@ import {
   RECALCULO_SCORES_CADENCIA_MS,
   RECON_CADENCIA_MS,
   RETO_BORRADO_CADENCIA_MS,
+  RETO_CIERRE_CADENCIA_MS,
   RECON_HUERFANOS_CADENCIA_MS,
   RECON_PUBLICADOS_CADENCIA_MS,
   VOTO_IPHASH_RETENCION_MS,
@@ -562,6 +563,9 @@ export async function bucleWorker(
   let proximoPublicados = 0;
   let proximoScores = 0;
   let proximoBorrados = 0;
+  // Arranca en 0 igual que los demas: la primera vuelta del worker recoge lo que quedara vencido
+  // mientras estaba parado, sin esperar una cadencia entera.
+  let proximoCierres = 0;
   // Ultima marca de wake HONRADA (event-kick). Comparacion por igualdad de STRING, NUNCA contra el
   // reloj: no depende de sincronia web/worker. En reinicio arranca null -> la primera marca existente
   // fuerza UN barrido (recoge PENDING previos).
@@ -742,6 +746,21 @@ export async function bucleWorker(
         o.log?.(`[worker] retos: barrido de borrados fallo (${sanearError(e)}); reintento luego.`);
       }
       proximoBorrados = t.getTime() + RETO_BORRADO_CADENCIA_MS;
+    }
+
+    // CIERRE de retos vencidos (Fase 4). Es el disparador REAL de la finalizacion: sin este barrido,
+    // un reto pasa su deadline y no ocurre NADA —ni ganadores, ni puntos—, que es el estado del que
+    // parte esta fase. Recoge tambien los ya cerrados cuyos puntos quedaron a medias, que es lo que
+    // hace que un cierre interrumpido se repare solo en vez de perder premios para siempre.
+    if (t.getTime() >= proximoCierres) {
+      try {
+        const { cerrarRetosVencidos } = await import("@/server/services/cierre-reto");
+        const { cerrados, revisados } = await cerrarRetosVencidos(db, t);
+        if (revisados > 0) o.log?.(`[worker] retos: revisados=${revisados} cerrados=${cerrados}`);
+      } catch (e) {
+        o.log?.(`[worker] retos: barrido de cierre fallo (${sanearError(e)}); reintento luego.`);
+      }
+      proximoCierres = t.getTime() + RETO_CIERRE_CADENCIA_MS;
     }
 
     if (o.parar()) break;
