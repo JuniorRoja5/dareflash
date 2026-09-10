@@ -17,9 +17,9 @@
  */
 
 /**
- * Estados visibles de una subida. Los cuatro últimos son fallos, y son distintos A PROPÓSITO: cada uno
- * lleva a una acción distinta del usuario (mirar la cobertura, reintentar, volver a empezar, cambiar
- * de fichero). Colapsarlos en uno solo es volver al bug.
+ * Estados visibles de una subida: cuatro de curso normal y los de `ESTADOS_FALLO`. Los fallos son
+ * distintos A PROPÓSITO, porque cada uno lleva a una acción distinta del usuario (mirar la cobertura,
+ * reintentar, volver a empezar, cambiar de fichero, recortar el vídeo). Colapsarlos es volver al bug.
  */
 export type EstadoSubida =
   /**
