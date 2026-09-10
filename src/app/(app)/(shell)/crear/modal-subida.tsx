@@ -7,7 +7,7 @@ import type { Upload } from "tus-js-client";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { AVATAR_TIPOS, avatarExcedeTope } from "@/app/(app)/(shell)/perfil/perfil-logic";
-import { mensajeDe, obtenerCsrfToken, postJsonCsrf } from "@/lib/cliente-http";
+import { getJson, mensajeDe, obtenerCsrfToken, postJsonCsrf } from "@/lib/cliente-http";
 import {
   clasificarFalloSubida,
   copySubida,
@@ -15,7 +15,9 @@ import {
   estadoEnVuelo,
   estadoTrasSondeo,
   puedeReintentar,
+  sondeoSigueAbierto,
   type EstadoSubida,
+  type EstadoVideoSondeo,
 } from "@/lib/estado-subida";
 
 import { CATEGORIAS } from "../retos/retos-datos";
@@ -213,29 +215,30 @@ export function ModalSubida({
   };
 
   /**
-   * ¿Ya es reproducible? Sondea `GET /api/videos/[id]/reproduccion`, que responde 200 SOLO para un
-   * vídeo PUBLISHED — es decir, cuando el worker ya vio en Bunny que terminó de codificar. No hace
-   * falta un canal nuevo: esta es la señal que el sistema ya produce.
+   * ¿En qué ha quedado el vídeo? Sondea `GET /api/videos/[id]`, que le cuenta a SU DUEÑO el estado
+   * real: sigue en cola, se publicó, falló la codificación o dura de más.
    *
-   * Un 404 NO es un fallo: cubre "sigue en cola" y "falló", y no se pueden distinguir desde aquí. Por
-   * eso agotar los intentos devuelve `false` y la UI se queda en "en cola", nunca inventa un error.
+   * ANTES esto preguntaba por `/reproduccion`, y ahí estaba el agujero: esa ruta devuelve 404 tanto
+   * si el vídeo sigue codificando como si la codificación falló. Con una sola señal para dos
+   * desenlaces opuestos, un vídeo fallido dejaba al usuario esperando indefinidamente a algo que no
+   * iba a llegar — y perdiendo su participación sin saberlo, cuando aún podía subir otro.
    *
-   * Es UN solo bucle para los dos consumidores (pintar "listo" y cerrar el reemplazo): antes había uno
-   * dedicado al swap, y dos bucles sondeando lo mismo se separan en cuanto alguien toca uno.
+   * Para cuando el desenlace está decidido; agotar los intentos sin decisión deja "en-cola", que
+   * sigue siendo verdad (el vídeo está a salvo y aparecerá en el perfil).
+   *
+   * Es UN solo bucle para los dos consumidores (pintar el estado y cerrar el reemplazo): antes había
+   * uno dedicado al swap, y dos bucles sondeando lo mismo se separan en cuanto alguien toca uno.
    */
-  const sondearReproducible = async (videoDbId: string): Promise<boolean> => {
+  const sondearEstado = async (videoDbId: string): Promise<EstadoSubida> => {
     for (let intento = 0; intento < SONDEOS_MAX; intento++) {
       await new Promise((r) => setTimeout(r, SONDEO_MS));
-      try {
-        const pub = await fetch(`/api/videos/${videoDbId}/reproduccion`, {
-          credentials: "include",
-        });
-        if (pub.ok) return true;
-      } catch {
-        // red intermitente: se reintenta; si nunca cuaja, el worker completa igual.
-      }
+      const r = await getJson<{ estado?: EstadoVideoSondeo }>(`/api/videos/${videoDbId}`);
+      // Un fallo de red aquí no dice nada del vídeo: se reintenta, no se concluye.
+      if (!r.ok || !r.data.estado) continue;
+      const estado = estadoTrasSondeo(r.data.estado);
+      if (!sondeoSigueAbierto(estado)) return estado;
     }
-    return false;
+    return "en-cola";
   };
 
   // RUTA RÁPIDA del reemplazo: cuando el vídeo nuevo ya es reproducible, confirma el swap para que la
@@ -357,10 +360,11 @@ export function ModalSubida({
           void aplicarMiniatura(videoDbId);
           onSubido?.(videoDbId);
           void (async () => {
-            const reproducible = await sondearReproducible(videoDbId);
-            if (reproducible && esReemplazo) await confirmarReemplazo(videoDbId);
-            // Agotar el sondeo NO es un fallo: se queda "en cola", que es la verdad.
-            if (montadoRef.current) setEstado(estadoTrasSondeo(reproducible));
+            const desenlace = await sondearEstado(videoDbId);
+            // El swap solo se cierra si el vídeo nuevo llegó a publicarse: reemplazar una
+            // participación viva por una que falló sería destruir la buena.
+            if (desenlace === "listo" && esReemplazo) await confirmarReemplazo(videoDbId);
+            if (montadoRef.current) setEstado(desenlace);
           })();
         },
       });

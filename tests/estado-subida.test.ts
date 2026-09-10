@@ -22,10 +22,13 @@ import {
   copySubida,
   esFallo,
   ESTADOS_FALLO,
+  ESTADOS_FALLO_SUBIDA,
   estadoEnVuelo,
   estadoTrasSondeo,
   puedeReintentar,
+  sondeoSigueAbierto,
   type EstadoSubida,
+  type EstadoVideoSondeo,
 } from "../src/lib/estado-subida";
 
 describe("el fallo dice su causa REAL, no un genérico", () => {
@@ -73,7 +76,10 @@ describe("el fallo dice su causa REAL, no un genérico", () => {
     ];
     const distintos = new Set(casos.map(clasificarFalloSubida));
     expect(distintos.size).toBe(casos.length);
-    expect(distintos.size).toBe(ESTADOS_FALLO.length);
+    // Cubren TODAS las causas de fallo del TRANSPORTE. Los fallos de CODIFICACIÓN no salen de aquí
+    // (no los produce el `onError` de la subida, sino el estado que reporta el servidor después).
+    expect(distintos.size).toBe(ESTADOS_FALLO_SUBIDA.length);
+    for (const e of ESTADOS_FALLO_SUBIDA) expect(distintos.has(e)).toBe(true);
   });
 
   it("todos los fallos se reconocen como fallo, y ningún estado sano lo hace", () => {
@@ -114,14 +120,57 @@ describe("nunca se dice 'en cola' antes de que la subida haya cerrado", () => {
   });
 });
 
-describe("de la cola de codificación a listo", () => {
-  it("no reproducible todavía -> sigue 'en cola', nunca un fallo", () => {
-    // Un 404 de reproducción cubre "codificando" y "falló": tratarlo como fallo inventaría un error.
-    expect(estadoTrasSondeo(false)).toBe("en-cola");
+describe("el desenlace de la codificación se cuenta, no se oculta", () => {
+  it("sigue codificando -> 'en cola', y el sondeo continúa", () => {
+    expect(estadoTrasSondeo("procesando")).toBe("en-cola");
+    expect(sondeoSigueAbierto("en-cola")).toBe(true);
   });
 
-  it("reproducible -> listo", () => {
-    expect(estadoTrasSondeo(true)).toBe("listo");
+  it("publicado -> listo, y se deja de preguntar", () => {
+    expect(estadoTrasSondeo("publicado")).toBe("listo");
+    expect(sondeoSigueAbierto("listo")).toBe(false);
+  });
+
+  it("la codificación FALLÓ -> se dice, no se sigue esperando (el agujero que había)", () => {
+    // ESTE es el bug: se sondeaba /reproduccion, que devuelve 404 tanto para "en cola" como para
+    // "falló". El usuario se quedaba mirando "aparecerá cuando esté listo" ante un vídeo que no iba
+    // a aparecer nunca, y perdía su participación sin enterarse mientras aún podía subir otra.
+    const estado = estadoTrasSondeo("error");
+    expect(estado).toBe("fallo-codificacion");
+    expect(estado).not.toBe("en-cola");
+    expect(esFallo(estado)).toBe(true);
+    expect(sondeoSigueAbierto(estado)).toBe(false);
+  });
+
+  it("demasiado largo -> su propio mensaje, porque la acción del usuario es distinta", () => {
+    // "No se pudo preparar" mandaría a subir otro vídeo; aquí lo que hay que hacer es RECORTAR el
+    // mismo. Colapsarlos daría un consejo equivocado.
+    const largo = estadoTrasSondeo("demasiado-largo");
+    expect(largo).toBe("demasiado-largo");
+    expect(largo).not.toBe(estadoTrasSondeo("error"));
+    expect(copySubida(largo)).toMatch(/90 segundos/);
+  });
+
+  it("ningún desenlace terminal ofrece reintentar el mismo fichero", () => {
+    // Volver a subir el mismo vídeo que no se pudo codificar (o que dura de más) da el mismo final.
+    expect(puedeReintentar("fallo-codificacion")).toBe(false);
+    expect(puedeReintentar("demasiado-largo")).toBe(false);
+  });
+
+  it("todos los estados del servidor tienen traducción: ninguno cae en 'en-cola' por descarte", () => {
+    const delServidor: EstadoVideoSondeo[] = [
+      "procesando",
+      "publicado",
+      "demasiado-largo",
+      "no-disponible",
+      "error",
+    ];
+    // Si alguien añadiera un caso y lo dejara sin mapear, `estadoTrasSondeo` devolvería undefined
+    // (el switch no tiene `default` que lo tape) y esto se caería.
+    for (const e of delServidor) expect(estadoTrasSondeo(e)).toBeDefined();
+    // Y solo UNO de ellos deja el sondeo abierto: el que de verdad sigue en curso.
+    const abiertos = delServidor.filter((e) => sondeoSigueAbierto(estadoTrasSondeo(e)));
+    expect(abiertos).toEqual(["procesando"]);
   });
 });
 
@@ -136,6 +185,8 @@ describe("el copy es humano, bilingüe y no promete de más", () => {
     "credencial",
     "rechazo",
     "servidor-ocupado",
+    "fallo-codificacion",
+    "demasiado-largo",
   ];
 
   it("cada estado tiene texto en ES y en EN", () => {
@@ -222,6 +273,20 @@ describe("el modal usa la fuente única de estado y copy", () => {
     // rechazo por REGLAS (reto cerrado, participación bloqueada) se leería como un fallo de red.
     expect(preparando).toBeLessThan(credencial);
     expect(src).not.toMatch(/setEstado\("subiendo"\)/);
+  });
+
+  it("NO vuelve a preguntar por /reproduccion: esa ruta no distingue 'en cola' de 'falló'", () => {
+    const src = fuente();
+    // Es exactamente el agujero que se tapa: 404 para los dos desenlaces -> espera eterna ante un
+    // vídeo fallido. Si alguien reintroduce ese sondeo, el usuario vuelve a quedarse sin saberlo.
+    expect(src).not.toMatch(/\/reproduccion`/);
+    expect(src).toContain("estadoTrasSondeo(");
+    expect(src).toContain("sondeoSigueAbierto(");
+  });
+
+  it("el reemplazo solo se cierra si el vídeo nuevo llegó a publicarse", () => {
+    // Cerrar el swap con un vídeo que falló sustituiría la participación BUENA por una que no existe.
+    expect(fuente()).toMatch(/desenlace === "listo" && esReemplazo/);
   });
 
   it("lee el estado HTTP real del error para poder clasificarlo", () => {

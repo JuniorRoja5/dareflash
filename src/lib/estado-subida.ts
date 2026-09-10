@@ -43,10 +43,28 @@ export type EstadoSubida =
   /** Bunny respondió pero no aceptó el fichero (formato, tamaño, cuota). Cambiar el vídeo. */
   | "rechazo"
   /** Bunny respondió con un fallo suyo (5xx). No es culpa del usuario: reintentar más tarde. */
-  | "servidor-ocupado";
+  | "servidor-ocupado"
+  /**
+   * La subida llegó entera pero la CODIFICACIÓN falló: el vídeo no va a publicarse nunca. Es un
+   * desenlace terminal, no una espera larga, y por eso no puede compartir estado con "en-cola".
+   */
+  | "fallo-codificacion"
+  /** El servidor midió la duración real y supera el límite. Terminal y con una acción clara: recortar. */
+  | "demasiado-largo";
 
 /** Los estados que son un fallo. Fuente única: la UI no vuelve a mantener su propia lista. */
 export const ESTADOS_FALLO = [
+  "sin-conexion",
+  "corte",
+  "credencial",
+  "rechazo",
+  "servidor-ocupado",
+  "fallo-codificacion",
+  "demasiado-largo",
+] as const;
+
+/** Las cinco causas que se deducen de un fallo del TRANSPORTE (a diferencia de las de codificación). */
+export const ESTADOS_FALLO_SUBIDA = [
   "sin-conexion",
   "corte",
   "credencial",
@@ -123,17 +141,44 @@ export function estadoEnVuelo(input: {
 }
 
 /**
- * Tras la subida, el vídeo pasa por la cola de codificación de Bunny y solo es reproducible cuando
- * Bunny lo da por terminado. La señal que ya existe en el sistema es el 200 de
- * `GET /api/videos/[id]/reproduccion`, que solo responde para un vídeo PUBLISHED — es decir, para uno
- * que el worker ya promovió al ver el estado terminado en Bunny. No hace falta un canal nuevo.
- *
- * OJO con lo que esta señal NO dice: un 404 significa "no reproducible", que cubre tanto "sigue
- * codificando" como "falló". Por eso un 404 nunca se traduce a un fallo aquí: se sigue esperando. El
- * veredicto de fallo lo da el estado del vídeo en el perfil, que sí lo distingue.
+ * Estado del vídeo tal y como lo cuenta el servidor a su dueño (`GET /api/videos/[id]`). Mismos
+ * literales que el estado interno del perfil; la ruta los traduce con un `Record` total, así que un
+ * caso nuevo allí rompe la compilación en vez de colarse aquí como "procesando".
  */
-export function estadoTrasSondeo(reproducible: boolean): "listo" | "en-cola" {
-  return reproducible ? "listo" : "en-cola";
+export type EstadoVideoSondeo =
+  "procesando" | "publicado" | "demasiado-largo" | "no-disponible" | "error";
+
+/**
+ * Traduce lo que dice el servidor al estado que ve quien está esperando su subida.
+ *
+ * ESTA FUNCIÓN ES LA CORRECCIÓN DE UN AGUJERO REAL. Antes se sondeaba `/reproduccion`, que responde
+ * 404 tanto para "sigue en la cola" como para "la codificación falló". Con una sola señal para dos
+ * desenlaces opuestos, un vídeo fallido dejaba al usuario mirando "aparecerá cuando esté listo" para
+ * siempre — perdiendo su participación sin enterarse, cuando todavía estaba a tiempo de reemplazarla
+ * si el reto seguía abierto. Un estado que significa dos cosas acaba mintiendo sobre una de las dos.
+ *
+ * `no-disponible` (estuvo publicado y su objeto desapareció) se trata como fallo de codificación a
+ * propósito: en el minuto siguiente a una subida es inalcanzable —exige haber estado publicado antes—
+ * y para quien mira la pantalla en ese momento la acción es exactamente la misma. Se dobla porque no
+ * se puede alcanzar, no por comodidad; si algún día se alcanzara, merece estado propio.
+ */
+export function estadoTrasSondeo(estadoVideo: EstadoVideoSondeo): EstadoSubida {
+  switch (estadoVideo) {
+    case "publicado":
+      return "listo";
+    case "procesando":
+      return "en-cola";
+    case "demasiado-largo":
+      return "demasiado-largo";
+    case "error":
+    case "no-disponible":
+      return "fallo-codificacion";
+  }
+}
+
+/** ¿Hay que seguir preguntando? Solo mientras el desenlace no esté decidido. */
+export function sondeoSigueAbierto(estado: EstadoSubida): boolean {
+  return estado === "en-cola";
 }
 
 /**
@@ -187,6 +232,16 @@ export const COPY_SUBIDA: Record<EstadoSubida, { es: string; en: string }> = {
   "servidor-ocupado": {
     es: "El servicio de vídeo no está respondiendo ahora mismo. No es cosa tuya: inténtalo en unos minutos.",
     en: "The video service isn't responding right now. It's not your fault: try again in a few minutes.",
+  },
+  // Los dos terminales de codificación. Dicen QUÉ pasó y QUÉ hacer, y sobre todo dicen que la espera
+  // se acabó: es lo que evita que alguien siga esperando a un vídeo que no va a llegar.
+  "fallo-codificacion": {
+    es: "Tu vídeo no se pudo preparar y no llegará a publicarse. Sube otro para participar.",
+    en: "Your video couldn't be prepared and won't be published. Upload another one to take part.",
+  },
+  "demasiado-largo": {
+    es: "Tu vídeo dura más de 90 segundos, así que no se ha publicado. Recórtalo y súbelo otra vez.",
+    en: "Your video is longer than 90 seconds, so it wasn't published. Trim it and upload it again.",
   },
 };
 

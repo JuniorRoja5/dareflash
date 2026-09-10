@@ -1,12 +1,62 @@
 import { z } from "zod";
 
-import { apiError, apiOk } from "@/server/http/api";
+import type { EstadoVideo } from "@/app/(app)/(shell)/perfil/perfil-logic";
+import type { EstadoVideoSondeo } from "@/lib/estado-subida";
+import { apiError, apiOk, depsRuta } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 
 export const dynamic = "force-dynamic";
 
 /** Valida el id de la ruta. Un id vacio/absurdo -> 404 (no se consulta la BD con basura). */
 const ParamsSchema = z.object({ id: z.string().min(1).max(64) });
+
+/**
+ * Traduccion del estado interno al que viaja por la API. Es un `Record` TOTAL a proposito: si algun
+ * dia `EstadoVideo` gana un caso nuevo, esto deja de compilar y obliga a decidir que se le cuenta al
+ * dueno, en vez de que el caso nuevo se cuele como "procesando" y le mienta.
+ */
+const MAPA_SONDEO: Record<EstadoVideo, EstadoVideoSondeo> = {
+  procesando: "procesando",
+  publicado: "publicado",
+  "demasiado-largo": "demasiado-largo",
+  "no-disponible": "no-disponible",
+  error: "error",
+};
+
+/**
+ * GET /api/videos/[id] — estado del video PARA SU DUENO.
+ *
+ * POR QUE EXISTE (agujero real): mientras se sube, la UI preguntaba por `/reproduccion`, que devuelve
+ * 404 tanto si el video sigue codificando como si la codificacion FALLO. Con una sola respuesta para
+ * dos desenlaces opuestos, el modal se quedaba diciendo "aparecera cuando este listo" para siempre
+ * ante un video que no iba a aparecer nunca — y el usuario perdia su participacion sin enterarse,
+ * cuando aun estaba a tiempo de reemplazarla si el reto seguia abierto.
+ *
+ * Es LECTURA: no pasa por `mutatingRoute` ni CSRF. Autorizacion por CONSTRUCCION, igual que el DELETE
+ * de abajo: se carga la fila y solo responde si el `userId` es el de la sesion; si no existe o es de
+ * otro, el MISMO 404. El estado de un video ajeno no se filtra ni por omision.
+ *
+ * NO devuelve `failureReason` crudo: la traduccion a algo humano ya vive en `estadoDeVideo`, y es la
+ * misma que usa el perfil. Una sola regla, no dos que se separan.
+ */
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const parsed = ParamsSchema.safeParse(await params);
+  if (!parsed.success) return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
+
+  const { requireUser } = await import("@/server/auth/rbac");
+  const { estadoDeVideo } = await import("@/server/services/perfil");
+  const { prisma } = await depsRuta();
+
+  const user = await requireUser();
+  const video = await prisma.video.findUnique({
+    where: { id: parsed.data.id },
+    select: { userId: true, status: true, failureReason: true },
+  });
+  if (!video || video.userId !== user.userId) {
+    return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
+  }
+  return apiOk({ estado: MAPA_SONDEO[estadoDeVideo(video.status, video.failureReason)] });
+}
 
 /** Tipo de job de borrado del objeto en Bunny (union en constants: JobType). */
 const BUNNY_DELETE_VIDEO = "BUNNY_DELETE_VIDEO";
