@@ -136,6 +136,126 @@ export function decidirCierre(input: {
   };
 }
 
+// ============================================================================
+// RESOLUCIÓN DEL EMPATE (la decide el admin, pero NO decide lo que quiera)
+// ============================================================================
+
+/**
+ * El reparto pendiente cuando un reto cerró en empate: quién ganó LIMPIO por encima de la línea, quién
+ * está en disputa, y cuántas plazas de premio quedan por asignar dentro del grupo.
+ */
+export interface ReparticionEmpate {
+  /** Por encima del empate. Su posición NO está en discusión y no se puede alterar. */
+  limpios: ParticipacionCierre[];
+  /** El grupo con los mismos votos donde cae la línea del premio. Aquí es donde el admin elige. */
+  empatados: ParticipacionCierre[];
+  /** Plazas de premio a repartir entre `empatados`. Siempre >= 1 cuando hay empate. */
+  plazas: number;
+}
+
+/**
+ * Analiza el empate de un reto. `null` si no hay ninguno (el resultado era inequívoco).
+ *
+ * Se recalcula sobre las participaciones que cuentan y no se guarda en ninguna tabla porque no hace
+ * falta: la entrada está CONGELADA —los votos ya no cambian tras el deadline y ninguna participación
+ * nueva puede publicarse en un reto cerrado—, así que esto es una función del dato, no un estado más
+ * que mantener sincronizado. Inventar una tabla para guardarlo sería crear una segunda verdad.
+ */
+export function analizarEmpate(input: {
+  participaciones: readonly ParticipacionCierre[];
+  winnersCount: number;
+}): ReparticionEmpate | null {
+  const orden = ordenarParaCierre(input.participaciones);
+  const corte = Math.min(input.winnersCount, orden.length);
+  if (corte < 1) return null;
+
+  const ultimoDentro = orden[corte - 1];
+  const primeroFuera = orden[corte];
+  if (
+    primeroFuera === undefined ||
+    ultimoDentro === undefined ||
+    ultimoDentro.voteCount !== primeroFuera.voteCount
+  ) {
+    return null;
+  }
+
+  const votosEnDisputa = ultimoDentro.voteCount;
+  let inicio = corte - 1;
+  while (inicio > 0 && orden[inicio - 1]?.voteCount === votosEnDisputa) inicio -= 1;
+  // El grupo llega hasta donde llegue ese mismo número de votos, también por debajo del corte: los de
+  // fuera empatan con los de dentro y por eso el sistema no puede elegir.
+  let fin = corte;
+  while (fin < orden.length && orden[fin]?.voteCount === votosEnDisputa) fin += 1;
+
+  return {
+    limpios: orden.slice(0, inicio),
+    empatados: orden.slice(inicio, fin),
+    plazas: corte - inicio,
+  };
+}
+
+/** Por qué se rechaza una resolución. Se traduce a copy humano en la ruta; aquí es un código. */
+export type RechazoEmpate =
+  /** El reto no tiene ningún empate que resolver. */
+  | "SIN_EMPATE"
+  /** No se han elegido tantas participaciones como plazas hay. */
+  | "CANTIDAD"
+  /** Se ha tocado a alguien cuya posición no estaba en discusión. */
+  | "LIMPIOS_ALTERADOS"
+  /** Se ha colado alguien que no estaba empatado (con menos votos, típicamente). */
+  | "FUERA_DEL_GRUPO"
+  /** La misma participación aparece dos veces. */
+  | "REPETIDA";
+
+export type ResolucionEmpate =
+  { ok: true; ganadores: GanadorCierre[] } | { ok: false; rechazo: RechazoEmpate };
+
+/**
+ * Valida la elección del admin y produce los ganadores definitivos.
+ *
+ * POR QUÉ ESTA GUARDA EXISTE, y es de dinero: que el desempate lo decida una persona no significa que
+ * pueda decidir CUALQUIER COSA. Sin esto, bastaba enviar el id de una participación con menos votos
+ * para coronarla campeona, o reordenar a quien ya había ganado limpiamente por arriba. El admin
+ * ROMPE el empate; no anula los votos.
+ *
+ * La regla, entera: los `limpios` conservan su orden y su rank; las plazas restantes solo pueden
+ * llenarse con miembros del grupo EMPATADO, sin repetir. Cualquier otra cosa se rechaza.
+ *
+ * `elegidas` son las participaciones EN DISPUTA que el admin ordena — no la lista completa de
+ * ganadores. Pedirle que reenvíe a los limpios sería darle la oportunidad de alterarlos.
+ */
+export function validarResolucionEmpate(input: {
+  participaciones: readonly ParticipacionCierre[];
+  winnersCount: number;
+  elegidas: readonly string[];
+}): ResolucionEmpate {
+  const empate = analizarEmpate(input);
+  if (!empate) return { ok: false, rechazo: "SIN_EMPATE" };
+  if (input.elegidas.length !== empate.plazas) return { ok: false, rechazo: "CANTIDAD" };
+  if (new Set(input.elegidas).size !== input.elegidas.length) {
+    return { ok: false, rechazo: "REPETIDA" };
+  }
+
+  const enDisputa = new Map(empate.empatados.map((p) => [p.submissionId, p]));
+  // Un id de los LIMPIOS entre las elegidas significa que se está intentando reordenar a quien ganó
+  // por arriba. Se distingue de "no estaba empatado" porque son dos errores distintos del admin.
+  const limpios = new Set(empate.limpios.map((p) => p.submissionId));
+  for (const id of input.elegidas) {
+    if (limpios.has(id)) return { ok: false, rechazo: "LIMPIOS_ALTERADOS" };
+    if (!enDisputa.has(id)) return { ok: false, rechazo: "FUERA_DEL_GRUPO" };
+  }
+
+  const elegidas = input.elegidas.map((id) => enDisputa.get(id) as ParticipacionCierre);
+  return {
+    ok: true,
+    ganadores: [...empate.limpios, ...elegidas].map((p, i) => ({
+      submissionId: p.submissionId,
+      userId: p.userId,
+      rank: i + 1,
+    })),
+  };
+}
+
 /**
  * Clave de idempotencia de un otorgamiento de puntos. Se deriva del HECHO (este usuario, en este
  * reto, por esta razón), no del momento ni de un contador: por eso re-ejecutar el cierre no vuelve a

@@ -594,7 +594,7 @@ export const ChallengeStatusSchema = z.enum(["DRAFT", "PUBLISHED", "CLOSED"]);
 export type ChallengeStatus = z.infer<typeof ChallengeStatusSchema>;
 
 /**
- * POR QUE cerro un reto (columna `Challenge.cierreMotivo`). Existe porque "cerro sin ganador" NO se
+ * POR QUE cerro un reto (columna `Challenge.motivoCierre`). Existe porque "cerro sin ganador" NO se
  * deduce de que no haya `ChallengeResult`: hay cuatro formas de acabar sin ganador y significan cosas
  * distintas. La semantica de cada valor vive junto a la decision, en `src/lib/cierre-reto.ts`.
  */

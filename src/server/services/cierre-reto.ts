@@ -29,11 +29,14 @@
 import { POINTS } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
 import {
+  analizarEmpate,
   clavePuntosCierre,
   decidirCierre,
   top20DeParticipaciones,
+  validarResolucionEmpate,
   type DecisionCierre,
   type ParticipacionCierre,
+  type RechazoEmpate,
 } from "@/lib/cierre-reto";
 import { sanearError } from "@/server/observability/sanitize-error";
 
@@ -281,43 +284,41 @@ async function otorgarPuntosDelCierre(
 export async function resolverEmpate(
   db: PrismaClient,
   challengeId: string,
-  submissionIdsEnOrden: readonly string[],
+  elegidasEnOrden: readonly string[],
   now: Date = new Date(),
-): Promise<{ resuelto: boolean; ganadores: number }> {
+): Promise<ResultadoResolucion> {
   const reto = await db.challenge.findUnique({
     where: { id: challengeId },
     select: { motivoCierre: true, winnersCount: true, prizeAmountCents: true, prizeCurrency: true },
   });
-  if (!reto || reto.motivoCierre !== "EMPATE_PENDIENTE") return { resuelto: false, ganadores: 0 };
-  if (submissionIdsEnOrden.length === 0) return { resuelto: false, ganadores: 0 };
+  if (!reto || reto.motivoCierre !== "EMPATE_PENDIENTE") {
+    return { resuelto: false, rechazo: "NO_ESPERA", ganadores: 0 };
+  }
 
-  // Las participaciones elegidas tienen que ser de ESTE reto y de las que cuentan. Que la decisión
-  // sea del admin no significa que pueda premiar una participación de otro reto o un vídeo retirado.
-  const validas = await db.submission.findMany({
-    where: {
-      id: { in: [...submissionIdsEnOrden] },
-      challengeId,
-      status: "PUBLISHED",
-      video: { is: { status: "PUBLISHED" } },
-    },
-    select: { id: true, userId: true },
+  // Se recalcula sobre las participaciones que CUENTAN, no sobre lo que mande el cliente. La
+  // validación decide qué es admisible; la UI no es la autoridad de nada.
+  const validacion = validarResolucionEmpate({
+    participaciones: await participacionesQueCuentan(db, challengeId),
+    winnersCount: reto.winnersCount,
+    elegidas: elegidasEnOrden,
   });
-  const porId = new Map(validas.map((v) => [v.id, v.userId]));
-  const elegidas = submissionIdsEnOrden.filter((id) => porId.has(id));
-  if (elegidas.length !== submissionIdsEnOrden.length) return { resuelto: false, ganadores: 0 };
+  if (!validacion.ok) return { resuelto: false, rechazo: validacion.rechazo, ganadores: 0 };
 
   await db.$transaction(async (tx) => {
     await tx.challengeResult.createMany({
-      data: elegidas.map((submissionId, i) => ({
+      data: validacion.ganadores.map((g) => ({
         challengeId,
-        userId: porId.get(submissionId) as string,
-        submissionId,
-        rank: i + 1,
-        prizeAmountCents: i === 0 ? reto.prizeAmountCents : 0,
+        userId: g.userId,
+        submissionId: g.submissionId,
+        rank: g.rank,
+        // Mismo criterio que el cierre automático: íntegro al rank 1, 0 al resto. Resolver un empate
+        // no es ocasión de inventar un reparto que nadie ha decidido.
+        prizeAmountCents: g.rank === 1 ? reto.prizeAmountCents : 0,
         currency: reto.prizeCurrency,
       })),
       skipDuplicates: true,
     });
+    // La guarda de la carrera, igual que en el cierre: dos admins pulsando a la vez, uno solo escribe.
     await tx.challenge.updateMany({
       where: { id: challengeId, motivoCierre: "EMPATE_PENDIENTE" },
       data: { motivoCierre: "CON_GANADORES" },
@@ -325,12 +326,99 @@ export async function resolverEmpate(
   });
 
   await otorgarPuntosDelCierre(db, challengeId, now);
-  return { resuelto: true, ganadores: elegidas.length };
+  return { resuelto: true, rechazo: null, ganadores: validacion.ganadores.length };
+}
+
+/**
+ * El empate pendiente de UN reto, o `null` si no tiene ninguno. Lo usa la ficha del panel para pintar
+ * el bloque de decisión.
+ *
+ * Devuelve `null` también si el reto está marcado en empate pero el empate ya no existe: no se ofrece
+ * una acción vacía. Puede ocurrir si una participación se retira por moderación después del cierre.
+ */
+export async function empatePendienteDe(
+  db: PrismaClient,
+  challengeId: string,
+): Promise<{ plazas: number; limpios: number; empatados: string[] } | null> {
+  const reto = await db.challenge.findUnique({
+    where: { id: challengeId },
+    select: { motivoCierre: true, winnersCount: true },
+  });
+  if (!reto || reto.motivoCierre !== "EMPATE_PENDIENTE") return null;
+
+  const empate = analizarEmpate({
+    participaciones: await participacionesQueCuentan(db, challengeId),
+    winnersCount: reto.winnersCount,
+  });
+  if (!empate) return null;
+  return {
+    plazas: empate.plazas,
+    limpios: empate.limpios.length,
+    empatados: empate.empatados.map((p) => p.submissionId),
+  };
+}
+
+/**
+ * Los retos que están esperando a que el admin rompa un empate, con el reparto pendiente ya analizado.
+ * Es lo que alimenta la bandeja del panel: exactamente los `EMPATE_PENDIENTE`, no todos los cerrados.
+ */
+export async function listarEmpatesPendientes(db: PrismaClient): Promise<EmpatePendiente[]> {
+  const retos = await db.challenge.findMany({
+    where: { motivoCierre: "EMPATE_PENDIENTE", deletedAt: null },
+    select: { id: true, title: true, publicCode: true, winnersCount: true, closedAt: true },
+    orderBy: { closedAt: "asc" }, // el que lleva más tiempo atascado, primero
+  });
+
+  const salida: EmpatePendiente[] = [];
+  for (const r of retos) {
+    const empate = analizarEmpate({
+      participaciones: await participacionesQueCuentan(db, r.id),
+      winnersCount: r.winnersCount,
+    });
+    // Un reto marcado en empate cuyo empate ya no existe sería una incoherencia: no se pinta como si
+    // se pudiera resolver, porque no habría nada que elegir.
+    if (!empate) continue;
+    salida.push({
+      challengeId: r.id,
+      title: r.title,
+      publicCode: r.publicCode,
+      cerradoMs: r.closedAt ? r.closedAt.getTime() : null,
+      plazas: empate.plazas,
+      limpios: empate.limpios.length,
+      empatados: empate.empatados.map((p) => p.submissionId),
+    });
+  }
+  return salida;
 }
 
 export interface ResultadoBarridoCierre {
   revisados: number;
   cerrados: number;
+}
+
+/**
+ * Resultado de resolver un empate. Cuando NO se resuelve dice POR QUÉ: la ruta lo traduce a un
+ * mensaje honesto en vez de fingir éxito, que es lo que haría un booleano suelto.
+ */
+export interface ResultadoResolucion {
+  resuelto: boolean;
+  /** `NO_ESPERA` = el reto no está en empate (ya resuelto, o nunca lo estuvo). */
+  rechazo: RechazoEmpate | "NO_ESPERA" | null;
+  ganadores: number;
+}
+
+/** Un reto atascado esperando decisión, con lo justo para pintarlo y resolverlo. */
+export interface EmpatePendiente {
+  challengeId: string;
+  title: string;
+  publicCode: string;
+  cerradoMs: number | null;
+  /** Plazas de premio en disputa. */
+  plazas: number;
+  /** Cuántos ganaron limpio por encima (su posición no se toca). */
+  limpios: number;
+  /** submissionIds del grupo empatado, en orden canónico. */
+  empatados: string[];
 }
 
 /**

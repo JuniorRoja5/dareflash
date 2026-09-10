@@ -75,6 +75,10 @@ const PINTURA_ESTADO: Record<EstadoRetoAdmin, { texto: string; clase: string }> 
   programado: { texto: "Programado", clase: "bg-raised text-text" },
   abierto: { texto: "Abierto", clase: "bg-ok/15 text-ok" },
   cerrado: { texto: "Cerrado", clase: "bg-raised text-text-dim" },
+  // NO es un cierre mas: es una TAREA del admin. Un reto empatado no reparte premio ni puntos hasta
+  // que alguien decida, asi que se pinta en ambar (atencion, no alarma) para que no se pierda entre
+  // los cerrados. Pintarlo "Cerrado" lo dejaba invisible y el reto se quedaba atascado en silencio.
+  "empate-pendiente": { texto: "Empate · decide tu", clase: "bg-time/15 text-time" },
   // OJO con el copy de estos dos: NADA se destruye. El reto se OCULTA del público y los vídeos de
   // sus participantes siguen en el perfil de sus autores (decisión cerrada). Lo único que cambia al
   // vencer la gracia es que deja de poder deshacerse — así que las etiquetas dicen eso y no "borrado",
@@ -210,6 +214,7 @@ export function ListaRetos({
     deadline: r.deadline,
     eliminacionProgramadaEn: r.eliminaEnMs === null ? null : new Date(r.eliminaEnMs),
     deletedAt: r.borradoMs === null ? null : new Date(r.borradoMs),
+    motivoCierre: r.motivoCierre,
   });
 
   if (retos.length === 0) {

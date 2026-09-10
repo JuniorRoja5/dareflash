@@ -196,6 +196,9 @@ export interface RetoAdminFila {
   eliminaEnMs: number | null;
   /** Ya borrado. Sigue en el panel como registro; fuera de todas las vistas publicas. */
   borradoMs: number | null;
+  /** Motivo del cierre (Fase 4). El panel lo necesita para distinguir un cierre normal de uno que
+   *  ESPERA decision del admin; sin el, un reto empatado se pinta "Cerrado" y se queda atascado. */
+  motivoCierre: string | null;
 }
 
 /** Campos que se piden en las dos consultas del panel (lista y ficha de uno). Fuente única. */
@@ -215,6 +218,7 @@ const SELECT_RETO_ADMIN = {
   publicCode: true,
   eliminacionProgramadaEn: true,
   deletedAt: true,
+  motivoCierre: true,
 } as const;
 
 /** Fila del panel: los ms van planos para cruzar al cliente sin serializar Date. */

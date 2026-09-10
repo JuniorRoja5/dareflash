@@ -252,7 +252,7 @@ describe("empate en la línea del premio", () => {
 
     const res = await resolverEmpate(prisma, reto.id, [a.submissionId]);
 
-    expect(res).toEqual({ resuelto: true, ganadores: 1 });
+    expect(res).toEqual({ resuelto: true, rechazo: null, ganadores: 1 });
     const fila = await prisma.challengeResult.findFirstOrThrow({ where: { challengeId: reto.id } });
     expect(fila.userId).toBe(a.userId);
     expect(fila.rank).toBe(1);
@@ -267,8 +267,10 @@ describe("empate en la línea del premio", () => {
     const otro = await participar(reto.id, { votos: 1 });
     await cerrarRetoVencido(prisma, reto.id);
 
+    // Y dice POR QUÉ rechaza, en vez de un `false` mudo: la ruta lo traduce a un mensaje honesto.
     expect(await resolverEmpate(prisma, reto.id, [otro.submissionId])).toEqual({
       resuelto: false,
+      rechazo: "NO_ESPERA",
       ganadores: 0,
     });
     const fila = await prisma.challengeResult.findFirstOrThrow({ where: { challengeId: reto.id } });

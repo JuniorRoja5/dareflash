@@ -6,6 +6,7 @@ import { centimosAImporte } from "@/lib/dinero";
 
 import { RanuraProximamente, TarjetaMetrica, TarjetaProximamente } from "../../tarjetas";
 import { ParticipacionesPanel, type ParticipacionPanelUI } from "./participaciones-panel";
+import { ResolverEmpate } from "./resolver-empate";
 
 export const metadata = { title: "Gestionar reto · Panel" };
 export const dynamic = "force-dynamic";
@@ -72,6 +73,30 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
 
   const categoria = CATEGORIES.find((c) => c.key === reto.category);
   const publicado = reto.status !== "DRAFT";
+
+  // EMPATE PENDIENTE: el grupo en disputa se calcula en el servidor (no se guarda: la entrada está
+  // congelada tras el deadline, así que es función del dato). Solo se pinta el bloque si de verdad
+  // hay algo que decidir; un reto marcado en empate cuyo empate ya no existe no ofrece una acción
+  // vacía. Las participaciones se cruzan con la página ya cargada para reutilizar su póster firmado.
+  const { empatePendienteDe } = await import("@/server/services/cierre-reto");
+  const empate =
+    reto.motivoCierre === "EMPATE_PENDIENTE" ? await empatePendienteDe(prisma, reto.id) : null;
+  const empatadas = empate
+    ? empate.empatados.flatMap((id) => {
+        const p = participaciones.find((x) => x.submissionId === id);
+        return p
+          ? [
+              {
+                submissionId: p.submissionId,
+                username: p.username,
+                displayName: p.displayName,
+                votos: p.votos,
+                poster: p.poster,
+              },
+            ]
+          : [];
+      })
+    : [];
 
   return (
     <div className="df-rise space-y-10">
@@ -141,6 +166,17 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
           </section>
         ) : null}
       </div>
+
+      {/* EMPATE — arriba del todo a propósito: es una TAREA pendiente, no una estadística. Mientras
+          esté aquí, el reto no ha repartido ni premio ni puntos. */}
+      {empate && empatadas.length > 0 ? (
+        <ResolverEmpate
+          challengeId={reto.id}
+          empatadas={empatadas}
+          plazas={empate.plazas}
+          limpios={empate.limpios}
+        />
+      ) : null}
 
       {/* ESTADÍSTICAS — reales donde hay dato, ranuras honestas donde aún no. */}
       <section>
