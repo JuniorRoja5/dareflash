@@ -5,7 +5,6 @@ import { Boton } from "@/components/ui/boton";
 import { FilaPuesto } from "@/components/ui/fila-puesto";
 import { FondoVideo } from "@/components/ui/fondo-video";
 
-import { RANKING_MENSUAL } from "../ranking/ranking-datos";
 import { BoostDestacados } from "./boost-destacados";
 import { HeroDestacado } from "./hero-destacado";
 import { RetosDestacados } from "./retos-destacados";
@@ -23,7 +22,16 @@ export const metadata = { title: "Inicio · DareFlash" };
  * Coherencia de modelos: hero y muro = Challenge (+ Submission para el vídeo, 14 categorías válidas);
  * "Destacados" = BoostActivation (perfiles pagados, ≠ ranking); stats = agregados; nivel derivado.
  */
-export default function InicioPage() {
+export const dynamic = "force-dynamic";
+
+export default async function InicioPage() {
+  // RAIL DEL TOP: datos REALES del MISMO servicio que la pagina de Ranking. Antes salian de
+  // `ranking-datos.ts` —usuarios y cifras inventados— en produccion. Leer de dos sitios distintos
+  // garantizaria que el rail y la pagina se contradigan en cuanto uno de los dos cambie.
+  const { prisma } = await import("@/server/db/client");
+  const { rankingMensual } = await import("@/server/services/ranking");
+  const { filas: topRanking } = await rankingMensual(prisma, { limite: 5 });
+
   return (
     <>
       {/* FONDO: hermano del contenedor de pagina, NUNCA dentro. Ese contenedor lleva `overflow-x-clip`
@@ -102,14 +110,23 @@ export default function InicioPage() {
               </Link>
             </div>
             <div className="mt-4 overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md">
-              {RANKING_MENSUAL.slice(0, 5).map((fila, i) => (
-                <FilaPuesto
-                  key={fila.username}
-                  puesto={i + 1}
-                  username={fila.username}
-                  puntos={fila.puntos}
-                />
-              ))}
+              {topRanking.length === 0 ? (
+                // VACÍO HONESTO: nadie ha ganado todavía. Rellenar el rail con gente inventada para
+                // que "no se vea vacío" es justo lo que había antes.
+                <p className="px-4 py-6 text-center text-sm text-text-dim">
+                  Todavía no ha ganado nadie este mes. Sé el primero.
+                </p>
+              ) : (
+                topRanking.map((fila, i) => (
+                  <FilaPuesto
+                    key={fila.userId}
+                    puesto={i + 1}
+                    username={fila.username}
+                    cifra={fila.victorias}
+                    unidad={fila.victorias === 1 ? "victoria" : "victorias"}
+                  />
+                ))
+              )}
             </div>
           </aside>
         </div>

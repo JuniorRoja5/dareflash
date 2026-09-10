@@ -2,12 +2,22 @@ import { Avatar, type TamanoAvatar } from "@/components/ui/avatar";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
 
 import {
-  type FilaRankVista,
+  cuantosEnPodio,
   type Medalla,
   medallaPuesto,
-  ordenPodio,
-  puntosNivel,
-} from "./ranking-datos";
+  ordenVisualPodio,
+  type PuestoPodio,
+} from "@/lib/podio";
+
+/** Una posición del podio, con datos REALES del ranking. */
+export interface FilaPodio {
+  userId: string;
+  username: string;
+  /** La cifra por la que se ordena: victorias del mes. */
+  victorias: number;
+  /** Puntos totales: alimentan la insignia de nivel, no la cifra grande. */
+  puntos: number;
+}
 
 /** Token de medalla -> variable CSS. Oro/plata/bronce son EXCLUSIVOS del podio (ver globals.css). */
 const MEDALLA_VAR: Record<Medalla, string> = {
@@ -95,7 +105,11 @@ function AvatarMedalla({
   );
 }
 
-function Puntos({ valor, tam }: { valor: number; tam: string }) {
+/**
+ * La cifra grande del podio: VICTORIAS del mes, que es por lo que está ordenado. Los puntos no van
+ * aquí — irían contra el orden, y para el nivel ya está la insignia justo debajo.
+ */
+function Victorias({ valor, tam }: { valor: number; tam: string }) {
   return (
     <p
       className="tabular-nums text-text"
@@ -107,14 +121,14 @@ function Puntos({ valor, tam }: { valor: number; tam: string }) {
     >
       {valor.toLocaleString("en-US")}
       <span className="ml-1 text-text-dim" style={{ fontSize: "0.62em" }}>
-        pts
+        {valor === 1 ? "victoria" : "victorias"}
       </span>
     </p>
   );
 }
 
 /** Columna del podio de ESCRITORIO (avatar + datos sobre un pedestal cuya ALTURA marca la jerarquia). */
-function ColumnaPodio({ fila, puesto }: { fila: FilaRankVista; puesto: 1 | 2 | 3 }) {
+function ColumnaPodio({ fila, puesto }: { fila: FilaPodio; puesto: PuestoPodio }) {
   const geo = GEO[puesto];
   const color = colorMedalla(puesto);
   return (
@@ -135,10 +149,10 @@ function ColumnaPodio({ fila, puesto }: { fila: FilaRankVista; puesto: 1 | 2 | 3
         @{fila.username}
       </p>
       <div className="mt-1">
-        <Puntos valor={fila.puntos} tam={geo.pts} />
+        <Victorias valor={fila.victorias} tam={geo.pts} />
       </div>
       <div className="mt-2">
-        <InsigniaNivel puntos={puntosNivel(fila)} />
+        <InsigniaNivel puntos={fila.puntos} />
       </div>
       <div
         className={`mt-3 grid w-full place-items-center rounded-t-sm border border-b-0 border-line bg-raised ${
@@ -170,8 +184,8 @@ function TarjetaMovil({
   puesto,
   destacado,
 }: {
-  fila: FilaRankVista;
-  puesto: 1 | 2 | 3;
+  fila: FilaPodio;
+  puesto: PuestoPodio;
   destacado: boolean;
 }) {
   const color = colorMedalla(puesto);
@@ -204,10 +218,10 @@ function TarjetaMovil({
       <div className={`flex flex-col ${destacado ? "min-w-0 items-start" : "items-center"}`}>
         <p className="max-w-[16ch] truncate font-semibold text-text">@{fila.username}</p>
         <div className="mt-0.5">
-          <Puntos valor={fila.puntos} tam={destacado ? "20px" : "16px"} />
+          <Victorias valor={fila.victorias} tam={destacado ? "20px" : "16px"} />
         </div>
         <div className="mt-2">
-          <InsigniaNivel puntos={puntosNivel(fila)} />
+          <InsigniaNivel puntos={fila.puntos} />
         </div>
       </div>
     </div>
@@ -215,40 +229,53 @@ function TarjetaMovil({
 }
 
 /**
- * PODIO del top-3 — composicion (no primitivo). DOBLE senal de jerarquia: COLOR por puesto (1 oro /
- * 2 plata / 3 bronce) Y geometria (pedestal 1 mas alto, avatar 1 mayor, 1 centrado / 2 izq / 3 der).
- * En escritorio, pedestales alineados al pie (el 1 mas alto eleva su columna). En movil colapsa a
- * #1 a lo ancho + #2/#3 en fila. `top3` llega en orden de ranking [1, 2, 3].
+ * PODIO — composicion (no primitivo). DOBLE senal de jerarquia: COLOR por puesto (1 oro / 2 plata /
+ * 3 bronce) Y geometria (pedestal del 1 mas alto, avatar mayor, y el 1 al CENTRO). En escritorio,
+ * pedestales alineados al pie. En movil colapsa a #1 a lo ancho + #2/#3 en fila.
+ *
+ * SOLO PINTA LAS POSICIONES QUE EXISTEN. `top` llega en orden de clasificacion y puede traer 0, 1, 2
+ * o mas; el podio se queda con las tres primeras como mucho y no rellena. Antes exigia exactamente
+ * tres y, con menos, devolvia `null`: como la lista arranca despues del podio, el ganador de los dos
+ * primeros retos de la plataforma no habria salido en ninguna parte.
+ *
+ * Un pedestal sin persona es un dato falso disfrazado de hueco, asi que no existe: con una sola
+ * persona hay una sola columna, y con cero no hay podio sino un vacio honesto (lo pinta el llamante,
+ * que es quien sabe si invitar a participar o a ganar).
  */
-export function PodioRanking({ top3 }: { top3: readonly FilaRankVista[] }) {
-  if (top3.length < 3) return null;
-  const emparejado: [
-    { fila: FilaRankVista; puesto: 1 },
-    { fila: FilaRankVista; puesto: 2 },
-    { fila: FilaRankVista; puesto: 3 },
-  ] = [
-    { fila: top3[0]!, puesto: 1 },
-    { fila: top3[1]!, puesto: 2 },
-    { fila: top3[2]!, puesto: 3 },
-  ];
-  const visual = ordenPodio(emparejado); // [#2, #1, #3]
+export function PodioRanking({ top }: { top: readonly FilaPodio[] }) {
+  const cuantos = cuantosEnPodio(top.length);
+  if (cuantos === 0) return null;
+
+  // El orden VISUAL no es el de clasificacion (el 1 va al centro), y depende de cuantos hay.
+  const visual = ordenVisualPodio(cuantos);
+  const filaDe = (puesto: PuestoPodio): FilaPodio => top[puesto - 1] as FilaPodio;
+
+  // Con menos de tres, la rejilla se estrecha en vez de dejar columnas vacias a los lados.
+  const columnas =
+    cuantos === 1
+      ? "lg:grid-cols-[1.25fr]"
+      : cuantos === 2
+        ? "lg:grid-cols-[1fr_1.25fr]"
+        : "lg:grid-cols-[1fr_1.25fr_1fr]";
 
   return (
     <div className="df-rise mt-8">
-      {/* Escritorio: podio con pedestales (2 | 1 | 3), alineados al pie */}
-      <div className="hidden items-end gap-4 lg:grid lg:grid-cols-[1fr_1.25fr_1fr]">
-        {visual.map(({ fila, puesto }) => (
-          <ColumnaPodio key={puesto} fila={fila} puesto={puesto} />
+      {/* Escritorio: pedestales alineados al pie, centrados cuando no son tres. */}
+      <div className={`mx-auto hidden max-w-3xl items-end gap-4 lg:grid ${columnas}`}>
+        {visual.map((puesto) => (
+          <ColumnaPodio key={puesto} fila={filaDe(puesto)} puesto={puesto} />
         ))}
       </div>
 
-      {/* Movil: #1 a lo ancho + #2/#3 en fila */}
+      {/* Movil: #1 a lo ancho; #2 y #3, los que haya, debajo. */}
       <div className="lg:hidden">
-        <TarjetaMovil fila={emparejado[0].fila} puesto={1} destacado />
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <TarjetaMovil fila={emparejado[1].fila} puesto={2} destacado={false} />
-          <TarjetaMovil fila={emparejado[2].fila} puesto={3} destacado={false} />
-        </div>
+        <TarjetaMovil fila={filaDe(1)} puesto={1} destacado />
+        {cuantos > 1 ? (
+          <div className={`mt-3 grid gap-3 ${cuantos === 2 ? "grid-cols-1" : "grid-cols-2"}`}>
+            <TarjetaMovil fila={filaDe(2)} puesto={2} destacado={false} />
+            {cuantos > 2 ? <TarjetaMovil fila={filaDe(3)} puesto={3} destacado={false} /> : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

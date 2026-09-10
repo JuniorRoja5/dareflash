@@ -26,7 +26,7 @@ function celdaPuesto(contenedor: HTMLElement, puesto: number): HTMLElement {
 
 describe("FilaPuesto pinta lo que dice pintar", () => {
   it("muestra el puesto, el handle y la cifra", () => {
-    render(<FilaPuesto puesto={4} username="lucia" puntos={1234} />);
+    render(<FilaPuesto puesto={4} username="lucia" cifra={1234} unidad="victorias" />);
     expect(screen.getByText("4")).toBeDefined();
     expect(screen.getByText("@lucia")).toBeDefined();
     // Con separador de millares: 1234 a secas sería otra cifra a ojo.
@@ -36,16 +36,22 @@ describe("FilaPuesto pinta lo que dice pintar", () => {
   it("el ORO es solo del podio: 1, 2 y 3 sí; el 4 no", () => {
     // Es una regla de marca, y la clase de cosa que se rompe sin que falle nada más.
     for (const puesto of [1, 2, 3]) {
-      const { container, unmount } = render(<FilaPuesto puesto={puesto} username="x" puntos={1} />);
+      const { container, unmount } = render(
+        <FilaPuesto puesto={puesto} username="x" cifra={1} unidad="victorias" />,
+      );
       expect(celdaPuesto(container, puesto).style.color).toContain("--color-rank");
       unmount();
     }
-    const { container } = render(<FilaPuesto puesto={4} username="x" puntos={1} />);
+    const { container } = render(
+      <FilaPuesto puesto={4} username="x" cifra={1} unidad="victorias" />,
+    );
     expect(celdaPuesto(container, 4).style.color).not.toContain("--color-rank");
   });
 
   it("los puntos NUNCA van en lima: la lima es dinero y los puntos no lo son", () => {
-    const { container } = render(<FilaPuesto puesto={1} username="x" puntos={999} />);
+    const { container } = render(
+      <FilaPuesto puesto={1} username="x" cifra={999} unidad="victorias" />,
+    );
     const cifra = [...container.querySelectorAll<HTMLElement>("span")].find((s) =>
       s.textContent?.includes("999"),
     );
@@ -55,18 +61,36 @@ describe("FilaPuesto pinta lo que dice pintar", () => {
   });
 
   it("la insignia es un slot OPCIONAL: sin pasarla, la fila no la inventa", () => {
-    const { container: sin } = render(<FilaPuesto puesto={1} username="x" puntos={1} />);
+    const { container: sin } = render(
+      <FilaPuesto puesto={1} username="x" cifra={1} unidad="victorias" />,
+    );
     const antes = sin.querySelectorAll("span").length;
     const { container: con } = render(
-      <FilaPuesto puesto={1} username="x" puntos={1} insignia={<b>N</b>} />,
+      <FilaPuesto puesto={1} username="x" cifra={1} unidad="victorias" insignia={<b>N</b>} />,
     );
     expect(screen.getByText("N")).toBeDefined();
     expect(con.querySelectorAll("span").length).toBeGreaterThan(antes);
   });
 
+  it("la UNIDAD viene de fuera: la fila no clava 'pts'", () => {
+    // La cifra tiene que ser el CRITERIO DE ORDEN de quien la usa. Con "pts" clavado, un ranking
+    // ordenado por victorias enseñaba puntos: alguien con 1 victoria y 4.000 puntos aparecía debajo
+    // de otro con 3 victorias y 90, y el número visible contradecía el orden.
+    const { container } = render(
+      <FilaPuesto puesto={1} username="x" cifra={3} unidad="victorias" />,
+    );
+    expect(container.textContent).toContain("3 victorias");
+    expect(container.textContent).not.toContain("pts");
+  });
+
   it("un handle larguísimo no desborda: se trunca", () => {
     const { container } = render(
-      <FilaPuesto puesto={1} username="usuario_con_un_handle_absurdamente_largo_2026" puntos={1} />,
+      <FilaPuesto
+        puesto={1}
+        username="usuario_con_un_handle_absurdamente_largo_2026"
+        cifra={1}
+        unidad="victorias"
+      />,
     );
     const nombre = [...container.querySelectorAll<HTMLElement>("span")].find((s) =>
       s.textContent?.startsWith("@usuario_con"),

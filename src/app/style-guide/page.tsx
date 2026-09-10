@@ -448,14 +448,15 @@ export default function StyleGuide() {
 
       <Seccion etiqueta="Primitiva · fila de puesto (--df-rank solo en 1/2/3)">
         <div className="max-w-md rounded-sm border border-line bg-surface">
-          <FilaPuesto puesto={1} username="campeona_del_barrio_2026" puntos={8940} />
-          <FilaPuesto puesto={2} username="leo" puntos={7510} />
-          <FilaPuesto puesto={3} username="maria_fit" puntos={6880} />
-          <FilaPuesto puesto={4} username="dancer_xx" puntos={5220} />
+          <FilaPuesto puesto={1} username="campeona_del_barrio_2026" cifra={9} unidad="victorias" />
+          <FilaPuesto puesto={2} username="leo" cifra={7} unidad="victorias" />
+          <FilaPuesto puesto={3} username="maria_fit" cifra={4} unidad="victorias" />
+          <FilaPuesto puesto={4} username="dancer_xx" cifra={2} unidad="victorias" />
           <FilaPuesto
             puesto={7}
-            username="usuario_demo_con_un_nombre_larguisimo"
-            puntos={3900}
+            username="un_nombre_de_usuario_larguisimo_2026"
+            cifra={1}
+            unidad="victoria"
             activo
           />
         </div>
