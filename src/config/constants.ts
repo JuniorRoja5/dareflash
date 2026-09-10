@@ -654,7 +654,12 @@ export const JobTypeSchema = z.enum([
   // borrados: encolar un job al crear el reto obligaria a re-encolarlo si cambia el deadline y a
   // limpiarlo si el reto se borra, mientras que el barrido se limita a mirar el reloj y es
   // auto-reparable — si una vuelta se pierde, la siguiente lo recoge.
-  "RANKING_RESET",
+  //
+  // Y aqui habia un "RANKING_RESET", retirado por el mismo criterio y con un motivo AÑADIDO: con el
+  // ranking mensual materializado, el periodo es la CLAVE de la fila (`RankingMensual.periodo`,
+  // `YYYY-MM` en UTC). Un mes nuevo son filas nuevas, asi que no hay nada que reiniciar — no es que
+  // el job estuviera sin escribir, es que el diseño lo dejo sin sentido. Si algun dia hay premios de
+  // ranking mensual, eso es un OTORGAMIENTO (que si necesitaria su job), no un reinicio.
   "SEND_EMAIL",
   "LEDGER_RECONCILE",
   // Aqui habia un "RETENTION_PURGE" que NUNCA existio: ni handler, ni cadencia, ni llamante. Se
