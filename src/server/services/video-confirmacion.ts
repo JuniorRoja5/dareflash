@@ -95,7 +95,9 @@ export async function confirmarVideosPendientes(
   const desde = new Date(now.getTime() - opts.maxEdadMs);
   const videos = await db.video.findMany({
     where: { status: "PENDING", createdAt: { gte: desde } },
-    select: { id: true, bunnyVideoId: true },
+    // `userId` va aquí para el hito de vídeos publicados: sin él haría falta una consulta extra por
+    // vídeo justo después de publicarlo.
+    select: { id: true, bunnyVideoId: true, userId: true },
     take: opts.lote,
   });
 
@@ -142,6 +144,18 @@ export async function confirmarVideosPendientes(
           await publicarParticipacionSiProcede(db, v.id);
         } catch (e) {
           opts.log?.(`[confirm] participación de ${v.id} no pudo publicarse: ${sanearError(e)}`);
+        }
+        // HITO DE VÍDEOS: este es el ÚNICO sitio del sistema donde un Video pasa a PUBLISHED
+        // (verificado: la reconciliación solo DEGRADA), así que es el único enganche posible. Va
+        // DESPUÉS de la transición y condicionado a `count > 0`: solo cuenta la publicación que de
+        // verdad ocurrió en esta pasada, no una que ya estaba hecha.
+        try {
+          const { otorgarHitosDeVideos } = await import("./hito-videos");
+          const hitos = await otorgarHitosDeVideos(db, v.userId);
+          if (hitos > 0) opts.log?.(`[confirm] ${v.userId}: ${hitos} hito(s) de vídeos otorgados`);
+        } catch (e) {
+          // Independiente por vídeo, como lo de arriba: los puntos no pueden tumbar el barrido.
+          opts.log?.(`[confirm] hito de vídeos de ${v.userId} falló: ${sanearError(e)}`);
         }
       } else fallidos += 1;
     }

@@ -265,7 +265,21 @@ export const POINTS = {
   REGISTER_FROM_VIDEO_LINK: 10,
   TOP20: 10,
   VIDEO_100_EXTERNAL_VIEWS: 10,
+  /** Cada vez que se completa un HITO de VIDEOS_POR_HITO videos PUBLICADOS (acumulado de por vida). */
+  VIDEOS_PUBLICADOS_HITO: 5,
 } as const;
+
+/**
+ * Cuantos videos PUBLICADOS componen un hito. La regla se decidio ACUMULADA DE POR VIDA, y las dos
+ * alternativas se descartaron por motivos concretos: "por reto" es imposible (el esquema impone 1
+ * participacion por usuario y reto, asi que nunca habria 3), y "por semana" es fragil (obliga a fijar
+ * un corte semanal, a decidir que pasa con los videos de la semana anterior y a un barrido que
+ * recompute; un hito acumulado no tiene bordes que discutir).
+ */
+export const VIDEOS_POR_HITO = 3;
+
+/** Razon del movimiento de puntos del hito (union de razones del PointsLedger). */
+export const RAZON_HITO_VIDEOS = "VIDEOS_PUBLICADOS";
 
 /**
  * Las 14 categorias de reto (documento maestro; sin "Deportes"). `key` es el
