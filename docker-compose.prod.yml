@@ -87,7 +87,9 @@ services:
   # usuario no-root en /app/.npm). El perfil `tools` evita que arranque con `up -d`;
   # solo se ejecuta puntualmente con `run --rm`.
   #
-  #   Migrar:       docker compose -f docker-compose.prod.yml run --rm migrate
+  #   Migrar:       ./scripts/migrate-prod.sh
+  #                 (reconstruye la imagen ANTES de `run --rm migrate`; no ejecutes el crudo sin
+  #                  rebuild o puedes usar una imagen vieja y ver un "No pending" FALSO)
   #   Crear admin:  ver scripts/create-admin.ts (necesita ADMIN_EMAIL y ADMIN_PASSWORD).
   migrate:
     build:
