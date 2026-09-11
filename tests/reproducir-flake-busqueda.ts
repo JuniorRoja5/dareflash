@@ -17,6 +17,14 @@
  * │ filas había en `User`, qué devolvió el `MATCH` crudo y qué devolvió el servicio.                 │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
+ * DIAGNOSTICADO (2026-09-11). No era la CPU ni la contención: era la HISTORIA de las BDs de worker.
+ * Vivían para siempre, y la lista de DOC_ID borrados del índice FULLTEXT de `User` crecía con cada
+ * `resetDb` sin que nada la purgara. Llegado un punto, InnoDB asignaba a filas NUEVAS DOC_ID que
+ * seguían en esa lista y `MATCH` las descartaba. Por eso esta trampa no lo reproducía: su BD
+ * (`dareflash_flake`) era casi nueva. El arreglo es recrear las BDs en cada ejecución
+ * (`tests/global-setup.ts`) y lo vigila `tests/bd-test-recreada.test.ts`. La trampa se conserva por
+ * si el síntoma volviera con otra causa, pero ya no es la explicación pendiente.
+ *
  * USO (necesita MariaDB de dev levantada, `docker compose -f docker-compose.dev.yml up -d`):
  *
  *   npx tsx --conditions=react-server tests/reproducir-flake-busqueda.ts
