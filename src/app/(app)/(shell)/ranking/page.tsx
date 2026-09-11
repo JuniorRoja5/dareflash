@@ -11,27 +11,26 @@ export const dynamic = "force-dynamic";
  * pintada (no hay salto de "cargando" ni una petición extra desde el navegador). Las siguientes las
  * pide el cliente por cursor a `/api/ranking`.
  *
- * El "top del reto" es el del ÚLTIMO reto CERRADO, y se nombra en el conmutador. La maqueta decía
- * "Top 20 del reto" sin decir de cuál, que con un solo reto de mentira se entendía y con retos de
- * verdad no dice nada.
+ * El "top del reto" es el del ÚLTIMO reto CERRADO QUE TIENE PARTICIPACIONES (`ultimoRetoConTop`): uno
+ * cerrado vacío no se ofrece, porque su vista solo diría que no hay nada. De cuál es lo dice la
+ * cabecera DENTRO de la vista, no la pestaña: el título en el botón hacía una pestaña de ancho variable
+ * que enseñaba títulos largos y de prueba.
  */
 export default async function RankingPage() {
   const { prisma } = await import("@/server/db/client");
-  const { rankingMensual, topDelReto } = await import("@/server/services/ranking");
+  const { rankingMensual, topDelReto, ultimoRetoConTop } =
+    await import("@/server/services/ranking");
   const { getCurrentUser } = await import("@/server/auth/current-user");
 
-  const [pagina, usuario, ultimoCerrado] = await Promise.all([
+  const [pagina, usuario, reto] = await Promise.all([
     rankingMensual(prisma, { limite: 20 }),
     getCurrentUser(),
-    // El más reciente que ya consumó su cierre. `closedAt` está indexado por el propio cierre.
-    prisma.challenge.findFirst({
-      where: { closedAt: { not: null }, deletedAt: null, eliminacionProgramadaEn: null },
-      orderBy: { closedAt: "desc" },
-      select: { id: true, title: true, publicCode: true },
-    }),
+    // Sin índice propio en `closedAt`: hoy recorre los retos cerrados, que son pocos. Si crecen, el
+    // índice es [closedAt] y no cambia nada más.
+    ultimoRetoConTop(prisma),
   ]);
 
-  const top = ultimoCerrado ? await topDelReto(prisma, ultimoCerrado.id, 20) : [];
+  const top = reto ? await topDelReto(prisma, reto.id, 20) : [];
 
   const datos: DatosRanking = {
     mensual: pagina.filas.map((f) => ({
@@ -42,19 +41,22 @@ export default async function RankingPage() {
       puntos: f.puntos,
     })),
     cursorInicial: pagina.cursor,
-    reto: ultimoCerrado
-      ? {
-          titulo: ultimoCerrado.title,
-          codigo: ultimoCerrado.publicCode,
-          top: top.map((t) => ({
-            submissionId: t.submissionId,
-            userId: t.userId,
-            username: t.username,
-            votos: t.votos,
-            puesto: t.puesto,
-          })),
-        }
-      : null,
+    // Un top vacío aquí sería una carrera (se retiró la última participación entre las dos consultas):
+    // se trata igual que "no hay reto", nunca como una pestaña que lleva a la nada.
+    reto:
+      reto && top.length > 0
+        ? {
+            titulo: reto.title,
+            codigo: reto.publicCode,
+            top: top.map((t) => ({
+              submissionId: t.submissionId,
+              userId: t.userId,
+              username: t.username,
+              votos: t.votos,
+              puesto: t.puesto,
+            })),
+          }
+        : null,
     yo: usuario?.userId ?? null,
   };
 

@@ -27,7 +27,7 @@ export interface DatosRanking {
   /** Primera página del mensual, ya resuelta en el servidor. */
   mensual: FilaRanking[];
   cursorInicial: string | null;
-  /** Top del reto más reciente que ya cerró, o `null` si todavía no ha cerrado ninguno. */
+  /** Top del último reto cerrado CON participaciones, o `null` si no hay ninguno. */
   reto: { titulo: string; codigo: string; top: FilaTopReto[] } | null;
   /** El usuario de la sesión, para resaltar su fila. `null` si no ha entrado. */
   yo: string | null;
@@ -36,7 +36,28 @@ export interface DatosRanking {
 type Vista = "mensual" | "reto";
 
 /**
- * CLASIFICACIÓN — conmutador (Mensual / el reto más reciente) + PODIO + lista.
+ * Etiquetas del conmutador: FUENTE ÚNICA, cortas y FIJAS. El título del reto NO va aquí: metido en el
+ * botón hacía una pestaña de ancho variable que enseñaba títulos largos y de prueba. "De qué reto" lo
+ * responde la cabecera dentro de su vista (`cabeceraReto`). El copy final es de Junior/Sergio.
+ */
+export const ETIQUETAS_VISTA: Record<Vista, string> = {
+  mensual: "Este mes",
+  reto: "Último reto",
+};
+
+/**
+ * Cabecera de la vista del reto: aquí SÍ va su título, que es donde contesta "de cuál".
+ *
+ * "Clasificación de", no "Ganadores de": un reto cerrado con participaciones puede no tener ganador
+ * (no alcanzó el mínimo, o hay un empate esperando al admin), y aun con ganador la lista es el top por
+ * votos, no la lista de premiados. "Ganadores" mentiría en los dos casos.
+ */
+export function cabeceraReto(titulo: string): string {
+  return `Clasificación de «${titulo}»`;
+}
+
+/**
+ * CLASIFICACIÓN — conmutador (Este mes / Último reto) + PODIO + lista.
  *
  * PAGINACIÓN POR CURSOR, no por número de página. La versión de maqueta tenía "‹ Página 2 de 7 ›",
  * que es OFFSET disfrazado: exige contar el total y saltar N elementos, y si alguien gana un reto
@@ -53,6 +74,11 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
   const [filas, setFilas] = useState<FilaRanking[]>(datos.mensual);
   const [cursor, setCursor] = useState<string | null>(datos.cursorInicial);
   const [cargando, setCargando] = useState(false);
+
+  // La vista del reto existe SI Y SOLO SI su top tiene a alguien. El servidor ya no manda un reto vacío
+  // (ver la página); esto es la segunda guarda, para que ningún dato que llegue pueda producir una
+  // pestaña que lleve a la nada.
+  const reto = datos.reto && datos.reto.top.length > 0 ? datos.reto : null;
 
   const verMas = async (): Promise<void> => {
     if (!cursor || cargando) return;
@@ -83,39 +109,34 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
           Clasificación
         </h1>
 
-        {/* El segundo botón nombra el reto REAL. Un "Top del reto" a secas no dice de cuál, y con
-            datos de verdad hay muchos: la etiqueta sin nombre solo funcionaba con una maqueta. */}
-        {datos.reto ? (
+        {/* Conmutador NEUTRO (no hay acción: nada de magenta), con etiquetas fijas de fuente única.
+            Ancho predecible: no depende de ningún dato. */}
+        {reto ? (
           <div
             role="group"
             aria-label="Vista de la clasificación"
             className="inline-flex rounded-sm border border-line bg-surface/60 p-1 shadow-[var(--df-shadow-sm)] backdrop-blur-md"
           >
-            {(
-              [
-                { clave: "mensual" as const, etiqueta: "Este mes" },
-                { clave: "reto" as const, etiqueta: datos.reto.titulo },
-              ] satisfies { clave: Vista; etiqueta: string }[]
-            ).map((v) => (
+            {(["mensual", "reto"] as const).map((clave) => (
               <button
-                key={v.clave}
+                key={clave}
                 type="button"
-                aria-pressed={vista === v.clave}
-                onClick={() => setVista(v.clave)}
-                className={`min-h-[44px] max-w-[16ch] truncate rounded-xs px-4 text-sm transition-colors duration-150 ease-mechanical ${
-                  vista === v.clave
+                aria-pressed={vista === clave}
+                onClick={() => setVista(clave)}
+                className={`min-h-[44px] rounded-xs px-4 text-sm whitespace-nowrap transition-colors duration-150 ease-mechanical ${
+                  vista === clave
                     ? "bg-raised font-medium text-text"
                     : "text-text-dim hover:text-text"
                 }`}
               >
-                {v.etiqueta}
+                {ETIQUETAS_VISTA[clave]}
               </button>
             ))}
           </div>
         ) : null}
       </div>
 
-      {vista === "mensual" ? (
+      {vista === "mensual" || !reto ? (
         filas.length === 0 ? (
           <VacioHonesto
             titulo="Aún no ha ganado nadie este mes"
@@ -156,29 +177,35 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
             ) : null}
           </>
         )
-      ) : datos.reto ? (
-        <div
-          aria-label={`Clasificación de ${datos.reto.titulo}`}
-          className="df-rise mt-8 overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md"
-        >
-          {datos.reto.top.length === 0 ? (
-            <p className="p-6 text-center text-sm text-text-dim">
-              Ese reto cerró sin participaciones publicadas.
-            </p>
-          ) : (
-            datos.reto.top.map((f) => (
-              <FilaPuesto
-                key={f.submissionId}
-                puesto={f.puesto}
-                username={f.username}
-                cifra={f.votos}
-                unidad={f.votos === 1 ? "voto" : "votos"}
-                activo={f.userId === datos.yo}
-              />
-            ))
-          )}
-        </div>
-      ) : null}
+      ) : (
+        <section aria-label={cabeceraReto(reto.titulo)} className="df-rise mt-8">
+          {/* Aquí, y solo aquí, el título REAL: la cabecera contesta "de qué reto". Puede ser largo:
+              se parte en líneas en vez de estirar nada. */}
+          <h2 className="text-lg font-semibold text-balance break-words text-text">
+            {cabeceraReto(reto.titulo)}
+          </h2>
+          <div className="mt-4 overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md">
+            {reto.top.length === 0 ? (
+              // DEFENSA MUDA: inalcanzable desde el conmutador (sin top no hay pestaña). Se conserva por
+              // si otro camino llegara a pintar esta vista con un top vacío: mejor decirlo que un hueco.
+              <p className="p-6 text-center text-sm text-text-dim">
+                Ese reto cerró sin participaciones publicadas.
+              </p>
+            ) : (
+              reto.top.map((f) => (
+                <FilaPuesto
+                  key={f.submissionId}
+                  puesto={f.puesto}
+                  username={f.username}
+                  cifra={f.votos}
+                  unidad={f.votos === 1 ? "voto" : "votos"}
+                  activo={f.userId === datos.yo}
+                />
+              ))
+            )}
+          </div>
+        </section>
+      )}
     </>
   );
 }

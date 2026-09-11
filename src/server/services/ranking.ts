@@ -167,6 +167,41 @@ export interface FilaTopReto {
 }
 
 /**
+ * Una participación que CUENTA en el top de un reto: publicada de verdad, vídeo incluido (la regla del
+ * más restrictivo, la misma que usa el cierre). Nombrada UNA vez porque la usan dos consultas —el top y
+ * la elección del reto que /ranking enseña— y tienen que decir lo mismo: si divergieran, /ranking podría
+ * ofrecer un reto cuyo top sale vacío.
+ */
+const PARTICIPACION_QUE_CUENTA = {
+  status: "PUBLISHED",
+  video: { is: { status: "PUBLISHED" } },
+} as const satisfies Prisma.SubmissionWhereInput;
+
+/**
+ * El reto cuyo top enseña /ranking: el ÚLTIMO CERRADO que tenga AL MENOS UNA participación que cuente.
+ * Un reto cerrado más reciente pero VACÍO no le roba el sitio a uno anterior con participaciones: se
+ * salta, porque ofrecer una vista cuyo único contenido es "no hay nada" es una pestaña muerta. Una sola
+ * consulta (`some` = EXISTS), sin traer retos para descartarlos luego. `null` si no hay ninguno.
+ *
+ * `id` desempata el orden: dos cierres del mismo barrido comparten `closedAt` al milisegundo, y sin
+ * desempate la pestaña podría cambiar de reto entre dos cargas de la misma página.
+ */
+export async function ultimoRetoConTop(
+  db: PrismaClient,
+): Promise<{ id: string; title: string; publicCode: string } | null> {
+  return db.challenge.findFirst({
+    where: {
+      closedAt: { not: null },
+      deletedAt: null,
+      eliminacionProgramadaEn: null,
+      submissions: { some: PARTICIPACION_QUE_CUENTA },
+    },
+    orderBy: [{ closedAt: "desc" }, { id: "desc" }],
+    select: { id: true, title: true, publicCode: true },
+  });
+}
+
+/**
  * TOP del reto: las `limite` primeras participaciones por votos, con la MISMA regla de orden que usó
  * el cierre (`ordenarParaCierre`, reutilizada). Por defecto 20, que es el tamaño que premia con
  * puntos de top-20.
@@ -184,7 +219,7 @@ export async function topDelReto(
 ): Promise<FilaTopReto[]> {
   const filas = await db.submission.findMany({
     // MISMA regla de entrada que el cierre: publicada de verdad, vídeo incluido.
-    where: { challengeId, status: "PUBLISHED", video: { is: { status: "PUBLISHED" } } },
+    where: { challengeId, ...PARTICIPACION_QUE_CUENTA },
     select: {
       id: true,
       userId: true,
