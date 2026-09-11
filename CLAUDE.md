@@ -169,6 +169,12 @@ borran para "limpiar"**:
 - `miniatura-nombre` — prohibido volver a fijar `thumbnail.jpg` al construir la URL del póster.
 - `detalle-reto-vista` — la vista pública del reto no modera ni muta nada.
 - `participaciones-lista` — la paginación no puede volver a `OFFSET`.
+- `navegacion-dura` — login y logout navegan en DURO (`navegarDuro`), nunca con `router.push`: el
+  router de cliente guarda lo pre-cargado como invitado y devolvía al logueado al login.
+- `proxy-gate` — con cookie, `/crear` pasa; sin ella, a `/entrar?siguiente=`; y `/entrar` nunca pasa
+  por el proxy (el redirect del login tiene que terminar).
+- `cta-principal` — "Crear reto" es solo del admin: el CTA sale de `ctaPrincipal` y nadie fuera del
+  panel escribe el literal ni enlaza a `/crear` a mano.
 
 Al tocar uno de estos, la comprobación no es que pase en verde: es **romper el invariante a
 propósito y confirmar que se pone rojo**.
