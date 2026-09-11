@@ -161,6 +161,19 @@ const serverSchema = z.object({
    * de RECON_HUERFANOS_MODO. Ausente => dry-run => despliegue SEGURO. No es secreto.
    */
   RECON_PUBLICADOS_MODO: z.enum(["dry-run", "actuar"]).default("dry-run"),
+  /**
+   * SHA de git del ARTEFACTO en ejecución, para `/api/health`: con él, "main = desplegado" se
+   * comprueba con un curl en vez de fiarse de la memoria de quien desplegó.
+   *
+   * NO se lee en caliente: el contenedor no tiene `.git` (está en `.dockerignore`). Lo inyecta el
+   * BUILD como argumento, y la etapa `runner` del Dockerfile se niega a construir sin uno válido.
+   * OPCIONAL aquí porque en local (`npm run dev`, tests) no hay artefacto: ausente -> la salud dice
+   * `commit: null`, que es la verdad. Si viene, tiene que ser un SHA completo, no un resumen de 7.
+   */
+  GIT_SHA: z
+    .string()
+    .regex(/^[0-9a-f]{40}$/, "GIT_SHA debe ser un SHA de git completo (40 caracteres hex)")
+    .optional(),
 });
 
 /**

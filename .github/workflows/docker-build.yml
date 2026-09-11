@@ -34,4 +34,8 @@ jobs:
       - name: Build de las imágenes de producción
         # SIN nombres de servicio: construye web + migrate + worker y respeta la regla de no arrastrar
         # imágenes cacheadas por listar servicios. Respeta `.dockerignore`. El job FALLA si el build falla.
+        # El SHA del commit que se construye: la etapa `runner` se niega a terminar sin el (lo expone
+        # /api/health). En CI es el del push.
+        env:
+          GIT_SHA: ${{ github.sha }}
         run: docker compose -f docker-compose.prod.yml build

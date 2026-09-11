@@ -52,10 +52,21 @@ export async function GET() {
   }
 
   // El cuerpo solo lleva booleanos/numeros, nunca detalles internos.
+  //
+  // `commit`: el SHA del ARTEFACTO que responde, inyectado en el build (ver GIT_SHA en env.ts y la
+  // etapa `runner` del Dockerfile). Es un campo AÑADIDO: status/db/jobsFailed siguen igual, y quien
+  // ya consultaba este endpoint no nota nada. Sale TAMBIÉN con la base caída, que es justo cuando
+  // más interesa saber qué versión está fallando. `null` fuera de un artefacto (local, tests).
+  //
+  // DECISIÓN CONSCIENTE: el repositorio es público, así que el SHA no revela código que no esté ya a
+  // la vista. Lo que sí revela es si producción va por detrás de `main`. Se acepta por el valor de
+  // poder comprobar el despliegue con un curl; si algún día pesa más lo otro, se mueve a una ruta
+  // con rol de administrador, como dice la nota de `jobsFailed`.
   const body = {
     status: dbOk ? "ok" : "degraded",
     db: dbOk,
     ...(jobsFailed !== null ? { jobsFailed } : {}),
+    commit: env.GIT_SHA ?? null,
     entorno: env.NODE_ENV,
     ...(dbOk ? {} : { error: "DB_UNAVAILABLE" }),
     momento: new Date().toISOString(),

@@ -5,7 +5,8 @@
 # host `mariadb`, APP_URL, AUTH_SECRET, CRON_SECRET, SMTP_*, etc.). Ningun secreto
 # vive en el repositorio.
 #
-#   Levantar:   docker compose -f docker-compose.prod.yml up -d --build
+#   Levantar:   GIT_SHA=$(git rev-parse HEAD) docker compose -f docker-compose.prod.yml up -d --build
+#               (sin GIT_SHA el build de `web` se detiene; la version en marcha sigue sirviendo)
 #   Migrar:     ./scripts/migrate-prod.sh
 #   Logs:       docker compose -f docker-compose.prod.yml logs -f web
 #
@@ -61,6 +62,13 @@ services:
       dockerfile: Dockerfile
       target: runner # EXPLICITO: sin esto, Docker construye la ULTIMA etapa del Dockerfile
       #                (hoy `worker`), y `web` arrancaria la cola en vez del servidor -> 502.
+      args:
+        # SHA del commit que se despliega, para /api/health. Lo pasa quien construye:
+        #   GIT_SHA=$(git rev-parse HEAD) docker compose -f docker-compose.prod.yml up -d --build
+        # Default VACIO a proposito, no `:?`: con `:?` fallaria CUALQUIER comando de este compose
+        # sin la variable (logs, migrate-prod.sh...). Quien se niega a construir sin un SHA valido
+        # es la etapa `runner` del Dockerfile, que es la unica que lo necesita.
+        GIT_SHA: ${GIT_SHA:-}
     restart: unless-stopped
     mem_limit: 1024m
     mem_reservation: 256m

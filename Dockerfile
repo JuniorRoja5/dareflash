@@ -46,6 +46,18 @@ RUN npx prisma generate && npm run build
 # ---- Imagen final (runtime) ----
 FROM base AS runner
 ENV NODE_ENV=production
+
+# COMMIT del artefacto, para /api/health. `.git` no entra en el contexto de build (.dockerignore),
+# asi que el SHA llega como ARGUMENTO desde fuera:
+#   GIT_SHA=$(git rev-parse HEAD) docker compose -f docker-compose.prod.yml up -d --build
+# Sin un SHA valido el build FALLA aqui a proposito: una imagen que no sabe que version es obliga a
+# adivinar si "main = desplegado". Y falla ANTES de sustituir el contenedor en marcha, asi que
+# olvidarlo no tumba produccion: la version anterior sigue sirviendo. Solo esta etapa lo exige
+# (`builder` y `worker` no), para que `migrate-prod.sh` y el worker no dependan de el.
+ARG GIT_SHA
+RUN echo "$GIT_SHA" | grep -Eq '^[0-9a-f]{40}$' \
+    || { echo "ERROR: falta GIT_SHA o no es un SHA de 40 hex. Construye con GIT_SHA=\$(git rev-parse HEAD)" >&2; exit 1; }
+ENV GIT_SHA=$GIT_SHA
 # Usuario NO root.
 RUN groupadd --system --gid 1001 nodejs \
     && useradd --system --uid 1001 --gid nodejs --home /app --shell /usr/sbin/nologin nextjs
