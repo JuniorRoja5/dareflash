@@ -41,7 +41,12 @@ COPY --from=deps /app/node_modules ./node_modules
 # Codigo fuente (sin lo que excluye .dockerignore: node_modules, .next, src/generated...).
 COPY . .
 # Regenerar el cliente Prisma sobre el fuente recien copiado y construir.
-RUN npx prisma generate && npm run build
+# `rm -rf .next/cache`: desde Next 16.3, `next build` escribe por defecto la cache de Turbopack
+# (~115 MB) en .next/cache. Aqui no sirve de nada: cada build de Docker parte de una capa limpia y
+# nunca la reutiliza. `runner` no la copia, pero `worker` y `migrate` heredan de esta etapa y se la
+# llevarian (+90 MB de imagen). Va en el MISMO RUN: en uno aparte, la capa del build ya la contendria
+# y la imagen pesaria igual.
+RUN npx prisma generate && npm run build && rm -rf .next/cache
 
 # ---- Imagen final (runtime) ----
 FROM base AS runner

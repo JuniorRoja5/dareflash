@@ -17,6 +17,8 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { dockerfileSinComentarios, etapaDockerfile } from "./helpers/dockerfile";
+
 const SHA = "a60b53e74ed3a859d77a48b7201b4d01ddc9f5c8";
 
 const mocks = vi.hoisted(() => ({
@@ -88,19 +90,9 @@ describe("la respuesta de /api/health", () => {
 describe("el artefacto construido lleva el SHA (estructural)", () => {
   const raiz = path.resolve(__dirname, "..");
   const leer = (rel: string): string => readFileSync(path.join(raiz, rel), "utf8");
-  /** Sin comentarios: una línea comentada no construye nada. */
-  const sinComentarios = (s: string): string =>
-    s
-      .split("\n")
-      .filter((l) => !l.trim().startsWith("#"))
-      .join("\n");
 
   it("la etapa `runner` del Dockerfile exige un SHA de 40 hex y lo deja en el entorno", () => {
-    const docker = sinComentarios(leer("Dockerfile"));
-    const inicio = docker.indexOf("FROM base AS runner");
-    expect(inicio).toBeGreaterThan(-1);
-    const fin = docker.indexOf("\nFROM ", inicio + 1);
-    const runner = docker.slice(inicio, fin === -1 ? undefined : fin);
+    const runner = etapaDockerfile("runner");
 
     expect(runner).toMatch(/^ARG GIT_SHA\s*$/m);
     // La guarda: si el SHA falta o no tiene forma de SHA, el build se detiene.
@@ -115,8 +107,7 @@ describe("el artefacto construido lleva el SHA (estructural)", () => {
   it("solo `runner` lo exige: `builder` y `worker` construyen sin él", () => {
     // Si la guarda subiera a `base` o a `builder`, `migrate-prod.sh` (que construye `builder`) y el
     // worker dejarían de construirse sin la variable.
-    const docker = sinComentarios(leer("Dockerfile"));
-    expect(docker.match(/ARG GIT_SHA/g)).toHaveLength(1);
+    expect(dockerfileSinComentarios().match(/ARG GIT_SHA/g)).toHaveLength(1);
   });
 
   it("el compose se lo pasa a `web`, con default vacío (no `:?`)", () => {
