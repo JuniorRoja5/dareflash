@@ -4,12 +4,13 @@ import { useState } from "react";
 
 import { postJsonCsrf } from "@/lib/cliente-http";
 import { mensajeError, MSG_LOGOUT } from "@/lib/mensajes-error";
+import { navegarDuro } from "@/lib/navegacion-dura";
 
 /**
  * Hook de CERRAR SESIÓN, compartido por el desplegable de la barra (escritorio) y el botón de /perfil
  * (móvil). POST /api/auth/logout CON CSRF (misma vía que el resto de mutaciones con sesión) y, al
- * cerrar, navegación DURA a `/`: re-resuelve el shell en el server SIN sesión y limpia cualquier estado
- * de cliente (no un router.push, que podría servir RSC cacheado con la sesión vieja).
+ * cerrar, navegación DURA a `/` (`navegarDuro`): re-resuelve el shell en el server SIN sesión y limpia
+ * cualquier estado de cliente (no un router.push, que podría servir RSC cacheado con la sesión vieja).
  *
  * Si el token ya no vale (`SIN_SESION` al pedir el CSRF) es que la sesión ya no existe: se trata como
  * éxito y se redirige igual. Cualquier otro fallo muestra copy humano y deja reintentar.
@@ -41,7 +42,7 @@ export function useCerrarSesion(): {
         return;
       }
     }
-    window.location.assign("/");
+    navegarDuro("/");
   }
 
   return { salir, cargando, error };

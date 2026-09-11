@@ -23,18 +23,21 @@ function IconoCampana() {
 
 /**
  * BARRA SUPERIOR del shell de escritorio (solo >= lg; en movil no hay barra superior). Buscador +
- * boton "Crear reto" + notificaciones + avatar. Es MAQUETA: el buscador y las notificaciones son
+ * CTA principal + notificaciones + avatar. Es MAQUETA: el buscador y las notificaciones son
  * presentacionales (sin backend), claramente falsos. Cero sombras; filete inferior; geometria severa.
  *
- * "Crear reto" (CtaCrear) es el magenta persistente del shell (cromo, como el [+] de la nav), salvo
- * en /inicio, donde se atenua a secundario para no competir con el magenta de contenido del hero de
- * la portada. Reusa el lenguaje del boton para un CTA de navegacion; no es un primitivo nuevo.
+ * El CTA principal (`CtaCrear`, por ROL: ver `ctaPrincipal`) es el magenta persistente del shell (cromo,
+ * como el [+] de la nav), salvo en /inicio, donde se atenua a secundario para no competir con el magenta
+ * de contenido del hero de la portada. Reusa el lenguaje del boton; no es un primitivo nuevo.
  */
 export function BarraSuperior({
   usuario,
+  rol,
 }: {
   /** Usuario de la sesión (nombre + avatar reales). `null` = invitado -> avatar neutro. */
   usuario: { nombre: string; imagen: string | null } | null;
+  /** Rol de la sesión (`null` = invitado). Decide el CTA principal: ver `ctaPrincipal`. */
+  rol: string | null;
 }) {
   return (
     <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-line bg-surface px-8 py-3">
@@ -43,10 +46,10 @@ export function BarraSuperior({
       <BuscadorBarra />
 
       <div className="ml-auto flex items-center gap-3">
-        {/* Crear reto — magenta persistente (atenuado a secundario en /inicio) */}
-        <CtaCrear />
+        {/* CTA principal por rol — magenta persistente (atenuado a secundario en /inicio) */}
+        <CtaCrear rol={rol} />
 
-        {/* Notificaciones (maqueta: badge fijo, NEUTRO — el magenta es solo Crear) */}
+        {/* Notificaciones (maqueta: badge fijo, NEUTRO — el magenta es solo el CTA principal) */}
         <button
           type="button"
           aria-label="Notificaciones (3 sin leer)"

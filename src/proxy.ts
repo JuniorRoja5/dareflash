@@ -23,6 +23,10 @@ import { SESSION_COOKIE } from "@/config/constants";
  *     rechaza (la subida ya devuelve 401). Esto solo evita que un invitado llegue a una pantalla
  *     que no puede usar.
  *
+ *     OJO con el PREFETCH: `<Link>` pre-carga /crear también al invitado, y el router de cliente
+ *     GUARDA este redirect. Por eso el login navega en DURO (`src/lib/navegacion-dura.ts`): con un
+ *     `router.push`, el usuario ya logueado seguía cayendo en /entrar por la redirección guardada.
+ *
  * El `matcher` (abajo) acota QUE rutas pasan por aqui: SOLO "/" y las protegidas. La navegacion
  * publica (feed, retos, perfil, inicio, /entrar, /verify, assets, /api) NO se intercepta.
  */

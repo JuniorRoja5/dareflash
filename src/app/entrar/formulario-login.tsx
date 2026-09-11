@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
@@ -9,6 +8,7 @@ import { Campo } from "@/components/ui/campo";
 import { postJson } from "@/lib/cliente-http";
 import { mensajeError, MSG_LOGIN } from "@/lib/mensajes-error";
 import { destinoTrasLogin } from "@/lib/destino-login";
+import { navegarDuro } from "@/lib/navegacion-dura";
 import { rutaSiguienteSegura } from "@/lib/ruta-siguiente";
 
 /**
@@ -19,13 +19,13 @@ import { rutaSiguienteSegura } from "@/lib/ruta-siguiente";
  * revelar si el correo existe).
  *
  * Éxito -> si venía `?siguiente` con una ruta LOCAL segura (el proxy la añade al mandar aquí a un
- * anónimo que pisó una acción protegida), se vuelve allí; si no, a "/". La ruta se lee en el momento
- * del envío (`window.location`) y se valida contra open-redirect en `rutaSiguienteSegura`.
+ * anónimo que pisó una acción protegida), se vuelve allí; si no, al destino por rol. La ruta se lee en
+ * el momento del envío (`window.location`) y se valida contra open-redirect en `rutaSiguienteSegura`.
+ * La vuelta es una NAVEGACIÓN DURA (`navegarDuro`), no un `router.push`: ver el porqué allí.
  */
 type Estado = "idle" | "enviando";
 
 export function FormularioLogin() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [verVisible, setVerVisible] = useState(false);
@@ -50,9 +50,11 @@ export function FormularioLogin() {
       if (r.ok) {
         // Destino por FUENTE ÚNICA: respeta `?siguiente` local (validado contra open-redirect) y, si no
         // lo hay, lleva al ADMIN a su panel y al resto a la home. Se lee al enviar (no necesita Suspense).
+        // NAVEGACIÓN DURA: acaba de cambiar QUIÉN es el usuario, y el router de cliente guarda lo que
+        // pre-cargó como invitado (el 307 de /crear a /entrar, entre otros). El formulario se queda en
+        // "Entrando…" hasta que el documento se descarga: así tampoco se puede enviar dos veces.
         const siguiente = new URLSearchParams(window.location.search).get("siguiente");
-        router.push(destinoTrasLogin(r.data.role ?? "USER", rutaSiguienteSegura(siguiente)));
-        router.refresh();
+        navegarDuro(destinoTrasLogin(r.data.role ?? "USER", rutaSiguienteSegura(siguiente)));
         return;
       }
       if (r.code === "EMAIL_NOT_VERIFIED") {

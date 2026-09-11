@@ -4,6 +4,7 @@ import { VIDEO_FONDO_HOME } from "@/config/constants";
 import { Boton } from "@/components/ui/boton";
 import { FilaPuesto } from "@/components/ui/fila-puesto";
 import { FondoVideo } from "@/components/ui/fondo-video";
+import { ctaPrincipal } from "@/lib/cta-principal";
 
 import { BoostDestacados } from "./boost-destacados";
 import { HeroDestacado } from "./hero-destacado";
@@ -15,9 +16,9 @@ export const metadata = { title: "Inicio · DareFlash" };
 /**
  * INICIO — portada real con el BRIEF v2 (dirección aprobada, mockup E2). Impacto con NUESTRA paleta
  * (magenta/lima/oscuros): glow, sombras suaves, glass y movimiento vía los tokens `--df-*` de v2 en
- * globals.css. CTA "Crear reto" PLANO (magenta sólido) = el ÚNICO magenta de acción; semántica intacta
- * (dinero lima, puntos neutro, oro/plata/bronce solo podio). Sin foto de stock, sin monigotes (vídeo
- * real con Bunny). Copy en voz de usuario. Respeta prefers-reduced-motion (regla global).
+ * globals.css. CTA principal PLANO (magenta sólido) = el ÚNICO magenta de acción, por ROL (ver
+ * `ctaPrincipal`); semántica intacta (dinero lima, puntos neutro, oro/plata/bronce solo podio). Sin foto
+ * de stock, sin monigotes (vídeo real con Bunny). Copy en voz de usuario. Respeta prefers-reduced-motion.
  *
  * Coherencia de modelos: hero y muro = Challenge (+ Submission para el vídeo, 14 categorías válidas);
  * "Destacados" = BoostActivation (perfiles pagados, ≠ ranking); stats = agregados; nivel derivado.
@@ -31,6 +32,11 @@ export default async function InicioPage() {
   const { prisma } = await import("@/server/db/client");
   const { rankingMensual } = await import("@/server/services/ranking");
   const { filas: topRanking } = await rankingMensual(prisma, { limite: 5 });
+
+  // CTA del hero POR ROL, de la misma fuente que el de la barra: "Crear reto" es del admin; el resto
+  // sube un vídeo. `getCurrentUser` está memoizado por petición: el layout del shell ya lo resolvió.
+  const { getCurrentUser } = await import("@/server/auth/current-user");
+  const cta = ctaPrincipal((await getCurrentUser())?.role ?? null);
 
   return (
     <>
@@ -60,9 +66,9 @@ export default async function InicioPage() {
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               {/* UNICO magenta de accion — PLANO (sin degradado), realzado con --df-cta-lift */}
-              <Boton href="/crear" variante="principal" className="shadow-[var(--df-cta-lift)]">
+              <Boton href={cta.href} variante="principal" className="shadow-[var(--df-cta-lift)]">
                 <span className="text-lg font-bold leading-none">+</span>
-                <span>Crear reto</span>
+                <span>{cta.texto}</span>
               </Boton>
               <Boton href="/retos" variante="secundario">
                 Explorar retos
