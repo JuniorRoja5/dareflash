@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { NOTIF_NO_LEIDAS_TOPE } from "@/config/constants";
 import { ctaPrincipal } from "@/lib/cta-principal";
+import { textoBadge } from "@/lib/notificaciones";
 
 import { destinosDe, NAV_ESCRITORIO, NAV_MOVIL } from "./logic";
 
@@ -58,9 +60,23 @@ const ICONO: Record<string, ReactNode> = {
  * para el admin. Antes decia "Crear" e iba a /crear para todos: un tercer sitio con su propio texto.
  * Circulo de relleno --df-action con texto negro (--df-void), el UNICO magenta. Cada objetivo mide
  * 44 px. Presentacional: la posicion fija la pone el layout, y el rol se lo pasa quien la monta.
+ *
+ * AVISOS en movil: no hay campana (no hay barra superior). Los avisos se leen desde /perfil, y por eso
+ * el icono de PERFIL lleva el numero de no-leidas, NEUTRO como todo recuento y con el mismo tope
+ * ("99+") que la campana de escritorio.
  */
-export function NavegacionInferior({ activo, rol }: { activo?: string; rol: string | null }) {
+export function NavegacionInferior({
+  activo,
+  rol,
+  noLeidas = 0,
+}: {
+  activo?: string;
+  rol: string | null;
+  /** Avisos sin leer del usuario de la sesión (0 = sin número). */
+  noLeidas?: number;
+}) {
   const cta = ctaPrincipal(rol);
+  const badgePerfil = textoBadge(noLeidas, NOTIF_NO_LEIDAS_TOPE);
   return (
     <nav
       aria-label="Principal"
@@ -87,8 +103,20 @@ export function NavegacionInferior({ activo, rol }: { activo?: string; rol: stri
               activo === d.clave ? "text-text" : "text-text-dim"
             }`}
           >
-            {ICONO[d.clave]}
-            <span>{d.nombre}</span>
+            <span className="relative">
+              {ICONO[d.clave]}
+              {d.clave === "perfil" && badgePerfil ? (
+                <span className="absolute -top-1.5 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-text-dim px-1 text-2xs font-semibold tabular-nums text-void">
+                  {badgePerfil}
+                </span>
+              ) : null}
+            </span>
+            <span>
+              {d.nombre}
+              {d.clave === "perfil" && badgePerfil ? (
+                <span className="sr-only"> ({badgePerfil} avisos sin leer)</span>
+              ) : null}
+            </span>
           </Link>
         ),
       )}

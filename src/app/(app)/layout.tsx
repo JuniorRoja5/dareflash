@@ -11,14 +11,17 @@ import { NavInferiorActiva, NavLateralActiva } from "./nav-activa";
  * (sin shell) es full-bleed sin trucos.
  *
  * Lee el ROL de la sesion porque decide el [+] de la barra inferior (el CTA principal, ver
- * `ctaPrincipal`). `getCurrentUser` esta memoizado por peticion: el layout del shell y las paginas
- * reutilizan esta misma lectura. Se lee DENTRO de la funcion (ambito de peticion), nunca al importar.
+ * `ctaPrincipal`), y las no-leidas porque el icono de Perfil las cuenta en movil. `getCurrentUser` y
+ * `noLeidasDeSesion` estan memoizados por peticion: el layout del shell y las paginas reutilizan esta
+ * misma lectura. Se lee DENTRO de la funcion (ambito de peticion), nunca al importar.
  *
  * noindex: lo cubre la cabecera global `X-Robots-Tag` sobre `/:path*` + `robots.txt`; nada por pagina.
  */
 export default async function ArmazonLayout({ children }: { children: ReactNode }) {
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const rol = (await getCurrentUser())?.role ?? null;
+  const { noLeidasDeSesion } = await import("@/server/services/notificaciones-sesion");
+  const noLeidas = rol ? await noLeidasDeSesion() : 0;
 
   return (
     <div className="min-h-full">
@@ -32,7 +35,7 @@ export default async function ArmazonLayout({ children }: { children: ReactNode 
 
       {/* Barra inferior fija — solo movil; el wrapper pinta el safe-area del mismo color que la barra */}
       <div className="fixed inset-x-0 bottom-0 z-40 bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
-        <NavInferiorActiva rol={rol} />
+        <NavInferiorActiva rol={rol} noLeidas={noLeidas} />
       </div>
     </div>
   );

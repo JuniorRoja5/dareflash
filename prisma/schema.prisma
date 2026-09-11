@@ -151,6 +151,8 @@ model User {
   videos      Video[]
   challenges  Challenge[]  @relation("ChallengeCreatedBy")
   submissions Submission[]
+  // Avisos del usuario: CON FK y Cascade (dato personal, no material contable). Ver Notification.
+  notificaciones Notification[]
 
   @@index([role])
   @@index([deletedAt])
@@ -783,4 +785,49 @@ model SystemState {
   key       String   @id
   value     String   @db.Text
   updatedAt DateTime @updatedAt
+}
+
+// ============================================================================
+// NOTIFICACIONES (Fase 4 · Pieza 6)
+// ============================================================================
+
+/// AVISO a un usuario: el REGISTRO de un hecho que le pasó (su vídeo se publicó o falló, alguien le
+/// votó, ganó un reto, subió de nivel). Es un LOG, no un espejo del estado vivo: un voto que luego se
+/// mueve no retira su aviso, porque cuando se emitió era cierto.
+///
+/// IDEMPOTENCIA ESTRUCTURAL: un aviso es ÚNICO por (userId, tipo, refType, refId), con UNIQUE en la BD.
+/// Emitir es "insertar si no está" (INSERT IGNORE), nunca "insertar". El cierre de reto se auto-repara
+/// re-ejecutándose (por `premiadosEn`): sin esta clave, un reto reparado mandaría el mismo "Has ganado"
+/// una vez por pasada al mismo ganador.
+///
+/// `tipo` y `refType` son String tipados con Zod (`TipoNotificacionSchema` / `RefNotificacionSchema` en
+/// constants): la convención híbrida del esquema. `datos` es la FOTO del hecho (título del reto, motivo
+/// del fallo...) validada por tipo al emitir: la bandeja pinta sin cruzar tablas, y el texto cuenta lo
+/// que pasó entonces aunque el reto cambie de título después.
+///
+/// SIN contador denormalizado de no-leídas: se CUENTAN sobre `[userId, leidaEn]`, con tope. Un contador
+/// en `User` obligaría a escribir la fila del dueño en cada voto que recibe —la misma fila que el ledger
+/// bloquea con FOR UPDATE— y podría descuadrarse; el COUNT es exacto por construcción.
+///
+/// FK a User con Cascade: a diferencia de ledgers y votos, un aviso no es material contable ni
+/// antifraude; es un dato personal que muere con la cuenta.
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  tipo      String
+  refType   String
+  refId     String
+  datos     Json?
+  leidaEn   DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// LA regla: un aviso por hecho. Es lo que hace idempotente la emisión (INSERT IGNORE sobre esta clave).
+  @@unique([userId, tipo, refType, refId])
+  /// El índice del KEYSET de la bandeja: `WHERE userId = ?` + orden `(createdAt, id)` DESC en las dos
+  /// columnas, para recorrerlo hacia atrás de una pasada (como el del ranking mensual).
+  @@index([userId, createdAt, id])
+  /// El contador de no-leídas: `WHERE userId = ? AND leidaEn IS NULL`, sin tocar las leídas.
+  @@index([userId, leidaEn])
 }

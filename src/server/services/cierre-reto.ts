@@ -38,9 +38,11 @@ import {
   type ParticipacionCierre,
   type RechazoEmpate,
 } from "@/lib/cierre-reto";
+import { avisoGanasteReto, avisoTop20 } from "@/lib/notificaciones";
 import { sanearError } from "@/server/observability/sanitize-error";
 
 import { applyPoints } from "./ledger";
+import { emitirAviso } from "./notificaciones";
 import { periodoActual, recontarVictoriasDelPeriodo } from "./ranking";
 
 export interface ResultadoCierre {
@@ -215,14 +217,24 @@ async function otorgarPuntosDelCierre(
 ): Promise<number> {
   const reto = await db.challenge.findUnique({
     where: { id: challengeId },
-    select: { motivoCierre: true, winnersCount: true, minParticipaciones: true },
+    select: {
+      motivoCierre: true,
+      winnersCount: true,
+      minParticipaciones: true,
+      // Foto del reto para el texto de los avisos (GANASTE_RETO / TOP20).
+      title: true,
+      publicCode: true,
+      slug: true,
+    },
   });
   if (!reto) return 0;
+  const foto = { titulo: reto.title, codigo: reto.publicCode, slug: reto.slug };
 
   const ganadores = await db.challengeResult.findMany({
     where: { challengeId },
     select: { userId: true },
   });
+  const ganaron = new Set(ganadores.map((g) => g.userId));
 
   // El top-20 solo se reparte en un cierre CON GANADORES: un reto que no alcanzó el mínimo, o que
   // sigue esperando al admin, no reparte NADA.
@@ -238,13 +250,25 @@ async function otorgarPuntosDelCierre(
 
   // Ganar y estar en el top-20 son razones DISTINTAS: quien hace las dos cosas cobra las dos, en dos
   // filas de ledger. Esto es una decisión, no un descuido — de ahí que se recorran por separado.
+  //
+  // Los AVISOS, en cambio, no se duplican: el ganador recibe su GANASTE_RETO y NO un TOP20 del mismo
+  // reto —"has ganado" ya lo dice todo y el segundo sería ruido (decisión de producto)—. Sus 10 puntos
+  // del top-20 los cobra igual: el aviso cuenta el hecho, no reparte.
   const otorgamientos = [
     ...ganadores.map((g) => ({
       userId: g.userId,
       delta: POINTS.WIN_CHALLENGE,
       razon: "WIN_CHALLENGE",
+      aviso: avisoGanasteReto({ challengeId, reto: foto, puntos: POINTS.WIN_CHALLENGE }),
     })),
-    ...top20.map((userId) => ({ userId, delta: POINTS.TOP20, razon: "TOP20" })),
+    ...top20.map((userId) => ({
+      userId,
+      delta: POINTS.TOP20,
+      razon: "TOP20",
+      aviso: ganaron.has(userId)
+        ? null
+        : avisoTop20({ challengeId, reto: foto, puntos: POINTS.TOP20 }),
+    })),
   ];
 
   let aplicados = 0;
@@ -260,6 +284,13 @@ async function otorgarPuntosDelCierre(
         idempotencyKey: clavePuntosCierre({ challengeId, userId: o.userId, razon: o.razon }),
       });
       if (r.applied) aplicados += 1;
+      // EL AVISO del otorgamiento, justo detrás y con la MISMA disciplina: clave derivada del hecho
+      // (este usuario, este tipo, este reto). Se intenta SIEMPRE, no solo cuando los puntos se
+      // aplicaron ahora, y es a propósito: en una re-ejecución —el barrido reparando un cierre a medias,
+      // o `resolverEmpate`— lo que impide el segundo "Has ganado" es el UNIQUE de la tabla, no un `if`.
+      // Y así se repara solo un aviso que se perdiera: si el proceso muere entre los puntos y el aviso,
+      // `premiadosEn` no se marca y la siguiente pasada lo escribe.
+      if (o.aviso) await emitirAviso(db, o.userId, o.aviso);
     } catch (e) {
       // Un usuario que ya no existe no puede tumbar el cierre de los demás: se anota y se sigue. Sin
       // `premiadosEn`, el barrido reintentará; la clave idempotente impide que se duplique lo dado.

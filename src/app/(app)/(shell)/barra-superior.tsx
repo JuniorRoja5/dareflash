@@ -1,43 +1,30 @@
 import { BuscadorBarra } from "./buscador-barra";
+import { CampanaNotificaciones } from "./campana-notificaciones";
 import { CtaCrear } from "./cta-crear";
 import { MenuCuenta } from "./menu-cuenta";
 
-/** Iconos inline (trazo 1.6 px, currentColor), misma familia severa. */
-function IconoCampana() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.6}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-5 w-5"
-      aria-hidden
-    >
-      <path d="M18 8a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 14 18 8z" />
-      <path d="M10.5 20a2 2 0 0 0 3 0" />
-    </svg>
-  );
-}
-
 /**
  * BARRA SUPERIOR del shell de escritorio (solo >= lg; en movil no hay barra superior). Buscador +
- * CTA principal + notificaciones + avatar. Es MAQUETA: el buscador y las notificaciones son
- * presentacionales (sin backend), claramente falsos. Cero sombras; filete inferior; geometria severa.
+ * CTA principal + campana de avisos + menu de cuenta. Cero sombras; filete inferior; geometria severa.
  *
  * El CTA principal (`CtaCrear`, por ROL: ver `ctaPrincipal`) es el magenta persistente del shell (cromo,
  * como el [+] de la nav), salvo en /inicio, donde se atenua a secundario para no competir con el magenta
  * de contenido del hero de la portada. Reusa el lenguaje del boton; no es un primitivo nuevo.
+ *
+ * La CAMPANA es real y SOLO con sesion: su badge cuenta las no-leidas de verdad. Antes era una maqueta
+ * con un "3" fijo que se ensenaba tambien al invitado; un invitado no tiene avisos, asi que no ve campana.
  */
 export function BarraSuperior({
   usuario,
   rol,
+  noLeidas,
 }: {
-  /** Usuario de la sesión (nombre + avatar reales). `null` = invitado -> avatar neutro. */
+  /** Usuario de la sesión (nombre + avatar reales). `null` = invitado -> silueta genérica. */
   usuario: { nombre: string; imagen: string | null } | null;
   /** Rol de la sesión (`null` = invitado). Decide el CTA principal: ver `ctaPrincipal`. */
   rol: string | null;
+  /** Avisos sin leer del usuario de la sesión (0 para el invitado). */
+  noLeidas: number;
 }) {
   return (
     <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-line bg-surface px-8 py-3">
@@ -49,17 +36,10 @@ export function BarraSuperior({
         {/* CTA principal por rol — magenta persistente (atenuado a secundario en /inicio) */}
         <CtaCrear rol={rol} />
 
-        {/* Notificaciones (maqueta: badge fijo, NEUTRO — el magenta es solo el CTA principal) */}
-        <button
-          type="button"
-          aria-label="Notificaciones (3 sin leer)"
-          className="relative flex h-11 w-11 items-center justify-center rounded-full text-text-dim transition-colors duration-150 ease-mechanical hover:bg-raised hover:text-text"
-        >
-          <IconoCampana />
-          <span className="absolute top-2 right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-text-dim px-1 text-2xs font-semibold tabular-nums text-void">
-            3
-          </span>
-        </button>
+        {/* Campana de avisos: solo con sesión. `key` = el recuento del servidor: cuando la página
+            refresca tras marcar leídos, la campana arranca del número nuevo en vez de quedarse con el
+            que tenía en su estado. */}
+        {usuario ? <CampanaNotificaciones key={noLeidas} noLeidas={noLeidas} /> : null}
 
         {/* Menú de cuenta (avatar + chevron -> desplegable real con "Cerrar sesión") */}
         <MenuCuenta usuario={usuario} />

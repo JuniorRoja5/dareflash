@@ -59,6 +59,7 @@ export function nombreBdWorker(): string {
  * conexion con las FK aun activas. Con el orden correcto no hace falta desactivarlas.
  */
 export const DELETE_ORDER = [
+  "Notification",
   "Vote",
   "RankingMensual",
   "ChallengeResult",

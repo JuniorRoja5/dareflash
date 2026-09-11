@@ -10,9 +10,11 @@
  */
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { VideoFailureReason } from "@/config/constants";
+import { avisoVideoFallido, avisoVideoListo } from "@/lib/notificaciones";
 import { sanearError } from "@/server/observability/sanitize-error";
 
 import type { ClienteBunny, ConfigBunny } from "./bunny";
+import { emitirAviso } from "./notificaciones";
 
 export type Transicion =
   | { destino: "PUBLISHED"; durationSec: number }
@@ -41,6 +43,15 @@ export function decidirTransicion(status: number, length: number, maxSeg: number
 /**
  * Aplica la transicion a UNA fila con el GUARD forward-only: `where { id, status: PENDING }`. Un
  * video que ya no esta en PENDING -> no-op (count 0). Aqui vive el invariante critico.
+ *
+ * Y aqui cuelga el AVISO al dueño (VIDEO_LISTO / VIDEO_FALLIDO), en la MISMA transaccion que la
+ * transicion: o se escriben los dos o ninguno. Fuera de ella, un proceso que muriera entre medias
+ * dejaria el video publicado y su aviso perdido PARA SIEMPRE, porque el guard forward-only impide que
+ * la transicion —y con ella el aviso— vuelva a ocurrir.
+ *
+ * "NUNCA LOS DOS" es estructural, no una comprobacion: el aviso solo sale cuando esta transicion GANA
+ * el paso desde PENDING, y un video solo sale de PENDING una vez. Un reemplazo es OTRO video (otra fila,
+ * otro id), con su propio aviso.
  */
 export async function aplicarTransicion(
   db: PrismaClient,
@@ -60,8 +71,21 @@ export async function aplicarTransicion(
     t.destino === "PUBLISHED"
       ? { status: "PUBLISHED" as const, durationSec: t.durationSec, ...miniatura }
       : { status: "FAILED" as const, failureReason: t.failureReason };
-  const r = await db.video.updateMany({ where: { id: videoId, status: "PENDING" }, data });
-  return r.count;
+  return db.$transaction(async (tx) => {
+    const r = await tx.video.updateMany({ where: { id: videoId, status: "PENDING" }, data });
+    if (r.count === 0) return 0;
+    const v = await tx.video.findUnique({ where: { id: videoId }, select: { userId: true } });
+    if (v) {
+      await emitirAviso(
+        tx,
+        v.userId,
+        t.destino === "PUBLISHED"
+          ? avisoVideoListo(videoId)
+          : avisoVideoFallido(videoId, t.failureReason),
+      );
+    }
+    return r.count;
+  });
 }
 
 export interface OpcionesConfirm {
@@ -145,10 +169,14 @@ export async function confirmarVideosPendientes(
         } catch (e) {
           opts.log?.(`[confirm] participación de ${v.id} no pudo publicarse: ${sanearError(e)}`);
         }
-        // HITO DE VÍDEOS: este es el ÚNICO sitio del sistema donde un Video pasa a PUBLISHED
-        // (verificado: la reconciliación solo DEGRADA), así que es el único enganche posible. Va
-        // DESPUÉS de la transición y condicionado a `count > 0`: solo cuenta la publicación que de
-        // verdad ocurrió en esta pasada, no una que ya estaba hecha.
+        // HITO DE VÍDEOS. Va DESPUÉS de la transición y condicionado a `count > 0`: solo cuenta la
+        // publicación que de verdad ocurrió en esta pasada, no una que ya estaba hecha.
+        //
+        // OJO, esto NO es el único sitio donde un vídeo pasa a PUBLISHED (lo decía este comentario y
+        // era falso): la reconciliación de vídeos también RESCATA a PUBLISHED, por el mismo
+        // `aplicarTransicion`, y ahí no se llama al hito. Un vídeo rescatado no suma su hito hasta la
+        // siguiente publicación del usuario, que otorga todos los que falten. Los AVISOS no tienen ese
+        // hueco: viven dentro de `aplicarTransicion`, así que salen por cualquiera de los dos caminos.
         try {
           const { otorgarHitosDeVideos } = await import("./hito-videos");
           const hitos = await otorgarHitosDeVideos(db, v.userId);

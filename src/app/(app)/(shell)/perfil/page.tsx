@@ -21,7 +21,13 @@ export default async function PerfilPage() {
   const { miPerfil } = await import("@/server/services/perfil");
   const { firmarReproduccion } = await import("@/server/services/reproduccion-servidor");
 
-  const perfil = await miPerfil(prisma, user.userId);
+  const { noLeidasDeSesion } = await import("@/server/services/notificaciones-sesion");
+
+  const [perfil, noLeidas] = await Promise.all([
+    miPerfil(prisma, user.userId),
+    // Memoizado por petición (lo contaron ya los layouts): no es una consulta más.
+    noLeidasDeSesion(),
+  ]);
   // Sesión válida pero la fila pudo borrarse/banearse entre validar la cookie y consultar: mismo trato.
   if (!perfil) redirect("/entrar");
 
@@ -51,6 +57,7 @@ export default async function PerfilPage() {
       totalVideos={perfil.videos.length}
       videos={videos}
       esPropio
+      noLeidas={noLeidas}
     />
   );
 }

@@ -572,6 +572,9 @@ export const RATE_LIMITS = {
   // MUCHAS veces de forma legitima. El cubo es GENEROSO a proposito —no es una accion con efectos,
   // solo una marca efimera—; existe para que nadie martillee el endpoint, no para racionar el uso.
   VISTO_PER_USER: { limit: 200, windowMs: 15 * 60 * 1000 }, // 200 / 15 min por usuario
+  // Marcar avisos como leídos: lo dispara abrir la campana o la página de avisos. Barato (un UPDATE
+  // acotado a las filas del propio usuario), pero es una escritura: tope por usuario.
+  NOTIF_LEER_PER_USER: { limit: 120, windowMs: 15 * 60 * 1000 }, // 120 / 15 min por usuario
   // Votar: el modelo es UN voto por reto, asi que el uso legitimo es bajo (votar, quiza mover una o
   // dos veces mientras se decide, quiza quitarlo). Mas ajustado que el de "visto" porque aqui SI hay
   // efectos: mueve contadores. No pretende frenar el fraude —eso es el gate, el no-autovoto y el
@@ -614,6 +617,35 @@ export type ChallengeStatus = z.infer<typeof ChallengeStatusSchema>;
  */
 export const MotivoCierreSchema = z.enum(["CON_GANADORES", "SIN_MINIMO", "EMPATE_PENDIENTE"]);
 export type MotivoCierre = z.infer<typeof MotivoCierreSchema>;
+
+/**
+ * Tipos de NOTIFICACION (Fase 4 · Pieza 6). Unión CERRADA: cada tipo cuelga del sitio donde ocurre su
+ * hecho, y no hay ninguno sin emisor. NINGUNO de comentarios: el modelo `Comment` no existe (la maqueta
+ * del feed es deuda declarada) y un tipo que nadie emite sería una promesa que el sistema no cumple.
+ * Llegarán con su fase.
+ */
+export const TipoNotificacionSchema = z.enum([
+  "VIDEO_LISTO",
+  "VIDEO_FALLIDO",
+  "VOTO_RECIBIDO",
+  "GANASTE_RETO",
+  "TOP20",
+  "SUBISTE_NIVEL",
+]);
+export type TipoNotificacion = z.infer<typeof TipoNotificacionSchema>;
+
+/** A qué apunta un aviso: la mitad de su clave de unicidad (userId, tipo, refType, refId). */
+export const RefNotificacionSchema = z.enum(["VIDEO", "VOTO", "CHALLENGE", "NIVEL"]);
+export type RefNotificacion = z.infer<typeof RefNotificacionSchema>;
+
+/** Avisos que enseña el desplegable de la campana (decisión de producto). */
+export const NOTIF_DESPLEGABLE = 6;
+/** Página de /notificaciones: 3 columnas x 6 filas en escritorio, paginada, sin scroll infinito. */
+export const NOTIF_PAGINA = 18;
+/** Tope del contador de no-leídas: por encima se pinta "99+" y no se cuenta más allá. */
+export const NOTIF_NO_LEIDAS_TOPE = 99;
+/** Ids que admite de una vez "marcar como leídas" (el desplegable manda 6; la página, 18). */
+export const NOTIF_MARCAR_MAX = 50;
 
 /**
  * Cada cuanto barre el worker los retos vencidos sin cerrar. Un reto se cierra por el RELOJ, asi que

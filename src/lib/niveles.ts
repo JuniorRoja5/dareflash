@@ -41,3 +41,17 @@ export function nivelPorPuntos(puntos: number): Nivel {
   }
   return elegido;
 }
+
+/**
+ * Nivel ALCANZADO al pasar de `antes` a `despues` puntos, o `null` si no se cruzó ningún umbral hacia
+ * arriba (PURO). Es lo que decide el aviso SUBISTE_NIVEL: se emite al CRUZAR, no en cada otorgamiento —
+ * sumar puntos sin cambiar de nivel no dice nada nuevo.
+ *
+ * Un salto de varios niveles de golpe (90 -> 600) devuelve SOLO el de llegada (Pro), no uno por cada
+ * umbral saltado: un aviso por hecho, y el hecho es "ahora eres Pro". Bajar de nivel devuelve `null`.
+ */
+export function nivelAlcanzado(antes: number, despues: number): Nivel | null {
+  const previo = nivelPorPuntos(antes);
+  const nuevo = nivelPorPuntos(despues);
+  return nuevo.tier > previo.tier ? nuevo : null;
+}

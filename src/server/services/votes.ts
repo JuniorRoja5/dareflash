@@ -32,10 +32,12 @@
  */
 import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { avisoVotoRecibido, type RetoFoto } from "@/lib/notificaciones";
 import { retoEstaAbierto } from "@/lib/reto-ventana";
 import type { Db } from "@/server/db/types";
 
 import { LEDGER_TX_OPTIONS } from "./ledger";
+import { emitirAviso } from "./notificaciones";
 
 /** Por qué se rechaza una operación de voto. La ruta los traduce a copy humano. */
 export type MotivoRechazo =
@@ -84,8 +86,14 @@ export interface EmitirVotoInput {
   ahora?: Date;
 }
 
-/** Lo que hay que saber de la participación destino para decidir si se puede votar. */
-type DestinoValido = { ok: true; challengeId: string } | { ok: false; motivo: MotivoRechazo };
+/**
+ * Lo que hay que saber de la participación destino para decidir si se puede votar. En el caso bueno
+ * lleva también a quién AVISAR (el dueño) y la foto del reto para el texto del aviso: salen de la
+ * MISMA lectura que decide, sin una consulta más.
+ */
+type DestinoValido =
+  | { ok: true; challengeId: string; duenoId: string; reto: RetoFoto }
+  | { ok: false; motivo: MotivoRechazo };
 
 /**
  * GUARDAS de destino, TODAS dentro de la transacción y leyendo las filas ACTUALES. Comprobarlas fuera
@@ -108,7 +116,17 @@ async function destinoVotable(
       userId: true,
       status: true,
       video: { select: { status: true } },
-      challenge: { select: { status: true, startsAt: true, deadline: true } },
+      challenge: {
+        select: {
+          status: true,
+          startsAt: true,
+          deadline: true,
+          // Foto del reto para el texto del aviso al dueño (VOTO_RECIBIDO).
+          title: true,
+          publicCode: true,
+          slug: true,
+        },
+      },
     },
   });
 
@@ -123,7 +141,17 @@ async function destinoVotable(
   // parecida pero distinta, prometería lo que esta función rechaza.
   if (!retoEstaAbierto(sub.challenge, ahora)) return { ok: false, motivo: "RETO_CERRADO" };
 
-  return { ok: true, challengeId: sub.challengeId };
+  return {
+    ok: true,
+    challengeId: sub.challengeId,
+    // Llegar aquí implica que NO es tuya (el autovoto se cortó arriba): nadie se avisa a sí mismo.
+    duenoId: sub.userId,
+    reto: {
+      titulo: sub.challenge.title,
+      codigo: sub.challenge.publicCode,
+      slug: sub.challenge.slug,
+    },
+  };
 }
 
 /** ¿El reto de este voto sigue abierto? (para mover/quitar, donde el destino puede no aplicar). */
@@ -190,6 +218,17 @@ export async function emitirVoto(db: PrismaClient, input: EmitirVotoInput): Prom
         where: { id: input.submissionId },
         data: { voteCount: { increment: 1 } },
       });
+      // AVISO al dueño, en la MISMA transacción que el voto: existen los dos o ninguno. Idempotente por
+      // (participación, votante): el doble clic, ir y volver, o quitar y volver a votar no lo repiten.
+      await emitirAviso(
+        tx,
+        destino.duenoId,
+        avisoVotoRecibido({
+          submissionId: input.submissionId,
+          votanteId: input.userId,
+          reto: destino.reto,
+        }),
+      );
       return { estado: "votado" };
     }, LEDGER_TX_OPTIONS);
   } catch (e) {
@@ -292,6 +331,20 @@ export async function moverVoto(db: PrismaClient, input: MoverVotoInput): Promis
         data: { voteCount: { increment: deltas.get(id)! } },
       });
     }
+
+    // AVISO al dueño de la participación DESTINO: mover el voto a su vídeo es recibir un voto. Misma
+    // clave (participación, votante) que al votar, así que ir y volver no repite el aviso. El dueño de
+    // la participación de ORIGEN conserva el suyo: un aviso es un registro de lo que pasó, no un espejo
+    // de dónde está el voto ahora.
+    await emitirAviso(
+      tx,
+      destino.duenoId,
+      avisoVotoRecibido({
+        submissionId: input.submissionId,
+        votanteId: input.userId,
+        reto: destino.reto,
+      }),
+    );
 
     return { estado: "movido", desdeSubmissionId: actual.submissionId };
   }, LEDGER_TX_OPTIONS);

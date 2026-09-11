@@ -44,6 +44,22 @@ describe("el [+] de la nav móvil", () => {
     expect(mas().getAttribute("aria-label")).toBe(CTA_ADMIN.texto);
   });
 
+  it("en móvil el icono de PERFIL lleva las no-leídas (neutro, con el mismo tope que la campana)", () => {
+    const perfil = () => screen.getByText("Perfil").closest("a")!;
+    const { unmount } = render(<NavegacionInferior rol="USER" noLeidas={3} />);
+    expect(perfil().textContent).toContain("3");
+    expect(perfil().textContent).toContain("avisos sin leer");
+    expect(screen.getByText("3").className).toContain("bg-text-dim");
+    unmount();
+
+    const otra = render(<NavegacionInferior rol="USER" noLeidas={150} />);
+    expect(perfil().textContent).toContain("99+");
+    otra.unmount();
+
+    render(<NavegacionInferior rol="USER" noLeidas={0} />);
+    expect(perfil().textContent).toBe("Perfil");
+  });
+
   it("el rol solo cambia el [+]: el resto de destinos son los mismos", () => {
     const { unmount } = render(<NavegacionInferior rol="USER" />);
     const deUsuario = resto();

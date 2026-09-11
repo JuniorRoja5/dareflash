@@ -85,7 +85,7 @@ describe("nadie pinta el CTA por su cuenta (estructural)", () => {
     );
     const armazon = sinComentarios(leer("app/(app)/layout.tsx"));
     expect(armazon).toMatch(/\(await getCurrentUser\(\)\)\?\.role \?\? null/);
-    expect(armazon).toMatch(/<NavInferiorActiva rol=\{rol\} \/>/);
+    expect(armazon).toMatch(/<NavInferiorActiva rol=\{rol\}[\s/]/);
     const fijos = fueraDelPanel.filter((x) => /rol=\{?["'`]ADMIN/.test(x.codigo)).map((x) => x.f);
     expect(fijos).toEqual([]);
   });

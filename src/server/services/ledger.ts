@@ -23,6 +23,10 @@
  */
 import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { nivelAlcanzado } from "@/lib/niveles";
+import { avisoSubisteNivel } from "@/lib/notificaciones";
+
+import { emitirAviso } from "./notificaciones";
 
 /**
  * Opciones de la transaccion interactiva. EXPLICITAS a proposito: bajo contencion,
@@ -78,6 +82,12 @@ interface CoreParams {
   idempotencyExists: (tx: Prisma.TransactionClient) => Promise<boolean>;
   /** Inserta la fila del movimiento en su tabla. */
   insertMovement: (tx: Prisma.TransactionClient) => Promise<void>;
+  /**
+   * Efecto EXTRA del movimiento, en la MISMA transaccion y con el User aun bloqueado: recibe el saldo
+   * de antes y el de despues, exactos. Solo corre si el movimiento se aplico de verdad (no en el no-op
+   * de idempotencia). Hoy lo usan los puntos para el aviso de nivel.
+   */
+  trasAplicar?: (tx: Prisma.TransactionClient, antes: number, despues: number) => Promise<void>;
 }
 
 /**
@@ -129,6 +139,9 @@ async function applyLedgerCore(
     //    dos operaciones concurrentes perderian actualizaciones.
     await tx.$executeRaw(Prisma.sql`UPDATE \`User\` SET ${col} = ${next} WHERE \`id\` = ${userId}`);
 
+    // 6) Efecto extra del movimiento (si lo hay), con el saldo de antes y el de despues EXACTOS.
+    if (params.trasAplicar) await params.trasAplicar(tx, current, next);
+
     return { applied: true, balance: next };
   }, LEDGER_TX_OPTIONS);
 }
@@ -179,6 +192,18 @@ export function applyPoints(
             },
           })
           .then(() => undefined),
+      // AVISO DE NIVEL. Va AQUI, en el primitivo y dentro de su transaccion, por dos razones:
+      //  - es el UNICO sitio donde "antes" y "despues" son exactos: el saldo esta bloqueado con FOR
+      //    UPDATE, asi que ningun otro otorgamiento concurrente puede colarse entre los dos numeros;
+      //  - asi TODA via de puntos (cierre, hito de videos, las que vengan) avisa igual, sin que cada
+      //    una tenga que acordarse.
+      // Se emite al CRUZAR un umbral, no en cada otorgamiento (`nivelAlcanzado`), y la clave es el
+      // nivel: llegar a Challenger avisa una vez en la vida. Si el aviso fallara, revierte con los
+      // puntos y el llamante reintenta: nunca queda un nivel sin avisar ni un aviso sin sus puntos.
+      trasAplicar: async (tx, antes, despues) => {
+        const nivel = nivelAlcanzado(antes, despues);
+        if (nivel) await emitirAviso(tx, input.userId, avisoSubisteNivel(nivel.clave));
+      },
     },
     seams,
   );
