@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { ctaPrincipal } from "@/lib/cta-principal";
+
 import { destinosDe, NAV_ESCRITORIO, NAV_MOVIL } from "./logic";
 
 // Iconos geometricos inline (sin dependencias): trazo de 1.5 px, currentColor, misma familia severa
@@ -51,10 +53,14 @@ const ICONO: Record<string, ReactNode> = {
 
 /**
  * NAVEGACION INFERIOR (movil) — los cinco destinos de `NAV_MOVIL` en orden (Feed es el home del
- * movil). El [+] central es Crear: circulo de relleno --df-action con texto negro (--df-void), el
- * UNICO magenta. Cada objetivo mide 44 px. Presentacional: la posicion fija la pone el layout.
+ * movil). El [+] central es el CTA PRINCIPAL, por ROL y de la MISMA fuente que el de la barra de
+ * escritorio y el hero (`ctaPrincipal`): "Subir vídeo" a /crear para el no-admin, "Crear reto" al panel
+ * para el admin. Antes decia "Crear" e iba a /crear para todos: un tercer sitio con su propio texto.
+ * Circulo de relleno --df-action con texto negro (--df-void), el UNICO magenta. Cada objetivo mide
+ * 44 px. Presentacional: la posicion fija la pone el layout, y el rol se lo pasa quien la monta.
  */
-export function NavegacionInferior({ activo }: { activo?: string }) {
+export function NavegacionInferior({ activo, rol }: { activo?: string; rol: string | null }) {
+  const cta = ctaPrincipal(rol);
   return (
     <nav
       aria-label="Principal"
@@ -64,8 +70,8 @@ export function NavegacionInferior({ activo }: { activo?: string }) {
         "central" in d && d.central ? (
           <Link
             key={d.clave}
-            href={d.href}
-            aria-label={d.nombre}
+            href={cta.href}
+            aria-label={cta.texto}
             className="flex min-h-[44px] min-w-[44px] flex-1 items-center justify-center py-2"
           >
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-action text-2xl font-bold leading-none text-void">
@@ -92,8 +98,8 @@ export function NavegacionInferior({ activo }: { activo?: string }) {
 
 /**
  * NAVEGACION LATERAL (escritorio) — los destinos de `NAV_ESCRITORIO` (Inicio, Feed, Retos, Ranking,
- * Perfil). Crear NO va aqui: es el boton magenta de la barra superior (el unico magenta). Sin [+].
- * Cada fila mide 44 px; activo = neutro elevado. Presentacional: el layout la fija.
+ * Perfil). El CTA principal NO va aqui: es el boton magenta de la barra superior (el unico magenta).
+ * Sin [+]. Cada fila mide 44 px; activo = neutro elevado. Presentacional: el layout la fija.
  */
 export function NavegacionLateral({ activo }: { activo?: string }) {
   return (

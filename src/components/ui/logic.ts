@@ -6,6 +6,8 @@
  *   - el oro (--df-rank) solo sale en el podio (1/2/3).
  */
 
+import { CTA_USUARIO } from "@/lib/cta-principal";
+
 /** Por debajo de esto la cuenta atras es CRITICA (--df-time -> --df-alarm). Evento de producto. */
 export const UMBRAL_ALARMA_MS = 24 * 60 * 60 * 1000; // 24 h
 
@@ -82,20 +84,22 @@ export function botonTokens(variante: BotonVariante): BotonTokens {
 
 // ---------------------------------------------------------------------------
 // NAVEGACION — catalogo canonico de destinos (nombres, rutas, clave). Fuente de verdad unica,
-// extraida para atarla: reordenar o perder uno cae en rojo. `central` marca el [+] (Crear en movil).
+// extraida para atarla: reordenar o perder uno cae en rojo. `central` marca el [+] de movil, que es el
+// CTA PRINCIPAL: su texto y su ruta NO se escriben aqui, salen de `ctaPrincipal` (por rol). El destino
+// `crear` del catalogo es el del no-admin, y sirve para marcar /crear como activo.
 //
 // La nav DIVERGE entre movil y escritorio (el brief: "no son la misma pantalla a distinto ancho"):
-//   - Escritorio (barra lateral): Inicio, Feed, Retos, Ranking, Perfil. Crear NO va aqui: es el
-//     boton magenta de la barra superior (el UNICO magenta de la pantalla).
-//   - Movil (barra inferior): Feed (home del movil), Retos, [+] Crear, Ranking, Perfil. Inicio
-//     (portada) es concepto de escritorio, no va en la barra inferior.
+//   - Escritorio (barra lateral): Inicio, Feed, Retos, Ranking, Perfil. El CTA principal NO va aqui:
+//     es el boton magenta de la barra superior (el UNICO magenta de la pantalla).
+//   - Movil (barra inferior): Feed (home del movil), Retos, [+] CTA principal, Ranking, Perfil.
+//     Inicio (portada) es concepto de escritorio, no va en la barra inferior.
 // ---------------------------------------------------------------------------
 
 export const NAV_DESTINOS = [
   { clave: "inicio", nombre: "Inicio", href: "/inicio" },
   { clave: "feed", nombre: "Feed", href: "/feed" },
   { clave: "retos", nombre: "Retos", href: "/retos" },
-  { clave: "crear", nombre: "Crear", href: "/crear", central: true },
+  { clave: "crear", nombre: CTA_USUARIO.texto, href: CTA_USUARIO.href, central: true },
   { clave: "ranking", nombre: "Ranking", href: "/ranking" },
   { clave: "perfil", nombre: "Perfil", href: "/perfil" },
 ] as const;

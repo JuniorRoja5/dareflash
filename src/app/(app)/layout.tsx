@@ -10,9 +10,16 @@ import { NavInferiorActiva, NavLateralActiva } from "./nav-activa";
  * inmersivo). El hueco de la barra inferior en movil (`pb-24`) lo pone el shell, no aqui: asi el feed
  * (sin shell) es full-bleed sin trucos.
  *
+ * Lee el ROL de la sesion porque decide el [+] de la barra inferior (el CTA principal, ver
+ * `ctaPrincipal`). `getCurrentUser` esta memoizado por peticion: el layout del shell y las paginas
+ * reutilizan esta misma lectura. Se lee DENTRO de la funcion (ambito de peticion), nunca al importar.
+ *
  * noindex: lo cubre la cabecera global `X-Robots-Tag` sobre `/:path*` + `robots.txt`; nada por pagina.
  */
-export default function ArmazonLayout({ children }: { children: ReactNode }) {
+export default async function ArmazonLayout({ children }: { children: ReactNode }) {
+  const { getCurrentUser } = await import("@/server/auth/current-user");
+  const rol = (await getCurrentUser())?.role ?? null;
+
   return (
     <div className="min-h-full">
       {/* Lateral fija — solo escritorio (>= lg) */}
@@ -25,7 +32,7 @@ export default function ArmazonLayout({ children }: { children: ReactNode }) {
 
       {/* Barra inferior fija — solo movil; el wrapper pinta el safe-area del mismo color que la barra */}
       <div className="fixed inset-x-0 bottom-0 z-40 bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
-        <NavInferiorActiva />
+        <NavInferiorActiva rol={rol} />
       </div>
     </div>
   );

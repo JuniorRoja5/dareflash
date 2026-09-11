@@ -549,7 +549,7 @@ export default function StyleGuide() {
               <div className="flex h-40 items-center justify-center bg-void text-sm text-text-dim">
                 contenido
               </div>
-              <NavegacionInferior activo="feed" />
+              <NavegacionInferior activo="feed" rol={null} />
             </div>
           </div>
           <div>

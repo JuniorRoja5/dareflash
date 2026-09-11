@@ -21,6 +21,7 @@ import {
   tokenPuesto,
   UMBRAL_ALARMA_MS,
 } from "../src/components/ui/logic";
+import { CTA_USUARIO } from "../src/lib/cta-principal";
 
 const H = 60 * 60 * 1000;
 
@@ -109,11 +110,13 @@ describe("navegacion: catalogo canonico de destinos", () => {
   });
 
   it("nombres y rutas exactos", () => {
+    // `crear` es el [+], el CTA principal: su texto y su ruta son los de `ctaPrincipal` para el
+    // no-admin, no un literal propio del catálogo (ver tests/cta-principal.test.ts).
     expect(NAV_DESTINOS.map((d) => d.nombre)).toEqual([
       "Inicio",
       "Feed",
       "Retos",
-      "Crear",
+      CTA_USUARIO.texto,
       "Ranking",
       "Perfil",
     ]);
@@ -121,7 +124,7 @@ describe("navegacion: catalogo canonico de destinos", () => {
       "/inicio",
       "/feed",
       "/retos",
-      "/crear",
+      CTA_USUARIO.href,
       "/ranking",
       "/perfil",
     ]);
