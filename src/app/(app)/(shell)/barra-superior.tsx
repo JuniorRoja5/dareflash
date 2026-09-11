@@ -11,20 +11,18 @@ import { MenuCuenta } from "./menu-cuenta";
  * como el [+] de la nav), salvo en /inicio, donde se atenua a secundario para no competir con el magenta
  * de contenido del hero de la portada. Reusa el lenguaje del boton; no es un primitivo nuevo.
  *
- * La CAMPANA es real y SOLO con sesion: su badge cuenta las no-leidas de verdad. Antes era una maqueta
- * con un "3" fijo que se ensenaba tambien al invitado; un invitado no tiene avisos, asi que no ve campana.
+ * La CAMPANA es real y SOLO con sesion: su numero sale del contador compartido de avisos (ver
+ * `avisos-contexto`), que se refresca solo. Antes era una maqueta con un "3" fijo que se ensenaba
+ * tambien al invitado; un invitado no tiene avisos, asi que no ve campana.
  */
 export function BarraSuperior({
   usuario,
   rol,
-  noLeidas,
 }: {
   /** Usuario de la sesión (nombre + avatar reales). `null` = invitado -> silueta genérica. */
   usuario: { nombre: string; imagen: string | null } | null;
   /** Rol de la sesión (`null` = invitado). Decide el CTA principal: ver `ctaPrincipal`. */
   rol: string | null;
-  /** Avisos sin leer del usuario de la sesión (0 para el invitado). */
-  noLeidas: number;
 }) {
   return (
     <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-line bg-surface px-8 py-3">
@@ -36,10 +34,8 @@ export function BarraSuperior({
         {/* CTA principal por rol — magenta persistente (atenuado a secundario en /inicio) */}
         <CtaCrear rol={rol} />
 
-        {/* Campana de avisos: solo con sesión. `key` = el recuento del servidor: cuando la página
-            refresca tras marcar leídos, la campana arranca del número nuevo en vez de quedarse con el
-            que tenía en su estado. */}
-        {usuario ? <CampanaNotificaciones key={noLeidas} noLeidas={noLeidas} /> : null}
+        {/* Campana de avisos: solo con sesión. Su número lo lleva el contador compartido. */}
+        {usuario ? <CampanaNotificaciones /> : null}
 
         {/* Menú de cuenta (avatar + chevron -> desplegable real con "Cerrar sesión") */}
         <MenuCuenta usuario={usuario} />

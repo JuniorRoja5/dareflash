@@ -2,11 +2,13 @@
  * La CAMPANA de avisos (escritorio) y el menú del INVITADO, render real (jsdom). Sustituyen a una maqueta
  * —un "3" fijo en la campana, que veía también el invitado, y un avatar con la inicial de "Invitado"—.
  *
- *  - el badge es el número REAL, NEUTRO (nunca lima: la lima es dinero), sin nada nuevo no se pinta, y
- *    pasado el tope dice "99+";
+ *  - el badge es el número REAL (el del contador compartido), NEUTRO (nunca lima: la lima es dinero),
+ *    sin nada nuevo no se pinta, y pasado el tope dice "99+";
  *  - abrir pide exactamente `NOTIF_DESPLEGABLE` y marca como leídas SOLO las que no lo estaban;
  *  - "Ver todas" aparece cuando hay más de las que caben;
  *  - el invitado ve una silueta genérica, no la inicial de nadie.
+ *
+ * Que el número SUBA solo cuando llega un aviso lo prueba `avisos-sondeo.test.tsx`.
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,6 +26,7 @@ vi.mock("next/link", async () => {
   return { default: (props: Record<string, unknown>) => createElement("a", props) };
 });
 
+import { ProveedorAvisos } from "@/app/(app)/avisos-contexto";
 import { CampanaNotificaciones } from "@/app/(app)/(shell)/campana-notificaciones";
 import { MenuCuenta } from "@/app/(app)/(shell)/menu-cuenta";
 
@@ -32,11 +35,20 @@ beforeEach(() => {
   mocks.postJsonCsrf.mockReset();
 });
 
+/** La campana con el contador sembrado a `n` (sin sondeo: aquí se prueba el pintado y el desplegable). */
+function campanaCon(n: number) {
+  return render(
+    <ProveedorAvisos inicial={n} activo={false}>
+      <CampanaNotificaciones />
+    </ProveedorAvisos>,
+  );
+}
+
 const campana = () => screen.getByRole("button", { name: /Notificaciones/ });
 
 describe("el badge de la campana", () => {
   it("dice el número real de no-leídas, en NEUTRO", () => {
-    render(<CampanaNotificaciones noLeidas={5} />);
+    campanaCon(5);
     expect(campana().getAttribute("aria-label")).toBe("Notificaciones (5 sin leer)");
     const badge = screen.getByText("5");
     expect(badge.className).toContain("bg-text-dim");
@@ -44,13 +56,13 @@ describe("el badge de la campana", () => {
   });
 
   it("sin nada nuevo no pinta número (ni el '3' de la maqueta)", () => {
-    const { container } = render(<CampanaNotificaciones noLeidas={0} />);
+    const { container } = campanaCon(0);
     expect(campana().getAttribute("aria-label")).toBe("Notificaciones");
     expect(container.textContent).toBe("");
   });
 
   it("pasado el tope dice 99+", () => {
-    render(<CampanaNotificaciones noLeidas={150} />);
+    campanaCon(150);
     expect(screen.getByText("99+")).toBeDefined();
   });
 });
@@ -82,7 +94,7 @@ describe("el desplegable", () => {
       data: { noLeidas: 0 },
     });
 
-    render(<CampanaNotificaciones noLeidas={2} />);
+    campanaCon(2);
     fireEvent.click(campana());
 
     await waitFor(() => expect(screen.getByText("Aviso a")).toBeDefined());
@@ -105,7 +117,7 @@ describe("el desplegable", () => {
       code: "",
       data: { items: [item("a", true)], nextCursor: "x.y", noLeidas: 0 },
     });
-    render(<CampanaNotificaciones noLeidas={0} />);
+    campanaCon(0);
     fireEvent.click(campana());
     const ver = await screen.findByText("Ver todas");
     expect(ver.closest("a")?.getAttribute("href")).toBe("/notificaciones");
@@ -120,7 +132,7 @@ describe("el desplegable", () => {
       code: "",
       data: { items: [], nextCursor: null, noLeidas: 0 },
     });
-    render(<CampanaNotificaciones noLeidas={0} />);
+    campanaCon(0);
     fireEvent.click(campana());
     expect(await screen.findByText(/Aún no tienes avisos/)).toBeDefined();
   });

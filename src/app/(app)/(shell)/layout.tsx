@@ -8,31 +8,24 @@ import { BarraSuperior } from "./barra-superior";
  * puede aprovechar el ancho. En movil no hay barra superior (la nav es la inferior del chrome) y se
  * reserva el hueco de esa barra (`pb-24`). El `/feed` queda FUERA de este grupo -> sin shell.
  *
- * La barra muestra al usuario de la SESION (nombre + avatar reales), recibe su ROL, que decide el CTA
- * principal (ver `ctaPrincipal`), y sus avisos SIN LEER para el badge de la campana. Se resuelve AQUI
- * (server): lee la cookie y consulta solo lo publico del chrome (displayName/username/image). Un
- * INVITADO (sin sesion) ve la silueta generica y ninguna campana, sin romper (el grupo es publico). Leer
- * la sesion hace el shell dinamico por peticion; el build sin env no se toca (cookies/DB son de
- * request, no de build).
+ * La barra muestra al usuario de la SESION (nombre + avatar reales) y recibe su ROL, que decide el CTA
+ * principal (ver `ctaPrincipal`). El numero de la campana NO pasa por aqui: lo lleva el contador
+ * compartido del armazon `(app)` (ver `avisos-contexto`). Se resuelve AQUI (server): lee la cookie y
+ * consulta solo lo publico del chrome (displayName/username/image). Un INVITADO (sin sesion) ve la
+ * silueta generica y ninguna campana, sin romper (el grupo es publico). Leer la sesion hace el shell
+ * dinamico por peticion; el build sin env no se toca (cookies/DB son de request, no de build).
  */
 export default async function ShellLayout({ children }: { children: ReactNode }) {
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const user = await getCurrentUser();
 
   let cuenta: { nombre: string; imagen: string | null } | null = null;
-  let noLeidas = 0;
   if (user) {
     const { prisma } = await import("@/server/db/client");
-    // Memoizado por petición: el armazón `(app)` ya lo contó para la barra inferior del móvil.
-    const { noLeidasDeSesion } = await import("@/server/services/notificaciones-sesion");
-    const [fila, n] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: user.userId },
-        select: { displayName: true, username: true, image: true },
-      }),
-      noLeidasDeSesion(),
-    ]);
-    noLeidas = n;
+    const fila = await prisma.user.findUnique({
+      where: { id: user.userId },
+      select: { displayName: true, username: true, image: true },
+    });
     if (fila) {
       cuenta = { nombre: fila.displayName ?? fila.username ?? "Tú", imagen: fila.image };
     }
@@ -42,7 +35,7 @@ export default async function ShellLayout({ children }: { children: ReactNode })
     <div className="min-h-full">
       {/* Barra superior: solo escritorio */}
       <div className="hidden lg:block">
-        <BarraSuperior usuario={cuenta} rol={user?.role ?? null} noLeidas={noLeidas} />
+        <BarraSuperior usuario={cuenta} rol={user?.role ?? null} />
       </div>
 
       {/* Region de contenido: hueco para la barra inferior en movil; en escritorio, ancho disponible. */}

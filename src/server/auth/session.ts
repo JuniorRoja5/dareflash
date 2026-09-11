@@ -108,11 +108,18 @@ export interface SessionUser {
  *
  * Al validar con exito se refresca `lastSeenAt`, pero solo si ha pasado `SESION_REFRESCO_MIN_MS`
  * desde el ultimo refresco: si no, cada peticion escribiria en la fila de sesion.
+ *
+ * `tocar: false` valida SIN contar la peticion como actividad (no refresca `lastSeenAt`; la
+ * inactividad y el tope se siguen aplicando igual). Es para lo que el navegador pide SOLO, sin que
+ * nadie haga nada: el sondeo del contador de avisos. Si cada sondeo refrescara la actividad, una
+ * pestana abierta con nadie delante mantendria la sesion viva para siempre y la caducidad por
+ * inactividad —la que cierra la sesion olvidada del admin— no llegaria nunca.
  */
 export async function validateSession(
   db: Db,
   rawToken: string | undefined | null,
   now?: Date,
+  opciones: { tocar?: boolean } = {},
 ): Promise<SessionUser | null> {
   if (!rawToken) return null;
   const nowD = now ?? new Date();
@@ -143,7 +150,11 @@ export async function validateSession(
 
   // Refresco AMORTIGUADO de la ultima actividad (ver SESION_REFRESCO_MIN_MS). No renueva `expires`:
   // el tope absoluto no se mueve por usar la sesion, que es justo lo que lo hace un tope.
-  if (nowD.getTime() - row.lastSeenAt.getTime() > SESION_REFRESCO_MIN_MS) {
+  // Con `tocar: false` (el sondeo del contador de avisos) no se refresca: pedir no es usar.
+  if (
+    opciones.tocar !== false &&
+    nowD.getTime() - row.lastSeenAt.getTime() > SESION_REFRESCO_MIN_MS
+  ) {
     await db.session.updateMany({ where: { id: row.id }, data: { lastSeenAt: nowD } });
   }
 

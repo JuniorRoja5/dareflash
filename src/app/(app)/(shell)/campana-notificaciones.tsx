@@ -8,6 +8,7 @@ import { NOTIF_DESPLEGABLE, NOTIF_NO_LEIDAS_TOPE } from "@/config/constants";
 import { getJson, postJsonCsrf } from "@/lib/cliente-http";
 import { haceCuanto, textoBadge } from "@/lib/notificaciones";
 
+import { useNoLeidas } from "../avisos-contexto";
 import { useCerrarDesplegable } from "./usar-desplegable";
 
 /** Icono campana inline (trazo 1.6 px, currentColor), misma familia severa que la barra. */
@@ -43,21 +44,22 @@ type Carga =
   | { estado: "listo"; items: ItemAviso[]; hayMas: boolean; ahoraMs: number };
 
 /**
- * CAMPANA de avisos de la barra superior (escritorio), con su DESPLEGABLE. Sustituye a la maqueta
- * que había aquí —un "3" fijo que no contaba nada—.
+ * CAMPANA de avisos de la barra superior (escritorio), con su DESPLEGABLE.
  *
- *  - El BADGE es el número REAL de no-leídas (lo cuenta el servidor al pintar el shell); NEUTRO, como
- *    todos los recuentos (la lima es solo dinero). Sin nada nuevo no se pinta; pasado el tope, "99+".
+ *  - El BADGE sale del contador COMPARTIDO (`useNoLeidas`, ver `avisos-contexto`): el mismo número que
+ *    el icono de Perfil en móvil, y que se refresca solo mientras la pestaña está a la vista. NEUTRO,
+ *    como todos los recuentos (la lima es solo dinero). Sin nada nuevo no se pinta; pasado el tope, "99+".
  *  - Al ABRIR se piden los `NOTIF_DESPLEGABLE` avisos más recientes y los que estaban sin leer se
- *    marcan como leídos (POST con CSRF: marcar cambia estado y nunca va por GET). El punto de "nuevo"
- *    se mantiene mientras el desplegable sigue abierto, para que se vea qué era nuevo.
+ *    marcan como leídos (POST con CSRF: marcar cambia estado y nunca va por GET); lo que el servidor
+ *    dice que queda sin leer va al contador compartido. El punto de "nuevo" se mantiene mientras el
+ *    desplegable sigue abierto, para que se vea qué era nuevo.
  *  - Si hay más de los que caben, "Ver todas" lleva a /notificaciones.
  *
  * Solo se monta con sesión: un invitado no tiene avisos, y enseñarle una campana sería maqueta.
  */
-export function CampanaNotificaciones({ noLeidas: inicial }: { noLeidas: number }) {
+export function CampanaNotificaciones() {
+  const { noLeidas, fijar } = useNoLeidas();
   const [abierto, setAbierto] = useState(false);
-  const [noLeidas, setNoLeidas] = useState(inicial);
   const [carga, setCarga] = useState<Carga>({ estado: "cargando" });
   const ref = useRef<HTMLDivElement>(null);
   const cerrar = useCallback(() => setAbierto(false), []);
@@ -84,14 +86,14 @@ export function CampanaNotificaciones({ noLeidas: inicial }: { noLeidas: number 
         hayMas: r.data.nextCursor !== null,
         ahoraMs: Date.now(),
       });
-      setNoLeidas(r.data.noLeidas);
+      fijar(r.data.noLeidas);
 
       const vistas = r.data.items.filter((i) => !i.leida).map((i) => i.id);
       if (vistas.length > 0) {
         const m = await postJsonCsrf<{ noLeidas: number }>("/api/notificaciones/leidas", {
           ids: vistas,
         });
-        if (m.ok) setNoLeidas(m.data.noLeidas);
+        if (m.ok) fijar(m.data.noLeidas);
       }
     } catch {
       setCarga({ estado: "error" });

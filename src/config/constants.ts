@@ -646,6 +646,14 @@ export const NOTIF_PAGINA = 18;
 export const NOTIF_NO_LEIDAS_TOPE = 99;
 /** Ids que admite de una vez "marcar como leídas" (el desplegable manda 6; la página, 18). */
 export const NOTIF_MARCAR_MAX = 50;
+/**
+ * Cada cuánto repide el navegador el CONTADOR de no-leídas mientras la pestaña está VISIBLE (oculta, no
+ * sondea). Un minuto: un aviso tarda como mucho eso en asomar en el badge, y cuesta un COUNT indexado
+ * por pestaña y minuto. Además se cuenta al volver a la pestaña, que es cuando más importa.
+ */
+export const NOTIF_SONDEO_MS = 60_000;
+/** Mínimo entre dos recuentos seguidos: `focus` y `visibilitychange` llegan juntos al volver. */
+export const NOTIF_SONDEO_MIN_ENTRE_MS = 10_000;
 
 /**
  * Cada cuanto barre el worker los retos vencidos sin cerrar. Un reto se cierra por el RELOJ, asi que

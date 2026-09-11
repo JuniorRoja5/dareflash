@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { ProveedorAvisos } from "./avisos-contexto";
 import { NavInferiorActiva, NavLateralActiva } from "./nav-activa";
 
 /**
@@ -11,9 +12,10 @@ import { NavInferiorActiva, NavLateralActiva } from "./nav-activa";
  * (sin shell) es full-bleed sin trucos.
  *
  * Lee el ROL de la sesion porque decide el [+] de la barra inferior (el CTA principal, ver
- * `ctaPrincipal`), y las no-leidas porque el icono de Perfil las cuenta en movil. `getCurrentUser` y
- * `noLeidasDeSesion` estan memoizados por peticion: el layout del shell y las paginas reutilizan esta
- * misma lectura. Se lee DENTRO de la funcion (ambito de peticion), nunca al importar.
+ * `ctaPrincipal`), y las no-leidas para SEMBRAR el contador compartido de avisos (`ProveedorAvisos`),
+ * que envuelve todo: la campana del shell y el icono de Perfil de la barra inferior leen el MISMO
+ * estado, y ese estado se refresca solo en el cliente. `getCurrentUser` y `noLeidasDeSesion` estan
+ * memoizados por peticion. Se lee DENTRO de la funcion (ambito de peticion), nunca al importar.
  *
  * noindex: lo cubre la cabecera global `X-Robots-Tag` sobre `/:path*` + `robots.txt`; nada por pagina.
  */
@@ -24,19 +26,21 @@ export default async function ArmazonLayout({ children }: { children: ReactNode 
   const noLeidas = rol ? await noLeidasDeSesion() : 0;
 
   return (
-    <div className="min-h-full">
-      {/* Lateral fija — solo escritorio (>= lg) */}
-      <div className="fixed inset-y-0 left-0 z-40 hidden lg:block">
-        <NavLateralActiva />
-      </div>
+    <ProveedorAvisos inicial={noLeidas} activo={rol !== null}>
+      <div className="min-h-full">
+        {/* Lateral fija — solo escritorio (>= lg) */}
+        <div className="fixed inset-y-0 left-0 z-40 hidden lg:block">
+          <NavLateralActiva />
+        </div>
 
-      {/* Contenido: solo reserva el hueco de la lateral (lg). El pb-24 de la barra inferior lo pone el shell. */}
-      <div className="min-h-full lg:pl-56">{children}</div>
+        {/* Contenido: solo reserva el hueco de la lateral (lg). El pb-24 de la barra inferior lo pone el shell. */}
+        <div className="min-h-full lg:pl-56">{children}</div>
 
-      {/* Barra inferior fija — solo movil; el wrapper pinta el safe-area del mismo color que la barra */}
-      <div className="fixed inset-x-0 bottom-0 z-40 bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
-        <NavInferiorActiva rol={rol} noLeidas={noLeidas} />
+        {/* Barra inferior fija — solo movil; el wrapper pinta el safe-area del mismo color que la barra */}
+        <div className="fixed inset-x-0 bottom-0 z-40 bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
+          <NavInferiorActiva rol={rol} />
+        </div>
       </div>
-    </div>
+    </ProveedorAvisos>
   );
 }

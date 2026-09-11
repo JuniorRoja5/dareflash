@@ -46,6 +46,16 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
 });
 
 /**
+ * Usuario de la sesión SIN contar la petición como ACTIVIDAD (no refresca `lastSeenAt`). Solo para lo
+ * que el navegador pide por su cuenta, sin que el usuario haga nada: el sondeo del contador de avisos.
+ * Con `getCurrentUser`, una pestaña abierta con nadie delante sondearía la sesión viva para siempre.
+ */
+export async function getCurrentUserSinTocar(): Promise<SessionUser | null> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  return validateSession(prisma, token, undefined, { tocar: false });
+}
+
+/**
  * Fija la cookie de sesion. SOLO se llama tras verificar la contrasena (nunca una
  * sesion "provisional" antes). httpOnly + secure (en prod) + sameSite=lax +
  * caducidad explicita.

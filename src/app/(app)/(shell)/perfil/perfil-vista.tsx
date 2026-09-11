@@ -1,11 +1,10 @@
 import type { ReactNode } from "react";
 
+import { BadgeAvisos } from "@/app/(app)/avisos-contexto";
 import { Avatar } from "@/components/ui/avatar";
 import { Boton } from "@/components/ui/boton";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
-import { NOTIF_NO_LEIDAS_TOPE } from "@/config/constants";
 import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
-import { textoBadge } from "@/lib/notificaciones";
 
 import { CeldaVideo } from "./celda-video";
 import type { EstadoVideo } from "./perfil-logic";
@@ -82,7 +81,6 @@ export function PerfilVista({
   totalVideos,
   videos,
   esPropio,
-  noLeidas = 0,
 }: {
   /** Nombre visible (opcional). Si falta, el `handle` hace de nombre. */
   displayName: string | null;
@@ -97,14 +95,11 @@ export function PerfilVista({
   totalVideos: number;
   videos: VideoCelda[];
   esPropio: boolean;
-  /** Avisos sin leer (solo el perfil PROPIO los recibe; el público de otro, nunca). */
-  noLeidas?: number;
 }) {
   // Identidad (modelo TikTok/YouTube): el displayName manda; el @handle va debajo y solo si hay
   // displayName (si no, el @handle ES el nombre prominente). Fuente única: `nombreMostrado`.
   const nombre = nombreMostrado(displayName, handle);
   const conHandle = mostrarHandleSecundario(displayName);
-  const badgeAvisos = textoBadge(noLeidas, NOTIF_NO_LEIDAS_TOPE);
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
       <div className="lg:grid lg:grid-cols-[320px_1fr] lg:gap-8">
@@ -176,11 +171,9 @@ export function PerfilVista({
                   className="mt-3 w-full py-3 lg:hidden"
                 >
                   Notificaciones
-                  {badgeAvisos ? (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-text-dim px-1.5 text-2xs font-semibold tabular-nums text-void">
-                      {badgeAvisos}
-                    </span>
-                  ) : null}
+                  {/* Del contador COMPARTIDO de avisos: el mismo número que el icono de Perfil y la
+                      campana, y se refresca solo. */}
+                  <BadgeAvisos className="flex h-5 min-w-5 items-center justify-center rounded-full bg-text-dim px-1.5 text-2xs font-semibold tabular-nums text-void" />
                 </Boton>
                 {/* Cerrar sesión: acción de cuenta de baja jerarquía (fantasma). Aquí es la vía que
                     alcanza el MÓVIL, donde no hay barra superior con menú. */}
