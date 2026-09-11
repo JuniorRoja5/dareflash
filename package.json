@@ -23,7 +23,8 @@
   },
   "overrides": {
     "sharp": "^0.35.0",
-    "find-my-way": "^9.7.0"
+    "find-my-way": "^9.7.0",
+    "mariadb": "^3.5.4"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.9.0",
