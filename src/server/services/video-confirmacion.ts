@@ -44,14 +44,19 @@ export function decidirTransicion(status: number, length: number, maxSeg: number
  * Aplica la transicion a UNA fila con el GUARD forward-only: `where { id, status: PENDING }`. Un
  * video que ya no esta en PENDING -> no-op (count 0). Aqui vive el invariante critico.
  *
- * Y aqui cuelga el AVISO al dueño (VIDEO_LISTO / VIDEO_FALLIDO), en la MISMA transaccion que la
- * transicion: o se escriben los dos o ninguno. Fuera de ella, un proceso que muriera entre medias
- * dejaria el video publicado y su aviso perdido PARA SIEMPRE, porque el guard forward-only impide que
- * la transicion —y con ella el aviso— vuelva a ocurrir.
+ * Es el UNICO sitio donde un video sale de PENDING, y lo llaman DOS barridos: el sondeo de
+ * confirmacion y la reconciliacion de subidas abandonadas (que rescata a PUBLISHED las que si
+ * terminaron, y cierra en FAILED las que no). Por eso lo que depende de que un video se publique o
+ * falle cuelga de aqui, y no de uno de los dos barridos:
  *
- * "NUNCA LOS DOS" es estructural, no una comprobacion: el aviso solo sale cuando esta transicion GANA
- * el paso desde PENDING, y un video solo sale de PENDING una vez. Un reemplazo es OTRO video (otra fila,
- * otro id), con su propio aviso.
+ *  - el AVISO al dueño (VIDEO_LISTO / VIDEO_FALLIDO), en la MISMA transaccion que la transicion: o
+ *    se escriben los dos o ninguno. Fuera de ella, un proceso que muriera entre medias dejaria el
+ *    aviso perdido PARA SIEMPRE, porque el guard forward-only impide que la transicion vuelva a
+ *    ocurrir. "NUNCA LOS DOS" es estructural: el aviso solo sale cuando esta transicion GANA el paso
+ *    desde PENDING, y un video solo sale de PENDING una vez;
+ *  - el HITO de videos publicados, DESPUES de la transaccion (sus puntos abren la suya y Prisma no
+ *    anida). Antes vivia solo en el sondeo, y un video rescatado no sumaba su hito hasta la siguiente
+ *    publicacion del usuario.
  */
 export async function aplicarTransicion(
   db: PrismaClient,
@@ -71,9 +76,10 @@ export async function aplicarTransicion(
     t.destino === "PUBLISHED"
       ? { status: "PUBLISHED" as const, durationSec: t.durationSec, ...miniatura }
       : { status: "FAILED" as const, failureReason: t.failureReason };
-  return db.$transaction(async (tx) => {
+
+  const hecho = await db.$transaction(async (tx) => {
     const r = await tx.video.updateMany({ where: { id: videoId, status: "PENDING" }, data });
-    if (r.count === 0) return 0;
+    if (r.count === 0) return { count: 0, userId: null };
     const v = await tx.video.findUnique({ where: { id: videoId }, select: { userId: true } });
     if (v) {
       await emitirAviso(
@@ -84,8 +90,21 @@ export async function aplicarTransicion(
           : avisoVideoFallido(videoId, t.failureReason),
       );
     }
-    return r.count;
+    return { count: r.count, userId: v?.userId ?? null };
   });
+
+  // HITO: solo tras una publicacion que ocurrio DE VERDAD en esta llamada (count > 0), no una que ya
+  // estaba hecha. Sus puntos nunca tumban la transicion, que es lo que de verdad importa: un fallo se
+  // anota y la siguiente publicacion del usuario otorga todos los hitos que falten.
+  if (hecho.count > 0 && t.destino === "PUBLISHED" && hecho.userId) {
+    try {
+      const { otorgarHitosDeVideos } = await import("./hito-videos");
+      await otorgarHitosDeVideos(db, hecho.userId);
+    } catch (e) {
+      console.error(`[transicion] hito de vídeos de ${hecho.userId}: ${sanearError(e)}`);
+    }
+  }
+  return hecho.count;
 }
 
 export interface OpcionesConfirm {
@@ -119,9 +138,7 @@ export async function confirmarVideosPendientes(
   const desde = new Date(now.getTime() - opts.maxEdadMs);
   const videos = await db.video.findMany({
     where: { status: "PENDING", createdAt: { gte: desde } },
-    // `userId` va aquí para el hito de vídeos publicados: sin él haría falta una consulta extra por
-    // vídeo justo después de publicarlo.
-    select: { id: true, bunnyVideoId: true, userId: true },
+    select: { id: true, bunnyVideoId: true },
     take: opts.lote,
   });
 
@@ -157,6 +174,8 @@ export async function confirmarVideosPendientes(
       continue;
     }
 
+    // El aviso al dueño y el hito de vídeos van DENTRO de `aplicarTransicion` (ver su comentario):
+    // así salen también cuando es la reconciliación la que publica, no solo este sondeo.
     const count = await aplicarTransicion(db, v.id, t, info.thumbnailFileName);
     if (count > 0) {
       if (t.destino === "PUBLISHED") {
@@ -168,22 +187,6 @@ export async function confirmarVideosPendientes(
           await publicarParticipacionSiProcede(db, v.id);
         } catch (e) {
           opts.log?.(`[confirm] participación de ${v.id} no pudo publicarse: ${sanearError(e)}`);
-        }
-        // HITO DE VÍDEOS. Va DESPUÉS de la transición y condicionado a `count > 0`: solo cuenta la
-        // publicación que de verdad ocurrió en esta pasada, no una que ya estaba hecha.
-        //
-        // OJO, esto NO es el único sitio donde un vídeo pasa a PUBLISHED (lo decía este comentario y
-        // era falso): la reconciliación de vídeos también RESCATA a PUBLISHED, por el mismo
-        // `aplicarTransicion`, y ahí no se llama al hito. Un vídeo rescatado no suma su hito hasta la
-        // siguiente publicación del usuario, que otorga todos los que falten. Los AVISOS no tienen ese
-        // hueco: viven dentro de `aplicarTransicion`, así que salen por cualquiera de los dos caminos.
-        try {
-          const { otorgarHitosDeVideos } = await import("./hito-videos");
-          const hitos = await otorgarHitosDeVideos(db, v.userId);
-          if (hitos > 0) opts.log?.(`[confirm] ${v.userId}: ${hitos} hito(s) de vídeos otorgados`);
-        } catch (e) {
-          // Independiente por vídeo, como lo de arriba: los puntos no pueden tumbar el barrido.
-          opts.log?.(`[confirm] hito de vídeos de ${v.userId} falló: ${sanearError(e)}`);
         }
       } else fallidos += 1;
     }
