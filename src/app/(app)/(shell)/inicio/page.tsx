@@ -128,6 +128,7 @@ export default async function InicioPage() {
                     key={fila.userId}
                     puesto={i + 1}
                     username={fila.username}
+                    imagen={fila.image}
                     cifra={fila.victorias}
                     unidad={fila.victorias === 1 ? "victoria" : "victorias"}
                   />

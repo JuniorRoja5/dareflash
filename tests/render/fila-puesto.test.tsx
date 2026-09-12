@@ -9,8 +9,15 @@
  * Se estrena con `FilaPuesto` a propósito: es la primitiva que comparten el rail de la portada y la
  * página de Ranking, y donde vive una regla de MARCA que se puede romper en silencio — el oro solo en
  * el podio, y los puntos NUNCA en lima, porque la lima es dinero y los puntos no lo son.
+ *
+ * Y el AVATAR: la fila pintaba un círculo gris fijo aunque el usuario tuviera foto. Para romperlo a
+ * propósito: volver al `<span className="... bg-raised" />` (rojo), o pasar `imagen={null}` desde un
+ * llamante de verdad (rojo el estructural del final).
  */
-import { render, screen } from "@testing-library/react";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
+
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { FilaPuesto } from "@/components/ui/fila-puesto";
@@ -26,7 +33,9 @@ function celdaPuesto(contenedor: HTMLElement, puesto: number): HTMLElement {
 
 describe("FilaPuesto pinta lo que dice pintar", () => {
   it("muestra el puesto, el handle y la cifra", () => {
-    render(<FilaPuesto puesto={4} username="lucia" cifra={1234} unidad="victorias" />);
+    render(
+      <FilaPuesto puesto={4} username="lucia" imagen={null} cifra={1234} unidad="victorias" />,
+    );
     expect(screen.getByText("4")).toBeDefined();
     expect(screen.getByText("@lucia")).toBeDefined();
     // Con separador de millares: 1234 a secas sería otra cifra a ojo.
@@ -37,20 +46,20 @@ describe("FilaPuesto pinta lo que dice pintar", () => {
     // Es una regla de marca, y la clase de cosa que se rompe sin que falle nada más.
     for (const puesto of [1, 2, 3]) {
       const { container, unmount } = render(
-        <FilaPuesto puesto={puesto} username="x" cifra={1} unidad="victorias" />,
+        <FilaPuesto puesto={puesto} username="x" imagen={null} cifra={1} unidad="victorias" />,
       );
       expect(celdaPuesto(container, puesto).style.color).toContain("--color-rank");
       unmount();
     }
     const { container } = render(
-      <FilaPuesto puesto={4} username="x" cifra={1} unidad="victorias" />,
+      <FilaPuesto puesto={4} username="x" imagen={null} cifra={1} unidad="victorias" />,
     );
     expect(celdaPuesto(container, 4).style.color).not.toContain("--color-rank");
   });
 
   it("los puntos NUNCA van en lima: la lima es dinero y los puntos no lo son", () => {
     const { container } = render(
-      <FilaPuesto puesto={1} username="x" cifra={999} unidad="victorias" />,
+      <FilaPuesto puesto={1} username="x" imagen={null} cifra={999} unidad="victorias" />,
     );
     const cifra = [...container.querySelectorAll<HTMLElement>("span")].find((s) =>
       s.textContent?.includes("999"),
@@ -62,11 +71,18 @@ describe("FilaPuesto pinta lo que dice pintar", () => {
 
   it("la insignia es un slot OPCIONAL: sin pasarla, la fila no la inventa", () => {
     const { container: sin } = render(
-      <FilaPuesto puesto={1} username="x" cifra={1} unidad="victorias" />,
+      <FilaPuesto puesto={1} username="x" imagen={null} cifra={1} unidad="victorias" />,
     );
     const antes = sin.querySelectorAll("span").length;
     const { container: con } = render(
-      <FilaPuesto puesto={1} username="x" cifra={1} unidad="victorias" insignia={<b>N</b>} />,
+      <FilaPuesto
+        puesto={1}
+        username="x"
+        imagen={null}
+        cifra={1}
+        unidad="victorias"
+        insignia={<b>N</b>}
+      />,
     );
     expect(screen.getByText("N")).toBeDefined();
     expect(con.querySelectorAll("span").length).toBeGreaterThan(antes);
@@ -77,7 +93,7 @@ describe("FilaPuesto pinta lo que dice pintar", () => {
     // ordenado por victorias enseñaba puntos: alguien con 1 victoria y 4.000 puntos aparecía debajo
     // de otro con 3 victorias y 90, y el número visible contradecía el orden.
     const { container } = render(
-      <FilaPuesto puesto={1} username="x" cifra={3} unidad="victorias" />,
+      <FilaPuesto puesto={1} username="x" imagen={null} cifra={3} unidad="victorias" />,
     );
     expect(container.textContent).toContain("3 victorias");
     expect(container.textContent).not.toContain("pts");
@@ -88,6 +104,7 @@ describe("FilaPuesto pinta lo que dice pintar", () => {
       <FilaPuesto
         puesto={1}
         username="usuario_con_un_handle_absurdamente_largo_2026"
+        imagen={null}
         cifra={1}
         unidad="victorias"
       />,
@@ -98,5 +115,65 @@ describe("FilaPuesto pinta lo que dice pintar", () => {
     // `truncate` + `min-w-0`: sin los dos, un nombre largo empuja la cifra fuera de la fila.
     expect(nombre?.className).toMatch(/truncate/);
     expect(nombre?.className).toMatch(/min-w-0/);
+  });
+});
+
+describe("el avatar de la fila es el de verdad", () => {
+  const FOTO = "/avatars/lucia-1a2b.webp";
+
+  it("con foto: la pinta, y en PEREZOSO (las filas son listas largas)", () => {
+    const { container } = render(
+      <FilaPuesto puesto={4} username="lucia" imagen={FOTO} cifra={2} unidad="victorias" />,
+    );
+    const img = container.querySelector("img");
+    expect(img?.getAttribute("src")).toBe(FOTO);
+    expect(img?.getAttribute("loading")).toBe("lazy");
+    // Decorativa: el nombre ya se lee al lado, no se anuncia dos veces.
+    expect(img?.getAttribute("alt")).toBe("");
+  });
+
+  it("sin foto: sale la INICIAL, no un círculo vacío", () => {
+    const { container } = render(
+      <FilaPuesto puesto={4} username="lucia" imagen={null} cifra={2} unidad="victorias" />,
+    );
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getByText("L")).toBeDefined();
+  });
+
+  it("si la foto no carga, cae a la inicial en vez de dejar un icono roto", () => {
+    const { container } = render(
+      <FilaPuesto puesto={4} username="lucia" imagen={FOTO} cifra={2} unidad="victorias" />,
+    );
+    fireEvent.error(container.querySelector("img")!);
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getByText("L")).toBeDefined();
+  });
+});
+
+describe("todo llamante de verdad pasa la foto (estructural)", () => {
+  /** Todos los `.tsx` bajo src/app, salvo la guía de estilo (no tiene usuarios reales). */
+  function ficheros(dir: string): string[] {
+    return readdirSync(dir).flatMap((n) => {
+      const p = path.join(dir, n);
+      if (statSync(p).isDirectory()) return n === "style-guide" ? [] : ficheros(p);
+      return p.endsWith(".tsx") ? [p] : [];
+    });
+  }
+
+  it("ninguna <FilaPuesto> fuera de la guía pasa `imagen={null}`", () => {
+    // El tipo obliga a pasar `imagen`, pero `null` compila: sería volver al círculo vacío con la foto
+    // en la mano. Cada fila de verdad la saca de su dato.
+    const raiz = path.resolve(__dirname, "..", "..", "src", "app");
+    const usos = ficheros(raiz).flatMap((f) =>
+      [...readFileSync(f, "utf8").matchAll(/<FilaPuesto\b[\s\S]*?\/>/g)].map((m) => ({
+        f: path.relative(raiz, f),
+        jsx: m[0],
+      })),
+    );
+    // El rail de la portada, la lista mensual y el top del reto.
+    expect(usos.length).toBeGreaterThanOrEqual(3);
+    for (const { f, jsx } of usos) {
+      expect(jsx, f).toMatch(/imagen=\{\w+\.image\}/);
+    }
   });
 });

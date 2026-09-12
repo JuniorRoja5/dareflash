@@ -19,6 +19,8 @@ export interface FilaTopReto {
   submissionId: string;
   userId: string;
   username: string;
+  /** Avatar (`User.image`) o `null`. */
+  image: string | null;
   votos: number;
   puesto: number;
 }
@@ -155,6 +157,7 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
                     key={fila.userId}
                     puesto={desde + i}
                     username={fila.username}
+                    imagen={fila.image}
                     cifra={fila.victorias}
                     unidad={fila.victorias === 1 ? "victoria" : "victorias"}
                     activo={fila.userId === datos.yo}
@@ -197,6 +200,7 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
                   key={f.submissionId}
                   puesto={f.puesto}
                   username={f.username}
+                  imagen={f.image}
                   cifra={f.votos}
                   unidad={f.votos === 1 ? "voto" : "votos"}
                   activo={f.userId === datos.yo}

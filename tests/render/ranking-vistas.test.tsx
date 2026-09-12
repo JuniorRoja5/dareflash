@@ -12,8 +12,11 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({ getJson: vi.fn() }));
+vi.mock("@/lib/cliente-http", () => ({ getJson: mocks.getJson }));
 
 import {
   cabeceraReto,
@@ -26,7 +29,9 @@ const TITULO_LARGO = "50 abdominales en un minuto sin parar y sin apoyar las rod
 
 function datos(reto: DatosRanking["reto"]): DatosRanking {
   return {
-    mensual: [{ userId: "u1", username: "lucia", displayName: null, victorias: 2, puntos: 80 }],
+    mensual: [
+      { userId: "u1", username: "lucia", displayName: null, image: null, victorias: 2, puntos: 80 },
+    ],
     cursorInicial: null,
     reto,
     yo: null,
@@ -36,7 +41,7 @@ function datos(reto: DatosRanking["reto"]): DatosRanking {
 const conTop = (titulo = TITULO_LARGO): DatosRanking["reto"] => ({
   titulo,
   codigo: "ABC234",
-  top: [{ submissionId: "s1", userId: "u2", username: "mario", votos: 7, puesto: 1 }],
+  top: [{ submissionId: "s1", userId: "u2", username: "mario", image: null, votos: 7, puesto: 1 }],
 });
 
 const conmutador = () => screen.queryByRole("group", { name: "Vista de la clasificación" });
@@ -89,6 +94,88 @@ describe("sin reto con participaciones", () => {
     expect(conmutador()).toBeNull();
     expect(screen.queryByText(/cerró sin participaciones publicadas/)).toBeNull();
     expect(screen.queryByText(/Vacío/)).toBeNull();
+  });
+});
+
+describe("los avatares llegan a TODAS las filas", () => {
+  // Tal cual los manda el servicio (y `/api/ranking`): `image`, no otro nombre.
+  const fila = (n: number, image: string | null) => ({
+    userId: `u${n}`,
+    username: `persona${n}`,
+    displayName: null,
+    image,
+    victorias: 10 - n,
+    puntos: 40,
+  });
+  const foto = (n: number) => `/avatars/persona${n}.webp`;
+  const srcs = (c: HTMLElement) => [...c.querySelectorAll("img")].map((i) => i.getAttribute("src"));
+
+  it("la lista del mes (del 4º en adelante) pinta la foto de cada uno, o su inicial", () => {
+    const { container } = render(
+      <RankingVistas
+        datos={{
+          mensual: [1, 2, 3, 4, 5].map((n) => fila(n, n === 5 ? null : foto(n))),
+          cursorInicial: null,
+          reto: null,
+          yo: null,
+        }}
+      />,
+    );
+    const lista = screen.getByLabelText(/Clasificación \(del 4º en adelante\)/);
+    expect(srcs(lista)).toEqual([foto(4)]);
+    expect(within(lista).getByText("P")).toBeDefined(); // el 5º, sin foto
+    // El podio también lleva las suyas (1º-3º, dos veces: escritorio + móvil).
+    expect(srcs(container)).toContain(foto(1));
+  });
+
+  it("las filas de 'Ver más' (de /api/ranking) también traen la foto", async () => {
+    mocks.getJson.mockResolvedValue({
+      ok: true,
+      status: 200,
+      code: "",
+      data: { filas: [fila(6, foto(6))], cursor: null },
+    });
+    render(
+      <RankingVistas
+        datos={{
+          mensual: [1, 2, 3, 4].map((n) => fila(n, null)),
+          cursorInicial: "cursor-opaco",
+          reto: null,
+          yo: null,
+        }}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Ver más" }));
+    });
+    const lista = screen.getByLabelText(/Clasificación \(del 4º en adelante\)/);
+    expect(srcs(lista)).toEqual([foto(6)]);
+  });
+
+  it("el top del reto pinta la foto de cada participante", () => {
+    render(
+      <RankingVistas
+        datos={datos({
+          titulo: "Reto",
+          codigo: "ABC234",
+          top: [
+            {
+              submissionId: "s1",
+              userId: "u2",
+              username: "mario",
+              image: foto(2),
+              votos: 7,
+              puesto: 1,
+            },
+            { submissionId: "s2", userId: "u3", username: "ana", image: null, votos: 3, puesto: 2 },
+          ],
+        })}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: ETIQUETAS_VISTA.reto }));
+    const seccion = screen.getByRole("region", { name: cabeceraReto("Reto") });
+    expect(srcs(seccion)).toEqual([foto(2)]);
+    expect(within(seccion).getByText("A")).toBeDefined();
   });
 });
 

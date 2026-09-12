@@ -188,6 +188,17 @@ describe("el ranking mensual cuenta VICTORIAS, y solo las del mes", () => {
     expect(filas[0]?.puntos).toBe(puntos);
     expect(puntos).toBeGreaterThan(0);
   });
+
+  it("trae el AVATAR de cada usuario, para que la fila no pinte un círculo vacío", async () => {
+    const conFoto = await ganarRetos(2);
+    const sinFoto = await ganarRetos(1);
+    await prisma.user.update({ where: { id: conFoto }, data: { image: "/avatars/ganador.webp" } });
+
+    const { filas } = await rankingMensual(prisma);
+
+    expect(filas.find((f) => f.userId === conFoto)?.image).toBe("/avatars/ganador.webp");
+    expect(filas.find((f) => f.userId === sinFoto)?.image).toBeNull();
+  });
 });
 
 describe("el nivel se DERIVA, nunca se guarda", () => {
@@ -300,6 +311,23 @@ describe("top del reto", () => {
     const top = await topDelReto(prisma, reto.id);
 
     expect(top.map((t) => t.userId)).toEqual([buena.userId]);
+  });
+
+  it("trae el AVATAR de cada participante (y `null` a quien no tiene)", async () => {
+    // Sin `image` en el select del usuario, la fila del top pintaba siempre la inicial aunque el
+    // participante tuviera foto.
+    const reto = await crearReto();
+    const conFoto = await participar(reto.id, 9);
+    const sinFoto = await participar(reto.id, 4);
+    await prisma.user.update({
+      where: { id: conFoto.userId },
+      data: { image: "/avatars/con-foto.webp" },
+    });
+
+    const top = await topDelReto(prisma, reto.id);
+
+    expect(top.find((t) => t.userId === conFoto.userId)?.image).toBe("/avatars/con-foto.webp");
+    expect(top.find((t) => t.userId === sinFoto.userId)?.image).toBeNull();
   });
 
   it("un reto sin participaciones da lista vacía, no un hueco", async () => {

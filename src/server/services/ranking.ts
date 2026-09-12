@@ -162,6 +162,7 @@ export interface FilaTopReto {
   userId: string;
   username: string;
   displayName: string | null;
+  image: string | null;
   votos: number;
   puesto: number;
 }
@@ -225,7 +226,9 @@ export async function topDelReto(
       userId: true,
       voteCount: true,
       createdAt: true,
-      user: { select: { username: true, displayName: true } },
+      // El avatar viene en la MISMA consulta, con el resto del usuario: Prisma resuelve la relación
+      // de todas las filas de una vez (un `IN`), no una consulta por participación.
+      user: { select: { username: true, displayName: true, image: true } },
     },
   });
 
@@ -248,6 +251,7 @@ export async function topDelReto(
               userId: p.userId,
               username: f.user.username,
               displayName: f.user.displayName,
+              image: f.user.image,
               votos: p.voteCount,
               puesto: i + 1,
             },

@@ -14,9 +14,10 @@ import { describe, expect, it } from "vitest";
 
 import { type FilaPodio, PodioRanking } from "@/app/(app)/(shell)/ranking/podio-ranking";
 
-const persona = (n: number, victorias: number): FilaPodio => ({
+const persona = (n: number, victorias: number, image: string | null = null): FilaPodio => ({
   userId: `u${n}`,
   username: `persona${n}`,
+  image,
   victorias,
   puntos: victorias * 40,
 });
@@ -78,6 +79,23 @@ describe("qué cifra enseña el podio", () => {
     const { container } = render(<PodioRanking top={[persona(1, 1)]} />);
     expect(container.textContent).toContain("victoria");
     expect(container.textContent).not.toMatch(/1\s*victorias/);
+  });
+});
+
+describe("el avatar del podio es el de verdad", () => {
+  it("con foto la pinta (escritorio y móvil), y NO en perezoso: el podio es lo primero que se ve", () => {
+    const foto = "/avatars/persona1-abc.webp";
+    const { container } = render(<PodioRanking top={[persona(1, 5, foto), persona(2, 3)]} />);
+    const imgs = [...container.querySelectorAll("img")];
+    // El podio se pinta dos veces (escritorio + móvil): la foto del 1º sale en las dos.
+    expect(imgs.map((i) => i.getAttribute("src"))).toEqual([foto, foto]);
+    expect(imgs.every((i) => i.getAttribute("loading") !== "lazy")).toBe(true);
+  });
+
+  it("sin foto: la inicial, sin <img>", () => {
+    const { container } = render(<PodioRanking top={[persona(2, 5)]} />);
+    expect(container.querySelector("img")).toBeNull();
+    expect(screen.getAllByText("P").length).toBeGreaterThan(0);
   });
 });
 

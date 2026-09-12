@@ -15,15 +15,21 @@ export type TamanoAvatar = keyof typeof TAMANO;
  * (object-cover); si falla la carga (onError) o no hay imagen, cae a la INICIAL del nombre sobre
  * --df-raised. Retrocompatible: sin `imagen` se comporta EXACTAMENTE como antes. Decorativo
  * (aria-hidden): el nombre se muestra aparte, no se anuncia dos veces.
+ *
+ * `perezosa` pide la foto con `loading="lazy"`: para las LISTAS (filas de ranking), donde la mayoría
+ * queda bajo el pliegue y no debe competir con lo que se ve al cargar. Por defecto no: un avatar
+ * arriba del todo (cabecera, podio, perfil) se quiere ya.
  */
 export function Avatar({
   nombre,
   tamano = "md",
   imagen,
+  perezosa = false,
 }: {
   nombre: string;
   tamano?: TamanoAvatar;
   imagen?: string | null;
+  perezosa?: boolean;
 }) {
   const [falla, setFalla] = useState(false);
   const inicial = (nombre.trim().charAt(0) || "?").toUpperCase();
@@ -37,6 +43,7 @@ export function Avatar({
         <img
           src={imagen}
           alt=""
+          loading={perezosa ? "lazy" : undefined}
           className="h-full w-full object-cover"
           onError={() => setFalla(true)}
         />

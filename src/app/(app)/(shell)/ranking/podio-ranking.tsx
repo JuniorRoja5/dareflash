@@ -13,6 +13,12 @@ import {
 export interface FilaPodio {
   userId: string;
   username: string;
+  /**
+   * URL del avatar (`User.image`), o `null`. Se llama `image`, como en el servicio, porque es el nombre
+   * con el que llega por la red: las páginas de "Ver más" vienen de `/api/ranking` tal cual, y un nombre
+   * distinto aquí dejaría sin foto a todo el que no esté en la primera página.
+   */
+  image: string | null;
   /** La cifra por la que se ordena: victorias del mes. */
   victorias: number;
   /** Puntos totales: alimentan la insignia de nivel, no la cifra grande. */
@@ -86,11 +92,13 @@ function Corona({ tam, color }: { tam: number; color: string }) {
 /** Avatar con aro de medalla (borde plano, sin sombra). */
 function AvatarMedalla({
   nombre,
+  imagen,
   tamano,
   anillo,
   color,
 }: {
   nombre: string;
+  imagen: string | null;
   tamano: TamanoAvatar;
   anillo: number;
   color: string;
@@ -100,7 +108,8 @@ function AvatarMedalla({
       className="inline-flex rounded-full p-[3px]"
       style={{ border: `${anillo}px solid ${color}` }}
     >
-      <Avatar nombre={nombre} tamano={tamano} />
+      {/* No perezoso: el podio es lo primero que se ve al entrar. */}
+      <Avatar nombre={nombre} imagen={imagen} tamano={tamano} />
     </span>
   );
 }
@@ -137,6 +146,7 @@ function ColumnaPodio({ fila, puesto }: { fila: FilaPodio; puesto: PuestoPodio }
       <span className="mt-2">
         <AvatarMedalla
           nombre={fila.username}
+          imagen={fila.image}
           tamano={geo.avatar}
           anillo={geo.anillo}
           color={color}
@@ -211,6 +221,7 @@ function TarjetaMovil({
       </span>
       <AvatarMedalla
         nombre={fila.username}
+        imagen={fila.image}
         tamano={destacado ? "lg" : "md"}
         anillo={destacado ? 2.5 : 1.5}
         color={color}

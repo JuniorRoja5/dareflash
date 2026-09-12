@@ -448,13 +448,21 @@ export default function StyleGuide() {
 
       <Seccion etiqueta="Primitiva · fila de puesto (--df-rank solo en 1/2/3)">
         <div className="max-w-md rounded-sm border border-line bg-surface">
-          <FilaPuesto puesto={1} username="campeona_del_barrio_2026" cifra={9} unidad="victorias" />
-          <FilaPuesto puesto={2} username="leo" cifra={7} unidad="victorias" />
-          <FilaPuesto puesto={3} username="maria_fit" cifra={4} unidad="victorias" />
-          <FilaPuesto puesto={4} username="dancer_xx" cifra={2} unidad="victorias" />
+          {/* Sin foto (`imagen={null}`): la guía no tiene avatares de nadie; enseña la inicial. */}
+          <FilaPuesto
+            puesto={1}
+            username="campeona_del_barrio_2026"
+            imagen={null}
+            cifra={9}
+            unidad="victorias"
+          />
+          <FilaPuesto puesto={2} username="leo" imagen={null} cifra={7} unidad="victorias" />
+          <FilaPuesto puesto={3} username="maria_fit" imagen={null} cifra={4} unidad="victorias" />
+          <FilaPuesto puesto={4} username="dancer_xx" imagen={null} cifra={2} unidad="victorias" />
           <FilaPuesto
             puesto={7}
             username="un_nombre_de_usuario_larguisimo_2026"
+            imagen={null}
             cifra={1}
             unidad="victoria"
             activo
