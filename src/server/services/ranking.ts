@@ -169,11 +169,12 @@ export interface FilaTopReto {
 
 /**
  * Una participación que CUENTA en el top de un reto: publicada de verdad, vídeo incluido (la regla del
- * más restrictivo, la misma que usa el cierre). Nombrada UNA vez porque la usan dos consultas —el top y
- * la elección del reto que /ranking enseña— y tienen que decir lo mismo: si divergieran, /ranking podría
- * ofrecer un reto cuyo top sale vacío.
+ * más restrictivo, la misma que usa el cierre). Nombrada UNA vez porque la usan varias consultas —el
+ * top, la elección del reto que /ranking enseña y las métricas del panel— y tienen que decir lo mismo:
+ * si divergieran, /ranking podría ofrecer un reto cuyo top sale vacío, o el panel sumar votos de algo
+ * que el público ya no ve.
  */
-const PARTICIPACION_QUE_CUENTA = {
+export const PARTICIPACION_QUE_CUENTA = {
   status: "PUBLISHED",
   video: { is: { status: "PUBLISHED" } },
 } as const satisfies Prisma.SubmissionWhereInput;

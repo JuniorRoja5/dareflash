@@ -5,6 +5,7 @@ import { CATEGORIES } from "@/config/constants";
 import { centimosAImporte } from "@/lib/dinero";
 
 import { RanuraProximamente, TarjetaMetrica, TarjetaProximamente } from "../../tarjetas";
+import { TarjetaInteraccion } from "./interaccion-participacion";
 import { ParticipacionesPanel, type ParticipacionPanelUI } from "./participaciones-panel";
 import { ResolverEmpate } from "./resolver-empate";
 
@@ -45,15 +46,17 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const { prisma } = await import("@/server/db/client");
   const { retoAdminPorId } = await import("@/server/services/retos-admin");
-  const { metricasReto } = await import("@/server/services/panel-metricas");
+  const { interaccionPorParticipacion, metricasReto } =
+    await import("@/server/services/panel-metricas");
   const { listarParticipacionesAdmin } = await import("@/server/services/participaciones-lista");
   const { firmarReproduccion } = await import("@/server/services/reproduccion-servidor");
 
   const reto = await retoAdminPorId(prisma, id);
   if (!reto) notFound();
 
-  const [metricas, pagina] = await Promise.all([
+  const [metricas, interaccion, pagina] = await Promise.all([
     metricasReto(prisma, reto.id),
+    interaccionPorParticipacion(prisma, reto.id),
     listarParticipacionesAdmin(prisma, reto.id),
   ]);
 
@@ -214,9 +217,10 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
             etiqueta="Ganadores"
             nota="Declarados al cerrar"
           />
-          {/* Sin backend todavía: RAYA, nunca un número. Cada una se sustituye por una TarjetaMetrica
-              en su fase, en este mismo hueco. */}
-          <TarjetaProximamente etiqueta="Interacción por participación" fase={3} />
+          {/* INTERACCIÓN (Fase 3), en el hueco que ocupaba su "próximamente": los votos de cada
+              participación visible, del servicio. Es una lista, no una cifra: ocupa dos columnas. */}
+          <TarjetaInteraccion filas={interaccion} visibles={metricas.visibles} />
+          {/* Sin backend todavía: RAYA, nunca un número. Se sustituye en su fase, en este hueco. */}
           <TarjetaProximamente etiqueta="Reportes de spam" fase={5} />
         </div>
 

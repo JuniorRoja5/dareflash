@@ -67,6 +67,25 @@ describe("cero cifras inventadas", () => {
     for (const h of huecos) expect(h).toMatch(/fase=\{\d+\}/);
   });
 
+  it("'Interacción por participación' ya NO es un próximamente: pinta el dato del servicio", () => {
+    const codigo = soloCodigo(PAGINA);
+    const huecos = codigo.match(/<(TarjetaProximamente|RanuraProximamente)[\s\S]*?\/>/g) ?? [];
+    expect(huecos.some((h) => h.includes("Interacción por participación"))).toBe(false);
+    // Las filas salen del servicio que las calcula, sin nada escrito a mano en la vista.
+    expect(codigo).toMatch(/interaccionPorParticipacion\(prisma, reto\.id\)/);
+    expect(codigo).toMatch(
+      /<TarjetaInteraccion filas=\{interaccion\} visibles=\{metricas\.visibles\}/,
+    );
+  });
+
+  it("las métricas del reto usan la regla COMPARTIDA de visible, no una copia", () => {
+    // Si el panel tuviera su propia definición de "visible", podría sumar votos de algo que el top
+    // del reto y el cierre ya no cuentan.
+    const servicio = soloCodigo(leer(RAIZ, "src", "server", "services", "panel-metricas.ts"));
+    expect(servicio).toContain("PARTICIPACION_QUE_CUENTA");
+    expect(servicio).not.toMatch(/status:\s*"PUBLISHED"/);
+  });
+
   it("las tarjetas de métrica del panel son las COMPARTIDAS (Resumen y reto se leen igual)", () => {
     expect(PAGINA).toContain("tarjetas");
     expect(leer(RAIZ, "src", "app", "panel", "page.tsx")).toContain('from "./tarjetas"');

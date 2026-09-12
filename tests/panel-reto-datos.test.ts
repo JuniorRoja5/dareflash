@@ -9,8 +9,9 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { PANEL_INTERACCION_TOPE } from "../src/config/constants";
 import type { ModerationStatus, PrismaClient } from "../src/generated/prisma/client";
-import { metricasReto } from "../src/server/services/panel-metricas";
+import { interaccionPorParticipacion, metricasReto } from "../src/server/services/panel-metricas";
 import {
   listarParticipacionesAdmin,
   listarParticipacionesVisibles,
@@ -148,6 +149,91 @@ describe("metricasReto", () => {
     const m = await metricasReto(prisma, challengeId);
     expect(m.participaciones).toBe(1);
     expect(m.votos).toBe(3);
+  });
+});
+
+describe("interaccionPorParticipacion (Fase 3)", () => {
+  const visible = { videoStatus: "PUBLISHED", subStatus: "PUBLISHED" } as const;
+
+  it("da los votos de CADA participación visible, de más a menos", async () => {
+    const cuatro = await participar({ ...visible, votos: 4 });
+    const nueve = await participar({ ...visible, votos: 9 });
+    const cero = await participar({ ...visible, votos: 0 });
+    // Ninguna de estas la ve el público: sus votos no son interacción de nada visible.
+    await participar({ videoStatus: "REMOVED", subStatus: "REMOVED", votos: 99 });
+    await participar({ videoStatus: "PUBLISHED", subStatus: "REMOVED", votos: 77 });
+    await participar({ videoStatus: "PENDING", subStatus: "PENDING", votos: 50 });
+
+    const filas = await interaccionPorParticipacion(prisma, challengeId);
+
+    expect(filas.map((f) => [f.submissionId, f.votos])).toEqual([
+      [nueve.submissionId, 9],
+      [cuatro.submissionId, 4],
+      [cero.submissionId, 0], // visible sin votos: sale, con su 0 real
+    ]);
+  });
+
+  it("cada fila lleva el título del vídeo y su autor", async () => {
+    await participar({ ...visible, votos: 3 }); // contador 1 -> vídeo "V1", usuario "pu1"
+    const [fila] = await interaccionPorParticipacion(prisma, challengeId);
+    expect(fila).toMatchObject({ titulo: "V1", username: "pu1", votos: 3 });
+  });
+
+  it("ACOTADA: las más votadas hasta el tope, nunca el reto entero", async () => {
+    for (let i = 0; i < PANEL_INTERACCION_TOPE + 3; i += 1) {
+      await participar({ ...visible, votos: i });
+    }
+    const filas = await interaccionPorParticipacion(prisma, challengeId);
+
+    expect(filas).toHaveLength(PANEL_INTERACCION_TOPE);
+    // Las de más votos (de TOPE+2 hacia abajo), no las primeras que se crearon.
+    expect(filas.map((f) => f.votos)).toEqual(
+      Array.from({ length: PANEL_INTERACCION_TOPE }, (_, i) => PANEL_INTERACCION_TOPE + 2 - i),
+    );
+  });
+
+  it("con votos EMPATADOS el orden es estable entre cargas", async () => {
+    for (let i = 0; i < 5; i += 1) await participar({ ...visible, votos: 2 });
+    const a = await interaccionPorParticipacion(prisma, challengeId);
+    const b = await interaccionPorParticipacion(prisma, challengeId);
+    expect(a.map((f) => f.submissionId)).toEqual(b.map((f) => f.submissionId));
+  });
+
+  it("solo las de ESTE reto: los votos de otro reto no se cuelan", async () => {
+    await participar({ ...visible, votos: 1 });
+    const admin = await crearUsuario(prisma, { username: "otroadmin2" });
+    const otro = await prisma.challenge.create({
+      data: {
+        title: "Otro",
+        slug: "otro",
+        publicCode: "retopr03",
+        category: "humor",
+        status: "PUBLISHED",
+        prizeCurrency: "USD",
+        startsAt: new Date("2026-01-01T00:00:00Z"),
+        deadline: new Date("2999-01-01T00:00:00Z"),
+        createdById: admin,
+      },
+      select: { id: true },
+    });
+    const u = await crearUsuario(prisma, { username: "ajeno2" });
+    const v = await prisma.video.create({
+      data: { userId: u, bunnyVideoId: "bunny-ajeno-2", status: "PUBLISHED" },
+      select: { id: true },
+    });
+    await prisma.submission.create({
+      data: { challengeId: otro.id, userId: u, videoId: v.id, status: "PUBLISHED", voteCount: 500 },
+    });
+
+    const filas = await interaccionPorParticipacion(prisma, challengeId);
+    expect(filas.map((f) => f.votos)).toEqual([1]);
+  });
+
+  it("sin participaciones visibles, lista VACÍA (el vacío honesto lo pinta la vista)", async () => {
+    expect(await interaccionPorParticipacion(prisma, challengeId)).toEqual([]);
+    await participar({ videoStatus: "REMOVED", subStatus: "REMOVED", votos: 12 });
+    await participar({ videoStatus: "PENDING", subStatus: "PENDING", votos: 3 });
+    expect(await interaccionPorParticipacion(prisma, challengeId)).toEqual([]);
   });
 });
 

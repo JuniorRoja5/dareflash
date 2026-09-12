@@ -1,13 +1,16 @@
 /**
  * Métricas REALES del panel. SOLO datos que ya existen en la BD: CERO cifras inventadas. Lo que aún no
- * tiene backend (dinero/monedero, interacción, reportes, series temporales) NO se calcula aquí — la
- * vista lo muestra como "próximamente", no como un 0 engañoso.
+ * tiene backend (dinero/monedero, reportes, series temporales) NO se calcula aquí — la vista lo
+ * muestra como "próximamente", no como un 0 engañoso.
  *
- * Dos ámbitos: el RESUMEN del panel (`metricasPanel`) y la gestión de UN reto (`metricasReto`).
+ * Dos ámbitos: el RESUMEN del panel (`metricasPanel`) y la gestión de UN reto (`metricasReto`,
+ * `interaccionPorParticipacion`).
  */
 import "server-only";
 
+import { PANEL_INTERACCION_TOPE } from "@/config/constants";
 import type { Db } from "@/server/db/types";
+import { PARTICIPACION_QUE_CUENTA } from "@/server/services/ranking";
 
 export interface MetricasPanel {
   retosTotal: number;
@@ -79,7 +82,8 @@ export interface MetricasReto {
 
 /** Todas las cuentas en paralelo; `challengeId` es prefijo del índice [challengeId, voteCount]. */
 export async function metricasReto(db: Db, challengeId: string): Promise<MetricasReto> {
-  const visible = { status: "PUBLISHED", video: { status: "PUBLISHED" } } as const;
+  // "Visible" es la regla COMPARTIDA con el top del reto y el cierre, no una copia que pueda divergir.
+  const visible = PARTICIPACION_QUE_CUENTA;
 
   const [participaciones, porUsuario, visibles, retiradas, enProceso, suma, ganadores] =
     await Promise.all([
@@ -105,4 +109,52 @@ export async function metricasReto(db: Db, challengeId: string): Promise<Metrica
     votos: suma._sum.voteCount ?? 0,
     ganadores,
   };
+}
+
+/** Una participación VISIBLE con sus votos (tarjeta "Interacción por participación"). */
+export interface InteraccionParticipacion {
+  submissionId: string;
+  /** Título del vídeo; `null` si no tiene. */
+  titulo: string | null;
+  username: string;
+  displayName: string | null;
+  votos: number;
+}
+
+/**
+ * INTERACCIÓN POR PARTICIPACIÓN: los votos (`voteCount`) de cada participación VISIBLE del reto, de
+ * más a menos. "Interacción" es VOTOS y solo votos: el esquema no mide reproducciones ni vistas, y
+ * estimarlas sería una cifra inventada. Medirlas algún día es instrumentación nueva, no este hueco.
+ *
+ *  - Visible = `PARTICIPACION_QUE_CUENTA`, la misma regla del top del reto y del cierre: la tarjeta no
+ *    enseña votos de algo que el público no ve (los de una retirada ya no cuentan para nada).
+ *  - ACOTADA a las `PANEL_INTERACCION_TOPE` más votadas, nunca el reto entero: `challengeId` +
+ *    `voteCount DESC` recorre el índice [challengeId, voteCount] hacia atrás y para en el tope. `id`
+ *    desempata (InnoDB lo lleva al final de todo índice secundario, así que no rompe el recorrido):
+ *    con votos empatados, dos cargas salen en el mismo orden. La lista COMPLETA, con keyset, es la
+ *    tabla de participaciones de la misma pantalla.
+ */
+export async function interaccionPorParticipacion(
+  db: Db,
+  challengeId: string,
+): Promise<InteraccionParticipacion[]> {
+  const filas = await db.submission.findMany({
+    where: { challengeId, ...PARTICIPACION_QUE_CUENTA },
+    orderBy: [{ voteCount: "desc" }, { id: "desc" }],
+    take: PANEL_INTERACCION_TOPE,
+    select: {
+      id: true,
+      voteCount: true,
+      video: { select: { title: true } },
+      user: { select: { username: true, displayName: true } },
+    },
+  });
+
+  return filas.map((f) => ({
+    submissionId: f.id,
+    titulo: f.video.title,
+    username: f.user.username,
+    displayName: f.user.displayName,
+    votos: f.voteCount,
+  }));
 }

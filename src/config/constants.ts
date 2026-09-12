@@ -656,6 +656,13 @@ export const NOTIF_SONDEO_MS = 60_000;
 export const NOTIF_SONDEO_MIN_ENTRE_MS = 10_000;
 
 /**
+ * Participaciones que enseña la tarjeta "Interacción por participación" del panel: las más votadas,
+ * hasta aquí. Es una tarjeta de la rejilla de estadísticas, no la lista: la lista completa (paginada
+ * por keyset) es la tabla de participaciones de la misma pantalla.
+ */
+export const PANEL_INTERACCION_TOPE = 8;
+
+/**
  * Cada cuanto barre el worker los retos vencidos sin cerrar. Un reto se cierra por el RELOJ, asi que
  * el retraso maximo entre el deadline y el cierre es esta cadencia. Cinco minutos: lo bastante fino
  * para que nadie mire un reto vencido y lo vea abierto un rato largo, y lo bastante grueso para que la
