@@ -78,6 +78,14 @@ describe("cero cifras inventadas", () => {
     );
   });
 
+  it("'Rendimiento en el tiempo' ya NO es una ranura: pinta la serie del servicio", () => {
+    const codigo = soloCodigo(PAGINA);
+    const huecos = codigo.match(/<(TarjetaProximamente|RanuraProximamente)[\s\S]*?\/>/g) ?? [];
+    expect(huecos.some((h) => h.includes("Rendimiento en el tiempo"))).toBe(false);
+    expect(codigo).toMatch(/serieDiariaReto\(prisma, reto\.id\)/);
+    expect(codigo).toMatch(/<RendimientoTiempo serie=\{serie\} \/>/);
+  });
+
   it("las métricas del reto usan la regla COMPARTIDA de visible, no una copia", () => {
     // Si el panel tuviera su propia definición de "visible", podría sumar votos de algo que el top
     // del reto y el cierre ya no cuentan.

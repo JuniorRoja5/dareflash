@@ -7,6 +7,7 @@ import { centimosAImporte } from "@/lib/dinero";
 import { RanuraProximamente, TarjetaMetrica, TarjetaProximamente } from "../../tarjetas";
 import { TarjetaInteraccion } from "./interaccion-participacion";
 import { ParticipacionesPanel, type ParticipacionPanelUI } from "./participaciones-panel";
+import { RendimientoTiempo } from "./rendimiento-tiempo";
 import { ResolverEmpate } from "./resolver-empate";
 
 export const metadata = { title: "Gestionar reto · Panel" };
@@ -46,7 +47,7 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const { prisma } = await import("@/server/db/client");
   const { retoAdminPorId } = await import("@/server/services/retos-admin");
-  const { interaccionPorParticipacion, metricasReto } =
+  const { interaccionPorParticipacion, metricasReto, serieDiariaReto } =
     await import("@/server/services/panel-metricas");
   const { listarParticipacionesAdmin } = await import("@/server/services/participaciones-lista");
   const { firmarReproduccion } = await import("@/server/services/reproduccion-servidor");
@@ -54,9 +55,10 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
   const reto = await retoAdminPorId(prisma, id);
   if (!reto) notFound();
 
-  const [metricas, interaccion, pagina] = await Promise.all([
+  const [metricas, interaccion, serie, pagina] = await Promise.all([
     metricasReto(prisma, reto.id),
     interaccionPorParticipacion(prisma, reto.id),
+    serieDiariaReto(prisma, reto.id),
     listarParticipacionesAdmin(prisma, reto.id),
   ]);
 
@@ -225,11 +227,8 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
         </div>
 
         <div className="mt-4 grid gap-4 xl:grid-cols-2">
-          <RanuraProximamente
-            titulo="Rendimiento en el tiempo"
-            descripcion="Votos y participaciones día a día desde la apertura hasta el cierre."
-            fase={4}
-          />
+          {/* RENDIMIENTO (Fase 4), en el sitio de su ranura: la serie diaria real del servicio. */}
+          {serie ? <RendimientoTiempo serie={serie} /> : null}
           <RanuraProximamente
             titulo="Reportes y moderación"
             descripcion="Denuncias de la comunidad sobre las participaciones de este reto, para revisarlas aquí mismo."

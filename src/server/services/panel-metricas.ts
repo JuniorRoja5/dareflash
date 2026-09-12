@@ -1,14 +1,16 @@
 /**
  * Métricas REALES del panel. SOLO datos que ya existen en la BD: CERO cifras inventadas. Lo que aún no
- * tiene backend (dinero/monedero, reportes, series temporales) NO se calcula aquí — la vista lo
- * muestra como "próximamente", no como un 0 engañoso.
+ * tiene backend (dinero/monedero, reportes) NO se calcula aquí — la vista lo muestra como
+ * "próximamente", no como un 0 engañoso.
  *
  * Dos ámbitos: el RESUMEN del panel (`metricasPanel`) y la gestión de UN reto (`metricasReto`,
- * `interaccionPorParticipacion`).
+ * `interaccionPorParticipacion`, `serieDiariaReto`).
  */
 import "server-only";
 
 import { PANEL_INTERACCION_TOPE } from "@/config/constants";
+import { Prisma } from "@/generated/prisma/client";
+import { type DiaActividad, diasUtcEntre, rellenarSerie } from "@/lib/serie-diaria";
 import type { Db } from "@/server/db/types";
 import { PARTICIPACION_QUE_CUENTA } from "@/server/services/ranking";
 
@@ -157,4 +159,85 @@ export async function interaccionPorParticipacion(
     displayName: f.user.displayName,
     votos: f.voteCount,
   }));
+}
+
+/** "Rendimiento en el tiempo" de un reto: su actividad día a día dentro de su ventana. */
+export interface SerieReto {
+  /** Ventana medida, [desde, hasta]: de la apertura al cierre (o a hoy, si sigue abierto). */
+  desde: Date;
+  hasta: Date;
+  /** Cada día UTC de la ventana, en orden. Vacía si el reto aún no ha abierto. */
+  dias: DiaActividad[];
+  total: { participaciones: number; votos: number };
+}
+
+/** Lo que devuelve cada consulta agregada: un día UTC y cuántas filas cayeron en él. */
+type FilaDia = { dia: string; n: number | bigint };
+
+/**
+ * RENDIMIENTO EN EL TIEMPO: participaciones (`Submission.createdAt`) y votos (`Vote.createdAt`) de
+ * UN reto, contados por día UTC dentro de su ventana [startsAt, closedAt ?? min(ahora, deadline)].
+ *
+ *  - ACTIVIDAD REGISTRADA: cuenta todo lo que ocurrió, también lo que después se retiró —el voto se
+ *    emitió ese día aunque la participación ya no se vea—. Por eso la serie de votos puede sumar más
+ *    que la tarjeta "Votos", que es solo de las visibles; la vista lo dice.
+ *  - UNA consulta AGREGADA por serie (GROUP BY día), sin traer filas ni una consulta por día.
+ *  - ACOTADAS AL RETO por índice y sin migración: las participaciones por el prefijo `challengeId`
+ *    de [challengeId, voteCount]; los votos, por [submissionId] a través de las participaciones del
+ *    reto. `Vote.challengeId` no encabeza ningún índice (solo es la segunda mitad del UNIQUE
+ *    [userId, challengeId]): filtrar por él recorrería la tabla entera. Es equivalente, porque un voto
+ *    solo puede apuntar a participaciones de su propio reto.
+ *  - DÍA UTC con `DATE_FORMAT` sobre el DATETIME tal cual: las columnas se guardan en UTC (la
+ *    conexión va con `timezone: "Z"`) y DATETIME no se convierte según la zona de la sesión. Las dos
+ *    series se cortan igual, y el resultado es texto: el driver no puede reinterpretarlo.
+ *
+ * `null` si el reto no existe.
+ */
+export async function serieDiariaReto(
+  db: Db,
+  challengeId: string,
+  now: Date = new Date(),
+): Promise<SerieReto | null> {
+  const reto = await db.challenge.findUnique({
+    where: { id: challengeId },
+    select: { startsAt: true, deadline: true, closedAt: true },
+  });
+  if (!reto) return null;
+
+  const desde = reto.startsAt;
+  const hasta = reto.closedAt ?? new Date(Math.min(now.getTime(), reto.deadline.getTime()));
+  const dias = diasUtcEntre(desde, hasta);
+  if (dias.length === 0) {
+    return { desde, hasta, dias: [], total: { participaciones: 0, votos: 0 } };
+  }
+
+  const [porDiaParticipaciones, porDiaVotos] = await Promise.all([
+    db.$queryRaw<FilaDia[]>(Prisma.sql`
+      SELECT DATE_FORMAT(s.\`createdAt\`, '%Y-%m-%d') AS dia, COUNT(*) AS n
+      FROM \`Submission\` s
+      WHERE s.\`challengeId\` = ${challengeId}
+        AND s.\`createdAt\` >= ${desde} AND s.\`createdAt\` <= ${hasta}
+      GROUP BY dia`),
+    db.$queryRaw<FilaDia[]>(Prisma.sql`
+      SELECT DATE_FORMAT(v.\`createdAt\`, '%Y-%m-%d') AS dia, COUNT(*) AS n
+      FROM \`Vote\` v
+      WHERE v.\`submissionId\` IN (
+          SELECT s.\`id\` FROM \`Submission\` s WHERE s.\`challengeId\` = ${challengeId}
+        )
+        AND v.\`createdAt\` >= ${desde} AND v.\`createdAt\` <= ${hasta}
+      GROUP BY dia`),
+  ]);
+
+  const aMapa = (filas: FilaDia[]) => new Map(filas.map((f) => [f.dia, Number(f.n)]));
+  const serie = rellenarSerie(dias, aMapa(porDiaParticipaciones), aMapa(porDiaVotos));
+
+  return {
+    desde,
+    hasta,
+    dias: serie,
+    total: {
+      participaciones: serie.reduce((s, d) => s + d.participaciones, 0),
+      votos: serie.reduce((s, d) => s + d.votos, 0),
+    },
+  };
 }
