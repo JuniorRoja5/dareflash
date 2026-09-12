@@ -59,8 +59,9 @@ export const SECCIONES_PANEL: SeccionPanel[] = [
   {
     href: "/panel/notificaciones",
     label: "Notificaciones",
-    descripcion: "Enviar y revisar las notificaciones a los usuarios.",
-    fase: 4,
+    descripcion:
+      "Enviar anuncios a los usuarios, seguir su reparto e inspeccionar las notificaciones emitidas.",
+    fase: null,
   },
 ];
 

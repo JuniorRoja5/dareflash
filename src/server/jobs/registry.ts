@@ -15,15 +15,22 @@
  */
 import { z } from "zod";
 
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import type { JobModel } from "@/generated/prisma/models";
 import type { EmailAdapter, EmailMessage } from "@/server/email/adapter";
+import { encolarTramo, repartirAnuncio } from "@/server/services/anuncios";
 import type { ClienteBunny, ConfigBunny } from "@/server/services/bunny";
 
 export type PoliticaReaper = "FAIL" | "REQUEUE";
 
 /** Payload del job BUNNY_DELETE_VIDEO: solo el GUID del objeto en Bunny (no dato personal). */
 const BunnyDeletePayloadSchema = z.object({ bunnyVideoId: z.string().min(1) });
+
+/** Payload del job FANOUT_ANUNCIO: el anuncio y, en las continuaciones, el cursor del tramo. */
+const FanoutPayloadSchema = z.object({
+  announcementId: z.string().min(1),
+  desde: z.string().min(1).optional(),
+});
 
 export interface DefTipoJob {
   /** Ejecuta el trabajo. Lanza en fallo. */
@@ -45,6 +52,8 @@ export interface DefTipoJob {
 export type Registro = Record<string, DefTipoJob>;
 
 export interface DepsRegistro {
+  /** La BD, para los jobs que escriben en ella (el reparto de anuncios). */
+  db: PrismaClient;
   emailAdapter: EmailAdapter;
   /** Cliente de Bunny + su config (libraryId/apiKey) para el borrado del objeto por la cola. */
   bunny: { cliente: ClienteBunny; config: ConfigBunny };
@@ -91,6 +100,31 @@ export function construirRegistro(deps: DepsRegistro): Registro {
       resumenFallo(job) {
         const p = BunnyDeletePayloadSchema.safeParse(job.payload);
         return p.success ? { bunnyVideoId: p.data.bunnyVideoId } : null;
+      },
+    },
+
+    /**
+     * Reparte un anuncio del panel: un TRAMO de la audiencia por keyset, con INSERT IGNORE de los avisos
+     * sobre la UNIQUE de Notification. REQUEUE, al contrario que SEND_EMAIL: esto escribe en NUESTRA BD
+     * y es idempotente de verdad, así que reintentar (o reanudar tras una caída) es seguro y deseable —
+     * quien ya lo tenía no recibe otro—. Si queda audiencia, encola el tramo siguiente con su cursor.
+     */
+    FANOUT_ANUNCIO: {
+      reaper: "REQUEUE",
+      async handler(job) {
+        const { announcementId, desde } = FanoutPayloadSchema.parse(job.payload);
+        const tramo = await repartirAnuncio(deps.db, announcementId, desde ?? null);
+        if (tramo.siguiente) await encolarTramo(deps.db, announcementId, tramo.siguiente);
+      },
+      // Si acaba en FAILED, conserva a qué anuncio y a qué tramo afectaba (ids internos, no personales).
+      resumenFallo(job) {
+        const p = FanoutPayloadSchema.safeParse(job.payload);
+        return p.success
+          ? {
+              announcementId: p.data.announcementId,
+              ...(p.data.desde ? { desde: p.data.desde } : {}),
+            }
+          : null;
       },
     },
   };

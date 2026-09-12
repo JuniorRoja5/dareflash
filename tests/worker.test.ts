@@ -49,6 +49,7 @@ function fakeAdapter(opts: { fail?: boolean } = {}): EmailAdapter & { sent: Emai
 function registroFake(adapter: EmailAdapter): Registro {
   return {
     ...construirRegistro({
+      db: prisma,
       emailAdapter: adapter,
       // Bunny no se ejercita en estas pruebas (solo SEND_EMAIL/reaper): stub inerte que cumple el tipo.
       bunny: {

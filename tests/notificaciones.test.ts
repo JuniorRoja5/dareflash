@@ -14,6 +14,7 @@ import { NOTIF_NO_LEIDAS_TOPE, TipoNotificacionSchema } from "../src/config/cons
 import type { PrismaClient } from "../src/generated/prisma/client";
 import {
   AvisoSchema,
+  avisoAnuncio,
   avisoGanasteReto,
   avisoSubisteNivel,
   avisoTop20,
@@ -57,7 +58,10 @@ const UNO_DE_CADA: Aviso[] = [
   avisoGanasteReto({ challengeId: "c1", reto: RETO, puntos: 30 }),
   avisoTop20({ challengeId: "c1", reto: RETO, puntos: 10 }),
   avisoSubisteNivel("challenger"),
+  avisoAnuncio("a1"),
 ];
+/** El texto de los anuncios vive en `Announcement`: se une por refId al pintar. */
+const TEXTOS_ANUNCIO = new Map([["a1", "Mantenimiento programado el sábado por la mañana."]]);
 
 describe("emitir es insertar-si-no-está", () => {
   it("el mismo hecho dos veces deja UNA fila", async () => {
@@ -115,9 +119,33 @@ describe("la unión de tipos", () => {
     expect(UNO_DE_CADA.map((a) => a.tipo).sort()).toEqual(deAviso);
   });
 
+  it("la unión añade EXACTAMENTE un tipo para los anuncios, y rechaza lo no listado", () => {
+    expect([...TipoNotificacionSchema.options].sort()).toEqual(
+      [
+        "ANUNCIO",
+        "GANASTE_RETO",
+        "SUBISTE_NIVEL",
+        "TOP20",
+        "VIDEO_FALLIDO",
+        "VIDEO_LISTO",
+        "VOTO_RECIBIDO",
+      ].sort(),
+    );
+    const inventado = { tipo: "COMENTARIO_RECIBIDO", refType: "ANUNCIO", refId: "x", datos: {} };
+    expect(AvisoSchema.safeParse(inventado).success).toBe(false);
+  });
+
+  it("un ANUNCIO lleva datos VACÍOS (el texto no se copia) y sin su texto unido no se pinta", () => {
+    expect(avisoAnuncio("a1").datos).toEqual({});
+    expect(textoAviso(avisoAnuncio("a1"))).toBeNull();
+    expect(textoAviso(avisoAnuncio("a1"), { anuncios: TEXTOS_ANUNCIO })?.es).toBe(
+      TEXTOS_ANUNCIO.get("a1"),
+    );
+  });
+
   it("cada tipo tiene texto ES y EN humano, sin códigos técnicos, y un enlace local", () => {
     for (const a of UNO_DE_CADA) {
-      const t = textoAviso(a);
+      const t = textoAviso(a, { anuncios: TEXTOS_ANUNCIO });
       expect(t, a.tipo).not.toBeNull();
       expect(t!.es.length).toBeGreaterThan(10);
       expect(t!.en.length).toBeGreaterThan(10);

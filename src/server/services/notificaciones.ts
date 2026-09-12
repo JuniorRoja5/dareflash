@@ -125,11 +125,13 @@ export async function listarNotificaciones(
 
   const hayMas = filas.length > limite;
   const pagina = hayMas ? filas.slice(0, limite) : filas;
+  // Los ANUNCIOS se pintan con el texto de su `Announcement`, unido por refId: UNA consulta por página.
+  const anuncios = await textosDeAnuncios(db, pagina);
 
   const items: NotificacionVista[] = [];
   for (const f of pagina) {
     // Una fila que no valida (de otra versión, o manipulada) se OMITE: mejor un hueco que un texto roto.
-    const t = textoAviso(f);
+    const t = textoAviso(f, { anuncios });
     if (!t) continue;
     items.push({
       id: f.id,
@@ -151,6 +153,27 @@ export async function listarNotificaciones(
         ? codificarCursor({ creadoMs: ultima.createdAt.getTime(), id: ultima.id })
         : null,
   };
+}
+
+/**
+ * Texto de los ANUNCIOS de un lote de avisos, por id del anuncio: UNA consulta para todo el lote. El
+ * texto vive en `Announcement` y no se copia en cada aviso; lo usan la bandeja y el inspector del panel.
+ */
+export async function textosDeAnuncios(
+  db: Db,
+  filas: ReadonlyArray<{ tipo: string; refType: string; refId: string }>,
+): Promise<Map<string, string>> {
+  const ids = [
+    ...new Set(
+      filas.filter((f) => f.tipo === "ANUNCIO" && f.refType === "ANUNCIO").map((f) => f.refId),
+    ),
+  ];
+  if (ids.length === 0) return new Map();
+  const anuncios = await db.announcement.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, texto: true },
+  });
+  return new Map(anuncios.map((a) => [a.id, a.texto]));
 }
 
 /**

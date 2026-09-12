@@ -52,6 +52,8 @@ async function main(): Promise<void> {
 
   const emailAdapter = await getEmailAdapter();
   const registro = construirRegistro({
+    // La BD para los jobs que escriben en ella (FANOUT_ANUNCIO).
+    db: prisma,
     emailAdapter,
     // Borrado del objeto en Bunny por la cola (job BUNNY_DELETE_VIDEO): mismo cliente/credenciales
     // que confirm/reconciliacion (API key solo en servidor).

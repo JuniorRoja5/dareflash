@@ -73,6 +73,14 @@ export const AvisoSchema = z.discriminatedUnion("tipo", [
     refId: z.enum(ClavesNivel),
     datos: z.object({}).strict(),
   }),
+  z.object({
+    tipo: z.literal("ANUNCIO"),
+    refType: z.literal("ANUNCIO"),
+    refId: Id,
+    // VACÍO a propósito: el texto vive en `Announcement` y se une por refId al leer. Copiarlo aquí
+    // serían miles de copias de lo mismo, una por destinatario.
+    datos: z.object({}).strict(),
+  }),
 ]);
 export type Aviso = z.infer<typeof AvisoSchema>;
 
@@ -140,6 +148,14 @@ export function avisoSubisteNivel(clave: ClaveNivel): Aviso {
   return { tipo: "SUBISTE_NIVEL", refType: "NIVEL", refId: clave, datos: {} };
 }
 
+/**
+ * Un anuncio del admin. La clave es el ANUNCIO: cada cuenta lo recibe una vez, por muchas veces que se
+ * re-ejecute o se reanude su reparto. Sin texto: se une por refId al leer (ver `Announcement`).
+ */
+export function avisoAnuncio(announcementId: string): Aviso {
+  return { tipo: "ANUNCIO", refType: "ANUNCIO", refId: announcementId, datos: {} };
+}
+
 // ---------------------------------------------------------------------------------------------------
 // COPY: lo que dice cada aviso, ES y EN, y adónde lleva. Fuente única: la UI no escribe literales.
 // ---------------------------------------------------------------------------------------------------
@@ -184,12 +200,15 @@ function textoFallo(motivo: VideoFailureReason): { es: string; en: string } {
  * verdad —no se publicará—. Los premios en DINERO no se nombran: su pago no existe todavía, y "has
  * ganado 50 €" sería una promesa. Los puntos sí, porque se otorgan en el mismo cierre que emite el aviso.
  */
-export function textoAviso(fila: {
-  tipo: string;
-  refType: string;
-  refId: string;
-  datos: unknown;
-}): TextoAviso | null {
+export function textoAviso(
+  fila: {
+    tipo: string;
+    refType: string;
+    refId: string;
+    datos: unknown;
+  },
+  contexto: ContextoTexto = {},
+): TextoAviso | null {
   const r = AvisoSchema.safeParse(fila);
   if (!r.success) return null;
   const a = r.data;
@@ -228,7 +247,21 @@ export function textoAviso(fila: {
         href: "/perfil",
       };
     }
+    case "ANUNCIO": {
+      // El texto del admin, UNIDO por refId. Si no llegó (un anuncio que no existe), se omite como
+      // cualquier fila que no se sabe pintar: mejor un hueco que un aviso vacío.
+      const texto = contexto.anuncios?.get(a.refId);
+      if (!texto) return null;
+      // Un solo texto: el admin escribe en un idioma y no hay traducción que inventar. Lleva a la
+      // bandeja, donde se lee entero; no hay (ni se promete) una pantalla propia del anuncio.
+      return { es: texto, en: texto, href: "/notificaciones" };
+    }
   }
+}
+
+/** Lo que un aviso necesita de FUERA de su fila para pintarse: hoy, el texto de los anuncios por id. */
+export interface ContextoTexto {
+  anuncios?: ReadonlyMap<string, string>;
 }
 
 /**

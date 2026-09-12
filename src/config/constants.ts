@@ -647,11 +647,13 @@ export const TipoNotificacionSchema = z.enum([
   "GANASTE_RETO",
   "TOP20",
   "SUBISTE_NIVEL",
+  // Anuncio del admin (panel). El texto NO va en el aviso: vive en `Announcement` y se une por refId.
+  "ANUNCIO",
 ]);
 export type TipoNotificacion = z.infer<typeof TipoNotificacionSchema>;
 
 /** A qué apunta un aviso: la mitad de su clave de unicidad (userId, tipo, refType, refId). */
-export const RefNotificacionSchema = z.enum(["VIDEO", "VOTO", "CHALLENGE", "NIVEL"]);
+export const RefNotificacionSchema = z.enum(["VIDEO", "VOTO", "CHALLENGE", "NIVEL", "ANUNCIO"]);
 export type RefNotificacion = z.infer<typeof RefNotificacionSchema>;
 
 /** Avisos que enseña el desplegable de la campana (decisión de producto). */
@@ -677,6 +679,26 @@ export const NOTIF_SONDEO_MIN_ENTRE_MS = 10_000;
  * por keyset) es la tabla de participaciones de la misma pantalla.
  */
 export const PANEL_INTERACCION_TOPE = 8;
+
+/**
+ * ANUNCIOS del panel. Su texto es el ÚNICO texto libre del sistema de avisos: vive en `Announcement`
+ * y cada aviso lo une por su refId al leer (no se copia en cada fila).
+ */
+export const ANUNCIO_TEXTO_MIN = 3;
+export const ANUNCIO_TEXTO_MAX = 500;
+/** A quién va un anuncio. Hoy solo TODOS (cuentas reales: ni borradas ni baneadas). Crece con la segmentación. */
+export const AudienciaAnuncioSchema = z.enum(["TODOS"]);
+export type AudienciaAnuncio = z.infer<typeof AudienciaAnuncioSchema>;
+/**
+ * REPARTO (job FANOUT_ANUNCIO): cuentas por lote (un SELECT por keyset + un INSERT IGNORE del lote) y
+ * lotes por ejecución del job. 500 x 20 = 10.000 avisos por ejecución, muy por dentro del timeout de
+ * un handler (60 s); si queda audiencia, el job encola su continuación con el cursor.
+ */
+export const FANOUT_LOTE = 500;
+export const FANOUT_LOTES_POR_EJECUCION = 20;
+/** Páginas del panel de notificaciones (keyset): anuncios enviados e inspector. */
+export const ANUNCIOS_PAGINA = 10;
+export const INSPECTOR_NOTIF_PAGINA = 25;
 
 /**
  * Cada cuanto barre el worker los retos vencidos sin cerrar. Un reto se cierra por el RELOJ, asi que
@@ -733,6 +755,9 @@ export const JobTypeSchema = z.enum([
   // Borrado del objeto en Bunny cuando el DUEÑO borra su video. Va por la COLA (no inline) para no
   // dejar el objeto huerfano si Bunny falla: idempotente (404 = ya no existe = exito) y reintentable.
   "BUNNY_DELETE_VIDEO",
+  // Reparto de un anuncio del panel: INSERT IGNORE por lotes sobre la UNIQUE de Notification. Escribe
+  // en NUESTRA BD y es idempotente de verdad -> REQUEUE. Se reanuda por tramos, con el cursor en el payload.
+  "FANOUT_ANUNCIO",
 ]);
 export type JobType = z.infer<typeof JobTypeSchema>;
 

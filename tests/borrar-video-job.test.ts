@@ -23,6 +23,7 @@ const adapterInerte: EmailAdapter = { name: "inerte", async send() {} };
 /** deleteVideo controlable; el resto del cliente es inerte (no se usa en este job). */
 function registroCon(deleteVideo: (input: { videoId: string }) => Promise<void>) {
   return construirRegistro({
+    db: prisma,
     emailAdapter: adapterInerte,
     bunny: {
       cliente: {

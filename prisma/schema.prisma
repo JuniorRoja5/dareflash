@@ -837,4 +837,33 @@ model Notification {
   @@index([userId, createdAt, id])
   /// El contador de no-leídas: `WHERE userId = ? AND leidaEn IS NULL`, sin tocar las leídas.
   @@index([userId, leidaEn])
+  /// El PROGRESO de un anuncio: COUNT de sus avisos (`refType = 'ANUNCIO' AND refId IN (...)`). Sin él,
+  /// contar los avisos de un anuncio recorrería la tabla entera: el UNIQUE lleva `refId` al final.
+  @@index([refType, refId])
+  /// El INSPECTOR del panel (todas las cuentas): keyset `(createdAt, id)` DESC sin filtrar por usuario.
+  @@index([createdAt, id])
+}
+
+/// ANUNCIO del admin a los usuarios (panel, Fase 4). FUENTE ÚNICA de su contenido: `texto` es el único
+/// texto libre del sistema de avisos, y cada Notification ANUNCIO lo une por `refId` al leer, sin
+/// copiarlo. Enviar = crear esta fila + encolar UN job FANOUT_ANUNCIO, en la MISMA transacción; el
+/// reparto va en segundo plano, jamás en la petición.
+///
+/// `targetCount` es la FOTO del tamaño de la audiencia al enviar: el denominador del progreso
+/// ("1.240 / 1.250 entregados"). La audiencia del reparto son las cuentas que existían en `createdAt`
+/// (las posteriores no cuentan ni reciben), así que numerador y denominador miden lo mismo.
+///
+/// `idempotencyKey`: la del ENVÍO, una por intención del admin: un doble clic no crea dos anuncios.
+/// `createdBy` sin FK, como los ledgers: el anuncio es un registro y no se va con la cuenta del admin.
+model Announcement {
+  id             String   @id @default(cuid())
+  texto          String   @db.VarChar(500)
+  audiencia      String   @default("TODOS") // TODOS (union en constants: AudienciaAnuncioSchema)
+  targetCount    Int
+  createdBy      String
+  idempotencyKey String   @unique
+  createdAt      DateTime @default(now())
+
+  /// Lista de anuncios del panel, por keyset (createdAt, id) DESC.
+  @@index([createdAt, id])
 }

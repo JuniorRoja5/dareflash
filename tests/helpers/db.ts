@@ -60,6 +60,7 @@ export function nombreBdWorker(): string {
  */
 export const DELETE_ORDER = [
   "Notification",
+  "Announcement",
   "Vote",
   "RankingMensual",
   "ChallengeResult",
