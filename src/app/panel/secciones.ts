@@ -52,8 +52,9 @@ export const SECCIONES_PANEL: SeccionPanel[] = [
   {
     href: "/panel/ranking",
     label: "DareUp y ranking",
-    descripcion: "Ver y ajustar la puntuación de juego (DareUp) y el ranking mensual.",
-    fase: 4,
+    descripcion:
+      "Ver el ranking del mes, inspeccionar los puntos de un usuario y ajustarlos con un motivo.",
+    fase: null,
   },
   {
     href: "/panel/notificaciones",

@@ -159,6 +159,8 @@ export interface PointsInput {
   idempotencyKey: string;
   /** id explicito del movimiento (opcional; util para operaciones deterministas). */
   movementId?: string;
+  /** El POR QUE, cuando lo escribe una persona (ajuste manual del admin). Queda en la fila: es la traza. */
+  nota?: string;
 }
 
 export function applyPoints(
@@ -189,6 +191,7 @@ export function applyPoints(
               refType: input.refType ?? null,
               refId: input.refId ?? null,
               idempotencyKey: input.idempotencyKey,
+              nota: input.nota ?? null,
             },
           })
           .then(() => undefined),

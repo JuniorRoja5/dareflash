@@ -58,23 +58,23 @@ model User {
   // utf8mb4_unicode_ci, asi que estos UNIQUE colisionan "Junior" con "junior" y
   // "A@x.com" con "a@x.com". Es lo deseable para handles y correos (evita
   // suplantaciones por diferencia de mayusculas). Se asume y se deja escrito.
-  email         String?   @unique // opcional a nivel Auth.js; en registro propio se exige
-  emailVerified DateTime? // Auth.js: fecha de verificacion. Sin esto no hay acciones con efectos.
+  email          String?   @unique // opcional a nivel Auth.js; en registro propio se exige
+  emailVerified  DateTime? // Auth.js: fecha de verificacion. Sin esto no hay acciones con efectos.
   /// Direccion NUEVA pedida por el usuario y aun SIN confirmar. Vive aparte de `email` a proposito:
   /// hasta que no se demuestra que la controla, la cuenta sigue mandando a la direccion vieja. Sin
   /// esta separacion, pedir un cambio bastaria para apoderarse de una cuenta desde una sesion robada.
   /// SIN unique: dos personas pueden PEDIR la misma; la carrera la resuelve la confirmacion.
   emailPendiente String?
-  username      String    @unique // handle publico, SIEMPRE presente (auto-generado; ver server/auth/handle.ts)
-  displayName   String?
-  image         String? // avatar (URL)
-  bio           String?   @db.Text
+  username       String    @unique // handle publico, SIEMPRE presente (auto-generado; ver server/auth/handle.ts)
+  displayName    String?
+  image          String? // avatar (URL)
+  bio            String?   @db.Text
   // Enlaces de perfil v1. `website` es una URL http/https libre (se pinta con rel="nofollow noopener").
   // `instagram`/`youtube` guardan el HANDLE, no una URL: evita que alguien meta un enlace malicioso
   // disfrazado de red social; el frontend construye la URL a partir del handle (validado en servidor).
-  website       String?
-  instagram     String? // handle de Instagram (sin @, sin URL)
-  youtube       String? // handle de YouTube (con o sin @, sin URL)
+  website        String?
+  instagram      String? // handle de Instagram (sin @, sin URL)
+  youtube        String? // handle de YouTube (con o sin @, sin URL)
 
   // --- Credenciales propias (email/contrasena). OAuth va por Account. ---
   passwordHash String? @db.Text // Argon2id. Null si el usuario solo usa OAuth.
@@ -146,11 +146,11 @@ model User {
   // Relaciones con FK (datos propios del usuario). Los ledgers/votos/auditoria/boost
   // NO llevan FK a proposito (ver su comentario): deben sobrevivir "desvinculados"
   // a la anonimizacion o a un borrado duro del usuario.
-  accounts    Account[]
-  sessions    Session[]
-  videos      Video[]
-  challenges  Challenge[]  @relation("ChallengeCreatedBy")
-  submissions Submission[]
+  accounts       Account[]
+  sessions       Session[]
+  videos         Video[]
+  challenges     Challenge[]    @relation("ChallengeCreatedBy")
+  submissions    Submission[]
   // Avisos del usuario: CON FK y Cascade (dato personal, no material contable). Ver Notification.
   notificaciones Notification[]
 
@@ -192,7 +192,7 @@ model Session {
   /// distinta de `expires` (el tope absoluto): una sesion abandonada en un ordenador ajeno seguia
   /// valiendo semanas aunque nadie la tocara. Se refresca de forma AMORTIGUADA (ver
   /// SESION_REFRESCO_MIN_MS): escribir en cada peticion multiplicaria por N las escrituras.
-  lastSeenAt   DateTime @default(now())
+  lastSeenAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -209,7 +209,7 @@ model VerificationToken {
   /// encontrar el token: asi un token de verificacion no puede desbloquear una cuenta ni al reves
   /// (imposible por construccion, no una regla que alguien pueda saltarse). Default para las filas
   /// existentes al migrar. Union validada con Zod en constants (VerificationPurposeSchema).
-  purpose String @default("EMAIL_VERIFY")
+  purpose    String   @default("EMAIL_VERIFY")
 
   @@unique([identifier, token])
 }
@@ -221,11 +221,11 @@ model VerificationToken {
 /// Un video subido a Bunny.net. Nunca pasan bytes por nuestro servidor: solo
 /// guardamos el id de Bunny y metadatos.
 model Video {
-  id           String           @id @default(cuid())
-  userId       String
-  bunnyVideoId String           @unique // referencia en Bunny
-  status       ModerationStatus @default(PENDING)
-  durationSec  Int? // duracion validada EN SERVIDOR al confirmar (nunca fiarse del cliente)
+  id            String           @id @default(cuid())
+  userId        String
+  bunnyVideoId  String           @unique // referencia en Bunny
+  status        ModerationStatus @default(PENDING)
+  durationSec   Int? // duracion validada EN SERVIDOR al confirmar (nunca fiarse del cliente)
   // Motivo cuando status=FAILED. String tipado con Zod (VideoFailureReasonSchema), no enum de
   // Prisma: TRANSCODE_ERROR | TOO_LONG. Distingue el fallo tecnico de la sobreduracion.
   failureReason String?
@@ -259,8 +259,8 @@ model Video {
   // un reemplazo abandonado se recupera por el worker.
   reemplazaSubmissionId String?
 
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user       User        @relation(fields: [userId], references: [id], onDelete: Restrict)
   submission Submission? // un video se usa en como mucho una submission
@@ -585,12 +585,19 @@ model PointsLedger {
   userId         String
   delta          Int // +/- puntos
   reason         String // WIN_CHALLENGE, INVITE_FRIEND, TOP20... (union en constants)
-  refType        String? // CHALLENGE, SUBMISSION...
+  refType        String? // CHALLENGE, SUBMISSION, ADMIN...
   refId          String?
   idempotencyKey String   @unique
+  /// El POR QUÉ del movimiento, cuando lo escribe una persona: la nota OBLIGATORIA del ajuste manual
+  /// del admin (reason ADMIN_AJUSTE, refType ADMIN, refId = quien). NULL en los automaticos (cierre,
+  /// hito), que ya se explican por su reason y su ref. Va EN la fila porque no hay AuditLog hasta la
+  /// Fase 7: la fila de ledger ES la traza. NULL = sin backfill: nada anterior tenia nota.
+  nota           String?  @db.VarChar(500)
   createdAt      DateTime @default(now())
 
-  @@index([userId])
+  /// Historial por usuario en el panel, por KEYSET (createdAt DESC, id DESC) en una sola pasada del
+  /// indice. Sustituye al [userId] suelto: lo cubre como prefijo.
+  @@index([userId, createdAt, id])
   @@index([refType, refId])
 }
 

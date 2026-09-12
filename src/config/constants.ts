@@ -282,6 +282,22 @@ export const VIDEOS_POR_HITO = 3;
 export const RAZON_HITO_VIDEOS = "VIDEOS_PUBLICADOS";
 
 /**
+ * AJUSTE MANUAL de puntos desde el panel (DareUp): razon de su fila de ledger. Va con refType "ADMIN",
+ * refId = el admin que lo hizo y una nota obligatoria (el por que). Ver `dareup-admin.ts`.
+ */
+export const RAZON_AJUSTE_ADMIN = "ADMIN_AJUSTE";
+/** Largo de la nota del ajuste: lo bastante para que diga algo; el tope es la columna (VarChar 500). */
+export const AJUSTE_NOTA_MIN = 5;
+export const AJUSTE_NOTA_MAX = 500;
+/**
+ * Tope de UN ajuste, en cualquier sentido. Un cero de mas tecleado por error no puede llevar a nadie
+ * de Rookie a Legend de golpe; si de verdad hiciera falta mas, son dos ajustes, con su motivo cada uno.
+ */
+export const AJUSTE_DELTA_MAX = 5_000;
+/** Movimientos por pagina en el historial de puntos del inspector (keyset). */
+export const DAREUP_HISTORIAL_PAGINA = 20;
+
+/**
  * Las 14 categorias de reto (documento maestro; sin "Deportes"). `key` es el
  * identificador ESTABLE que se guarda en Challenge.category; `emoji` y `es` son
  * presentacion. Las etiquetas en ingles llegan con el multiidioma (Fase 11).
