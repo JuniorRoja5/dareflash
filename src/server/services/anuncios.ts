@@ -277,19 +277,23 @@ export interface PaginaAnuncios {
  * Anuncios enviados, más nuevos primero, por keyset. El PROGRESO es el COUNT de sus avisos (índice
  * [refType, refId]) sobre `targetCount`. Cuatro consultas por página, haya los anuncios que haya:
  * la página, los recuentos, los autores y los tramos pendientes.
+ *
+ * Con `ids`, en vez de una página: el progreso de ESOS anuncios (el refresco en vivo de los que se
+ * están repartiendo), con las mismas cuatro consultas y sin página siguiente.
  */
 export async function listarAnuncios(
   db: Db,
-  opciones: { cursor?: string | null; limite?: number } = {},
+  opciones: { cursor?: string | null; limite?: number; ids?: readonly string[] } = {},
 ): Promise<PaginaAnuncios> {
   const limite = Math.min(Math.max(opciones.limite ?? ANUNCIOS_PAGINA, 1), 50);
+  const soloIds = opciones.ids ? [...new Set(opciones.ids)].slice(0, 50) : null;
   const filas = await db.announcement.findMany({
-    where: despuesDe(leerCursor(opciones.cursor)),
+    where: soloIds ? { id: { in: soloIds } } : despuesDe(leerCursor(opciones.cursor)),
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: limite + 1,
+    take: soloIds ? soloIds.length : limite + 1,
     select: { id: true, texto: true, createdAt: true, createdBy: true, targetCount: true },
   });
-  const pagina = filas.slice(0, limite);
+  const pagina = soloIds ? filas : filas.slice(0, limite);
   if (pagina.length === 0) return { items: [], nextCursor: null };
   const ids = pagina.map((a) => a.id);
 
@@ -344,7 +348,9 @@ export async function listarAnuncios(
   return {
     items,
     nextCursor:
-      filas.length > limite ? codificarCursor(ultima.createdAt.getTime(), ultima.id) : null,
+      !soloIds && filas.length > limite
+        ? codificarCursor(ultima.createdAt.getTime(), ultima.id)
+        : null,
   };
 }
 

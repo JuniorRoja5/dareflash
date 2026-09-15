@@ -114,6 +114,35 @@ describe("GET /api/panel/anuncios (revisar)", () => {
   });
 });
 
+describe("GET /api/panel/anuncios?ids= (progreso en vivo)", () => {
+  it("ADMIN -> 200 con el progreso de ESOS anuncios, por `listarAnuncios`", async () => {
+    mocks.getCurrentUser.mockResolvedValue(ADMIN);
+    const res = await LISTAR(new Request("http://test.local/api/panel/anuncios?ids=an1,an2"));
+    expect(res.status).toBe(200);
+    expect(mocks.listarAnuncios).toHaveBeenCalledWith(expect.anything(), { ids: ["an1", "an2"] });
+  });
+
+  it("ids vacíos, raros o más de una página -> 400 y no lee", async () => {
+    mocks.getCurrentUser.mockResolvedValue(ADMIN);
+    const muchos = Array.from({ length: 11 }, (_, i) => `an${i}`).join(",");
+    for (const ids of ["", "an1,", "an1;DROP", muchos]) {
+      const res = await LISTAR(
+        new Request(`http://test.local/api/panel/anuncios?ids=${encodeURIComponent(ids)}`),
+      );
+      expect(res.status, ids).toBe(400);
+    }
+    expect(mocks.listarAnuncios).not.toHaveBeenCalled();
+  });
+
+  it("USER -> 403 y no lee: el sondeo es del admin", async () => {
+    mocks.getCurrentUser.mockResolvedValue(USER);
+    expect((await LISTAR(new Request("http://test.local/api/panel/anuncios?ids=an1"))).status).toBe(
+      403,
+    );
+    expect(mocks.listarAnuncios).not.toHaveBeenCalled();
+  });
+});
+
 describe("GET /api/panel/notificaciones (inspector)", () => {
   it("ADMIN -> 200, con los filtros validados (lo inventado se ignora) y el cursor", async () => {
     mocks.getCurrentUser.mockResolvedValue(ADMIN);

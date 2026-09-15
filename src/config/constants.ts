@@ -698,6 +698,14 @@ export const FANOUT_LOTE = 500;
 export const FANOUT_LOTES_POR_EJECUCION = 20;
 /** Páginas del panel de notificaciones (keyset): anuncios enviados e inspector. */
 export const ANUNCIOS_PAGINA = 10;
+/**
+ * Refresco del PROGRESO de los anuncios que se están REPARTIENDO (panel), con la pestaña a la vista.
+ * Más ágil que el del número de avisos (60 s): aquí hay alguien mirando un reparto en marcha, y el
+ * sondeo se apaga solo en cuanto ninguno está repartiendo. Al volver a la pestaña, en el acto si han
+ * pasado al menos `ANUNCIOS_SONDEO_MIN_ENTRE_MS`.
+ */
+export const ANUNCIOS_SONDEO_MS = 10_000;
+export const ANUNCIOS_SONDEO_MIN_ENTRE_MS = 3_000;
 export const INSPECTOR_NOTIF_PAGINA = 25;
 
 /**

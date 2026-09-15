@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
 
+import { useSondeoVisible } from "@/components/usar-sondeo";
 import {
   NOTIF_NO_LEIDAS_TOPE,
   NOTIF_SONDEO_MIN_ENTRE_MS,
@@ -42,62 +43,21 @@ export function useNoLeidas(): EstadoAvisos {
 }
 
 /**
- * El SONDEO. Un intervalo que solo corre con la pestaña visible, más un recuento inmediato al volver.
- * `NOTIF_SONDEO_MIN_ENTRE_MS` evita contar dos veces cuando `focus` y `visibilitychange` llegan juntos.
- * Un 401 (la sesión caducó) apaga el sondeo: seguir preguntando no va a cambiar la respuesta.
+ * El SONDEO del número, con el patrón compartido (`useSondeoVisible`): cada `NOTIF_SONDEO_MS` con la
+ * pestaña visible, y en el acto al volver a ella. Solo CUENTA: nunca trae la lista ni marca nada.
  */
 function useSondeoNoLeidas(activo: boolean, fijar: (n: number) => void): void {
-  useEffect(() => {
-    if (!activo) return;
-    let vigente = true;
-    let apagado = false;
-    // El valor sembrado por el servidor es de AHORA: no hace falta repetirlo nada más cargar.
-    let ultimo = Date.now();
-    let intervalo: ReturnType<typeof setInterval> | null = null;
-
-    const parar = (): void => {
-      if (intervalo !== null) clearInterval(intervalo);
-      intervalo = null;
-    };
-    const contar = async (): Promise<void> => {
-      ultimo = Date.now();
-      try {
-        const r = await getJson<{ noLeidas?: number }>("/api/notificaciones/no-leidas");
-        if (!vigente) return;
-        if (r.status === 401) {
-          apagado = true;
-          parar();
-          return;
-        }
-        if (r.ok && typeof r.data.noLeidas === "number") fijar(r.data.noLeidas);
-      } catch {
-        /* sin red: el siguiente ciclo lo reintenta */
-      }
-    };
-    const arrancar = (): void => {
-      if (intervalo === null && !apagado)
-        intervalo = setInterval(() => void contar(), NOTIF_SONDEO_MS);
-    };
-    const alVolver = (): void => {
-      if (apagado || document.visibilityState !== "visible") return;
-      if (Date.now() - ultimo >= NOTIF_SONDEO_MIN_ENTRE_MS) void contar();
-      arrancar();
-    };
-    const alCambiarVisibilidad = (): void => {
-      if (document.visibilityState === "visible") alVolver();
-      else parar();
-    };
-
-    if (document.visibilityState === "visible") arrancar();
-    document.addEventListener("visibilitychange", alCambiarVisibilidad);
-    window.addEventListener("focus", alVolver);
-    return () => {
-      vigente = false;
-      parar();
-      document.removeEventListener("visibilitychange", alCambiarVisibilidad);
-      window.removeEventListener("focus", alVolver);
-    };
-  }, [activo, fijar]);
+  useSondeoVisible({
+    activo,
+    intervaloMs: NOTIF_SONDEO_MS,
+    minEntreMs: NOTIF_SONDEO_MIN_ENTRE_MS,
+    tarea: async () => {
+      const r = await getJson<{ noLeidas?: number }>("/api/notificaciones/no-leidas");
+      // Un 401 (la sesión caducó) apaga el sondeo: seguir preguntando no va a cambiar la respuesta.
+      if (r.status === 401) return false;
+      if (r.ok && typeof r.data.noLeidas === "number") fijar(r.data.noLeidas);
+    },
+  });
 }
 
 export function ProveedorAvisos({

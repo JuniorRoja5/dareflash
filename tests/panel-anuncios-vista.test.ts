@@ -55,6 +55,20 @@ describe("el inspector no filtra la clave del hecho", () => {
   });
 });
 
+describe("un solo sondeo para todo el panel y el badge", () => {
+  it("el progreso de los anuncios y el número de avisos usan el MISMO sondeo, sin copias", () => {
+    for (const f of [
+      ["src", "app", "panel", "notificaciones", "lista-anuncios.tsx"],
+      ["src", "app", "(app)", "avisos-contexto.tsx"],
+    ]) {
+      const codigo = soloCodigo(leer(...f));
+      expect(codigo, f.join("/")).toMatch(/useSondeoVisible\(/);
+      // Ni intervalos ni oyentes de visibilidad propios: las reglas viven en `usar-sondeo.ts`.
+      expect(codigo, f.join("/")).not.toMatch(/setInterval|visibilitychange/);
+    }
+  });
+});
+
 describe("/panel/notificaciones", () => {
   it("cada tipo de la unión tiene su nombre humano (ni uno más ni uno menos)", () => {
     expect(Object.keys(ETIQUETA_TIPO).sort()).toEqual([...TipoNotificacionSchema.options].sort());

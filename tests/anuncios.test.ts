@@ -339,6 +339,27 @@ describe("revisar los anuncios enviados", () => {
     expect(vistos).toEqual(esperado);
   });
 
+  it("con `ids`, el progreso de ESOS anuncios (lo que refresca el panel en vivo)", async () => {
+    await cuentas(2); // + el admin = 3
+    const a = await enviar("Primer anuncio del mes.");
+    const b = await enviar("Segundo anuncio del mes.");
+    await enviar("Tercer anuncio del mes.");
+    // El reparto de `a` avanza a medias: el COUNT dice 2 de 3.
+    const [u1, u2] = (await prisma.user.findMany({ select: { id: true } })).map((u) => u.id);
+    await emitirAviso(prisma, u1!, avisoAnuncio(a.id));
+    await emitirAviso(prisma, u2!, avisoAnuncio(a.id));
+
+    const p = await listarAnuncios(prisma, { ids: [a.id, b.id] });
+
+    expect(p.nextCursor).toBeNull();
+    expect(p.items.map((i) => i.id).sort()).toEqual([a.id, b.id].sort());
+    expect(p.items.find((i) => i.id === a.id)).toMatchObject({
+      entregadas: 2,
+      targetCount: 3,
+      estado: "repartiendo",
+    });
+  });
+
   it("sin anuncios: lista vacía", async () => {
     expect(await listarAnuncios(prisma)).toEqual({ items: [], nextCursor: null });
   });

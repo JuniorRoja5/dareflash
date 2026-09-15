@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ANUNCIO_TEXTO_MAX, ANUNCIO_TEXTO_MIN } from "@/config/constants";
+import { ANUNCIO_TEXTO_MAX, ANUNCIO_TEXTO_MIN, ANUNCIOS_PAGINA } from "@/config/constants";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, depsRuta } from "@/server/http/api";
 
@@ -51,11 +51,22 @@ export const POST = mutatingRoute(async (req, { prisma }) => {
   }
 });
 
-const QuerySchema = z.object({ cursor: z.string().min(1).max(300).optional() });
+/** Un id de anuncio (cuid): lo justo para no dejar pasar nada raro a la consulta. */
+const IdAnuncio = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/);
+
+const QuerySchema = z.object({
+  cursor: z.string().min(1).max(300).optional(),
+  /** Los anuncios YA pintados cuyo progreso se refresca. Tope: una página del panel. */
+  ids: z.array(IdAnuncio).min(1).max(ANUNCIOS_PAGINA).optional(),
+});
 
 /**
- * GET /api/panel/anuncios?cursor= — página siguiente de los anuncios enviados, con su progreso
- * (keyset). Lectura, pero del admin: su propio `requireRole("ADMIN")`.
+ * GET /api/panel/anuncios — los anuncios enviados con su PROGRESO (COUNT de sus avisos y estado), por
+ * `listarAnuncios`. Dos formas:
+ *  - `?cursor=`: la página siguiente (keyset), para "Ver más".
+ *  - `?ids=a,b,c`: el progreso de esos anuncios, para el refresco en vivo de los que se están
+ *    repartiendo. Mismas 4 consultas que una página, sin N+1.
+ * Es LECTURA pura: el sondeo no cambia nada. Pero es del admin: su propio `requireRole("ADMIN")`.
  */
 export async function GET(req: Request) {
   const { requireRole } = await import("@/server/auth/rbac");
@@ -66,11 +77,17 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
-  const q = QuerySchema.safeParse({ cursor: url.searchParams.get("cursor") ?? undefined });
+  const ids = url.searchParams.get("ids");
+  const q = QuerySchema.safeParse({
+    cursor: url.searchParams.get("cursor") ?? undefined,
+    ids: ids === null ? undefined : ids.split(","),
+  });
   if (!q.success) return apiError("INVALID_QUERY", "Petición no válida.", 400);
 
   const { prisma } = await depsRuta();
   const { listarAnuncios } = await import("@/server/services/anuncios");
-  const pagina = await listarAnuncios(prisma, { cursor: q.data.cursor ?? null });
+  const pagina = q.data.ids
+    ? await listarAnuncios(prisma, { ids: q.data.ids })
+    : await listarAnuncios(prisma, { cursor: q.data.cursor ?? null });
   return apiOk({ items: pagina.items, nextCursor: pagina.nextCursor });
 }
