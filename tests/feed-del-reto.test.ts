@@ -39,6 +39,7 @@ const PARTICIPACION = {
   retoId: "reto-1",
   retoAbierto: true,
   miVoto: "sub-1",
+  comentarios: 3,
 };
 const RETO = { titulo: "Reto de fitness", categoria: "Fitness" };
 const URLS = { src: "https://x/playlist.m3u8", poster: "https://x/thumb.jpg" };
@@ -54,6 +55,7 @@ describe("el ítem tiene la MISMA forma que el que pinta el feed", () => {
       retoTitulo: "Reto de fitness",
       categoria: "Fitness",
       votos: 42,
+      comentarios: 3,
       src: URLS.src,
       poster: URLS.poster,
       // Y el de la PARTICIPACIÓN va aparte: es de lo que hablan las rutas de voto y del gate.
@@ -210,11 +212,14 @@ describe("escritorio: sin números mágicos ni hueco muerto", () => {
     expect(soloCodigo(leer(FEED))).not.toMatch(/right-\[\d+px\]/);
   });
 
-  it("el panel de comentarios tiene DÓNDE escribir, y dice que aún no funciona", () => {
-    const src = leer(FEED);
-    expect(src).toContain("<input");
-    expect(src).toContain("disabled");
-    // CERO datos falsos: la caja no finge funcionar.
-    expect(src).toContain("Próximamente");
+  it("el panel de comentarios es REAL: la pieza compartida, sin maqueta ni 'Próximamente'", () => {
+    // Antes la caja iba deshabilitada con "Próximamente" y la lista era COMENTARIOS_FEED (inventada,
+    // la misma para todos los vídeos). Ahora escritorio y móvil montan `ComentariosVideo`.
+    const src = soloCodigo(leer(FEED));
+    expect(src.match(/<ComentariosVideo\b/g)?.length).toBe(2); // panel de escritorio + hoja de móvil
+    expect(src).not.toContain("COMENTARIOS_FEED");
+    expect(src).not.toContain("Próximamente");
+    // Y el contador de "Comentar" es el del vídeo, no un 0 fijo.
+    expect(src).toMatch(/label="Comentar"\s+valor=\{post\.comentarios\}/);
   });
 });

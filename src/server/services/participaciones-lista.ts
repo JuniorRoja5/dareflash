@@ -62,6 +62,8 @@ export interface ParticipacionVista extends ParticipacionBase {
    * Va en el payload para que el botón pinte bien EN LA CARGA y no tras el primer tap.
    */
   miVoto: string | null;
+  /** Comentarios visibles de su vídeo (Video.commentCount), para el feed del reto. */
+  comentarios: number;
 }
 
 /** Estado de MI participación en el reto (para el dueño): visible / procesando / fallida / retirada. */
@@ -179,7 +181,15 @@ export async function listarParticipacionesVisibles(
         id: true,
         voteCount: true,
         createdAt: true,
-        video: { select: { id: true, bunnyVideoId: true, thumbnailFileName: true, title: true } },
+        video: {
+          select: {
+            id: true,
+            bunnyVideoId: true,
+            thumbnailFileName: true,
+            title: true,
+            commentCount: true,
+          },
+        },
         user: { select: { username: true, displayName: true } },
       },
     }),
@@ -203,6 +213,7 @@ export async function listarParticipacionesVisibles(
     retoId: challengeId,
     retoAbierto: abierto,
     miVoto,
+    comentarios: f.video.commentCount,
   }));
 
   const ultima = visibles[visibles.length - 1];

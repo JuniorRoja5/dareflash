@@ -8,6 +8,9 @@
  *  - paginar por OFFSET, o sin el `id` desempatando -> las páginas repiten o se saltan avisos;
  *  - quitar `userId` del WHERE de `marcarLeidas` -> se marcan avisos ajenos.
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { NOTIF_NO_LEIDAS_TOPE, TipoNotificacionSchema } from "../src/config/constants";
@@ -15,6 +18,7 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 import {
   AvisoSchema,
   avisoAnuncio,
+  avisoComentario,
   avisoGanasteReto,
   avisoSubisteNivel,
   avisoTop20,
@@ -59,6 +63,7 @@ const UNO_DE_CADA: Aviso[] = [
   avisoTop20({ challengeId: "c1", reto: RETO, puntos: 10 }),
   avisoSubisteNivel("challenger"),
   avisoAnuncio("a1"),
+  avisoComentario({ commentId: "c1", autor: "comentarista", reto: RETO }),
 ];
 /** El texto de los anuncios vive en `Announcement`: se une por refId al pintar. */
 const TEXTOS_ANUNCIO = new Map([["a1", "Mantenimiento programado el sábado por la mañana."]]);
@@ -109,8 +114,27 @@ describe("emitir es insertar-si-no-está", () => {
 });
 
 describe("la unión de tipos", () => {
-  it("no contiene ningún tipo de comentario", () => {
-    for (const t of TipoNotificacionSchema.options) expect(t).not.toMatch(/COMENT|COMMENT/i);
+  it("COMENTARIO entró CON su emisor: se emite al publicar un comentario", () => {
+    // Antes aquí se prohibía cualquier tipo de comentario: el modelo `Comment` no existía y un tipo
+    // sin emisor sería una promesa. La deuda se pagó con los comentarios; lo que queda de la regla es
+    // que el tipo tenga quien lo emita.
+    const emisor = readFileSync(
+      path.resolve(__dirname, "..", "src", "server", "services", "comentarios.ts"),
+      "utf8",
+    );
+    expect(emisor).toMatch(/emitirAviso\([\s\S]*?avisoComentario\(/);
+  });
+
+  it("un COMENTARIO no lleva el texto del comentario: solo quién y dónde", () => {
+    const a = avisoComentario({ commentId: "c1", autor: "comentarista", reto: null });
+    expect(Object.keys(a.datos as object).sort()).toEqual(["autor", "reto"]);
+    expect(textoAviso(a)).toMatchObject({
+      es: "@comentarista ha comentado tu vídeo.",
+      href: "/perfil",
+    });
+    expect(textoAviso(avisoComentario({ commentId: "c2", autor: "x", reto: RETO }))?.href).toBe(
+      `/retos/${RETO.codigo}-${RETO.slug}`,
+    );
   });
 
   it("el esquema del aviso cubre EXACTAMENTE los tipos de la unión (ni uno más ni uno menos)", () => {
@@ -119,10 +143,11 @@ describe("la unión de tipos", () => {
     expect(UNO_DE_CADA.map((a) => a.tipo).sort()).toEqual(deAviso);
   });
 
-  it("la unión añade EXACTAMENTE un tipo para los anuncios, y rechaza lo no listado", () => {
+  it("la unión es EXACTAMENTE esta (anuncios y comentarios incluidos), y rechaza lo no listado", () => {
     expect([...TipoNotificacionSchema.options].sort()).toEqual(
       [
         "ANUNCIO",
+        "COMENTARIO",
         "GANASTE_RETO",
         "SUBISTE_NIVEL",
         "TOP20",

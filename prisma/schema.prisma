@@ -153,6 +153,7 @@ model User {
   submissions    Submission[]
   // Avisos del usuario: CON FK y Cascade (dato personal, no material contable). Ver Notification.
   notificaciones Notification[]
+  comentarios    Comment[]
 
   @@index([role])
   @@index([deletedAt])
@@ -259,11 +260,17 @@ model Video {
   // un reemplazo abandonado se recupera por el worker.
   reemplazaSubmissionId String?
 
+  // COMENTARIOS VISIBLES del video (Fase 2): contador DENORMALIZADO, como `Submission.voteCount`. Se
+  // toca en la MISMA transaccion que el comentario (publicar suma, retirar resta), con la fila del video
+  // bloqueada antes (ver `services/comentarios.ts`). Sin backfill: no habia comentarios.
+  commentCount Int @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user       User        @relation(fields: [userId], references: [id], onDelete: Restrict)
   submission Submission? // un video se usa en como mucho una submission
+  comments   Comment[]
 
   @@index([userId])
   @@index([status])
@@ -842,6 +849,32 @@ model Notification {
   @@index([refType, refId])
   /// El INSPECTOR del panel (todas las cuentas): keyset `(createdAt, id)` DESC sin filtrar por usuario.
   @@index([createdAt, id])
+}
+
+/// COMENTARIO de un video (Fase 2, el tramo que quedaba). PLANO: sin respuestas anidadas (la maqueta
+/// del feed era plana; los hilos serian alcance nuevo). Cuelga del VIDEO, no de la participacion: el
+/// panel vive en el feed, que es una lista de videos, y al reemplazar el video de una participacion sus
+/// comentarios se quedan con el video que la gente comento (como los votos, que no se heredan).
+///
+/// RETIRADA SUAVE, nunca borrado fisico: `Report` ya apunta a COMMENT, y la moderacion (Fase 5) tiene
+/// que poder ocultar un comentario conservandolo como material. `retiradoEn` null = visible;
+/// `retiradoMotivo` dice quien lo retiro (AUTOR | MODERACION, union en constants). Retirar baja
+/// `Video.commentCount` en la misma transaccion; el aviso COMENTARIO ya emitido se queda (es un registro).
+model Comment {
+  id             String    @id @default(cuid())
+  videoId        String
+  userId         String
+  texto          String    @db.VarChar(300)
+  retiradoEn     DateTime?
+  retiradoMotivo String?
+  createdAt      DateTime  @default(now())
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Restrict)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  /// Los comentarios de UN video por keyset (createdAt, id) DESC: el panel pagina sin OFFSET.
+  @@index([videoId, createdAt, id])
+  @@index([userId])
 }
 
 /// ANUNCIO del admin a los usuarios (panel, Fase 4). FUENTE ÚNICA de su contenido: `texto` es el único

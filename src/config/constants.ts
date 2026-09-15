@@ -596,6 +596,9 @@ export const RATE_LIMITS = {
   // efectos: mueve contadores. No pretende frenar el fraude —eso es el gate, el no-autovoto y el
   // unique de la BD—, sino que nadie martillee el endpoint.
   VOTO_PER_USER: { limit: 60, windowMs: 15 * 60 * 1000 }, // 60 / 15 min por usuario
+  // Comentar (y borrar los propios, mismo cubo): texto público, así que el tope frena el spam sin
+  // estorbar a quien conversa. 30 en 15 min es uno cada 30 s sostenido.
+  COMENTAR_PER_USER: { limit: 30, windowMs: 15 * 60 * 1000 }, // 30 / 15 min por usuario
   // Crear reto (admin): el procesado de la portada cuesta CPU/memoria -> mismo trato que el avatar.
   CREAR_RETO_PER_USER: { limit: 20, windowMs: 15 * 60 * 1000 }, // 20 / 15 min por usuario
   // Editar reto (admin): puede traer una portada nueva (mismo coste de decodificado/recompresión que
@@ -636,9 +639,9 @@ export type MotivoCierre = z.infer<typeof MotivoCierreSchema>;
 
 /**
  * Tipos de NOTIFICACION (Fase 4 · Pieza 6). Unión CERRADA: cada tipo cuelga del sitio donde ocurre su
- * hecho, y no hay ninguno sin emisor. NINGUNO de comentarios: el modelo `Comment` no existe (la maqueta
- * del feed es deuda declarada) y un tipo que nadie emite sería una promesa que el sistema no cumple.
- * Llegarán con su fase.
+ * hecho, y no hay ninguno sin emisor: un tipo que nadie emite sería una promesa que el sistema no
+ * cumple. COMENTARIO llegó con los comentarios (Fase 2): lo emite `publicarComentario`, en la misma
+ * transacción que el comentario.
  */
 export const TipoNotificacionSchema = z.enum([
   "VIDEO_LISTO",
@@ -649,11 +652,20 @@ export const TipoNotificacionSchema = z.enum([
   "SUBISTE_NIVEL",
   // Anuncio del admin (panel). El texto NO va en el aviso: vive en `Announcement` y se une por refId.
   "ANUNCIO",
+  // Alguien comentó tu vídeo. Uno por COMENTARIO (clave refId = el comentario).
+  "COMENTARIO",
 ]);
 export type TipoNotificacion = z.infer<typeof TipoNotificacionSchema>;
 
 /** A qué apunta un aviso: la mitad de su clave de unicidad (userId, tipo, refType, refId). */
-export const RefNotificacionSchema = z.enum(["VIDEO", "VOTO", "CHALLENGE", "NIVEL", "ANUNCIO"]);
+export const RefNotificacionSchema = z.enum([
+  "VIDEO",
+  "VOTO",
+  "CHALLENGE",
+  "NIVEL",
+  "ANUNCIO",
+  "COMMENT",
+]);
 export type RefNotificacion = z.infer<typeof RefNotificacionSchema>;
 
 /** Avisos que enseña el desplegable de la campana (decisión de producto). */
@@ -706,6 +718,18 @@ export const ANUNCIOS_PAGINA = 10;
  */
 export const ANUNCIOS_SONDEO_MS = 10_000;
 export const ANUNCIOS_SONDEO_MIN_ENTRE_MS = 3_000;
+
+/**
+ * COMENTARIOS (Fase 2). El tope de longitud es el de la columna (VarChar 300): lo bastante para decir
+ * algo, lo bastante corto para que el panel del feed no se convierta en un foro. Se cuenta en unidades
+ * de JS, que es MÁS estricto que MariaDB con los emojis: nada que la caja deje pasar lo rechaza la BD.
+ */
+export const COMENTARIO_TEXTO_MAX = 300;
+/** Comentarios por página en el panel (keyset). */
+export const COMENTARIOS_PAGINA = 20;
+/** Quién retiró un comentario. AUTOR hoy; MODERACION llega con la Fase 5 (el campo ya lo admite). */
+export const RetiradaComentarioSchema = z.enum(["AUTOR", "MODERACION"]);
+export type RetiradaComentario = z.infer<typeof RetiradaComentarioSchema>;
 export const INSPECTOR_NOTIF_PAGINA = 25;
 
 /**
@@ -730,7 +754,7 @@ export type BoostReason = z.infer<typeof BoostReasonSchema>;
 export const ReportStatusSchema = z.enum(["OPEN", "REVIEWING", "RESOLVED", "DISMISSED"]);
 export type ReportStatus = z.infer<typeof ReportStatusSchema>;
 
-/** Tipo de entidad denunciada. COMMENT llega con los comentarios (Fase 1). */
+/** Tipo de entidad denunciada. COMMENT: los comentarios ya existen; su moderación es la Fase 5. */
 export const ReportTargetTypeSchema = z.enum(["VIDEO", "SUBMISSION", "USER", "COMMENT"]);
 export type ReportTargetType = z.infer<typeof ReportTargetTypeSchema>;
 

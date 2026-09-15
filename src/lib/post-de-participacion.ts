@@ -22,6 +22,8 @@ export interface ParticipacionParaFeed {
   retoId: string;
   retoAbierto: boolean;
   miVoto: string | null;
+  /** Comentarios visibles del vídeo. */
+  comentarios: number;
 }
 
 /** Datos del RETO, iguales para toda la lista: se pasan una vez, no por ítem. */
@@ -52,6 +54,7 @@ export function postDeParticipacion(
     retoTitulo: reto.titulo,
     categoria: reto.categoria,
     votos: p.votos,
+    comentarios: p.comentarios,
     src: urls.src,
     poster: urls.poster,
     participacionId: p.submissionId,

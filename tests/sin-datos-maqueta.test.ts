@@ -31,22 +31,28 @@ const NOMBRES_INVENTADOS = ["lucia.voz", "nico_skate", "usuario_demo", "entrenad
  * de datos inventados que nadie tenía en la cabeza. No son de esta pieza —cada uno pertenece a una
  * funcionalidad que aún no existe— pero tampoco pueden quedarse invisibles:
  *
- *  - `feed-datos.ts`      comentarios de mentira del panel de escritorio. El modelo `Comment` no
- *                         está construido; se van con la pieza de comentarios.
  *  - `retos-datos.ts`     `RETOS_SEED`. El fichero es MIXTO: también exporta el catálogo de
  *                         categorías, que sí es real y lo usa la subida. Solo se va la semilla.
  *  - `portada-datos.ts`   hero, rejilla y perfiles de Boost de la portada, derivados de esa semilla.
  *                         Boost es Fase 6.
+ *
+ * (`feed-datos.ts` estuvo aquí por `COMENTARIOS_FEED`, los comentarios de mentira del panel de
+ * escritorio. Se fue con los comentarios reales, y `SIMBOLOS_RETIRADOS` impide que vuelva.)
  *
  * Esta lista es una DEUDA DECLARADA, no un permiso: mientras un fichero esté aquí, se sabe qué
  * inventa y por qué sigue. Fuera de ella, cualquier dato falso nuevo se pone rojo. Al construir cada
  * funcionalidad, quitar su línea de aquí es parte del trabajo.
  */
 const MAQUETA_PENDIENTE = [
-  "components/feed/feed-datos.ts",
   "app/(app)/(shell)/retos/retos-datos.ts",
   "app/(app)/(shell)/inicio/portada-datos.ts",
 ];
+
+/**
+ * Maqueta retirada que vivía DENTRO de un fichero que sigue (no un módulo entero): se vigila por su
+ * nombre. `COMENTARIOS_FEED` compartía fichero con `formatearContador`, que es real.
+ */
+const SIMBOLOS_RETIRADOS = ["COMENTARIOS_FEED"];
 
 /** Ficheros de código bajo src/, EXCLUIDA la guía de estilo (que es un catálogo de ejemplos). */
 function ficherosDeCodigo(dir: string): string[] {
@@ -79,6 +85,14 @@ describe("no hay datos de maqueta en producción", () => {
     const culpables = FICHEROS.filter((f) => {
       const src = soloCodigo(readFileSync(f, "utf8"));
       return MODULOS_RETIRADOS.some((m) => src.includes(`"${m}"`) || src.includes(`/${m}"`));
+    }).map((f) => relative(SRC, f).split(sep).join("/"));
+    expect(culpables).toEqual([]);
+  });
+
+  it("la maqueta retirada dentro de ficheros vivos no vuelve (COMENTARIOS_FEED)", () => {
+    const culpables = FICHEROS.filter((f) => {
+      const src = soloCodigo(readFileSync(f, "utf8"));
+      return SIMBOLOS_RETIRADOS.some((s) => src.includes(s));
     }).map((f) => relative(SRC, f).split(sep).join("/"));
     expect(culpables).toEqual([]);
   });

@@ -23,6 +23,7 @@ import { retoEstaAbierto } from "@/lib/reto-ventana";
 import type { Db } from "@/server/db/types";
 
 import { categoriaKeyDeVideo } from "./categoria-video";
+import { VIDEO_VISIBLE } from "./video-visible";
 
 /** Un post del feed, listo para pintar. `categoria` es el nombre ya resuelto (o null si no participa). */
 export interface PostFeed {
@@ -33,6 +34,9 @@ export interface PostFeed {
   retoTitulo: string;
   categoria: string | null;
   votos: number;
+  /** Comentarios VISIBLES del vídeo (Video.commentCount). Es del VÍDEO, así que también en una subida
+   *  libre. */
+  comentarios: number;
   src: string;
   poster: string;
   /**
@@ -91,27 +95,16 @@ export async function feedPublicado(
   );
 
   const filas = await db.video.findMany({
-    // `reemplazaSubmissionId: null` excluye los REEMPLAZOS en vuelo (un Video de reemplazo, aun tras
-    // pasar a PUBLISHED, no debe salir en el feed hasta que el swap lo convierta en la participacion).
-    // Un video SIN Submission aparece SOLO si tiene `category` (subida libre); asi un video suelto sin
-    // categoria (o un reemplazo antes de tener submission) no se cuela.
-    where: {
-      status: "PUBLISHED",
-      reemplazaSubmissionId: null,
-      user: { deletedAt: null, bannedAt: null },
-      // Un video cuya participacion pertenece a un reto BORRADO por el admin sale del feed: el
-      // reto ya no existe para el publico, asi que su contenido tampoco puede seguir apareciendo.
-      OR: [
-        { submission: { challenge: { deletedAt: null, eliminacionProgramadaEn: null } } },
-        { submission: null, category: { not: null } },
-      ],
-    },
+    // Que se ve lo decide `VIDEO_VISIBLE` (sin reemplazos en vuelo, sin autores borrados o baneados,
+    // sin retos borrados, subidas libres solo con categoria): la MISMA regla que los comentarios.
+    where: VIDEO_VISIBLE,
     select: {
       id: true,
       bunnyVideoId: true,
       thumbnailFileName: true,
       title: true,
       category: true,
+      commentCount: true,
       user: { select: { username: true, displayName: true } },
       submission: {
         select: {
@@ -165,6 +158,7 @@ export async function feedPublicado(
       retoTitulo: sub?.challenge.title ?? v.title ?? "Vídeo",
       categoria: nombreCategoria(claveCategoria),
       votos: sub?.voteCount ?? 0,
+      comentarios: v.commentCount,
       src: urls.src,
       poster: urls.poster,
       // Del MISMO `sub` que ya filtra por "publicada": una participacion oculta no sale como votable.

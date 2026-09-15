@@ -8,7 +8,8 @@ import { ReproductorHls } from "@/components/ui/reproductor-hls";
 import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
 import type { PostFeed } from "@/server/services/feed";
 
-import { COMENTARIOS_FEED, formatearContador } from "./feed-datos";
+import { ComentariosVideo } from "./comentarios-video";
+import { formatearContador } from "./feed-datos";
 
 /** Iconos de accion: trazo 1.8 px, currentColor (blanco sobre video; negro dentro del circulo de VOTA). */
 function IconoAccion({ children, bold = false }: { children: ReactNode; bold?: boolean }) {
@@ -86,15 +87,18 @@ function Accion({
   valor,
   icono,
   destacado = false,
+  onClick,
 }: {
   label: string;
   valor: number;
   icono: ReactNode;
   destacado?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
+      onClick={onClick}
       aria-label={`${label} (${formatearContador(valor)})`}
       className="flex flex-col items-center gap-1"
     >
@@ -117,8 +121,8 @@ function Accion({
 /**
  * Un post. DOM en orden MOVIL (video con info/acciones ENCIMA); el grid de FeedInicio recompone en lg.
  * El VIDEO real lo reproduce `ReproductorHls` (variante `feed`, 9:16 inmersivo, autoplay en mute con
- * carga/descarga por visibilidad). Solo `votos` sale del modelo (Submission.voteCount); me gusta,
- * comentarios y compartir aún no tienen modelo (llegan en fases posteriores) y muestran 0 real.
+ * carga/descarga por visibilidad). `votos` sale de Submission.voteCount y `comentarios` de
+ * Video.commentCount; me gusta y compartir aún no tienen modelo y muestran 0 real.
  */
 function PostInicio({
   post,
@@ -129,6 +133,7 @@ function PostInicio({
   esActivo,
   onToggleSilencio,
   onNoDisponible,
+  onComentar,
 }: {
   post: PostFeed;
   alRef: (el: HTMLElement | null) => void;
@@ -145,6 +150,8 @@ function PostInicio({
   onToggleSilencio: (estabaMudo: boolean) => void;
   /** El vídeo ya no existe en el origen: se retira este slide del scroll. */
   onNoDisponible: () => void;
+  /** Abrir los comentarios de este vídeo (hoja en móvil; en escritorio, la caja del panel). */
+  onComentar: () => void;
 }) {
   // Snapshot del mute efectivo en la fase de CAPTURA del pointerdown (root->botón), ANTES de que el
   // listener del contenedor (fase de burbuja) desbloquee el audio y flipe `mutedEfectivo`. Sin esto,
@@ -208,7 +215,12 @@ function PostInicio({
       {/* ACCIONES: sobre el video en movil (absolute), FUERA del video en desktop (static) */}
       <div className="absolute right-2 bottom-24 z-10 flex flex-col items-center gap-5 lg:static lg:right-auto lg:bottom-auto">
         <Accion label="Me gusta" valor={0} icono={<IconoCorazon />} />
-        <Accion label="Comentar" valor={0} icono={<IconoComentario />} />
+        <Accion
+          label="Comentar"
+          valor={post.comentarios}
+          icono={<IconoComentario />}
+          onClick={onComentar}
+        />
         {/* VOTAR: el unico magenta de contenido de la pantalla. Solo si el video ES una participacion
             —una subida libre no pertenece a ningun reto, asi que no hay nada que votar y no se pinta un
             boton muerto—. Todo su estado (visto, mi voto, reto abierto) sale del payload y de los
@@ -246,9 +258,17 @@ function PostInicio({
   );
 }
 
-/** Panel de comentarios de escritorio (superficie v2). Cabecera del video ACTIVO (datos reales); la
- *  lista de comentarios es placeholder (el modelo `Comment` llega en la Fase 1). */
-function PanelComentarios({ post }: { post: PostFeed }) {
+/** Panel de comentarios de ESCRITORIO: cabecera del vídeo ACTIVO y sus comentarios reales, con la caja
+ *  de escribir (`ComentariosVideo`, la misma pieza que la hoja de móvil). */
+function PanelComentarios({
+  post,
+  haySesion,
+  onContador,
+}: {
+  post: PostFeed;
+  haySesion: boolean;
+  onContador: (videoId: string, comentarios: number) => void;
+}) {
   const nombre = nombreMostrado(post.displayName, post.username);
   const conHandle = mostrarHandleSecundario(post.displayName);
   return (
@@ -260,41 +280,83 @@ function PanelComentarios({ post }: { post: PostFeed }) {
         <div className="mt-2 flex items-center gap-2">
           {post.categoria ? <PildoraCategoria>{post.categoria}</PildoraCategoria> : null}
           <span className="text-2xs tabular-nums text-text-dim">
-            {formatearContador(post.votos)} votos
+            {formatearContador(post.votos)} votos · {formatearContador(post.comentarios)}{" "}
+            comentarios
           </span>
         </div>
       </div>
-      <ul className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-        {COMENTARIOS_FEED.map((c) => (
-          <li key={c.usuario} className="flex gap-3">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-raised text-xs font-semibold text-text-dim">
-              {c.usuario.charAt(0).toUpperCase()}
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-text">@{c.usuario}</p>
-              <p className="text-sm text-text-dim">{c.texto}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
-      {/* Caja de comentar: el panel terminaba en una nota suelta y no tenía DÓNDE escribir, así que el
-          pie quedaba vacío y descolgado. Va DESHABILITADA y lo dice: la conversación llega en una fase
-          posterior y aquí no se finge que funcione — es la misma regla que las tarjetas "próximamente". */}
-      <div className="shrink-0 border-t border-line p-3">
-        <div className="flex items-center gap-2 rounded-sm border border-line bg-raised/60 px-3 py-2">
-          <input
-            type="text"
-            disabled
-            aria-label="Comentar (próximamente)"
-            placeholder="Comentar…"
-            className="min-w-0 flex-1 bg-transparent text-sm text-text placeholder:text-text-dim focus:outline-none disabled:cursor-not-allowed"
-          />
-          <span className="shrink-0 text-2xs font-semibold tracking-wide text-text-dim uppercase">
-            Próximamente
-          </span>
-        </div>
-      </div>
+      {/* La clave es el VÍDEO: al cambiar de vídeo activo, la lista y la caja empiezan de cero. */}
+      <ComentariosVideo
+        key={post.id}
+        videoId={post.id}
+        haySesion={haySesion}
+        idCaja={`comentar-${post.id}`}
+        onContador={(n) => onContador(post.id, n)}
+      />
     </aside>
+  );
+}
+
+/**
+ * Hoja de comentarios de MÓVIL: en móvil no hay panel lateral, así que el botón "Comentar" abre esto
+ * desde abajo, con la MISMA pieza que el panel de escritorio. Se cierra con la ×, tocando fuera o con
+ * Escape. Fuera de la columna del vídeo a propósito: un toque aquí no debe llegar al desbloqueo del
+ * sonido ni a la pausa del reproductor.
+ */
+function HojaComentarios({
+  post,
+  haySesion,
+  onContador,
+  onCerrar,
+}: {
+  post: PostFeed;
+  haySesion: boolean;
+  onContador: (videoId: string, comentarios: number) => void;
+  onCerrar: () => void;
+}) {
+  useEffect(() => {
+    const alTeclear = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") onCerrar();
+    };
+    window.addEventListener("keydown", alTeclear);
+    return () => window.removeEventListener("keydown", alTeclear);
+  }, [onCerrar]);
+
+  return (
+    <div className="fixed inset-0 z-50 lg:hidden">
+      <button
+        type="button"
+        aria-label="Cerrar comentarios"
+        onClick={onCerrar}
+        className="absolute inset-0 bg-void/60"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Comentarios"
+        className="absolute inset-x-0 bottom-0 flex h-[70svh] flex-col rounded-t-sm border-t border-line bg-surface shadow-[var(--df-shadow-lg)]"
+      >
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+          <p className="text-sm font-semibold text-text tabular-nums">
+            {formatearContador(post.comentarios)} comentarios
+          </p>
+          <button
+            type="button"
+            onClick={onCerrar}
+            aria-label="Cerrar"
+            className="grid h-9 w-9 place-items-center rounded-full text-text-dim hover:bg-raised hover:text-text"
+          >
+            ×
+          </button>
+        </div>
+        <ComentariosVideo
+          key={post.id}
+          videoId={post.id}
+          haySesion={haySesion}
+          onContador={(n) => onContador(post.id, n)}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -530,6 +592,23 @@ export function FeedVertical({
     setPosts((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
+  // COMENTARIOS: el contador de un vídeo se actualiza con el número que devuelve el servidor tras
+  // publicar o borrar (el de la BD, no una suma local). La hoja de móvil guarda QUÉ vídeo tiene abierto.
+  const [hoja, setHoja] = useState<string | null>(null);
+  const cerrarHoja = useCallback((): void => setHoja(null), []);
+  const alContador = useCallback((videoId: string, comentarios: number): void => {
+    setPosts((prev) => prev.map((p) => (p.id === videoId ? { ...p, comentarios } : p)));
+  }, []);
+  // "Comentar": en escritorio el panel ya está a la vista, así que enfoca su caja; en móvil abre la hoja.
+  const abrirComentarios = (videoId: string): void => {
+    const escritorio =
+      typeof window.matchMedia === "function" && window.matchMedia("(min-width: 1024px)").matches;
+    const caja = escritorio ? document.getElementById(`comentar-${videoId}`) : null;
+    if (caja) caja.focus();
+    else setHoja(videoId);
+  };
+  const postHoja = hoja ? posts.find((p) => p.id === hoja) : undefined;
+
   const irA = (i: number): void => {
     const dest = Math.max(0, Math.min(posts.length - 1, i));
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -573,6 +652,7 @@ export function FeedVertical({
                 }
               }}
               onNoDisponible={() => quitarPost(post.id)}
+              onComentar={() => abrirComentarios(post.id)}
             />
           ))}
         </div>
@@ -588,7 +668,22 @@ export function FeedVertical({
         </div>
       </div>
 
-      {posts.length > 0 ? <PanelComentarios post={posts[activo] ?? posts[0]!} /> : null}
+      {posts.length > 0 ? (
+        <PanelComentarios
+          post={posts[activo] ?? posts[0]!}
+          haySesion={haySesion}
+          onContador={alContador}
+        />
+      ) : null}
+
+      {postHoja ? (
+        <HojaComentarios
+          post={postHoja}
+          haySesion={haySesion}
+          onContador={alContador}
+          onCerrar={cerrarHoja}
+        />
+      ) : null}
     </div>
   );
 }

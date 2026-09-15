@@ -12,4 +12,5 @@ export const ETIQUETA_TIPO: Record<TipoNotificacion, string> = {
   TOP20: "Top 20 de un reto",
   SUBISTE_NIVEL: "Subió de nivel",
   ANUNCIO: "Anuncio",
+  COMENTARIO: "Comentario recibido",
 };

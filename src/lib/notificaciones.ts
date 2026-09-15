@@ -81,6 +81,17 @@ export const AvisoSchema = z.discriminatedUnion("tipo", [
     // serían miles de copias de lo mismo, una por destinatario.
     datos: z.object({}).strict(),
   }),
+  z.object({
+    tipo: z.literal("COMENTARIO"),
+    refType: z.literal("COMMENT"),
+    refId: Id,
+    // La FOTO del hecho: QUIÉN comentó (su handle, un identificador, no texto libre) y, si el vídeo es
+    // una participación, el reto (para el enlace), como hace VOTO_RECIBIDO. NUNCA el texto del
+    // comentario: el aviso es un registro y el comentario puede retirarse; copiarlo aquí lo dejaría
+    // vivo en la bandeja. El handle se valida ancho a propósito: un Zod estricto que reventara aquí
+    // tumbaría la transacción del comentario entero por su aviso.
+    datos: z.object({ autor: z.string().min(1).max(64), reto: RetoFoto.nullable() }).strict(),
+  }),
 ]);
 export type Aviso = z.infer<typeof AvisoSchema>;
 
@@ -154,6 +165,26 @@ export function avisoSubisteNivel(clave: ClaveNivel): Aviso {
  */
 export function avisoAnuncio(announcementId: string): Aviso {
   return { tipo: "ANUNCIO", refType: "ANUNCIO", refId: announcementId, datos: {} };
+}
+
+/**
+ * Alguien comentó tu vídeo. La clave es el COMENTARIO: cada uno avisa una vez, por mucho que se
+ * reintente su transacción. Dos comentarios son dos avisos (al contrario que el voto, que se deduplica
+ * por votante: un comentario nuevo SÍ es un hecho nuevo).
+ */
+export function avisoComentario(input: {
+  commentId: string;
+  /** Handle de quien comentó. */
+  autor: string;
+  /** El reto, si el vídeo es una participación; `null` en una subida libre. */
+  reto: RetoFoto | null;
+}): Aviso {
+  return {
+    tipo: "COMENTARIO",
+    refType: "COMMENT",
+    refId: input.commentId,
+    datos: { autor: input.autor, reto: input.reto },
+  };
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -256,6 +287,20 @@ export function textoAviso(
       // bandeja, donde se lee entero; no hay (ni se promete) una pantalla propia del anuncio.
       return { es: texto, en: texto, href: "/notificaciones" };
     }
+    case "COMENTARIO":
+      // Sin el texto del comentario (ver el esquema). Lleva al reto si el vídeo es una participación;
+      // una subida libre no tiene página propia todavía, así que lleva al perfil, donde está el vídeo.
+      return a.datos.reto
+        ? {
+            es: `@${a.datos.autor} ha comentado tu vídeo en «${a.datos.reto.titulo}».`,
+            en: `@${a.datos.autor} commented on your video in "${a.datos.reto.titulo}".`,
+            href: enlaceReto(a.datos.reto),
+          }
+        : {
+            es: `@${a.datos.autor} ha comentado tu vídeo.`,
+            en: `@${a.datos.autor} commented on your video.`,
+            href: "/perfil",
+          };
   }
 }
 
