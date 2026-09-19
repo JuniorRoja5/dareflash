@@ -35,12 +35,15 @@ const CSS = "src/app/globals.css";
 
 describe("la decisión: solo escritorio y solo si el usuario acepta movimiento", () => {
   it.each([
-    ["escritorio y movimiento permitido", true, true, true],
-    ["móvil, aunque permita movimiento", false, true, false],
-    ["escritorio, pero con movimiento reducido", true, false, false],
-    ["móvil y movimiento reducido", false, false, false],
-  ])("%s -> %s", (_caso, escritorio, permiteMovimiento, esperado) => {
-    expect(debeMontarVideoFondo({ escritorio, permiteMovimiento })).toBe(esperado);
+    ["escritorio y movimiento permitido", true, true, false, true],
+    ["móvil, aunque permita movimiento", false, true, false, false],
+    ["escritorio, pero con movimiento reducido", true, false, false, false],
+    ["móvil y movimiento reducido", false, false, false, false],
+    // El TEMA CLARO manda igual que el viewport: la portada clara va en blanco, sin vídeo.
+    ["escritorio y movimiento, pero TEMA CLARO", true, true, true, false],
+    ["móvil y tema claro", false, true, true, false],
+  ])("%s -> %s", (_caso, escritorio, permiteMovimiento, temaClaro, esperado) => {
+    expect(debeMontarVideoFondo({ escritorio, permiteMovimiento, temaClaro })).toBe(esperado);
   });
 
   it("el corte de escritorio es el MISMO `lg` que ya usa la home", () => {
@@ -62,6 +65,15 @@ describe("el <video> cuelga de la decisión, no de una clase de CSS", () => {
     const src = soloCodigo(leer(COMPONENTE));
     expect(src).toContain("debeMontarVideoFondo({");
     expect(src).toMatch(/\{conVideo \?[\s\S]*?<video/);
+  });
+
+  it("y el TEMA entra en esa decisión, leído del <html> (no de un prop que se olvide)", () => {
+    // En claro la portada va en blanco: el vídeo no se monta, así que sus bytes no se piden. Y como el
+    // tema se cambia sin recargar, el componente se resuscribe a ese cambio en vez de mirarlo una vez.
+    const src = soloCodigo(leer(COMPONENTE));
+    expect(src).toMatch(/temaClaro:\s*raiz\.dataset\.theme === "light"/);
+    expect(src).toContain("MutationObserver");
+    expect(src).toContain('attributeFilter: ["data-theme"]');
   });
 
   it("NO se esconde con CSS: eso no evita la descarga", () => {
@@ -129,14 +141,14 @@ describe("fuente única: la URL y el velo", () => {
 
   it("el oscurecido es un TOKEN derivado de la paleta, no un rgba a mano", () => {
     const css = leer(CSS);
-    expect(css).toContain("--df-velo-fondo:");
-    // Hasta el `);` que cierra ESTE token: un corte por longitud se colaba en el siguiente, que sí
-    // lleva un `rgb(...)` — y hacía fallar al test por lo que declara el token de al lado.
-    const desde = css.indexOf("--df-velo-fondo:");
-    const velo = css.slice(desde, css.indexOf(");", desde) + 2);
-    // Derivado de `--color-void`: si la paleta cambia, el velo cambia con ella.
-    expect(velo).toContain("var(--color-void)");
-    expect(velo).not.toMatch(/rgb\(|#[0-9a-f]{3,8}/i);
+    // UNO POR TEMA (oscuro y claro): en claro el velo es el fondo blanco liso, porque ahí no hay
+    // vídeo. Los dos se DERIVAN de `--df-void`, así que si la paleta cambia, el velo cambia con ella.
+    const velos = [...css.matchAll(/--df-velo-fondo:[\s\S]*?\);/g)].map((m) => m[0]);
+    expect(velos).toHaveLength(2);
+    for (const velo of velos) {
+      expect(velo).toContain("var(--df-void)");
+      expect(velo).not.toMatch(/rgb\(|#[0-9a-f]{3,8}/i);
+    }
     // Y el componente lo USA en vez de escribir su propia opacidad.
     expect(leer(COMPONENTE)).toContain("var(--df-velo-fondo)");
   });

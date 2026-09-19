@@ -50,9 +50,13 @@ export function FilaPuesto({
     <div
       className={`flex items-center gap-3 border-b border-line py-2.5 last:border-b-0 ${activo ? "bg-raised" : ""}`}
     >
+      {/* El podio se marca con el ORO. En claro el oro metálico no se lee como texto pequeño, así que
+          `df-puesto-podio` lo convierte en chip (número oscuro SOBRE el oro): el mismo significado,
+          legible en los dos temas. La elección de QUIÉN es podio sigue en `tokenPuesto`, testeada. */}
       <span
-        className="w-7 shrink-0 text-right text-lg font-semibold tabular-nums"
-        style={{ color: esPodio ? "var(--color-rank)" : "var(--color-text-dim)" }}
+        className={`w-7 shrink-0 text-right text-lg font-semibold tabular-nums ${
+          esPodio ? "df-puesto-podio" : "text-text-dim"
+        }`}
       >
         {puesto}
       </span>

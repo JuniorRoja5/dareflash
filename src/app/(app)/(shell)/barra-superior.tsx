@@ -1,3 +1,5 @@
+import { ConmutadorTemaServidor } from "@/components/ui/conmutador-tema-servidor";
+
 import { BuscadorBarra } from "./buscador-barra";
 import { CampanaNotificaciones } from "./campana-notificaciones";
 import { CtaCrear } from "./cta-crear";
@@ -33,6 +35,10 @@ export function BarraSuperior({
       <div className="ml-auto flex items-center gap-3">
         {/* CTA principal por rol — magenta persistente (atenuado a secundario en /inicio) */}
         <CtaCrear rol={rol} />
+
+        {/* Tema claro/oscuro del sitio público. También para el INVITADO: es una preferencia de
+            lectura, no de cuenta. En móvil la vía es la columna de acciones del perfil. */}
+        <ConmutadorTemaServidor />
 
         {/* Campana de avisos: solo con sesión. Su número lo lleva el contador compartido. */}
         {usuario ? <CampanaNotificaciones /> : null}

@@ -30,7 +30,10 @@ export default async function PanelLayout({ children }: { children: ReactNode })
   const nombre = fila ? nombreMostrado(fila.displayName, fila.username) : "Admin";
 
   return (
-    <div className="min-h-screen bg-void text-text">
+    // EL PANEL ES OSCURO SIEMPRE, aunque el sitio público esté en claro: `data-theme="dark"` vuelve a
+    // declarar aquí la paleta oscura (ver `globals.css`), y de este nodo hacia abajo todo la hereda.
+    // Es una herramienta de trabajo con tablas densas y no se rediseña por gusto del visitante.
+    <div data-theme="dark" className="min-h-screen bg-void text-text">
       <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-line bg-surface px-5 py-3 lg:px-6">
         <span className="text-sm font-semibold tracking-widest text-text-dim uppercase">
           Panel <span className="text-text">· Admin</span>

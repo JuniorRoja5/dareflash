@@ -27,12 +27,18 @@ export const CONSULTA_ESCRITORIO = `(min-width: ${ANCHO_ESCRITORIO_PX}px)`;
 export const CONSULTA_MOVIMIENTO = "(prefers-reduced-motion: no-preference)";
 
 /**
- * Las DOS condiciones tienen que cumplirse. Móvil o movimiento reducido = no se monta el vídeo y se
- * ve el velo oscuro, que ya estaba ahí desde el primer pintado.
+ * Las TRES condiciones tienen que cumplirse. Móvil, movimiento reducido o TEMA CLARO = no se monta el
+ * vídeo y se ve el velo, que ya estaba ahí desde el primer pintado (oscuro en el tema oscuro; blanco
+ * liso en el claro).
+ *
+ * El tema entra aquí por la misma razón que el viewport: en claro la portada va en BLANCO (decisión de
+ * Sergio), y esconder el vídeo con CSS no evitaría su descarga. Se decide en cliente porque el tema
+ * puede cambiarse sin recargar.
  */
 export function debeMontarVideoFondo(entorno: {
   escritorio: boolean;
   permiteMovimiento: boolean;
+  temaClaro: boolean;
 }): boolean {
-  return entorno.escritorio && entorno.permiteMovimiento;
+  return entorno.escritorio && entorno.permiteMovimiento && !entorno.temaClaro;
 }

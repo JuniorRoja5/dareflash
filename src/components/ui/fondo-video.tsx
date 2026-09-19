@@ -41,28 +41,38 @@ export function FondoVideo({ src }: { src: string }) {
   const [conVideo, setConVideo] = useState(false);
 
   useEffect(() => {
+    const raiz = document.documentElement;
     const escritorio = window.matchMedia(CONSULTA_ESCRITORIO);
     const movimiento = window.matchMedia(CONSULTA_MOVIMIENTO);
-    // Se reevalúa al girar el móvil, al redimensionar la ventana y si el usuario cambia su preferencia
-    // de movimiento sin recargar: pasar a móvil DESMONTA el vídeo, que es lo coherente con la regla.
+    // Se reevalúa al girar el móvil, al redimensionar la ventana, si el usuario cambia su preferencia
+    // de movimiento y si CAMBIA DE TEMA sin recargar: pasar a móvil —o a claro— DESMONTA el vídeo,
+    // que es lo coherente con la regla (y en claro, además, sus bytes no llegan a pedirse).
     const evaluar = (): void =>
       setConVideo(
         debeMontarVideoFondo({
           escritorio: escritorio.matches,
           permiteMovimiento: movimiento.matches,
+          temaClaro: raiz.dataset.theme === "light",
         }),
       );
     evaluar();
     escritorio.addEventListener("change", evaluar);
     movimiento.addEventListener("change", evaluar);
+    // El tema no es una media query: lo cambia el conmutador escribiendo el atributo de <html>.
+    const observador = new MutationObserver(evaluar);
+    observador.observe(raiz, { attributes: true, attributeFilter: ["data-theme"] });
     return () => {
       escritorio.removeEventListener("change", evaluar);
       movimiento.removeEventListener("change", evaluar);
+      observador.disconnect();
     };
   }, []);
 
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 bg-void">
+    // `df-fondo-video` es el asidero del CSS: en TEMA CLARO la portada va en blanco y el vídeo no se
+    // pinta (ver `globals.css`). Eso cubre el cambio de tema sin recargar; el servidor, además, ya no
+    // lo monta (`activo`), así que en claro sus bytes no se piden.
+    <div aria-hidden className="df-fondo-video pointer-events-none fixed inset-0 -z-10 bg-void">
       {conVideo ? (
         <video
           // `muted` + `playsInline` son OBLIGATORIOS para que autoreproduzca: sin `muted` el navegador

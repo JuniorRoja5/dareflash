@@ -45,40 +45,51 @@ function Seccion({ etiqueta, children }: { etiqueta: string; children: ReactNode
   );
 }
 
+/**
+ * Cada color, con su valor EN LOS DOS TEMAS. El trabajo no cambia entre temas; el valor sí, y esta
+ * página es la referencia: enseñar solo el del oscuro aquí sería mentir en cuanto se mira en claro.
+ * `tests/paleta-clara.test.ts` comprueba que estos hex son EXACTAMENTE los de `globals.css`.
+ */
 const COLORES = [
   {
     u: "money",
-    hex: "#D9F32B",
+    hex: "#d9f32b",
+    hexClaro: "#8a6100",
     solo: "Dinero: premios, saldo, bote.",
     nunca: "Decoración, enlaces, estados.",
   },
   {
     u: "action",
-    hex: "#FF2E88",
+    hex: "#ff2e88",
+    hexClaro: "#15803d",
     solo: "Acción principal: votar, participar, publicar.",
     nunca: "Más de UNA por pantalla.",
   },
   {
     u: "time",
-    hex: "#FFA114",
+    hex: "#ffa114",
+    hexClaro: "#b45309",
     solo: "Tiempo restante mientras no es crítico.",
     nunca: "Cualquier otra cosa.",
   },
   {
     u: "alarm",
-    hex: "#FF4D2E",
+    hex: "#ff4d2e",
+    hexClaro: "#b81414",
     solo: "Tiempo crítico (<24 h) Y error/peligro.",
     nunca: "Decorar. Los dos = «atención ahora».",
   },
   {
     u: "rank",
-    hex: "#E8C468",
+    hex: "#e8c468",
+    hexClaro: "#b8860b",
     solo: "Puestos 1, 2 y 3 del podio.",
-    nunca: "Bordes, iconos, «premium».",
+    nunca: "Bordes, iconos, «premium». En claro va de RELLENO, no de texto pequeño.",
   },
   {
     u: "ok",
-    hex: "#2BE58B",
+    hex: "#2be58b",
+    hexClaro: "#0f766e",
     solo: "Confirmaciones: voto, publicado, verificado.",
     nunca: "Decorar.",
   },
@@ -202,6 +213,11 @@ export default function StyleGuide() {
 
       {/* COLOR — semanticos */}
       <Seccion etiqueta="Color · un solo trabajo cada uno">
+        <p className="mb-4 text-sm text-text-dim">
+          Dos valores por token: <span className="text-text">tema oscuro · tema claro</span>. El
+          trabajo de cada color no cambia entre temas; el valor, sí. La muestra de arriba está
+          pintada con el token, así que enseña el del tema que estés viendo.
+        </p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {COLORES.map((c) => (
             <div key={c.u} className="border border-line rounded-sm bg-surface">
@@ -211,7 +227,9 @@ export default function StyleGuide() {
                 style={{ backgroundColor: `var(--color-${c.u})` }}
               >
                 <span className="font-semibold text-void">Aa · 1,234</span>
-                <span className="text-xs text-void/70">{c.hex}</span>
+                <span className="text-xs text-void/70">
+                  {c.hex} · {c.hexClaro}
+                </span>
               </div>
               <div className="p-3">
                 <p className="font-mono text-xs" style={{ color: `var(--color-${c.u})` }}>

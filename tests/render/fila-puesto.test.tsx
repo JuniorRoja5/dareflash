@@ -48,13 +48,16 @@ describe("FilaPuesto pinta lo que dice pintar", () => {
       const { container, unmount } = render(
         <FilaPuesto puesto={puesto} username="x" imagen={null} cifra={1} unidad="victorias" />,
       );
-      expect(celdaPuesto(container, puesto).style.color).toContain("--color-rank");
+      // El oro ya no se escribe como color inline: va por `df-puesto-podio`, que en tema CLARO lo
+      // convierte en chip (el oro metálico no se lee como texto pequeño). Qué pinta esa clase en cada
+      // tema lo fija `paleta-clara`; aquí lo que importa es QUIÉN la lleva.
+      expect(celdaPuesto(container, puesto).className).toContain("df-puesto-podio");
       unmount();
     }
     const { container } = render(
       <FilaPuesto puesto={4} username="x" imagen={null} cifra={1} unidad="victorias" />,
     );
-    expect(celdaPuesto(container, 4).style.color).not.toContain("--color-rank");
+    expect(celdaPuesto(container, 4).className).not.toContain("df-puesto-podio");
   });
 
   it("los puntos NUNCA van en lima: la lima es dinero y los puntos no lo son", () => {

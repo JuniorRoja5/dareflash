@@ -4,7 +4,12 @@
    DAREFLASH — TOKENS DEL SISTEMA (brief de marca v1.0)
    Retransmision deportiva, no red social: geometria severa, color sin miedo.
    Cada color semantico tiene UN SOLO TRABAJO y no se presta a ningun otro.
-   El producto es OSCURO SIEMPRE; el modo claro no existe.
+
+   DOS TEMAS (el sitio publico; el PANEL es oscuro siempre). El brief nacio
+   "oscuro siempre" y esa frase ya no vale: Sergio pidio un modo claro. Lo que
+   NO cambia es el reparto de trabajos —cada token sigue significando lo mismo—
+   ni que color use cada componente: lo unico que cambia son los VALORES. Por eso
+   los guards de marca (cta-principal y compania) siguen en verde en los dos.
    ============================================================================ */
 @theme {
   /* Limpiamos los defaults de Tailwind que el brief PROHIBE, para que no existan
@@ -13,24 +18,6 @@
   --color-*: initial;
   --radius-*: initial;
   --text-*: initial;
-
-  /* --- COLORES SEMANTICOS (un trabajo cada uno) --- */
-  --color-money: #d9f32b; /* lima acido. SOLO dinero: premios, saldo, bote. */
-  --color-action: #ff2e88; /* magenta. SOLO accion principal. UNO por pantalla. */
-  --color-time: #ffa114; /* ambar. SOLO tiempo restante no critico. */
-  --color-alarm: #ff4d2e; /* rojo-naranja. Tiempo critico (<24h) Y error/peligro. */
-  --color-rank: #e8c468; /* oro. Puesto 1 del podio; y puestos 1/2/3 en filas de tabla (FilaPuesto). */
-  --color-silver: #b3bbc6; /* plata MATE. EXCLUSIVO de la medalla del PUESTO 2 del podio. No usar en ningun otro sitio. */
-  --color-bronze: #bb7f4f; /* bronce MATE. EXCLUSIVO de la medalla del PUESTO 3 del podio. No usar en ningun otro sitio. */
-  --color-ok: #2be58b; /* menta. SOLO confirmaciones. */
-
-  /* --- BASE Y SUPERFICIES (profundidad por LUMINOSIDAD, nunca por sombra) --- */
-  --color-void: #07090d; /* fondo de pagina */
-  --color-surface: #10141c; /* tarjetas, hojas, paneles */
-  --color-raised: #1a2029; /* elevado: menus, estados activos, campos enfocados */
-  --color-line: rgb(255 255 255 / 0.1); /* filetes de 1 px: como se separan las cosas */
-  --color-text: #f2f4f7; /* texto principal */
-  --color-text-dim: #8d95a3; /* texto secundario, etiquetas, metadatos */
 
   /* neutrales que Tailwind necesita tras limpiar el namespace */
   --color-transparent: transparent;
@@ -72,64 +59,136 @@
   --font-display: var(--font-archivo), ui-sans-serif, sans-serif;
 }
 
-/* Alias con la nomenclatura del brief (--df-*), para uso directo en CSS/componentes
-   (p.ej. el marcador). Mismos valores que los tokens de @theme de arriba. */
-:root {
-  --df-money: var(--color-money);
-  --df-action: var(--color-action);
-  --df-time: var(--color-time);
-  --df-alarm: var(--color-alarm);
-  --df-rank: var(--color-rank);
-  --df-silver: var(--color-silver); /* SOLO medalla del puesto 2 del podio */
-  --df-bronze: var(--color-bronze); /* SOLO medalla del puesto 3 del podio */
-  --df-ok: var(--color-ok);
-  --df-void: var(--color-void);
-  --df-surface: var(--color-surface);
-  --df-raised: var(--color-raised);
-  --df-line: var(--color-line);
-  --df-text: var(--color-text);
-  --df-text-dim: var(--color-text-dim);
+/* Las utilidades de color apuntan a la VARIABLE (`inline`), no a una copia de su valor: es lo que
+   permite que el tema se cambie en caliente y que un subarbol (el panel) lleve otro distinto. Los
+   nombres --df-* son los del brief y son la FUENTE; --color-* es lo que consume Tailwind. */
+@theme inline {
+  --color-money: var(--df-money);
+  --color-action: var(--df-action);
+  --color-time: var(--df-time);
+  --color-alarm: var(--df-alarm);
+  --color-rank: var(--df-rank);
+  --color-silver: var(--df-silver);
+  --color-bronze: var(--df-bronze);
+  --color-ok: var(--df-ok);
+  --color-void: var(--df-void);
+  --color-surface: var(--df-surface);
+  --color-raised: var(--df-raised);
+  --color-line: var(--df-line);
+  --color-text: var(--df-text);
+  --color-text-dim: var(--df-text-dim);
+}
 
-  /* ==========================================================================
-     BRIEF v2 — impacto con NUESTRA paleta (magenta/lima/oscuros). Reutilizable en
-     Inicio y en el re-skin de Ranking/Retos. Degradado/glow/sombra suave/movimiento;
-     el CTA sigue PLANO (magenta solido). Sin foto de stock, sin morados/turquesas.
-     ========================================================================== */
-  /* DEGRADADOS/GLOW (radial color -> transparente; para fondos de seccion) */
-  --df-glow-accion: radial-gradient(
-    600px 480px at 82% 26%,
-    rgb(255 46 136 / 0.18),
-    transparent 60%
-  );
-  --df-glow-money: radial-gradient(900px 520px at 4% 106%, rgb(217 243 43 / 0.06), transparent 60%);
-  /* VELO del fondo de vídeo (Inicio). Oscurece el loop para que el hero, el marcador, el CTA y las
-     stats se lean encima. Se DERIVA de `--color-void` con `color-mix` en vez de escribir un rgba a
-     mano: si la paleta cambia, el velo cambia con ella. Más denso abajo, donde cae el contenido con
-     más texto. El oscurecido va AQUÍ y no horneado en el vídeo: así se ajusta sin volver a exportar
-     el asset, y el mismo velo hace de telón cuando el vídeo no se monta (móvil / movimiento reducido). */
+/* ============================================================================
+   PALETA OSCURA — la de siempre, y la de por defecto. El selector lleva TAMBIEN
+   [data-theme="dark"] para que un subarbol pueda pedir oscuro dentro de una
+   pagina clara: es asi como el PANEL se queda oscuro pase lo que pase.
+   ============================================================================ */
+:root,
+[data-theme="dark"] {
+  /* --- COLORES SEMANTICOS (un trabajo cada uno) --- */
+  --df-money: #d9f32b; /* lima acido. SOLO dinero: premios, saldo, bote. */
+  --df-action: #ff2e88; /* magenta. SOLO accion principal. UNO por pantalla. */
+  --df-time: #ffa114; /* ambar. SOLO tiempo restante no critico. */
+  --df-alarm: #ff4d2e; /* rojo-naranja. Tiempo critico (<24h) Y error/peligro. */
+  --df-rank: #e8c468; /* oro. Puesto 1 del podio; y puestos 1/2/3 en filas de tabla (FilaPuesto). */
+  --df-silver: #b3bbc6; /* plata MATE. EXCLUSIVO de la medalla del PUESTO 2 del podio. */
+  --df-bronze: #bb7f4f; /* bronce MATE. EXCLUSIVO de la medalla del PUESTO 3 del podio. */
+  --df-ok: #2be58b; /* menta. SOLO confirmaciones. */
+
+  /* --- BASE Y SUPERFICIES (profundidad por LUMINOSIDAD, nunca por sombra) --- */
+  --df-void: #07090d; /* fondo de pagina */
+  --df-surface: #10141c; /* tarjetas, hojas, paneles */
+  --df-raised: #1a2029; /* elevado: menus, estados activos, campos enfocados */
+  --df-line: rgb(255 255 255 / 0.1); /* filetes de 1 px: como se separan las cosas */
+  --df-text: #f2f4f7; /* texto principal */
+  --df-text-dim: #8d95a3; /* texto secundario, etiquetas, metadatos */
+
+  /* VELO del fondo de vídeo (Inicio): oscurece el loop para que el hero, el marcador, el CTA y las
+     stats se lean encima. Se DERIVA de `--df-void` con `color-mix` en vez de escribir un rgba a mano:
+     si la paleta cambia, el velo cambia con ella. Más denso abajo, donde cae el contenido con más
+     texto. El oscurecido va AQUÍ y no horneado en el vídeo: así se ajusta sin volver a exportar el
+     asset, y el mismo velo hace de telón cuando el vídeo no se monta (móvil / movimiento reducido). */
   --df-velo-fondo: linear-gradient(
     to bottom,
-    color-mix(in srgb, var(--color-void) 74%, transparent),
-    color-mix(in srgb, var(--color-void) 88%, transparent) 55%,
-    color-mix(in srgb, var(--color-void) 96%, transparent)
+    color-mix(in srgb, var(--df-void) 74%, transparent),
+    color-mix(in srgb, var(--df-void) 88%, transparent) 55%,
+    color-mix(in srgb, var(--df-void) 96%, transparent)
   );
   /* SOMBRAS SUAVES (oscuras: profundidad sin negro duro) */
   --df-shadow-sm: 0 10px 26px -14px rgb(0 0 0 / 0.6);
   --df-shadow-md: 0 24px 54px -26px rgb(0 0 0 / 0.72);
   --df-shadow-lg: 0 40px 90px -28px rgb(0 0 0 / 0.8);
-  /* REALCE EN HOVER (glow magenta sutil + filo) */
-  --df-glow-hover: 0 32px 70px -24px rgb(255 46 136 / 0.4), 0 0 0 1px rgb(255 46 136 / 0.35);
-  /* CTA PLANO: el relleno es magenta SOLIDO (--df-action); solo esta sombra magenta lo eleva */
-  --df-cta-lift: 0 10px 26px -12px rgb(255 46 136 / 0.5);
-  /* GLOW del dinero (halo lima para el marcador; el color SIGUE lima) */
-  --df-glow-lima: drop-shadow(0 0 12px rgb(217 243 43 / 0.4));
-  /* SHEEN (brillo lineal que barre las tarjetas glass) */
+  /* SHEEN (brillo lineal que barre las tarjetas glass): luz sobre oscuro. */
   --df-sheen: linear-gradient(
     115deg,
     transparent 44%,
     rgb(255 255 255 / 0.07) 50%,
     transparent 56%
   );
+}
+
+/* ============================================================================
+   PALETA CLARA — blanco y verde (encargo de Sergio). MISMOS trabajos, otros
+   valores. La regla de oro no se toca: ACCION != DINERO. En oscuro se separan
+   por magenta vs lima; en claro, por verde (accion) vs dorado (dinero).
+   Los valores estan MEDIDOS, no elegidos a ojo: contraste WCAG sobre blanco y
+   separacion CIEDE2000 entre significados los fija `tests/paleta-clara.test.ts`.
+   ============================================================================ */
+[data-theme="light"] {
+  --df-money: #8a6100; /* dorado. SOLO dinero (la moneda dorada de la referencia). */
+  --df-action: #15803d; /* verde. SOLO accion principal. UNO por pantalla. */
+  --df-time: #b45309; /* ambar tostado. SOLO tiempo restante no critico. */
+  --df-alarm: #b81414; /* rojo. Tiempo critico (<24h) Y error/peligro. */
+  /* ORO DEL PODIO, metalico de verdad. En claro NO se lee como texto pequeno (3,25:1), y por eso en
+     `FilaPuesto` el puesto 1/2/3 va SOBRE el oro (chip) en vez de EN oro — decision de Sergio, ver
+     `.df-puesto-podio` mas abajo. Donde sigue yendo suelto es en el podio: corona y aro son grafico
+     (minimo 3:1) y la cifra del pedestal es texto GRANDE (minimo 3:1). Los dos cumplen.
+     Esto es lo que deja al DINERO quedarse con el dorado legible sin que se confundan (dE 17,6). */
+  --df-rank: #b8860b;
+  --df-silver: #6b7280; /* plata MATE. EXCLUSIVO de la medalla del PUESTO 2. */
+  --df-bronze: #92603a; /* bronce MATE. EXCLUSIVO de la medalla del PUESTO 3. */
+  --df-ok: #0f766e; /* verde-confirmacion. NO es la accion y NO es dinero. */
+
+  --df-void: #f4f6f8; /* fondo de pagina */
+  --df-surface: #ffffff; /* tarjetas, hojas, paneles */
+  --df-raised: #eceff3; /* elevado: menus, estados activos, campos enfocados */
+  --df-line: rgb(13 17 23 / 0.12); /* filetes oscuros con opacidad */
+  --df-text: #0d1117; /* texto principal */
+  --df-text-dim: #5b6472; /* texto secundario, etiquetas, metadatos */
+
+  /* En claro la portada NO lleva vídeo (decision de Sergio): el velo es el fondo, liso y blanco.
+     Sigue derivandose de --df-void, asi que es exactamente el color de pagina. */
+  --df-velo-fondo: linear-gradient(to bottom, var(--df-void), var(--df-void));
+  /* Sombras mas suaves: sobre blanco, la misma opacidad de negro se ve sucia. */
+  --df-shadow-sm: 0 10px 24px -16px rgb(13 17 23 / 0.28);
+  --df-shadow-md: 0 22px 48px -28px rgb(13 17 23 / 0.32);
+  --df-shadow-lg: 0 36px 80px -32px rgb(13 17 23 / 0.36);
+  /* El sheen invierte: sobre claro, lo que barre es una SOMBRA, no una luz. */
+  --df-sheen: linear-gradient(115deg, transparent 44%, rgb(13 17 23 / 0.05) 50%, transparent 56%);
+}
+
+/* Lo que NO depende del tema, o se DERIVA de el con color-mix (y entonces cambia solo). */
+:root {
+  /* DEGRADADOS/GLOW (radial color -> transparente; para fondos de seccion) */
+  --df-glow-accion: radial-gradient(
+    600px 480px at 82% 26%,
+    color-mix(in srgb, var(--df-action) 18%, transparent),
+    transparent 60%
+  );
+  --df-glow-money: radial-gradient(
+    900px 520px at 4% 106%,
+    color-mix(in srgb, var(--df-money) 6%, transparent),
+    transparent 60%
+  );
+  /* REALCE EN HOVER (glow del acento + filo) */
+  --df-glow-hover:
+    0 32px 70px -24px color-mix(in srgb, var(--df-action) 40%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--df-action) 35%, transparent);
+  /* CTA PLANO: el relleno es el acento SOLIDO (--df-action); solo esta sombra lo eleva */
+  --df-cta-lift: 0 10px 26px -12px color-mix(in srgb, var(--df-action) 50%, transparent);
+  /* GLOW del dinero (halo del marcador; el color SIGUE siendo el del dinero) */
+  --df-glow-lima: drop-shadow(0 0 12px color-mix(in srgb, var(--df-money) 40%, transparent));
   /* MOVIMIENTO (duraciones; el easing es --ease-mechanical) */
   --df-dur-fast: 180ms;
   --df-dur-reveal: 500ms;
@@ -182,9 +241,40 @@
 }
 
 @layer base {
+  /* `color-scheme` va PEGADO al tema (no fijo): es lo que pinta los controles nativos, las barras de
+     scroll y el fondo que el navegador usa ANTES de que llegue el CSS. Con esto y el `data-theme` que
+     el servidor ya manda en el HTML (ver `layout.tsx` y `lib/tema.ts`), el primer pintado sale en el
+     tema correcto: no hay fogonazo oscuro al entrar en claro. */
+  :root,
+  [data-theme="dark"] {
+    color-scheme: dark;
+  }
+  [data-theme="light"] {
+    color-scheme: light;
+  }
   html {
-    color-scheme: dark; /* oscuro siempre: el producto es video a pantalla completa */
     background-color: var(--color-void);
+  }
+  /* En CLARO la portada va en BLANCO: el vídeo de fondo no se pinta (decisión de Sergio). El servidor
+     ya no lo monta cuando la cookie dice claro; esta regla cubre el cambio de tema SIN recargar, que
+     si no dejaría un vídeo oscuro detrás de una página blanca. */
+  [data-theme="light"] .df-fondo-video video {
+    display: none;
+  }
+
+  /* EL PUESTO 1/2/3 de una fila de ranking. En OSCURO va en oro, como siempre. En CLARO el oro
+     metálico no llega a contraste como texto pequeño (3,25:1 sobre blanco), así que el número va
+     SOBRE el oro: mismo significado —el podio se distingue del resto por el oro— y legible (6,5:1).
+     Es la contrapartida de que el DINERO se quede con el dorado: dos dorados legibles a la vez no
+     existen (medido en `tests/paleta-clara.test.ts`). */
+  .df-puesto-podio {
+    color: var(--df-rank);
+  }
+  [data-theme="light"] .df-puesto-podio {
+    color: var(--df-text);
+    background-color: var(--df-rank);
+    border-radius: var(--radius-xs);
+    text-align: center;
   }
   /* `body` NO repinta el fondo: lo pinta `html` (arriba) y de ahí sale el lienzo de la página.
      Ponerlo en los dos parecía inofensivo y no lo era. El orden de pintado del contexto de apilado

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { BadgeAvisos } from "@/app/(app)/avisos-contexto";
+import { ConmutadorTemaServidor } from "@/components/ui/conmutador-tema-servidor";
 import { Avatar } from "@/components/ui/avatar";
 import { Boton } from "@/components/ui/boton";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
@@ -175,6 +176,9 @@ export function PerfilVista({
                       campana, y se refresca solo. */}
                   <BadgeAvisos className="flex h-5 min-w-5 items-center justify-center rounded-full bg-text-dim px-1.5 text-2xs font-semibold tabular-nums text-void" />
                 </Boton>
+                {/* Tema claro/oscuro: SOLO MÓVIL, por lo mismo que los avisos — en escritorio está en
+                    la barra superior, y en móvil no hay barra donde ponerlo. */}
+                <ConmutadorTemaServidor conTexto className="mt-3 lg:hidden" />
                 {/* Cerrar sesión: acción de cuenta de baja jerarquía (fantasma). Aquí es la vía que
                     alcanza el MÓVIL, donde no hay barra superior con menú. */}
                 <CerrarSesion className="mt-3" />
