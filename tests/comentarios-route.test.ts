@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   publicar: vi.fn(),
   retirar: vi.fn(),
   listar: vi.fn(),
+  suelto: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ env: { APP_URL, AUTH_SECRET: SECRET } }));
@@ -26,9 +27,10 @@ vi.mock("@/server/services/comentarios", () => ({
   publicarComentario: mocks.publicar,
   retirarComentario: mocks.retirar,
   listarComentarios: mocks.listar,
+  comentarioSuelto: mocks.suelto,
 }));
 
-import { DELETE as BORRAR } from "../src/app/api/comentarios/[id]/route";
+import { DELETE as BORRAR, GET as LEER_UNO } from "../src/app/api/comentarios/[id]/route";
 import { GET as LEER, POST as PUBLICAR } from "../src/app/api/videos/[id]/comentarios/route";
 
 const USER = { userId: "user-1", sessionId: "sess-u", role: "USER", emailVerified: new Date() };
@@ -69,6 +71,7 @@ beforeEach(() => {
   mocks.publicar.mockResolvedValue({ estado: "publicado", comentario: COMENTARIO, comentarios: 4 });
   mocks.retirar.mockResolvedValue({ estado: "retirado", comentarios: 3 });
   mocks.listar.mockResolvedValue({ items: [COMENTARIO], nextCursor: null });
+  mocks.suelto.mockResolvedValue({ comentario: COMENTARIO, videoId: "vid-1" });
 });
 
 describe("POST /api/videos/[id]/comentarios (publicar)", () => {
@@ -120,6 +123,27 @@ describe("GET /api/videos/[id]/comentarios (leer)", () => {
     });
     mocks.listar.mockResolvedValueOnce(null);
     expect((await leer()).status).toBe(404);
+  });
+});
+
+describe("GET /api/comentarios/[id] (el comentario del aviso)", () => {
+  const leerUno = () =>
+    LEER_UNO(new Request("http://test.local/api/comentarios/c1"), {
+      params: Promise.resolve({ id: "c1" }),
+    });
+
+  it("devuelve el comentario con su vídeo; público y sin cachear", async () => {
+    mocks.getCurrentUser.mockResolvedValue(null);
+    const res = await leerUno();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ comentario: COMENTARIO, videoId: "vid-1" });
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(mocks.suelto).toHaveBeenCalledWith(expect.anything(), "c1", { userId: null });
+  });
+
+  it("retirado, de un vídeo que no se ve o inexistente -> 404", async () => {
+    mocks.suelto.mockResolvedValueOnce(null);
+    expect((await leerUno()).status).toBe(404);
   });
 });
 

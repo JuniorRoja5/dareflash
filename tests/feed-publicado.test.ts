@@ -8,7 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { ModerationStatus, PrismaClient } from "../src/generated/prisma/client";
 import { generarPublicCode } from "../src/server/services/reto-codigo";
-import { feedPublicado, type Firmante } from "../src/server/services/feed";
+import { feedPublicado, videoParaFeed, type Firmante } from "../src/server/services/feed";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
 
@@ -403,5 +403,116 @@ describe("estado de voto en el payload", () => {
     expect(libre.retoId).toBeNull();
     expect(libre.retoAbierto).toBe(false);
     expect(libre.miVoto).toBeNull();
+  });
+});
+
+/**
+ * UN VÍDEO SUELTO, para que el feed pueda ABRIR por él (el deep-link del aviso de comentario). Tiene que
+ * dar EXACTAMENTE el mismo post que la lista —si divergieran, entrar por el enlace enseñaría otra cosa
+ * que entrar desplazándose— y respetar la misma regla de visibilidad.
+ *
+ * Para romperlo: quitarle `VIDEO_VISIBLE` (rojo: un vídeo retirado se abriría por enlace); construir su
+ * post a mano en vez de con el mapeo compartido (rojo en el primero).
+ */
+describe("videoParaFeed", () => {
+  it("da el MISMO post que la lista para ese vídeo", async () => {
+    const u = await prisma.user.create({ data: { username: "suelto" }, select: { id: true } });
+    const id = await crearVideo({
+      userId: u.id,
+      status: "PUBLISHED",
+      bunny: "b-suelto",
+      title: "Vídeo suelto",
+      createdAt: new Date("2026-06-01T00:00:00Z"),
+      category: "fitness",
+    });
+    await crearVideo({
+      userId: u.id,
+      status: "PUBLISHED",
+      bunny: "b-otro",
+      title: "Otro",
+      createdAt: new Date("2026-06-02T00:00:00Z"),
+      category: "fitness",
+    });
+
+    const { items } = await feedPublicado(prisma, { firmar: firmarFake, userId: u.id });
+    const post = await videoParaFeed(prisma, id, { firmar: firmarFake, userId: u.id });
+
+    expect(post).toEqual(items.find((i) => i.id === id));
+  });
+
+  it("trae el voto del usuario en su reto, como la lista", async () => {
+    const autor = await prisma.user.create({ data: { username: "aut" }, select: { id: true } });
+    const votante = await prisma.user.create({ data: { username: "vot" }, select: { id: true } });
+    const videoId = await crearVideo({
+      userId: autor.id,
+      status: "PUBLISHED",
+      bunny: "b-voto",
+      title: "t",
+      createdAt: new Date(),
+    });
+    const ch = await prisma.challenge.create({
+      data: {
+        title: "Reto",
+        slug: "reto",
+        publicCode: generarPublicCode(),
+        category: "fitness",
+        prizeCurrency: "EUR",
+        status: "PUBLISHED",
+        startsAt: new Date(Date.now() - 3_600_000),
+        deadline: new Date(Date.now() + 3_600_000),
+        createdById: autor.id,
+      },
+      select: { id: true },
+    });
+    const sub = await prisma.submission.create({
+      data: { challengeId: ch.id, userId: autor.id, videoId, status: "PUBLISHED" },
+      select: { id: true },
+    });
+    await prisma.vote.create({
+      data: { challengeId: ch.id, submissionId: sub.id, userId: votante.id, ipHash: "h" },
+    });
+
+    const post = await videoParaFeed(prisma, videoId, {
+      firmar: firmarFake,
+      userId: votante.id,
+    });
+
+    expect(post).toMatchObject({ retoId: ch.id, retoAbierto: true, miVoto: sub.id });
+    // Sin sesión, el mismo vídeo sin voto marcado (y sin consultarlo).
+    expect((await videoParaFeed(prisma, videoId, { firmar: firmarFake }))?.miVoto).toBeNull();
+  });
+
+  it("uno que NO se ve da null: la misma regla que la lista", async () => {
+    const u = await prisma.user.create({ data: { username: "invis" }, select: { id: true } });
+    const retirado = await crearVideo({
+      userId: u.id,
+      status: "REMOVED",
+      bunny: "b-rem",
+      title: "t",
+      createdAt: new Date(),
+      category: "fitness",
+    });
+    // Subida LIBRE sin categoría: tampoco sale en el feed.
+    const sinCategoria = await crearVideo({
+      userId: u.id,
+      status: "PUBLISHED",
+      bunny: "b-sincat",
+      title: "t",
+      createdAt: new Date(),
+    });
+    const baneada = await prisma.user.create({ data: { username: "ban" }, select: { id: true } });
+    const deBaneada = await crearVideo({
+      userId: baneada.id,
+      status: "PUBLISHED",
+      bunny: "b-ban",
+      title: "t",
+      createdAt: new Date(),
+      category: "fitness",
+    });
+    await prisma.user.update({ where: { id: baneada.id }, data: { bannedAt: new Date() } });
+
+    for (const id of [retirado, sinCategoria, deBaneada, "no-existe"]) {
+      expect(await videoParaFeed(prisma, id, { firmar: firmarFake }), id).toBeNull();
+    }
   });
 });

@@ -264,10 +264,12 @@ function PanelComentarios({
   post,
   haySesion,
   onContador,
+  anclaComentario,
 }: {
   post: PostFeed;
   haySesion: boolean;
   onContador: (videoId: string, comentarios: number) => void;
+  anclaComentario?: string;
 }) {
   const nombre = nombreMostrado(post.displayName, post.username);
   const conHandle = mostrarHandleSecundario(post.displayName);
@@ -291,6 +293,7 @@ function PanelComentarios({
         videoId={post.id}
         haySesion={haySesion}
         idCaja={`comentar-${post.id}`}
+        anclaId={anclaComentario}
         onContador={(n) => onContador(post.id, n)}
       />
     </aside>
@@ -308,11 +311,13 @@ function HojaComentarios({
   haySesion,
   onContador,
   onCerrar,
+  anclaComentario,
 }: {
   post: PostFeed;
   haySesion: boolean;
   onContador: (videoId: string, comentarios: number) => void;
   onCerrar: () => void;
+  anclaComentario?: string;
 }) {
   useEffect(() => {
     const alTeclear = (e: KeyboardEvent): void => {
@@ -353,6 +358,7 @@ function HojaComentarios({
           key={post.id}
           videoId={post.id}
           haySesion={haySesion}
+          anclaId={anclaComentario}
           onContador={(n) => onContador(post.id, n)}
         />
       </div>
@@ -390,6 +396,32 @@ function Flecha({
         {dir === "up" ? <path d="M6 15l6-6 6 6" /> : <path d="M6 9l6 6 6-6" />}
       </svg>
     </button>
+  );
+}
+
+/**
+ * AVISO DE ENTRADA — una línea honesta cuando el enlace por el que se llegó ya no lleva a donde decía
+ * (el vídeo del aviso se retiró). No se redirige ni se finge: se entra al feed normal y se explica.
+ * Se cierra a mano; no desaparece solo, para que no se lo pierda quien tarde en mirar.
+ */
+function AvisoEntrada({ texto }: { texto: string }) {
+  const [visible, setVisible] = useState(true);
+  if (!visible) return null;
+  return (
+    <div
+      role="status"
+      className="fixed inset-x-3 top-3 z-40 mx-auto flex max-w-md items-center justify-between gap-3 rounded-sm border border-line bg-surface px-3 py-2 shadow-[var(--df-shadow-lg)]"
+    >
+      <p className="text-sm text-text-dim">{texto}</p>
+      <button
+        type="button"
+        onClick={() => setVisible(false)}
+        aria-label="Cerrar aviso"
+        className="shrink-0 rounded-full px-2 text-text-dim hover:text-text"
+      >
+        ×
+      </button>
+    </div>
   );
 }
 
@@ -462,6 +494,8 @@ export function FeedVertical({
   haySesion = false,
   fuente = fuenteGlobal,
   indiceInicial = 0,
+  comentarioDestacado,
+  aviso,
 }: {
   postsIniciales: PostFeed[];
   cursorInicial: string | null;
@@ -472,6 +506,14 @@ export function FeedVertical({
   fuente?: FuenteFeed;
   /** Índice del vídeo por el que abrir. Lo usa el feed de un reto para entrar por el que se tocó. */
   indiceInicial?: number;
+  /**
+   * Comentario al que se llega desde el aviso (`/feed?video=…&comentario=…`). Su vídeo es el PRIMERO
+   * de `postsIniciales` —lo coloca ahí la página—, así que abrir el feed ya deja ese vídeo delante:
+   * aquí solo queda enseñar sus comentarios y marcar cuál era.
+   */
+  comentarioDestacado?: string;
+  /** Aviso honesto de la entrada (p. ej. el vídeo del enlace ya no está). Se puede cerrar. */
+  aviso?: string;
 }) {
   const [posts, setPosts] = useState<PostFeed[]>(postsIniciales);
   const [cursor, setCursor] = useState<string | null>(cursorInicial);
@@ -609,6 +651,22 @@ export function FeedVertical({
   };
   const postHoja = hoja ? posts.find((p) => p.id === hoja) : undefined;
 
+  // DEEP-LINK del aviso: el vídeo del comentario es el primero (lo pone la página). En ESCRITORIO el
+  // panel ya está a la vista, así que no hay nada que abrir; en MÓVIL hay que abrir la hoja, o el
+  // usuario aterrizaría en el vídeo correcto sin ver el comentario del que hablaba el aviso.
+  const videoAncla = comentarioDestacado ? (postsIniciales[0]?.id ?? null) : null;
+  // El estado NO puede nacer con la hoja abierta: el servidor no sabe si esto es un móvil (lo dice
+  // `matchMedia`, que solo existe en el navegador), así que abrirla en el primer render rompería la
+  // hidratación. Por eso se abre AQUÍ, después de montar, aunque la regla prefiera lo contrario.
+  useEffect(() => {
+    if (!videoAncla) return;
+    const escritorio =
+      typeof window.matchMedia === "function" && window.matchMedia("(min-width: 1024px)").matches;
+    // Un render de más al entrar por el enlace, a cambio de no romper la hidratación: aceptado.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!escritorio) setHoja(videoAncla);
+  }, [videoAncla]);
+
   const irA = (i: number): void => {
     const dest = Math.max(0, Math.min(posts.length - 1, i));
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -668,13 +726,19 @@ export function FeedVertical({
         </div>
       </div>
 
-      {posts.length > 0 ? (
-        <PanelComentarios
-          post={posts[activo] ?? posts[0]!}
-          haySesion={haySesion}
-          onContador={alContador}
-        />
-      ) : null}
+      {posts.length > 0
+        ? (() => {
+            const post = posts[activo] ?? posts[0]!;
+            return (
+              <PanelComentarios
+                post={post}
+                haySesion={haySesion}
+                onContador={alContador}
+                anclaComentario={post.id === videoAncla ? comentarioDestacado : undefined}
+              />
+            );
+          })()
+        : null}
 
       {postHoja ? (
         <HojaComentarios
@@ -682,8 +746,11 @@ export function FeedVertical({
           haySesion={haySesion}
           onContador={alContador}
           onCerrar={cerrarHoja}
+          anclaComentario={postHoja.id === videoAncla ? comentarioDestacado : undefined}
         />
       ) : null}
+
+      {aviso ? <AvisoEntrada texto={aviso} /> : null}
     </div>
   );
 }

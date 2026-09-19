@@ -18,6 +18,7 @@
  */
 import "server-only";
 
+import { Prisma } from "@/generated/prisma/client";
 import { nombreCategoria } from "@/lib/categorias";
 import { retoEstaAbierto } from "@/lib/reto-ventana";
 import type { Db } from "@/server/db/types";
@@ -76,6 +77,104 @@ export type Firmante = (
 export const FEED_LIMITE_DEFECTO = 8;
 export const FEED_LIMITE_MAX = 20;
 
+/**
+ * Lo que el feed lee de un vídeo. UNO SOLO para la lista y para el vídeo suelto del deep-link: si se
+ * copiara, las dos formas de entrar al feed podrían divergir en lo que pintan.
+ */
+const SELECT_FEED = {
+  id: true,
+  bunnyVideoId: true,
+  thumbnailFileName: true,
+  title: true,
+  category: true,
+  commentCount: true,
+  user: { select: { username: true, displayName: true } },
+  submission: {
+    select: {
+      id: true,
+      status: true,
+      voteCount: true,
+      challengeId: true,
+      challenge: {
+        select: { title: true, category: true, status: true, startsAt: true, deadline: true },
+      },
+    },
+  },
+} as const;
+
+type FilaFeed = Prisma.VideoGetPayload<{ select: typeof SELECT_FEED }>;
+
+/** De fila a post. Igual de único que el `select`, y por la misma razón. */
+function aPostFeed(
+  v: FilaFeed,
+  ctx: { firmar: Firmante; misVotos: ReadonlyMap<string, string>; ahora: Date },
+): PostFeed {
+  // Submission visible solo si su propio status es PUBLISHED (el mas restrictivo gana).
+  const sub = v.submission && v.submission.status === "PUBLISHED" ? v.submission : null;
+  // Categoria: con Submission publicada -> la del reto; sin ella -> la del video libre (Video.category).
+  const claveCategoria = categoriaKeyDeVideo({ submission: v.submission, category: v.category });
+  const urls = ctx.firmar(v.bunnyVideoId, v.thumbnailFileName);
+  return {
+    id: v.id,
+    displayName: v.user.displayName,
+    username: v.user.username,
+    retoTitulo: sub?.challenge.title ?? v.title ?? "Vídeo",
+    categoria: nombreCategoria(claveCategoria),
+    votos: sub?.voteCount ?? 0,
+    comentarios: v.commentCount,
+    src: urls.src,
+    poster: urls.poster,
+    // Del MISMO `sub` que ya filtra por "publicada": una participacion oculta no sale como votable.
+    participacionId: sub?.id ?? null,
+    retoId: sub?.challengeId ?? null,
+    retoAbierto: sub ? retoEstaAbierto(sub.challenge, ctx.ahora) : false,
+    miVoto: sub ? (ctx.misVotos.get(sub.challengeId) ?? null) : null,
+  };
+}
+
+/**
+ * MI VOTO en los retos de un lote de vídeos, en UNA sola consulta (no una por vídeo). Sin sesión no se
+ * consulta nada: el feed es público y no debe pagar una consulta por un dato que no aplica.
+ */
+async function misVotosDe(
+  db: Db,
+  filas: FilaFeed[],
+  userId: string | null | undefined,
+): Promise<Map<string, string>> {
+  const misVotos = new Map<string, string>();
+  const retosVisibles = [
+    ...new Set(
+      filas
+        .map((v) => (v.submission?.status === "PUBLISHED" ? v.submission.challengeId : null))
+        .filter((id): id is string => id !== null),
+    ),
+  ];
+  if (!userId || retosVisibles.length === 0) return misVotos;
+  const votos = await db.vote.findMany({
+    where: { userId, challengeId: { in: retosVisibles } },
+    select: { challengeId: true, submissionId: true },
+  });
+  for (const f of votos) misVotos.set(f.challengeId, f.submissionId);
+  return misVotos;
+}
+
+/**
+ * UN vídeo concreto en forma de post, o `null` si no se ve. Lo usa el DEEP-LINK del aviso de comentario
+ * (`/feed?video=…`): el feed abre POR ese vídeo, esté o no en la primera página. Misma regla de
+ * visibilidad (`VIDEO_VISIBLE`) y mismo mapeo que la lista, así que un vídeo retirado da `null` aquí
+ * igual que desaparece de allí.
+ */
+export async function videoParaFeed(
+  db: Db,
+  id: string,
+  opts: { firmar: Firmante; userId?: string | null; ahora?: Date },
+): Promise<PostFeed | null> {
+  const fila = await db.video.findFirst({ where: { id, ...VIDEO_VISIBLE }, select: SELECT_FEED });
+  if (!fila) return null;
+  const misVotos = await misVotosDe(db, [fila], opts.userId);
+  return aPostFeed(fila, { firmar: opts.firmar, misVotos, ahora: opts.ahora ?? new Date() });
+}
+
 export async function feedPublicado(
   db: Db,
   opts: {
@@ -98,26 +197,7 @@ export async function feedPublicado(
     // Que se ve lo decide `VIDEO_VISIBLE` (sin reemplazos en vuelo, sin autores borrados o baneados,
     // sin retos borrados, subidas libres solo con categoria): la MISMA regla que los comentarios.
     where: VIDEO_VISIBLE,
-    select: {
-      id: true,
-      bunnyVideoId: true,
-      thumbnailFileName: true,
-      title: true,
-      category: true,
-      commentCount: true,
-      user: { select: { username: true, displayName: true } },
-      submission: {
-        select: {
-          id: true,
-          status: true,
-          voteCount: true,
-          challengeId: true,
-          challenge: {
-            select: { title: true, category: true, status: true, startsAt: true, deadline: true },
-          },
-        },
-      },
-    },
+    select: SELECT_FEED,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limite + 1,
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
@@ -126,48 +206,12 @@ export async function feedPublicado(
   const hayMas = filas.length > limite;
   const visibles = hayMas ? filas.slice(0, limite) : filas;
 
-  // MI VOTO, en UNA sola consulta para toda la pagina (no una por video): los retos de los videos
-  // visibles, cruzados con mis votos. Sin sesion no se consulta nada.
-  const retosVisibles = [
-    ...new Set(
-      visibles
-        .map((v) => (v.submission?.status === "PUBLISHED" ? v.submission.challengeId : null))
-        .filter((id): id is string => id !== null),
-    ),
-  ];
-  const misVotos = new Map<string, string>();
-  if (opts.userId && retosVisibles.length > 0) {
-    const filas = await db.vote.findMany({
-      where: { userId: opts.userId, challengeId: { in: retosVisibles } },
-      select: { challengeId: true, submissionId: true },
-    });
-    for (const f of filas) misVotos.set(f.challengeId, f.submissionId);
-  }
+  // MI VOTO, en UNA sola consulta para toda la pagina (no una por video).
+  const misVotos = await misVotosDe(db, visibles, opts.userId);
   const ahora = opts.ahora ?? new Date();
-
-  const items: PostFeed[] = visibles.map((v) => {
-    // Submission visible solo si su propio status es PUBLISHED (el mas restrictivo gana).
-    const sub = v.submission && v.submission.status === "PUBLISHED" ? v.submission : null;
-    // Categoria: con Submission publicada -> la del reto; sin ella -> la del video libre (Video.category).
-    const claveCategoria = categoriaKeyDeVideo({ submission: v.submission, category: v.category });
-    const urls = opts.firmar(v.bunnyVideoId, v.thumbnailFileName);
-    return {
-      id: v.id,
-      displayName: v.user.displayName,
-      username: v.user.username,
-      retoTitulo: sub?.challenge.title ?? v.title ?? "Vídeo",
-      categoria: nombreCategoria(claveCategoria),
-      votos: sub?.voteCount ?? 0,
-      comentarios: v.commentCount,
-      src: urls.src,
-      poster: urls.poster,
-      // Del MISMO `sub` que ya filtra por "publicada": una participacion oculta no sale como votable.
-      participacionId: sub?.id ?? null,
-      retoId: sub?.challengeId ?? null,
-      retoAbierto: sub ? retoEstaAbierto(sub.challenge, ahora) : false,
-      miVoto: sub ? (misVotos.get(sub.challengeId) ?? null) : null,
-    };
-  });
+  const items: PostFeed[] = visibles.map((v) =>
+    aPostFeed(v, { firmar: opts.firmar, misVotos, ahora }),
+  );
 
   return {
     items,

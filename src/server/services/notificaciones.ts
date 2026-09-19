@@ -18,6 +18,8 @@ import type { Prisma } from "@/generated/prisma/client";
 import { AvisoSchema, textoAviso, type Aviso } from "@/lib/notificaciones";
 import type { Db } from "@/server/db/types";
 
+import { VIDEO_VISIBLE } from "./video-visible";
+
 /**
  * Emite un aviso a `userId`. Devuelve `true` si lo escribió AHORA y `false` si ya existía (no-op).
  *
@@ -127,11 +129,13 @@ export async function listarNotificaciones(
   const pagina = hayMas ? filas.slice(0, limite) : filas;
   // Los ANUNCIOS se pintan con el texto de su `Announcement`, unido por refId: UNA consulta por página.
   const anuncios = await textosDeAnuncios(db, pagina);
+  // Y los COMENTARIOS, con el vídeo de su `Comment`, también por refId y también UNA consulta.
+  const comentarios = await videosDeComentarios(db, pagina);
 
   const items: NotificacionVista[] = [];
   for (const f of pagina) {
     // Una fila que no valida (de otra versión, o manipulada) se OMITE: mejor un hueco que un texto roto.
-    const t = textoAviso(f, { anuncios });
+    const t = textoAviso(f, { anuncios, comentarios });
     if (!t) continue;
     items.push({
       id: f.id,
@@ -174,6 +178,34 @@ export async function textosDeAnuncios(
     select: { id: true, texto: true },
   });
   return new Map(anuncios.map((a) => [a.id, a.texto]));
+}
+
+/**
+ * A QUÉ VÍDEO pertenece cada COMENTARIO avisado de un lote: UNA consulta para todo el lote, como los
+ * textos de los anuncios, nunca una por aviso. Es lo que convierte el aviso en un enlace AL comentario.
+ *
+ * Solo entran los que siguen viéndose (comentario no retirado y vídeo visible): un aviso cuyo comentario
+ * o vídeo ya no está se queda fuera del mapa y su enlace cae al de antes, en vez de llevar a un feed que
+ * no puede enseñar nada.
+ *
+ * Vive aquí y no en el servicio de comentarios a propósito: aquel ya importa `emitirAviso` de este, y la
+ * vuelta cerraría un ciclo entre los dos módulos.
+ */
+export async function videosDeComentarios(
+  db: Db,
+  filas: ReadonlyArray<{ tipo: string; refType: string; refId: string }>,
+): Promise<Map<string, string>> {
+  const ids = [
+    ...new Set(
+      filas.filter((f) => f.tipo === "COMENTARIO" && f.refType === "COMMENT").map((f) => f.refId),
+    ),
+  ];
+  if (ids.length === 0) return new Map();
+  const comentarios = await db.comment.findMany({
+    where: { id: { in: ids }, retiradoEn: null, video: VIDEO_VISIBLE },
+    select: { id: true, videoId: true },
+  });
+  return new Map(comentarios.map((c) => [c.id, c.videoId]));
 }
 
 /**

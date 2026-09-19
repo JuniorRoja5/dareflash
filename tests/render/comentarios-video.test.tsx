@@ -39,13 +39,14 @@ beforeEach(() => {
   mocks.del.mockReset();
 });
 
-async function montar(opciones: { haySesion?: boolean } = {}) {
+async function montar(opciones: { haySesion?: boolean; anclaId?: string } = {}) {
   const onContador = vi.fn();
   await act(async () => {
     render(
       <ComentariosVideo
         videoId="vid-1"
         haySesion={opciones.haySesion ?? true}
+        anclaId={opciones.anclaId}
         onContador={onContador}
       />,
     );
@@ -143,6 +144,79 @@ describe("escribir", () => {
     expect(screen.getByRole("alert").textContent).toContain("Estás comentando muy seguido.");
     expect(screen.queryAllByRole("listitem")).toHaveLength(0);
     expect(onContador).not.toHaveBeenCalled();
+  });
+});
+
+describe("el comentario del aviso (deep-link)", () => {
+  /** El ancla se resuelve en un efecto posterior a la carga: hay que dejar correr ese ciclo. */
+  const asentar = async () => {
+    await act(async () => {});
+  };
+
+  it("si cayó en la lista, se marca; y no se pide nada más", async () => {
+    mocks.get.mockResolvedValueOnce(
+      ok({ items: [comentario("c1"), comentario("c2")], nextCursor: null }),
+    );
+    await montar({ anclaId: "c2" });
+    await asentar();
+
+    const marcados = screen
+      .getAllByRole("listitem")
+      .filter((li) => li.getAttribute("aria-current") === "true");
+    expect(marcados).toHaveLength(1);
+    expect(marcados[0]!.textContent).toContain("Texto c2");
+    expect(mocks.get).toHaveBeenCalledTimes(1);
+  });
+
+  it("si NO cayó en la lista, se pide suelto y se fija ARRIBA, marcado y sin repetirse", async () => {
+    mocks.get
+      .mockResolvedValueOnce(ok({ items: [comentario("c1")], nextCursor: "cur-1" }))
+      .mockResolvedValueOnce(ok({ comentario: comentario("viejo"), videoId: "vid-1" }));
+    await montar({ anclaId: "viejo" });
+    await asentar();
+
+    expect(mocks.get).toHaveBeenLastCalledWith("/api/comentarios/viejo");
+    const lista = screen.getAllByRole("listitem");
+    expect(lista).toHaveLength(2);
+    expect(lista[0]!.textContent).toContain("Texto viejo");
+    expect(lista[0]!.getAttribute("aria-current")).toBe("true");
+  });
+
+  it("el fijado no se duplica cuando una página posterior acaba trayéndolo", async () => {
+    mocks.get
+      .mockResolvedValueOnce(ok({ items: [comentario("c1")], nextCursor: "cur-1" }))
+      .mockResolvedValueOnce(ok({ comentario: comentario("viejo"), videoId: "vid-1" }))
+      .mockResolvedValueOnce(ok({ items: [comentario("viejo")], nextCursor: null }));
+    await montar({ anclaId: "viejo" });
+    await asentar();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Ver más comentarios" }));
+    });
+
+    expect(screen.getAllByText("Texto viejo")).toHaveLength(1);
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  it("si ya no está, lo dice en vez de dejar al usuario buscándolo", async () => {
+    mocks.get
+      .mockResolvedValueOnce(ok({ items: [comentario("c1")], nextCursor: null }))
+      .mockResolvedValueOnce(ok({ error: { code: "NOT_FOUND", message: "x" } }, 404));
+    await montar({ anclaId: "fantasma" });
+    await asentar();
+
+    expect(screen.getByRole("status").textContent).toContain("Ese comentario ya no está.");
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+  });
+
+  it("sin ancla no se marca nada ni se pide nada de más", async () => {
+    mocks.get.mockResolvedValueOnce(ok({ items: [comentario("c1")], nextCursor: null }));
+    await montar();
+    await asentar();
+
+    expect(screen.getAllByRole("listitem")[0]!.getAttribute("aria-current")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(mocks.get).toHaveBeenCalledTimes(1);
   });
 });
 

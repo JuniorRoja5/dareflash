@@ -182,6 +182,42 @@ export async function retirarComentario(
   }, LEDGER_TX_OPTIONS);
 }
 
+/**
+ * UN comentario suelto por su id, con el vídeo al que pertenece. Lo usa el DEEP-LINK del aviso: si el
+ * comentario del aviso es viejo y ya no cae en la primera página de la lista, el panel lo pide por aquí
+ * y lo ancla arriba en vez de dejar al usuario buscándolo.
+ *
+ * `null` si el comentario está retirado o su vídeo no se ve: el aviso degrada, no miente.
+ */
+export async function comentarioSuelto(
+  db: Db,
+  commentId: string,
+  opciones: { userId?: string | null } = {},
+): Promise<{ comentario: ComentarioVista; videoId: string } | null> {
+  const f = await db.comment.findFirst({
+    where: { id: commentId, retiradoEn: null, video: VIDEO_VISIBLE },
+    select: {
+      id: true,
+      texto: true,
+      createdAt: true,
+      videoId: true,
+      userId: true,
+      user: { select: { username: true, displayName: true, image: true } },
+    },
+  });
+  if (!f) return null;
+  return {
+    videoId: f.videoId,
+    comentario: {
+      id: f.id,
+      texto: f.texto,
+      creadoMs: f.createdAt.getTime(),
+      autor: f.user,
+      esMio: opciones.userId ? f.userId === opciones.userId : false,
+    },
+  };
+}
+
 function codificarCursor(ms: number, id: string): string {
   return `${ms}.${id}`;
 }

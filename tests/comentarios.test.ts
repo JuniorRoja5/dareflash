@@ -19,6 +19,7 @@ import { COMENTARIO_TEXTO_MAX } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { avisoComentario, textoAviso } from "../src/lib/notificaciones";
 import {
+  comentarioSuelto,
   listarComentarios,
   publicarComentario,
   retirarComentario,
@@ -300,6 +301,46 @@ describe("leer", () => {
     expect(p?.items).toHaveLength(6);
     expect(new Set(p?.items.map((c) => c.autor.username)).size).toBe(6);
     expect(llamadas).toEqual(["video.findFirst", "comment.findMany"]);
+  });
+});
+
+describe("uno suelto, por su id (el del aviso)", () => {
+  it("lo devuelve con su vídeo, y dice si es de quien mira", async () => {
+    const videoId = await videoLibre();
+    const r = await publicar(videoId, "El del aviso");
+    if (r.estado !== "publicado") throw new Error("no se publicó");
+
+    expect(await comentarioSuelto(prisma, r.comentario.id, { userId: autor })).toEqual({
+      videoId,
+      comentario: {
+        id: r.comentario.id,
+        texto: "El del aviso",
+        creadoMs: expect.any(Number),
+        autor: { username: "comentarista", displayName: null, image: null },
+        esMio: true,
+      },
+    });
+    // Para otra persona (o un invitado) es el mismo comentario, pero no es suyo.
+    expect(
+      (await comentarioSuelto(prisma, r.comentario.id, { userId: dueno }))?.comentario.esMio,
+    ).toBe(false);
+    expect((await comentarioSuelto(prisma, r.comentario.id))?.comentario.esMio).toBe(false);
+  });
+
+  it("retirado, de un vídeo que ya no se ve, o inexistente: null", async () => {
+    const videoId = await videoLibre();
+    const retirado = await publicar(videoId, "Se retira");
+    if (retirado.estado !== "publicado") throw new Error("no se publicó");
+    await retirarComentario(prisma, { userId: autor, commentId: retirado.comentario.id });
+
+    const otroVideo = await videoLibre();
+    const deOculto = await publicar(otroVideo, "Su vídeo se va");
+    if (deOculto.estado !== "publicado") throw new Error("no se publicó");
+    await prisma.video.update({ where: { id: otroVideo }, data: { status: "REMOVED" } });
+
+    for (const id of [retirado.comentario.id, deOculto.comentario.id, "no-existe"]) {
+      expect(await comentarioSuelto(prisma, id), id).toBeNull();
+    }
   });
 });
 

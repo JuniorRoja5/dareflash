@@ -13,6 +13,7 @@ import { z } from "zod";
 
 import { VideoFailureReasonSchema, type VideoFailureReason } from "@/config/constants";
 
+import { enlaceComentario } from "./enlace-comentario";
 import { COPY_SUBIDA } from "./estado-subida";
 import { NIVELES, type ClaveNivel } from "./niveles";
 
@@ -287,26 +288,39 @@ export function textoAviso(
       // bandeja, donde se lee entero; no hay (ni se promete) una pantalla propia del anuncio.
       return { es: texto, en: texto, href: "/notificaciones" };
     }
-    case "COMENTARIO":
-      // Sin el texto del comentario (ver el esquema). Lleva al reto si el vídeo es una participación;
-      // una subida libre no tiene página propia todavía, así que lleva al perfil, donde está el vídeo.
+    case "COMENTARIO": {
+      // Sin el texto del comentario (ver el esquema). Lleva AL COMENTARIO: el feed abre por ese vídeo y
+      // ancla el comentario. El vídeo no viaja en la fila del aviso —se une por refId al leer, como el
+      // texto de los anuncios—, así que si no llegó (comentario retirado, vídeo que ya no se ve) el
+      // enlace CAE al de antes: el reto si es una participación, y el perfil si es una subida libre,
+      // que es donde está el vídeo mientras no haya página propia.
+      const videoId = contexto.comentarios?.get(a.refId);
+      const href = videoId
+        ? enlaceComentario(videoId, a.refId)
+        : a.datos.reto
+          ? enlaceReto(a.datos.reto)
+          : "/perfil";
       return a.datos.reto
         ? {
             es: `@${a.datos.autor} ha comentado tu vídeo en «${a.datos.reto.titulo}».`,
             en: `@${a.datos.autor} commented on your video in "${a.datos.reto.titulo}".`,
-            href: enlaceReto(a.datos.reto),
+            href,
           }
         : {
             es: `@${a.datos.autor} ha comentado tu vídeo.`,
             en: `@${a.datos.autor} commented on your video.`,
-            href: "/perfil",
+            href,
           };
+    }
   }
 }
 
 /** Lo que un aviso necesita de FUERA de su fila para pintarse: hoy, el texto de los anuncios por id. */
 export interface ContextoTexto {
   anuncios?: ReadonlyMap<string, string>;
+  /** Vídeo de cada COMENTARIO avisado, por id de comentario. Sin él, el aviso de comentario enlaza
+   *  como antes (al reto o al perfil): degrada, no rompe. */
+  comentarios?: ReadonlyMap<string, string>;
 }
 
 /**

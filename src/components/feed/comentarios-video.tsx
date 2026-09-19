@@ -34,12 +34,15 @@ export function ComentariosVideo({
   haySesion,
   onContador,
   idCaja,
+  anclaId,
 }: {
   videoId: string;
   haySesion: boolean;
   onContador: (comentarios: number) => void;
   /** `id` de la caja de escribir (el botón "Comentar" de escritorio la enfoca). */
   idCaja?: string;
+  /** Comentario al que llega el DEEP-LINK de un aviso: se resalta y se lleva al usuario hasta él. */
+  anclaId?: string;
 }) {
   const ruta = usePathname();
   const [items, setItems] = useState<ComentarioVista[]>([]);
@@ -51,6 +54,9 @@ export function ComentariosVideo({
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState<string | null>(null);
+  // El comentario del aviso cuando NO cae en las páginas cargadas: se pide suelto y se fija arriba.
+  const [anclado, setAnclado] = useState<ComentarioVista | null>(null);
+  const [anclaPerdida, setAnclaPerdida] = useState(false);
 
   const base = `/api/videos/${encodeURIComponent(videoId)}/comentarios`;
 
@@ -76,6 +82,38 @@ export function ComentariosVideo({
       vivo = false;
     };
   }, [base]);
+
+  // ANCLA (deep-link del aviso). Con la lista ya cargada: si el comentario está en ella, se desplaza
+  // hasta él; si no —un aviso viejo, o un vídeo con muchos comentarios—, se pide SUELTO y se fija
+  // arriba, que es mejor que dejar al usuario paginando a ciegas. Si ya no está, se dice y punto.
+  useEffect(() => {
+    if (!anclaId || carga.estado !== "listo") return;
+    if (items.some((c) => c.id === anclaId)) {
+      const sel = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(anclaId) : anclaId;
+      const el = document.querySelector(`[data-comentario="${sel}"]`);
+      (el as HTMLElement | null)?.scrollIntoView?.({ behavior: "auto", block: "center" });
+      return;
+    }
+    let vivo = true;
+    void (async () => {
+      try {
+        const r = await getJson<{ comentario?: ComentarioVista }>(
+          `/api/comentarios/${encodeURIComponent(anclaId)}`,
+        );
+        if (!vivo) return;
+        if (r.ok && r.data.comentario) setAnclado(r.data.comentario);
+        else setAnclaPerdida(true);
+      } catch {
+        if (vivo) setAnclaPerdida(true);
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+    // Al pasar la lista a "listo", no en cada página: si dependiera de `items`, cada "Ver más"
+    // devolvería al usuario de un salto al comentario del aviso.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anclaId, carga.estado]);
 
   async function verMas(): Promise<void> {
     if (!cursor || cargandoMas) return;
@@ -131,6 +169,7 @@ export function ComentariosVideo({
       );
       if (r.ok) {
         setItems((previos) => previos.filter((c) => c.id !== id));
+        setAnclado((a) => (a?.id === id ? null : a));
         if (typeof r.data.comentarios === "number") onContador(r.data.comentarios);
         return;
       }
@@ -140,23 +179,43 @@ export function ComentariosVideo({
     }
   }
 
+  // El comentario del aviso que no cayó en la lista se pinta ARRIBA, y no se repite si una página
+  // posterior acaba trayéndolo.
+  const lista = anclado ? [anclado, ...items.filter((c) => c.id !== anclado.id)] : items;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        {anclaPerdida ? (
+          <p role="status" className="mb-3 rounded-sm bg-raised px-3 py-2 text-xs text-text-dim">
+            Ese comentario ya no está.
+          </p>
+        ) : null}
         {carga.estado === "cargando" ? (
           <p className="text-sm text-text-dim">Cargando comentarios…</p>
         ) : carga.estado === "error" ? (
           <p role="alert" className="text-sm text-text-dim">
             No se pudieron cargar los comentarios.
           </p>
-        ) : items.length === 0 ? (
+        ) : lista.length === 0 ? (
           <p className="text-sm text-text-dim">
             Aún no hay comentarios.{haySesion ? " Sé el primero." : ""}
           </p>
         ) : (
           <ul className="space-y-4">
-            {items.map((c) => (
-              <li key={c.id} data-comentario={c.id} className="flex gap-3">
+            {lista.map((c) => (
+              <li
+                key={c.id}
+                data-comentario={c.id}
+                // El del aviso, marcado: se llega por un enlace que habla de UN comentario, y sin esto
+                // el usuario aterriza en una lista sin saber cuál era.
+                aria-current={c.id === anclaId ? "true" : undefined}
+                className={
+                  c.id === anclaId
+                    ? "-mx-2 flex gap-3 rounded-sm bg-raised px-2 py-2 ring-1 ring-line"
+                    : "flex gap-3"
+                }
+              >
                 <Avatar nombre={c.autor.username} imagen={c.autor.image} tamano="sm" perezosa />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm">
