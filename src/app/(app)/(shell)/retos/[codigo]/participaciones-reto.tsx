@@ -53,6 +53,7 @@ export function ParticipacionesReto({
   cursorInicial,
   miSubmissionId = null,
   haySesion = false,
+  emailVerificado = false,
 }: {
   challengeId: string;
   participaciones: ParticipacionUI[];
@@ -60,6 +61,8 @@ export function ParticipacionesReto({
   /** ¿Hay sesión? Solo decide si el reproductor marca "visto" (un invitado no marca). La vista es
    *  pública: esto NO oculta ni protege nada, y el endpoint lo comprueba igualmente. */
   haySesion?: boolean;
+  /** ¿Correo verificado? Solo lo usa el botón de denunciar dentro del feed del reto. */
+  emailVerificado?: boolean;
   /** Id de MI participación (si participo): marca la mía con "Tú" sin consultar la sesión aquí. */
   miSubmissionId?: string | null;
 }) {
@@ -182,6 +185,7 @@ export function ParticipacionesReto({
           indice={abiertoEn}
           fuente={fuente}
           haySesion={haySesion}
+          emailVerificado={emailVerificado}
           onCerrar={cerrar}
         />
       ) : null}
@@ -211,6 +215,7 @@ function FeedDelReto({
   indice,
   fuente,
   haySesion,
+  emailVerificado,
   onCerrar,
 }: {
   items: ParticipacionUI[];
@@ -218,6 +223,7 @@ function FeedDelReto({
   indice: number;
   fuente: ReturnType<typeof fuenteReto>;
   haySesion: boolean;
+  emailVerificado: boolean;
   onCerrar: () => void;
 }) {
   const posts: PostFeed[] = items.map((p) => p.post);
@@ -240,6 +246,7 @@ function FeedDelReto({
         fuente={fuente}
         indiceInicial={indice}
         haySesion={haySesion}
+        emailVerificado={emailVerificado}
       />
       <button
         type="button"

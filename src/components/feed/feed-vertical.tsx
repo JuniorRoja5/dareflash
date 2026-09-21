@@ -3,6 +3,7 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { BotonVoto } from "@/components/ui/boton-voto";
+import { Denunciar } from "@/components/ui/denunciar";
 import { PildoraCategoria } from "@/components/ui/pildora";
 import { ReproductorHls } from "@/components/ui/reproductor-hls";
 import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
@@ -128,6 +129,7 @@ function PostInicio({
   post,
   alRef,
   haySesion,
+  emailVerificado,
   muted,
   mostrarHint,
   esActivo,
@@ -139,6 +141,8 @@ function PostInicio({
   alRef: (el: HTMLElement | null) => void;
   /** ¿Marcar la reproducción como "vista"? Solo con sesión y solo si el vídeo ES una participación. */
   haySesion: boolean;
+  /** ¿Correo verificado? Solo lo usa el botón de denunciar (misma regla que la ruta). */
+  emailVerificado: boolean;
   /** Mute EFECTIVO (preferencia del usuario O permiso del navegador aún sin desbloquear). El icono y
    *  el aria se pintan según esto: NUNCA mienten sobre lo que se oye de verdad. */
   muted: boolean;
@@ -253,6 +257,16 @@ function PostInicio({
             <IconoSonido silenciado={muted} />
           </span>
         </button>
+        {/* DENUNCIAR el vídeo: discreto y el último de la columna — es una salida, no una acción del
+            producto. No aparece sobre lo propio (lo decide `Denunciar` con la regla compartida). */}
+        <Denunciar
+          targetType="VIDEO"
+          targetId={post.id}
+          haySesion={haySesion}
+          emailVerificado={emailVerificado}
+          esMio={post.esMio}
+          className="text-white/80 hover:text-white lg:text-text-dim lg:hover:text-text"
+        />
       </div>
     </section>
   );
@@ -263,11 +277,13 @@ function PostInicio({
 function PanelComentarios({
   post,
   haySesion,
+  emailVerificado,
   onContador,
   anclaComentario,
 }: {
   post: PostFeed;
   haySesion: boolean;
+  emailVerificado: boolean;
   onContador: (videoId: string, comentarios: number) => void;
   anclaComentario?: string;
 }) {
@@ -292,6 +308,7 @@ function PanelComentarios({
         key={post.id}
         videoId={post.id}
         haySesion={haySesion}
+        emailVerificado={emailVerificado}
         idCaja={`comentar-${post.id}`}
         anclaId={anclaComentario}
         onContador={(n) => onContador(post.id, n)}
@@ -309,12 +326,14 @@ function PanelComentarios({
 function HojaComentarios({
   post,
   haySesion,
+  emailVerificado,
   onContador,
   onCerrar,
   anclaComentario,
 }: {
   post: PostFeed;
   haySesion: boolean;
+  emailVerificado: boolean;
   onContador: (videoId: string, comentarios: number) => void;
   onCerrar: () => void;
   anclaComentario?: string;
@@ -358,6 +377,7 @@ function HojaComentarios({
           key={post.id}
           videoId={post.id}
           haySesion={haySesion}
+          emailVerificado={emailVerificado}
           anclaId={anclaComentario}
           onContador={(n) => onContador(post.id, n)}
         />
@@ -492,6 +512,7 @@ export function FeedVertical({
   postsIniciales,
   cursorInicial,
   haySesion = false,
+  emailVerificado = false,
   fuente = fuenteGlobal,
   indiceInicial = 0,
   comentarioDestacado,
@@ -502,6 +523,9 @@ export function FeedVertical({
   /** ¿Hay sesión? Solo decide si el reproductor marca "visto" (un invitado no marca). El feed es
    *  público: esto NO oculta ni protege nada, y la seguridad real la aplica siempre el endpoint. */
   haySesion?: boolean;
+  /** ¿El correo de la sesión está verificado? Solo lo usa el botón de denunciar, que aplica la MISMA
+   *  regla que la ruta para no ofrecer lo que la API va a rechazar. */
+  emailVerificado?: boolean;
   /** De dónde salen las páginas siguientes. Por defecto, el feed global. */
   fuente?: FuenteFeed;
   /** Índice del vídeo por el que abrir. Lo usa el feed de un reto para entrar por el que se tocó. */
@@ -694,6 +718,7 @@ export function FeedVertical({
                 if (el) secciones.current[i] = el;
               }}
               haySesion={haySesion}
+              emailVerificado={emailVerificado}
               muted={mutedEfectivo}
               mostrarHint={mostrarHintSonido}
               esActivo={i === activo}
@@ -733,6 +758,7 @@ export function FeedVertical({
               <PanelComentarios
                 post={post}
                 haySesion={haySesion}
+                emailVerificado={emailVerificado}
                 onContador={alContador}
                 anclaComentario={post.id === videoAncla ? comentarioDestacado : undefined}
               />
@@ -744,6 +770,7 @@ export function FeedVertical({
         <HojaComentarios
           post={postHoja}
           haySesion={haySesion}
+          emailVerificado={emailVerificado}
           onContador={alContador}
           onCerrar={cerrarHoja}
           anclaComentario={postHoja.id === videoAncla ? comentarioDestacado : undefined}

@@ -723,6 +723,11 @@ model Report {
   status     String   @default("OPEN") // OPEN, REVIEWING, RESOLVED, DISMISSED (union en constants)
   createdAt  DateTime @default(now())
 
+  // UNA denuncia por denunciante y objeto. Es LA guarda de idempotencia, y vive en la BD a proposito:
+  // el recuento que decidira la ocultacion (Fase 5, pieza 3) es de denunciantes DISTINTOS, asi que
+  // "uno no puede contar como varios" no puede depender de un `if` que alguien se salte ni de una
+  // carrera entre dos peticiones del mismo usuario. Misma disciplina que el UNIQUE de Notification.
+  @@unique([reporterId, targetType, targetId])
   @@index([targetType, targetId])
   @@index([status])
   @@index([reporterId])

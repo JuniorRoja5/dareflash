@@ -60,6 +60,11 @@ export interface PostFeed {
    * primer tap: sin esto haria falta una ida y vuelta por cada video del feed.
    */
   miVoto: string | null;
+  /**
+   * ¿El vídeo es de quien mira? Lo decide el SERVIDOR comparando ids (nunca el cliente comparando
+   * nombres). Lo usa lo que no tiene sentido ofrecer sobre lo propio, empezando por denunciar.
+   */
+  esMio: boolean;
 }
 
 export interface PaginaFeed {
@@ -83,6 +88,8 @@ export const FEED_LIMITE_MAX = 20;
  */
 const SELECT_FEED = {
   id: true,
+  // El dueño, para resolver `esMio` sin una segunda consulta.
+  userId: true,
   bunnyVideoId: true,
   thumbnailFileName: true,
   title: true,
@@ -107,7 +114,12 @@ type FilaFeed = Prisma.VideoGetPayload<{ select: typeof SELECT_FEED }>;
 /** De fila a post. Igual de único que el `select`, y por la misma razón. */
 function aPostFeed(
   v: FilaFeed,
-  ctx: { firmar: Firmante; misVotos: ReadonlyMap<string, string>; ahora: Date },
+  ctx: {
+    firmar: Firmante;
+    misVotos: ReadonlyMap<string, string>;
+    ahora: Date;
+    userId?: string | null;
+  },
 ): PostFeed {
   // Submission visible solo si su propio status es PUBLISHED (el mas restrictivo gana).
   const sub = v.submission && v.submission.status === "PUBLISHED" ? v.submission : null;
@@ -129,6 +141,7 @@ function aPostFeed(
     retoId: sub?.challengeId ?? null,
     retoAbierto: sub ? retoEstaAbierto(sub.challenge, ctx.ahora) : false,
     miVoto: sub ? (ctx.misVotos.get(sub.challengeId) ?? null) : null,
+    esMio: ctx.userId ? v.userId === ctx.userId : false,
   };
 }
 
@@ -172,7 +185,12 @@ export async function videoParaFeed(
   const fila = await db.video.findFirst({ where: { id, ...VIDEO_VISIBLE }, select: SELECT_FEED });
   if (!fila) return null;
   const misVotos = await misVotosDe(db, [fila], opts.userId);
-  return aPostFeed(fila, { firmar: opts.firmar, misVotos, ahora: opts.ahora ?? new Date() });
+  return aPostFeed(fila, {
+    firmar: opts.firmar,
+    misVotos,
+    ahora: opts.ahora ?? new Date(),
+    userId: opts.userId,
+  });
 }
 
 export async function feedPublicado(
@@ -210,7 +228,7 @@ export async function feedPublicado(
   const misVotos = await misVotosDe(db, visibles, opts.userId);
   const ahora = opts.ahora ?? new Date();
   const items: PostFeed[] = visibles.map((v) =>
-    aPostFeed(v, { firmar: opts.firmar, misVotos, ahora }),
+    aPostFeed(v, { firmar: opts.firmar, misVotos, ahora, userId: opts.userId }),
   );
 
   return {

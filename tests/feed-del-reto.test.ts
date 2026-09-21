@@ -40,6 +40,7 @@ const PARTICIPACION = {
   retoAbierto: true,
   miVoto: "sub-1",
   comentarios: 3,
+  esMio: false,
 };
 const RETO = { titulo: "Reto de fitness", categoria: "Fitness" };
 const URLS = { src: "https://x/playlist.m3u8", poster: "https://x/thumb.jpg" };
@@ -63,6 +64,8 @@ describe("el ítem tiene la MISMA forma que el que pinta el feed", () => {
       retoId: "reto-1",
       retoAbierto: true,
       miVoto: "sub-1",
+      // Quién es el dueño lo dice el SERVIDOR: el feed lo usa para no ofrecer denunciar lo propio.
+      esMio: false,
     });
   });
 

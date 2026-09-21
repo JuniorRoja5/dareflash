@@ -191,6 +191,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
             cursorInicial={pagina.nextCursor}
             miSubmissionId={mi?.submissionId ?? null}
             haySesion={usuario !== null}
+            emailVerificado={usuario?.emailVerified != null}
           />
         </section>
       </div>

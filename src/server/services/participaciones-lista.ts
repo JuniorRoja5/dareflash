@@ -64,6 +64,9 @@ export interface ParticipacionVista extends ParticipacionBase {
   miVoto: string | null;
   /** Comentarios visibles de su vídeo (Video.commentCount), para el feed del reto. */
   comentarios: number;
+  /** ¿Es de quien mira? Lo decide el SERVIDOR comparando ids; el cliente no compara nombres. Con él,
+   *  el feed sabe qué no ofrecer (denunciar lo propio) sin preguntar por cada vídeo. */
+  esMio: boolean;
 }
 
 /** Estado de MI participación en el reto (para el dueño): visible / procesando / fallida / retirada. */
@@ -179,6 +182,7 @@ export async function listarParticipacionesVisibles(
       take: limite + 1,
       select: {
         id: true,
+        userId: true,
         voteCount: true,
         createdAt: true,
         video: {
@@ -214,6 +218,7 @@ export async function listarParticipacionesVisibles(
     retoAbierto: abierto,
     miVoto,
     comentarios: f.video.commentCount,
+    esMio: opts.userId ? f.userId === opts.userId : false,
   }));
 
   const ultima = visibles[visibles.length - 1];

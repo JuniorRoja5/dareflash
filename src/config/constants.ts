@@ -599,6 +599,10 @@ export const RATE_LIMITS = {
   // Comentar (y borrar los propios, mismo cubo): texto público, así que el tope frena el spam sin
   // estorbar a quien conversa. 30 en 15 min es uno cada 30 s sostenido.
   COMENTAR_PER_USER: { limit: 30, windowMs: 15 * 60 * 1000 }, // 30 / 15 min por usuario
+  // Denunciar: no frena el abuso —eso lo hace el UNIQUE por denunciante y objeto—, sino que nadie
+  // recorra el feed denunciándolo entero. Holgado: denunciar de verdad varias cosas seguidas es
+  // legítimo y no puede costarle un rechazo a quien está limpiando su feed.
+  DENUNCIAR_PER_USER: { limit: 30, windowMs: 15 * 60 * 1000 }, // 30 / 15 min por usuario
   // Crear reto (admin): el procesado de la portada cuesta CPU/memoria -> mismo trato que el avatar.
   CREAR_RETO_PER_USER: { limit: 20, windowMs: 15 * 60 * 1000 }, // 20 / 15 min por usuario
   // Editar reto (admin): puede traer una portada nueva (mismo coste de decodificado/recompresión que
@@ -757,6 +761,58 @@ export type ReportStatus = z.infer<typeof ReportStatusSchema>;
 /** Tipo de entidad denunciada. COMMENT: los comentarios ya existen; su moderación es la Fase 5. */
 export const ReportTargetTypeSchema = z.enum(["VIDEO", "SUBMISSION", "USER", "COMMENT"]);
 export type ReportTargetType = z.infer<typeof ReportTargetTypeSchema>;
+
+/**
+ * Lo que HOY se puede denunciar de verdad: un vídeo del feed y un comentario. El tipo de la fila
+ * admite más (`SUBMISSION`, `USER`), pero nada los crea ni sabe resolverlos, y aceptar del cliente un
+ * tipo que el servidor no comprueba contra un objeto real sería abrir denuncias contra la nada.
+ * Cuando se construya la denuncia de un perfil, entra aquí y trae su comprobación.
+ */
+export const ReportTargetDenunciableSchema = z.enum(["VIDEO", "COMMENT"]);
+export type ReportTargetDenunciable = z.infer<typeof ReportTargetDenunciableSchema>;
+
+/**
+ * POR QUÉ se denuncia. Tipado, nunca texto libre: el moderador filtra y agrupa por esto, y un campo
+ * libre además invitaría a escribir datos personales en una tabla que leerá otra gente.
+ * `OTRO` existe para no obligar a mentir cuando no encaja ninguno, y es el último a propósito.
+ */
+export const ReportReasonSchema = z.enum([
+  "SPAM",
+  "SEXUAL",
+  "VIOLENCIA",
+  "ACOSO",
+  "MENORES",
+  "DERECHOS",
+  "OTRO",
+]);
+export type ReportReason = z.infer<typeof ReportReasonSchema>;
+
+/**
+ * El COPY de cada motivo, aquí y no en el diálogo: es lo que lee quien denuncia y lo que verá el
+ * moderador, y dos listas acabarían diciendo cosas distintas del mismo motivo. En el ORDEN en que se
+ * ofrecen (lo más frecuente arriba; `OTRO` al final).
+ */
+export const MOTIVOS_DENUNCIA: ReadonlyArray<{ clave: ReportReason; texto: string }> = [
+  { clave: "SPAM", texto: "Spam o engaño" },
+  { clave: "SEXUAL", texto: "Contenido sexual" },
+  { clave: "VIOLENCIA", texto: "Violencia o contenido gráfico" },
+  { clave: "ACOSO", texto: "Acoso o incitación al odio" },
+  { clave: "MENORES", texto: "Pone en riesgo a un menor" },
+  { clave: "DERECHOS", texto: "Usa contenido que no es suyo" },
+  { clave: "OTRO", texto: "Otro motivo" },
+];
+
+/**
+ * Copy de la denuncia. Como el resto de `MSG_*`: lo emite el servidor ya en humano y la UI lo pinta
+ * tal cual. `MSG_DENUNCIA_YA` NO es un error: es la respuesta amable a denunciar dos veces lo mismo.
+ */
+export const MSG_DENUNCIA_GRACIAS = "Gracias por avisar. Lo revisaremos.";
+export const MSG_DENUNCIA_YA = "Ya nos habías avisado de esto. Gracias.";
+export const MSG_DENUNCIA_PROPIO = "No puedes denunciar tu propio contenido.";
+/** Uno solo para "no existe" y "ya no se ve": dos textos serían un oráculo (ver `MSG_NO_DISPONIBLE`). */
+export const MSG_DENUNCIA_NO_DISPONIBLE = "Este contenido ya no está disponible.";
+/** La misma barrera antifraude que votar o comentar. */
+export const MSG_DENUNCIA_SIN_VERIFICAR = "Verifica tu correo para poder denunciar.";
 
 /** Estado de un job de la cola. */
 export const JobStatusSchema = z.enum(["PENDING", "RUNNING", "DONE", "FAILED"]);

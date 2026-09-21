@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
+import { Denunciar } from "@/components/ui/denunciar";
 import { COMENTARIO_TEXTO_MAX } from "@/config/constants";
 import { delCsrf, getJson, mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { limpiarComentario } from "@/lib/comentarios";
@@ -32,12 +33,16 @@ type Carga = { estado: "cargando" } | { estado: "error" } | { estado: "listo" };
 export function ComentariosVideo({
   videoId,
   haySesion,
+  emailVerificado = false,
   onContador,
   idCaja,
   anclaId,
 }: {
   videoId: string;
   haySesion: boolean;
+  /** ¿El correo de la sesión está verificado? Lo necesita el botón de denunciar, que aplica la MISMA
+   *  regla que la ruta (`veredictoDenuncia`) para no ofrecer lo que la API va a rechazar. */
+  emailVerificado?: boolean;
   onContador: (comentarios: number) => void;
   /** `id` de la caja de escribir (el botón "Comentar" de escritorio la enfoca). */
   idCaja?: string;
@@ -253,7 +258,18 @@ export function ComentariosVideo({
                         Borrar
                       </button>
                     )
-                  ) : null}
+                  ) : (
+                    // El de otra persona: denunciar. El botón decide si se ofrece con la misma regla
+                    // que la ruta, y sobre lo propio no aparece (de eso se encarga `Denunciar`).
+                    <Denunciar
+                      targetType="COMMENT"
+                      targetId={c.id}
+                      haySesion={haySesion}
+                      emailVerificado={emailVerificado}
+                      esMio={c.esMio}
+                      className="mt-1 block"
+                    />
+                  )}
                 </div>
               </li>
             ))}

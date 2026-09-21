@@ -65,6 +65,7 @@ export default async function FeedPage({
       postsIniciales={items}
       cursorInicial={pagina.nextCursor}
       haySesion={haySesion}
+      emailVerificado={usuario?.emailVerified != null}
       comentarioDestacado={destino && comentario ? comentario : undefined}
       aviso={pedido && !destino ? "Ese vídeo ya no está disponible." : undefined}
     />

@@ -24,6 +24,8 @@ export interface ParticipacionParaFeed {
   miVoto: string | null;
   /** Comentarios visibles del vídeo. */
   comentarios: number;
+  /** ¿El vídeo es de quien mira? Lo resuelve el servidor por id. */
+  esMio: boolean;
 }
 
 /** Datos del RETO, iguales para toda la lista: se pasan una vez, no por ítem. */
@@ -61,5 +63,6 @@ export function postDeParticipacion(
     retoId: p.retoId,
     retoAbierto: p.retoAbierto,
     miVoto: p.miVoto,
+    esMio: p.esMio,
   };
 }

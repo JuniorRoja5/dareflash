@@ -482,6 +482,42 @@ describe("videoParaFeed", () => {
     expect((await videoParaFeed(prisma, videoId, { firmar: firmarFake }))?.miVoto).toBeNull();
   });
 
+  it("dice de quién es el vídeo: `esMio` por ID, y nunca para un invitado", async () => {
+    // Lo usa lo que no se ofrece sobre lo propio (denunciar). Se calcula aquí y no en el cliente
+    // comparando nombres: el nombre se puede cambiar, el id no.
+    const mio = await prisma.user.create({ data: { username: "yo" }, select: { id: true } });
+    const ajeno = await prisma.user.create({ data: { username: "otra" }, select: { id: true } });
+    const videoMio = await crearVideo({
+      userId: mio.id,
+      status: "PUBLISHED",
+      bunny: "b-mio",
+      title: "t",
+      createdAt: new Date(),
+      category: "fitness",
+    });
+    const videoAjeno = await crearVideo({
+      userId: ajeno.id,
+      status: "PUBLISHED",
+      bunny: "b-ajeno",
+      title: "t",
+      createdAt: new Date(),
+      category: "fitness",
+    });
+
+    const conSesion = await feedPublicado(prisma, { firmar: firmarFake, userId: mio.id });
+    expect(conSesion.items.find((i) => i.id === videoMio)?.esMio).toBe(true);
+    expect(conSesion.items.find((i) => i.id === videoAjeno)?.esMio).toBe(false);
+
+    // Un invitado no es dueño de nada.
+    const invitado = await feedPublicado(prisma, { firmar: firmarFake });
+    expect(invitado.items.every((i) => i.esMio === false)).toBe(true);
+
+    // Y el vídeo suelto del deep-link dice lo mismo que la lista.
+    expect(
+      (await videoParaFeed(prisma, videoMio, { firmar: firmarFake, userId: mio.id }))?.esMio,
+    ).toBe(true);
+  });
+
   it("uno que NO se ve da null: la misma regla que la lista", async () => {
     const u = await prisma.user.create({ data: { username: "invis" }, select: { id: true } });
     const retirado = await crearVideo({
