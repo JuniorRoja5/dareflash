@@ -29,8 +29,10 @@ describe("SECCIONES_PANEL", () => {
     for (const s of SECCIONES_PANEL) expect(s.href.startsWith("/panel")).toBe(true);
     expect(seccionPorHref("/panel")?.fase).toBeNull();
     expect(seccionPorHref("/panel/retos")?.fase).toBeNull();
-    // Las placeholder llevan una fase futura (número).
-    expect(seccionPorHref("/panel/moderacion")?.fase).toBe(5);
+    // Moderación dejó de ser placeholder cuando se construyó la cola (Fase 5).
+    expect(seccionPorHref("/panel/moderacion")?.fase).toBeNull();
+    // Las que siguen siendo placeholder llevan una fase futura (número).
     expect(seccionPorHref("/panel/monedero")?.fase).toBe(7);
+    expect(seccionPorHref("/panel/boost")?.fase).toBe(6);
   });
 });

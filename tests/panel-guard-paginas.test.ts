@@ -29,6 +29,16 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/server/auth/current-user", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect, notFound: mocks.notFound }));
+// La página de Moderación SÍ se ejecuta entera (es la única que el moderador puede ver), así que sus
+// datos se doblan: aquí se prueba el GUARD, no la cola —esa tiene sus propios tests contra la BD—.
+vi.mock("@/server/db/client", () => ({ prisma: {} }));
+vi.mock("@/server/services/cola-moderacion", () => ({
+  listarColaModeracion: vi.fn(async () => ({ items: [], nextCursor: null })),
+  contarDenunciasAbiertas: vi.fn(async () => 0),
+}));
+vi.mock("@/server/services/reproduccion-servidor", () => ({
+  firmarReproduccion: () => ({ src: "s", poster: "p" }),
+}));
 
 const MODERADOR: SessionUser = {
   userId: "mod-1",

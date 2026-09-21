@@ -4,8 +4,9 @@ import { notFound } from "next/navigation";
 import { CATEGORIES } from "@/config/constants";
 import { centimosAImporte } from "@/lib/dinero";
 
+import { ColaModeracion } from "../../moderacion/cola";
 import { requireSeccion } from "../../panel-guard";
-import { RanuraProximamente, TarjetaMetrica, TarjetaProximamente } from "../../tarjetas";
+import { TarjetaMetrica } from "../../tarjetas";
 import { TarjetaInteraccion } from "./interaccion-participacion";
 import { ParticipacionesPanel, type ParticipacionPanelUI } from "./participaciones-panel";
 import { RendimientoTiempo } from "./rendimiento-tiempo";
@@ -54,15 +55,21 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
     await import("@/server/services/panel-metricas");
   const { listarParticipacionesAdmin } = await import("@/server/services/participaciones-lista");
   const { firmarReproduccion } = await import("@/server/services/reproduccion-servidor");
+  // La cola de moderación de ESTE reto sale del MISMO servicio que la sección Moderación, filtrado:
+  // dos consultas distintas para lo mismo acabarían contando cosas distintas.
+  const { contarDenunciasAbiertas, listarColaModeracion } =
+    await import("@/server/services/cola-moderacion");
 
   const reto = await retoAdminPorId(prisma, id);
   if (!reto) notFound();
 
-  const [metricas, interaccion, serie, pagina] = await Promise.all([
+  const [metricas, interaccion, serie, pagina, denuncias, colaReto] = await Promise.all([
     metricasReto(prisma, reto.id),
     interaccionPorParticipacion(prisma, reto.id),
     serieDiariaReto(prisma, reto.id),
     listarParticipacionesAdmin(prisma, reto.id),
+    contarDenunciasAbiertas(prisma, { challengeId: reto.id }),
+    listarColaModeracion(prisma, { challengeId: reto.id, firmar: firmarReproduccion }),
   ]);
 
   const participaciones: ParticipacionPanelUI[] = pagina.items.map((p) => ({
@@ -225,18 +232,32 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
           {/* INTERACCIÓN (Fase 3), en el hueco que ocupaba su "próximamente": los votos de cada
               participación visible, del servicio. Es una lista, no una cifra: ocupa dos columnas. */}
           <TarjetaInteraccion filas={interaccion} visibles={metricas.visibles} />
-          {/* Sin backend todavía: RAYA, nunca un número. Se sustituye en su fase, en este hueco. */}
-          <TarjetaProximamente etiqueta="Reportes de spam" fase={5} />
+          {/* DENUNCIAS (Fase 5), en el hueco de su "próximamente": las abiertas sobre este reto, del
+              mismo servicio que la cola de Moderación. */}
+          <TarjetaMetrica
+            valor={denuncias}
+            etiqueta="Denuncias abiertas"
+            nota="Sobre sus participaciones"
+          />
         </div>
 
         <div className="mt-4 grid gap-4 xl:grid-cols-2">
           {/* RENDIMIENTO (Fase 4), en el sitio de su ranura: la serie diaria real del servicio. */}
           {serie ? <RendimientoTiempo serie={serie} /> : null}
-          <RanuraProximamente
-            titulo="Reportes y moderación"
-            descripcion="Denuncias de la comunidad sobre las participaciones de este reto, para revisarlas aquí mismo."
-            fase={5}
-          />
+          {/* REPORTES Y MODERACIÓN (Fase 5), en el sitio de su ranura: la MISMA cola que la sección
+              Moderación, acotada a este reto y con las mismas dos decisiones. */}
+          <section className="rounded-sm border border-line bg-surface/60 p-5">
+            <h3 className="text-sm font-semibold text-text">Reportes y moderación</h3>
+            <p className="mt-1 mb-4 text-sm text-text-dim">
+              Denuncias de la comunidad sobre las participaciones de este reto, para revisarlas aquí
+              mismo.
+            </p>
+            <ColaModeracion
+              inicial={colaReto.items}
+              cursorInicial={colaReto.nextCursor}
+              reto={reto.id}
+            />
+          </section>
         </div>
       </section>
 

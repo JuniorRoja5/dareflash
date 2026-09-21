@@ -204,25 +204,36 @@ export async function retirarParticipacion(
   db: PrismaClient,
   submissionId: string,
 ): Promise<{ retirada: boolean }> {
-  return db.$transaction(async (tx) => {
-    const sub = await tx.submission.findUnique({
-      where: { id: submissionId },
-      select: { videoId: true },
-    });
-    if (!sub) return { retirada: false };
-    // El MOTIVO se graba junto al estado: es lo que hace que el bloqueo posterior sea cierto y no una
-    // deducción. Sin esto, esta retirada sería indistinguible de que el dueño borrara su vídeo.
-    await tx.submission.updateMany({
-      where: { id: submissionId, status: { not: "REMOVED" } },
-      data: { status: "REMOVED", retiradaMotivo: "MODERACION", retiradaEn: new Date() },
-    });
-    // El Video tambien REMOVED (quita del feed/perfil). NO se encola borrado en Bunny: se preserva.
-    await tx.video.updateMany({
-      where: { id: sub.videoId, status: { not: "REMOVED" } },
-      data: { status: "REMOVED" },
-    });
-    return { retirada: true };
+  return db.$transaction(async (tx) => retirarParticipacionEnTx(tx, submissionId));
+}
+
+/**
+ * EL NÚCLEO de retirar una participación, DENTRO de la transacción de quien llama. Existe para que la
+ * COLA DE MODERACIÓN pueda cerrar las denuncias del objeto en la MISMA transacción que la retirada: si
+ * se hicieran aparte, un fallo entre medias dejaría el contenido retirado con sus denuncias aún
+ * abiertas (o al revés). La lógica NO se duplica: `retirarParticipacion` es esto con su transacción.
+ */
+export async function retirarParticipacionEnTx(
+  tx: Db,
+  submissionId: string,
+): Promise<{ retirada: boolean }> {
+  const sub = await tx.submission.findUnique({
+    where: { id: submissionId },
+    select: { videoId: true },
   });
+  if (!sub) return { retirada: false };
+  // El MOTIVO se graba junto al estado: es lo que hace que el bloqueo posterior sea cierto y no una
+  // deducción. Sin esto, esta retirada sería indistinguible de que el dueño borrara su vídeo.
+  await tx.submission.updateMany({
+    where: { id: submissionId, status: { not: "REMOVED" } },
+    data: { status: "REMOVED", retiradaMotivo: "MODERACION", retiradaEn: new Date() },
+  });
+  // El Video tambien REMOVED (quita del feed/perfil). NO se encola borrado en Bunny: se preserva.
+  await tx.video.updateMany({
+    where: { id: sub.videoId, status: { not: "REMOVED" } },
+    data: { status: "REMOVED" },
+  });
+  return { retirada: true };
 }
 
 /**

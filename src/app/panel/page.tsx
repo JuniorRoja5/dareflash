@@ -58,8 +58,9 @@ export default async function ResumenPage() {
           <TarjetaMetrica valor={m.retosPublicados} etiqueta="Publicados" />
           <TarjetaMetrica valor={m.retosBorradores} etiqueta="Borradores" />
           <TarjetaMetrica valor={m.usuarios} etiqueta="Usuarios registrados" />
-          {/* Dinero: sin backend de monedero hasta Fase 7 -> honesto, no un 0 engañoso. */}
-          <TarjetaProximamente etiqueta="Premios pagados" />
+          {/* Dinero: sin backend de monedero hasta Fase 7 -> honesto, no un 0 engañoso. Y DICE su
+              fase: un "próximamente" sin fecha es una promesa que nadie puede comprobar. */}
+          <TarjetaProximamente etiqueta="Premios pagados" fase={7} />
         </div>
       </section>
 

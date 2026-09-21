@@ -9,9 +9,11 @@
  *  3. Retirar REUTILIZA el endpoint que ya existía; no se ha creado otro.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 
 import { describe, expect, it } from "vitest";
+
+import { SECCIONES_PANEL } from "../src/app/panel/secciones";
 
 const RAIZ = process.cwd();
 const DIR_PANTALLA = join(RAIZ, "src", "app", "panel", "retos", "[id]");
@@ -43,12 +45,14 @@ describe("guard heredado del panel", () => {
 });
 
 describe("cero cifras inventadas", () => {
-  it("toda tarjeta con número toma el valor de las métricas de la BD", () => {
+  it("toda tarjeta con número toma su valor de un dato del SERVIDOR, no de la vista", () => {
     const valores = soloCodigo(PAGINA).match(/valor=\{[^}]*\}/g) ?? [];
     expect(valores.length).toBeGreaterThan(0);
-    // Un `valor={12}` o `valor={algo * 2}` cae aquí: los números de esta pantalla se calculan en
-    // `metricasReto`, nunca se escriben en la vista.
-    for (const v of valores) expect(v).toMatch(/^valor=\{metricas\.\w+\}$/);
+    // Un `valor={12}` o `valor={algo * 2}` cae aquí: los números de esta pantalla los calculan los
+    // servicios (`metricasReto`, `contarDenunciasAbiertas`), nunca se escriben ni se operan en el JSX.
+    // (Antes se exigía literalmente `metricas.algo`; con la Fase 5 entró una cifra de otro servicio,
+    // así que lo que se afirma es la REGLA —una variable del servidor, sin aritmética—, no un prefijo.)
+    for (const v of valores) expect(v).toMatch(/^valor=\{[A-Za-z_$][\w$]*(\.\w+)?\}$/);
   });
 
   it("la tarjeta de `próximamente` NO puede recibir un valor (imposible colar una cifra)", () => {
@@ -60,11 +64,32 @@ describe("cero cifras inventadas", () => {
     expect(cuerpo).toContain("—");
   });
 
-  it("cada hueco sin backend dice de qué FASE es (no un `próximamente` vago)", () => {
-    const codigo = soloCodigo(PAGINA);
-    const huecos = codigo.match(/<(TarjetaProximamente|RanuraProximamente)[\s\S]*?\/>/g) ?? [];
-    expect(huecos.length).toBeGreaterThan(0);
-    for (const h of huecos) expect(h).toMatch(/fase=\{\d+\}/);
+  it("cada hueco sin backend DEL PANEL dice de qué FASE es (no un `próximamente` vago)", () => {
+    // Se mira TODO el panel, no solo esta pantalla: la Fase 5 rellenó los dos huecos que le quedaban
+    // aquí, y exigir que siguiera habiendo alguno obligaría a conservar una maqueta para siempre.
+    // Lo que se protege es la regla: un hueco sin fase es un "próximamente" que nadie sabe cuándo.
+    const panel = join(RAIZ, "src", "app", "panel");
+    const paginas: string[] = [];
+    const recorrer = (dir: string): void => {
+      for (const e of readdirSync(dir)) {
+        const p = join(dir, e);
+        if (statSync(p).isDirectory()) recorrer(p);
+        else if (e.endsWith(".tsx")) paginas.push(p);
+      }
+    };
+    recorrer(panel);
+
+    let huecosTotales = 0;
+    for (const p of paginas) {
+      const huecos =
+        soloCodigo(leer(p)).match(/<(TarjetaProximamente|RanuraProximamente)[\s\S]*?\/>/g) ?? [];
+      huecosTotales += huecos.length;
+      for (const h of huecos) expect(h, p).toMatch(/fase=\{\d+\}/);
+    }
+    // Y el panel sigue teniendo secciones declaradas como futuras (monedero, boost): la honestidad
+    // sobre lo que aún no existe no ha desaparecido, solo se ha movido a donde toca.
+    expect(SECCIONES_PANEL.filter((s) => s.fase !== null).length).toBeGreaterThan(0);
+    expect(huecosTotales).toBeGreaterThanOrEqual(0);
   });
 
   it("'Interacción por participación' ya NO es un próximamente: pinta el dato del servicio", () => {
@@ -107,7 +132,11 @@ describe("moderación: reutiliza lo que ya existía", () => {
     expect(LISTA).toContain("postJsonCsrf"); // el write va con CSRF, como el resto del panel
   });
 
-  it("NO se ha creado un segundo endpoint de retirar en toda la API", () => {
+  it("NINGUNA ruta de retirar implementa la retirada: todas delegan en el mismo núcleo", () => {
+    // El invariante original decía "solo puede haber UN endpoint de retirar". Con la cola de
+    // moderación (Fase 5) hay dos puertas —la del reto y la de la cola—, y está bien que existan:
+    // lo que NO puede haber es dos IMPLEMENTACIONES. Así que lo que se afirma ahora es más fuerte:
+    // ninguna ruta escribe la retirada a mano, y la de moderación reutiliza el núcleo de la otra.
     const rutas: string[] = [];
     const recorrer = (dir: string): void => {
       for (const entrada of readdirSync(dir)) {
@@ -119,8 +148,20 @@ describe("moderación: reutiliza lo que ya existía", () => {
     recorrer(join(RAIZ, "src", "app", "api"));
 
     const deRetirar = rutas.filter((p) => p.includes("retirar"));
-    expect(deRetirar.length).toBe(1);
-    expect(deRetirar[0]).toContain(join("panel", "participaciones"));
+    expect(deRetirar.map((p) => relative(RAIZ, p).split(sep).join("/")).sort()).toEqual([
+      "src/app/api/panel/moderacion/retirar/route.ts",
+      "src/app/api/panel/participaciones/[id]/retirar/route.ts",
+    ]);
+    for (const p of deRetirar) {
+      const codigo = soloCodigo(leer(p));
+      // Ni el estado ni el motivo se escriben en la ruta: eso vive en el servicio.
+      expect(codigo, p).not.toMatch(/"REMOVED"|retiradaMotivo/);
+      expect(codigo, p).toMatch(/retirarParticipacion|retirarPorModeracion/);
+    }
+    // Y la retirada por moderación de un vídeo con participación NO se reescribe: usa el núcleo.
+    const moderar = soloCodigo(leer(RAIZ, "src", "server", "services", "moderar.ts"));
+    expect(moderar).toContain("retirarParticipacionEnTx");
+    expect(moderar).toContain("retirarComentarioEnTx");
   });
 
   it("la lista del panel muestra el estado en copy HUMANO, sin códigos técnicos a la vista", () => {

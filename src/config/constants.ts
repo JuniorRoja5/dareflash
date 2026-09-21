@@ -833,6 +833,18 @@ export const MSG_SIN_PERMISO_ROLES = "Solo el administrador puede asignar roles.
 export const MSG_SUSPENDER_NO_PERMITIDO = "Solo se puede suspender una cuenta de usuario.";
 export const MSG_SIN_PERMISO_MODERAR = "No tienes permiso para moderar cuentas.";
 
+/**
+ * Copy de la COLA DE MODERACIÓN. En humano: el moderador lee "Retirado", nunca `RESOLVED`, `REMOVED`
+ * ni `DISMISSED`. Lo emite el servidor y la pantalla lo pinta tal cual.
+ */
+export const MSG_SIN_PERMISO_COLA = "No tienes permiso para moderar contenido.";
+export const MSG_MODERACION_RETIRADO = "Retirado. Ya no se ve en ningún sitio.";
+export const MSG_MODERACION_DESCARTADO = "Descartado. El contenido se queda como está.";
+export const MSG_MODERACION_SIN_CAMBIOS = "No había nada que cambiar.";
+export const MSG_MODERACION_NO_ENCONTRADO = "Ese contenido ya no está.";
+/** Cuántas filas de la cola se sirven por página en el panel. */
+export const COLA_MODERACION_PAGINA = 20;
+
 /** Estado de un job de la cola. */
 export const JobStatusSchema = z.enum(["PENDING", "RUNNING", "DONE", "FAILED"]);
 export type JobStatus = z.infer<typeof JobStatusSchema>;

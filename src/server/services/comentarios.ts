@@ -22,7 +22,7 @@
  * Recibe el `PrismaClient` por parámetro, como el resto de servicios. Devuelve resultados TIPADOS; el
  * copy humano es cosa de la ruta.
  */
-import { COMENTARIOS_PAGINA } from "@/config/constants";
+import { COMENTARIOS_PAGINA, type RetiradaComentario } from "@/config/constants";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { limpiarComentario } from "@/lib/comentarios";
 import { avisoComentario } from "@/lib/notificaciones";
@@ -137,9 +137,60 @@ export async function publicarComentario(
 }
 
 /**
+ * EL NÚCLEO de la retirada suave, DENTRO de la transacción de quien llama. Dos caminos lo usan y no
+ * pueden divergir: el del AUTOR (que borra el suyo) y el de MODERACIÓN (que retira el de otro).
+ *
+ * Lo que cambia entre ellos es UNA cosa: si el `userId` va en el WHERE. En el del autor va, y es su
+ * autorización POR CONSTRUCCIÓN —uno ajeno no casa y responde el mismo 404 que uno inexistente—; en el
+ * de moderación no va, porque el moderador retira precisamente lo que no es suyo. El resto —marcar,
+ * no volver a descontar si ya estaba retirado, y decrementar el contador en la MISMA transacción— es
+ * idéntico, así que se escribe una sola vez.
+ *
+ * `null` = no hay nada que retirar (no existe, o no es de quien dice). Nunca lanza por eso.
+ */
+export async function retirarComentarioEnTx(
+  tx: Db,
+  input: {
+    commentId: string;
+    videoId: string;
+    motivo: RetiradaComentario;
+    /** Solo el camino del AUTOR lo pasa: es su autorización. */
+    userId?: string;
+    ahora?: Date;
+  },
+): Promise<{ estado: "retirado" | "ya_estaba"; comentarios: number } | null> {
+  await bloquearVideo(tx, input.videoId);
+  const deQuien = input.userId === undefined ? {} : { userId: input.userId };
+
+  const r = await tx.comment.updateMany({
+    where: { id: input.commentId, ...deQuien, retiradoEn: null },
+    data: { retiradoEn: input.ahora ?? new Date(), retiradoMotivo: input.motivo },
+  });
+  if (r.count === 0) {
+    // O no existe / no es suyo (404), o ya estaba retirado (doble clic: ok, sin volver a descontar).
+    const existe = await tx.comment.findFirst({
+      where: { id: input.commentId, ...deQuien },
+      select: { id: true },
+    });
+    if (!existe) return null;
+    const v = await tx.video.findUniqueOrThrow({
+      where: { id: input.videoId },
+      select: { commentCount: true },
+    });
+    return { estado: "ya_estaba", comentarios: v.commentCount };
+  }
+  const { commentCount } = await tx.video.update({
+    where: { id: input.videoId },
+    data: { commentCount: { decrement: 1 } },
+    select: { commentCount: true },
+  });
+  return { estado: "retirado", comentarios: commentCount };
+}
+
+/**
  * RETIRAR un comentario PROPIO (el autor lo borra). Retirada SUAVE: se marca y deja de verse; baja el
  * contador en la misma transacción. Idempotente: retirarlo dos veces no descuenta dos. El aviso que
- * emitió se queda (es un registro). La retirada por MODERACIÓN llega con la Fase 5.
+ * emitió se queda (es un registro). La retirada por MODERACIÓN usa el mismo núcleo con otro motivo.
  */
 export async function retirarComentario(
   db: PrismaClient,
@@ -154,31 +205,15 @@ export async function retirarComentario(
   if (!previo) return { estado: "rechazado", motivo: "NO_DISPONIBLE" };
 
   return db.$transaction(async (tx) => {
-    await bloquearVideo(tx, previo.videoId);
-    // Autorización POR CONSTRUCCIÓN: el `userId` va en el WHERE. Uno ajeno no casa: 404, no 403.
-    const r = await tx.comment.updateMany({
-      where: { id: input.commentId, userId: input.userId, retiradoEn: null },
-      data: { retiradoEn: input.ahora ?? new Date(), retiradoMotivo: "AUTOR" },
+    const r = await retirarComentarioEnTx(tx, {
+      commentId: input.commentId,
+      videoId: previo.videoId,
+      motivo: "AUTOR",
+      userId: input.userId,
+      ahora: input.ahora,
     });
-    if (r.count === 0) {
-      // O no es suyo (404), o ya lo había retirado él (doble clic: ok, sin volver a descontar).
-      const suyo = await tx.comment.findFirst({
-        where: { id: input.commentId, userId: input.userId },
-        select: { id: true },
-      });
-      if (!suyo) return { estado: "rechazado", motivo: "NO_DISPONIBLE" };
-      const v = await tx.video.findUniqueOrThrow({
-        where: { id: previo.videoId },
-        select: { commentCount: true },
-      });
-      return { estado: "retirado", comentarios: v.commentCount };
-    }
-    const { commentCount } = await tx.video.update({
-      where: { id: previo.videoId },
-      data: { commentCount: { decrement: 1 } },
-      select: { commentCount: true },
-    });
-    return { estado: "retirado", comentarios: commentCount };
+    if (!r) return { estado: "rechazado", motivo: "NO_DISPONIBLE" };
+    return { estado: "retirado", comentarios: r.comentarios };
   }, LEDGER_TX_OPTIONS);
 }
 

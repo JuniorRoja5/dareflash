@@ -45,7 +45,7 @@ export const SECCIONES_PANEL: SeccionPanel[] = [
     href: "/panel/moderacion",
     label: "Moderación",
     descripcion: "Revisar denuncias de vídeos y retos y aplicar acciones de moderación.",
-    fase: 5,
+    fase: null,
     rol: "MODERATOR",
   },
   {
