@@ -218,6 +218,29 @@ describe("keyset, nunca OFFSET", () => {
     expect(servicio).not.toMatch(/\bskip\b/);
   });
 
+  it("se pasa de página con DOS controles, y ninguno numera", () => {
+    // "Ver más cuentas" decía lo que no hace: la lista se REEMPLAZA, no se acumula. Y numerar
+    // páginas exigiría un `COUNT` y un `OFFSET`, que es el diseño que esta lista evitó.
+    expect(PAGINA).not.toContain("Ver más");
+    expect(PAGINA).toContain("Anterior");
+    expect(PAGINA).toContain("Siguiente");
+    expect(PAGINA).toContain('aria-label="Paginación"');
+    // El cálculo de la vuelta NO vive en la vista: es una pieza pura con sus propios tests.
+    expect(PAGINA).toMatch(/from "@\/lib\/paginacion-pila"/);
+    const pila = soloCodigo(leer(RAIZ, "src", "lib", "paginacion-pila.ts"));
+    for (const prohibido of [/\boffset\b/i, /\bskip\b/, /\bcount\b/i]) {
+      expect(pila, String(prohibido)).not.toMatch(prohibido);
+    }
+  });
+
+  it("la pantalla usa el ancho del panel, como el resto de secciones", () => {
+    // Era la única que se encajonaba en un `max-w`, y con siete columnas por fila se notaba.
+    expect(PAGINA).toContain('className="df-rise');
+    expect(PAGINA).not.toMatch(/max-w-(?:\d?xl|sm|md|lg|screen)/);
+    // `max-w-prose` sí se queda: un párrafo de texto largo no se lee a lo ancho de la pantalla.
+    expect(PAGINA).toContain("max-w-prose");
+  });
+
   it("todo orden por una columna REPETIBLE lleva su desempate por `id`, y en la misma dirección", () => {
     // Esto NO se puede probar ejecutando: hoy el índice `(columna, id)` recorrido hacia atrás
     // devuelve el mismo orden aunque el `ORDER BY` no nombre el `id`, así que quitarlo no cambia

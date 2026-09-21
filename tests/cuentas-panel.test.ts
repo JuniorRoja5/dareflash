@@ -19,6 +19,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { anterior, PRIMERA, siguiente, type Paginacion } from "../src/lib/paginacion-pila";
 import { generarHandle } from "../src/server/auth/handle";
 import { buscarUsuarios } from "../src/server/services/buscar";
 import {
@@ -259,6 +260,103 @@ describe("el listado del censo", () => {
     expect(handles((await listar({ rol: "USER", estado: "suspendida" })).items)).toEqual([
       "castigado",
     ]);
+  });
+});
+
+/**
+ * NAVEGAR ADELANTE Y ATRÁS. La pila de cursores (`lib/paginacion-pila`) tiene sus propios tests, que
+ * son puros; esto comprueba lo otro: que sus posiciones son cursores DE VERDAD y que, aplicados a la
+ * consulta real, "Anterior" devuelve la página EXACTA de la que se vino.
+ *
+ * Es el punto donde se vería que alguien metió un OFFSET por detrás: volver costaría distinto que ir,
+ * o traería otras filas.
+ */
+describe("hojear el censo: adelante y atrás", () => {
+  const LIMITE = 2;
+  const TOTAL = 7;
+
+  /** Siembra TOTAL cuentas con alta descendente conocida: u0 es la más nueva. */
+  async function censo(): Promise<string[]> {
+    const esperado: string[] = [];
+    for (let i = 0; i < TOTAL; i += 1) {
+      await crear({ username: `u${i}`, createdAt: new Date(Date.UTC(2026, 0, TOTAL - i)) });
+      esperado.push(`u${i}`);
+    }
+    return esperado;
+  }
+
+  const pagina = (p: Paginacion) => listar({ limite: LIMITE, cursor: p.cursor });
+
+  it("adelante: se recorre entero sin repetir ni saltar, y la última no ofrece siguiente", async () => {
+    const esperado = await censo();
+
+    const vistos: string[] = [];
+    let p: Paginacion = PRIMERA;
+    let paginas = 0;
+    for (;;) {
+      const r = await pagina(p);
+      vistos.push(...handles(r.items));
+      paginas += 1;
+      if (!r.proximoCursor) break;
+      p = siguiente(p, r.proximoCursor);
+    }
+
+    expect(vistos).toEqual(esperado);
+    expect(new Set(vistos).size).toBe(TOTAL);
+    expect(paginas).toBe(Math.ceil(TOTAL / LIMITE));
+    // En la última no hay "Siguiente": el control no existe porque no hay cursor que seguir.
+    expect((await pagina(p)).proximoCursor).toBeNull();
+  });
+
+  it("atrás: cada página es la MISMA de la que se salió, fila por fila", async () => {
+    await censo();
+
+    // Ida, guardando lo que enseñó cada página.
+    const ida: { pos: Paginacion; handles: string[] }[] = [];
+    let p: Paginacion = PRIMERA;
+    for (;;) {
+      const r = await pagina(p);
+      ida.push({ pos: p, handles: handles(r.items) });
+      if (!r.proximoCursor) break;
+      p = siguiente(p, r.proximoCursor);
+    }
+    expect(ida.length).toBeGreaterThan(2); // si no, la vuelta no probaría nada
+
+    // Vuelta, comparando contra lo que se vio a la ida.
+    let atras = anterior(p);
+    for (let i = ida.length - 2; i >= 0; i -= 1) {
+      expect(atras, `paso ${i}`).not.toBeNull();
+      const r = await pagina(atras!);
+      expect(handles(r.items), `paso ${i}`).toEqual(ida[i]!.handles);
+      // La primera fila es la prueba de que es LA misma página, no una parecida.
+      expect(r.items[0]?.username, `paso ${i}`).toBe(ida[i]!.handles[0]);
+      atras = anterior(atras!);
+    }
+    // Y al llegar a la primera ya no hay a dónde volver.
+    expect(atras).toBeNull();
+  });
+
+  it("buscando se hojea igual: el mismo control sobre la relevancia", async () => {
+    for (let i = 0; i < 5; i += 1) await crear({ username: `marta${i}` });
+
+    const vistos: string[] = [];
+    let p: Paginacion = PRIMERA;
+    for (;;) {
+      const r = await listar({ q: "marta", limite: LIMITE, cursor: p.cursor });
+      expect(r.modo).toBe("busqueda");
+      vistos.push(...handles(r.items));
+      if (!r.proximoCursor) break;
+      p = siguiente(p, r.proximoCursor);
+    }
+
+    expect(vistos).toHaveLength(5);
+    expect(new Set(vistos).size).toBe(5);
+    // Y la vuelta también vale en modo búsqueda.
+    const atras = anterior(p)!;
+    expect(atras).not.toBeNull();
+    expect((await listar({ q: "marta", limite: LIMITE, cursor: atras.cursor })).items).toHaveLength(
+      LIMITE,
+    );
   });
 });
 
