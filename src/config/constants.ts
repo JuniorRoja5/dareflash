@@ -814,6 +814,25 @@ export const MSG_DENUNCIA_NO_DISPONIBLE = "Este contenido ya no está disponible
 /** La misma barrera antifraude que votar o comentar. */
 export const MSG_DENUNCIA_SIN_VERIFICAR = "Verifica tu correo para poder denunciar.";
 
+/**
+ * GOBIERNO DE CUENTAS — lo que queda escrito en `AuditLog` cuando se toca una cuenta. Unión cerrada
+ * porque el panel la va a leer y a traducir: una acción nueva sin su copy saldría como un código.
+ * El `targetType` de esas filas es "USER" y el `actorId`, quien la ejecutó.
+ */
+export const AuditAccionCuentaSchema = z.enum(["ROLE_CHANGE", "BAN", "UNBAN"]);
+export type AuditAccionCuenta = z.infer<typeof AuditAccionCuentaSchema>;
+
+/**
+ * Copy del gobierno de cuentas. En humano aunque hoy no haya pantalla: la respuesta de la API ya lleva
+ * el texto que se pintará (convención de `error.message`), y un "FORBIDDEN" no se le enseña a nadie.
+ */
+export const MSG_CUENTA_NO_ENCONTRADA = "No encontramos esa cuenta.";
+export const MSG_ROL_INVALIDO = "Elige un rol válido.";
+export const MSG_ROL_NO_PERMITIDO = "No puedes cambiar el rol de esta cuenta.";
+export const MSG_SIN_PERMISO_ROLES = "Solo el administrador puede asignar roles.";
+export const MSG_SUSPENDER_NO_PERMITIDO = "Solo se puede suspender una cuenta de usuario.";
+export const MSG_SIN_PERMISO_MODERAR = "No tienes permiso para moderar cuentas.";
+
 /** Estado de un job de la cola. */
 export const JobStatusSchema = z.enum(["PENDING", "RUNNING", "DONE", "FAILED"]);
 export type JobStatus = z.infer<typeof JobStatusSchema>;

@@ -18,3 +18,45 @@ export interface UsuarioPermisos {
 export function usuarioPuedeCrearRetos(usuario: UsuarioPermisos): boolean {
   return usuario.role === "ADMIN" || usuario.puedeCrearRetos === true;
 }
+
+// ---------------------------------------------------------------------------------------------------
+// GOBIERNO DE CUENTAS. Un único superadmin (el que crea `scripts/create-admin.ts`), moderadores que
+// nombra él, y usuarios. Las dos reglas viven aquí, puras, porque las usan la ruta hoy y el panel
+// mañana: escritas dos veces, la pantalla acabaría ofreciendo lo que la API rechaza.
+// ---------------------------------------------------------------------------------------------------
+
+/** Los roles que la API puede ASIGNAR. `ADMIN` no está, y esa ausencia es la guarda. */
+export const ROLES_ASIGNABLES = ["USER", "MODERATOR"] as const;
+export type RolAsignable = (typeof ROLES_ASIGNABLES)[number];
+
+/**
+ * ¿Puede el actor poner al destino el rol pedido? TRES cláusulas, y cada una tapa un agujero distinto:
+ *
+ *  1. SOLO EL SUPERADMIN NOMBRA. Nombrar rol no es moderar: un moderador no se fabrica compañeros.
+ *  2. `ADMIN` NO ES EXPRESABLE. Aunque alguien colara el literal, aquí no pasa: no se acuña un segundo
+ *     superadmin por API. El único camino a ADMIN es el script de arranque.
+ *  3. AL ADMIN NO SE LE TOCA. Si el destino ya es ADMIN, se rechaza — así el superadmin no puede ser
+ *     degradado, ni por otro ni por sí mismo en un despiste.
+ */
+export function puedeAsignarRol(x: {
+  rolActor: string;
+  rolActualDestino: string;
+  rolPedido: string;
+}): boolean {
+  if (x.rolActor !== "ADMIN") return false;
+  if (!(ROLES_ASIGNABLES as readonly string[]).includes(x.rolPedido)) return false;
+  if (x.rolActualDestino === "ADMIN") return false;
+  return true;
+}
+
+/**
+ * ¿Puede el actor SUSPENDER (o levantar la suspensión de) la cuenta destino? Suspender SÍ es moderar,
+ * así que basta con MODERATOR (el ADMIN lo cumple por jerarquía). Pero SOLO sobre una cuenta de
+ * usuario: un moderador comprometido no puede echar a otros moderadores ni al superadmin. Para retirar
+ * a un moderador, el superadmin lo degrada primero (lo que además le revoca las sesiones) y ya como
+ * usuario se le puede suspender.
+ */
+export function puedeBanear(x: { rolActor: string; rolDestino: string }): boolean {
+  const actorModera = x.rolActor === "MODERATOR" || x.rolActor === "ADMIN";
+  return actorModera && x.rolDestino === "USER";
+}
