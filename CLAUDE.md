@@ -176,6 +176,9 @@ borran para "limpiar"**:
 - `miniatura-nombre` — prohibido volver a fijar `thumbnail.jpg` al construir la URL del póster.
 - `detalle-reto-vista` — la vista pública del reto no modera ni muta nada.
 - `participaciones-lista` — la paginación no puede volver a `OFFSET`.
+- `paginacion-pila` — cómo se va HACIA ATRÁS en un keyset sin inventar un `OFFSET`: la pila de
+  cursores ya vistos viaja en la URL ([src/lib/paginacion-pila.ts](src/lib/paginacion-pila.ts),
+  pura y reutilizable). Volver cuesta lo mismo que ir. Si otra lista necesita "Anterior", es ahí.
 - `navegacion-dura` — login y logout navegan en DURO (`navegarDuro`), nunca con `router.push`: el
   router de cliente guarda lo pre-cargado como invitado y devolvía al logueado al login.
 - `proxy-gate` — con cookie, `/crear` pasa; sin ella, a `/entrar?siguiente=`; y `/entrar` nunca pasa
