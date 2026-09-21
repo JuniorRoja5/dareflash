@@ -144,6 +144,21 @@ describe("PII: el email no está en la lista", () => {
     expect(VER_EMAIL).not.toMatch(/fetch\([^)]*\/email/);
   });
 
+  it("el correo es del SUPERADMIN, no de la sección: la ruta exige ADMIN", () => {
+    // Es la única acción de /panel/usuarios que no alcanza un moderador, y la asimetría es el
+    // invariante: suspender sí es moderar, pedir el correo no. Alguien podría "cuadrarlo con la
+    // sección" bajándolo a MODERATOR sin que nada más se quejara.
+    const ruta = soloCodigo(
+      leer(RAIZ, "src", "app", "api", "panel", "cuentas", "[id]", "email", "route.ts"),
+    );
+    expect(ruta).toContain('requireRole("ADMIN")');
+    expect(ruta).not.toContain('requireRole("MODERATOR")');
+    // Y la pantalla pregunta la MISMA regla en vez de decidir a ojo: nada de ofrecer un botón que la
+    // API va a rechazar.
+    expect(FICHA).toContain("puedeVerEmail(rolMira)");
+    expect(FICHA).not.toMatch(/rolMira\s*===/);
+  });
+
   it("no hay ninguna otra puerta al email: la única ruta que lo devuelve es la que anota", () => {
     const rutas = SRC.filter((p) => p.includes(join("app", "api")) && p.endsWith("route.ts"));
     const conEmailDeCuenta = rutas.filter((p) => leer(p).includes("emailDeCuenta"));

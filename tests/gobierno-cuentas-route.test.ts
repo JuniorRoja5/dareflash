@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MSG_CUENTA_NO_ENCONTRADA,
   MSG_ROL_INVALIDO,
+  MSG_SIN_PERMISO_EMAIL,
   MSG_SIN_PERMISO_MODERAR,
   MSG_SIN_PERMISO_ROLES,
   MSG_SUSPENDER_NO_PERMITIDO,
@@ -29,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   asignarRol: vi.fn(),
   suspenderCuenta: vi.fn(),
   levantarSuspension: vi.fn(),
+  emailDeCuenta: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ env: { APP_URL, AUTH_SECRET: SECRET } }));
@@ -39,7 +41,9 @@ vi.mock("@/server/services/gobierno-cuentas", () => ({
   suspenderCuenta: mocks.suspenderCuenta,
   levantarSuspension: mocks.levantarSuspension,
 }));
+vi.mock("@/server/services/cuentas-panel", () => ({ emailDeCuenta: mocks.emailDeCuenta }));
 
+import { POST as EMAIL } from "../src/app/api/panel/cuentas/[id]/email/route";
 import { POST as LEVANTAR } from "../src/app/api/panel/cuentas/[id]/levantar/route";
 import { POST as ROL } from "../src/app/api/panel/cuentas/[id]/rol/route";
 import { POST as SUSPENDER } from "../src/app/api/panel/cuentas/[id]/suspender/route";
@@ -72,6 +76,8 @@ const suspender = (id = "user-9", csrf = true) =>
   );
 const levantar = (id = "user-9") =>
   LEVANTAR(peticion(`http://test.local/api/panel/cuentas/${id}/levantar`), ctx(id));
+const email = (id = "user-9", csrf = true) =>
+  EMAIL(peticion(`http://test.local/api/panel/cuentas/${id}/email`, undefined, csrf), ctx(id));
 
 const mensaje = async (res: Response): Promise<string> => (await res.json()).error?.message ?? "";
 
@@ -81,6 +87,7 @@ beforeEach(() => {
   mocks.asignarRol.mockResolvedValue({ estado: "hecho" });
   mocks.suspenderCuenta.mockResolvedValue({ estado: "hecho" });
   mocks.levantarSuspension.mockResolvedValue({ estado: "hecho" });
+  mocks.emailDeCuenta.mockResolvedValue({ estado: "hecho", email: "alguien@example.com" });
 });
 
 describe("POST .../rol — solo el superadmin nombra", () => {
@@ -195,5 +202,62 @@ describe("POST .../suspender y .../levantar — moderar, no administrar", () => 
       const texto = await mensaje(await suspender());
       expect(texto).not.toMatch(/FORBIDDEN|NOT_FOUND|NO_PERMITIDO|NO_ENCONTRADA|BAN/);
     }
+  });
+});
+
+/**
+ * EL CORREO ES DEL SUPERADMIN. Es la única acción de `/panel/usuarios` que un moderador NO alcanza, y
+ * la asimetría es el invariante: suspender sí (arriba), pedir el correo no. Si alguien bajara este
+ * guard a `"MODERATOR"` "para que cuadre con la sección", el primer caso de aquí se pone rojo.
+ */
+describe("POST .../email — el correo no es moderación", () => {
+  it("el ADMIN lo pide: el actor sale de la SESIÓN y la dirección vuelve", async () => {
+    const res = await email();
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, email: "alguien@example.com" });
+    expect(mocks.emailDeCuenta).toHaveBeenCalledWith(expect.anything(), {
+      actorId: "actor-ADMIN",
+      userId: "user-9",
+    });
+  });
+
+  it("un MODERADOR no: 403, y el servicio NI SE LLAMA (o sea, tampoco se anota nada)", async () => {
+    mocks.getCurrentUser.mockResolvedValue(sesion("MODERATOR"));
+
+    const res = await email();
+
+    expect(res.status).toBe(403);
+    expect(await mensaje(res)).toBe(MSG_SIN_PERMISO_EMAIL);
+    // Lo importante no es solo el 403: es que no se llega al servicio. Un rechazo que hubiera pasado
+    // por él ya habría escrito una fila de auditoría de una consulta que no ocurrió.
+    expect(mocks.emailDeCuenta).not.toHaveBeenCalled();
+  });
+
+  it("un USER tampoco, ni sin CSRF, ni sin correo verificado", async () => {
+    mocks.getCurrentUser.mockResolvedValue(sesion("USER"));
+    expect((await email()).status).toBe(403);
+
+    mocks.getCurrentUser.mockResolvedValue(sesion("ADMIN"));
+    expect((await email("user-9", false)).status).toBe(403);
+
+    mocks.getCurrentUser.mockResolvedValue(sesion("ADMIN", null));
+    expect((await email()).status).toBe(403);
+
+    expect(mocks.emailDeCuenta).not.toHaveBeenCalled();
+  });
+
+  it("una cuenta sin dirección responde `null`, no un error", async () => {
+    mocks.emailDeCuenta.mockResolvedValueOnce({ estado: "hecho", email: null });
+    const res = await email();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, email: null });
+  });
+
+  it("una cuenta inexistente (o borrada) -> 404 en humano", async () => {
+    mocks.emailDeCuenta.mockResolvedValueOnce({ estado: "rechazado", motivo: "NO_ENCONTRADA" });
+    const res = await email();
+    expect(res.status).toBe(404);
+    expect(await mensaje(res)).toBe(MSG_CUENTA_NO_ENCONTRADA);
   });
 });

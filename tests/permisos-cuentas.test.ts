@@ -17,6 +17,7 @@ import {
   controlesCuenta,
   puedeAsignarRol,
   puedeBanear,
+  puedeVerEmail,
   rolAlternativo,
   ROLES_ASIGNABLES,
 } from "../src/lib/permisos";
@@ -122,5 +123,30 @@ describe("controlesCuenta (qué se le ofrece a quien mira)", () => {
     expect(
       controlesCuenta({ rolMira: "ADMIN", rolDestino: "ADMIN", suspendido: true }).puedeRol,
     ).toBe(false);
+  });
+});
+
+/**
+ * VER EL CORREO: la regla más restrictiva de la pantalla de cuentas, y la única de `/panel/usuarios`
+ * que un moderador NO alcanza. La asimetría es deliberada: suspender SÍ es moderar; el correo es la
+ * identidad de una persona fuera de la plataforma.
+ *
+ * Para romperlo: aflojarlo a `alcanzaRol(rol, "MODERATOR")` -> rojo aquí y en la ruta.
+ */
+describe("puedeVerEmail", () => {
+  it("solo el superadmin; el moderador NO, aunque sí pueda suspender", () => {
+    expect(puedeVerEmail("ADMIN")).toBe(true);
+    expect(puedeVerEmail("MODERATOR")).toBe(false);
+    expect(puedeVerEmail("USER")).toBe(false);
+    // La comparación, al lado, es lo que hace visible la decisión: el moderador modera cuentas...
+    expect(puedeBanear({ rolActor: "MODERATOR", rolDestino: "USER" })).toBe(true);
+    // ...y aun así no ve un correo.
+    expect(puedeVerEmail("MODERATOR")).toBe(false);
+  });
+
+  it("un rol desconocido no ve nada (no se cuela por no estar en la lista)", () => {
+    for (const rol of ["", "admin", "SUPERADMIN", "Moderator"]) {
+      expect(puedeVerEmail(rol), rol).toBe(false);
+    }
   });
 });

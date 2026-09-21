@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { MSG_CUENTA_NO_ENCONTRADA, MSG_SIN_PERMISO_CUENTAS } from "@/config/constants";
+import { MSG_CUENTA_NO_ENCONTRADA, MSG_SIN_PERMISO_EMAIL } from "@/config/constants";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk } from "@/server/http/api";
 
@@ -20,8 +20,12 @@ const ParamsSchema = z.object({ id: z.string().min(1).max(64) });
  * eso en una garantía y no en una costumbre es que sea el servicio el que anota (`emailDeCuenta`),
  * no esta ruta: no hay forma de obtener la dirección por un camino que no escriba el rastro.
  *
- * Guard `requireRole("MODERATOR")`: es la sección de Usuarios, y el administrador lo cumple por
- * jerarquía. Una cuenta borrada devuelve 404 igual que una inexistente.
+ * Guard `requireRole("ADMIN")`, y NO el de la sección. Es la única acción de `/panel/usuarios` que
+ * no alcanza un moderador, a propósito: la regla y el porqué están en `puedeVerEmail`
+ * (`lib/permisos`) — moderar es contenido, y el correo es la identidad de alguien fuera de la
+ * plataforma. El rastro dice quién miró DESPUÉS; para un dato personal vale más que no pueda.
+ *
+ * Una cuenta borrada devuelve 404 igual que una inexistente.
  */
 export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (_req, { prisma }, { params }) => {
@@ -30,9 +34,9 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
 
     let actor;
     try {
-      actor = await requireRole("MODERATOR");
+      actor = await requireRole("ADMIN");
     } catch {
-      return apiError("FORBIDDEN", MSG_SIN_PERMISO_CUENTAS, 403);
+      return apiError("FORBIDDEN", MSG_SIN_PERMISO_EMAIL, 403);
     }
 
     const parsed = ParamsSchema.safeParse(await params);

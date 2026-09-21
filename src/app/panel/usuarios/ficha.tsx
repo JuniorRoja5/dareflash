@@ -2,6 +2,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
 import { MSG_EMAIL_NO_DISPONIBLE } from "@/config/constants";
 import { nombreMostrado } from "@/lib/identidad";
+import { puedeVerEmail } from "@/lib/permisos";
 import type { FichaCuenta } from "@/server/services/cuentas-panel";
 
 import { AccionesCuenta } from "./acciones-cuenta";
@@ -20,6 +21,9 @@ const DATO = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
  * cuenta; moverlos es otra cosa y vive en `/panel/ranking`, que es del administrador. Esta pantalla
  * es del MODERADOR: si el ajuste estuviera aquí, la frontera entre moderar y tocar el saldo sería una
  * costumbre en vez de una barrera.
+ *
+ * Y el CORREO está al otro lado de esa misma frontera: solo el superadmin puede pedirlo
+ * (`puedeVerEmail`). Moderar es contenido; el correo es la identidad de alguien fuera de aquí.
  */
 export function Ficha({ ficha, rolMira }: { ficha: FichaCuenta; rolMira: string }) {
   const c = ficha.cuenta;
@@ -72,12 +76,17 @@ export function Ficha({ ficha, rolMira }: { ficha: FichaCuenta; rolMira: string 
             {c.victorias.toLocaleString("es-ES")}
           </dd>
         </div>
-        <div>
-          <dt className={DATO}>Email</dt>
-          <dd className="mt-1">
-            <VerEmail userId={c.id} aviso={MSG_EMAIL_NO_DISPONIBLE} />
-          </dd>
-        </div>
+        {/* La casilla del correo NI SE PINTA para quien no puede pedirlo: ofrecer un botón que la
+            API va a rechazar hace quedar mal a la pantalla. La autoridad es la ruta, que exige
+            ADMIN; esto es la misma regla (`puedeVerEmail`) preguntada para decidir qué enseñar. */}
+        {puedeVerEmail(rolMira) ? (
+          <div>
+            <dt className={DATO}>Email</dt>
+            <dd className="mt-1">
+              <VerEmail userId={c.id} aviso={MSG_EMAIL_NO_DISPONIBLE} />
+            </dd>
+          </div>
+        ) : null}
       </dl>
 
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">

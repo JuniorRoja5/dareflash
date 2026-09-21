@@ -830,7 +830,9 @@ export const CUENTAS_PAGINA = 25;
 
 /** Copy del listado y de la ficha. En humano, como el resto del panel. */
 export const MSG_EMAIL_NO_DISPONIBLE = "Esta cuenta no tiene ninguna dirección registrada.";
-export const MSG_SIN_PERMISO_CUENTAS = "No tienes permiso para ver las cuentas.";
+/** El correo es del superadmin: moderar es contenido, no datos personales de una cuenta. */
+export const MSG_SIN_PERMISO_EMAIL =
+  "Solo el administrador puede consultar el correo de una cuenta.";
 
 /**
  * Copy del gobierno de cuentas. En humano aunque hoy no haya pantalla: la respuesta de la API ya lleva

@@ -86,6 +86,25 @@ export function rolAlternativo(rolActual: string): RolAsignable {
   return rolActual === "MODERATOR" ? "USER" : "MODERATOR";
 }
 
+/**
+ * ¿Puede el actor VER EL CORREO de una cuenta? Solo el superadmin.
+ *
+ * Es la regla más restrictiva de esta pantalla y es deliberado. El trabajo del moderador es el
+ * CONTENIDO —retirar lo denunciado, suspender a quien lo publica—, y para eso le sobra con lo que ya
+ * ve: handle, nombre, rol, estado, alta y cifras. El correo es la identidad de una persona FUERA de
+ * la plataforma: sirve para recuperar una cuenta, para hablar con ella o para un requerimiento
+ * legal, que son cosas de administración.
+ *
+ * Hay rastro en `AuditLog` de cada consulta, sí, pero eso es saber quién miró DESPUÉS. Para un dato
+ * personal vale más que no pueda mirar: cuantos más moderadores haya, más ancha sería la superficie
+ * de correos alcanzables por una sola sesión robada.
+ *
+ * NO depende del destino, solo de quién mira: por eso está aparte de `controlesCuenta`.
+ */
+export function puedeVerEmail(rolActor: string): boolean {
+  return rolActor === "ADMIN";
+}
+
 /** Qué controles tiene sentido PINTAR sobre una cuenta, según quién la mira. */
 export interface ControlesCuenta {
   /** Ofrecer el cambio de rol (ascender o degradar, ver `rolAlternativo`). */
