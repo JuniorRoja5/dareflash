@@ -13,7 +13,13 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { puedeAsignarRol, puedeBanear, ROLES_ASIGNABLES } from "../src/lib/permisos";
+import {
+  controlesCuenta,
+  puedeAsignarRol,
+  puedeBanear,
+  rolAlternativo,
+  ROLES_ASIGNABLES,
+} from "../src/lib/permisos";
 
 describe("puedeAsignarRol", () => {
   it("el superadmin mueve a alguien entre USER y MODERATOR", () => {
@@ -69,5 +75,52 @@ describe("puedeBanear", () => {
 
   it("un usuario normal no suspende a nadie", () => {
     expect(puedeBanear({ rolActor: "USER", rolDestino: "USER" })).toBe(false);
+  });
+});
+
+describe("controlesCuenta (qué se le ofrece a quien mira)", () => {
+  const activa = { rolDestino: "USER", suspendido: false };
+
+  it("el ADMIN ve el cambio de rol; el MODERADOR no", () => {
+    expect(controlesCuenta({ rolMira: "ADMIN", ...activa }).puedeRol).toBe(true);
+    expect(controlesCuenta({ rolMira: "MODERATOR", ...activa }).puedeRol).toBe(false);
+    expect(controlesCuenta({ rolMira: "USER", ...activa }).puedeRol).toBe(false);
+  });
+
+  it("sobre un ADMIN no se ofrece NADA: ni rol ni suspensión", () => {
+    const c = controlesCuenta({ rolMira: "ADMIN", rolDestino: "ADMIN", suspendido: false });
+    expect(c).toEqual({ puedeRol: false, puedeSuspender: false, puedeLevantar: false });
+  });
+
+  it("sobre un MODERADOR: el admin puede degradarlo, pero nadie suspenderlo", () => {
+    const c = controlesCuenta({ rolMira: "ADMIN", rolDestino: "MODERATOR", suspendido: false });
+    expect(c).toEqual({ puedeRol: true, puedeSuspender: false, puedeLevantar: false });
+    // Y el moderador que mira tampoco puede con otro moderador.
+    expect(
+      controlesCuenta({ rolMira: "MODERATOR", rolDestino: "MODERATOR", suspendido: false }),
+    ).toEqual({ puedeRol: false, puedeSuspender: false, puedeLevantar: false });
+  });
+
+  it("suspender y levantar NUNCA se ofrecen a la vez: dependen del estado", () => {
+    const activaAhora = controlesCuenta({ rolMira: "MODERATOR", ...activa });
+    expect(activaAhora.puedeSuspender).toBe(true);
+    expect(activaAhora.puedeLevantar).toBe(false);
+
+    const suspendida = controlesCuenta({
+      rolMira: "MODERATOR",
+      rolDestino: "USER",
+      suspendido: true,
+    });
+    expect(suspendida.puedeSuspender).toBe(false);
+    expect(suspendida.puedeLevantar).toBe(true);
+  });
+
+  it("el movimiento que se ofrece es el CONTRARIO del rol actual", () => {
+    expect(rolAlternativo("USER")).toBe("MODERATOR");
+    expect(rolAlternativo("MODERATOR")).toBe("USER");
+    // Sobre un ADMIN da igual lo que devuelva: `controlesCuenta` no ofrece el control.
+    expect(
+      controlesCuenta({ rolMira: "ADMIN", rolDestino: "ADMIN", suspendido: true }).puedeRol,
+    ).toBe(false);
   });
 });

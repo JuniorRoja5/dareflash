@@ -35,7 +35,7 @@ export const SECCIONES_PANEL: SeccionPanel[] = [
     href: "/panel/usuarios",
     label: "Usuarios",
     descripcion: "Buscar cuentas, ver su estado y gestionar roles, baneos y permisos.",
-    fase: 5,
+    fase: null,
   },
   {
     href: "/panel/monedero",
