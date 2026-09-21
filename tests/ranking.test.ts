@@ -21,6 +21,7 @@ import { cerrarRetoVencido } from "../src/server/services/cierre-reto";
 import {
   rankingMensual,
   recontarVictoriasDelPeriodo,
+  recontarVictoriasTotales,
   topDelReto,
 } from "../src/server/services/ranking";
 import { generarPublicCode } from "../src/server/services/reto-codigo";
@@ -198,6 +199,78 @@ describe("el ranking mensual cuenta VICTORIAS, y solo las del mes", () => {
 
     expect(filas.find((f) => f.userId === conFoto)?.image).toBe("/avatars/ganador.webp");
     expect(filas.find((f) => f.userId === sinFoto)?.image).toBeNull();
+  });
+});
+
+describe("las victorias DE POR VIDA (`User.victoriasTotales`)", () => {
+  const victoriasDe = async (userId: string) =>
+    (
+      await prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { victoriasTotales: true },
+      })
+    ).victoriasTotales;
+
+  it("ganar retos las sube; no ganar nada las deja a cero", async () => {
+    const tres = await ganarRetos(3);
+    const cero = await crearUsuario(prisma);
+
+    expect(await victoriasDe(tres)).toBe(3);
+    expect(await victoriasDe(cero)).toBe(0);
+  });
+
+  it("cuentan las de SIEMPRE, no las del mes: aquí está la diferencia con el ranking", async () => {
+    const ganador = await ganarRetos(1);
+    const ahora = new Date();
+    const mesPasado = new Date(Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth() - 1, 15));
+    await prisma.challengeResult.updateMany({
+      where: { userId: ganador },
+      data: { createdAt: mesPasado },
+    });
+    // Gana otro reto AHORA: se recuentan las dos cosas por la vía real.
+    await ganarRetos(1, ganador);
+
+    // El mensual ve una; el de por vida, las dos. Si `recontarVictoriasTotales` filtrara por periodo
+    // —copiando a su gemelo sin pensar—, este número sería 1.
+    expect((await rankingMensual(prisma)).filas.find((f) => f.userId === ganador)?.victorias).toBe(
+      1,
+    );
+    expect(await victoriasDe(ganador)).toBe(2);
+  });
+
+  it("el recuento es IDEMPOTENTE: llamarlo N veces da el mismo número", async () => {
+    const ganador = await ganarRetos(1);
+
+    for (let i = 0; i < 4; i += 1) await recontarVictoriasTotales(prisma, [ganador]);
+
+    expect(await victoriasDe(ganador)).toBe(1); // con `increment` valdría 5
+  });
+
+  it("re-ejecutar el cierre no infla nada", async () => {
+    const reto = await crearReto();
+    const g = await participar(reto.id, 5);
+    await participar(reto.id, 1);
+
+    await cerrarRetoVencido(prisma, reto.id);
+    await cerrarRetoVencido(prisma, reto.id);
+
+    expect(await victoriasDe(g.userId)).toBe(1);
+  });
+
+  it("el caché cuadra con el hecho: victoriasTotales == filas de ChallengeResult", async () => {
+    const a = await ganarRetos(2);
+    const b = await ganarRetos(1);
+
+    for (const userId of [a, b]) {
+      const reales = await prisma.challengeResult.count({ where: { userId } });
+      expect(await victoriasDe(userId), userId).toBe(reales);
+    }
+  });
+
+  it("un ganador cuya cuenta ya no existe no tumba el cierre de los demás", async () => {
+    // `updateMany` y no `update`: el caché de quien no está no le importa a nadie, pero una excepción
+    // aquí reventaría la transacción que escribe el HECHO de todos los ganadores del reto.
+    await expect(recontarVictoriasTotales(prisma, ["no-existe"])).resolves.toBeUndefined();
   });
 });
 

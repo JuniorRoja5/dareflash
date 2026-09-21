@@ -38,65 +38,13 @@ export type ResultadoCuenta =
   | { estado: "sin_cambios" }
   | { estado: "rechazado"; motivo: MotivoRechazoCuenta };
 
-/** Una cuenta, vista desde el panel: quién es, qué es y si está suspendida. */
-export interface CuentaAdmin {
-  id: string;
-  username: string;
-  displayName: string | null;
-  image: string | null;
-  rol: string;
-  suspendida: boolean;
-}
-
-/** Cuántas cuentas devuelve una búsqueda del panel. Es una búsqueda dirigida, no un listado. */
-export const CUENTAS_BUSCAR_LIMITE = 20;
-
 /**
- * BUSCAR CUENTAS PARA MODERAR. Es OTRA búsqueda que la pública (`buscarUsuarios`), y tiene que serlo:
- * aquella esconde a los suspendidos —es su trabajo—, y aquí son justo a quienes hay que encontrar para
- * levantarles la suspensión o revisar qué hicieron. Lo único que sigue fuera es lo BORRADO, que para
- * el sistema ya no existe.
- *
- * DIRIGIDA POR LA CONSULTA: sin término no devuelve nada. Un panel de cuentas no es un volcado del
- * censo; se busca a alguien concreto, por su handle (o por su nombre, que es como se le recuerda).
- *
- * Los comodines de LIKE se neutralizan: un "%" convertiría la búsqueda en ese volcado que se evita.
+ * AQUÍ HUBO UNA SEGUNDA BÚSQUEDA (`buscarCuentasAdmin`) y se ha eliminado. Era solo por PREFIJO
+ * —más tonta que la de la app— y no quitaba la `@` inicial, así que buscar «@yuyu» en el panel no
+ * encontraba al usuario `yuyu`: exactamente lo que una persona escribe. Ahora el panel usa el motor
+ * de siempre en modo panel (`buscarCuentas`, en `services/buscar.ts`) y el listado vive en
+ * `services/cuentas-panel.ts`. Este módulo se queda con lo que de verdad es suyo: GOBERNAR.
  */
-export async function buscarCuentasAdmin(
-  db: PrismaClient,
-  consulta: string,
-  limite: number = CUENTAS_BUSCAR_LIMITE,
-): Promise<CuentaAdmin[]> {
-  const termino = consulta.trim().replace(/[\\%_]/g, "");
-  if (termino === "") return [];
-
-  const filas = await db.user.findMany({
-    where: {
-      deletedAt: null,
-      OR: [{ username: { startsWith: termino } }, { displayName: { startsWith: termino } }],
-    },
-    select: {
-      id: true,
-      username: true,
-      displayName: true,
-      image: true,
-      role: true,
-      bannedAt: true,
-    },
-    // El handle ordena: es lo que el moderador escribió y lo que reconoce en la lista.
-    orderBy: [{ username: "asc" }],
-    take: Math.min(Math.max(1, limite), CUENTAS_BUSCAR_LIMITE),
-  });
-
-  return filas.map((f) => ({
-    id: f.id,
-    username: f.username,
-    displayName: f.displayName,
-    image: f.image,
-    rol: f.role,
-    suspendida: f.bannedAt !== null,
-  }));
-}
 
 /** Una cuenta borrada no se gobierna: para el resto del sistema ya no está. */
 async function cuentaDestino(

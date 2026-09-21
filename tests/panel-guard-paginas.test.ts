@@ -39,6 +39,11 @@ vi.mock("@/server/services/cola-moderacion", () => ({
 vi.mock("@/server/services/reproduccion-servidor", () => ({
   firmarReproduccion: () => ({ src: "s", poster: "p" }),
 }));
+// Y Usuarios, que es la otra sección del moderador. Mismo criterio: aquí se prueba el GUARD.
+vi.mock("@/server/services/cuentas-panel", () => ({
+  listarCuentas: vi.fn(async () => ({ items: [], proximoCursor: null, modo: "listado" })),
+  fichaCuenta: vi.fn(async () => null),
+}));
 
 const MODERADOR: SessionUser = {
   userId: "mod-1",
@@ -105,10 +110,48 @@ describe("una página de administración, ejecutada por un MODERADOR", () => {
   });
 });
 
-describe("su propia sección sí responde", () => {
+/**
+ * Y el otro lado del guard: las secciones DEL MODERADOR, ejecutadas por un usuario normal. Sin esto,
+ * "no esperar el `requireSeccion`" era invisible en `/panel/moderacion` y `/panel/usuarios` —el único
+ * rol con el que se probaban era uno al que SÍ se le deja pasar, así que el guard nunca decía que no—.
+ */
+describe("una sección del moderador, ejecutada por un USUARIO normal", () => {
+  const PAGINAS_MODERADOR: {
+    ruta: string;
+    cargar: () => Promise<{ default: unknown }>;
+    args: [] | [unknown];
+  }[] = [
+    {
+      ruta: "/panel/moderacion",
+      cargar: () => import("../src/app/panel/moderacion/page"),
+      args: [],
+    },
+    {
+      ruta: "/panel/usuarios",
+      cargar: () => import("../src/app/panel/usuarios/page"),
+      args: [{ searchParams: Promise.resolve({}) }],
+    },
+  ];
+
+  for (const p of PAGINAS_MODERADOR) {
+    it(`${p.ruta} no devuelve nada: 404`, async () => {
+      mocks.getCurrentUser.mockResolvedValue({ ...MODERADOR, role: "USER" });
+      const pagina = paginaDe(await p.cargar());
+      await expect(pagina(...p.args)).rejects.toThrow("NOT_FOUND");
+    });
+  }
+});
+
+describe("sus propias secciones sí responden", () => {
   it("/panel/moderacion se pinta para un moderador", async () => {
     const pagina = paginaDe(await import("../src/app/panel/moderacion/page"));
     await expect(pagina()).resolves.toBeDefined();
+    expect(mocks.notFound).not.toHaveBeenCalled();
+  });
+
+  it("/panel/usuarios se pinta para un moderador", async () => {
+    const pagina = paginaDe(await import("../src/app/panel/usuarios/page"));
+    await expect(pagina({ searchParams: Promise.resolve({}) })).resolves.toBeDefined();
     expect(mocks.notFound).not.toHaveBeenCalled();
   });
 });

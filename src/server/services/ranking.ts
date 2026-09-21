@@ -50,6 +50,30 @@ export async function recontarVictoriasDelPeriodo(
   }
 }
 
+/**
+ * Recuenta y guarda las VICTORIAS DE POR VIDA de los usuarios indicados (`User.victoriasTotales`).
+ *
+ * Es el gemelo de `recontarVictoriasDelPeriodo` y por las mismas razones: el listado del panel ordena
+ * por victorias, eso es un COUNT, y un agregado no se pagina por keyset. Misma disciplina, palabra por
+ * palabra: se llama DENTRO de la transacción que crea los `ChallengeResult`, con el mismo cliente, y
+ * escribe el VALOR ABSOLUTO recontado. Con `increment`, un cierre re-ejecutado —que inserta 0
+ * resultados nuevos por `skipDuplicates`— sumaría otra vez.
+ *
+ * `updateMany` y no `update` a propósito: un ganador cuya cuenta ya no existe afecta a 0 filas en vez
+ * de tumbar la transacción del cierre entero. El resultado sigue escrito; el caché de un usuario que
+ * no está no le importa a nadie.
+ */
+export async function recontarVictoriasTotales(
+  tx: Prisma.TransactionClient,
+  userIds: readonly string[],
+): Promise<void> {
+  for (const userId of new Set(userIds)) {
+    // Cubierto por @@index([userId, createdAt]) de ChallengeResult (el prefijo basta).
+    const victorias = await tx.challengeResult.count({ where: { userId } });
+    await tx.user.updateMany({ where: { id: userId }, data: { victoriasTotales: victorias } });
+  }
+}
+
 export interface FilaRankingMensual {
   userId: string;
   username: string;

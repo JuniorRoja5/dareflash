@@ -208,6 +208,28 @@ describe("resolver de verdad", () => {
     expect(await puntosDe(b.userId)).toBe(POINTS.TOP20);
   });
 
+  it("actualiza los DOS cachés de victorias: el del mes y el de por vida", async () => {
+    // Resolver un empate produce victorias como cualquier cierre, y el cierre automático no es el
+    // único camino a `ChallengeResult`. Sin esto, un reto resuelto a mano dejaba al ganador con sus
+    // puntos pero sin contar en el ranking ni en el listado del panel.
+    const { reto, a, b } = await retoEmpatado();
+
+    await resolverEmpate(prisma, reto.id, [a.submissionId]);
+
+    const victorias = async (userId: string) =>
+      (
+        await prisma.user.findUniqueOrThrow({
+          where: { id: userId },
+          select: { victoriasTotales: true },
+        })
+      ).victoriasTotales;
+    expect(await victorias(a.userId)).toBe(1);
+    expect(await victorias(b.userId)).toBe(0);
+    expect(
+      (await prisma.rankingMensual.findFirstOrThrow({ where: { userId: a.userId } })).victorias,
+    ).toBe(1);
+  });
+
   it("reenviar NO paga dos veces ni reescribe el resultado", async () => {
     const { reto, a, b } = await retoEmpatado();
     await resolverEmpate(prisma, reto.id, [a.submissionId]);

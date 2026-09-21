@@ -819,8 +819,18 @@ export const MSG_DENUNCIA_SIN_VERIFICAR = "Verifica tu correo para poder denunci
  * porque el panel la va a leer y a traducir: una acción nueva sin su copy saldría como un código.
  * El `targetType` de esas filas es "USER" y el `actorId`, quien la ejecutó.
  */
-export const AuditAccionCuentaSchema = z.enum(["ROLE_CHANGE", "BAN", "UNBAN"]);
+export const AuditAccionCuentaSchema = z.enum(["ROLE_CHANGE", "BAN", "UNBAN", "EMAIL_VIEW"]);
 export type AuditAccionCuenta = z.infer<typeof AuditAccionCuentaSchema>;
+
+/**
+ * LISTADO DE CUENTAS (/panel/usuarios). Tamaño de página del keyset: suficiente para hojear sin que
+ * una sola carga traiga medio censo.
+ */
+export const CUENTAS_PAGINA = 25;
+
+/** Copy del listado y de la ficha. En humano, como el resto del panel. */
+export const MSG_EMAIL_NO_DISPONIBLE = "Esta cuenta no tiene ninguna dirección registrada.";
+export const MSG_SIN_PERMISO_CUENTAS = "No tienes permiso para ver las cuentas.";
 
 /**
  * Copy del gobierno de cuentas. En humano aunque hoy no haya pantalla: la respuesta de la API ya lleva

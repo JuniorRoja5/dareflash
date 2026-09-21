@@ -17,12 +17,18 @@
  *     `+ - > < ( ) ~ * " @`); el `*` de word-prefix lo añade el servidor. Nunca inyección de sintaxis.
  *   - SOLO contenido PÚBLICO: usuarios con perfil público (no borrados/baneados, con username); retos
  *     PUBLISHED. El DTO expone SOLO campos públicos (jamás email ni campos privados).
+ *   - UN SOLO MOTOR para los usuarios: el buscador del PANEL es esta misma consulta con `admin` a
+ *     true (ve a los suspendidos, trae rol/estado/alta/cifras, admite filtros). Hubo una segunda
+ *     búsqueda para el panel, solo por prefijo y sin normalizar el término, y lo único que consiguió
+ *     fue que el back-office encontrara menos y peor que la app. El email NO sale de aquí ni en modo
+ *     panel: se pide de uno en uno y deja rastro.
  */
 import "server-only";
 
 import { BUSCAR_LIMITE, BUSCAR_MIN_FULLTEXT } from "@/config/constants";
 import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
+import type { EstadoCuenta, RolFiltro } from "@/lib/cuentas-listado";
 
 /** Multiplicador para que la EXACTITUD (rango 0/1/2) domine sobre la relevancia FULLTEXT en `orden`. */
 const RANGO_FACTOR = 1_000_000_000;
@@ -39,6 +45,27 @@ export interface UsuarioBusqueda {
   username: string | null;
   displayName: string | null;
   image: string | null;
+}
+
+/**
+ * UNA CUENTA VISTA DESDE EL PANEL. Vive aquí porque aquí se produce (la búsqueda), y lo importa el
+ * listado para producir exactamente lo mismo: las dos maneras de llegar a una cuenta —escribir un
+ * nombre o recorrer la lista— tienen que pintar la misma fila, o el moderador vería dos verdades.
+ *
+ * SIN EMAIL, y no por olvido: es el DTO que viaja a una pantalla que lista a mucha gente a la vez.
+ * El email se pide de uno en uno y deja rastro (`emailDeCuenta`).
+ */
+export interface CuentaPanel {
+  id: string;
+  username: string;
+  displayName: string | null;
+  image: string | null;
+  /** Código interno del rol; el panel lo traduce a copy humano (`ETIQUETA_ROL`). */
+  rol: string;
+  suspendida: boolean;
+  alta: Date;
+  puntos: number;
+  victorias: number;
 }
 
 /** DTO PÚBLICO de un reto en resultados. `publicCode`+`slug` -> URL canónica /retos/{code}-{slug}. */
@@ -80,6 +107,21 @@ function decodificarCursor(raw: string | null): CursorBusqueda | null {
 /** Escapa los comodines de LIKE (`% _ \`) para tratar la entrada como literal en un prefijo. */
 function escaparLike(v: string): string {
   return v.replace(/[\\%_]/g, "\\$&");
+}
+
+/**
+ * Normaliza lo que ESCRIBE una persona para buscar a otra.
+ *
+ * QUITA UNA `@` INICIAL, y ese detalle era un fallo real: los handles se guardan SIN arroba
+ * (`username = "yuyu"`), pero nadie escribe un handle sin ella. Buscar «@yuyu» comparaba literalmente
+ * contra «yuyu» y no devolvía nada — con la agravante de que el resultado no parecía un error de
+ * escritura, sino una cuenta que no existe.
+ *
+ * Solo la INICIAL: una `@` en medio no es un adorno de handle, y quitarla cambiaría el término. Las
+ * del interior ya las neutraliza `expresionBoolean` para el fulltext.
+ */
+function normalizarTermino(q: string): string {
+  return q.trim().replace(/^@/, "").trim();
 }
 
 /**
@@ -142,6 +184,125 @@ type FilaUsuario = FilaOrden & {
   image: string | null;
 };
 
+/** Lo que el modo PANEL trae de más: gobierno de la cuenta y sus cifras. Jamás el email. */
+type FilaUsuarioAdmin = FilaUsuario & {
+  username: string;
+  role: string;
+  bannedAt: Date | null;
+  createdAt: Date;
+  pointsBalance: unknown;
+  victoriasTotales: unknown;
+};
+
+/**
+ * De fila cruda a `CuentaPanel`. Los enteros pasan por `Number` porque el driver devuelve los
+ * agregados de una consulta cruda como `BigInt`/`Decimal` según el caso, y un `BigInt` no sobrevive a
+ * la serialización de un componente de servidor a cliente.
+ */
+function filaACuenta(f: FilaUsuarioAdmin): CuentaPanel {
+  return {
+    id: f.id,
+    username: f.username,
+    displayName: f.displayName,
+    image: f.image,
+    rol: f.role,
+    suspendida: f.bannedAt !== null,
+    alta: f.createdAt,
+    puntos: Number(f.pointsBalance),
+    victorias: Number(f.victoriasTotales),
+  };
+}
+
+/** Lo que distingue al modo PANEL del público. Sin nada de esto, la búsqueda es la pública. */
+export interface OpcionesBusquedaCuentas {
+  /** Filtro por rol exacto. `null` = todos. */
+  rol?: RolFiltro | null;
+  /** Filtro por estado. `null` = activas y suspendidas juntas. */
+  estado?: EstadoCuenta | null;
+}
+
+/**
+ * EL MOTOR DE LA BÚSQUEDA DE USUARIOS, uno solo. La diferencia entre el buscador público y el del
+ * panel es un PARÁMETRO (`admin`), no otra implementación: hubo una segunda —solo prefijo, sin
+ * normalizar el término— y su único efecto fue que el panel encontrara menos y peor que la app.
+ *
+ * Lo que cambia con `admin`:
+ *   · VISIBILIDAD: el público esconde a los suspendidos (es su trabajo); el panel los ve, porque son
+ *     justo a quienes hay que encontrar para levantarles la suspensión. Lo BORRADO no lo ve nadie.
+ *   · COLUMNAS: el panel trae rol, estado, alta y cifras. El email NO sale de aquí ni en modo panel:
+ *     es PII y tiene su propia puerta, con rastro (`emailDeCuenta`).
+ *   · FILTROS: rol y estado, que solo tienen sentido en el panel.
+ *
+ * Lo que NO cambia: el orden (exacto/prefijo -> relevancia fulltext -> autoridad -> id), el keyset y
+ * la normalización del término. Ahí está el valor de que sea una sola consulta.
+ */
+async function filasDeUsuarios<F extends FilaUsuario>(
+  db: PrismaClient,
+  q: string,
+  cursor: string | null,
+  limite: number,
+  admin: boolean,
+  filtros: OpcionesBusquedaCuentas,
+): Promise<F[]> {
+  const termino = normalizarTermino(q);
+  if (!termino) return [];
+  const c = decodificarCursor(cursor);
+  const prefijo = `${escaparLike(termino)}%`;
+  const expr = expresionBoolean(termino);
+  const usarFulltext = termino.length >= BUSCAR_MIN_FULLTEXT && expr !== "";
+
+  // `username IS NOT NULL` estaba aquí y se ha ido: la columna es NOT NULL desde que el handle se
+  // auto-genera en el alta, así que era una condición que nunca podía ser falsa.
+  const visibilidad = admin ? Prisma.empty : Prisma.sql`AND bannedAt IS NULL`;
+  const filtroRol = filtros.rol ? Prisma.sql`AND role = ${filtros.rol}` : Prisma.empty;
+  const filtroEstado =
+    filtros.estado === "suspendida"
+      ? Prisma.sql`AND bannedAt IS NOT NULL`
+      : filtros.estado === "activa"
+        ? Prisma.sql`AND bannedAt IS NULL`
+        : Prisma.empty;
+
+  const columnas = admin
+    ? Prisma.sql`id, username, displayName, image, scoreAutoridad,
+        role, bannedAt, createdAt, pointsBalance, victoriasTotales`
+    : Prisma.sql`id, username, displayName, image, scoreAutoridad`;
+
+  // Exactitud: username EXACTO (2) > prefijo en username/displayName (1) > solo por fulltext (0).
+  const rango = Prisma.sql`CASE
+    WHEN username = ${termino} THEN 2
+    WHEN username LIKE ${prefijo} OR displayName LIKE ${prefijo} THEN 1
+    ELSE 0 END`;
+
+  const donde = Prisma.sql`WHERE deletedAt IS NULL ${visibilidad} ${filtroRol} ${filtroEstado}`;
+
+  const interior = usarFulltext
+    ? // FULLTEXT BOOLEAN word-prefix + prefijo indexado + exacto (relevancia como 2ª dimensión).
+      Prisma.sql`
+        SELECT ${columnas},
+          (${rango} * ${RANGO_FACTOR}
+            + MATCH(username, displayName) AGAINST (${expr} IN BOOLEAN MODE)) AS orden
+        FROM \`User\`
+        ${donde}
+          AND (MATCH(username, displayName) AGAINST (${expr} IN BOOLEAN MODE)
+               OR username = ${termino} OR username LIKE ${prefijo} OR displayName LIKE ${prefijo})`
+    : // CORTO (o término sin contenido para fulltext): solo PREFIJO indexado (username y displayName).
+      Prisma.sql`
+        SELECT ${columnas},
+          (${rango} * ${RANGO_FACTOR}) AS orden
+        FROM \`User\`
+        ${donde}
+          AND (username LIKE ${prefijo} OR displayName LIKE ${prefijo})`;
+
+  // `t.*` y no la lista enumerada: las columnas ya las elige `columnas` según el modo, y repetirlas
+  // aquí sería el mismo `if` escrito dos veces esperando a divergir.
+  return db.$queryRaw<F[]>(Prisma.sql`
+    SELECT t.*
+    FROM ( ${interior} ) t
+    ${condicionKeyset(c)}
+    ORDER BY t.orden DESC, t.scoreAutoridad DESC, t.id ASC
+    LIMIT ${limite + 1}`);
+}
+
 /**
  * Busca USUARIOS públicos por `q`. PREFIJO indexado (username y displayName) + FULLTEXT BOOLEAN
  * word-prefix (>= BUSCAR_MIN_FULLTEXT); orden exacto/prefijo -> relevancia -> scoreAutoridad -> id
@@ -153,50 +314,29 @@ export async function buscarUsuarios(
   cursor: string | null,
   limite: number = BUSCAR_LIMITE,
 ): Promise<PaginaBusqueda<UsuarioBusqueda>> {
-  const termino = q.trim();
-  if (!termino) return { items: [], proximoCursor: null };
-  const c = decodificarCursor(cursor);
-  const prefijo = `${escaparLike(termino)}%`;
-  const expr = expresionBoolean(termino);
-  const usarFulltext = termino.length >= BUSCAR_MIN_FULLTEXT && expr !== "";
-
-  // Exactitud: username EXACTO (2) > prefijo en username/displayName (1) > solo por fulltext (0).
-  const rango = Prisma.sql`CASE
-    WHEN username = ${termino} THEN 2
-    WHEN username LIKE ${prefijo} OR displayName LIKE ${prefijo} THEN 1
-    ELSE 0 END`;
-
-  const interior = usarFulltext
-    ? // FULLTEXT BOOLEAN word-prefix + prefijo indexado + exacto (relevancia como 2ª dimensión).
-      Prisma.sql`
-        SELECT id, username, displayName, image, scoreAutoridad,
-          (${rango} * ${RANGO_FACTOR}
-            + MATCH(username, displayName) AGAINST (${expr} IN BOOLEAN MODE)) AS orden
-        FROM \`User\`
-        WHERE deletedAt IS NULL AND bannedAt IS NULL AND username IS NOT NULL
-          AND (MATCH(username, displayName) AGAINST (${expr} IN BOOLEAN MODE)
-               OR username = ${termino} OR username LIKE ${prefijo} OR displayName LIKE ${prefijo})`
-    : // CORTO (o término sin contenido para fulltext): solo PREFIJO indexado (username y displayName).
-      Prisma.sql`
-        SELECT id, username, displayName, image, scoreAutoridad,
-          (${rango} * ${RANGO_FACTOR}) AS orden
-        FROM \`User\`
-        WHERE deletedAt IS NULL AND bannedAt IS NULL AND username IS NOT NULL
-          AND (username LIKE ${prefijo} OR displayName LIKE ${prefijo})`;
-
-  const filas = await db.$queryRaw<FilaUsuario[]>(Prisma.sql`
-    SELECT t.id, t.username, t.displayName, t.image, t.orden, t.scoreAutoridad
-    FROM ( ${interior} ) t
-    ${condicionKeyset(c)}
-    ORDER BY t.orden DESC, t.scoreAutoridad DESC, t.id ASC
-    LIMIT ${limite + 1}`);
-
+  const filas = await filasDeUsuarios<FilaUsuario>(db, q, cursor, limite, false, {});
   return paginar(filas, limite, (f) => ({
     id: f.id,
     username: f.username,
     displayName: f.displayName,
     image: f.image,
   }));
+}
+
+/**
+ * LA MISMA BÚSQUEDA, vista desde el panel: encuentra también a las cuentas suspendidas y trae con qué
+ * decidir (rol, estado, alta, puntos y victorias). Acepta los filtros del listado para que buscar
+ * dentro de un filtro siga respetándolo.
+ */
+export async function buscarCuentas(
+  db: PrismaClient,
+  q: string,
+  cursor: string | null,
+  limite: number = BUSCAR_LIMITE,
+  filtros: OpcionesBusquedaCuentas = {},
+): Promise<PaginaBusqueda<CuentaPanel>> {
+  const filas = await filasDeUsuarios<FilaUsuarioAdmin>(db, q, cursor, limite, true, filtros);
+  return paginar(filas, limite, filaACuenta);
 }
 
 // ============================================================================

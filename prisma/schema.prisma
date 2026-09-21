@@ -116,6 +116,16 @@ model User {
   walletBalanceCents Int @default(0) // dinero en centimos (moneda unica de la app).
   boostBalance       Int @default(0) // creditos de Boost disponibles (ver BoostLedger).
 
+  /// VICTORIAS DE POR VIDA (retos ganados), materializadas. Mismo trato y mismo motivo que
+  /// `RankingMensual` —lee su docblock—: el orden "mas victorias primero" es un COUNT sobre
+  /// `ChallengeResult`, y un agregado NO SE PUEDE PAGINAR POR KEYSET. Con la cuenta escrita en una
+  /// columna indexada, el listado del panel es un rango sobre un indice.
+  ///
+  /// La VERDAD sigue siendo `ChallengeResult`; esto es un CACHE. Se escribe con el VALOR ABSOLUTO
+  /// recontado (`recontarVictoriasTotales`) dentro de la MISMA transaccion que crea los resultados,
+  /// nunca con un INCREMENT: asi re-ejecutar un cierre converge en vez de sumar de mas.
+  victoriasTotales Int @default(0)
+
   // --- Busqueda (A1) ---
   // SCORE DE AUTORIDAD para ORDENAR resultados de busqueda. Cache DENORMALIZADO e INDEXADO que el
   // WORKER recalcula en barridos de baja cadencia (nunca al vuelo; la busqueda solo LEE esta columna).
@@ -159,6 +169,20 @@ model User {
   @@index([deletedAt])
   @@index([scoreAutoridad]) // orden por autoridad en la busqueda (keyset: scoreAutoridad DESC, id)
   @@index([displayName]) // btree para prefijo izquierda-anclado (displayName LIKE 'x%') indexado
+  /// LOS TRES ORDENES DEL LISTADO DE CUENTAS (/panel/usuarios), uno por indice. Cada uno lleva `id`
+  /// detras porque el keyset necesita un orden TOTAL, y las dos columnas se recorren en la MISMA
+  /// direccion (DESC, DESC) para que sea una sola pasada del indice hacia atras — con direcciones
+  /// mezcladas InnoDB ordena en memoria (la leccion ya escrita en `RankingMensual`).
+  /// El cuarto orden, el alfabetico, no necesita indice propio: lo cubre el UNIQUE de `username`,
+  /// que ademas es total por si solo.
+  @@index([createdAt, id])
+  @@index([pointsBalance, id])
+  @@index([victoriasTotales, id])
+  /// FILTRO POR ESTADO. Sirve de verdad al caso que importa —listar SUSPENDIDOS, que son pocos—;
+  /// para "activas" el optimizador recorrera el indice del orden, que es lo correcto porque son casi
+  /// todas. Combinar filtro Y orden en un solo indice exigiria uno por cada pareja (rol x orden,
+  /// estado x orden): seis indices para un back-office, peor negocio que dejar filtrar al motor.
+  @@index([bannedAt])
   @@fulltext([username, displayName]) // busqueda de usuarios por texto (MATCH..AGAINST)
 }
 

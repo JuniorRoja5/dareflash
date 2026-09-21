@@ -19,7 +19,6 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 import { createSession } from "../src/server/auth/session";
 import {
   asignarRol,
-  buscarCuentasAdmin,
   levantarSuspension,
   suspenderCuenta,
 } from "../src/server/services/gobierno-cuentas";
@@ -160,42 +159,9 @@ describe("asignar rol", () => {
   });
 });
 
-describe("buscar cuentas para moderar", () => {
-  it("encuentra a una cuenta SUSPENDIDA: es justo a quien hay que poder levantar", async () => {
-    await suspenderCuenta(prisma, { actorId: moderador, rolActor: "MODERATOR", userId: usuario });
-
-    const r = await buscarCuentasAdmin(prisma, "usuaria");
-
-    expect(r).toHaveLength(1);
-    expect(r[0]).toMatchObject({ id: usuario, username: "usuaria", rol: "USER", suspendida: true });
-  });
-
-  it("una cuenta BORRADA no sale: para el sistema ya no está", async () => {
-    const borrada = await crearUsuario(prisma, { username: "fantasma" });
-    await prisma.user.update({ where: { id: borrada }, data: { deletedAt: new Date() } });
-
-    expect(await buscarCuentasAdmin(prisma, "fantasma")).toEqual([]);
-  });
-
-  it("busca por handle y por nombre, y dice el rol real de cada cuenta", async () => {
-    await prisma.user.update({
-      where: { id: usuario },
-      data: { displayName: "Marta Ruiz" },
-    });
-
-    expect((await buscarCuentasAdmin(prisma, "usu")).map((c) => c.id)).toEqual([usuario]);
-    expect((await buscarCuentasAdmin(prisma, "Marta")).map((c) => c.id)).toEqual([usuario]);
-    expect((await buscarCuentasAdmin(prisma, "moderad"))[0]?.rol).toBe("MODERATOR");
-  });
-
-  it("sin término no devuelve NADA: es una búsqueda, no un volcado del censo", async () => {
-    for (const q of ["", "   "]) expect(await buscarCuentasAdmin(prisma, q), q).toEqual([]);
-    // Y los comodines de LIKE no convierten la búsqueda en ese volcado.
-    for (const q of ["%", "_", "%%", "\\"]) {
-      expect(await buscarCuentasAdmin(prisma, q), q).toEqual([]);
-    }
-  });
-});
+// La búsqueda de cuentas del panel ya NO vive aquí: `buscarCuentasAdmin` se eliminó y sus casos se
+// rehicieron contra el motor de verdad en `tests/cuentas-panel.test.ts`. Este fichero prueba lo que
+// este módulo hace ahora: gobernar.
 
 describe("suspender y levantar", () => {
   it("un moderador suspende a un usuario: baneado, sesiones fuera y rastro", async () => {

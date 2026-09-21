@@ -154,6 +154,22 @@ describe("buscarUsuarios", () => {
     expect(items.map((u) => u.username)).toContain("yuyu");
   });
 
+  it("una `@` inicial no cuenta: «@yuyu» es el handle `yuyu` (se guardan SIN arroba)", async () => {
+    await crearUsuario({ username: "yuyu", score: 0 });
+    await crearUsuario({ username: "yuyu2", score: 900 });
+
+    for (const q of ["yuyu", "@yuyu", "  @yuyu "]) {
+      const { items } = await buscarUsuarios(prisma, q, null);
+      // Lo que tiene dientes es el ORDEN, no el hallazgo: con la `@` dentro del término, el exacto
+      // (`username = '@yuyu'`) no casaba con nadie, los dos caían a "solo fulltext" y mandaba la
+      // autoridad — o sea, el primero era el que NO se estaba buscando.
+      expect(
+        items.map((u) => u.username),
+        q,
+      ).toEqual(["yuyu", "yuyu2"]);
+    }
+  });
+
   it("P3: word-prefix BOOLEAN encuentra por PARCIAL de palabra en displayName ('yuy' -> 'yuyu G')", async () => {
     await crearUsuario({ username: "u_a", displayName: "Yuyu Grande", score: 0 });
     const { items } = await buscarUsuarios(prisma, "yuy", null);

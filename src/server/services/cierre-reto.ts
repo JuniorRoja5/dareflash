@@ -43,7 +43,7 @@ import { sanearError } from "@/server/observability/sanitize-error";
 
 import { applyPoints } from "./ledger";
 import { emitirAviso } from "./notificaciones";
-import { periodoActual, recontarVictoriasDelPeriodo } from "./ranking";
+import { periodoActual, recontarVictoriasDelPeriodo, recontarVictoriasTotales } from "./ranking";
 
 export interface ResultadoCierre {
   /** true si ESTA ejecución escribió el hecho (la primera). false si ya estaba cerrado o no tocaba. */
@@ -109,7 +109,15 @@ export async function cerrarRetoVencido(
   let motivo = reto.motivoCierre as DecisionCierre["motivo"] | null;
 
   if (reto.closedAt === null) {
-    // ---- PASO 1: el HECHO. Transacción corta: solo Challenge y ChallengeResult, ni un User ----
+    // ---- PASO 1: el HECHO. Transacción corta: Challenge, ChallengeResult y sus dos cachés ----
+    //
+    // Aquí decía "ni un User", y dejó de ser cierto cuando las victorias de por vida pasaron a
+    // `User.victoriasTotales`. Lo que aquella línea protegía sigue intacto, que es lo que importa:
+    //  · se tocan SOLO los GANADORES (`winnersCount`, hoy 1), no el top-20 —eso es el paso 2, y era
+    //    el caso que motivaba la regla: mantener hasta 20 filas de `User` bloqueadas a la vez;
+    //  · es un UPDATE normal, SIN `SELECT ... FOR UPDATE`: el orden de bloqueo del ledger —la fila
+    //    del `User` SIEMPRE primero— no se contradice, porque aquí no se toma ese bloqueo, y
+    //    `applyPoints` no toca `Challenge` ni `ChallengeResult`, así que no hay ciclo posible.
     const decision = await decidirDesdeBd(db, reto.id, reto);
 
     cerradoAhora = await db.$transaction(async (tx) => {
@@ -137,14 +145,12 @@ export async function cerrarRetoVencido(
           })),
           skipDuplicates: true,
         });
-        // El caché del ranking mensual se escribe en la MISMA transacción que el hecho: o están las
-        // dos cosas o no está ninguna. Con valor ABSOLUTO recontado, no incrementos, para que
+        // Los DOS cachés de victorias se escriben en la MISMA transacción que el hecho: o están las
+        // tres cosas o no está ninguna. Con valor ABSOLUTO recontado, no incrementos, para que
         // re-ejecutar el cierre converja (ver `recontarVictoriasDelPeriodo`).
-        await recontarVictoriasDelPeriodo(
-          tx,
-          decision.ganadores.map((g) => g.userId),
-          periodoActual(now),
-        );
+        const ganadores = decision.ganadores.map((g) => g.userId);
+        await recontarVictoriasDelPeriodo(tx, ganadores, periodoActual(now));
+        await recontarVictoriasTotales(tx, ganadores);
       }
       return true;
     });
@@ -358,12 +364,10 @@ export async function resolverEmpate(
       })),
       skipDuplicates: true,
     });
-    // Mismo caché, misma transacción: resolver un empate produce victorias como cualquier cierre.
-    await recontarVictoriasDelPeriodo(
-      tx,
-      validacion.ganadores.map((g) => g.userId),
-      periodoActual(now),
-    );
+    // Mismos cachés, misma transacción: resolver un empate produce victorias como cualquier cierre.
+    const ganadores = validacion.ganadores.map((g) => g.userId);
+    await recontarVictoriasDelPeriodo(tx, ganadores, periodoActual(now));
+    await recontarVictoriasTotales(tx, ganadores);
     // La guarda de la carrera, igual que en el cierre: dos admins pulsando a la vez, uno solo escribe.
     await tx.challenge.updateMany({
       where: { id: challengeId, motivoCierre: "EMPATE_PENDIENTE" },
