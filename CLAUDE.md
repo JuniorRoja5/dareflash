@@ -129,6 +129,13 @@ del `User` se ajusta en la **misma transacción**, bloqueando **siempre primero*
 con `SELECT … FOR UPDATE` (orden de bloqueo fijo, para no fabricar deadlocks). Un descuadre de
 saldo es un fallo crítico, no un bug menor.
 
+**Los agregados se materializan.** `RankingMensual.victorias` y `User.victoriasTotales` son cachés
+de `ChallengeResult`, no la verdad. Existen porque un `COUNT` **no se puede paginar por keyset** (el
+porqué, largo, está en el docblock de `RankingMensual`). Los dos se escriben con el **valor absoluto
+recontado** dentro de la misma transacción que crea los resultados, nunca con `increment`: así
+re-ejecutar un cierre converge. Un cache nuevo de este tipo se rellena **en su migración** —uno que
+arranca a cero miente sin que nada falle—.
+
 ### Vídeo
 
 El vídeo vive **entero en Bunny.net**, nunca en nuestro servidor: subida por TUS con credencial
@@ -175,6 +182,11 @@ borran para "limpiar"**:
   por el proxy (el redirect del login tiene que terminar).
 - `cta-principal` — "Crear reto" es solo del admin: el CTA sale de `ctaPrincipal` y nadie fuera del
   panel escribe el literal ni enlaza a `/crear` a mano.
+- `panel-roles` / `panel-guard-paginas` — cada página del panel exige el rol de SU sección, y cada
+  guard se ejecuta de verdad (un `requireSeccion` sin `await` renderiza igual: el texto no lo ve).
+- `panel-usuarios-vista` — hay UN solo buscador de usuarios (el del panel es el mismo motor con un
+  parámetro); el email no se pinta en la lista y su única puerta es la que escribe el `AuditLog`; el
+  moderador no ve ni el ajuste de puntos ni el ledger; y los índices de los órdenes siguen ahí.
 
 Al tocar uno de estos, la comprobación no es que pase en verde: es **romper el invariante a
 propósito y confirmar que se pone rojo**.
