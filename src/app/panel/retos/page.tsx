@@ -1,3 +1,4 @@
+import { requireSeccion } from "../panel-guard";
 import { RetosPanel } from "../retos-panel";
 
 export const metadata = { title: "Retos · Panel" };
@@ -5,11 +6,12 @@ export const dynamic = "force-dynamic";
 
 /**
  * Sección RETOS del panel (funcional): crear reto (queda DRAFT), EDITAR (DRAFT o PUBLISHED) y publicar
- * los borradores. Acceso protegido por el layout (requireRole ADMIN); los endpoints se reprotegen a sí
- * mismos. Solo el admin crea/edita/publica. Datos reales. La interacción crear/editar vive en el island
- * `RetosPanel` (comparte estado entre formulario y lista).
+ * los borradores. Guard PROPIO derivado de su sección (ADMIN): el layout solo abre el shell, y desde
+ * que entran moderadores esta sección no es para ellos. Los endpoints se reprotegen a sí mismos. La
+ * interacción crear/editar vive en el island `RetosPanel` (comparte estado entre formulario y lista).
  */
 export default async function RetosPanelPage() {
+  await requireSeccion("/panel/retos");
   const { prisma } = await import("@/server/db/client");
   const { listarRetosAdmin } = await import("@/server/services/retos-admin");
   const retos = await listarRetosAdmin(prisma);

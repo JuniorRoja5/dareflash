@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { ICONO_SECCION } from "./panel-iconos";
-import { SECCIONES_PANEL, seccionActiva } from "./secciones";
+import { seccionActiva, seccionesPara } from "./secciones";
 
 /**
  * Navegación del panel. Barra lateral persistente en escritorio (icono + etiqueta, columna vertical);
@@ -12,14 +12,17 @@ import { SECCIONES_PANEL, seccionActiva } from "./secciones";
  * usar magenta —reservado a la ACCIÓN principal de cada pantalla—: el activo es fondo elevado + texto
  * pleno + una barra fina a la izquierda. Reutilizable, sin datos.
  */
-export function PanelNav() {
+export function PanelNav({ rol }: { rol: string }) {
   const pathname = usePathname();
+  // Lo que se enseña sale de la MISMA lista que aplica el guard de cada página (`secciones.ts`): así
+  // la barra no puede ofrecer una sección que luego responde 404.
+  const secciones = seccionesPara(rol);
   return (
     <nav
       aria-label="Secciones del panel"
       className="flex gap-1 overflow-x-auto border-b border-line px-5 py-2 [scrollbar-width:none] lg:flex-col lg:overflow-visible lg:border-b-0 lg:px-3 lg:py-4 [&::-webkit-scrollbar]:hidden"
     >
-      {SECCIONES_PANEL.map((s) => {
+      {secciones.map((s) => {
         const activo = seccionActiva(s.href, pathname);
         const Icono = ICONO_SECCION[s.href];
         return (

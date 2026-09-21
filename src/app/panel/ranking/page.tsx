@@ -4,6 +4,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
 import { nombreMostrado } from "@/lib/identidad";
 
+import { requireSeccion } from "../panel-guard";
+
 import { AjustarPuntos } from "./ajustar-puntos";
 import { HistorialPuntos } from "./historial-puntos";
 import { RankingMesPanel } from "./ranking-mes-panel";
@@ -45,6 +47,7 @@ export default async function DareUpPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireSeccion("/panel/ranking");
   const sp = await searchParams;
   const q = typeof sp["q"] === "string" ? sp["q"].trim().slice(0, 100) : "";
   const u = typeof sp["u"] === "string" ? sp["u"] : null;

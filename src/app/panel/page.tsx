@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
+import { protegerPanel, requireSeccion } from "./panel-guard";
 import { ICONO_SECCION } from "./panel-iconos";
-import { SECCIONES_PANEL } from "./secciones";
+import { primeraSeccionPara, seccionesPara } from "./secciones";
 import { TarjetaMetrica, TarjetaProximamente } from "./tarjetas";
 
 export const metadata = { title: "Panel · DareFlash" };
@@ -10,15 +12,25 @@ export const dynamic = "force-dynamic";
 /**
  * RESUMEN del panel (portada del dashboard). Métricas REALES de la BD (conteos de retos y usuarios) +
  * huecos honestos ("próximamente") donde aún no hay backend (dinero llega en Fase 7). CERO cifras
- * falsas. Debajo, accesos a cada sección con su icono. Hereda el guard (requireRole ADMIN) y el noindex
- * del layout.
+ * falsas. Debajo, accesos a cada sección con su icono.
+ *
+ * EL RESUMEN ES DEL ADMINISTRADOR (son métricas de negocio), pero `/panel` es la puerta por la que
+ * entra todo el mundo: un moderador que escribe la dirección no puede toparse con un 404 en su propia
+ * herramienta, así que se le lleva a su primera sección. Después de eso, el guard de la sección
+ * (ADMIN) se aplica igual que en cualquier otra página.
  */
 export default async function ResumenPage() {
+  const quienMira = await protegerPanel();
+  const destino = primeraSeccionPara(quienMira.role);
+  if (destino !== null && destino !== "/panel") redirect(destino);
+  await requireSeccion("/panel");
+
   const { prisma } = await import("@/server/db/client");
   const { metricasPanel } = await import("@/server/services/panel-metricas");
   const m = await metricasPanel(prisma);
 
-  const secciones = SECCIONES_PANEL.filter((s) => s.href !== "/panel");
+  // Los accesos que se pintan son los que ese rol alcanza (aunque aquí, hoy, siempre sea el admin).
+  const secciones = seccionesPara(quienMira.role).filter((s) => s.href !== "/panel");
 
   return (
     <div className="df-rise space-y-10">

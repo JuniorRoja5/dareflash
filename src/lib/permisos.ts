@@ -3,6 +3,22 @@
  * criterio lo usen el servidor (endpoint) y el cliente (mostrar/ocultar el botón), sin duplicar la regla.
  */
 
+/**
+ * LA JERARQUÍA DE ROLES, en un solo sitio y PURA. `USER < MODERATOR < ADMIN`: un rol elevado cumple
+ * todo lo que exige uno menor. La usan el RBAC del servidor (`requireRole`) y la navegación del panel,
+ * que tiene que decidir qué secciones enseñar sin volver a escribir el orden — dos listas de rangos
+ * acabarían discrepando justo en el caso raro.
+ */
+export const RANGO_ROL: Record<string, number> = { USER: 0, MODERATOR: 1, ADMIN: 2 };
+
+/** ¿El rol de la sesión alcanza el mínimo exigido? Un rol desconocido no alcanza nada. */
+export function alcanzaRol(rolSesion: string, rolMinimo: string): boolean {
+  const tiene = RANGO_ROL[rolSesion];
+  const exige = RANGO_ROL[rolMinimo];
+  if (tiene === undefined || exige === undefined) return false;
+  return tiene >= exige;
+}
+
 /** Forma mínima del usuario para decidir permisos: rol + los flags por-usuario. */
 export interface UsuarioPermisos {
   role: string; // "USER" | "MODERATOR" | "ADMIN" (de la sesión o de Prisma)

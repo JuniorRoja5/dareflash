@@ -1,6 +1,6 @@
 import { Avatar } from "@/components/ui/avatar";
 
-import { protegerPanel } from "../panel-guard";
+import { requireSeccion } from "../panel-guard";
 import { seccionPorHref } from "../secciones";
 
 import { AccionesCuenta } from "./acciones-cuenta";
@@ -28,7 +28,7 @@ export const dynamic = "force-dynamic";
  * puede compartir o recargar. Las acciones sí son una isla de cliente (`AccionesCuenta`).
  */
 export default async function Pagina({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  const quienMira = await protegerPanel();
+  const quienMira = await requireSeccion("/panel/usuarios");
   const q = (await searchParams).q?.trim() ?? "";
 
   const { prisma } = await import("@/server/db/client");

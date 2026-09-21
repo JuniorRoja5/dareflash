@@ -52,10 +52,12 @@ describe("/panel/usuarios", () => {
     expect(rutas.sort()).toEqual(["levantar", "rol", "suspender"]);
   });
 
-  it("el rol de quien mira sale de la sesión, y el guard sigue siendo el del panel", () => {
-    expect(PAGINA).toContain("protegerPanel()");
+  it("el rol de quien mira sale de la sesión, y el guard es el de SU sección", () => {
+    // Desde que el panel se abrió a los moderadores, el guard de cada página se deriva de su sección
+    // (`requireSeccion`, que lee el rol de `secciones.ts`). Antes bastaba con el del shell.
+    expect(PAGINA).toContain('requireSeccion("/panel/usuarios")');
     expect(PAGINA).toMatch(/rolMira=\{quienMira\.role\}/);
-    // El guard NO se relaja aquí: abrir el panel a moderadores es otra pieza.
+    // Y el rol no se escribe a mano en la página: eso sería una segunda verdad.
     expect(PAGINA).not.toContain("requireRole");
   });
 

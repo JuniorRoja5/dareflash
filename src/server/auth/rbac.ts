@@ -5,12 +5,12 @@
  */
 import "server-only";
 
+import { alcanzaRol } from "@/lib/permisos";
+
 import type { SessionUser } from "./session";
 import { getCurrentUser } from "./current-user";
 
 type Role = SessionUser["role"];
-
-const ROLE_RANK: Record<Role, number> = { USER: 0, MODERATOR: 1, ADMIN: 2 };
 
 export type AuthErrorCode = "UNAUTHENTICATED" | "FORBIDDEN" | "EMAIL_NOT_VERIFIED";
 
@@ -45,6 +45,7 @@ export async function requireVerifiedUser(): Promise<SessionUser> {
  */
 export async function requireRole(min: Role): Promise<SessionUser> {
   const user = await requireVerifiedUser();
-  if (ROLE_RANK[user.role] < ROLE_RANK[min]) throw new AuthError("FORBIDDEN");
+  // La jerarquía vive en `lib/permisos` (pura): la comparten este guard y la nav del panel.
+  if (!alcanzaRol(user.role, min)) throw new AuthError("FORBIDDEN");
   return user;
 }

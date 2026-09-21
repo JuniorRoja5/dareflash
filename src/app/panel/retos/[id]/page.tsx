@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { CATEGORIES } from "@/config/constants";
 import { centimosAImporte } from "@/lib/dinero";
 
+import { requireSeccion } from "../../panel-guard";
 import { RanuraProximamente, TarjetaMetrica, TarjetaProximamente } from "../../tarjetas";
 import { TarjetaInteraccion } from "./interaccion-participacion";
 import { ParticipacionesPanel, type ParticipacionPanelUI } from "./participaciones-panel";
@@ -44,6 +45,8 @@ function fecha(d: Date): string {
  * rediseña (por eso las ranuras ya tienen el tamaño que tendrán con datos).
  */
 export default async function GestionRetoPage({ params }: { params: Promise<{ id: string }> }) {
+  // El detalle es parte de la sección Retos: su rol sale de ahí, no de un literal escrito aquí.
+  await requireSeccion("/panel/retos");
   const { id } = await params;
   const { prisma } = await import("@/server/db/client");
   const { retoAdminPorId } = await import("@/server/services/retos-admin");

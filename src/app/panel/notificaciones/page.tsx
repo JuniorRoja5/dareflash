@@ -3,6 +3,8 @@ import Link from "next/link";
 import { TipoNotificacionSchema } from "@/config/constants";
 import { leerFiltrosInspector } from "@/lib/filtros-inspector";
 
+import { requireSeccion } from "../panel-guard";
+
 import { EnviarAnuncio } from "./enviar-anuncio";
 import { ETIQUETA_TIPO } from "./etiquetas";
 import { InspectorNotificaciones } from "./inspector-notificaciones";
@@ -36,6 +38,7 @@ export default async function NotificacionesPanelPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireSeccion("/panel/notificaciones");
   const sp = await searchParams;
   const valor = (k: string): string | null => (typeof sp[k] === "string" ? sp[k] : null);
   const { filtros, valores, consulta } = leerFiltrosInspector({
