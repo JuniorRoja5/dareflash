@@ -68,7 +68,10 @@ describe("levantar el veto", () => {
   it("tras desbloquear, el usuario puede volver a participar", async () => {
     const p = await participar();
     await retirarParticipacion(prisma, p.submissionId);
-    expect(await puedeParticipar(prisma, { challengeId, userId })).toEqual({ puede: false });
+    expect(await puedeParticipar(prisma, { challengeId, userId })).toEqual({
+      puede: false,
+      motivo: "MODERACION",
+    });
 
     expect(await desbloquearParticipacion(prisma, p.submissionId)).toEqual({ desbloqueada: true });
 

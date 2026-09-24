@@ -2,6 +2,9 @@ import { z } from "zod";
 
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
+// SOLO EL TIPO: se borra al compilar, asi que no arrastra el modulo server-only al ambito de modulo
+// (la regla del despliegue sigue intacta; los VALORES se siguen importando dentro del handler).
+import type { MotivoBloqueo } from "@/server/services/participacion";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +31,18 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     await import("@/server/services/bunny");
   const { escribirEstado } = await import("@/server/services/system-state");
   const { iniciarParticipacion, puedeParticipar } = await import("@/server/services/participacion");
+  const { mensajeNivelInsuficiente, NIVEL_MINIMO_ABIERTO } = await import("@/lib/nivel-reto");
   const { sanearError } = await import("@/server/observability/sanitize-error");
+
+  /**
+   * El rechazo, en copy HUMANO y en UN solo sitio: lo usan la guarda barata de antes de tocar Bunny y
+   * la transaccion, que es la autoridad. Dos textos distintos para el mismo motivo serian dos
+   * explicaciones distintas del mismo no.
+   */
+  const rechazo = (motivo: MotivoBloqueo, nivelMinimo: string) =>
+    motivo === "NIVEL"
+      ? apiError("NIVEL_INSUFICIENTE", mensajeNivelInsuficiente(nivelMinimo), 409)
+      : apiError("PARTICIPACION_BLOQUEADA", MSG_BLOQUEADA, 409);
 
   // Titulo OPCIONAL (metadato del objeto en Bunny; el titulo definitivo se fija al publicar). `challengeId`
   // OPCIONAL: si viene, es una PARTICIPACION en ese reto (crea/actualiza Submission); si no, subida libre.
@@ -57,16 +71,26 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     categoriaLibre = cat;
   }
 
+  // El nivel que pide el reto, SOLO para el copy del rechazo (la decision la toma el servicio leyendo
+  // la fila). Vive fuera del bloque porque la transaccion de mas abajo tambien puede rechazar, y el
+  // mensaje tiene que ser el mismo en los dos sitios.
+  // `string` y no `ClaveNivel`: la columna es String y podria traer un valor que este codigo no
+  // conozca. `nivelDeClave` ya cae a rookie en ese caso, que es el fallo seguro (dejar participar).
+  let nivelMinimoReto: string = NIVEL_MINIMO_ABIERTO;
+
   // Si es participacion, el reto debe estar ABIERTO (PUBLISHED y sin cerrar): no se participa en un
   // borrador ni en un reto cerrado. Se valida ANTES de tocar Bunny.
   if (challengeId) {
     const reto = await prisma.challenge.findUnique({
       where: { id: challengeId },
-      select: { status: true, deadline: true },
+      // `nivelMinimo` viaja en el MISMO select que ya se hacia: es una columna mas, no una consulta
+      // mas. Solo se usa para el copy del rechazo; la decision la toma el servicio con la fila.
+      select: { status: true, deadline: true, nivelMinimo: true },
     });
     if (!reto || reto.status !== "PUBLISHED" || reto.deadline <= new Date()) {
       return apiError("RETO_NO_DISPONIBLE", "Este reto no admite participaciones.", 409);
     }
+    nivelMinimoReto = reto.nivelMinimo;
 
     // ELEGIBILIDAD, ANTES DE TOCAR BUNNY. Es lo mismo que vuelve a comprobar la transaccion de abajo,
     // pero aqui la peticion se rechaza SIN haber creado nada. El orden inverso dejaba un objeto
@@ -74,7 +98,7 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     // encima bloqueaba el reintento. La de abajo se queda como AUTORIDAD: entre las dos puede cambiar
     // el estado, y la unica comprobacion que no tiene carrera es la que esta dentro de la transaccion.
     const elegible = await puedeParticipar(prisma, { challengeId, userId: user.userId });
-    if (!elegible.puede) return apiError("PARTICIPACION_BLOQUEADA", MSG_BLOQUEADA, 409);
+    if (!elegible.puede) return rechazo(elegible.motivo, nivelMinimoReto);
   }
 
   // Rate-limit por usuario, consumido ANTES de tocar Bunny (no se crean objetos en masa).
@@ -108,7 +132,7 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
           bunnyGuid: guid,
           title: tituloUsuario,
         });
-        if (r.modo === "bloqueada") return { tipo: "bloqueada" as const };
+        if (r.modo === "bloqueada") return { tipo: "bloqueada" as const, motivo: r.motivo };
         await escribirEstado(tx, CONFIRM_WAKE_KEY, String(Date.now()));
         return { tipo: "ok" as const, videoDbId: r.videoId, esReemplazo: r.modo === "reemplazo" };
       }
@@ -128,9 +152,11 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
 
     if (resultado.tipo === "bloqueada") {
       // Solo se llega aqui si el estado cambio ENTRE la comprobacion previa y esta transaccion (un
-      // moderador retirando justo en medio). Es raro, y entonces si queda un huerfano que barre la
-      // limpieza; el caso normal ya se rechazo arriba SIN crear nada en Bunny.
-      return apiError("PARTICIPACION_BLOQUEADA", MSG_BLOQUEADA, 409);
+      // moderador retirando justo en medio, o un ajuste de puntos que baje de nivel). Es raro, y
+      // entonces si queda un huerfano que barre la limpieza; el caso normal ya se rechazo arriba SIN
+      // crear nada en Bunny. El MOTIVO viaja desde la transaccion: el mensaje es el mismo que habria
+      // dado la guarda de fuera, no uno generico.
+      return rechazo(resultado.motivo, nivelMinimoReto);
     }
 
     // 3. La credencial de corta duracion (sin la clave de API) + el id de la fila Video (ADITIVO) + si

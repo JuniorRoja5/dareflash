@@ -257,7 +257,13 @@ export default async function Pagina({
                       c.id === u ? "bg-raised" : ""
                     }`}
                   >
-                    <Avatar nombre={c.username} imagen={c.image} tamano="sm" perezosa />
+                    <Avatar
+                      nombre={c.username}
+                      imagen={c.image}
+                      tamano="sm"
+                      perezosa
+                      puntos={c.puntos}
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-text">
                         @{c.username}

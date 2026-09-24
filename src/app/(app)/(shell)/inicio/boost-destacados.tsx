@@ -40,7 +40,7 @@ export function BoostDestacados() {
             <span className="absolute top-3 right-3 text-2xs tracking-widest text-text-dim uppercase">
               Boost
             </span>
-            <Avatar nombre={perfil.username} tamano="lg" />
+            <Avatar nombre={perfil.username} tamano="lg" puntos={perfil.puntos} />
             <p className="mt-1 max-w-full truncate text-sm font-medium text-text">
               @{perfil.username}
             </p>

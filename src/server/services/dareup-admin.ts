@@ -138,13 +138,25 @@ export interface MovimientoPuntos {
   id: string;
   delta: number;
   razon: string;
-  refType: string | null;
-  refId: string | null;
   nota: string | null;
   creadoEnMs: number;
-  /** Handle del admin que lo hizo, en los ajustes manuales; `null` en el resto. */
-  autor: string | null;
+  /**
+   * A QUÉ apunta el movimiento, YA EN HUMANO: "por @admin", el título del reto, o "—".
+   *
+   * SIN `refType` ni `refId` EN EL DTO, y esa ausencia es la pieza. Antes viajaban los dos y la vista
+   * pintaba `${refType} · ${refId}`, o sea el cuid crudo de la base de datos («challenge · cmtww…»).
+   * La regla de copy —cero ids a la vista— no se cumple pidiéndole disciplina a la pantalla: se
+   * cumple no dándole el id. Lo que no está no se puede pintar.
+   */
+  referencia: string;
 }
+
+/** Copy de las referencias. Aquí, al lado de quien las resuelve, como `RAZON_HUMANA` en la vista. */
+const REF_ADMIN_SIN_NOMBRE = "por un admin";
+/** El reto existió y ya no está (purgado). Se dice, no se enseña su id. */
+const REF_RETO_AUSENTE = "un reto que ya no está disponible";
+/** No hay a qué apuntar, o apunta al propio usuario de la ficha (un hito suyo). */
+const REF_NINGUNA = "—";
 
 export interface PaginaHistorial {
   items: MovimientoPuntos[];
@@ -207,17 +219,51 @@ export async function historialPuntos(
   });
 
   const pagina = filas.slice(0, limite);
-  const adminIds = [
-    ...new Set(pagina.flatMap((f) => (f.refType === "ADMIN" && f.refId !== null ? [f.refId] : []))),
+
+  // RESOLUCIÓN EN LOTE, una consulta POR TIPO para toda la página, nunca una por fila. Los dos tipos
+  // que apuntan a personas (`ADMIN`, el admin que ajustó; `USER`, el usuario de un hito) se juntan en
+  // la MISMA consulta de usuarios: son ids de la misma tabla, así que pedirlos por separado serían
+  // dos viajes para lo mismo. Total: dos consultas por página, haya 1 movimiento o 100.
+  const idsDe = (tipos: string[]): string[] => [
+    ...new Set(
+      pagina.flatMap((f) => (f.refId !== null && tipos.includes(f.refType ?? "") ? [f.refId] : [])),
+    ),
   ];
-  const admins =
-    adminIds.length > 0
-      ? await db.user.findMany({
-          where: { id: { in: adminIds } },
+  const personaIds = idsDe(["ADMIN", "USER"]);
+  const retoIds = idsDe(["CHALLENGE"]);
+
+  const [personas, retos] = await Promise.all([
+    personaIds.length > 0
+      ? db.user.findMany({
+          where: { id: { in: personaIds } },
           select: { id: true, username: true },
         })
-      : [];
-  const handle = new Map(admins.map((a) => [a.id, a.username]));
+      : Promise.resolve([]),
+    retoIds.length > 0
+      ? db.challenge.findMany({ where: { id: { in: retoIds } }, select: { id: true, title: true } })
+      : Promise.resolve([]),
+  ]);
+  const handle = new Map(personas.map((p) => [p.id, p.username]));
+  const titulo = new Map(retos.map((r) => [r.id, r.title]));
+
+  /** De (tipo, id) a una etiqueta humana. NUNCA devuelve un id: ese es todo el punto. */
+  const referenciaDe = (refType: string | null, refId: string | null): string => {
+    if (!refType || !refId) return REF_NINGUNA;
+    if (refType === "ADMIN") {
+      const h = handle.get(refId);
+      return h ? `por @${h}` : REF_ADMIN_SIN_NOMBRE;
+    }
+    if (refType === "CHALLENGE") return titulo.get(refId) ?? REF_RETO_AUSENTE;
+    if (refType === "USER") {
+      // Un movimiento que apunta al PROPIO dueño de la ficha no añade nada: es su hito, y repetir su
+      // handle en cada fila de su propio historial es ruido. El resto sí se nombra.
+      if (refId === userId) return REF_NINGUNA;
+      const h = handle.get(refId);
+      return h ? `@${h}` : REF_NINGUNA;
+    }
+    // Un tipo que este código no conoce NO se enseña tal cual: sería el cuid otra vez, con otra excusa.
+    return REF_NINGUNA;
+  };
 
   const ultima = pagina[pagina.length - 1];
   return {
@@ -225,11 +271,9 @@ export async function historialPuntos(
       id: f.id,
       delta: f.delta,
       razon: f.reason,
-      refType: f.refType,
-      refId: f.refId,
       nota: f.nota,
       creadoEnMs: f.createdAt.getTime(),
-      autor: f.refType === "ADMIN" && f.refId !== null ? (handle.get(f.refId) ?? null) : null,
+      referencia: referenciaDe(f.refType, f.refId),
     })),
     nextCursor:
       filas.length > limite && ultima

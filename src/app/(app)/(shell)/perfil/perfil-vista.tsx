@@ -108,7 +108,7 @@ export function PerfilVista({
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md">
             <div className="flex flex-col items-center text-center">
-              <Avatar nombre={nombre} tamano="xl" imagen={imagen} />
+              <Avatar nombre={nombre} tamano="xl" imagen={imagen} puntos={puntos} />
               <p className="mt-3 max-w-full truncate text-lg font-semibold text-text">
                 {conHandle ? nombre : `@${nombre}`}
               </p>

@@ -145,7 +145,12 @@ export default async function DareUpPage({
         {ficha && historial ? (
           <div className="mt-6 space-y-6">
             <div className="flex flex-wrap items-center gap-4 rounded-sm border border-line bg-surface/60 p-5">
-              <Avatar nombre={ficha.username} imagen={ficha.image} tamano="lg" />
+              <Avatar
+                nombre={ficha.username}
+                imagen={ficha.image}
+                tamano="lg"
+                puntos={ficha.puntos}
+              />
               <div className="min-w-0">
                 <p className="truncate text-lg font-semibold text-text">
                   {nombreMostrado(ficha.displayName, ficha.username)}

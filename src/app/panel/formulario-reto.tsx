@@ -7,6 +7,8 @@ import { Campo } from "@/components/ui/campo";
 import { CATEGORIES } from "@/config/constants";
 import { mensajeDe, obtenerCsrfToken } from "@/lib/cliente-http";
 import { centimosAImporte, importeACentimos } from "@/lib/dinero";
+import { NIVEL_MINIMO_ABIERTO } from "@/lib/nivel-reto";
+import { NIVELES } from "@/lib/niveles";
 import type { RetoAdminFila } from "@/server/services/retos-admin";
 import { AVATAR_TIPOS, avatarExcedeTope } from "@/app/(app)/(shell)/perfil/perfil-logic";
 
@@ -61,6 +63,7 @@ export function FormularioReto({
   const [apertura, setApertura] = useState(reto ? aInputLocal(reto.startsAt) : "");
   const [cierre, setCierre] = useState(reto ? aInputLocal(reto.deadline) : "");
   const [ganadores, setGanadores] = useState(reto ? String(reto.winnersCount) : "1");
+  const [nivelMinimo, setNivelMinimo] = useState(reto?.nivelMinimo ?? NIVEL_MINIMO_ABIERTO);
   const [portada, setPortada] = useState<File | null>(null);
   // Previa: object URL de un fichero recién elegido, o la portada ACTUAL (URL de Caddy) al editar.
   const [previa, setPrevia] = useState<string | null>(reto?.coverImage ?? null);
@@ -146,6 +149,7 @@ export function FormularioReto({
       cuerpo.set("startsAt", startsAt);
       cuerpo.set("deadline", deadline);
       cuerpo.set("winnersCount", ganadores);
+      cuerpo.set("nivelMinimo", nivelMinimo);
       if (portada) cuerpo.set("portada", portada); // al editar sin fichero nuevo, se conserva la actual
 
       const url = esEdicion ? `/api/panel/retos/${reto.id}/editar` : "/api/panel/retos";
@@ -251,6 +255,30 @@ export function FormularioReto({
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label htmlFor="reto-nivel" className="mb-1.5 block text-sm font-medium text-text">
+            ¿Qué nivel puede participar?
+          </label>
+          <select
+            id="reto-nivel"
+            value={nivelMinimo}
+            onChange={(e) => setNivelMinimo(e.target.value)}
+            disabled={ocupado}
+            className={CLASE_CONTROL}
+          >
+            {NIVELES.map((n) => (
+              <option key={n.clave} value={n.clave}>
+                {/* Rookie empieza en 0 puntos, así que "de Rookie para arriba" ES todo el mundo:
+                    se dice TODOS, que es lo que el admin está eligiendo de verdad. */}
+                {n.clave === NIVEL_MINIMO_ABIERTO ? "TODOS" : `${n.nombre} o superior`}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-2xs text-text-dim">
+            Es un mínimo, no un nivel exacto: en un reto de Pro también entran Elite y Legend.
+          </p>
         </div>
 
         <Campo

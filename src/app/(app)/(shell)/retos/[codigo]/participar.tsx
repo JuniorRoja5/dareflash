@@ -22,6 +22,7 @@ export function BotonParticipar({
   autenticado,
   activo,
   yaParticipa = false,
+  avisoNivel = null,
 }: {
   challengeId: string;
   publicCode: string;
@@ -30,6 +31,12 @@ export function BotonParticipar({
   activo: boolean;
   /** Si el usuario ya tiene una participación publicada, el CTA pasa a "Reemplazar" (conecta con 2b). */
   yaParticipa?: boolean;
+  /**
+   * Copy del veto por NIVEL, ya resuelto en el servidor con la regla compartida, o `null` si entra.
+   * Llega hecho —no la clave del nivel— para que esta pantalla no tenga una segunda forma de decidir
+   * quién puede: aquí solo se pinta. La autoridad es el endpoint, que vuelve a comprobarlo.
+   */
+  avisoNivel?: string | null;
 }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
@@ -39,6 +46,22 @@ export function BotonParticipar({
       <Boton variante="principal" disabled className="w-full py-3.5">
         Reto cerrado
       </Boton>
+    );
+  }
+
+  // CANDADO POR NIVEL. El reto se ve entero —no se esconde a nadie—, pero el CTA dice por qué no se
+  // puede y qué falta. Deshabilitado y con el motivo al lado: un botón que se pulsa y devuelve un
+  // error del servidor es peor que uno que explica.
+  if (avisoNivel) {
+    return (
+      <>
+        <Boton variante="principal" disabled className="w-full py-3.5">
+          Nivel insuficiente
+        </Boton>
+        <p role="status" className="mt-2 text-sm text-text-dim">
+          {avisoNivel}
+        </p>
+      </>
     );
   }
 

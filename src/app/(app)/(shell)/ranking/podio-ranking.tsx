@@ -108,7 +108,13 @@ function AvatarMedalla({
       className="inline-flex rounded-full p-[3px]"
       style={{ border: `${anillo}px solid ${color}` }}
     >
-      {/* No perezoso: el podio es lo primero que se ve al entrar. */}
+      {/*
+        SIN `puntos`, y por tanto SIN anillo de nivel, a propósito: el anillo de este avatar ya está
+        ocupado por la MEDALLA (oro/plata/bronce), que es de lo que va el podio. Dos anillos
+        concéntricos con dos significados distintos en el mismo círculo no se leen: se estorban.
+        Aquí el nivel se dice igual, con la `InsigniaNivel` que va justo debajo.
+        No perezoso: el podio es lo primero que se ve al entrar.
+      */}
       <Avatar nombre={nombre} imagen={imagen} tamano={tamano} />
     </span>
   );

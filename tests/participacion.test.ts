@@ -15,6 +15,7 @@ import {
   completarReemplazo,
   iniciarParticipacion,
   publicarParticipacionSiProcede,
+  puedeParticipar,
 } from "../src/server/services/participacion";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
@@ -229,5 +230,85 @@ describe("publicarParticipacionSiProcede (primera participación)", () => {
       select: { status: true },
     });
     expect(sub?.status).toBe("PUBLISHED"); // ahora visible (Video PUBLISHED + Submission PUBLISHED)
+  });
+});
+
+/**
+ * LA PUERTA DE NIVEL, contra la BD. La regla pura tiene sus propios tests; esto fija lo otro: que el
+ * SERVIDOR la aplica sobre la fila, que la aplican LAS DOS puertas (la guarda barata y la
+ * transacción, que es la autoridad), y que un reto creado sin decir nada no restringe a nadie.
+ *
+ * Para romperlo: quitar el gate de `iniciarParticipacion` -> rojo en "aunque el cliente mienta";
+ * quitarlo de `puedeParticipar` -> rojo en la guarda; cambiar el default de la columna -> rojo en
+ * "los retos de antes".
+ */
+describe("puerta de nivel", () => {
+  const ponerNivel = (nivel: string) =>
+    prisma.challenge.update({ where: { id: challengeId }, data: { nivelMinimo: nivel } });
+  const ponerPuntos = (puntos: number) =>
+    prisma.user.update({ where: { id: userId }, data: { pointsBalance: puntos } });
+
+  it("un reto creado SIN decir nada queda abierto a todos (el default de la columna)", async () => {
+    const r = await prisma.challenge.findUniqueOrThrow({
+      where: { id: challengeId },
+      select: { nivelMinimo: true },
+    });
+    expect(r.nivelMinimo).toBe("rookie");
+
+    // Y con 0 puntos se participa igual: es el caso de todos los retos que ya existían.
+    await ponerPuntos(0);
+    expect(await puedeParticipar(prisma, { challengeId, userId })).toEqual({ puede: true });
+    expect((await iniciar()).modo).toBe("primera");
+  });
+
+  it("por debajo del nivel: la guarda barata rechaza, y dice POR QUÉ", async () => {
+    await ponerNivel("pro");
+    await ponerPuntos(499); // Pro empieza en 500
+
+    expect(await puedeParticipar(prisma, { challengeId, userId })).toEqual({
+      puede: false,
+      motivo: "NIVEL",
+    });
+  });
+
+  it("aunque el cliente mienta y llame igual, la TRANSACCIÓN lo rechaza y no crea nada", async () => {
+    await ponerNivel("pro");
+    await ponerPuntos(499);
+
+    // Esto es saltarse la guarda de fuera: es exactamente lo que puede hacer cualquiera con curl.
+    expect(await iniciar()).toEqual({ modo: "bloqueada", motivo: "NIVEL" });
+    expect(await contarSubmissions()).toBe(0);
+    expect(await prisma.video.count({ where: { userId } })).toBe(0);
+  });
+
+  it("alcanzando el nivel se entra; y por encima también (es un mínimo)", async () => {
+    await ponerNivel("pro");
+
+    await ponerPuntos(500); // justo Pro
+    expect(await puedeParticipar(prisma, { challengeId, userId })).toEqual({ puede: true });
+
+    await ponerPuntos(10_000); // Legend en un reto de Pro
+    expect(await puedeParticipar(prisma, { challengeId, userId })).toEqual({ puede: true });
+    expect((await iniciar()).modo).toBe("primera");
+  });
+
+  it("la MODERACIÓN manda sobre el nivel: no se le promete que subiendo entrará", async () => {
+    await ponerNivel("pro");
+    await ponerPuntos(499);
+    // Participa y le retiran la participación (se le sube de nivel para poder crearla).
+    await ponerPuntos(10_000);
+    await iniciar();
+    await prisma.submission.updateMany({
+      where: { challengeId, userId },
+      data: { retiradaMotivo: "MODERACION" },
+    });
+    await ponerPuntos(499);
+
+    // Cumple las dos condiciones de bloqueo; el motivo que se da es el definitivo, no el que se cura.
+    expect(await puedeParticipar(prisma, { challengeId, userId })).toEqual({
+      puede: false,
+      motivo: "MODERACION",
+    });
+    expect(await iniciar()).toEqual({ modo: "bloqueada", motivo: "MODERACION" });
   });
 });

@@ -137,7 +137,10 @@ describe("un moderador retira la participación", () => {
 
     await retirarParticipacion(prisma, primera.submissionId);
 
-    expect(await puedeParticipar(prisma, { challengeId, userId })).toEqual({ puede: false });
+    expect(await puedeParticipar(prisma, { challengeId, userId })).toEqual({
+      puede: false,
+      motivo: "MODERACION",
+    });
     const segunda = await participar();
     expect(segunda.modo).toBe("bloqueada");
   });
@@ -216,7 +219,10 @@ describe("el backfill de la migración no veta a nadie por error", () => {
       data: { status: "REMOVED", retiradaMotivo: "MODERACION" },
     });
 
-    expect(await puedeParticipar(prisma, { challengeId, userId })).toEqual({ puede: false });
+    expect(await puedeParticipar(prisma, { challengeId, userId })).toEqual({
+      puede: false,
+      motivo: "MODERACION",
+    });
   });
 });
 

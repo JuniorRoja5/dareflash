@@ -56,12 +56,29 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
     ahora,
   );
 
-  const [pagina, mi] = await Promise.all([
+  const [pagina, mi, puntosMios] = await Promise.all([
     // `miVoto` viene YA en cada ítem (una sola consulta dentro del servicio): el botón de voto nace
     // pintado bien, tanto en la rejilla como en el feed del reto, sin una ida y vuelta por pantalla.
     listarParticipacionesVisibles(prisma, reto.id, { userId: usuario?.userId ?? null }),
     usuario ? miParticipacion(prisma, reto.id, usuario.userId) : Promise.resolve(null),
+    // Los PUNTOS de quien mira, solo si hay sesión: es lo que decide el candado de nivel. Va en el
+    // mismo `Promise.all` que ya había, así que no añade una ida y vuelta; al invitado no se le
+    // consulta nada, porque a él no se le pinta candado (primero entra, luego se sabe su nivel).
+    usuario
+      ? prisma.user.findUnique({
+          where: { id: usuario.userId },
+          select: { pointsBalance: true },
+        })
+      : Promise.resolve(null),
   ]);
+
+  // EL CANDADO, con la MISMA regla pura que aplica el servidor al rechazar la subida. Si no alcanza,
+  // el aviso llega ya redactado al botón: la vista no vuelve a decidir quién puede.
+  const { mensajeNivelInsuficiente, puedeParticiparPorNivel } = await import("@/lib/nivel-reto");
+  const avisoNivel =
+    puntosMios && !puedeParticiparPorNivel(puntosMios.pointsBalance, reto.nivelMinimo)
+      ? mensajeNivelInsuficiente(reto.nivelMinimo)
+      : null;
 
   // Firma el póster de cada participación (el player firma su propia URL vía el endpoint firmado).
   const contextoReto = { titulo: reto.titulo, categoria: nombreCategoria(reto.categoria) };
@@ -161,6 +178,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
                 autenticado={usuario !== null}
                 activo={activo}
                 yaParticipa={mi?.estado === "publicada"}
+                avisoNivel={avisoNivel}
               />
               {miEstado ? (
                 <p

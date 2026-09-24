@@ -13,12 +13,13 @@ import path from "node:path";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { AJUSTE_DELTA_MAX, RAZON_AJUSTE_ADMIN } from "../src/config/constants";
+import { AJUSTE_DELTA_MAX, RAZON_AJUSTE_ADMIN, RAZON_HITO_VIDEOS } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { periodoDe } from "../src/lib/periodo";
 import { ajustarPuntos, claveAjuste, historialPuntos } from "../src/server/services/dareup-admin";
 import { applyPoints } from "../src/server/services/ledger";
 import { rankingMensual } from "../src/server/services/ranking";
+import { generarPublicCode } from "../src/server/services/reto-codigo";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
@@ -224,14 +225,147 @@ describe("historialPuntos", () => {
 
     expect(ajuste).toMatchObject({
       delta: -5,
-      refType: "ADMIN",
-      refId: admin,
       nota: "Voto duplicado detectado",
-      autor: "admin_dareup",
+      referencia: "por @admin_dareup",
     });
     expect(ajuste?.creadoEnMs).toBeGreaterThan(0);
-    // Lo automático se explica por su razón y su ref: ni nota ni autor inventados.
-    expect(cierre).toMatchObject({ delta: 30, refType: "CHALLENGE", nota: null, autor: null });
+
+    // El reto de este caso NO existe (el ledger no tiene FK), así que se dice en humano. Lo que NO
+    // puede salir, ni aquí ni en ningún otro camino, es el cuid.
+    expect(cierre).toMatchObject({ delta: 30, nota: null });
+    expect(cierre?.referencia).toBe("un reto que ya no está disponible");
+
+    // Y el DTO no lleva el id: la vista no puede pintarlo ni queriendo.
+    for (const m of items) {
+      expect(Object.keys(m)).not.toContain("refId");
+      expect(Object.keys(m)).not.toContain("refType");
+      expect(JSON.stringify(m)).not.toContain("reto-1");
+      expect(JSON.stringify(m)).not.toContain(admin);
+    }
+  });
+
+  it("un reto que SÍ existe se nombra por su TÍTULO, no por su id", async () => {
+    const reto = await prisma.challenge.create({
+      data: {
+        title: "Baila con tu abuela",
+        slug: "baila",
+        publicCode: generarPublicCode(),
+        category: "fitness",
+        status: "PUBLISHED",
+        prizeCurrency: "USD",
+        startsAt: new Date("2026-01-01T00:00:00Z"),
+        deadline: new Date("2999-01-01T00:00:00Z"),
+        createdById: admin,
+      },
+      select: { id: true },
+    });
+    await applyPoints(prisma, {
+      userId: usuario,
+      delta: 30,
+      reason: "WIN_CHALLENGE",
+      refType: "CHALLENGE",
+      refId: reto.id,
+      idempotencyKey: `cierre-${reto.id}`,
+    });
+
+    const { items } = await historialPuntos(prisma, usuario);
+    expect(items[0]?.referencia).toBe("Baila con tu abuela");
+    expect(JSON.stringify(items)).not.toContain(reto.id);
+  });
+
+  it("un movimiento que apunta al PROPIO usuario de la ficha no repite su handle", async () => {
+    // Es el caso del hito de vídeos: refType USER, refId = él mismo. Poner "@fulano" en cada fila del
+    // historial de fulano es ruido, no información.
+    await applyPoints(prisma, {
+      userId: usuario,
+      delta: 10,
+      reason: RAZON_HITO_VIDEOS,
+      refType: "USER",
+      refId: usuario,
+      idempotencyKey: "hito-1",
+    });
+
+    const { items } = await historialPuntos(prisma, usuario);
+    expect(items[0]?.referencia).toBe("—");
+    expect(JSON.stringify(items)).not.toContain(usuario);
+  });
+
+  it("un refType que este código no conoce NO se enseña tal cual: sería el cuid otra vez", async () => {
+    await applyPoints(prisma, {
+      userId: usuario,
+      delta: 3,
+      reason: "VIDEO_100_EXTERNAL_VIEWS",
+      // Un tipo que hoy no escribe el ledger de puntos, o uno que se añada mañana sin tocar esto.
+      refType: "VIDEO",
+      refId: "cmvideo000inventado",
+      idempotencyKey: "video-1",
+    });
+
+    const { items } = await historialPuntos(prisma, usuario);
+    expect(items[0]?.referencia).toBe("—");
+    expect(JSON.stringify(items)).not.toContain("cmvideo000inventado");
+    // Ni el id ni el "tipo · id" de antes. (`razon` sí puede contener la palabra VIDEO: es el código
+    // del motivo, que la vista traduce aparte y que a propósito se enseña tal cual si no lo conoce.)
+    expect(items[0]?.referencia).not.toMatch(/·/);
+  });
+
+  it("varias referencias distintas en la misma página: DOS consultas, no una por fila", async () => {
+    // RETOS DISTINTOS a propósito: con uno solo repetido, los ids se deduplican a uno y una
+    // resolución fila-a-fila daría también una consulta. El N+1 solo se ve con varios. Lo destapó
+    // romper esto y quedarse en verde.
+    for (let i = 0; i < 4; i += 1) {
+      const reto = await prisma.challenge.create({
+        data: {
+          title: `Reto con nombre ${i}`,
+          slug: `r${i}`,
+          publicCode: generarPublicCode(),
+          category: "fitness",
+          status: "PUBLISHED",
+          prizeCurrency: "USD",
+          startsAt: new Date("2026-01-01T00:00:00Z"),
+          deadline: new Date("2999-01-01T00:00:00Z"),
+          createdById: admin,
+        },
+        select: { id: true },
+      });
+      await applyPoints(prisma, {
+        userId: usuario,
+        delta: 5,
+        reason: "WIN_CHALLENGE",
+        refType: "CHALLENGE",
+        refId: reto.id,
+        idempotencyKey: `c-${i}`,
+      });
+      await ajustar(1, { por: await crearUsuario(prisma) });
+    }
+
+    const llamadas = { ledger: 0, user: 0, challenge: 0 };
+    const contar = <T extends object>(d: T, clave: keyof typeof llamadas): T =>
+      new Proxy(d, {
+        get(obj, prop) {
+          const valor = Reflect.get(obj, prop) as unknown;
+          if (typeof valor === "function") {
+            return (...args: unknown[]) => {
+              llamadas[clave] += 1;
+              return (valor as (...a: unknown[]) => unknown).apply(obj, args);
+            };
+          }
+          return valor;
+        },
+      });
+    const db = new Proxy(prisma, {
+      get(obj, prop) {
+        if (prop === "pointsLedger") return contar(obj.pointsLedger, "ledger");
+        if (prop === "user") return contar(obj.user, "user");
+        if (prop === "challenge") return contar(obj.challenge, "challenge");
+        return Reflect.get(obj, prop) as unknown;
+      },
+    });
+
+    const { items } = await historialPuntos(db, usuario);
+    expect(items.length).toBeGreaterThan(4);
+    // Una por tipo de entidad, no una por fila: con N+1 esto serían ocho y pico.
+    expect(llamadas).toEqual({ ledger: 1, user: 1, challenge: 1 });
   });
 
   it("sin N+1: UNA consulta al ledger y UNA de usuarios por página, haya los admins que haya", async () => {
@@ -264,7 +398,10 @@ describe("historialPuntos", () => {
     const { items } = await historialPuntos(db, usuario);
 
     expect(items).toHaveLength(8);
-    expect(new Set(items.map((m) => m.autor)).size).toBe(4); // cuatro admins distintos, resueltos
+    // Cuatro admins distintos, resueltos a copy humano ("por @alguien") y no a su cuid.
+    const refs = new Set(items.map((m) => m.referencia));
+    expect(refs.size).toBe(4);
+    for (const r of refs) expect(r).toMatch(/^por @/);
     expect(llamadas).toEqual({ ledger: 1, user: 1 });
   });
 

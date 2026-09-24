@@ -9,14 +9,52 @@
  */
 import "server-only";
 
+import { puedeParticiparPorNivel } from "@/lib/nivel-reto";
 import type { Db } from "@/server/db/types";
 import type { PrismaClient } from "@/generated/prisma/client";
 
 export type ModoParticipacion = "primera" | "reemplazo" | "bloqueada";
 
+/**
+ * POR QUÉ no se puede participar. Unión cerrada, no `string`: quien llama tiene que traducirla a copy
+ * humano, y un motivo nuevo sin su mensaje no compila en vez de salir en pantalla como un código.
+ *
+ *  - `MODERACION`: un admin retiró la participación. Es definitivo.
+ *  - `NIVEL`: el reto pide un nivel que el usuario todavía no alcanza. Se arregla jugando.
+ */
+export type MotivoBloqueo = "MODERACION" | "NIVEL";
+
 export type ResultadoIniciar =
   | { modo: "primera" | "reemplazo"; videoId: string; submissionId: string }
-  | { modo: "bloqueada"; motivo: string };
+  | { modo: "bloqueada"; motivo: MotivoBloqueo };
+
+/**
+ * LA PUERTA DE NIVEL, en UN solo sitio y leyendo ella misma lo que necesita.
+ *
+ * Que no reciba los datos de quien llama es deliberado. `puedeParticipar` e `iniciarParticipacion`
+ * tienen que comprobar EXACTAMENTE lo mismo —ya se separaron una vez, y el síntoma fue un objeto
+ * huérfano en Bunny por cada rechazo— y la forma barata de garantizarlo es que las dos llamen aquí en
+ * vez de que cada una reúna sus datos.
+ *
+ * Son dos lecturas por clave primaria. El nivel se deriva del `pointsBalance` de la FILA, nunca de
+ * nada que venga del cliente.
+ */
+async function bloqueadoPorNivel(
+  db: Db,
+  entrada: { challengeId: string; userId: string },
+): Promise<boolean> {
+  const [reto, usuario] = await Promise.all([
+    db.challenge.findUnique({
+      where: { id: entrada.challengeId },
+      select: { nivelMinimo: true },
+    }),
+    db.user.findUnique({ where: { id: entrada.userId }, select: { pointsBalance: true } }),
+  ]);
+  // Si falta cualquiera de los dos, la puerta de nivel NO bloquea: el reto inexistente ya lo rechaza
+  // quien llama, y vetar por un dato que no se pudo leer sería inventarse un motivo.
+  if (!reto || !usuario) return false;
+  return !puedeParticiparPorNivel(usuario.pointsBalance, reto.nivelMinimo);
+}
 
 /**
  * Decide y crea la fila para una participación, DENTRO de la transacción de `upload-credential` (que ya
@@ -60,10 +98,18 @@ export async function iniciarParticipacion(
     return { modo: "primera", videoId: v.id, submissionId: s.id };
   };
 
-  if (!existente) return crearPrimera();
+  // MODERACIÓN: el bloqueo definitivo, y se comprueba con el campo explícito. Va PRIMERO porque es el
+  // más específico: a quien retiró un admin no se le dice "sube de nivel", que sería una promesa falsa.
+  if (existente?.retiradaMotivo === "MODERACION")
+    return { modo: "bloqueada", motivo: "MODERACION" };
 
-  // MODERACIÓN: lo ÚNICO que bloquea, y se comprueba con el campo explícito.
-  if (existente.retiradaMotivo === "MODERACION") return { modo: "bloqueada", motivo: "MODERACION" };
+  // NIVEL: la autoridad está AQUÍ, dentro de la transacción, no en la guarda barata de fuera. El
+  // cliente puede no pintar el candado, o pintarlo y que alguien llame al endpoint igual.
+  if (await bloqueadoPorNivel(tx, { challengeId, userId })) {
+    return { modo: "bloqueada", motivo: "NIVEL" };
+  }
+
+  if (!existente) return crearPrimera();
 
   const estado = existente.video.status;
 
@@ -109,16 +155,19 @@ export async function iniciarParticipacion(
 export async function puedeParticipar(
   db: Db,
   entrada: { challengeId: string; userId: string },
-): Promise<{ puede: boolean }> {
+): Promise<{ puede: true } | { puede: false; motivo: MotivoBloqueo }> {
   const existente = await db.submission.findUnique({
     where: { challengeId_userId: entrada },
     select: { retiradaMotivo: true },
   });
-  // MISMA regla, EXACTAMENTE, que `iniciarParticipacion`: solo la moderación bloquea. Cuando las dos
-  // no coincidían, esta dejaba pasar y la otra bloqueaba — así que la petición creaba el objeto en
-  // Bunny y ERA la transacción la que la rechazaba: volvía el huérfano que esta guarda existe para
-  // evitar. Por eso ya no mira el estado del vídeo: mirar cosas distintas es cómo se separaron.
-  return { puede: existente?.retiradaMotivo !== "MODERACION" };
+  // MISMA regla, EXACTAMENTE, que `iniciarParticipacion`, y en el MISMO orden. Cuando las dos no
+  // coincidían, esta dejaba pasar y la otra bloqueaba — así que la petición creaba el objeto en Bunny
+  // y ERA la transacción la que la rechazaba: volvía el huérfano que esta guarda existe para evitar.
+  // Por eso ya no mira el estado del vídeo, y por eso la puerta de nivel la resuelven las dos con la
+  // misma función en vez de cada una por su cuenta.
+  if (existente?.retiradaMotivo === "MODERACION") return { puede: false, motivo: "MODERACION" };
+  if (await bloqueadoPorNivel(db, entrada)) return { puede: false, motivo: "NIVEL" };
+  return { puede: true };
 }
 
 /**

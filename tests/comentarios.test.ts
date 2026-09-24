@@ -316,7 +316,7 @@ describe("uno suelto, por su id (el del aviso)", () => {
         id: r.comentario.id,
         texto: "El del aviso",
         creadoMs: expect.any(Number),
-        autor: { username: "comentarista", displayName: null, image: null },
+        autor: { username: "comentarista", displayName: null, image: null, pointsBalance: 0 },
         esMio: true,
       },
     });

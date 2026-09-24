@@ -37,7 +37,14 @@ export interface ComentarioVista {
   id: string;
   texto: string;
   creadoMs: number;
-  autor: { username: string; displayName: string | null; image: string | null };
+  /** El autor, con sus PUNTOS: el avatar deriva de ellos su anillo de nivel (`lib/niveles`). Es una
+   *  columna mas en una relacion que ya se traia, no una consulta nueva. */
+  autor: {
+    username: string;
+    displayName: string | null;
+    image: string | null;
+    pointsBalance: number;
+  };
   /** ¿Lo escribió quien mira? Para ofrecerle borrarlo. `false` sin sesión. */
   esMio: boolean;
 }
@@ -96,7 +103,7 @@ export async function publicarComentario(
 
     const autor = await tx.user.findUniqueOrThrow({
       where: { id: input.userId },
-      select: { username: true, displayName: true, image: true },
+      select: { username: true, displayName: true, image: true, pointsBalance: true },
     });
     const c = await tx.comment.create({
       data: { videoId: input.videoId, userId: input.userId, texto },
@@ -237,7 +244,7 @@ export async function comentarioSuelto(
       createdAt: true,
       videoId: true,
       userId: true,
-      user: { select: { username: true, displayName: true, image: true } },
+      user: { select: { username: true, displayName: true, image: true, pointsBalance: true } },
     },
   });
   if (!f) return null;
@@ -304,7 +311,7 @@ export async function listarComentarios(
       texto: true,
       createdAt: true,
       userId: true,
-      user: { select: { username: true, displayName: true, image: true } },
+      user: { select: { username: true, displayName: true, image: true, pointsBalance: true } },
     },
   });
 

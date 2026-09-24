@@ -152,15 +152,15 @@ describe("AjustarPuntos", () => {
   });
 });
 
+// La REFERENCIA llega ya en humano del servicio: la vista no recibe `refType` ni `refId` (eso era el
+// cuid en pantalla). Aqui se simula lo que el servicio entrega, no lo que habia en la fila.
 const mov = (id: string, extra: Record<string, unknown> = {}) => ({
   id,
   delta: 30,
   razon: "WIN_CHALLENGE",
-  refType: "CHALLENGE",
-  refId: "reto-1",
+  referencia: "Baila con tu abuela",
   nota: null,
   creadoEnMs: Date.UTC(2026, 2, 5, 10, 30),
-  autor: null,
   ...extra,
 });
 
@@ -174,13 +174,11 @@ describe("HistorialPuntos", () => {
           mov("m2", {
             delta: -5,
             razon: "ADMIN_AJUSTE",
-            refType: "ADMIN",
-            refId: "admin-1",
+            referencia: "por @admin_dareup",
             nota: "Voto duplicado",
-            autor: "admin_dareup",
           }),
           mov("m1"),
-          mov("m0", { razon: "CODIGO_NUEVO", refType: null, refId: null }),
+          mov("m0", { razon: "CODIGO_NUEVO", referencia: "—" }),
         ]}
       />,
     );
@@ -193,6 +191,9 @@ describe("HistorialPuntos", () => {
     expect(filas[1]!.textContent).toContain("+30");
     // Un código sin traducir se enseña tal cual, sin inventarle un nombre.
     expect(filas[2]!.textContent).toContain("CODIGO_NUEVO");
+    // Y una fila de reto se nombra por su TITULO: ni «challenge» ni un cuid a la vista.
+    expect(filas[1]!.textContent).toContain("Baila con tu abuela");
+    for (const f of filas) expect(f.textContent).not.toMatch(/challenge · |reto-1/);
   });
 
   it("'Ver más' pide la página siguiente por cursor y la añade", async () => {

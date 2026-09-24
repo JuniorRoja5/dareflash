@@ -33,6 +33,7 @@ export function FilaPuesto({
   unidad,
   activo = false,
   insignia,
+  puntos,
 }: {
   puesto: number;
   username: string;
@@ -44,6 +45,8 @@ export function FilaPuesto({
   unidad: string;
   activo?: boolean;
   insignia?: ReactNode;
+  /** Puntos de esa persona: el avatar deriva su anillo de nivel. Ausente = la lista no los conoce. */
+  puntos?: number;
 }) {
   const esPodio = tokenPuesto(puesto) === "rank";
   return (
@@ -60,7 +63,7 @@ export function FilaPuesto({
       >
         {puesto}
       </span>
-      <Avatar nombre={username} imagen={imagen} tamano="sm" perezosa />
+      <Avatar nombre={username} imagen={imagen} tamano="sm" perezosa puntos={puntos} />
       <span className="min-w-0 flex-1 truncate font-medium">@{username}</span>
       {insignia ? <span className="shrink-0">{insignia}</span> : null}
       {/* la cifra: NEUTRO, jamas --df-money (ni victorias ni puntos son dinero) */}

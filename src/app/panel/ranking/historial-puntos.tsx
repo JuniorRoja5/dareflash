@@ -33,12 +33,10 @@ function fecha(ms: number): string {
   });
 }
 
-/** A qué apunta: QUIÉN en un ajuste manual; el tipo y el id en lo automático. */
-function referencia(m: MovimientoPuntos): string {
-  if (m.refType === "ADMIN") return m.autor ? `por @${m.autor}` : "por un admin";
-  if (m.refType && m.refId) return `${m.refType.toLowerCase()} · ${m.refId}`;
-  return "—";
-}
+// A QUÉ APUNTA ya no se compone aquí: llega hecho del servicio (`MovimientoPuntos.referencia`), que
+// lo resuelve en lote. Esta función escribía `${refType} · ${refId}` y eso era el cuid de la base de
+// datos en pantalla («challenge · cmtww…»). Ahora la vista ni siquiera recibe el id, así que no puede
+// volver a pintarlo por descuido.
 
 /**
  * HISTORIAL DE PUNTOS del inspector: los movimientos reales del ledger, del más nuevo al más viejo,
@@ -112,9 +110,7 @@ export function HistorialPuntos({
                   {m.delta > 0 ? "+" : "−"}
                   {Math.abs(m.delta).toLocaleString("es-ES")}
                 </td>
-                <td className="max-w-[16rem] truncate px-4 py-2.5 text-text-dim">
-                  {referencia(m)}
-                </td>
+                <td className="max-w-[16rem] truncate px-4 py-2.5 text-text-dim">{m.referencia}</td>
                 <td className="px-4 py-2.5 text-text-dim">{m.nota ?? "—"}</td>
               </tr>
             ))}

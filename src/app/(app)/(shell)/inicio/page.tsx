@@ -131,6 +131,7 @@ export default async function InicioPage() {
                     imagen={fila.image}
                     cifra={fila.victorias}
                     unidad={fila.victorias === 1 ? "victoria" : "victorias"}
+                    puntos={fila.puntos}
                   />
                 ))
               )}

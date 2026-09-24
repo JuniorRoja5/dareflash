@@ -35,7 +35,7 @@ export function Ficha({ ficha, rolMira }: { ficha: FichaCuenta; rolMira: string 
       className="mt-8 space-y-6 rounded-sm border border-line bg-surface/60 p-5"
     >
       <div className="flex flex-wrap items-center gap-4">
-        <Avatar nombre={c.username} imagen={c.image} tamano="lg" />
+        <Avatar nombre={c.username} imagen={c.image} tamano="lg" puntos={ficha.puntos} />
         <div className="min-w-0">
           <p className="truncate text-lg font-semibold text-text">
             {nombreMostrado(c.displayName, c.username)}

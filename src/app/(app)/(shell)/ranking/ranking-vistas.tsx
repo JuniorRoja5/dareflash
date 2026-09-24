@@ -162,6 +162,7 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
                     unidad={fila.victorias === 1 ? "victoria" : "victorias"}
                     activo={fila.userId === datos.yo}
                     insignia={<InsigniaNivel puntos={fila.puntos} />}
+                    puntos={fila.puntos}
                   />
                 ))}
               </div>

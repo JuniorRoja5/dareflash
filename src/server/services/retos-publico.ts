@@ -45,6 +45,9 @@ export interface RetoPublicoDetalle extends RetoPublicoVista {
    *  decidir si el reto esta abierto con la MISMA regla que el servidor (`lib/reto-ventana`) — un
    *  reto PUBLISHED pero aun sin empezar no admite votos, y sin este dato la vista no lo sabia. */
   startsAtMs: number;
+  /** Clave del nivel MINIMO para participar (`rookie` = todos). Ver `lib/nivel-reto`. La vista lo
+   *  usa para pintar el candado con la MISMA regla que aplica el servidor al rechazar. */
+  nivelMinimo: string;
 }
 
 const SELECT_VISTA = {
@@ -128,6 +131,7 @@ export async function retoPublicoPorCode(
       winnersCount: true,
       status: true,
       startsAt: true,
+      nivelMinimo: true,
     },
   });
   if (!f) return null;
@@ -140,6 +144,7 @@ export async function retoPublicoPorCode(
     prizeCurrency: f.prizeCurrency,
     status: f.status,
     startsAtMs: f.startsAt.getTime(),
+    nivelMinimo: f.nivelMinimo,
   };
 }
 

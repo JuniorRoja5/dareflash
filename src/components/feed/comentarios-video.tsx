@@ -221,7 +221,13 @@ export function ComentariosVideo({
                     : "flex gap-3"
                 }
               >
-                <Avatar nombre={c.autor.username} imagen={c.autor.image} tamano="sm" perezosa />
+                <Avatar
+                  nombre={c.autor.username}
+                  imagen={c.autor.image}
+                  tamano="sm"
+                  perezosa
+                  puntos={c.autor.pointsBalance}
+                />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm">
                     <span className="font-medium text-text">@{c.autor.username}</span>{" "}

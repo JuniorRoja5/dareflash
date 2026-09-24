@@ -15,12 +15,17 @@ import { z } from "zod";
 
 import { CATEGORIES, type CategoryKey, DEFAULT_CURRENCY } from "@/config/constants";
 import type { Db } from "@/server/db/types";
+import { NIVEL_MINIMO_ABIERTO } from "@/lib/nivel-reto";
+import { NIVELES, type ClaveNivel } from "@/lib/niveles";
 import { slugDesdeTitulo } from "@/lib/reto-slug";
 
 import { crearRetoConPublicCode } from "./reto-codigo";
 
 /** Claves de las 14 categorías, como tupla para `z.enum`. Fuente única: CATEGORIES. */
 const CATEGORY_KEYS = CATEGORIES.map((c) => c.key) as [CategoryKey, ...CategoryKey[]];
+
+/** Claves de los niveles, como tupla para `z.enum`. Fuente unica: NIVELES (`lib/niveles`). */
+const NIVEL_KEYS = NIVELES.map((n) => n.clave) as [ClaveNivel, ...ClaveNivel[]];
 
 const TITULO_MIN = 3;
 const TITULO_MAX = 120;
@@ -64,6 +69,12 @@ export function crearRetoSchema(now: Date) {
         .number({ message: "El número de ganadores debe ser un número." })
         .int("El número de ganadores debe ser entero.")
         .min(1, "Debe haber al menos 1 ganador."),
+      /**
+       * QUIÉN puede participar. Se guarda la CLAVE del nivel, no un número de puntos (ver el
+       * comentario de la columna). Ausente = `rookie` = TODOS: así un formulario antiguo, o una
+       * llamada que no lo mande, no restringe nada por accidente.
+       */
+      nivelMinimo: z.enum(NIVEL_KEYS).default(NIVEL_MINIMO_ABIERTO),
     })
     .refine((d) => d.startsAt < d.deadline, {
       message: "El cierre debe ser posterior a la apertura.",
@@ -109,6 +120,7 @@ export async function crearRetoAdmin(
         startsAt: datos.startsAt,
         deadline: datos.deadline,
         winnersCount: datos.winnersCount,
+        nivelMinimo: datos.nivelMinimo,
         createdById: adminId,
       },
       select: { id: true, publicCode: true, slug: true, status: true },
@@ -150,6 +162,7 @@ export async function editarRetoAdmin(
       startsAt: datos.startsAt,
       deadline: datos.deadline,
       winnersCount: datos.winnersCount,
+      nivelMinimo: datos.nivelMinimo,
       // publicCode, status y coverImage AUSENTES a propósito (invariantes de la edición).
     },
   });
@@ -190,6 +203,8 @@ export interface RetoAdminFila {
   startsAt: Date;
   deadline: Date;
   winnersCount: number;
+  /** Clave del nivel minimo para participar (`rookie` = todos). Ver `lib/nivel-reto`. */
+  nivelMinimo: string;
   coverImage: string | null;
   publicCode: string;
   /** Gracia de borrado en curso (ms) o null. El panel pinta la cuenta atras y ofrece restaurar. */
@@ -214,6 +229,7 @@ const SELECT_RETO_ADMIN = {
   startsAt: true,
   deadline: true,
   winnersCount: true,
+  nivelMinimo: true,
   coverImage: true,
   publicCode: true,
   eliminacionProgramadaEn: true,

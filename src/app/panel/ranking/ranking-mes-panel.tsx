@@ -88,7 +88,7 @@ export function RankingMesPanel({
                     href={`/panel/ranking?u=${encodeURIComponent(f.userId)}#inspector`}
                     className="flex min-w-0 items-center gap-2 text-text hover:underline"
                   >
-                    <Avatar nombre={f.username} imagen={f.image} tamano="sm" />
+                    <Avatar nombre={f.username} imagen={f.image} tamano="sm" puntos={f.puntos} />
                     <span className="truncate">@{f.username}</span>
                   </Link>
                 </td>

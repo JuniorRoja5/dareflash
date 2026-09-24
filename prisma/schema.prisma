@@ -345,6 +345,21 @@ model Challenge {
   // Nº de ganadores configurable por reto (dominio: >= 1; lo valida el schema de creacion futuro).
   winnersCount Int @default(1)
 
+  /// NIVEL MINIMO para PARTICIPAR (clave de `src/lib/niveles.ts`: rookie|challenger|pro|elite|legend).
+  ///
+  /// SE GUARDA LA CLAVE DEL NIVEL, NO UN NUMERO DE PUNTOS. "Reto de Pro" tiene que seguir
+  /// significando Pro aunque manana el umbral de Pro pase de 500 a 800: con un numero congelado, ese
+  /// mismo reto se convertiria en otra cosa sin que nadie lo tocara.
+  ///
+  /// String + union de Zod, no enum de Prisma, siguiendo la regla de la cabecera de este fichero: los
+  /// enums de verdad se reservan a `Role` y `ModerationStatus`. Un nivel nuevo en la escalera no debe
+  /// costar una migracion, y la union ya existe y esta testeada en `niveles.ts`.
+  ///
+  /// DEFAULT `rookie` = TODOS, porque rookie es el nivel de cero puntos y la puerta es "alcanza o
+  /// supera". Por eso la migracion NO necesita backfill: los retos existentes quedan sin restriccion,
+  /// que es exactamente lo que eran.
+  nivelMinimo String @default("rookie")
+
   /// MINIMO de participaciones que CUENTAN (invariante 3: Submission PUBLISHED **y** Video PUBLISHED)
   /// para que se declare ganador. NULL = el reto no exige minimo, que es el caso de todos los retos
   /// existentes -> la migracion NO necesita backfill: la ausencia YA significa lo correcto. Si al
