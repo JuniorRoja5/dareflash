@@ -63,7 +63,20 @@ export function FilaPuesto({
       >
         {puesto}
       </span>
-      <Avatar nombre={username} imagen={imagen} tamano="sm" perezosa puntos={puntos} />
+      {/*
+        EN EL PODIO, SIN EMBLEMA. Esta fila marca el puesto 1/2/3 con el ORO (`df-puesto-podio`), y
+        Legend lleva ese MISMO oro —es el mismo token, a propósito: medalla y corona dicen las dos "lo
+        más alto"—. Dos dorados a diez píxeles uno del otro, con dos significados, no se leen: se
+        estorban. Así que donde el oro ya está haciendo de puesto, el nivel se calla y lo dice la
+        insignia de texto que va al lado. Es la misma renuncia que ya hizo el bloque del podio.
+      */}
+      <Avatar
+        nombre={username}
+        imagen={imagen}
+        tamano="sm"
+        perezosa
+        puntos={esPodio ? undefined : puntos}
+      />
       <span className="min-w-0 flex-1 truncate font-medium">@{username}</span>
       {insignia ? <span className="shrink-0">{insignia}</span> : null}
       {/* la cifra: NEUTRO, jamas --df-money (ni victorias ni puntos son dinero) */}

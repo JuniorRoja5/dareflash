@@ -96,6 +96,13 @@
   --df-bronze: #bb7f4f; /* bronce MATE. EXCLUSIVO de la medalla del PUESTO 3 del podio. */
   --df-ok: #2be58b; /* menta. SOLO confirmaciones. */
 
+  /* --- NIVEL (DareUp). Color del EMBLEMA que lleva el avatar, uno por nivel. Rookie no tiene: es el
+     estandar. LEGEND TAMPOCO TIENE EL SUYO y usa `--df-rank` a proposito (ver abajo, y el docblock
+     de `lib/niveles`). Medidos, no elegidos a ojo: `tests/paleta-niveles.test.ts`. */
+  --df-nivel-challenger: #22c55e; /* verde */
+  --df-nivel-pro: #ff8c42; /* fuego */
+  --df-nivel-elite: #22d3ee; /* diamante */
+
   /* --- BASE Y SUPERFICIES (profundidad por LUMINOSIDAD, nunca por sombra) --- */
   --df-void: #07090d; /* fondo de pagina */
   --df-surface: #10141c; /* tarjetas, hojas, paneles */
@@ -149,6 +156,13 @@
   --df-silver: #6b7280; /* plata MATE. EXCLUSIVO de la medalla del PUESTO 2. */
   --df-bronze: #92603a; /* bronce MATE. EXCLUSIVO de la medalla del PUESTO 3. */
   --df-ok: #0f766e; /* verde-confirmacion. NO es la accion y NO es dinero. */
+
+  /* NIVEL. MISMA FAMILIA que en oscuro (verde es verde, fuego es fuego: la persona ve el mismo
+     nivel en los dos temas), con la luminosidad bajada para que se lean sobre blanco. El tono apenas
+     se mueve —2, 6 y 17 grados— y el contraste sube de 3:1 en los dos fondos claros. */
+  --df-nivel-challenger: #116329;
+  --df-nivel-pro: #8f3a10;
+  --df-nivel-elite: #0e7490;
 
   --df-void: #f4f6f8; /* fondo de pagina */
   --df-surface: #ffffff; /* tarjetas, hojas, paneles */

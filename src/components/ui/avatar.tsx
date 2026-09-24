@@ -2,25 +2,18 @@
 
 import { useState } from "react";
 
+import { EmblemaDeNivel } from "@/components/ui/emblema-nivel";
 import { nivelPorPuntos } from "@/lib/niveles";
 
 /**
- * EL ANILLO DE NIVEL, por tier. GEOMETRÍA Y ESCALA DE GRISES, sin una sola tonalidad nueva: sube el
- * grosor y sube el contraste (línea -> texto atenuado -> texto), y Legend añade un halo separado.
- *
- * Por qué NO una rampa de cinco colores, que es lo que hace todo el mundo: la paleta de este producto
- * asigna significado a cada tono (`--df-money` al dinero, `--df-rank` al podio, `--df-action` a la
- * acción). Cinco colores más, repetidos en CADA avatar de la plataforma, competirían con la cifra del
- * premio justo donde más importa. Con grises, el nivel se lee y no grita.
- *
- * Funciona en claro y en oscuro sin tocar nada: los tokens ya se invierten solos.
+ * TAMAÑO DEL EMBLEMA según el del avatar. Va en una esquina, superpuesto: ocupa poco y no tapa la
+ * cara. Aquí se fija su caja y su desplazamiento; el glifo y el color los pone `EmblemaDeNivel`.
  */
-const ANILLO: Record<number, string> = {
-  1: "ring-1 ring-line",
-  2: "ring-2 ring-line",
-  3: "ring-2 ring-text-dim",
-  4: "ring-2 ring-text",
-  5: "ring-2 ring-text ring-offset-2 ring-offset-surface",
+const EMBLEMA: Record<string, string> = {
+  sm: "h-3.5 w-3.5 -right-0.5 -bottom-0.5",
+  md: "h-4 w-4 -right-0.5 -bottom-0.5",
+  lg: "h-5 w-5 -right-1 -bottom-1",
+  xl: "h-6 w-6 -right-1 -bottom-1",
 };
 
 const TAMANO = {
@@ -66,8 +59,10 @@ export function Avatar({
   const [falla, setFalla] = useState(false);
   const inicial = (nombre.trim().charAt(0) || "?").toUpperCase();
   const nivel = puntos === undefined ? null : nivelPorPuntos(puntos);
-  const anillo = nivel ? ` ${ANILLO[nivel.tier] ?? ""}` : "";
-  const base = `inline-flex ${TAMANO[tamano]} shrink-0 items-center justify-center overflow-hidden rounded-full${anillo}`;
+  // Rookie es un nivel de verdad, pero NO lleva marca: es el estándar. Así el emblema significa
+  // "ha llegado a algo" en vez de ser una etiqueta que todo el mundo lleva.
+  const conEmblema = nivel?.emblema ? nivel : null;
+  const base = `inline-flex ${TAMANO[tamano]} shrink-0 items-center justify-center overflow-hidden rounded-full`;
 
   const circulo =
     imagen && !falla ? (
@@ -88,17 +83,20 @@ export function Avatar({
       </span>
     );
 
-  // Sin nivel, se devuelve EL MISMO nodo de siempre: ni un envoltorio de más. Así añadir esto no
-  // puede mover una sola maqueta de las que ya existen.
-  if (!nivel) return circulo;
+  // Sin emblema —sin puntos, o Rookie— se devuelve EL MISMO nodo de siempre: ni un envoltorio de
+  // más. Así esto no puede mover una sola maqueta de las que ya existen.
+  if (!conEmblema) return circulo;
 
   return (
     <span className="relative inline-flex">
       {circulo}
-      {/* El anillo es geometría, y la geometría no se lee en voz alta. El nivel se dice aparte para
-          quien usa lector de pantalla: en el feed o en un comentario, el anillo es LO ÚNICO que lo
-          comunica, así que sin esto ahí el nivel sencillamente no existiría. */}
-      <span className="sr-only">Nivel {nivel.nombre}</span>
+      {/* El emblema es un glifo, y un glifo no se lee en voz alta. `EmblemaDeNivel` lleva su propio
+          `aria-label` con el nombre del nivel: en el feed o en un comentario es LO ÚNICO que lo
+          comunica, así que sin eso ahí el nivel sencillamente no existiría. */}
+      <EmblemaDeNivel
+        nivel={conEmblema}
+        clase={`pointer-events-none absolute ${EMBLEMA[tamano]} drop-shadow-[0_0_2px_var(--df-void)]`}
+      />
     </span>
   );
 }
