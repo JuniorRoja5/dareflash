@@ -22,7 +22,9 @@ import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { objetivoDeViolacionUnica } from "@/server/db/errores";
 import { requestEmailVerification } from "@/server/services/email-verification";
+import { referentePorCodigo } from "@/server/services/referidos";
 
+import { generarCodigoReferido } from "./codigo-referido";
 import { generarHandle, HANDLE_MAX_INTENTOS } from "./handle";
 import { hashPassword } from "./password";
 
@@ -48,14 +50,37 @@ export function esViolacionUnicaDeUsername(e: unknown): boolean {
   return /username/i.test(objetivoDeViolacionUnica(e));
 }
 
+/**
+ * Lo mismo para `referralCode`: el codigo auto-generado ha chocado. Tambien RECUPERABLE (se regenera
+ * y se reintenta) y tampoco es un error que ver el usuario — el codigo es interno hasta que entra en
+ * su perfil.
+ */
+export function esViolacionUnicaDeCodigoReferido(e: unknown): boolean {
+  if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") return false;
+  return /referralCode/i.test(objetivoDeViolacionUnica(e));
+}
+
 export async function registerUser(
   db: PrismaClient,
-  input: { email: string; password: string; birthDate: Date; appUrl: string; now?: Date },
+  input: {
+    email: string;
+    password: string;
+    birthDate: Date;
+    appUrl: string;
+    now?: Date;
+    /**
+     * Codigo de invitacion del enlace por el que llego (`?ref=`), si lo hay. Se RESUELVE aqui: un
+     * codigo con mala forma, inexistente o de una cuenta suspendida se ignora y el alta sigue. Que
+     * el enlace fuera bueno no puede ser condicion para poder registrarse.
+     */
+    refCode?: string | null;
+  },
   // `generarHandle` inyectable SOLO para test (forzar una colision de handle y ver el reintento).
   // Produccion usa el generador real por defecto.
-  deps: { generarHandle?: () => string } = {},
+  deps: { generarHandle?: () => string; generarCodigoReferido?: () => string } = {},
 ): Promise<void> {
   const nuevoHandle = deps.generarHandle ?? generarHandle;
+  const nuevoCodigo = deps.generarCodigoReferido ?? generarCodigoReferido;
   // Normalizacion en la capa de aplicacion (no depender de la collation de MariaDB).
   const email = input.email.trim().toLowerCase();
 
@@ -67,12 +92,21 @@ export async function registerUser(
   // simultaneos del mismo email: uno crea, el otro choca -> P2002). El `username` se auto-genera
   // (handle NEUTRAL; nunca NULL) y, si choca con uno existente, se REGENERA y se reintenta (acotado):
   // no hay findUnique-luego-create, la constraint es el arbitro.
+  // EL REFERENTE se resuelve ANTES de crear, y es lo unico que se escribe de la invitacion. Se fija
+  // en el INSERT y no se toca nunca mas: no hay ninguna otra escritura de `referredById` en todo el
+  // codigo, asi que "no se puede cambiar despues" no es una regla que alguien tenga que respetar —
+  // es que no existe la puerta. Y auto-referirse es imposible por construccion: en este punto la
+  // cuenta del invitado todavia no existe, asi que su id no puede ser el del referente.
+  const referredById = await referentePorCodigo(db, input.refCode ?? null);
+
   for (let intento = 0; ; intento++) {
     try {
       await db.user.create({
         data: {
           email,
           username: nuevoHandle(),
+          referralCode: nuevoCodigo(),
+          referredById,
           passwordHash,
           birthDate: input.birthDate,
           emailVerified: null, // sin verificar: sin acciones con efectos
@@ -82,8 +116,10 @@ export async function registerUser(
     } catch (e) {
       // Choque en `email` -> no-op silencioso (sin enumeracion).
       if (esViolacionUnicaDeEmail(e)) return;
-      // Choque en `username` -> el handle aleatorio ya existia; regenerar y reintentar (acotado).
-      if (esViolacionUnicaDeUsername(e) && intento < HANDLE_MAX_INTENTOS - 1) continue;
+      // Choque en `username` o en `referralCode` -> el valor aleatorio ya existia; se regeneran los
+      // dos y se reintenta (acotado). La constraint es el arbitro; nunca findUnique-luego-create.
+      const recuperable = esViolacionUnicaDeUsername(e) || esViolacionUnicaDeCodigoReferido(e);
+      if (recuperable && intento < HANDLE_MAX_INTENTOS - 1) continue;
       // Cualquier otra cosa (o agotar los reintentos) es un fallo real: no ocultarlo.
       throw e;
     }

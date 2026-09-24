@@ -9,6 +9,7 @@
  *   3) Extremo a extremo contra la BD real: el DTO de un usuario con datos privados no los expone.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import type { ModerationStatus, PrismaClient } from "../src/generated/prisma/client";
 import { generarPublicCode } from "../src/server/services/reto-codigo";
@@ -103,6 +104,7 @@ describe("perfil público contra la BD real", () => {
   it("por username O por id: mismos datos públicos, CERO datos privados", async () => {
     const otro = await prisma.user.create({
       data: {
+        referralCode: generarCodigoReferido(),
         username: "otro_user",
         displayName: "Otro",
         image: "https://ejemplo/imagen.jpg",
@@ -139,7 +141,10 @@ describe("perfil público contra la BD real", () => {
   });
 
   it("categoría en la rejilla por AMBAS vías: participación -> reto; libre -> Video.category", async () => {
-    const u = await prisma.user.create({ data: { username: "creador_cat" }, select: { id: true } });
+    const u = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "creador_cat" },
+      select: { id: true },
+    });
     // Vídeo LIBRE con su propia categoría.
     await prisma.video.create({
       data: {
@@ -185,7 +190,7 @@ describe("perfil público contra la BD real", () => {
 
   it("retosGanados = número de filas ChallengeResult del usuario", async () => {
     const u = await prisma.user.create({
-      data: { username: "ganador", pointsBalance: 0 },
+      data: { referralCode: generarCodigoReferido(), username: "ganador", pointsBalance: 0 },
       select: { id: true },
     });
     const ch = await prisma.challenge.create({
@@ -219,12 +224,14 @@ describe("perfil público contra la BD real", () => {
     expect(await perfilPublicoPorUsername(prisma, "no_existe")).toBeNull();
 
     const borrado = await prisma.user.create({
-      data: { username: "borrado", deletedAt: new Date() },
+      data: { referralCode: generarCodigoReferido(), username: "borrado", deletedAt: new Date() },
       select: { id: true },
     });
     expect(await perfilPublicoPorId(prisma, borrado.id)).toBeNull();
 
-    await prisma.user.create({ data: { username: "baneado", bannedAt: new Date() } });
+    await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "baneado", bannedAt: new Date() },
+    });
     expect(await perfilPublicoPorUsername(prisma, "baneado")).toBeNull();
   });
 });
@@ -263,7 +270,12 @@ describe("estadoDeVideo (mapeo PURO status+failureReason -> copy semántico)", (
 describe("mis vídeos con estado vs perfil público (DIENTES anti-fuga)", () => {
   it("el DUEÑO ve los estados; el público de OTRO solo PUBLISHED, sin motivo crudo", async () => {
     const duena = await prisma.user.create({
-      data: { username: "duena", displayName: "Dueña", pointsBalance: 10 },
+      data: {
+        referralCode: generarCodigoReferido(),
+        username: "duena",
+        displayName: "Dueña",
+        pointsBalance: 10,
+      },
       select: { id: true },
     });
     await crearVideo(duena.id, "PUBLISHED", "b-pub", "Publicado");
@@ -314,13 +326,13 @@ describe("mis vídeos con estado vs perfil público (DIENTES anti-fuga)", () => 
     expect(await miPerfil(prisma, "no-existe")).toBeNull();
 
     const borrado = await prisma.user.create({
-      data: { username: "borrado2", deletedAt: new Date() },
+      data: { referralCode: generarCodigoReferido(), username: "borrado2", deletedAt: new Date() },
       select: { id: true },
     });
     expect(await miPerfil(prisma, borrado.id)).toBeNull();
 
     const baneado = await prisma.user.create({
-      data: { username: "baneado2", bannedAt: new Date() },
+      data: { referralCode: generarCodigoReferido(), username: "baneado2", bannedAt: new Date() },
       select: { id: true },
     });
     expect(await miPerfil(prisma, baneado.id)).toBeNull();

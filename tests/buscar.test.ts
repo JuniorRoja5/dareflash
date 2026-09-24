@@ -9,6 +9,7 @@
  *  - SOLO PÚBLICOS: fuera borrados/baneados y retos no-PUBLISHED; el DTO no filtra privados.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import { generarHandle } from "../src/server/auth/handle";
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -40,6 +41,7 @@ async function crearUsuario(o: {
 }): Promise<string> {
   const u = await prisma.user.create({
     data: {
+      referralCode: generarCodigoReferido(),
       username: o.username ?? generarHandle(),
       displayName: o.displayName ?? null,
       image: o.image ?? null,

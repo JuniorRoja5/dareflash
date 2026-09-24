@@ -9,6 +9,7 @@
  * El CSRF se forja con la funcion real (issueCsrfToken) y el mismo secreto: se ejercita de verdad.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import { issueCsrfToken } from "../src/server/auth/csrf";
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -53,7 +54,14 @@ function sesion(userId: string) {
 }
 
 async function crearUsuarioConVideo(userId: string): Promise<string> {
-  await prisma.user.create({ data: { id: userId, username: generarHandle(), passwordHash: "x" } });
+  await prisma.user.create({
+    data: {
+      referralCode: generarCodigoReferido(),
+      id: userId,
+      username: generarHandle(),
+      passwordHash: "x",
+    },
+  });
   const v = await prisma.video.create({
     data: { userId, bunnyVideoId: `bunny-${userId}`, status: "PUBLISHED" },
     select: { id: true },
@@ -101,7 +109,12 @@ describe("DELETE /api/videos/[id] (autorizacion por dueno)", () => {
   it("OTRO usuario NO puede borrar: 404, video INTACTO y NADA encolado", async () => {
     const videoId = await crearUsuarioConVideo("dueno");
     await prisma.user.create({
-      data: { id: "intruso", username: generarHandle(), passwordHash: "x" },
+      data: {
+        referralCode: generarCodigoReferido(),
+        id: "intruso",
+        username: generarHandle(),
+        passwordHash: "x",
+      },
     });
     const ses = sesion("intruso");
     mocks.getCurrentUser.mockResolvedValue(ses);

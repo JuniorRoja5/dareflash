@@ -71,6 +71,9 @@ async function main() {
     create: {
       email: "admin@dareflash.local",
       username: "admin",
+      // El codigo de invitacion es NOT NULL: TODA via de alta lo asigna (ver server/auth/codigo-referido).
+      // Aqui es FIJO, no aleatorio: el seed tiene que ser reproducible.
+      referralCode: "seedadminref",
       displayName: "Admin 🛠️",
       role: "ADMIN",
       emailVerified: ahora,
@@ -89,6 +92,7 @@ async function main() {
     create: {
       email: "demo@dareflash.local",
       username: "demo",
+      referralCode: "seeddemoxref",
       displayName: "Demo 🎭 Ñandú",
       role: "USER",
       emailVerified: ahora,

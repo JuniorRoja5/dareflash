@@ -9,6 +9,7 @@
  * (La tercera —exigir la contraseña— vive en el endpoint, con su rate-limit de argon2.)
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { createEmailToken } from "../src/server/auth/email-token";
@@ -37,7 +38,12 @@ afterAll(async () => {
 beforeEach(async () => {
   await resetDb(prisma);
   const u = await prisma.user.create({
-    data: { username: "duenio", email: VIEJO, emailVerified: new Date() },
+    data: {
+      referralCode: generarCodigoReferido(),
+      username: "duenio",
+      email: VIEJO,
+      emailVerified: new Date(),
+    },
     select: { id: true },
   });
   userId = u.id;
@@ -86,7 +92,9 @@ describe("pedir el cambio NO lo aplica", () => {
   });
 
   it("no deja pedir una dirección de otra cuenta", async () => {
-    await prisma.user.create({ data: { username: "otro", email: NUEVO } });
+    await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "otro", email: NUEVO },
+    });
 
     expect(await solicitarCambioEmail(prisma, { userId, nuevoEmail: NUEVO, appUrl: APP })).toEqual({
       ok: false,
@@ -148,7 +156,9 @@ describe("confirmar la aplica", () => {
     await solicitarCambioEmail(prisma, { userId, nuevoEmail: NUEVO, appUrl: APP });
     const token = await tokenPara(NUEVO);
     // Entre pedir y confirmar pueden pasar 24 h; en ese hueco alguien puede registrarla.
-    await prisma.user.create({ data: { username: "rapido", email: NUEVO } });
+    await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "rapido", email: NUEVO },
+    });
 
     expect(await confirmarCambioEmail(prisma, { rawToken: token })).toEqual({
       ok: false,

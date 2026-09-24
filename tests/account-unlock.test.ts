@@ -6,6 +6,7 @@
  *  - El enlace resetea SOLO el cubo de CUENTA, JAMAS el de IP (guardian de CPU).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { generarHandle } from "../src/server/auth/handle";
@@ -28,7 +29,12 @@ beforeEach(async () => {
 
 async function crearUsuario(email: string): Promise<void> {
   await prisma.user.create({
-    data: { email, username: generarHandle(), passwordHash: "TEST-FIXTURE-hash" },
+    data: {
+      referralCode: generarCodigoReferido(),
+      email,
+      username: generarHandle(),
+      passwordHash: "TEST-FIXTURE-hash",
+    },
   });
 }
 

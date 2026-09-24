@@ -33,6 +33,10 @@ export async function POST(req: Request) {
       // quemar CPU en el pre-hash de Argon2 con una entrada enorme; .min(1) para no aceptar vacío.
       password: z.string().min(1).max(200),
       birthDate: z.coerce.date(),
+      // Codigo del enlace de invitacion, si llego por uno. OPCIONAL y tolerante: un valor con mala
+      // forma no invalida el alta, se ignora (lo resuelve `referentePorCodigo`). Si aqui fuera
+      // estricto, pegar un enlace roto impediria registrarse, que es peor que perder la invitacion.
+      ref: z.string().trim().max(64).optional(),
     })
     .refine((d) => ageYears(d.birthDate, new Date()) >= MIN_AGE_YEARS, {
       message: `Debes tener al menos ${MIN_AGE_YEARS} anos.`,
@@ -75,6 +79,7 @@ export async function POST(req: Request) {
       password: parsed.data.password,
       birthDate: parsed.data.birthDate,
       appUrl: env.APP_URL,
+      refCode: parsed.data.ref ?? null,
     });
   } catch (e) {
     if (esArgon2Sobrecargado(e)) {

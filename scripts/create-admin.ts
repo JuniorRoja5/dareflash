@@ -19,6 +19,7 @@ import { emitKeypressEvents, type Key } from "node:readline";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { z } from "zod";
 
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 import { generarHandle } from "../src/server/auth/handle";
 import { hashPassword } from "../src/server/auth/password";
 import { PrismaClient } from "../src/generated/prisma/client";
@@ -127,6 +128,8 @@ async function main() {
         data: {
           email: email.data,
           username: generarHandle(), // handle NEUTRAL auto-generado (username es NOT NULL); se personaliza luego
+          // El codigo de invitacion tambien es NOT NULL: TODA via de alta lo asigna (ver codigo-referido).
+          referralCode: generarCodigoReferido(),
           role: "ADMIN",
           passwordHash,
           emailVerified: now, // el primer admin se crea ya verificado

@@ -1,9 +1,11 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
+import { PARAM_REFERIDO } from "@/config/constants";
 import { postJson } from "@/lib/cliente-http";
 import { mensajeError, MSG_REGISTRO } from "@/lib/mensajes-error";
 
@@ -17,6 +19,10 @@ import { mensajeError, MSG_REGISTRO } from "@/lib/mensajes-error";
 type Estado = "idle" | "enviando" | "hecho";
 
 export function FormularioRegistro() {
+  // El codigo de invitacion viaja en la URL (`/entrar?ref=…`) y se reenvia tal cual. NO se valida
+  // aqui ni se le ensena nada al usuario: si el enlace fuera malo, el alta sigue igual (lo decide el
+  // servidor) y avisar de un enlace roto en mitad del registro solo le daria una razon para dudar.
+  const refCode = useSearchParams().get(PARAM_REFERIDO);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nacimiento, setNacimiento] = useState("");
@@ -35,6 +41,7 @@ export function FormularioRegistro() {
         email: email.trim(),
         password,
         birthDate: nacimiento,
+        ...(refCode ? { ref: refCode } : {}),
       });
       if (r.ok) {
         setEstado("hecho"); // respuesta uniforme: revisa tu correo (sin sesión ni redirección)

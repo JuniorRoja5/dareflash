@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Boton } from "@/components/ui/boton";
 
 import { CambiarEmail } from "./cambiar-email";
+import { EnlaceInvitacion } from "./enlace-invitacion";
 import { CambiarPassword } from "./cambiar-password";
 import { FormularioEditarPerfil } from "./formulario-editar-perfil";
 
@@ -53,8 +54,15 @@ export default async function EditarPerfilPage() {
       website: true,
       instagram: true,
       youtube: true,
+      referralCode: true,
     },
   });
+
+  // El enlace se arma en el SERVIDOR desde `env.APP_URL` (nunca una URL fija). Leer `env` aqui es
+  // legal: esta pagina es `force-dynamic`, corre por peticion y no se prerenderiza.
+  const { env } = await import("@/config/env");
+  const { enlaceReferido } = await import("@/server/services/referidos");
+  const enlaceInvitacion = perfil ? enlaceReferido(env.APP_URL, perfil.referralCode) : null;
 
   return (
     // Desktop v2: contenedor ANCHO + maqueta a DOS COLUMNAS (dentro del formulario): izquierda la
@@ -89,6 +97,7 @@ export default async function EditarPerfilPage() {
           pendienteInicial={perfil?.emailPendiente ?? null}
         />
         <CambiarPassword />
+        {enlaceInvitacion ? <EnlaceInvitacion enlace={enlaceInvitacion} /> : null}
       </FormularioEditarPerfil>
     </div>
   );

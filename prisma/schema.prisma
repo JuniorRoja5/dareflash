@@ -79,6 +79,24 @@ model User {
   // --- Credenciales propias (email/contrasena). OAuth va por Account. ---
   passwordHash String? @db.Text // Argon2id. Null si el usuario solo usa OAuth.
 
+  // --- Referidos ---
+  /// CODIGO DE INVITACION propio, publico y ESTABLE. Se genera al crear la cuenta
+  /// (`server/auth/codigo-referido`, un solo generador para todas las vias de alta) y no cambia
+  /// nunca: vive en enlaces que la gente pega en redes, y rotarlo los rompería todos.
+  ///
+  /// NO se deriva del handle ni del email: el enlace es publico, y derivarlo lo convertiria en una
+  /// filtracion de datos de la cuenta.
+  referralCode String @unique
+
+  /// QUIEN invito a esta cuenta. Se fija UNA VEZ, al registrarse con un enlace valido, y ya no se
+  /// toca: es un hecho del alta, no una preferencia. Nullable porque la inmensa mayoria de las
+  /// cuentas no llegan por invitacion (y ninguna de las que ya existian).
+  ///
+  /// SIN FK a proposito, como los ledgers: si el referente borra su cuenta, el hecho de que invitara
+  /// sigue siendo cierto y los puntos que se pagaron no se deshacen. Lo que se pierde es poder
+  /// nombrarlo, y el historial ya sabe decir eso en humano.
+  referredById String?
+
   // --- Autorizacion y cumplimiento ---
   role Role @default(USER)
 
@@ -167,6 +185,9 @@ model User {
 
   @@index([role])
   @@index([deletedAt])
+  /// "A quien he invitado yo": la unica consulta que se hace por esta columna. Sin el, contar los
+  /// referidos de alguien recorreria la tabla entera.
+  @@index([referredById])
   @@index([scoreAutoridad]) // orden por autoridad en la busqueda (keyset: scoreAutoridad DESC, id)
   @@index([displayName]) // btree para prefijo izquierda-anclado (displayName LIKE 'x%') indexado
   /// LOS TRES ORDENES DEL LISTADO DE CUENTAS (/panel/usuarios), uno por indice. Cada uno lleva `id`

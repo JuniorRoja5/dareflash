@@ -49,6 +49,7 @@ import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import mariadb from "mariadb";
 
 import { PrismaClient } from "../src/generated/prisma/client";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 import { buscarUsuarios } from "../src/server/services/buscar";
 
 import { hostBdTest, urlBdTest } from "./helpers/db";
@@ -251,7 +252,13 @@ async function main(): Promise<void> {
         await prisma.$executeRawUnsafe("DELETE FROM `User`");
         for (const [username, displayName, score] of e.siembra) {
           await prisma.user.create({
-            data: { username, displayName, scoreAutoridad: score, passwordHash: "x" },
+            data: {
+              username,
+              displayName,
+              referralCode: generarCodigoReferido(),
+              scoreAutoridad: score,
+              passwordHash: "x",
+            },
           });
         }
 

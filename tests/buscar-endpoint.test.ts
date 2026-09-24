@@ -4,6 +4,7 @@
  * todo sin repetir). La caché va en modo NULO (sin REDIS_URL) -> aquí se ejercita la ruta contra la BD.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 
@@ -44,6 +45,7 @@ async function crearUsuario(o: {
 }): Promise<void> {
   await prisma.user.create({
     data: {
+      referralCode: generarCodigoReferido(),
       username: o.username,
       displayName: o.displayName ?? null,
       email: o.email ?? null,

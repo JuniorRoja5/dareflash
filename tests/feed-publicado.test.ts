@@ -5,6 +5,7 @@
  * restrictivo gana). Contenido de usuarios borrados/baneados: fuera.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import type { ModerationStatus, PrismaClient } from "../src/generated/prisma/client";
 import { generarPublicCode } from "../src/server/services/reto-codigo";
@@ -55,7 +56,7 @@ async function crearVideo(input: {
 describe("feedPublicado", () => {
   it("lista SOLO PUBLISHED, más nuevos primero, con reproducción del firmante inyectado", async () => {
     const u = await prisma.user.create({
-      data: { username: "autor", pointsBalance: 0 },
+      data: { referralCode: generarCodigoReferido(), username: "autor", pointsBalance: 0 },
       select: { id: true },
     });
     await crearVideo({
@@ -94,7 +95,10 @@ describe("feedPublicado", () => {
   });
 
   it("paginación por cursor: limit N -> N + nextCursor; la página siguiente trae el resto sin solapar", async () => {
-    const u = await prisma.user.create({ data: { username: "autor2" }, select: { id: true } });
+    const u = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "autor2" },
+      select: { id: true },
+    });
     for (let i = 0; i < 3; i += 1) {
       await crearVideo({
         userId: u.id,
@@ -123,7 +127,10 @@ describe("feedPublicado", () => {
   });
 
   it("excluye REEMPLAZOS en vuelo (Video PUBLISHED con reemplazaSubmissionId): no se cuelan en el feed", async () => {
-    const u = await prisma.user.create({ data: { username: "repl" }, select: { id: true } });
+    const u = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "repl" },
+      select: { id: true },
+    });
     await crearVideo({
       userId: u.id,
       status: "PUBLISHED",
@@ -149,7 +156,10 @@ describe("feedPublicado", () => {
   });
 
   it("categoría por AMBAS vías: libre con category -> Video.category; sin submission NI category -> excluido", async () => {
-    const u = await prisma.user.create({ data: { username: "cat" }, select: { id: true } });
+    const u = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "cat" },
+      select: { id: true },
+    });
     const idLibre = await crearVideo({
       userId: u.id,
       status: "PUBLISHED",
@@ -175,11 +185,11 @@ describe("feedPublicado", () => {
 
   it("excluye vídeos de usuarios borrados o baneados", async () => {
     const bor = await prisma.user.create({
-      data: { username: "bor", deletedAt: new Date() },
+      data: { referralCode: generarCodigoReferido(), username: "bor", deletedAt: new Date() },
       select: { id: true },
     });
     const ban = await prisma.user.create({
-      data: { username: "ban", bannedAt: new Date() },
+      data: { referralCode: generarCodigoReferido(), username: "ban", bannedAt: new Date() },
       select: { id: true },
     });
     await crearVideo({
@@ -202,7 +212,10 @@ describe("feedPublicado", () => {
   });
 
   it("votos/reto/categoría salen de la Submission SOLO si está PUBLISHED (si no, votos 0 y caption = título del vídeo)", async () => {
-    const u = await prisma.user.create({ data: { username: "part" }, select: { id: true } });
+    const u = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "part" },
+      select: { id: true },
+    });
     const idPub = await crearVideo({
       userId: u.id,
       status: "PUBLISHED",
@@ -329,7 +342,10 @@ describe("estado de voto en el payload", () => {
   }
 
   it("trae el reto y su ventana; un reto AÚN SIN EMPEZAR no sale como abierto", async () => {
-    const autor = await prisma.user.create({ data: { username: "a1" }, select: { id: true } });
+    const autor = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "a1" },
+      select: { id: true },
+    });
     const ahora = await retoConParticipacion({ autor: autor.id, bunny: "b-1" });
     const futuro = await retoConParticipacion({
       autor: autor.id,
@@ -350,8 +366,14 @@ describe("estado de voto en el payload", () => {
   });
 
   it("`miVoto` señala DÓNDE votó el usuario, y solo en el reto que le corresponde", async () => {
-    const autor = await prisma.user.create({ data: { username: "a2" }, select: { id: true } });
-    const votante = await prisma.user.create({ data: { username: "v2" }, select: { id: true } });
+    const autor = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "a2" },
+      select: { id: true },
+    });
+    const votante = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "v2" },
+      select: { id: true },
+    });
     const uno = await retoConParticipacion({ autor: autor.id, bunny: "b-3" });
     const otro = await retoConParticipacion({ autor: autor.id, bunny: "b-4" });
     await prisma.vote.create({
@@ -370,8 +392,14 @@ describe("estado de voto en el payload", () => {
   });
 
   it("un INVITADO no tiene voto, y el voto de otro usuario no se filtra", async () => {
-    const autor = await prisma.user.create({ data: { username: "a3" }, select: { id: true } });
-    const otro = await prisma.user.create({ data: { username: "v3" }, select: { id: true } });
+    const autor = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "a3" },
+      select: { id: true },
+    });
+    const otro = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "v3" },
+      select: { id: true },
+    });
     const r = await retoConParticipacion({ autor: autor.id, bunny: "b-5" });
     await prisma.vote.create({
       data: { userId: otro.id, challengeId: r.challengeId, submissionId: r.submissionId },
@@ -381,13 +409,19 @@ describe("estado de voto en el payload", () => {
     expect(sinSesion.items[0]!.miVoto).toBeNull();
 
     // Y con OTRA sesión tampoco: `miVoto` es MÍO, no "el último voto que haya".
-    const tercero = await prisma.user.create({ data: { username: "v4" }, select: { id: true } });
+    const tercero = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "v4" },
+      select: { id: true },
+    });
     const conOtra = await feedPublicado(prisma, { firmar: firmarFake, userId: tercero.id });
     expect(conOtra.items[0]!.miVoto).toBeNull();
   });
 
   it("una subida LIBRE no tiene reto ni voto (no hay nada que votar)", async () => {
-    const u = await prisma.user.create({ data: { username: "libre" }, select: { id: true } });
+    const u = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "libre" },
+      select: { id: true },
+    });
     const id = await crearVideo({
       userId: u.id,
       status: "PUBLISHED",
@@ -416,7 +450,10 @@ describe("estado de voto en el payload", () => {
  */
 describe("videoParaFeed", () => {
   it("da el MISMO post que la lista para ese vídeo", async () => {
-    const u = await prisma.user.create({ data: { username: "suelto" }, select: { id: true } });
+    const u = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "suelto" },
+      select: { id: true },
+    });
     const id = await crearVideo({
       userId: u.id,
       status: "PUBLISHED",
@@ -441,8 +478,14 @@ describe("videoParaFeed", () => {
   });
 
   it("trae el voto del usuario en su reto, como la lista", async () => {
-    const autor = await prisma.user.create({ data: { username: "aut" }, select: { id: true } });
-    const votante = await prisma.user.create({ data: { username: "vot" }, select: { id: true } });
+    const autor = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "aut" },
+      select: { id: true },
+    });
+    const votante = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "vot" },
+      select: { id: true },
+    });
     const videoId = await crearVideo({
       userId: autor.id,
       status: "PUBLISHED",
@@ -485,8 +528,14 @@ describe("videoParaFeed", () => {
   it("dice de quién es el vídeo: `esMio` por ID, y nunca para un invitado", async () => {
     // Lo usa lo que no se ofrece sobre lo propio (denunciar). Se calcula aquí y no en el cliente
     // comparando nombres: el nombre se puede cambiar, el id no.
-    const mio = await prisma.user.create({ data: { username: "yo" }, select: { id: true } });
-    const ajeno = await prisma.user.create({ data: { username: "otra" }, select: { id: true } });
+    const mio = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "yo" },
+      select: { id: true },
+    });
+    const ajeno = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "otra" },
+      select: { id: true },
+    });
     const videoMio = await crearVideo({
       userId: mio.id,
       status: "PUBLISHED",
@@ -519,7 +568,10 @@ describe("videoParaFeed", () => {
   });
 
   it("uno que NO se ve da null: la misma regla que la lista", async () => {
-    const u = await prisma.user.create({ data: { username: "invis" }, select: { id: true } });
+    const u = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "invis" },
+      select: { id: true },
+    });
     const retirado = await crearVideo({
       userId: u.id,
       status: "REMOVED",
@@ -536,7 +588,10 @@ describe("videoParaFeed", () => {
       title: "t",
       createdAt: new Date(),
     });
-    const baneada = await prisma.user.create({ data: { username: "ban" }, select: { id: true } });
+    const baneada = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "ban" },
+      select: { id: true },
+    });
     const deBaneada = await crearVideo({
       userId: baneada.id,
       status: "PUBLISHED",

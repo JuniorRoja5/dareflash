@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { generarHandle } from "../src/server/auth/handle";
@@ -25,7 +26,7 @@ beforeEach(async () => {
 
 async function crearUsuarioSinVerificar(email: string): Promise<string> {
   const u = await prisma.user.create({
-    data: { email, username: generarHandle() },
+    data: { referralCode: generarCodigoReferido(), email, username: generarHandle() },
     select: { id: true },
   });
   return u.id;

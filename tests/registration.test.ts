@@ -1,6 +1,7 @@
 import { performance } from "node:perf_hooks";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import { Prisma } from "../src/generated/prisma/client";
 import { generarHandle, HANDLE_MAX_INTENTOS, HANDLE_RE } from "../src/server/auth/handle";
@@ -67,7 +68,13 @@ describe("registro: sin oraculo por tiempo ni carrera", () => {
 
     const existente = "existe@test.com";
     await prisma.user.create({
-      data: { email: existente, username: generarHandle(), passwordHash: "x", birthDate: BIRTH },
+      data: {
+        referralCode: generarCodigoReferido(),
+        email: existente,
+        username: generarHandle(),
+        passwordHash: "x",
+        birthDate: BIRTH,
+      },
     });
 
     const N = 6;
@@ -109,14 +116,26 @@ describe("registro: sin oraculo por tiempo ni carrera", () => {
       if (existing) return; // camino RAPIDO: no llega a hashear
       await hashPassword(PASS); // camino LENTO: solo los nuevos pagan el argon2
       await prisma.user.create({
-        data: { email: e, username: generarHandle(), passwordHash: "x", birthDate: BIRTH },
+        data: {
+          referralCode: generarCodigoReferido(),
+          email: e,
+          username: generarHandle(),
+          passwordHash: "x",
+          birthDate: BIRTH,
+        },
       });
     }
 
     const H = await costeArgon2();
     const existente = "existe@test.com";
     await prisma.user.create({
-      data: { email: existente, username: generarHandle(), passwordHash: "x", birthDate: BIRTH },
+      data: {
+        referralCode: generarCodigoReferido(),
+        email: existente,
+        username: generarHandle(),
+        passwordHash: "x",
+        birthDate: BIRTH,
+      },
     });
 
     const N = 6;
@@ -249,7 +268,13 @@ describe("registro: username auto-generado (nunca NULL)", () => {
 
   it("DIENTES contra la BD real: si el handle generado ya existe, REGENERA y crea igualmente", async () => {
     // Un usuario ya ocupa el handle "usertaken001".
-    await prisma.user.create({ data: { email: "ocupa@test.com", username: "usertaken001" } });
+    await prisma.user.create({
+      data: {
+        referralCode: generarCodigoReferido(),
+        email: "ocupa@test.com",
+        username: "usertaken001",
+      },
+    });
 
     // El generador inyectado devuelve primero el ocupado (choca con el UNIQUE real) y luego uno libre.
     const secuencia = ["usertaken001", "userfresh002"];

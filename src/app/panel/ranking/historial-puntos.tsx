@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 
-import { RAZON_AJUSTE_ADMIN, RAZON_HITO_VIDEOS } from "@/config/constants";
+import {
+  RAZON_AJUSTE_ADMIN,
+  RAZON_HITO_VIDEOS,
+  RAZON_REGISTRO_CON_REFERIDO,
+} from "@/config/constants";
 import { getJson } from "@/lib/cliente-http";
 import type { MovimientoPuntos } from "@/server/services/dareup-admin";
 
@@ -16,6 +20,7 @@ const RAZON_HUMANA: Record<string, string> = {
   [RAZON_HITO_VIDEOS]: "Hito de vídeos publicados",
   [RAZON_AJUSTE_ADMIN]: "Ajuste manual",
   INVITE_FRIEND: "Invitó a un amigo",
+  [RAZON_REGISTRO_CON_REFERIDO]: "Se registró con una invitación",
   REGISTER_FROM_VIDEO_LINK: "Registro desde un vídeo",
   VIDEO_100_EXTERNAL_VIEWS: "100 vistas externas",
 };

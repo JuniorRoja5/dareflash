@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
+
 import { SESSION_MAX_PER_USER, SESSION_TTL_BY_ROLE, SESSION_TTL_MS } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { generarHandle } from "../src/server/auth/handle";
@@ -35,6 +37,7 @@ async function crearUsuario(email: string, over: Record<string, unknown> = {}): 
       emailVerified: new Date(),
       passwordHash: "TEST-FIXTURE-hash-viejo",
       username: generarHandle(),
+      referralCode: generarCodigoReferido(),
       ...over,
     },
     select: { id: true },

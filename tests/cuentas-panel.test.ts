@@ -17,6 +17,7 @@
  * (rojo), o sacar el email en el DTO (rojo).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { anterior, PRIMERA, siguiente, type Paginacion } from "../src/lib/paginacion-pila";
@@ -56,6 +57,7 @@ async function crear(o: {
 }): Promise<string> {
   const u = await prisma.user.create({
     data: {
+      referralCode: generarCodigoReferido(),
       username: o.username ?? generarHandle(),
       displayName: o.displayName ?? null,
       email: o.email ?? null,

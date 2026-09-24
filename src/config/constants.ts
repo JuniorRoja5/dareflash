@@ -255,13 +255,15 @@ export type Locale = (typeof LAUNCH_LOCALES)[number];
 /**
  * Puntos por accion (sistema DareUp). Los puntos suben de nivel y dan fama; NO son
  * dinero ni se canjean por dinero (Terminos y Condiciones, punto 8; implementado como
- * ledgers separados que no se convierten entre si). Valores del documento maestro,
- * con "invitar a un amigo que se registra" = +50 por decision del propietario (el
- * documento proponia +10). El resto de la tabla queda como el documento.
+ * ledgers separados que no se convierten entre si). Valores del documento maestro.
+ *
+ * INVITE_FRIEND valio +50 durante un tiempo por una decision del propietario que SUPERSEDE la
+ * suya: vuelve al +10 del documento maestro (decision cerrada al construir referidos). Se cobra
+ * DOS veces por invitacion —el que invita y el invitado—, asi que el coste real por alta es 20.
  */
 export const POINTS = {
   WIN_CHALLENGE: 30,
-  INVITE_FRIEND: 50,
+  INVITE_FRIEND: 10,
   REGISTER_FROM_VIDEO_LINK: 10,
   TOP20: 10,
   VIDEO_100_EXTERNAL_VIEWS: 10,
@@ -280,6 +282,23 @@ export const VIDEOS_POR_HITO = 3;
 
 /** Razon del movimiento de puntos del hito (union de razones del PointsLedger). */
 export const RAZON_HITO_VIDEOS = "VIDEOS_PUBLICADOS";
+
+/**
+ * REFERIDOS. Una invitacion paga a los DOS lados con el MISMO importe (`POINTS.INVITE_FRIEND`), pero
+ * con razones DISTINTAS, y eso es a proposito: las dos filas tienen `refType: "USER"` y se apuntan
+ * mutuamente, asi que por (razon, tipo, id) serian indistinguibles y el historial no podria decir
+ * quien invito a quien. Con dos razones, cada fila se explica sola —"Invito a @fulano" / "Se registro
+ * con el enlace de @mengano"— sin tener que ir a mirar la relacion.
+ *
+ * `INVITE_FRIEND` (la del que invita) ya existia como clave de `POINTS`; se reutiliza como razon.
+ */
+export const RAZON_INVITO_AMIGO = "INVITE_FRIEND";
+export const RAZON_REGISTRO_CON_REFERIDO = "REGISTERED_WITH_REFERRAL";
+
+/** Copy de referidos. El codigo NO se ensena como "codigo": se ensena el ENLACE, que es lo que se comparte. */
+export const MSG_REFERIDO_NO_VALIDO = "Ese enlace de invitación no es válido.";
+/** Parametro del enlace de invitacion: `https://…/entrar?ref=CODIGO`. Fuente unica. */
+export const PARAM_REFERIDO = "ref";
 
 /**
  * AJUSTE MANUAL de puntos desde el panel (DareUp): razon de su fila de ledger. Va con refType "ADMIN",

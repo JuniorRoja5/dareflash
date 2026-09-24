@@ -3,6 +3,7 @@
  * publicados -> más score de usuario) y el cursor keyset rotatorio avanza y reinicia (round-robin).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { generarHandle } from "../src/server/auth/handle";
@@ -24,7 +25,7 @@ beforeEach(async () => {
 
 async function usuario(): Promise<string> {
   const u = await prisma.user.create({
-    data: { username: generarHandle(), passwordHash: "x" },
+    data: { referralCode: generarCodigoReferido(), username: generarHandle(), passwordHash: "x" },
     select: { id: true },
   });
   return u.id;

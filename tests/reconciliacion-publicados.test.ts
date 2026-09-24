@@ -8,6 +8,7 @@
  *    ACOTA el sondeo por ciclo y hace WRAP (cobertura completa del catalogo a lo largo de barridos).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { generarHandle } from "../src/server/auth/handle";
@@ -53,7 +54,14 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   await resetDb(prisma);
-  await prisma.user.create({ data: { id: "dueno", username: generarHandle(), passwordHash: "x" } });
+  await prisma.user.create({
+    data: {
+      referralCode: generarCodigoReferido(),
+      id: "dueno",
+      username: generarHandle(),
+      passwordHash: "x",
+    },
+  });
 });
 
 async function crearPublicado(bunnyVideoId: string): Promise<string> {

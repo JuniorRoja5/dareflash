@@ -9,6 +9,7 @@
  */
 import argon2 from "argon2";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { generarHandle } from "../src/server/auth/handle";
@@ -39,7 +40,13 @@ const PARAMS_VIEJOS = {
 
 async function crearUsuario(email: string, passwordHash: string): Promise<string> {
   const u = await prisma.user.create({
-    data: { email, username: generarHandle(), emailVerified: new Date(), passwordHash },
+    data: {
+      referralCode: generarCodigoReferido(),
+      email,
+      username: generarHandle(),
+      emailVerified: new Date(),
+      passwordHash,
+    },
     select: { id: true },
   });
   return u.id;

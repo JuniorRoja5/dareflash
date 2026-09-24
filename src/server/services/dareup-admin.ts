@@ -24,6 +24,8 @@ import {
   AJUSTE_NOTA_MIN,
   DAREUP_HISTORIAL_PAGINA,
   RAZON_AJUSTE_ADMIN,
+  RAZON_INVITO_AMIGO,
+  RAZON_REGISTRO_CON_REFERIDO,
 } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { Db } from "@/server/db/types";
@@ -246,8 +248,8 @@ export async function historialPuntos(
   const handle = new Map(personas.map((p) => [p.id, p.username]));
   const titulo = new Map(retos.map((r) => [r.id, r.title]));
 
-  /** De (tipo, id) a una etiqueta humana. NUNCA devuelve un id: ese es todo el punto. */
-  const referenciaDe = (refType: string | null, refId: string | null): string => {
+  /** De (razón, tipo, id) a una etiqueta humana. NUNCA devuelve un id: ese es todo el punto. */
+  const referenciaDe = (razon: string, refType: string | null, refId: string | null): string => {
     if (!refType || !refId) return REF_NINGUNA;
     if (refType === "ADMIN") {
       const h = handle.get(refId);
@@ -256,10 +258,16 @@ export async function historialPuntos(
     if (refType === "CHALLENGE") return titulo.get(refId) ?? REF_RETO_AUSENTE;
     if (refType === "USER") {
       // Un movimiento que apunta al PROPIO dueño de la ficha no añade nada: es su hito, y repetir su
-      // handle en cada fila de su propio historial es ruido. El resto sí se nombra.
+      // handle en cada fila de su propio historial es ruido.
       if (refId === userId) return REF_NINGUNA;
       const h = handle.get(refId);
-      return h ? `@${h}` : REF_NINGUNA;
+      if (!h) return REF_NINGUNA;
+      // LOS DOS LADOS DE UNA INVITACIÓN. Las dos filas son `USER` y se apuntan mutuamente, así que
+      // lo único que las distingue es la RAZÓN: por eso se pasa. Sin ella, el historial diría
+      // "@fulano" en los dos casos y no se sabría quién invitó a quién.
+      if (razon === RAZON_INVITO_AMIGO) return `Invitó a @${h}`;
+      if (razon === RAZON_REGISTRO_CON_REFERIDO) return `Se registró con el enlace de @${h}`;
+      return `@${h}`;
     }
     // Un tipo que este código no conoce NO se enseña tal cual: sería el cuid otra vez, con otra excusa.
     return REF_NINGUNA;
@@ -273,7 +281,7 @@ export async function historialPuntos(
       razon: f.reason,
       nota: f.nota,
       creadoEnMs: f.createdAt.getTime(),
-      referencia: referenciaDe(f.refType, f.refId),
+      referencia: referenciaDe(f.reason, f.refType, f.refId),
     })),
     nextCursor:
       filas.length > limite && ultima

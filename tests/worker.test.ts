@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { CONFIRM_WAKE_KEY } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 import { generarHandle } from "../src/server/auth/handle";
 import type { EmailAdapter, EmailMessage } from "../src/server/email/adapter";
 import { construirRegistro, type Registro } from "../src/server/jobs/registry";
@@ -442,7 +443,12 @@ describe("worker: event-kick del confirm (marca de wake en SystemState)", () => 
 describe("upload-credential: la marca de wake es ATOMICA con la fila Video", () => {
   it("crea la fila Video Y escribe la marca (valor fresco) en la MISMA transaccion", async () => {
     const user = await prisma.user.create({
-      data: { email: "kick-ok@test.com", username: generarHandle(), passwordHash: "x" },
+      data: {
+        email: "kick-ok@test.com",
+        username: generarHandle(),
+        referralCode: generarCodigoReferido(),
+        passwordHash: "x",
+      },
       select: { id: true },
     });
     const t0 = Date.now();

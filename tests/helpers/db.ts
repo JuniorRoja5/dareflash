@@ -11,6 +11,7 @@
  */
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 
+import { generarCodigoReferido } from "../../src/server/auth/codigo-referido";
 import { generarHandle } from "../../src/server/auth/handle";
 import { PrismaClient } from "../../src/generated/prisma/client";
 
@@ -115,6 +116,7 @@ export async function crearUsuario(
   prisma: PrismaClient,
   overrides: {
     username?: string;
+    referralCode?: string;
     pointsBalance?: number;
     walletBalanceCents?: number;
     boostBalance?: number;
@@ -123,6 +125,8 @@ export async function crearUsuario(
   const u = await prisma.user.create({
     data: {
       username: overrides.username ?? generarHandle(),
+      // NOT NULL y UNIQUE: el helper usa el generador de produccion, igual que el registro.
+      referralCode: overrides.referralCode ?? generarCodigoReferido(),
       pointsBalance: overrides.pointsBalance ?? 0,
       walletBalanceCents: overrides.walletBalanceCents ?? 0,
       boostBalance: overrides.boostBalance ?? 0,

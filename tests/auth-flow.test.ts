@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 import { generarHandle } from "../src/server/auth/handle";
 import { login } from "../src/server/auth/login";
 import { hashPassword } from "../src/server/auth/password";
@@ -46,7 +47,12 @@ describe("registro", () => {
 
   it("email existente: no-op (sin enumeracion) — no crea un segundo usuario", async () => {
     await prisma.user.create({
-      data: { email: "ya@test.com", username: generarHandle(), passwordHash: "x" },
+      data: {
+        referralCode: generarCodigoReferido(),
+        email: "ya@test.com",
+        username: generarHandle(),
+        passwordHash: "x",
+      },
     });
     await registerUser(prisma, {
       email: "ya@test.com",
@@ -63,6 +69,7 @@ describe("login", () => {
   async function crearUsuario(email: string, password: string, verificado: boolean) {
     await prisma.user.create({
       data: {
+        referralCode: generarCodigoReferido(),
         email,
         username: generarHandle(),
         passwordHash: await hashPassword(password),

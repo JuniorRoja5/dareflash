@@ -59,6 +59,20 @@ export async function confirmEmailVerification(
 
   // Marcar verificada la cuenta de esa direccion (email es unico).
   await db.user.updateMany({ where: { email: r.identifier }, data: { emailVerified: now } });
+
+  // EL PREMIO DE REFERIDO SE PAGA AQUI, y no al registrarse: verificar es la barrera antifraude que
+  // impide fabricar puntos con direcciones desechables (ver `services/referidos`). Va DESPUES de
+  // marcar la verificacion —el premio depende de que conste— y no puede tumbarla: si falla, se anota
+  // y la cuenta queda verificada igual. Es idempotente, asi que reverificar no paga dos veces.
+  const cuenta = await db.user.findFirst({
+    where: { email: r.identifier },
+    select: { id: true },
+  });
+  if (cuenta) {
+    const { premiarReferidoSinFallar } = await import("./referidos");
+    await premiarReferidoSinFallar(db, cuenta.id);
+  }
+
   return { verified: true, email: r.identifier };
 }
 
