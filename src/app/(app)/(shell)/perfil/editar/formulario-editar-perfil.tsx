@@ -35,6 +35,7 @@ type EstadoAvatar = "idle" | "subiendo";
 export function FormularioEditarPerfil({
   nombreInicial,
   usuario,
+  puntos,
   imagenInicial,
   bioInicial,
   websiteInicial,
@@ -44,6 +45,8 @@ export function FormularioEditarPerfil({
 }: {
   nombreInicial: string;
   usuario: string;
+  /** Puntos propios: la previa del avatar ensena el anillo de nivel que veran los demas. */
+  puntos: number;
   imagenInicial: string | null;
   bioInicial: string;
   websiteInicial: string;
@@ -223,7 +226,7 @@ export function FormularioEditarPerfil({
               className="h-20 w-20 shrink-0 rounded-full object-cover"
             />
           ) : (
-            <Avatar nombre={nombre || usuario || "?"} tamano="xl" />
+            <Avatar nombre={nombre || usuario || "?"} tamano="xl" puntos={puntos} />
           )}
 
           <div className="min-w-0">

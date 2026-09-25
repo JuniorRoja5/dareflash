@@ -55,6 +55,7 @@ export default async function EditarPerfilPage() {
       instagram: true,
       youtube: true,
       referralCode: true,
+      pointsBalance: true,
     },
   });
 
@@ -82,6 +83,7 @@ export default async function EditarPerfilPage() {
       <FormularioEditarPerfil
         nombreInicial={perfil?.displayName ?? ""}
         usuario={perfil?.username ?? ""}
+        puntos={perfil?.pointsBalance ?? 0}
         imagenInicial={perfil?.image ?? null}
         bioInicial={perfil?.bio ?? ""}
         websiteInicial={perfil?.website ?? ""}

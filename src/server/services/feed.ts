@@ -32,6 +32,11 @@ export interface PostFeed {
   /** Nombre visible (opcional). Si falta, el `username` hace de nombre en la UI. */
   displayName: string | null;
   username: string;
+  /** Avatar del DUENO del video (URL de /avatars/*.webp), o null. */
+  imagen: string | null;
+  /** Puntos del DUENO: el avatar deriva de ellos su anillo de nivel. Columna de `User`, en el mismo
+   *  `select` que ya traia su nombre — ni una consulta mas, y menos una por video. */
+  puntos: number;
   retoTitulo: string;
   categoria: string | null;
   votos: number;
@@ -95,7 +100,7 @@ const SELECT_FEED = {
   title: true,
   category: true,
   commentCount: true,
-  user: { select: { username: true, displayName: true } },
+  user: { select: { username: true, displayName: true, image: true, pointsBalance: true } },
   submission: {
     select: {
       id: true,
@@ -130,6 +135,8 @@ function aPostFeed(
     id: v.id,
     displayName: v.user.displayName,
     username: v.user.username,
+    imagen: v.user.image,
+    puntos: v.user.pointsBalance,
     retoTitulo: sub?.challenge.title ?? v.title ?? "Vídeo",
     categoria: nombreCategoria(claveCategoria),
     votos: sub?.voteCount ?? 0,

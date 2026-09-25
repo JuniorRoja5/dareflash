@@ -188,6 +188,7 @@ export function BuscarCliente({
                         nombre={nombreMostrado(u.displayName, u.username ?? "")}
                         imagen={u.image}
                         tamano="md"
+                        puntos={u.puntos}
                       />
                       <span className="min-w-0">
                         <span className="block truncate font-semibold text-text">

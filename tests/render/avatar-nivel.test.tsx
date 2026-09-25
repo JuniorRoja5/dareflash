@@ -2,16 +2,16 @@
  * EL NIVEL EN EL AVATAR — render real.
  *
  * Lo que se fija:
- *  - el nivel se DERIVA de los puntos con `nivelPorPuntos`, la misma función que la insignia de texto:
- *    un solo origen, no dos derivaciones que puedan discrepar en una frontera;
- *  - las FRONTERAS son las de la escalera (99 -> Rookie sin marca, 100 -> Challenger con la suya);
- *  - el emblema es un SVG NUESTRO, no un emoji: un emoji lo dibuja cada sistema a su manera;
- *  - SIN puntos, el avatar se pinta EXACTAMENTE como antes: ni emblema, ni envoltorio;
- *  - el nivel se ANUNCIA a lectores de pantalla. En un comentario o en el feed el emblema es lo ÚNICO
- *    que lo comunica; sin el `aria-label`, ahí no existiría.
+ *  - EL ANILLO es el requisito, no el glifo: es lo que se ve de lejos. Cada nivel pinta su marco en
+ *    SU color (token), con un grosor que depende del tamaño del avatar;
+ *  - el nivel se DERIVA de los puntos con `nivelPorPuntos`, la misma función que la insignia de
+ *    texto: un solo origen, no dos derivaciones que puedan discrepar en una frontera;
+ *  - las FRONTERAS son las de la escalera (99 -> Rookie sin anillo, 100 -> Challenger con el suyo);
+ *  - el glifo es un SVG NUESTRO y RELLENO, no un emoji ni un contorno que se pierda sobre una foto;
+ *  - SIN puntos, el avatar se pinta EXACTAMENTE como antes: ni anillo, ni envoltorio.
  *
- * Para romperlo: dejar el emblema fijo en vez de por nivel (rojo en las fronteras), derivarlo con un
- * `if` propio en vez de `nivelPorPuntos` (rojo), poner un emoji (rojo), o pintárselo a Rookie (rojo).
+ * Para romperlo: dejar el anillo fijo o del mismo color para todos (rojo), quitarlo y dejar solo el
+ * glifo (rojo), derivar el nivel con un `if` propio (rojo), o pintárselo a Rookie (rojo).
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -24,89 +24,104 @@ import { NIVELES, nivelPorPuntos } from "@/lib/niveles";
 
 afterEach(cleanup);
 
-function pintar(props: { puntos?: number }) {
+function pintar(props: { puntos?: number; tamano?: "sm" | "md" | "lg" | "xl" }) {
   const { container } = render(<Avatar nombre="Yuyu" {...props} />);
+  const circulo = container.querySelector("[data-nivel]") as HTMLElement | null;
   const svg = container.querySelector("svg");
   return {
     container,
+    nivel: circulo?.getAttribute("data-nivel") ?? null,
+    anillo: circulo?.style.boxShadow ?? "",
     etiqueta: svg?.getAttribute("aria-label") ?? null,
-    color: svg?.getAttribute("style") ?? "",
     formas: [...(svg?.querySelectorAll("path") ?? [])].map((p) => p.getAttribute("d")).join("|"),
   };
 }
 
-describe("el emblema sale del nivel, y el nivel de los puntos", () => {
-  it("600 puntos son Pro, con su emblema y su color", () => {
-    const { etiqueta, color } = pintar({ puntos: 600 });
-    expect(etiqueta).toBe("Nivel Pro");
-    expect(color).toContain("--df-nivel-pro");
+describe("EL ANILLO: el marco de color, que es lo que se ve de lejos", () => {
+  it("600 puntos son Pro: anillo con el token de Pro", () => {
+    const { nivel, anillo } = pintar({ puntos: 600 });
+    expect(nivel).toBe("pro");
+    expect(anillo).toContain("--df-nivel-pro");
   });
 
-  it("las fronteras: 99 es Rookie y NO lleva marca; 100 ya es Challenger y sí", () => {
-    expect(pintar({ puntos: 99 }).etiqueta).toBeNull();
-    expect(pintar({ puntos: 100 }).etiqueta).toBe("Nivel Challenger");
-    expect(pintar({ puntos: 9_999 }).etiqueta).toBe("Nivel Elite");
-    expect(pintar({ puntos: 10_000 }).etiqueta).toBe("Nivel Legend");
+  it("cada nivel pinta su PROPIO color, no todos el mismo", () => {
+    const conAnillo = NIVELES.filter((n) => n.emblema);
+    const anillos = conAnillo.map((n) => pintar({ puntos: n.minimo }).anillo);
+    for (const a of anillos) expect(a).not.toBe("");
+    expect(new Set(anillos).size).toBe(conAnillo.length);
+    // Y cada uno nombra el token de SU nivel.
+    for (const [i, n] of conAnillo.entries()) expect(anillos[i]).toContain(n.tokenColor!);
   });
 
-  it("UN SOLO ORIGEN: lo que anuncia el avatar es lo que dice `nivelPorPuntos`", () => {
-    for (const puntos of [0, 99, 100, 499, 500, 1_999, 2_000, 9_999, 10_000, 250_000]) {
-      const nivel = nivelPorPuntos(puntos);
-      const esperado = nivel.emblema ? `Nivel ${nivel.nombre}` : null;
-      expect(pintar({ puntos }).etiqueta, String(puntos)).toBe(esperado);
-    }
+  it("el grosor crece con el tamaño del avatar (un marco fino no se ve en el feed)", () => {
+    const anchos = (["sm", "md", "lg", "xl"] as const).map((t) => {
+      const a = pintar({ puntos: 600, tamano: t }).anillo;
+      return Number(/0 0 0 ([\d.]+)px/.exec(a)?.[1] ?? 0);
+    });
+    for (const w of anchos) expect(w).toBeGreaterThan(0);
+    // Estrictamente creciente: sm < md < lg < xl.
+    expect([...anchos].sort((x, y) => x - y)).toEqual(anchos);
+    expect(new Set(anchos).size).toBe(anchos.length);
   });
 
-  it("cada nivel con emblema pinta una FORMA distinta (si no, el nivel no se leería)", () => {
-    const conEmblema = NIVELES.filter((n) => n.emblema);
-    const formas = conEmblema.map((n) => pintar({ puntos: n.minimo }).formas);
-    for (const f of formas) expect(f.length).toBeGreaterThan(0);
-    expect(new Set(formas).size).toBe(conEmblema.length);
-    // Y cada uno con SU token de color, no todos con el mismo.
-    const colores = conEmblema.map((n) => pintar({ puntos: n.minimo }).color);
-    expect(new Set(colores).size).toBe(conEmblema.length);
+  it("LEGEND lleva doble contorno: el color no puede separarlo del oro del puesto, la forma sí", () => {
+    const legend = pintar({ puntos: 10_000 }).anillo;
+    const pro = pintar({ puntos: 600 }).anillo;
+    // Tres capas (aro, hueco, aro) frente a una sola.
+    expect(legend.split("0 0 0").length - 1).toBeGreaterThan(pro.split("0 0 0").length - 1);
+    expect(legend).toContain("--df-void");
+  });
+
+  it("Rookie NO lleva anillo: es el estándar", () => {
+    expect(pintar({ puntos: 0 }).nivel).toBeNull();
+    expect(pintar({ puntos: 99 }).nivel).toBeNull();
+    expect(pintar({ puntos: 100 }).nivel).toBe("challenger");
   });
 });
 
-describe("son glifos nuestros, no emoji", () => {
-  it("el componente del emblema no contiene un solo carácter de emoji", () => {
+describe("el glifo acompaña al anillo", () => {
+  it("UN SOLO ORIGEN: lo que anuncia el avatar es lo que dice `nivelPorPuntos`", () => {
+    for (const puntos of [0, 99, 100, 499, 500, 1_999, 2_000, 9_999, 10_000, 250_000]) {
+      const nivel = nivelPorPuntos(puntos);
+      expect(pintar({ puntos }).etiqueta, String(puntos)).toBe(
+        nivel.emblema ? `Nivel ${nivel.nombre}` : null,
+      );
+    }
+  });
+
+  it("cada nivel con emblema pinta una FORMA distinta", () => {
+    const conEmblema = NIVELES.filter((n) => n.emblema);
+    const formas = conEmblema.map((n) => pintar({ puntos: n.minimo }).formas);
+    expect(new Set(formas).size).toBe(conEmblema.length);
+  });
+
+  it("es un SVG RELLENO, no un contorno que se pierda sobre una foto", () => {
+    const { container } = render(<Avatar nombre="Yuyu" puntos={10_000} />);
+    const svg = container.querySelector("svg")!;
+    // Disco del color del nivel + glifo calado: no depende de lo que haya debajo.
+    expect(svg.querySelector("circle")?.getAttribute("fill")).toBe("currentColor");
+    expect(svg.getAttribute("stroke")).toBeNull();
+    expect(svg.querySelector("g")?.getAttribute("fill")).toContain("var(--df-void)");
+  });
+
+  it("son glifos nuestros: ni un carácter de emoji en el componente", () => {
     const fuente = readFileSync(
       path.resolve(__dirname, "..", "..", "src", "components", "ui", "emblema-nivel.tsx"),
       "utf8",
     );
-    // Rangos de pictogramas y símbolos. Un emoji aquí significaría que el nivel se ve distinto en
-    // cada dispositivo — y el brief los prohíbe como iconos.
     expect(fuente).not.toMatch(
       /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{1F000}-\u{1F0FF}]/u,
     );
     expect(fuente).toContain("<svg");
   });
-
-  it("lo que se pinta en el DOM es un SVG con trazos, no texto", () => {
-    const { container } = render(<Avatar nombre="Yuyu" puntos={10_000} />);
-    const svg = container.querySelector("svg")!;
-    expect(svg.getAttribute("viewBox")).toBe("0 0 24 24");
-    expect(svg.querySelectorAll("path").length).toBeGreaterThan(0);
-    // El color lo pone el token, no un valor escrito a mano en el componente.
-    expect(svg.getAttribute("style")).toMatch(/var\(--df-[a-z-]+\)/);
-  });
 });
 
 describe("sin puntos, el avatar es el de siempre", () => {
-  it("ni emblema, ni nodo de más", () => {
-    const { etiqueta, container } = pintar({});
+  it("ni anillo, ni glifo, ni nodo de más", () => {
+    const { container, nivel, etiqueta } = pintar({});
+    expect(nivel).toBeNull();
     expect(etiqueta).toBeNull();
     expect(container.querySelector("svg")).toBeNull();
-    // El nodo raíz ES el círculo: sin envoltorio. Es lo que garantiza que las pantallas que no pasan
-    // puntos (la barra de búsqueda, el menú de cuenta, la previa del perfil) no cambien de maqueta.
     expect(container.firstElementChild?.className).toContain("rounded-full");
-  });
-
-  it("un 0 NO es lo mismo que no saberlo: 0 es Rookie, que tampoco lleva marca", () => {
-    // Los dos acaban sin emblema, pero por razones distintas, y esa diferencia importa el día que
-    // Rookie tenga una: pasar un 0 para salir del paso estaría AFIRMANDO que esa persona es Rookie.
-    expect(pintar({ puntos: 0 }).etiqueta).toBeNull();
-    expect(pintar({}).etiqueta).toBeNull();
-    expect(nivelPorPuntos(0).clave).toBe("rookie");
   });
 });

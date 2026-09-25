@@ -209,7 +209,15 @@ describe("buscarUsuarios", () => {
 
     const { items } = await buscarUsuarios(prisma, "ana", null);
     expect(items.map((u) => u.username)).toEqual(["publico1"]);
-    expect(Object.keys(items[0]!).sort()).toEqual(["displayName", "id", "image", "username"]);
+    // `puntos` entra en el DTO publico a proposito: es lo que da el anillo de nivel en los
+    // resultados de busqueda, y es un dato PUBLICO (el nivel se ve en el perfil de cualquiera).
+    expect(Object.keys(items[0]!).sort()).toEqual([
+      "displayName",
+      "id",
+      "image",
+      "puntos",
+      "username",
+    ]);
     expect(JSON.stringify(items)).not.toContain("sec@test.com");
   });
 });

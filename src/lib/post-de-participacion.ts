@@ -19,6 +19,9 @@ export interface ParticipacionParaFeed {
   votos: number;
   username: string;
   displayName: string | null;
+  /** Avatar y puntos del dueno: el feed pinta su avatar con su anillo de nivel. */
+  imagen: string | null;
+  puntos: number;
   retoId: string;
   retoAbierto: boolean;
   miVoto: string | null;
@@ -51,6 +54,8 @@ export function postDeParticipacion(
     id: p.videoId,
     displayName: p.displayName,
     username: p.username,
+    imagen: p.imagen,
+    puntos: p.puntos,
     // El caption del feed es el TÍTULO DEL RETO, no el del vídeo: dentro del feed de un reto todos
     // comparten reto, y es lo que da contexto ("Reto: …") igual que en el feed global.
     retoTitulo: reto.titulo,

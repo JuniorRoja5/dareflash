@@ -11,6 +11,8 @@ export type SugerenciaUsuario = {
   username: string;
   displayName: string | null;
   image: string | null;
+  /** Puntos del usuario: el avatar de la sugerencia pinta su anillo de nivel. */
+  puntos: number;
 };
 export type SugerenciaReto = {
   tipo: "reto";
@@ -39,6 +41,7 @@ export function construirSugerencias(
       username: x.username,
       displayName: x.displayName,
       image: x.image,
+      puntos: x.puntos,
     }));
   const r: Sugerencia[] = retos.map((x) => ({
     tipo: "reto",

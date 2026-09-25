@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { anilloSePisaConPuesto, nivelPorPuntos } from "@/lib/niveles";
+
 import { Avatar } from "./avatar";
 import { tokenPuesto } from "./logic";
 
@@ -49,6 +51,9 @@ export function FilaPuesto({
   puntos?: number;
 }) {
   const esPodio = tokenPuesto(puesto) === "rank";
+  // El marcador de puesto del podio va en ORO; fuera del podio no marca nada con color.
+  const nivelFila = puntos === undefined ? null : nivelPorPuntos(puntos);
+  const sePisa = anilloSePisaConPuesto(nivelFila, esPodio ? "--df-rank" : null);
   return (
     <div
       className={`flex items-center gap-3 border-b border-line py-2.5 last:border-b-0 ${activo ? "bg-raised" : ""}`}
@@ -64,18 +69,18 @@ export function FilaPuesto({
         {puesto}
       </span>
       {/*
-        EN EL PODIO, SIN EMBLEMA. Esta fila marca el puesto 1/2/3 con el ORO (`df-puesto-podio`), y
-        Legend lleva ese MISMO oro —es el mismo token, a propósito: medalla y corona dicen las dos "lo
-        más alto"—. Dos dorados a diez píxeles uno del otro, con dos significados, no se leen: se
-        estorban. Así que donde el oro ya está haciendo de puesto, el nivel se calla y lo dice la
-        insignia de texto que va al lado. Es la misma renuncia que ya hizo el bloque del podio.
+        EL NIVEL SE VE TAMBIÉN EN EL PODIO, salvo el único que de verdad se pisa. Esta fila marca el
+        puesto 1/2/3 con el ORO, y Legend lleva ESE MISMO token: dos dorados pegados con dos
+        significados no se leen. Verde, fuego y cian conviven con el oro sin problema, así que
+        retirarlos a los cuatro era pasarse — la regla la decide `anilloSePisaConPuesto`, que compara
+        tokens, y aquí solo se aplica.
       */}
       <Avatar
         nombre={username}
         imagen={imagen}
         tamano="sm"
         perezosa
-        puntos={esPodio ? undefined : puntos}
+        puntos={sePisa ? undefined : puntos}
       />
       <span className="min-w-0 flex-1 truncate font-medium">@{username}</span>
       {insignia ? <span className="shrink-0">{insignia}</span> : null}

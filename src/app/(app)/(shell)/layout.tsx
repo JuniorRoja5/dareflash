@@ -19,15 +19,21 @@ export default async function ShellLayout({ children }: { children: ReactNode })
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const user = await getCurrentUser();
 
-  let cuenta: { nombre: string; imagen: string | null } | null = null;
+  let cuenta: { nombre: string; imagen: string | null; puntos: number } | null = null;
   if (user) {
     const { prisma } = await import("@/server/db/client");
     const fila = await prisma.user.findUnique({
       where: { id: user.userId },
-      select: { displayName: true, username: true, image: true },
+      // `pointsBalance`: una columna mas en la consulta que YA se hacia, para el anillo de nivel del
+      // avatar de la barra. Ni una consulta extra.
+      select: { displayName: true, username: true, image: true, pointsBalance: true },
     });
     if (fila) {
-      cuenta = { nombre: fila.displayName ?? fila.username ?? "Tú", imagen: fila.image };
+      cuenta = {
+        nombre: fila.displayName ?? fila.username ?? "Tú",
+        imagen: fila.image,
+        puntos: fila.pointsBalance,
+      };
     }
   }
 

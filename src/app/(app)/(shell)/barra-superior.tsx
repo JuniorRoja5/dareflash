@@ -22,7 +22,7 @@ export function BarraSuperior({
   rol,
 }: {
   /** Usuario de la sesión (nombre + avatar reales). `null` = invitado -> silueta genérica. */
-  usuario: { nombre: string; imagen: string | null } | null;
+  usuario: { nombre: string; imagen: string | null; puntos: number } | null;
   /** Rol de la sesión (`null` = invitado). Decide el CTA principal: ver `ctaPrincipal`. */
   rol: string | null;
 }) {

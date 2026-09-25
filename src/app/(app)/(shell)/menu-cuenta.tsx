@@ -67,7 +67,7 @@ const CLASE_ITEM =
 export function MenuCuenta({
   usuario,
 }: {
-  usuario: { nombre: string; imagen: string | null } | null;
+  usuario: { nombre: string; imagen: string | null; puntos: number } | null;
 }) {
   const [abierto, setAbierto] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -88,7 +88,12 @@ export function MenuCuenta({
         className="flex items-center gap-1 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-text"
       >
         {usuario ? (
-          <Avatar nombre={usuario.nombre} imagen={usuario.imagen} tamano="sm" />
+          <Avatar
+            nombre={usuario.nombre}
+            imagen={usuario.imagen}
+            tamano="sm"
+            puntos={usuario.puntos}
+          />
         ) : (
           <SiluetaInvitado />
         )}

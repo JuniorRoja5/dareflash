@@ -197,6 +197,7 @@ export function BuscadorBarra() {
                     nombre={nombreMostrado(s.displayName, s.username)}
                     imagen={s.image}
                     tamano="sm"
+                    puntos={s.puntos}
                   />
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold text-text">

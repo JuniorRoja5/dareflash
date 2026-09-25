@@ -36,6 +36,8 @@ const PARTICIPACION = {
   votos: 42,
   username: "ana",
   displayName: "Ana",
+  imagen: null,
+  puntos: 0,
   retoId: "reto-1",
   retoAbierto: true,
   miVoto: "sub-1",
@@ -52,6 +54,8 @@ describe("el ítem tiene la MISMA forma que el que pinta el feed", () => {
       // `onNoDisponible` para retirar uno roto.
       id: "vid-1",
       displayName: "Ana",
+      imagen: null,
+      puntos: 0,
       username: "ana",
       retoTitulo: "Reto de fitness",
       categoria: "Fitness",

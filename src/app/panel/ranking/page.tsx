@@ -132,7 +132,13 @@ export default async function DareUpPage({
                       r.id === u ? "bg-raised text-text" : "text-text-dim"
                     }`}
                   >
-                    <Avatar nombre={r.username ?? "?"} imagen={r.image} tamano="sm" />@{r.username}
+                    <Avatar
+                      nombre={r.username ?? "?"}
+                      imagen={r.image}
+                      tamano="sm"
+                      puntos={r.puntos}
+                    />
+                    @{r.username}
                   </Link>
                 </li>
               ))}

@@ -45,6 +45,9 @@ export interface UsuarioBusqueda {
   username: string | null;
   displayName: string | null;
   image: string | null;
+  /** Puntos: el avatar de los resultados deriva de ellos su anillo de nivel. Columna del MISMO
+   *  SELECT que ya se hacia — no una consulta por fila. */
+  puntos: number;
 }
 
 /**
@@ -182,6 +185,7 @@ type FilaUsuario = FilaOrden & {
   username: string | null;
   displayName: string | null;
   image: string | null;
+  pointsBalance: unknown;
 };
 
 /** Lo que el modo PANEL trae de más: gobierno de la cuenta y sus cifras. Jamás el email. */
@@ -265,7 +269,7 @@ async function filasDeUsuarios<F extends FilaUsuario>(
   const columnas = admin
     ? Prisma.sql`id, username, displayName, image, scoreAutoridad,
         role, bannedAt, createdAt, pointsBalance, victoriasTotales`
-    : Prisma.sql`id, username, displayName, image, scoreAutoridad`;
+    : Prisma.sql`id, username, displayName, image, scoreAutoridad, pointsBalance`;
 
   // Exactitud: username EXACTO (2) > prefijo en username/displayName (1) > solo por fulltext (0).
   const rango = Prisma.sql`CASE
@@ -320,6 +324,7 @@ export async function buscarUsuarios(
     username: f.username,
     displayName: f.displayName,
     image: f.image,
+    puntos: Number(f.pointsBalance),
   }));
 }
 

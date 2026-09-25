@@ -35,6 +35,8 @@ import FeedPage from "../src/app/(app)/feed/page";
 const post = (id: string): PostFeed => ({
   id,
   displayName: null,
+  imagen: null,
+  puntos: 0,
   username: `autor_${id}`,
   retoTitulo: "t",
   categoria: null,

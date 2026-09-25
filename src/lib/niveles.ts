@@ -79,6 +79,21 @@ export const NIVELES: readonly Nivel[] = [
 export const TOTAL_TIERS = NIVELES.length;
 
 /**
+ * ¿EL ANILLO DE NIVEL SE PISA CON EL COLOR QUE YA MARCA EL PUESTO? (puro)
+ *
+ * Solo hay un caso real: el oro. Legend comparte token con la medalla y con el marcador de puesto
+ * (`--df-rank`), asi que un Legend en el podio tendria dos oros concentricos con dos significados.
+ * Verde, fuego y cian conviven con el oro sin problema, y por eso la regla se escribe asi —"mismo
+ * token"— y no como "en el podio no hay nivel": retirar los cuatro que NO chocan era pasarse.
+ *
+ * Se compara por TOKEN y no por valor: los dos cambian con el tema, y comparar hexadecimales
+ * obligaria a leer el CSS desde un componente.
+ */
+export function anilloSePisaConPuesto(nivel: Nivel | null, tokenPuesto: string | null): boolean {
+  return nivel?.tokenColor != null && tokenPuesto != null && nivel.tokenColor === tokenPuesto;
+}
+
+/**
  * Nivel por puntos (PURO). Devuelve el nivel de mayor `minimo` que `puntos` alcanza. Fronteras
  * INCLUSIVAS por abajo: 99 -> Rookie, 100 -> Challenger, 1999 -> Pro, 2000 -> Elite, 9999 -> Elite,
  * 10000 -> Legend. Puntos negativos -> Rookie. Extraida para atarla con dientes: mover un umbral

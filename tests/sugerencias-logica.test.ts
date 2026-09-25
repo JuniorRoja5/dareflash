@@ -19,6 +19,7 @@ const usuario = (
   username: o.username === undefined ? "yuyu" : o.username,
   displayName: o.displayName ?? null,
   image: null,
+  puntos: 0,
 });
 const reto = (
   o: Partial<{ id: string; publicCode: string; slug: string; title: string; category: string }>,
@@ -55,6 +56,7 @@ describe("construirSugerencias", () => {
       username: "ana",
       displayName: "Ana G",
       image: null,
+      puntos: 0,
     });
   });
 });
@@ -67,6 +69,7 @@ describe("destinoSugerencia", () => {
       username: "yuyu",
       displayName: null,
       image: null,
+      puntos: 0,
     };
     const r: Sugerencia = {
       tipo: "reto",

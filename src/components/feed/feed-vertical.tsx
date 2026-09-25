@@ -2,6 +2,7 @@
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
+import { Avatar } from "@/components/ui/avatar";
 import { BotonVoto } from "@/components/ui/boton-voto";
 import { Denunciar } from "@/components/ui/denunciar";
 import { PildoraCategoria } from "@/components/ui/pildora";
@@ -194,8 +195,20 @@ function PostInicio({
         {/* Info sobre el video — solo movil. `pointer-events-none`: los taps la ATRAVIESAN y llegan a la
             capa de pausa/reanudar del player (no es un target interactivo). */}
         <div className="pointer-events-none absolute bottom-0 left-0 z-10 w-3/4 p-4 pb-24 lg:hidden">
-          <p className="text-base font-semibold text-white">{conHandle ? nombre : `@${nombre}`}</p>
-          {conHandle ? <p className="text-sm text-white/80">@{post.username}</p> : null}
+          {/* EL AVATAR DEL DUEÑO, que hasta ahora no se dibujaba: el feed es donde más gente ve a más
+              gente, y era justo el sitio donde el nivel no aparecía. Con su anillo de nivel, que sale
+              de los puntos que ya viajan en el post (misma consulta, una columna más). */}
+          <div className="mb-2 flex items-center gap-2">
+            <Avatar nombre={post.username} imagen={post.imagen} tamano="sm" puntos={post.puntos} />
+            <span className="min-w-0">
+              <span className="block truncate text-base font-semibold text-white">
+                {conHandle ? nombre : `@${nombre}`}
+              </span>
+              {conHandle ? (
+                <span className="block truncate text-sm text-white/80">@{post.username}</span>
+              ) : null}
+            </span>
+          </div>
           <p className="mt-1 line-clamp-2 text-sm text-white/90">Reto: {post.retoTitulo}</p>
           {post.categoria ? (
             <div className="mt-2">
@@ -292,8 +305,18 @@ function PanelComentarios({
   return (
     <aside className="hidden border-l border-line bg-surface shadow-[var(--df-shadow-lg)] lg:flex lg:h-[100svh] lg:flex-col lg:overflow-hidden">
       <div className="border-b border-line p-4">
-        <p className="font-semibold text-text">{conHandle ? nombre : `@${nombre}`}</p>
-        {conHandle ? <p className="text-sm text-text-dim">@{post.username}</p> : null}
+        {/* Mismo avatar y mismo anillo que en movil: el dueno del video se ve en las dos maquetas. */}
+        <div className="flex items-center gap-2">
+          <Avatar nombre={post.username} imagen={post.imagen} tamano="sm" puntos={post.puntos} />
+          <span className="min-w-0">
+            <span className="block truncate font-semibold text-text">
+              {conHandle ? nombre : `@${nombre}`}
+            </span>
+            {conHandle ? (
+              <span className="block truncate text-sm text-text-dim">@{post.username}</span>
+            ) : null}
+          </span>
+        </div>
         <p className="mt-1 line-clamp-2 text-sm text-text-dim">Reto: {post.retoTitulo}</p>
         <div className="mt-2 flex items-center gap-2">
           {post.categoria ? <PildoraCategoria>{post.categoria}</PildoraCategoria> : null}

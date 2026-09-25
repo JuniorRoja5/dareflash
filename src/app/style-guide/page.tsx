@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { CSSProperties, ReactNode } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
+import { NIVELES } from "@/lib/niveles";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { FilaPuesto } from "@/components/ui/fila-puesto";
@@ -540,7 +541,7 @@ export default function StyleGuide() {
         <div className="flex flex-wrap items-start gap-8">
           <Tarjeta className="w-full max-w-xs">
             <div className="flex items-center gap-3">
-              <Avatar nombre="Campeona del Barrio" tamano="md" />
+              <Avatar nombre="Campeona del Barrio" tamano="md" puntos={600} />
               <div className="min-w-0">
                 <p className="truncate font-semibold">@campeona_del_barrio_2026</p>
                 <p className="text-sm tabular-nums text-text-dim">1,204 seguidores</p>
@@ -552,10 +553,15 @@ export default function StyleGuide() {
               <PildoraCategoria>Reto de la semana</PildoraCategoria>
             </div>
           </Tarjeta>
+          {/* LOS CINCO NIVELES, para poder mirarlos juntos en los dos temas: es lo que hace útil una
+              guía de estilo. Rookie no lleva anillo (es el estándar); los demás, el suyo y su glifo. */}
           <div className="flex items-end gap-4">
-            <Avatar nombre="Leo" tamano="sm" />
-            <Avatar nombre="María" tamano="md" />
-            <Avatar nombre="Xoán" tamano="lg" />
+            {NIVELES.map((n) => (
+              <span key={n.clave} className="flex flex-col items-center gap-2">
+                <Avatar nombre={n.nombre} tamano="lg" puntos={n.minimo} />
+                <span className="text-2xs text-text-dim">{n.nombre}</span>
+              </span>
+            ))}
           </div>
         </div>
         <p className="mt-6 max-w-prose text-sm text-text-dim">

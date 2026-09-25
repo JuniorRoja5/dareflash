@@ -90,7 +90,15 @@ describe("GET /api/buscar", () => {
     const res = await GET(reqBuscar({ q: "ana", tipo: "usuarios" }));
     const body = (await res.json()) as { items: Record<string, unknown>[] };
     expect(JSON.stringify(body)).not.toContain("sec@test.com");
-    expect(Object.keys(body.items[0]!).sort()).toEqual(["displayName", "id", "image", "username"]);
+    // `puntos` entra a propósito: es lo que pinta el anillo de nivel en los resultados, y es un dato
+    // PÚBLICO (el nivel se ve en el perfil de cualquiera). Lo que sigue fuera es lo privado.
+    expect(Object.keys(body.items[0]!).sort()).toEqual([
+      "displayName",
+      "id",
+      "image",
+      "puntos",
+      "username",
+    ]);
   });
 
   it("rate-limit por IP: agotado el cubo -> 429", async () => {

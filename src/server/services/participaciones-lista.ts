@@ -45,6 +45,10 @@ export interface ParticipacionBase {
   votos: number;
   username: string;
   displayName: string | null;
+  /** Avatar y puntos del DUENO: el feed del reto pinta su avatar con su anillo de nivel. Columnas
+   *  del MISMO select que ya traia su nombre. */
+  imagen: string | null;
+  puntos: number;
 }
 
 /** Participación tal como la ve el PÚBLICO: lo de arriba + lo que el botón de voto necesita. */
@@ -194,7 +198,7 @@ export async function listarParticipacionesVisibles(
             commentCount: true,
           },
         },
-        user: { select: { username: true, displayName: true } },
+        user: { select: { username: true, displayName: true, image: true, pointsBalance: true } },
       },
     }),
   ]);
@@ -214,6 +218,8 @@ export async function listarParticipacionesVisibles(
     votos: f.voteCount,
     username: f.user.username,
     displayName: f.user.displayName,
+    imagen: f.user.image,
+    puntos: f.user.pointsBalance,
     retoId: challengeId,
     retoAbierto: abierto,
     miVoto,
@@ -339,7 +345,7 @@ export async function listarParticipacionesAdmin(
           status: true,
         },
       },
-      user: { select: { username: true, displayName: true } },
+      user: { select: { username: true, displayName: true, image: true, pointsBalance: true } },
     },
   });
 
@@ -355,6 +361,8 @@ export async function listarParticipacionesAdmin(
     votos: f.voteCount,
     username: f.user.username,
     displayName: f.user.displayName,
+    imagen: f.user.image,
+    puntos: f.user.pointsBalance,
     estado: estadoAdmin(f.status, f.video.status),
     creadaEn: f.createdAt,
     reproducible: f.video.status === "PUBLISHED",

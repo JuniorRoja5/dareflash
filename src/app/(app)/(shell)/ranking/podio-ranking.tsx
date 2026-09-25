@@ -1,4 +1,5 @@
 import { Avatar, type TamanoAvatar } from "@/components/ui/avatar";
+import { anilloSePisaConPuesto, nivelPorPuntos } from "@/lib/niveles";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
 
 import {
@@ -35,6 +36,18 @@ const MEDALLA_VAR: Record<Medalla, string> = {
 function colorMedalla(puesto: number): string {
   const m = medallaPuesto(puesto);
   return m ? MEDALLA_VAR[m] : "var(--df-text-dim)";
+}
+
+/** Token de medalla -> NOMBRE del token (sin `var(...)`): es lo que se compara con el del nivel. */
+const MEDALLA_TOKEN: Record<Medalla, string> = {
+  rank: "--df-rank",
+  silver: "--df-silver",
+  bronze: "--df-bronze",
+};
+
+function tokenMedalla(puesto: number): string | null {
+  const m = medallaPuesto(puesto);
+  return m ? MEDALLA_TOKEN[m] : null;
 }
 
 /** Geometria por puesto: DOBLE senal con el color (altura del pedestal + tamano de avatar + posicion). */
@@ -96,26 +109,39 @@ function AvatarMedalla({
   tamano,
   anillo,
   color,
+  puntos,
+  tokenMedalla,
 }: {
   nombre: string;
   imagen: string | null;
   tamano: TamanoAvatar;
   anillo: number;
   color: string;
+  /** Puntos de esa persona: el avatar deriva su anillo de nivel. */
+  puntos?: number;
+  /** Token del color de la MEDALLA, para saber si el anillo de nivel se pisaria con ella. */
+  tokenMedalla: string | null;
 }) {
+  const nivel = puntos === undefined ? null : nivelPorPuntos(puntos);
+  const sePisa = anilloSePisaConPuesto(nivel, tokenMedalla);
   return (
     <span
       className="inline-flex rounded-full p-[3px]"
       style={{ border: `${anillo}px solid ${color}` }}
     >
       {/*
-        SIN `puntos`, y por tanto SIN anillo de nivel, a propósito: el anillo de este avatar ya está
-        ocupado por la MEDALLA (oro/plata/bronce), que es de lo que va el podio. Dos anillos
-        concéntricos con dos significados distintos en el mismo círculo no se leen: se estorban.
-        Aquí el nivel se dice igual, con la `InsigniaNivel` que va justo debajo.
+        EL NIVEL TAMBIEN SE VE EN EL PODIO. El aro de fuera es la MEDALLA; el de dentro, el nivel. Con
+        colores distintos (verde, fuego, cian dentro de oro/plata/bronce) los dos se leen. El unico
+        que se pisa es Legend dentro de la medalla de ORO: mismo token, asi que el color no puede
+        separarlos y ahi el nivel lo dice la `InsigniaNivel` de debajo.
         No perezoso: el podio es lo primero que se ve al entrar.
       */}
-      <Avatar nombre={nombre} imagen={imagen} tamano={tamano} />
+      <Avatar
+        nombre={nombre}
+        imagen={imagen}
+        tamano={tamano}
+        puntos={sePisa ? undefined : puntos}
+      />
     </span>
   );
 }
@@ -156,6 +182,8 @@ function ColumnaPodio({ fila, puesto }: { fila: FilaPodio; puesto: PuestoPodio }
           tamano={geo.avatar}
           anillo={geo.anillo}
           color={color}
+          puntos={fila.puntos}
+          tokenMedalla={tokenMedalla(puesto)}
         />
       </span>
       <p
@@ -231,6 +259,8 @@ function TarjetaMovil({
         tamano={destacado ? "lg" : "md"}
         anillo={destacado ? 2.5 : 1.5}
         color={color}
+        puntos={fila.puntos}
+        tokenMedalla={tokenMedalla(puesto)}
       />
       <div className={`flex flex-col ${destacado ? "min-w-0 items-start" : "items-center"}`}>
         <p className="max-w-[16ch] truncate font-semibold text-text">@{fila.username}</p>
