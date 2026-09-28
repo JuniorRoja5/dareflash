@@ -75,14 +75,39 @@ describe("ningún token se queda sin contrapartida", () => {
     expect([...CLARO.keys()].sort()).toEqual([...OSCURO.keys()].sort());
   });
 
+  /**
+   * REPETIR UN VALOR EN LOS DOS TEMAS SOLO VALE SI ESTÁ DECIDIDO, y aquí están las únicas
+   * decisiones de esa clase. Cada una lleva su porqué: sin él, esta lista se convierte en el sitio
+   * donde se aparcan los olvidos.
+   */
+  const REPETIDOS_A_PROPOSITO: Record<string, string> = {
+    // Un QR no es interfaz, es una marca que lee una CÁMARA. Los lectores esperan módulos oscuros
+    // sobre fondo claro y varios fallan con el patrón invertido, así que si estas dos tintas
+    // siguieran al tema, en oscuro habría teléfonos que no cogerían el código — roto sin verse roto.
+    "--df-qr-tinta": "el QR no sigue al tema: lo lee una cámara, no una persona",
+    "--df-qr-fondo": "ídem: la placa del QR es clara en los dos temas",
+  };
+
   it("y ninguno repite el valor del oscuro (sería un olvido, no una decisión)", () => {
     const iguales = [...CLARO.entries()]
       .filter(([k, v]) => OSCURO.get(k) === v)
       .map(([k]) => k)
       // El velo y las sombras se DERIVAN de la paleta, así que su texto puede parecerse; se comparan
       // por valor literal y estos sí cambian. Si alguno dejara de cambiar, saldría aquí.
-      .filter((k) => k !== "--df-dur-fast");
+      .filter((k) => k !== "--df-dur-fast")
+      .filter((k) => !(k in REPETIDOS_A_PROPOSITO));
     expect(iguales).toEqual([]);
+  });
+
+  it("y las excepciones siguen existiendo: no se aparcan tokens que ya no están", () => {
+    // Una excepción para un token borrado es una puerta abierta esperando a que alguien la use con
+    // otro nombre parecido. Si se quita el QR, esta lista tiene que quedarse vacía con él.
+    for (const nombre of Object.keys(REPETIDOS_A_PROPOSITO)) {
+      expect(CLARO.has(nombre), `${nombre} ya no existe: quita su excepción`).toBe(true);
+      expect(OSCURO.get(nombre), `${nombre} ya no se repite: quita su excepción`).toBe(
+        CLARO.get(nombre),
+      );
+    }
   });
 });
 

@@ -136,6 +136,18 @@
   /* CUANTO tiñe el halo de nivel del hero de /puntos. Sobre fondo oscuro, un color saturado al 22%
      se lee como luz; ver la version clara, que NO puede usar este mismo numero. */
   --df-halo-fuerza: 22%;
+
+  /* ------------------------------------------------------------------------------------------
+     CODIGO QR — LOS DOS UNICOS TOKENS QUE VALEN LO MISMO EN LOS DOS TEMAS, y es a proposito.
+     Un QR no es interfaz: es una marca que tiene que LEER UNA CAMARA. Los lectores esperan modulos
+     OSCUROS sobre fondo CLARO, y bastantes fallan con el patron invertido. Si estas dos tintas
+     siguieran al tema, en oscuro saldria un QR claro sobre negro y habria telefonos que no lo
+     cogerian: el codigo dejaria de funcionar sin que se viera nada raro en pantalla.
+     Por eso el QR lleva SIEMPRE su placa clara, en los dos temas. Es la misma clase de excepcion
+     documentada que `.df-puesto-podio`, y el test de simetria de paleta la conoce por su nombre.
+     ------------------------------------------------------------------------------------------ */
+  --df-qr-tinta: #0d1117;
+  --df-qr-fondo: #ffffff;
 }
 
 /* ============================================================================
@@ -187,6 +199,11 @@
      OSCUROS (bajados de luminosidad para leerse sobre blanco), asi que sobre una tarjeta blanca el
      mismo 22% no da luz, da una mancha sucia. Con 10% se lee como un tinte. */
   --df-halo-fuerza: 10%;
+
+  /* El QR NO cambia con el tema: ver el porque en el bloque oscuro. Se repiten aqui, y no se
+     omiten, para que el test de simetria siga exigiendo que todo token exista en los dos sitios. */
+  --df-qr-tinta: #0d1117;
+  --df-qr-fondo: #ffffff;
 }
 
 /* Lo que NO depende del tema, o se DERIVA de el con color-mix (y entonces cambia solo). */

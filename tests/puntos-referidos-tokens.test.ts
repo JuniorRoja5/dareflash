@@ -29,6 +29,9 @@ const SUELTOS = [
   join(RAIZ, "src", "components", "ui", "tarjeta-metrica.tsx"),
   join(RAIZ, "src", "components", "ui", "campo-copiable.tsx"),
   join(RAIZ, "src", "components", "ui", "pasos-keyset.tsx"),
+  // El QR también: es el único que NO sigue al tema, y precisamente por eso tiene que nombrar sus
+  // dos tintas por token (`--df-qr-*`) en vez de escribir un blanco y un negro en el SVG.
+  join(RAIZ, "src", "components", "ui", "codigo-qr.tsx"),
 ];
 
 function ficheros(dir: string): string[] {

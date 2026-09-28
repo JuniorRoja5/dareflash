@@ -2,12 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Avatar } from "@/components/ui/avatar";
-import { CampoCopiable } from "@/components/ui/campo-copiable";
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { TarjetaMetrica } from "@/components/ui/tarjeta-metrica";
 import { POINTS } from "@/config/constants";
 import { nombreMostrado } from "@/lib/identidad";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
+
+import { HeroInvitacion } from "./hero-invitacion";
 
 export const metadata = { title: "Mis referidos · DareFlash" };
 // Lee la sesión y consulta por cursor: por petición, nunca cacheada.
@@ -62,13 +63,7 @@ export default async function ReferidosPage({
 
   return (
     <div className="df-rise mx-auto w-full max-w-5xl px-4 py-8 lg:px-8 lg:py-12">
-      <h1 className="text-2xl font-semibold text-text">Invita y gana puntos</h1>
-      {/* LA RECOMPENSA, EN UNA LÍNEA. El importe sale de `POINTS`, nunca escrito aquí: un número a
-          mano sería un segundo catálogo esperando a discrepar del que se paga. */}
-      <p className="mt-2 max-w-prose text-sm text-text-dim">
-        Ganas <strong className="font-semibold text-text">{POINTS.INVITE_FRIEND} puntos</strong>{" "}
-        cuando tu invitado verifica su correo. Tu invitado gana otros tantos.
-      </p>
+      <HeroInvitacion enlace={enlace} codigo={yo?.referralCode ?? null} />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <TarjetaMetrica etiqueta="Invitados" valor={resumen.invitados.toLocaleString("es-ES")} />
@@ -84,33 +79,10 @@ export default async function ReferidosPage({
         />
       </div>
 
-      {/* DOS COLUMNAS EN ESCRITORIO: lo que se comparte a un lado, a quién has traído al otro. */}
-      <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:gap-10">
-        <section aria-labelledby="compartir" className="lg:sticky lg:top-24 lg:self-start">
-          <h2
-            id="compartir"
-            className="text-sm font-semibold tracking-widest text-text-dim uppercase"
-          >
-            Lo que compartes
-          </h2>
-          {enlace && yo ? (
-            <div className="mt-4 space-y-4 rounded-sm border border-line bg-surface/60 p-5 shadow-[var(--df-shadow-sm)] backdrop-blur-md">
-              {/* EL ÚNICO ACENTO DE LA PANTALLA. Compartir el enlace es LA acción de /referidos, y
-                  el sistema reserva `--df-action` para una por pantalla. El código va secundario a
-                  propósito: es el plan B para donde no cabe un enlace. */}
-              <CampoCopiable id="ref-enlace" etiqueta="Tu enlace" valor={enlace} principal />
-              <CampoCopiable id="ref-codigo" etiqueta="Tu código" valor={yo.referralCode} />
-              <p className="text-2xs text-text-dim">
-                El enlace se pega y ya está. El código es para donde no cabe un enlace.
-              </p>
-            </div>
-          ) : (
-            <p className="mt-4 rounded-sm border border-line bg-surface p-5 text-sm text-text-dim">
-              No hemos podido cargar tu enlace. Recarga la página.
-            </p>
-          )}
-        </section>
-
+      {/* EL HISTORIAL, A TODO EL ANCHO. Antes compartía fila con el bloque de compartir, que ahora
+          vive en el hero: una lista de personas con su avatar respira mejor ancha que en una
+          columna de 360 px, y ya no hay nada al lado con lo que compararla. */}
+      <div className="mt-10">
         <section aria-labelledby="historial">
           <h2
             id="historial"

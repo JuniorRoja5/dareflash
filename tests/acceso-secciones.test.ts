@@ -149,8 +149,14 @@ describe("el enlace de invitación se MUDÓ, no se duplicó", () => {
   it("y sí está en /referidos, con el código y el enlace por separado", () => {
     const p = pagina("referidos");
     expect(p).toContain("enlaceReferido");
-    // Dos campos copiables: el enlace (lo que se pega) y el código (para donde no cabe un enlace).
-    expect(p.match(/<CampoCopiable/g)?.length ?? 0).toBe(2);
+    // Los campos se mudaron de la página al HERO cuando /referidos recibió su tratamiento de vida.
+    // El guard sigue a la lógica en vez de aflojarse: la página monta el hero, y el hero lleva los
+    // DOS campos —el enlace (lo que se pega) y el código (para donde no cabe un enlace)—.
+    expect(p).toContain("<HeroInvitacion");
+    const hero = soloCodigo(
+      leer("src", "app", "(app)", "(shell)", "referidos", "hero-invitacion.tsx"),
+    );
+    expect(hero.match(/<CampoCopiable/g)?.length ?? 0).toBe(2);
   });
 });
 
