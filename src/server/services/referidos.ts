@@ -25,6 +25,7 @@ import {
   RAZON_REGISTRO_CON_REFERIDO,
 } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { codificarCursorReferidos, decodificarCursorReferidos } from "@/lib/cursor-referidos";
 import { esCodigoReferidoValido } from "@/server/auth/codigo-referido";
 import type { Db } from "@/server/db/types";
 import { sanearError } from "@/server/observability/sanitize-error";
@@ -122,6 +123,109 @@ export async function premiarReferido(
   });
 
   return { pagado: pagado || propio.applied };
+}
+
+/** Una persona a la que he invitado, tal y como la ve su padrino en su historial. */
+export interface ReferidoMio {
+  id: string;
+  username: string;
+  displayName: string | null;
+  imagen: string | null;
+  /** Puntos del invitado: su avatar pinta el anillo de nivel con ellos. */
+  puntos: number;
+  /** Cuándo se registró (ms). */
+  altaMs: number;
+  /**
+   * ¿Se ha COBRADO ya la invitación? Sale del LEDGER, no de si el invitado verificó.
+   *
+   * Parece lo mismo y no lo es: el premio se paga en la verificación con
+   * `premiarReferidoSinFallar`, que ANOTA Y SIGUE si algo falla —para no tumbar la verificación por
+   * no poder dar diez puntos—. Así que existe un caso, raro pero real, de invitado verificado sin
+   * pago. Mirar `emailVerified` diría "+10 ganados" de unos puntos que no están; mirar el ledger
+   * dice la verdad, que es lo único que se puede pintar al lado de una cifra.
+   */
+  cobrado: boolean;
+}
+
+export interface PaginaReferidos {
+  items: ReferidoMio[];
+  proximoCursor: string | null;
+}
+
+/** Cuántos referidos trae una página del historial. */
+export const REFERIDOS_PAGINA = 20;
+
+/**
+ * A QUIÉN HE INVITADO, de la invitación más reciente a la más antigua y por KEYSET.
+ *
+ * Dos consultas por página y ni una más: los invitados, y UNA de ledger para saber cuáles se
+ * cobraron (no una por fila). Lo borrado no sale — una cuenta anonimizada ya no es nadie a quien
+ * nombrar—, pero los puntos que se pagaron por ella siguen pagados: esto es un historial de quién
+ * llegó, no una contabilidad, y la contabilidad vive en el ledger.
+ */
+export async function misReferidos(
+  db: PrismaClient,
+  entrada: { userId: string; cursor?: string | null; limite?: number },
+): Promise<PaginaReferidos> {
+  const limite = Math.min(Math.max(entrada.limite ?? REFERIDOS_PAGINA, 1), REFERIDOS_PAGINA);
+  const pos = decodificarCursorReferidos(entrada.cursor);
+  const desde = pos ? new Date(pos.altaMs) : null;
+
+  const filas = await db.user.findMany({
+    where: {
+      referredById: entrada.userId,
+      deletedAt: null,
+      ...(pos && desde
+        ? { OR: [{ createdAt: { lt: desde } }, { createdAt: desde, id: { lt: pos.id } }] }
+        : {}),
+    },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      image: true,
+      pointsBalance: true,
+      createdAt: true,
+    },
+    // Una de más para saber si hay página siguiente sin un COUNT aparte.
+    take: limite + 1,
+  });
+
+  const hayMas = filas.length > limite;
+  const pagina = hayMas ? filas.slice(0, limite) : filas;
+
+  // EL COBRO, EN LOTE: una consulta para toda la página. Son las filas de ledger del PADRINO que
+  // apuntan a estos invitados, que es exactamente lo que escribe `premiarReferido`.
+  const cobros =
+    pagina.length > 0
+      ? await db.pointsLedger.findMany({
+          where: {
+            userId: entrada.userId,
+            reason: RAZON_INVITO_AMIGO,
+            refId: { in: pagina.map((f) => f.id) },
+          },
+          select: { refId: true },
+        })
+      : [];
+  const cobrados = new Set(cobros.map((c) => c.refId));
+
+  const ultima = pagina[pagina.length - 1];
+  return {
+    items: pagina.map((f) => ({
+      id: f.id,
+      username: f.username,
+      displayName: f.displayName,
+      imagen: f.image,
+      puntos: f.pointsBalance,
+      altaMs: f.createdAt.getTime(),
+      cobrado: cobrados.has(f.id),
+    })),
+    proximoCursor:
+      hayMas && ultima
+        ? codificarCursorReferidos({ altaMs: ultima.createdAt.getTime(), id: ultima.id })
+        : null,
+  };
 }
 
 /**

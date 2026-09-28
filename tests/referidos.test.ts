@@ -32,6 +32,7 @@ import {
 } from "../src/server/services/email-verification";
 import {
   enlaceReferido,
+  misReferidos,
   premiarReferido,
   referentePorCodigo,
 } from "../src/server/services/referidos";
@@ -158,17 +159,27 @@ describe("el referente se fija UNA vez, al registrarse", () => {
     };
     recorrer(raiz);
 
-    const escriben = fuentes.filter((p) => {
-      const codigo = readFileSync(p, "utf8")
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/^\s*\/\/.*$/gm, "")
-        // Un `select: { referredById: true }` es una LECTURA, y `x.referredById` también. Lo que se
-        // busca son ESCRITURAS, así que las dos formas de leer se quitan antes de mirar. Sin esto el
-        // test señalaba a `referidos.ts`, que solo lo consulta.
-        .replace(/referredById\s*:\s*true/g, "")
-        .replace(/\.referredById\b/g, "");
-      return /\breferredById\b/.test(codigo);
-    });
+    /**
+     * ¿Es una ESCRITURA? Se clasifica cada aparición por la palabra de Prisma más cercana ANTES de
+     * ella: dentro de un `data:` se escribe; dentro de un `where:` o un `select:` se lee.
+     *
+     * Hizo falta afinarlo dos veces, y las dos por un falso positivo real: primero `select:
+     * { referredById: true }` y `x.referredById` (lecturas), y después el `where:` del historial de
+     * referidos. Un guard que señala lecturas acaba desactivándose por ruido.
+     */
+    const escribe = (codigo: string): boolean => {
+      const limpio = codigo.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+      for (const m of limpio.matchAll(/\breferredById\b/g)) {
+        const antes = limpio.slice(0, m.index);
+        if (/\.$/.test(antes)) continue; // `x.referredById` es una lectura
+        const posicion = (clave: string) => antes.lastIndexOf(clave);
+        const enData = posicion("data:");
+        if (enData > posicion("where:") && enData > posicion("select:")) return true;
+      }
+      return false;
+    };
+
+    const escriben = fuentes.filter((p) => escribe(readFileSync(p, "utf8")));
     // Solo el alta. Cualquier otro fichero que lo escriba es una puerta nueva.
     expect(escriben.map((p) => p.split(/[\\/]/).slice(-1)[0])).toEqual(["registration.ts"]);
   });
@@ -314,5 +325,105 @@ describe("la migración", () => {
     expect(relleno).toBeLessThan(unique);
     // Y la columna acaba siendo obligatoria: un NULL ahí sería una cuenta sin enlace.
     expect(sql).toMatch(/MODIFY `referralCode` VARCHAR\(191\) NOT NULL/);
+  });
+});
+
+/**
+ * EL HISTORIAL "A QUIÉN HE INVITADO". Keyset, y el estado sacado del LEDGER.
+ *
+ * Para romperlo: paginar sin la condición del cursor (rojo con altas nuevas entre páginas), o
+ * decidir "cobrado" mirando `emailVerified` en vez del ledger (rojo en el caso del pago que falló).
+ */
+describe("mis referidos", () => {
+  /** Crea `n` invitados de `padrino`, del más viejo al más nuevo, y devuelve sus ids en ese orden. */
+  async function invitados(padrino: string, n: number): Promise<string[]> {
+    const ids: string[] = [];
+    for (let i = 0; i < n; i += 1) {
+      const id = await crearUsuario(prisma, { username: `inv${i}` });
+      await prisma.user.update({
+        where: { id },
+        data: { referredById: padrino, createdAt: new Date(Date.UTC(2026, 0, i + 1)) },
+      });
+      ids.push(id);
+    }
+    return ids;
+  }
+
+  it("lista solo a los MÍOS, del más reciente al más antiguo", async () => {
+    const padrino = await crearUsuario(prisma, { username: "padrina" });
+    const otro = await crearUsuario(prisma, { username: "ajena" });
+    const mios = await invitados(padrino, 3);
+    const suyo = await crearUsuario(prisma, { username: "deotro" });
+    await prisma.user.update({ where: { id: suyo }, data: { referredById: otro } });
+
+    const p = await misReferidos(prisma, { userId: padrino });
+    expect(p.items.map((r) => r.id)).toEqual([...mios].reverse());
+  });
+
+  it("KEYSET: recorrer el historial no repite ni se salta a nadie", async () => {
+    const padrino = await crearUsuario(prisma, { username: "padrina" });
+    const mios = await invitados(padrino, 7);
+
+    const vistos: string[] = [];
+    let cursor: string | null = null;
+    for (let i = 0; i < 10; i += 1) {
+      const p: Awaited<ReturnType<typeof misReferidos>> = await misReferidos(prisma, {
+        userId: padrino,
+        cursor,
+        limite: 2,
+      });
+      vistos.push(...p.items.map((r) => r.id));
+      cursor = p.proximoCursor;
+      if (!cursor) break;
+    }
+
+    expect(vistos).toEqual([...mios].reverse());
+    expect(new Set(vistos).size).toBe(mios.length);
+  });
+
+  it("una cuenta BORRADA no sale: ya no es nadie a quien nombrar", async () => {
+    const padrino = await crearUsuario(prisma, { username: "padrina" });
+    const [uno] = await invitados(padrino, 1);
+    await prisma.user.update({ where: { id: uno! }, data: { deletedAt: new Date() } });
+
+    expect((await misReferidos(prisma, { userId: padrino })).items).toEqual([]);
+  });
+
+  it("el estado sale del LEDGER: cobrado solo si de verdad se pagó", async () => {
+    const padrino = await registrar("padrino@test.com");
+    const ahijado = await registrar("ahijado@test.com", padrino.referralCode);
+
+    // Sin verificar: no hay pago, así que no hay "+10 ganados".
+    let p = await misReferidos(prisma, { userId: padrino.id });
+    expect(p.items[0]).toMatchObject({ id: ahijado.id, cobrado: false });
+
+    await verificar("ahijado@test.com");
+    p = await misReferidos(prisma, { userId: padrino.id });
+    expect(p.items[0]?.cobrado).toBe(true);
+  });
+
+  it("verificado PERO sin pago se enseña como pendiente, no como cobrado", async () => {
+    // El caso que separa "mirar el ledger" de "mirar emailVerified": el premio se paga con
+    // `premiarReferidoSinFallar`, que anota y sigue si algo revienta. Un invitado verificado puede
+    // no tener su fila. Decir "+10 ganados" ahí sería enseñar unos puntos que no están.
+    const padrino = await crearUsuario(prisma, { username: "padrina" });
+    const [uno] = await invitados(padrino, 1);
+    await prisma.user.update({ where: { id: uno! }, data: { emailVerified: new Date() } });
+
+    const p = await misReferidos(prisma, { userId: padrino });
+    expect(p.items[0]).toMatchObject({ id: uno, cobrado: false });
+  });
+
+  it("trae lo que la fila necesita pintar, incluidos los puntos del anillo de nivel", async () => {
+    const padrino = await crearUsuario(prisma, { username: "padrina" });
+    const [uno] = await invitados(padrino, 1);
+    await prisma.user.update({
+      where: { id: uno! },
+      data: { displayName: "Ahijada", pointsBalance: 600 },
+    });
+
+    const r = (await misReferidos(prisma, { userId: padrino })).items[0]!;
+    expect(r).toMatchObject({ username: "inv0", displayName: "Ahijada", puntos: 600 });
+    expect(r.altaMs).toBeGreaterThan(0);
   });
 });

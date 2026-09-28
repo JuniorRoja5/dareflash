@@ -202,83 +202,84 @@ export function FormularioEditarPerfil({
   }
 
   return (
-    // Maqueta desktop v2: en `lg` DOS columnas (izquierda Foto, derecha Perfil + Contraseña); en móvil
-    // UNA columna apilada (idéntico a antes). El grid solo entra en `lg`; el espaciado móvil lo dan el
-    // `mt-8` de la columna derecha y el `space-y-8` interno.
-    <div className="lg:grid lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)] lg:items-start lg:gap-8">
-      {/* COLUMNA IZQUIERDA — FOTO. Previsualización + selector. Acción SECUNDARIA (el magenta único es
+    // DOS COLUMNAS POR TEMA, no por tamaño: a la izquierda TU PERFIL (la foto y tus datos, que es lo
+    // que ve la gente); a la derecha los AJUSTES DE CUENTA (correo y contraseña, que no ve nadie).
+    // Antes las tres cosas se apilaban en la misma columna y la pantalla era un scroll largo con la
+    // mitad del ancho vacía. En móvil sigue siendo UNA columna apilada, idéntica a antes.
+    <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-8">
+      {/* COLUMNA IZQUIERDA — TU PERFIL: foto y datos. */}
+      <div className="space-y-8">
+        {/* COLUMNA IZQUIERDA — FOTO. Previsualización + selector. Acción SECUNDARIA (el magenta único es
           "Guardar perfil"). */}
-      <section className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md">
-        <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">Foto</h2>
-        <div className="mt-4 flex items-center gap-5">
-          {previa ? (
-            // eslint-disable-next-line @next/next/no-img-element -- previsualización local (object URL), no un remoto
-            <img
-              src={previa}
-              alt="Vista previa de tu nueva foto"
-              className="h-20 w-20 shrink-0 rounded-full object-cover"
-            />
-          ) : imagenInicial ? (
-            // eslint-disable-next-line @next/next/no-img-element -- avatar actual del usuario
-            <img
-              src={imagenInicial}
-              alt="Tu foto actual"
-              className="h-20 w-20 shrink-0 rounded-full object-cover"
-            />
-          ) : (
-            <Avatar nombre={nombre || usuario || "?"} tamano="xl" puntos={puntos} />
-          )}
+        <section className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md">
+          <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">Foto</h2>
+          <div className="mt-4 flex items-center gap-5">
+            {previa ? (
+              // eslint-disable-next-line @next/next/no-img-element -- previsualización local (object URL), no un remoto
+              <img
+                src={previa}
+                alt="Vista previa de tu nueva foto"
+                className="h-20 w-20 shrink-0 rounded-full object-cover"
+              />
+            ) : imagenInicial ? (
+              // eslint-disable-next-line @next/next/no-img-element -- avatar actual del usuario
+              <img
+                src={imagenInicial}
+                alt="Tu foto actual"
+                className="h-20 w-20 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <Avatar nombre={nombre || usuario || "?"} tamano="xl" puntos={puntos} />
+            )}
 
-          <div className="min-w-0">
-            <label
-              htmlFor="avatar-file"
-              className={`inline-flex min-h-[44px] cursor-pointer items-center rounded-sm border border-line bg-raised px-4 text-sm font-semibold text-text transition-colors duration-150 ease-mechanical hover:bg-surface ${avatarOcupado ? "pointer-events-none opacity-60" : ""}`}
-            >
-              Elegir imagen
-            </label>
-            <input
-              id="avatar-file"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="sr-only"
-              disabled={avatarOcupado}
-              onChange={onElegirAvatar}
-            />
-            <p className="mt-2 text-2xs tracking-widest text-text-dim uppercase">
-              JPG, PNG o WebP · máx. 5 MB
-            </p>
+            <div className="min-w-0">
+              <label
+                htmlFor="avatar-file"
+                className={`inline-flex min-h-[44px] cursor-pointer items-center rounded-sm border border-line bg-raised px-4 text-sm font-semibold text-text transition-colors duration-150 ease-mechanical hover:bg-surface ${avatarOcupado ? "pointer-events-none opacity-60" : ""}`}
+              >
+                Elegir imagen
+              </label>
+              <input
+                id="avatar-file"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                disabled={avatarOcupado}
+                onChange={onElegirAvatar}
+              />
+              <p className="mt-2 text-2xs tracking-widest text-text-dim uppercase">
+                JPG, PNG o WebP · máx. 5 MB
+              </p>
+            </div>
           </div>
-        </div>
 
-        {ficheroAvatar ? (
-          <Boton
-            type="button"
-            variante="secundario"
-            disabled={avatarOcupado}
-            onClick={subirAvatar}
-            className="mt-4 py-3"
-          >
-            {avatarOcupado ? "Subiendo…" : "Guardar foto"}
-          </Boton>
-        ) : null}
+          {ficheroAvatar ? (
+            <Boton
+              type="button"
+              variante="secundario"
+              disabled={avatarOcupado}
+              onClick={subirAvatar}
+              className="mt-4 py-3"
+            >
+              {avatarOcupado ? "Subiendo…" : "Guardar foto"}
+            </Boton>
+          ) : null}
 
-        {errorAvatar ? (
-          <p role="alert" className="mt-3 text-sm text-alarm">
-            {errorAvatar}
-          </p>
-        ) : null}
-        {avisoAvatar ? (
-          <p
-            role="status"
-            className="mt-3 rounded-sm border border-line bg-void p-3 text-sm text-text-dim"
-          >
-            {avisoAvatar}
-          </p>
-        ) : null}
-      </section>
+          {errorAvatar ? (
+            <p role="alert" className="mt-3 text-sm text-alarm">
+              {errorAvatar}
+            </p>
+          ) : null}
+          {avisoAvatar ? (
+            <p
+              role="status"
+              className="mt-3 rounded-sm border border-line bg-void p-3 text-sm text-text-dim"
+            >
+              {avisoAvatar}
+            </p>
+          ) : null}
+        </section>
 
-      {/* COLUMNA DERECHA — Perfil + Contraseña, apiladas. */}
-      <div className="mt-8 space-y-8 lg:mt-0">
         {/* PERFIL — acción principal (magenta único). */}
         <form
           onSubmit={guardarNombre}
@@ -370,10 +371,11 @@ export function FormularioEditarPerfil({
             </p>
           ) : null}
         </form>
-
-        {/* CONTRASEÑA (u otro contenido de la columna derecha): pasado como children desde la página. */}
-        {children}
       </div>
+
+      {/* COLUMNA DERECHA — AJUSTES DE CUENTA: correo y contraseña, que llegan como children desde la
+          página. Son lo que NO ve nadie más que tú, y por eso van juntos y aparte de tu perfil. */}
+      <div className="mt-8 space-y-8 lg:mt-0">{children}</div>
     </div>
   );
 }

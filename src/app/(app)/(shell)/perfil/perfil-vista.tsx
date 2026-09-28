@@ -163,6 +163,13 @@ export function PerfilVista({
                 <Boton href="/perfil/editar" variante="secundario" className="mt-3 w-full py-3">
                   Editar perfil
                 </Boton>
+                {/* REFERIDOS: en escritorio la entrada es la barra lateral, como cualquier otra
+                    sección. En MÓVIL no hay lateral, así que esta es la vía — y por eso el botón
+                    existe siempre (también en escritorio: quien llega aquí desde su perfil no
+                    tiene por qué volver a la lateral a buscarlo). */}
+                <Boton href="/referidos" variante="secundario" className="mt-3 w-full py-3">
+                  Ir a mis referidos
+                </Boton>
                 {/* Avisos: SOLO MÓVIL. En escritorio los da la campana de la barra; en móvil no hay
                     barra superior, y esta es la entrada (el icono de Perfil de la nav ya lleva el
                     número). Recuento NEUTRO, como todos. */}

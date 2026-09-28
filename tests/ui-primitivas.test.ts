@@ -98,7 +98,7 @@ describe("boton: mapa variante -> tokens", () => {
 });
 
 describe("navegacion: catalogo canonico de destinos", () => {
-  it("seis destinos, orden y claves exactos (reordenar o perder uno cae en rojo)", () => {
+  it("siete destinos, orden y claves exactos (reordenar o perder uno cae en rojo)", () => {
     expect(NAV_DESTINOS.map((d) => d.clave)).toEqual([
       "inicio",
       "feed",
@@ -106,6 +106,7 @@ describe("navegacion: catalogo canonico de destinos", () => {
       "crear",
       "ranking",
       "perfil",
+      "referidos",
     ]);
   });
 
@@ -119,6 +120,7 @@ describe("navegacion: catalogo canonico de destinos", () => {
       CTA_USUARIO.texto,
       "Ranking",
       "Perfil",
+      "Referidos",
     ]);
     expect(NAV_DESTINOS.map((d) => d.href)).toEqual([
       "/inicio",
@@ -127,6 +129,7 @@ describe("navegacion: catalogo canonico de destinos", () => {
       CTA_USUARIO.href,
       "/ranking",
       "/perfil",
+      "/referidos",
     ]);
   });
 
@@ -137,13 +140,16 @@ describe("navegacion: catalogo canonico de destinos", () => {
 });
 
 describe("navegacion: subsets divergentes movil/escritorio (con dientes)", () => {
-  it("escritorio: Inicio·Feed·Retos·Ranking·Perfil, SIN Crear (es el CTA de la barra superior)", () => {
+  it("escritorio: Inicio·Feed·Retos·Ranking·Perfil·Referidos, SIN Crear (es el CTA de la barra)", () => {
     expect(destinosDe(NAV_ESCRITORIO).map((d) => d.clave)).toEqual([
       "inicio",
       "feed",
       "retos",
       "ranking",
       "perfil",
+      // Referidos SOLO en escritorio: la barra inferior de movil ya tiene sus cinco y alli la
+      // entrada es el boton del perfil propio.
+      "referidos",
     ]);
     expect(NAV_ESCRITORIO).not.toContain("crear");
   });

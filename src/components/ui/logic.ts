@@ -102,13 +102,23 @@ export const NAV_DESTINOS = [
   { clave: "crear", nombre: CTA_USUARIO.texto, href: CTA_USUARIO.href, central: true },
   { clave: "ranking", nombre: "Ranking", href: "/ranking" },
   { clave: "perfil", nombre: "Perfil", href: "/perfil" },
+  { clave: "referidos", nombre: "Referidos", href: "/referidos" },
 ] as const;
 
 export type NavDestino = (typeof NAV_DESTINOS)[number];
 export type DestinoClave = NavDestino["clave"];
 
 /** Subconjuntos ORDENADOS por contexto (claves de NAV_DESTINOS). */
-export const NAV_ESCRITORIO = ["inicio", "feed", "retos", "ranking", "perfil"] as const;
+export const NAV_ESCRITORIO = [
+  "inicio",
+  "feed",
+  "retos",
+  "ranking",
+  "perfil",
+  "referidos",
+] as const;
+// REFERIDOS solo en ESCRITORIO: la barra inferior de movil son cinco destinos y ya esta llena; alli
+// la entrada es el boton del perfil propio. Esta lista es justo donde se ve esa decision.
 export const NAV_MOVIL = ["feed", "retos", "crear", "ranking", "perfil"] as const;
 
 /** Resuelve una lista de claves a sus destinos, preservando el orden. */

@@ -51,6 +51,14 @@ const ICONO: Record<string, ReactNode> = {
       <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
     </>,
   ),
+  // REFERIDOS — dos siluetas: la tuya y la que traes. Misma familia de trazo que el resto.
+  referidos: svg(
+    <>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 19.5a5.5 5.5 0 0 1 11 0" />
+      <path d="M17 7.5v5M19.5 10h-5" />
+    </>,
+  ),
 };
 
 /**

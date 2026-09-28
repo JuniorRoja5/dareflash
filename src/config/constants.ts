@@ -295,6 +295,73 @@ export const RAZON_HITO_VIDEOS = "VIDEOS_PUBLICADOS";
 export const RAZON_INVITO_AMIGO = "INVITE_FRIEND";
 export const RAZON_REGISTRO_CON_REFERIDO = "REGISTERED_WITH_REFERRAL";
 
+/**
+ * CATALOGO DE ACCIONES QUE DAN PUNTOS, para la tabla de "como ganar puntos".
+ *
+ * `activa` dice si HOY se otorga de verdad. Es un dato de CONFIG y no una lista escrita en el JSX
+ * por dos motivos: la pantalla no puede saberlo sola, y el dia que se cablee una accion basta con
+ * girar este booleano para que la fila cambie de estado sin tocar el componente.
+ *
+ * Y para que ese booleano no pueda MENTIR, `tests/acciones-puntos.test.ts` lo contrasta contra el
+ * codigo: si una razon se otorga en `server/services` y aqui figura como proxima —o al reves— se
+ * pone rojo. La config manda sobre la pantalla; el codigo manda sobre la config.
+ *
+ * SOLO ENTRAN LAS QUE TIENEN VALOR EN `POINTS`. La racha y los likes se mencionan en el documento
+ * maestro pero no tienen importe en la constante, y poner un numero inventado al lado de una
+ * promesa es peor que no listarla.
+ */
+export interface AccionPuntos {
+  /** `reason` de la fila del PointsLedger. Es la clave que ata la fila a lo que de verdad la paga. */
+  razon: string;
+  etiqueta: string;
+  puntos: number;
+  /** ¿Se otorga HOY? Lo vigila el test contra `server/services`. */
+  activa: boolean;
+  /** Por que todavia no, cuando hay un motivo que merece decirse. */
+  nota?: string;
+}
+
+export const ACCIONES_PUNTOS: readonly AccionPuntos[] = [
+  { razon: "WIN_CHALLENGE", etiqueta: "Ganar un reto", puntos: POINTS.WIN_CHALLENGE, activa: true },
+  {
+    razon: "TOP20",
+    etiqueta: "Entrar en el top 20 de un reto",
+    puntos: POINTS.TOP20,
+    activa: true,
+  },
+  {
+    razon: RAZON_HITO_VIDEOS,
+    etiqueta: `Publicar ${VIDEOS_POR_HITO} vídeos`,
+    puntos: POINTS.VIDEOS_PUBLICADOS_HITO,
+    activa: true,
+  },
+  {
+    razon: RAZON_INVITO_AMIGO,
+    etiqueta: "Invitar a alguien que verifica su correo",
+    puntos: POINTS.INVITE_FRIEND,
+    activa: true,
+  },
+  {
+    razon: RAZON_REGISTRO_CON_REFERIDO,
+    etiqueta: "Registrarte con la invitación de alguien",
+    puntos: POINTS.INVITE_FRIEND,
+    activa: true,
+  },
+  {
+    razon: "REGISTER_FROM_VIDEO_LINK",
+    etiqueta: "Que alguien se registre desde tu vídeo",
+    puntos: POINTS.REGISTER_FROM_VIDEO_LINK,
+    activa: false,
+  },
+  {
+    razon: "VIDEO_100_EXTERNAL_VIEWS",
+    etiqueta: "100 visitas externas a un vídeo",
+    puntos: POINTS.VIDEO_100_EXTERNAL_VIEWS,
+    activa: false,
+    nota: "Depende de una verificación de origen que todavía no tenemos.",
+  },
+];
+
 /** Copy de referidos. El codigo NO se ensena como "codigo": se ensena el ENLACE, que es lo que se comparte. */
 export const MSG_REFERIDO_NO_VALIDO = "Ese enlace de invitación no es válido.";
 /** Parametro del enlace de invitacion: `https://…/entrar?ref=CODIGO`. Fuente unica. */
