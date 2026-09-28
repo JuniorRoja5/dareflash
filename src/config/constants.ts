@@ -269,6 +269,10 @@ export const POINTS = {
   VIDEO_100_EXTERNAL_VIEWS: 10,
   /** Cada vez que se completa un HITO de VIDEOS_POR_HITO videos PUBLICADOS (acumulado de por vida). */
   VIDEOS_PUBLICADOS_HITO: 5,
+  /** Racha de 7 dias seguidos. Del maestro; TODAVIA no la otorga nadie (ver `ACCIONES_PUNTOS`). */
+  RACHA_7_DIAS: 10,
+  /** 50 likes en un video. Del maestro; TODAVIA no la otorga nadie. */
+  VIDEO_50_LIKES: 1,
 } as const;
 
 /**
@@ -306,9 +310,11 @@ export const RAZON_REGISTRO_CON_REFERIDO = "REGISTERED_WITH_REFERRAL";
  * codigo: si una razon se otorga en `server/services` y aqui figura como proxima —o al reves— se
  * pone rojo. La config manda sobre la pantalla; el codigo manda sobre la config.
  *
- * SOLO ENTRAN LAS QUE TIENEN VALOR EN `POINTS`. La racha y los likes se mencionan en el documento
- * maestro pero no tienen importe en la constante, y poner un numero inventado al lado de una
- * promesa es peor que no listarla.
+ * ESTAN TODAS LAS DEL MAESTRO, tambien las que aun no se otorgan: la tabla es el mapa completo de a
+ * donde va el producto, no solo de lo que hay hoy. Lo que la hace honesta no es esconder lo que
+ * falta, es MARCARLO — y que ese marcado lo vigile un test contra el codigo.
+ *
+ * Los importes salen SIEMPRE de `POINTS`: un numero escrito aqui a mano seria un segundo catalogo.
  */
 export interface AccionPuntos {
   /** `reason` de la fila del PointsLedger. Es la clave que ata la fila a lo que de verdad la paga. */
@@ -359,6 +365,18 @@ export const ACCIONES_PUNTOS: readonly AccionPuntos[] = [
     puntos: POINTS.VIDEO_100_EXTERNAL_VIEWS,
     activa: false,
     nota: "Depende de una verificación de origen que todavía no tenemos.",
+  },
+  {
+    razon: "RACHA_7_DIAS",
+    etiqueta: "Racha de 7 días seguidos",
+    puntos: POINTS.RACHA_7_DIAS,
+    activa: false,
+  },
+  {
+    razon: "VIDEO_50_LIKES",
+    etiqueta: "Recibir 50 likes en un vídeo",
+    puntos: POINTS.VIDEO_50_LIKES,
+    activa: false,
   },
 ];
 
