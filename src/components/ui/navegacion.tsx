@@ -51,6 +51,15 @@ const ICONO: Record<string, ReactNode> = {
       <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
     </>,
   ),
+  // PUNTOS — tres galones ascendentes: la insignia de grado de toda la vida, y nivel es exactamente
+  // eso. NO se dibuja con barras: el icono de Ranking ya son barras y a 20 px los dos serian el mismo.
+  puntos: svg(
+    <>
+      <path d="M6 9.5 12 4l6 5.5" />
+      <path d="M6 14.5 12 9l6 5.5" />
+      <path d="M6 19.5 12 14l6 5.5" />
+    </>,
+  ),
   // REFERIDOS — dos siluetas: la tuya y la que traes. Misma familia de trazo que el resto.
   referidos: svg(
     <>

@@ -53,8 +53,11 @@ export function TablaPuntos() {
               {a.etiqueta}
               {a.nota ? <span className="mt-0.5 block text-2xs">{a.nota}</span> : null}
             </span>
+            {/* "Fase 6" dice CUÁNDO; "Próximamente" solo dice que no es hoy. Se enseña la fase
+                cuando está decidida, y el genérico cuando no — antes que inventarse una, que el
+                usuario leería como un compromiso. */}
             <span className="shrink-0 rounded-xs border border-line px-2 py-0.5 text-2xs tracking-wide uppercase">
-              Próximamente
+              {a.fase ? `Fase ${a.fase}` : "Próximamente"}
             </span>
             <span className="shrink-0 text-sm tabular-nums">+{a.puntos}</span>
           </li>

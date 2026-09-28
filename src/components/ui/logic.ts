@@ -89,8 +89,8 @@ export function botonTokens(variante: BotonVariante): BotonTokens {
 // `crear` del catalogo es el del no-admin, y sirve para marcar /crear como activo.
 //
 // La nav DIVERGE entre movil y escritorio (el brief: "no son la misma pantalla a distinto ancho"):
-//   - Escritorio (barra lateral): Inicio, Feed, Retos, Ranking, Perfil. El CTA principal NO va aqui:
-//     es el boton magenta de la barra superior (el UNICO magenta de la pantalla).
+//   - Escritorio (barra lateral): Inicio, Feed, Retos, Ranking, Perfil, Puntos, Referidos. El CTA
+//     principal NO va aqui: es el boton magenta de la barra superior (el UNICO magenta).
 //   - Movil (barra inferior): Feed (home del movil), Retos, [+] CTA principal, Ranking, Perfil.
 //     Inicio (portada) es concepto de escritorio, no va en la barra inferior.
 // ---------------------------------------------------------------------------
@@ -102,6 +102,7 @@ export const NAV_DESTINOS = [
   { clave: "crear", nombre: CTA_USUARIO.texto, href: CTA_USUARIO.href, central: true },
   { clave: "ranking", nombre: "Ranking", href: "/ranking" },
   { clave: "perfil", nombre: "Perfil", href: "/perfil" },
+  { clave: "puntos", nombre: "Puntos", href: "/puntos" },
   { clave: "referidos", nombre: "Referidos", href: "/referidos" },
 ] as const;
 
@@ -115,10 +116,12 @@ export const NAV_ESCRITORIO = [
   "retos",
   "ranking",
   "perfil",
+  "puntos",
   "referidos",
 ] as const;
-// REFERIDOS solo en ESCRITORIO: la barra inferior de movil son cinco destinos y ya esta llena; alli
-// la entrada es el boton del perfil propio. Esta lista es justo donde se ve esa decision.
+// PUNTOS y REFERIDOS solo en ESCRITORIO: la barra inferior de movil son cinco destinos y ya esta
+// llena; alli la entrada a las dos son los botones del perfil propio. Esta lista es justo donde se
+// ve esa decision.
 export const NAV_MOVIL = ["feed", "retos", "crear", "ranking", "perfil"] as const;
 
 /** Resuelve una lista de claves a sus destinos, preservando el orden. */

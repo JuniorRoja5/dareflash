@@ -24,6 +24,7 @@ import {
   RAZON_INVITO_AMIGO,
   RAZON_REGISTRO_CON_REFERIDO,
 } from "@/config/constants";
+import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { codificarCursorReferidos, decodificarCursorReferidos } from "@/lib/cursor-referidos";
 import { esCodigoReferidoValido } from "@/server/auth/codigo-referido";
@@ -123,6 +124,61 @@ export async function premiarReferido(
   });
 
   return { pagado: pagado || propio.applied };
+}
+
+/** Las tres cifras de la cabecera de /referidos. */
+export interface ResumenReferidos {
+  /** Cuánta gente se registró con tu enlace y sigue existiendo. */
+  invitados: number;
+  /** Cuántos de esos todavía no te han hecho cobrar (no han verificado, o el pago falló). */
+  pendientes: number;
+  /** Puntos que te han dado las invitaciones. Del LEDGER: es lo que de verdad se pagó. */
+  puntosGanados: number;
+}
+
+/**
+ * LAS TRES CIFRAS, en dos consultas.
+ *
+ * NO SON LA MISMA POBLACIÓN, y por eso no salen de la misma consulta. `invitados` y `pendientes`
+ * cuentan gente que EXISTE hoy (una cuenta borrada ya no es nadie a quien listar), mientras que
+ * `puntosGanados` suma el LEDGER entero: si alguien a quien invitaste se borró después, sus puntos
+ * siguen siendo tuyos —se pagaron— y descontarlos sería descuadrar la cifra contra el saldo real.
+ * Juntarlas en un solo COUNT habría hecho que una de las dos mintiera.
+ *
+ * Un COUNT aquí sí vale, y no contradice la regla de "nunca OFFSET": la regla es sobre PAGINAR (donde
+ * un COUNT obliga a recorrer lo ya visto), no sobre dar una cifra. Son tres números, no una lista.
+ *
+ * El LEFT JOIN se apoya en `User(referredById)` para elegir las filas y en el prefijo `userId` de
+ * `PointsLedger(userId, createdAt, id)` para el lado del ledger: se mira SOLO tu propio ledger, que
+ * es tan grande como tu propia actividad, no la tabla entera.
+ */
+export async function resumenReferidos(db: Db, userId: string): Promise<ResumenReferidos> {
+  const [filas, suma] = await Promise.all([
+    db.$queryRaw<{ invitados: bigint | number; pendientes: bigint | number }[]>(Prisma.sql`
+      SELECT
+        COUNT(*) AS invitados,
+        SUM(CASE WHEN l.\`id\` IS NULL THEN 1 ELSE 0 END) AS pendientes
+      FROM \`User\` u
+      LEFT JOIN \`PointsLedger\` l
+        ON l.\`refId\` = u.\`id\`
+       AND l.\`userId\` = ${userId}
+       AND l.\`reason\` = ${RAZON_INVITO_AMIGO}
+      WHERE u.\`referredById\` = ${userId}
+        AND u.\`deletedAt\` IS NULL`),
+    db.pointsLedger.aggregate({
+      where: { userId, reason: RAZON_INVITO_AMIGO },
+      _sum: { delta: true },
+    }),
+  ]);
+
+  const fila = filas[0];
+  return {
+    invitados: Number(fila?.invitados ?? 0),
+    // SUM sobre cero filas devuelve NULL, no 0: sin el `?? 0` la tarjeta enseñaría "NaN" a quien
+    // todavía no ha invitado a nadie, que es justo quien más veces va a ver esta pantalla.
+    pendientes: Number(fila?.pendientes ?? 0),
+    puntosGanados: suma._sum.delta ?? 0,
+  };
 }
 
 /** Una persona a la que he invitado, tal y como la ve su padrino en su historial. */

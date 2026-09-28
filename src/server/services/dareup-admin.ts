@@ -160,6 +160,19 @@ const REF_RETO_AUSENTE = "un reto que ya no está disponible";
 /** No hay a qué apuntar, o apunta al propio usuario de la ficha (un hito suyo). */
 const REF_NINGUNA = "—";
 
+/**
+ * PARA QUIÉN se escribe el historial. La consulta y el keyset son los mismos; lo que cambia es qué se
+ * puede enseñar y en qué voz.
+ *
+ *  - `panel`: lo mira un ADMIN sobre la cuenta de OTRO. Ve la nota interna del ajuste y qué admin lo
+ *    hizo, porque la fila de ledger ES la traza de auditoría y de eso va el inspector.
+ *  - `propia`: lo mira el DUEÑO. NO ve ni la nota ni el handle del admin. La nota se escribe para el
+ *    equipo, con vocabulario de moderación ("sanción por…"), y el handle del admin convierte una
+ *    decisión del equipo en una persona concreta a la que ir a buscar. Lo que el dueño necesita saber
+ *    —que hubo un ajuste y de cuánto— lo dicen la razón y el importe, que sí se enseñan.
+ */
+export type VozHistorial = "panel" | "propia";
+
 export interface PaginaHistorial {
   items: MovimientoPuntos[];
   /** Cursor opaco de la página siguiente, o `null` si no hay más. */
@@ -192,8 +205,9 @@ function leerCursor(cursor: string | null | undefined): { en: Date; id: string }
 export async function historialPuntos(
   db: Db,
   userId: string,
-  opciones: { cursor?: string | null; limite?: number } = {},
+  opciones: { cursor?: string | null; limite?: number; voz?: VozHistorial } = {},
 ): Promise<PaginaHistorial> {
+  const voz = opciones.voz ?? "panel";
   const limite = Math.min(Math.max(opciones.limite ?? DAREUP_HISTORIAL_PAGINA, 1), 100);
   const desde = leerCursor(opciones.cursor);
 
@@ -252,6 +266,9 @@ export async function historialPuntos(
   const referenciaDe = (razon: string, refType: string | null, refId: string | null): string => {
     if (!refType || !refId) return REF_NINGUNA;
     if (refType === "ADMIN") {
+      // AL DUEÑO NO SE LE DICE QUÉ ADMIN FUE. Ver `VozHistorial`: el motivo ya le dice que hubo un
+      // ajuste del equipo, y poner un @ ahí es señalar a una persona por una decisión del equipo.
+      if (voz === "propia") return REF_NINGUNA;
       const h = handle.get(refId);
       return h ? `por @${h}` : REF_ADMIN_SIN_NOMBRE;
     }
@@ -262,6 +279,10 @@ export async function historialPuntos(
       if (refId === userId) return REF_NINGUNA;
       const h = handle.get(refId);
       if (!h) return REF_NINGUNA;
+      // EN LA VOZ DEL DUEÑO el verbo ya está en el motivo ("Invitaste a alguien que verificó su
+      // correo"), así que la referencia es solo el handle: repetirlo conjugado sería decir dos veces
+      // lo mismo en la misma fila.
+      if (voz === "propia") return `@${h}`;
       // LOS DOS LADOS DE UNA INVITACIÓN. Las dos filas son `USER` y se apuntan mutuamente, así que
       // lo único que las distingue es la RAZÓN: por eso se pasa. Sin ella, el historial diría
       // "@fulano" en los dos casos y no se sabría quién invitó a quién.
@@ -279,7 +300,9 @@ export async function historialPuntos(
       id: f.id,
       delta: f.delta,
       razon: f.reason,
-      nota: f.nota,
+      // La nota del ajuste es TRAZA INTERNA, no copy de producto (ver `VozHistorial`). En la voz del
+      // dueño no se recorta ni se resume: no viaja.
+      nota: voz === "propia" ? null : f.nota,
       creadoEnMs: f.createdAt.getTime(),
       referencia: referenciaDe(f.reason, f.refType, f.refId),
     })),

@@ -323,6 +323,15 @@ export interface AccionPuntos {
   puntos: number;
   /** ¿Se otorga HOY? Lo vigila el test contra `server/services`. */
   activa: boolean;
+  /**
+   * EN QUE FASE se cableara, cuando esta decidido. La fila lo enseña ("Fase 6") en vez del generico
+   * "Proximamente", que no dice nada. Solo tiene sentido en las NO activas, y el test lo exige asi:
+   * una activa con fase seria una promesa de algo que ya esta.
+   *
+   * SIN VALOR MIENTRAS NO SE DECIDA. Poner una fase a ojo aqui es inventarse una fecha: el usuario
+   * la leeria como un compromiso y no lo es. Cuando el propietario asigne las fases, se rellenan.
+   */
+  fase?: number;
   /** Por que todavia no, cuando hay un motivo que merece decirse. */
   nota?: string;
 }
@@ -398,7 +407,11 @@ export const AJUSTE_NOTA_MAX = 500;
  * de Rookie a Legend de golpe; si de verdad hiciera falta mas, son dos ajustes, con su motivo cada uno.
  */
 export const AJUSTE_DELTA_MAX = 5_000;
-/** Movimientos por pagina en el historial de puntos del inspector (keyset). */
+/**
+ * Movimientos por pagina en el historial de puntos, por KEYSET. Lo comparten las DOS pantallas que lo
+ * listan —el inspector del panel y el historial propio de /puntos— porque son la misma tabla leida
+ * igual: un segundo tamano de pagina no aportaria nada y seria una perilla mas que puede discrepar.
+ */
 export const DAREUP_HISTORIAL_PAGINA = 20;
 
 /**

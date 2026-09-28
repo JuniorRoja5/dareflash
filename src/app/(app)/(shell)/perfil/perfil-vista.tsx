@@ -163,10 +163,13 @@ export function PerfilVista({
                 <Boton href="/perfil/editar" variante="secundario" className="mt-3 w-full py-3">
                   Editar perfil
                 </Boton>
-                {/* REFERIDOS: en escritorio la entrada es la barra lateral, como cualquier otra
-                    sección. En MÓVIL no hay lateral, así que esta es la vía — y por eso el botón
-                    existe siempre (también en escritorio: quien llega aquí desde su perfil no
-                    tiene por qué volver a la lateral a buscarlo). */}
+                {/* PUNTOS y REFERIDOS: en escritorio la entrada es la barra lateral, como cualquier
+                    otra sección. En MÓVIL no hay lateral, así que esta es la vía — y por eso los
+                    botones existen siempre (también en escritorio: quien llega aquí desde su perfil
+                    no tiene por qué volver a la lateral a buscarlos). */}
+                <Boton href="/puntos" variante="secundario" className="mt-3 w-full py-3">
+                  Mis puntos y nivel
+                </Boton>
                 <Boton href="/referidos" variante="secundario" className="mt-3 w-full py-3">
                   Ir a mis referidos
                 </Boton>

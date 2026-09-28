@@ -95,3 +95,20 @@ export function anterior(p: Paginacion): Paginacion | null {
   if (p.cursor === null) return null;
   return { cursor: p.pila[p.pila.length - 1] ?? null, pila: p.pila.slice(0, -1) };
 }
+
+/**
+ * La URL de una posición: `base` más `cursor` y `pila` cuando los hay.
+ *
+ * LA PRIMERA PÁGINA ES LA RUTA PELADA, sin `?cursor=&pila=`: dos URLs distintas para el mismo sitio
+ * ensucian el historial del navegador y hacen que "Anterior" deje al usuario en una dirección que no
+ * es la que compartiría. Vivía escrito a mano en cada listado —tres veces la misma cadena de
+ * `URLSearchParams`—, y la cuarta copia iba a ser la que se olvidara de omitir la pila vacía.
+ */
+export function enlacePaginado(base: string, p: Paginacion): string {
+  const q = new URLSearchParams();
+  if (p.cursor) q.set("cursor", p.cursor);
+  const pila = escribirPila(p.pila);
+  if (pila) q.set("pila", pila);
+  const s = q.toString();
+  return s ? `${base}?${s}` : base;
+}

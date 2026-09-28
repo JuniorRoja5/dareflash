@@ -81,13 +81,35 @@ describe("los importes salen del catálogo, no del JSX", () => {
   });
 
   it("el componente NO escribe ningún número: los lee de la config", () => {
+    // La tabla se mudó de /referidos a /puntos: es del sistema de puntos entero, no de los referidos.
+    // SIN COMENTARIOS: un comentario que explique "se enseña «Fase 6»" no pinta ningún «Fase 6», y
+    // hacerlo rojo enseñaría a no comentar. Se mira lo que se RENDERIZA.
     const tabla = readFileSync(
-      join(RAIZ, "src", "app", "(app)", "(shell)", "referidos", "tabla-puntos.tsx"),
+      join(RAIZ, "src", "app", "(app)", "(shell)", "puntos", "tabla-puntos.tsx"),
       "utf8",
-    );
+    )
+      .replace(/\{?\/\*[\s\S]*?\*\/\}?/g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
     expect(tabla).toContain("ACCIONES_PUNTOS");
     // Un `+30` o un `+10` escritos a mano serían un segundo catálogo esperando a discrepar del que
     // se paga. Lo único que se pinta es `{a.puntos}`.
     expect(tabla).not.toMatch(/\+\s*\d+/);
+    // Y la FASE tampoco se escribe en el JSX: sale de la config o no sale.
+    expect(tabla).not.toMatch(/Fase \d/);
+    expect(tabla).toContain("a.fase");
+  });
+});
+
+describe("la FASE solo la llevan las que faltan", () => {
+  it("ninguna acción ACTIVA declara fase: ya está, no hay cuándo que prometer", () => {
+    const absurdas = ACCIONES_PUNTOS.filter((a) => a.activa && a.fase !== undefined);
+    expect(absurdas.map((a) => a.razon)).toEqual([]);
+  });
+
+  it("una fase declarada es un entero positivo, no un texto ni un cero", () => {
+    for (const a of ACCIONES_PUNTOS) {
+      if (a.fase === undefined) continue;
+      expect(Number.isInteger(a.fase) && a.fase > 0, `${a.razon}: fase ${a.fase}`).toBe(true);
+    }
   });
 });

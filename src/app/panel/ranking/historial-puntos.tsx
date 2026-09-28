@@ -2,32 +2,12 @@
 
 import { useState } from "react";
 
-import {
-  RAZON_AJUSTE_ADMIN,
-  RAZON_HITO_VIDEOS,
-  RAZON_REGISTRO_CON_REFERIDO,
-} from "@/config/constants";
 import { getJson } from "@/lib/cliente-http";
+// El copy de los motivos se fue a `lib/razones-puntos` cuando el usuario estrenó su propio historial
+// en /puntos: con una copia en cada pantalla, añadir una razón dejaba a la otra enseñando el código
+// crudo sin que nada fallase. Aquí se usa el juego en TERCERA persona: el panel mira la cuenta de otro.
+import { razonHumana } from "@/lib/razones-puntos";
 import type { MovimientoPuntos } from "@/server/services/dareup-admin";
-
-/**
- * Motivo en copy HUMANO. Un código que no esté aquí se enseña TAL CUAL antes que inventarle un nombre:
- * mejor un código raro a la vista que una etiqueta que diga otra cosa.
- */
-const RAZON_HUMANA: Record<string, string> = {
-  WIN_CHALLENGE: "Ganó un reto",
-  TOP20: "Top 20 de un reto",
-  [RAZON_HITO_VIDEOS]: "Hito de vídeos publicados",
-  [RAZON_AJUSTE_ADMIN]: "Ajuste manual",
-  INVITE_FRIEND: "Invitó a un amigo",
-  [RAZON_REGISTRO_CON_REFERIDO]: "Se registró con una invitación",
-  REGISTER_FROM_VIDEO_LINK: "Registro desde un vídeo",
-  VIDEO_100_EXTERNAL_VIEWS: "100 vistas externas",
-};
-
-export function razonHumana(razon: string): string {
-  return RAZON_HUMANA[razon] ?? razon;
-}
 
 /** Fecha en UTC (el proyecto trabaja en UTC de punta a punta). */
 function fecha(ms: number): string {

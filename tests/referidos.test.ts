@@ -33,6 +33,7 @@ import {
 import {
   enlaceReferido,
   misReferidos,
+  resumenReferidos,
   premiarReferido,
   referentePorCodigo,
 } from "../src/server/services/referidos";
@@ -425,5 +426,68 @@ describe("mis referidos", () => {
     const r = (await misReferidos(prisma, { userId: padrino })).items[0]!;
     expect(r).toMatchObject({ username: "inv0", displayName: "Ahijada", puntos: 600 });
     expect(r.altaMs).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * LAS TRES CIFRAS DE LA CABECERA. Lo que se fija aquí es que NO salen de la misma población, que es
+ * justo el error que un solo COUNT habría cometido en silencio: los invitados se cuentan VIVOS (una
+ * cuenta borrada ya no es nadie a quien listar) y los puntos se suman del LEDGER ENTERO, porque lo
+ * pagado está pagado y descontarlo descuadraría la tarjeta contra el saldo real.
+ *
+ * Para romperlo: contar `pendientes` con `emailVerified` en vez de con el ledger (rojo), o restar
+ * del sumatorio a los invitados borrados (rojo en "lo pagado sigue pagado").
+ */
+describe("resumen de referidos", () => {
+  it("sin nadie invitado, tres ceros y ni un NaN", async () => {
+    const solo = await crearUsuario(prisma, { username: "sinnadie" });
+    expect(await resumenReferidos(prisma, solo)).toEqual({
+      invitados: 0,
+      pendientes: 0,
+      puntosGanados: 0,
+    });
+  });
+
+  it("separa a quien ya cobró de quien está pendiente", async () => {
+    const padrino = await registrar("padrino@dareflash.test");
+    await registrar("pagado@dareflash.test", padrino.referralCode);
+    await registrar("pendiente@dareflash.test", padrino.referralCode);
+    await verificar("pagado@dareflash.test");
+
+    const r = await resumenReferidos(prisma, padrino.id);
+    expect(r).toEqual({ invitados: 2, pendientes: 1, puntosGanados: POINTS.INVITE_FRIEND });
+  });
+
+  it("verificado PERO sin pago cuenta como PENDIENTE: la cifra sale del ledger", async () => {
+    // El mismo caso que separa el historial de `emailVerified`: verificar no es haber cobrado.
+    const padrino = await registrar("padrino2@dareflash.test");
+    const invitado = await registrar("verificadosinpago@dareflash.test", padrino.referralCode);
+    await prisma.user.update({ where: { id: invitado.id }, data: { emailVerified: new Date() } });
+
+    const r = await resumenReferidos(prisma, padrino.id);
+    expect(r).toMatchObject({ invitados: 1, pendientes: 1, puntosGanados: 0 });
+  });
+
+  it("si un invitado se borra deja de contarse, pero sus puntos SIGUEN pagados", async () => {
+    const padrino = await registrar("padrino3@dareflash.test");
+    const invitado = await registrar("sevafuera@dareflash.test", padrino.referralCode);
+    await verificar("sevafuera@dareflash.test");
+    expect(await resumenReferidos(prisma, padrino.id)).toMatchObject({ invitados: 1 });
+
+    await prisma.user.update({ where: { id: invitado.id }, data: { deletedAt: new Date() } });
+
+    const r = await resumenReferidos(prisma, padrino.id);
+    expect(r.invitados, "el borrado ya no se lista").toBe(0);
+    expect(r.pendientes).toBe(0);
+    expect(r.puntosGanados, "lo pagado sigue pagado").toBe(POINTS.INVITE_FRIEND);
+  });
+
+  it("no cuenta a los invitados de otro", async () => {
+    const mio = await registrar("mio@dareflash.test");
+    const ajeno = await registrar("ajeno@dareflash.test");
+    await registrar("deajeno@dareflash.test", ajeno.referralCode);
+
+    expect(await resumenReferidos(prisma, mio.id)).toMatchObject({ invitados: 0 });
+    expect(await resumenReferidos(prisma, ajeno.id)).toMatchObject({ invitados: 1 });
   });
 });
