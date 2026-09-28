@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { Boton } from "./boton";
+
 /**
  * UN VALOR CON BOTÓN DE COPIAR. Nace de `EnlaceInvitacion`, que hacía esto mismo para el enlace y
  * nada más; al separar /referidos en código y enlace hacían falta dos, y dos copias del mismo
@@ -19,11 +21,18 @@ export function CampoCopiable({
   etiqueta,
   valor,
   id,
+  principal,
 }: {
   etiqueta: string;
   valor: string;
   /** Ata la etiqueta al campo. Debe ser único en la página si hay más de un campo. */
   id: string;
+  /**
+   * ¿Es LA acción de la pantalla? Entonces su botón va con relleno de `--df-action` y texto negro,
+   * como cualquier acción principal del producto. Solo UNO por pantalla: en /referidos lo lleva el
+   * enlace, que es lo que se comparte; el código va secundario porque es el plan B.
+   */
+  principal?: boolean;
 }) {
   const [copiado, setCopiado] = useState(false);
   const [fallo, setFallo] = useState(false);
@@ -51,16 +60,21 @@ export function CampoCopiable({
           value={valor}
           readOnly
           onFocus={(e) => e.currentTarget.select()}
-          className="min-h-[40px] min-w-0 flex-1 rounded-sm border border-line bg-raised px-3 font-mono text-sm text-text"
+          // 44 px, la misma altura que el botón: la primitiva `Boton` fija esa zona táctil y un
+          // campo de 40 dejaría los dos desalineados por 4 px en toda la fila.
+          className="min-h-[44px] min-w-0 flex-1 rounded-sm border border-line bg-raised px-3 font-mono text-sm text-text"
         />
-        <button
-          type="button"
+        {/* LA PRIMITIVA, no unas clases a mano: `Boton` deriva su relleno y su color de texto de
+            `botonTokens`, que es la fuente testeada del sistema (un relleno semántico lleva SIEMPRE
+            texto negro). Escribirlas aquí habría sido un segundo mapa esperando a discrepar. */}
+        <Boton
+          variante={principal ? "principal" : "secundario"}
           onClick={() => void copiar()}
-          className="min-h-[40px] shrink-0 rounded-sm border border-line px-4 text-sm font-medium text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised"
+          className={`shrink-0 ${principal ? "shadow-[var(--df-cta-lift)]" : ""}`}
         >
           {/* El botón dice lo que pasó, no lo que se pidió: "Copiado" confirma sin un aviso aparte. */}
           {copiado ? "Copiado" : "Copiar"}
-        </button>
+        </Boton>
       </div>
       {fallo ? (
         <p role="status" className="mt-1.5 text-2xs text-text-dim">

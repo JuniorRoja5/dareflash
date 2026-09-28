@@ -133,6 +133,9 @@
     rgb(255 255 255 / 0.07) 50%,
     transparent 56%
   );
+  /* CUANTO tiñe el halo de nivel del hero de /puntos. Sobre fondo oscuro, un color saturado al 22%
+     se lee como luz; ver la version clara, que NO puede usar este mismo numero. */
+  --df-halo-fuerza: 22%;
 }
 
 /* ============================================================================
@@ -180,6 +183,10 @@
   --df-shadow-lg: 0 36px 80px -32px rgb(13 17 23 / 0.36);
   /* El sheen invierte: sobre claro, lo que barre es una SOMBRA, no una luz. */
   --df-sheen: linear-gradient(115deg, transparent 44%, rgb(13 17 23 / 0.05) 50%, transparent 56%);
+  /* EL HALO PESA LA MITAD EN CLARO, y no es un ajuste a ojo: los colores de nivel del tema claro son
+     OSCUROS (bajados de luminosidad para leerse sobre blanco), asi que sobre una tarjeta blanca el
+     mismo 22% no da luz, da una mancha sucia. Con 10% se lee como un tinte. */
+  --df-halo-fuerza: 10%;
 }
 
 /* Lo que NO depende del tema, o se DERIVA de el con color-mix (y entonces cambia solo). */
@@ -234,6 +241,48 @@
 }
 .df-float {
   animation: df-float var(--df-dur-float) ease-in-out infinite;
+}
+/**
+ * HALO DE NIVEL — la luz de color detras del medallon de /puntos.
+ *
+ * El COLOR no se escribe aqui: lo pone quien la usa en `--df-halo-color`, porque depende del nivel
+ * de quien mire la pantalla (y en Legend es el oro del podio, no un color de nivel). Lo que vive
+ * aqui es la FORMA y la FUERZA, que son decision de diseno y no de datos — y la fuerza cambia con
+ * el tema (ver `--df-halo-fuerza`). Sin `--df-halo-color` cae en un gris neutro en vez de romperse:
+ * Rookie no tiene color de nivel y no por eso se queda sin profundidad.
+ */
+.df-halo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+    58% 62% at 22% 40%,
+    color-mix(in srgb, var(--df-halo-color, var(--df-text-dim)) var(--df-halo-fuerza), transparent),
+    transparent 70%
+  );
+}
+
+/**
+ * LLENADO DE LA BARRA DE PROGRESO al cargar. Un solo momento orquestado en la pantalla: la barra
+ * crece hasta su valor una vez y se queda.
+ *
+ * Se anima `transform` y no `width` porque `width` recalcula la maqueta en cada fotograma; y el
+ * ancho FINAL va en el `style` del elemento, asi que si la animacion no llega a correr —movimiento
+ * reducido, navegador viejo, fallo al cargar el CSS— la barra ya esta en su sitio. Una barra que
+ * dependa de la animacion para mostrar el valor es una barra que a veces miente.
+ */
+@keyframes df-barra {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+.df-barra {
+  transform-origin: left center;
+  animation: df-barra var(--df-dur-reveal) var(--ease-mechanical) both;
 }
 .df-sheen::after {
   content: "";

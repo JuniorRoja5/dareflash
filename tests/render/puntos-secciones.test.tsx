@@ -31,12 +31,25 @@ const TEMAS = ["dark", "light"] as const;
 const legend = NIVELES[NIVELES.length - 1]!;
 const rookie = NIVELES[0]!;
 
-/** Todo color de un estilo inline tiene que venir de un token: un hex solo vale en un tema. */
-function coloresInline(c: HTMLElement): string[] {
-  return [...c.querySelectorAll<HTMLElement>("[style]")].flatMap((el) => {
-    const s = el.getAttribute("style") ?? "";
-    return [...s.matchAll(/(?:^|;)\s*[\w-]*color[\w-]*\s*:\s*([^;]+)/gi)].map((m) => m[1]!.trim());
-  });
+/**
+ * TODAS las declaraciones de estilo inline del árbol, como pares `propiedad: valor`.
+ *
+ * Antes esto solo miraba las propiedades cuyo nombre llevaba "color", y se quedaba corto: un
+ * `box-shadow`, un `background` con degradado o una variable propia (`--df-halo-color`) llevan
+ * color y no se llamaban así. Se miran todas y se juzga el VALOR.
+ */
+function declaracionesInline(c: HTMLElement): string[] {
+  return [...c.querySelectorAll<HTMLElement>("[style]")].flatMap((el) =>
+    (el.getAttribute("style") ?? "")
+      .split(";")
+      .map((d) => d.trim())
+      .filter(Boolean),
+  );
+}
+
+/** ¿La declaración fija un color en vez de nombrar un token? Un hex solo se ve bien en UN tema. */
+function fijaUnColor(d: string): boolean {
+  return /#[0-9a-fA-F]{3,8}\b/.test(d) || /\b(rgba?|hsla?)\s*\(/.test(d);
 }
 
 describe.each(TEMAS)("tema %s", (tema) => {
@@ -81,16 +94,52 @@ describe.each(TEMAS)("tema %s", (tema) => {
     it("la insignia flota con la clase del sistema (la que apaga `prefers-reduced-motion`)", () => {
       const c = render(<HeroNivel puntos={750} />).container;
       expect(c.querySelector(".df-float"), "el medallón no lleva df-float").not.toBeNull();
+      expect(c.querySelector(".df-barra"), "la barra no se llena al entrar").not.toBeNull();
     });
 
-    it("y no fija ni un color: todo sale de un token", () => {
-      for (const puntos of [0, 750, legend.minimo]) {
-        const c = render(<HeroNivel puntos={puntos} />).container;
-        for (const color of coloresInline(c)) {
-          expect(color, `${puntos} puntos: ${color}`).toMatch(/^var\(--df-/);
+    it("el halo toma el color del nivel, y en Rookie se queda sin color (no se lo inventa)", () => {
+      const conColor = render(<HeroNivel puntos={750} />).container;
+      expect(conColor.querySelector(".df-halo"), "falta la capa de halo").not.toBeNull();
+      expect(conColor.querySelector("section")?.getAttribute("style")).toContain("--df-halo-color");
+      cleanup();
+
+      // Rookie no tiene color de nivel: la clase cae en su gris neutro por defecto, definido en el
+      // CSS, en vez de recibir un color prestado de otro nivel.
+      const rookieC = render(<HeroNivel puntos={0} />).container;
+      expect(
+        rookieC.querySelector(".df-halo"),
+        "Rookie tampoco se queda sin cuerpo",
+      ).not.toBeNull();
+      expect(rookieC.querySelector("section")?.getAttribute("style") ?? "").not.toContain(
+        "--df-halo-color",
+      );
+    });
+
+    it("y no fija ni un color: todo sale de un token, en los cinco niveles", () => {
+      // Los cinco, no una muestra: el halo y el aro se construyen con el token del nivel, y Rookie
+      // (sin token) y Legend (que usa el oro del podio) son justo los dos casos raros.
+      for (const n of NIVELES) {
+        const c = render(<HeroNivel puntos={n.minimo} />).container;
+        const decls = declaracionesInline(c);
+        expect(decls.length, `${n.clave}: no hay estilos que mirar`).toBeGreaterThan(0);
+        for (const d of decls) {
+          expect(fijaUnColor(d), `${n.clave}: ${d}`).toBe(false);
+          // Y lo que se nombre con `var()` tiene que ser una variable NUESTRA, que existe en los
+          // dos temas. `--font-*` entra porque la cifra usa la tipografía de display.
+          for (const uso of d.match(/var\(\s*--[\w-]+/g) ?? []) {
+            expect(uso, `${n.clave}: ${uso}`).toMatch(/var\(\s*(--df-|--font-)/);
+          }
         }
         cleanup();
       }
+    });
+
+    it("y el detector de color fijo NO está roto", () => {
+      // Sin esto, un `fijaUnColor` que devolviera siempre false dejaría lo de arriba en verde.
+      expect(fijaUnColor("border-color: #22c55e")).toBe(true);
+      expect(fijaUnColor("box-shadow: 0 0 4px rgb(0 0 0 / 0.5)")).toBe(true);
+      expect(fijaUnColor("color: var(--df-nivel-pro)")).toBe(false);
+      expect(fijaUnColor("width: 16%")).toBe(false);
     });
   });
 

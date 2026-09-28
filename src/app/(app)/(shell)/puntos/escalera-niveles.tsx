@@ -21,7 +21,7 @@ export function EscaleraNiveles({ puntos }: { puntos: number }) {
       <h2 id="escalera" className="text-sm font-semibold tracking-widest text-text-dim uppercase">
         Los cinco niveles
       </h2>
-      <ol className="mt-4 divide-y divide-line rounded-sm border border-line bg-surface">
+      <ol className="mt-4 divide-y divide-line overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-sm)] backdrop-blur-md">
         {NIVELES.map((n) => {
           const esActual = n.clave === actual.clave;
           const conseguido = puntos >= n.minimo;
@@ -31,9 +31,15 @@ export function EscaleraNiveles({ puntos }: { puntos: number }) {
               data-nivel={n.clave}
               data-estado={esActual ? "actual" : conseguido ? "conseguido" : "pendiente"}
               aria-current={esActual ? "step" : undefined}
-              className={`flex items-center gap-3 p-4 ${esActual ? "bg-raised" : ""} ${
-                conseguido ? "" : "opacity-60"
-              }`}
+              // LA ÚNICA LICENCIA DE LA LISTA: la fila donde estás lleva un filo de su color a la
+              // izquierda y la superficie elevada. El resto queda sobrio a propósito — la vida de
+              // esta pantalla va en el hero, y una lista que brilla entera no señala nada.
+              className={`flex items-center gap-3 border-l-2 p-4 ${
+                esActual ? "bg-raised" : "border-l-transparent"
+              } ${conseguido ? "" : "opacity-60"}`}
+              style={
+                esActual && n.tokenColor ? { borderLeftColor: `var(${n.tokenColor})` } : undefined
+              }
             >
               {/* El emblema del nivel, en su color. Rookie no tiene: en su sitio va un punto neutro,
                   del mismo tamaño, para que la columna no se descuadre. */}
@@ -57,7 +63,17 @@ export function EscaleraNiveles({ puntos }: { puntos: number }) {
                 </span>
               </span>
               {esActual ? (
-                <span className="shrink-0 rounded-xs border border-line px-2 py-0.5 text-2xs tracking-wide text-text uppercase">
+                <span
+                  className="shrink-0 rounded-xs border px-2 py-0.5 text-2xs tracking-wide uppercase"
+                  style={
+                    n.tokenColor
+                      ? {
+                          color: `var(${n.tokenColor})`,
+                          borderColor: `color-mix(in srgb, var(${n.tokenColor}) 45%, transparent)`,
+                        }
+                      : undefined
+                  }
+                >
                   Estás aquí
                 </span>
               ) : null}

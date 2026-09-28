@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { EmblemaDeNivel } from "@/components/ui/emblema-nivel";
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { TarjetaMetrica } from "@/components/ui/tarjeta-metrica";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
@@ -70,6 +71,9 @@ export default async function PuntosPage({
           etiqueta="Nivel actual"
           valor={nivel.nombre}
           destacado={nivel.tokenColor}
+          // El emblema geométrico del nivel, el mismo que lleva el avatar. Rookie no tiene y aquí
+          // tampoco se le inventa uno: la tarjeta se queda sin icono, que es lo que significa.
+          icono={nivel.emblema ? <EmblemaDeNivel nivel={nivel} clase="h-8 w-8" /> : undefined}
           pie={
             nivel.minimo === 0
               ? "El punto de partida"
@@ -79,6 +83,7 @@ export default async function PuntosPage({
         <TarjetaMetrica
           etiqueta="Progreso al siguiente"
           valor={esMaximo ? "—" : `${porcentaje}%`}
+          destacado={esMaximo ? null : nivel.tokenColor}
           pie={
             esMaximo
               ? "Ya estás en el nivel más alto"

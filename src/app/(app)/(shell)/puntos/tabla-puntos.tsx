@@ -25,16 +25,21 @@ export function TablaPuntos() {
         Cómo ganar puntos
       </h2>
 
-      <ul className="mt-4 divide-y divide-line rounded-sm border border-line bg-surface">
+      {/* Mismo idioma de tarjeta que el resto del producto (glass + sombra suave). Eso no es
+          adorno: es lo que hace que la lista no se confunda con el fondo de la página. Lo que NO
+          entra aquí es color ni brillo — la vida de la pantalla va en el hero. */}
+      <ul className="mt-4 divide-y divide-line overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-sm)] backdrop-blur-md">
         {activas.map((a) => (
           <li
             key={a.razon}
             data-accion={a.razon}
             data-estado="activa"
-            className="flex items-center gap-3 p-4"
+            className="flex items-center gap-3 p-4 transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised/60"
           >
             <span className="min-w-0 flex-1 text-sm text-text">{a.etiqueta}</span>
-            <span className="shrink-0 text-sm font-semibold text-text tabular-nums">
+            {/* El importe, en un chip recesado: la cifra se encuentra de un vistazo bajando por la
+                columna derecha, en vez de tener que leer cada fila entera. */}
+            <span className="shrink-0 rounded-xs bg-raised px-2 py-1 text-sm font-semibold tabular-nums text-text">
               +{a.puntos}
             </span>
           </li>

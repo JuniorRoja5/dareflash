@@ -94,8 +94,11 @@ export default async function ReferidosPage({
             Lo que compartes
           </h2>
           {enlace && yo ? (
-            <div className="mt-4 space-y-4 rounded-sm border border-line bg-surface p-5">
-              <CampoCopiable id="ref-enlace" etiqueta="Tu enlace" valor={enlace} />
+            <div className="mt-4 space-y-4 rounded-sm border border-line bg-surface/60 p-5 shadow-[var(--df-shadow-sm)] backdrop-blur-md">
+              {/* EL ÚNICO ACENTO DE LA PANTALLA. Compartir el enlace es LA acción de /referidos, y
+                  el sistema reserva `--df-action` para una por pantalla. El código va secundario a
+                  propósito: es el plan B para donde no cabe un enlace. */}
+              <CampoCopiable id="ref-enlace" etiqueta="Tu enlace" valor={enlace} principal />
               <CampoCopiable id="ref-codigo" etiqueta="Tu código" valor={yo.referralCode} />
               <p className="text-2xs text-text-dim">
                 El enlace se pega y ya está. El código es para donde no cabe un enlace.
@@ -123,12 +126,12 @@ export default async function ReferidosPage({
                 : "No queda nadie más por aquí."}
             </p>
           ) : (
-            <ul className="mt-4 divide-y divide-line rounded-sm border border-line bg-surface">
+            <ul className="mt-4 divide-y divide-line overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-sm)] backdrop-blur-md">
               {pagina.items.map((r) => (
                 <li
                   key={r.id}
                   data-referido={r.id}
-                  className="flex flex-wrap items-center gap-3 p-4"
+                  className="flex flex-wrap items-center gap-3 p-4 transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised/60"
                 >
                   {/* Mismo avatar y mismo anillo de nivel que en el resto del producto. */}
                   <Avatar
@@ -150,7 +153,7 @@ export default async function ReferidosPage({
                   {/* EL ESTADO SALE DEL LEDGER, no de si verificó: lo que se pinta al lado de una
                       cifra tiene que ser lo que de verdad se cobró. */}
                   {r.cobrado ? (
-                    <span className="shrink-0 text-sm font-medium tabular-nums text-text">
+                    <span className="shrink-0 rounded-xs bg-raised px-2 py-1 text-sm font-medium tabular-nums text-text">
                       +{POINTS.INVITE_FRIEND} ganados
                     </span>
                   ) : (

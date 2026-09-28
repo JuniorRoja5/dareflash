@@ -32,6 +32,14 @@ const HERO = readFileSync(
   "utf8",
 );
 
+/**
+ * El hero SIN COMENTARIOS, y esto no es cosmética: su docblock EXPLICA que anima con `df-float`,
+ * `df-sheen` y `df-barra`. Buscando sobre el fichero entero, "¿usa la clase?" salía verde con solo
+ * mencionarla — se podía quitar la clase del JSX y el test seguía pasando, que es la forma más
+ * tonta de no vigilar nada. Se juzga lo que se RENDERIZA.
+ */
+const CODIGO = HERO.replace(/\{?\/\*[\s\S]*?\*\/\}?/g, "").replace(/^\s*\/\/.*$/gm, "");
+
 /** El bloque `@media (prefers-reduced-motion: reduce) { … }` entero. */
 function bloqueReducido(): string {
   const i = CSS.indexOf("@media (prefers-reduced-motion: reduce)");
@@ -69,10 +77,42 @@ describe("la red global sigue puesta", () => {
 });
 
 describe("el hero se deja alcanzar por esa red", () => {
-  it("la insignia flota con la clase `df-float`, del sistema", () => {
-    expect(HERO).toContain("df-float");
-    // Y esa clase existe de verdad en el CSS: un nombre mal escrito no anima y tampoco falla.
-    expect(CSS).toMatch(/\.df-float\s*\{/);
+  it.each(["df-float", "df-sheen", "df-barra"])(
+    "anima con `%s`, una clase del sistema y no un invento local",
+    (clase) => {
+      expect(CODIGO, `el hero no usa ${clase}`).toContain(clase);
+      // Y esa clase existe de verdad en el CSS: un nombre mal escrito no anima y tampoco falla,
+      // así que el hero se quedaría quieto SIEMPRE sin que nada se pusiera rojo.
+      expect(CSS, `${clase} no está definida en globals.css`).toMatch(
+        new RegExp(`\\.${clase}(::after)?\\s*\\{`),
+      );
+    },
+  );
+
+  it("y cada una de esas clases anima de verdad (no es una clase vacía)", () => {
+    for (const clase of ["df-float", "df-barra"]) {
+      const i = CSS.indexOf(`.${clase} {`);
+      expect(i, `${clase} sin bloque`).toBeGreaterThan(-1);
+      const bloque = CSS.slice(i, CSS.indexOf("}", i));
+      expect(bloque, `${clase} no declara animation`).toContain("animation");
+    }
+  });
+
+  it("y ese detector no se contenta con un comentario", () => {
+    // El propio docblock del hero nombra las tres clases. Si el test mirara el fichero entero,
+    // quitarlas del JSX seguiría en verde: esta es la prueba de que se mira el código.
+    expect(HERO, "el docblock ya no las explica; revisa el test").toContain("df-barra");
+    expect(CODIGO.length).toBeLessThan(HERO.length);
+  });
+
+  it("la barra de progreso NO depende de su animación para enseñar el valor", () => {
+    // Con movimiento reducido la animación dura 0,01 ms: si el ancho lo pusiera la animación en vez
+    // del `style`, la barra se quedaría a cero o saltaría, y estaría mintiendo sobre el progreso.
+    // Por eso se anima `transform` (escala) y el ancho final va en el estilo del elemento.
+    expect(HERO).toMatch(/width: `\$\{porcentaje\}%`/);
+    const barra = CSS.slice(CSS.indexOf("@keyframes df-barra"));
+    expect(barra.slice(0, 200)).toContain("transform");
+    expect(barra.slice(0, 200)).not.toContain("width");
   });
 
   it("NO anima por JavaScript ni por un `style` inline, que se saltarían la media query", () => {
@@ -83,11 +123,11 @@ describe("el hero se deja alcanzar por esa red", () => {
       /animationName/,
       /keyframes/i,
     ]) {
-      expect(HERO, String(prohibido)).not.toMatch(prohibido);
+      expect(CODIGO, String(prohibido)).not.toMatch(prohibido);
     }
   });
 
   it("y es un componente de SERVIDOR: sin `use client` no hay forma de animar en JS", () => {
-    expect(HERO).not.toContain('"use client"');
+    expect(CODIGO).not.toContain('"use client"');
   });
 });

@@ -33,9 +33,13 @@ export function HistorialMisPuntos({ items }: { items: MovimientoPuntos[] }) {
   }
 
   return (
-    <ul className="mt-4 divide-y divide-line rounded-sm border border-line bg-surface">
+    <ul className="mt-4 divide-y divide-line overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-sm)] backdrop-blur-md">
       {items.map((m) => (
-        <li key={m.id} data-movimiento={m.id} className="flex items-start gap-3 p-4">
+        <li
+          key={m.id}
+          data-movimiento={m.id}
+          className="flex items-start gap-3 p-4 transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised/60"
+        >
           <span className="min-w-0 flex-1">
             <span className="block text-sm text-text">{razonHumanaPropia(m.razon)}</span>
             <span className="block text-2xs text-text-dim">
@@ -45,7 +49,7 @@ export function HistorialMisPuntos({ items }: { items: MovimientoPuntos[] }) {
               {m.referencia && m.referencia !== "—" ? ` · ${m.referencia}` : ""}
             </span>
           </span>
-          <span className="shrink-0 text-sm font-semibold tabular-nums text-text">
+          <span className="shrink-0 rounded-xs bg-raised px-2 py-1 text-sm font-semibold tabular-nums text-text">
             {m.delta > 0 ? `+${m.delta}` : m.delta}
           </span>
         </li>
