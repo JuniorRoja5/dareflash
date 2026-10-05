@@ -31,7 +31,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import type { Db } from "@/server/db/types";
 
 import { retirarComentarioEnTx } from "./comentarios";
-import { levantarAutoOcultoEnTx } from "./ocultado-automatico";
+import { levantarAutoOcultoEnTx, sellarDescarteEnTx } from "./ocultado-automatico";
 import { retirarParticipacionEnTx } from "./participacion";
 
 export type ResultadoModeracion =
@@ -122,15 +122,25 @@ export async function retirarPorModeracion(
  * Y ES EL ÚNICO SITIO DE TODO EL CÓDIGO QUE LEVANTA UN AUTO-OCULTO sin retirar nada. Si el umbral
  * lo había escondido, descartar lo devuelve a la vista: esa es la vuelta atrás del automatismo, y
  * la toma una persona. No hay barrido, ni job, ni "se levanta solo al bajar el recuento".
+ *
+ * ADEMÁS SELLA EL JUICIO, y eso es lo que impide que el automatismo deshaga a la persona: durante
+ * `INMUNIDAD_TRAS_DESCARTE_DIAS`, el umbral no vuelve a esconder este objeto. Las denuncias nuevas
+ * se siguen registrando y vuelven a la cola —un moderador puede actuar en cualquier momento—; lo
+ * que se suspende es el ocultado automático, que es el que no tiene juicio.
  */
 export async function descartarDenuncias(
   db: PrismaClient,
   objeto: { targetType: ReportTargetDenunciable; targetId: string },
+  ahora: Date = new Date(),
 ): Promise<ResultadoModeracion> {
-  const { denunciasCerradas, levantado } = await db.$transaction(async (tx) => ({
-    levantado: await levantarAutoOcultoEnTx(tx, objeto),
-    denunciasCerradas: await cerrarDenuncias(tx, objeto, "DISMISSED"),
-  }));
+  const { denunciasCerradas, levantado } = await db.$transaction(async (tx) => {
+    const levantado = await levantarAutoOcultoEnTx(tx, objeto);
+    const denunciasCerradas = await cerrarDenuncias(tx, objeto, "DISMISSED");
+    // EL JUICIO SE SELLA solo si de verdad hubo algo que juzgar. Un "descartar" sobre un objeto
+    // sin denuncias abiertas no es una absolución: sería regalar inmunidad por pulsar un botón.
+    if (denunciasCerradas > 0) await sellarDescarteEnTx(tx, objeto, ahora);
+    return { levantado, denunciasCerradas };
+  });
   // Devolver el contenido a la vista YA es un cambio, aunque no quedara ninguna denuncia abierta
   // que cerrar: decir "sin cambios" después de des-ocultar algo sería mentirle al moderador.
   return denunciasCerradas > 0 || levantado

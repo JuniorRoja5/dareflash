@@ -1024,6 +1024,26 @@ export const COLA_MODERACION_PAGINA = 20;
  */
 export const DENUNCIAS_PARA_OCULTAR = 3;
 
+/**
+ * CUANTO DURA LA INMUNIDAD DE UN CONTENIDO QUE UN MODERADOR YA ABSOLVIO.
+ *
+ * EL AGUJERO QUE TAPA: tras un descarte, tres denuncias NUEVAS volvian a esconder lo mismo. Como
+ * `Report` tiene UNIQUE por (denunciante, objeto), los tres de la primera ronda ya no pueden
+ * volver a denunciar — hacen falta tres cuentas NUEVAS y verificadas cada vez—, pero eso es un
+ * coste, no una barrera: un grupo decidido re-esconde indefinidamente algo que un humano ya miro.
+ *
+ * POR QUE CON PLAZO Y NO PARA SIEMPRE: el acoso coordinado es una RAFAGA, no un estado. Un candado
+ * permanente cerraria ese vector pero dejaria el objeto sin red de seguridad el resto de su vida —
+ * y seis meses despues el contexto puede haber cambiado. El plazo cierra la rafaga y devuelve la
+ * red cuando el ataque coordinado ya no es plausible.
+ *
+ * DURANTE LA INMUNIDAD NO SE DEJA DE DENUNCIAR: las denuncias se registran y el objeto vuelve a la
+ * COLA, asi que un humano puede actuar en cualquier momento. Lo unico que no pasa es el ocultado
+ * AUTOMATICO. La red que se suspende es la que no tiene juicio; la que si lo tiene sigue puesta.
+ */
+export const INMUNIDAD_TRAS_DESCARTE_DIAS = 30;
+export const INMUNIDAD_TRAS_DESCARTE_MS = INMUNIDAD_TRAS_DESCARTE_DIAS * 24 * 60 * 60 * 1000;
+
 /** Estado de un job de la cola. */
 export const JobStatusSchema = z.enum(["PENDING", "RUNNING", "DONE", "FAILED"]);
 export type JobStatus = z.infer<typeof JobStatusSchema>;

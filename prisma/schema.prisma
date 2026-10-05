@@ -336,6 +336,16 @@ model Video {
   /// video oculto sigue siendo la participacion de su dueno; lo que cambia es que no se ve.
   ocultoAutoEn DateTime?
 
+  /// CUANDO UN MODERADOR DESCARTO por ultima vez denuncias de este video, o NULL si nunca.
+  ///
+  /// Es el juicio humano, con fecha, y sirve para una cosa: que el umbral NO vuelva a esconder
+  /// solo lo que una persona ya miro y absolvio (ver `INMUNIDAD_TRAS_DESCARTE_DIAS`). Sin esto,
+  /// tres cuentas nuevas re-escondian indefinidamente lo mismo.
+  ///
+  /// Se guarda en el OBJETO y no se deduce de `Report`: una denuncia no tiene fecha de resolucion
+  /// —solo `createdAt`—, asi que la respuesta a "¿cuando se absolvio esto?" no existe en esa tabla.
+  descartadoEn DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -962,6 +972,9 @@ model Comment {
   /// moderador) por el mismo motivo que en `Video.ocultoAutoEn`: hay que poder distinguir lo que
   /// escondio el umbral —pendiente de mirar— de lo que decidio una persona.
   ocultoAutoEn   DateTime?
+  /// Cuando un moderador descarto por ultima vez denuncias de este comentario. Misma funcion que
+  /// en `Video.descartadoEn`: el umbral no re-esconde lo que una persona ya absolvio.
+  descartadoEn   DateTime?
   createdAt      DateTime  @default(now())
 
   video Video @relation(fields: [videoId], references: [id], onDelete: Restrict)

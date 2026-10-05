@@ -18,7 +18,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { DENUNCIAS_PARA_OCULTAR } from "../src/config/constants";
+import { DENUNCIAS_PARA_OCULTAR, INMUNIDAD_TRAS_DESCARTE_MS } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { listarComentarios, publicarComentario } from "../src/server/services/comentarios";
 import { listarColaModeracion } from "../src/server/services/cola-moderacion";
@@ -227,6 +227,107 @@ describe("una sola dirección", () => {
     const videoId = await crearVideo();
     const r = await descartarDenuncias(prisma, { targetType: "VIDEO", targetId: videoId });
     expect(r).toEqual({ estado: "sin_cambios" });
+  });
+});
+
+describe("el candado: no se re-esconde lo que un moderador absolvió", () => {
+  /**
+   * EL CICLO DE ACOSO QUE ESTO CORTA, entero: tres cuentas esconden, el moderador mira y absuelve,
+   * y tres cuentas NUEVAS vuelven a esconder lo mismo. Tienen que ser nuevas porque el `@@unique`
+   * de `Report` impide que las tres primeras denuncien otra vez — pero tres cuentas verificadas no
+   * son una barrera, son un coste. Sin candado, el ciclo se repite indefinidamente y la persona
+   * acosada no vuelve a ver su contenido.
+   */
+  async function cicloCompleto(videoId: string): Promise<Awaited<ReturnType<typeof denunciar>>> {
+    await denuncian("VIDEO", videoId, DENUNCIAS_PARA_OCULTAR);
+    await descartarDenuncias(prisma, { targetType: "VIDEO", targetId: videoId });
+    const r = await denuncian("VIDEO", videoId, DENUNCIAS_PARA_OCULTAR);
+    return r[DENUNCIAS_PARA_OCULTAR - 1]!;
+  }
+
+  it("la segunda ronda NO lo esconde, aunque vuelva a cruzar el umbral", async () => {
+    const videoId = await crearVideo();
+    const ultima = await cicloCompleto(videoId);
+
+    expect(ultima).toEqual({ estado: "registrada", ocultado: false });
+    expect(await ocultoDe(videoId)).toBeNull();
+  });
+
+  it("pero las denuncias SÍ se registran y el objeto vuelve a la cola", async () => {
+    // La red que se suspende es la automática. La revisión humana sigue entera: si el automatismo
+    // también se tragara las denuncias, el acosado perdería la protección de verdad.
+    const videoId = await crearVideo();
+    await cicloCompleto(videoId);
+
+    const abiertas = await prisma.report.count({ where: { targetId: videoId, status: "OPEN" } });
+    expect(abiertas).toBe(DENUNCIAS_PARA_OCULTAR);
+    const { items } = await listarColaModeracion(prisma, { firmar: firmarFake });
+    const fila = items.find((i) => i.targetId === videoId);
+    expect(fila?.denunciantes).toBe(DENUNCIAS_PARA_OCULTAR);
+    expect(fila?.ocultoAuto).toBe(false);
+  });
+
+  it("y el moderador puede retirarlo a mano en cualquier momento", async () => {
+    const videoId = await crearVideo();
+    await cicloCompleto(videoId);
+
+    const r = await retirarPorModeracion(prisma, { targetType: "VIDEO", targetId: videoId });
+    expect(r.estado).toBe("hecho");
+    expect((await prisma.video.findUniqueOrThrow({ where: { id: videoId } })).status).toBe(
+      "REMOVED",
+    );
+  });
+
+  it("cuando VENCE el plazo, la red vuelve sola", async () => {
+    const videoId = await crearVideo();
+    await denuncian("VIDEO", videoId, DENUNCIAS_PARA_OCULTAR);
+    await descartarDenuncias(prisma, { targetType: "VIDEO", targetId: videoId });
+    // Se envejece el sello: el equivalente a que pase el plazo.
+    await prisma.video.update({
+      where: { id: videoId },
+      data: { descartadoEn: new Date(Date.now() - INMUNIDAD_TRAS_DESCARTE_MS - 1000) },
+    });
+
+    await denuncian("VIDEO", videoId, DENUNCIAS_PARA_OCULTAR);
+    expect(await ocultoDe(videoId)).not.toBeNull();
+  });
+
+  it("el sello se pone al DESCARTAR, y solo si había algo que descartar", async () => {
+    const videoId = await crearVideo();
+    // Sin denuncias: pulsar descartar no regala inmunidad.
+    await descartarDenuncias(prisma, { targetType: "VIDEO", targetId: videoId });
+    expect(
+      (await prisma.video.findUniqueOrThrow({ where: { id: videoId } })).descartadoEn,
+    ).toBeNull();
+
+    await denuncian("VIDEO", videoId, 1);
+    await descartarDenuncias(prisma, { targetType: "VIDEO", targetId: videoId });
+    expect(
+      (await prisma.video.findUniqueOrThrow({ where: { id: videoId } })).descartadoEn,
+    ).not.toBeNull();
+  });
+
+  it("RETIRAR no sella nada: no es una absolución", async () => {
+    const videoId = await crearVideo();
+    await denuncian("VIDEO", videoId, 1);
+    await retirarPorModeracion(prisma, { targetType: "VIDEO", targetId: videoId });
+    expect(
+      (await prisma.video.findUniqueOrThrow({ where: { id: videoId } })).descartadoEn,
+    ).toBeNull();
+  });
+
+  it("el candado vale igual para COMENTARIOS", async () => {
+    const videoId = await crearVideo();
+    const commentId = await crearComentario(videoId);
+    await denuncian("COMMENT", commentId, DENUNCIAS_PARA_OCULTAR);
+    await descartarDenuncias(prisma, { targetType: "COMMENT", targetId: commentId });
+    await denuncian("COMMENT", commentId, DENUNCIAS_PARA_OCULTAR);
+
+    const c = await prisma.comment.findUniqueOrThrow({ where: { id: commentId } });
+    expect(c.ocultoAutoEn).toBeNull();
+    expect(c.descartadoEn).not.toBeNull();
+    // Y sigue contando como visible: el contador no se descuadra por el camino.
+    expect((await prisma.video.findUniqueOrThrow({ where: { id: videoId } })).commentCount).toBe(1);
   });
 });
 

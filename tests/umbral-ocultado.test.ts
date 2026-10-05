@@ -17,8 +17,12 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { DENUNCIAS_PARA_OCULTAR } from "../src/config/constants";
-import { cruzaUmbralOculto } from "../src/lib/umbral-ocultado";
+import {
+  DENUNCIAS_PARA_OCULTAR,
+  INMUNIDAD_TRAS_DESCARTE_DIAS,
+  INMUNIDAD_TRAS_DESCARTE_MS,
+} from "../src/config/constants";
+import { cruzaUmbralOculto, estaInmune } from "../src/lib/umbral-ocultado";
 
 const U = DENUNCIAS_PARA_OCULTAR;
 
@@ -70,7 +74,78 @@ describe("una sola dirección", () => {
     const modulo = await import("../src/lib/umbral-ocultado");
     const nombres = Object.keys(modulo);
     expect(nombres.filter((n) => /desocult|levanta|mostrar|revelar/i.test(n))).toEqual([]);
-    expect(nombres.sort()).toEqual(["cruzaUmbralOculto"]);
+    // Lista EXACTA, y se amplía a mano: `estaInmune` entró con el candado y es una pregunta, no
+    // una acción —dice si el objeto está protegido, no des-oculta nada—. Cualquier export nuevo
+    // tiene que pasar por aquí y justificarse, que es justo lo que hizo este.
+    expect(nombres.sort()).toEqual(["cruzaUmbralOculto", "estaInmune"]);
+  });
+});
+
+describe("el candado: lo que un humano absolvió no se re-esconde solo", () => {
+  const AHORA = new Date(Date.UTC(2026, 9, 5, 12));
+  const haceDias = (d: number) => new Date(AHORA.getTime() - d * 24 * 60 * 60 * 1000);
+
+  it("con el umbral cruzado pero recién absuelto, NO oculta", () => {
+    expect(
+      cruzaUmbralOculto({ abiertas: U, yaOculto: false, descartadoEn: AHORA, ahora: AHORA }),
+    ).toBe(false);
+  });
+
+  it("dentro del plazo sigue sin ocultar, aunque lleguen muchas más", () => {
+    expect(
+      cruzaUmbralOculto({
+        abiertas: U + 20,
+        yaOculto: false,
+        descartadoEn: haceDias(INMUNIDAD_TRAS_DESCARTE_DIAS - 1),
+        ahora: AHORA,
+      }),
+    ).toBe(false);
+  });
+
+  it("al vencer el plazo, la red vuelve", () => {
+    expect(
+      cruzaUmbralOculto({
+        abiertas: U,
+        yaOculto: false,
+        descartadoEn: haceDias(INMUNIDAD_TRAS_DESCARTE_DIAS),
+        ahora: AHORA,
+      }),
+    ).toBe(true);
+  });
+
+  it("sin descarte previo no hay inmunidad", () => {
+    expect(
+      cruzaUmbralOculto({ abiertas: U, yaOculto: false, descartadoEn: null, ahora: AHORA }),
+    ).toBe(true);
+    // Y omitir el dato es lo mismo que no tenerlo: nadie gana inmunidad por descuido.
+    expect(cruzaUmbralOculto({ abiertas: U, yaOculto: false })).toBe(true);
+  });
+
+  it("el plazo se mide desde el ÚLTIMO descarte, no desde el primero", () => {
+    // Lo garantiza `sellarDescarteEnTx` sobrescribiendo; aquí se fija el lado de la decisión.
+    const viejo = haceDias(INMUNIDAD_TRAS_DESCARTE_DIAS + 10);
+    const reciente = haceDias(1);
+    expect(estaInmune(viejo, AHORA)).toBe(false);
+    expect(estaInmune(reciente, AHORA)).toBe(true);
+  });
+
+  it("una fecha futura se trata como inmune: ante un dato raro, no se esconde solo", () => {
+    expect(estaInmune(new Date(AHORA.getTime() + 86_400_000), AHORA)).toBe(true);
+  });
+
+  it("el plazo son TREINTA días, y moverlo exige venir aquí", () => {
+    // Clavado como el umbral. Sin este caso, bajarlo a un día —que deja el candado casi inútil
+    // contra una ráfaga de fin de semana— no habría puesto nada en rojo: todos los demás casos se
+    // derivan de la constante y le seguirían la corriente. El número es una decisión, no un detalle.
+    expect(INMUNIDAD_TRAS_DESCARTE_DIAS).toBe(30);
+    expect(INMUNIDAD_TRAS_DESCARTE_MS).toBe(30 * 24 * 60 * 60 * 1000);
+  });
+
+  it("y los bordes se miden con ese plazo, no con un número escrito aquí", () => {
+    const justo = haceDias(INMUNIDAD_TRAS_DESCARTE_DIAS);
+    const unPeloAntes = new Date(justo.getTime() + 1);
+    expect(estaInmune(justo, AHORA), "el día que vence, vence").toBe(false);
+    expect(estaInmune(unPeloAntes, AHORA), "un milisegundo antes, todavía protege").toBe(true);
   });
 });
 

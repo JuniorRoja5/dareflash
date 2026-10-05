@@ -18,6 +18,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { AvisoSchema, textoAviso, type Aviso } from "@/lib/notificaciones";
 import type { Db } from "@/server/db/types";
 
+import { COMENTARIO_VISIBLE } from "./comentario-visible";
 import { VIDEO_VISIBLE } from "./video-visible";
 
 /**
@@ -202,7 +203,11 @@ export async function videosDeComentarios(
   ];
   if (ids.length === 0) return new Map();
   const comentarios = await db.comment.findMany({
-    where: { id: { in: ids }, retiradoEn: null, video: VIDEO_VISIBLE },
+    // La CONSTANTE y no `retiradoEn: null` a mano: era la última copia suelta de la condición, y
+    // por eso un aviso podía enlazar a un comentario que el umbral ya había escondido — el aviso
+    // se pintaba y el enlace llevaba a algo que no se ve. Un comentario que no está visible no
+    // tiene enlace, y el aviso cae a su destino de reserva (ver `textoAviso`).
+    where: { id: { in: ids }, ...COMENTARIO_VISIBLE, video: VIDEO_VISIBLE },
     select: { id: true, videoId: true },
   });
   return new Map(comentarios.map((c) => [c.id, c.videoId]));

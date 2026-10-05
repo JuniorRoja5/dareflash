@@ -66,8 +66,10 @@ export async function ocultarSiCruzaEnTx(
   ahora: Date,
 ): Promise<boolean> {
   const abiertas = await contarDenunciasAbiertas(tx, objeto);
-  const yaOculto = await estaAutoOculto(tx, objeto);
-  if (!cruzaUmbralOculto({ abiertas, yaOculto })) return false;
+  const { yaOculto, descartadoEn } = await estadoDelObjeto(tx, objeto);
+  // La inmunidad entra aquí dentro, en la decisión pura: si un moderador absolvió esto hace poco,
+  // las denuncias se quedan registradas y el objeto vuelve a la cola, pero NO se esconde solo.
+  if (!cruzaUmbralOculto({ abiertas, yaOculto, descartadoEn, ahora })) return false;
 
   const ocultado =
     objeto.targetType === "VIDEO"
@@ -136,20 +138,41 @@ export async function repartirAvisoAutoOculto(
   return { avisados };
 }
 
-/** ¿Está ya escondido por el umbral? */
-async function estaAutoOculto(tx: Db, objeto: ObjetoDenunciado): Promise<boolean> {
+/** Lo que el umbral necesita saber del objeto: si ya está escondido y cuándo lo absolvieron. */
+async function estadoDelObjeto(
+  tx: Db,
+  objeto: ObjetoDenunciado,
+): Promise<{ yaOculto: boolean; descartadoEn: Date | null }> {
+  const fila =
+    objeto.targetType === "VIDEO"
+      ? await tx.video.findUnique({
+          where: { id: objeto.targetId },
+          select: { ocultoAutoEn: true, descartadoEn: true },
+        })
+      : await tx.comment.findUnique({
+          where: { id: objeto.targetId },
+          select: { ocultoAutoEn: true, descartadoEn: true },
+        });
+  return { yaOculto: fila?.ocultoAutoEn != null, descartadoEn: fila?.descartadoEn ?? null };
+}
+
+/**
+ * SELLA el juicio del moderador: este objeto queda absuelto AHORA. Lo llama solo el descarte.
+ *
+ * Se escribe aunque el objeto ya estuviera absuelto antes: el plazo cuenta desde el ÚLTIMO
+ * descarte, no desde el primero. Si se conservara el primero, un objeto denunciado en oleadas
+ * perdería la inmunidad en mitad de la siguiente.
+ */
+export async function sellarDescarteEnTx(
+  tx: Db,
+  objeto: ObjetoDenunciado,
+  ahora: Date,
+): Promise<void> {
   if (objeto.targetType === "VIDEO") {
-    const v = await tx.video.findUnique({
-      where: { id: objeto.targetId },
-      select: { ocultoAutoEn: true },
-    });
-    return v?.ocultoAutoEn != null;
+    await tx.video.updateMany({ where: { id: objeto.targetId }, data: { descartadoEn: ahora } });
+    return;
   }
-  const c = await tx.comment.findUnique({
-    where: { id: objeto.targetId },
-    select: { ocultoAutoEn: true },
-  });
-  return c?.ocultoAutoEn != null;
+  await tx.comment.updateMany({ where: { id: objeto.targetId }, data: { descartadoEn: ahora } });
 }
 
 async function ocultarVideo(tx: Db, id: string, ahora: Date): Promise<boolean> {
