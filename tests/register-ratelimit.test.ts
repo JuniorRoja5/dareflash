@@ -48,7 +48,9 @@ function reqRegister(email: string): Request {
   return new Request("http://test/api/auth/register", {
     method: "POST",
     headers: { "content-type": "application/json", origin: "http://test" },
-    body: JSON.stringify({ email, password: PASS, birthDate: BIRTH }),
+    // `aceptaTerminos` es obligatorio desde la puerta de 18+: sin él la petición ni llega al
+    // rate-limit, y este test mediría otra cosa (que es justo lo que pasó al añadirlo).
+    body: JSON.stringify({ email, password: PASS, birthDate: BIRTH, aceptaTerminos: true }),
   });
 }
 

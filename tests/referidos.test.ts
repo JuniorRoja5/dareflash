@@ -53,6 +53,7 @@ beforeEach(async () => {
 });
 
 const APP = "https://dareflash.test";
+const ACEPTO = new Date("2026-01-01T00:00:00.000Z");
 const CLAVE = "Contrasena-larga-y-buena-9";
 
 /** Registra por la vía real y devuelve la fila creada. */
@@ -61,6 +62,7 @@ async function registrar(email: string, refCode?: string | null) {
     email,
     password: CLAVE,
     birthDate: new Date("1995-05-05"),
+    terminosAceptadosEn: ACEPTO,
     appUrl: APP,
     refCode,
   });

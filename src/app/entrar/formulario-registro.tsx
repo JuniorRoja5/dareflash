@@ -10,9 +10,14 @@ import { postJson } from "@/lib/cliente-http";
 import { mensajeError, MSG_REGISTRO } from "@/lib/mensajes-error";
 
 /**
- * FORMULARIO de registro (isla cliente). POST /api/auth/register { email, password, birthDate }
- * (JSON). La validación del formulario es solo UX; el SERVIDOR es el gate (edad, unicidad, política de
- * contraseña). La respuesta del endpoint es UNIFORME (sin enumeración): tanto si el correo es nuevo
+ * FORMULARIO de registro (isla cliente). POST /api/auth/register
+ * { email, password, birthDate, aceptaTerminos } (JSON). La validación del formulario es solo UX; el
+ * SERVIDOR es el gate (edad, consentimiento, unicidad, política de contraseña) — el `required` de la
+ * casilla y el `type="date"` no paran a nadie que mande el JSON a mano.
+ *
+ * LA EDAD ES DECLARADA, NO VERIFICADA, y el copy lo dice así ("confirmo que soy mayor de edad"):
+ * aquí nadie enseña un documento. Quien verifica de verdad es Stripe Connect al reclamar un premio,
+ * que es otra puerta y otro momento. La respuesta del endpoint es UNIFORME (sin enumeración): tanto si el correo es nuevo
  * como si ya existía, contesta "te hemos enviado un correo de verificación" -> aquí NO se redirige ni
  * se inicia sesión: se pide al usuario que confirme su correo. Cada error se MAPEA a copy humano.
  */
@@ -26,6 +31,7 @@ export function FormularioRegistro() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nacimiento, setNacimiento] = useState("");
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [verVisible, setVerVisible] = useState(false);
   const [estado, setEstado] = useState<Estado>("idle");
   const [error, setError] = useState("");
@@ -41,6 +47,7 @@ export function FormularioRegistro() {
         email: email.trim(),
         password,
         birthDate: nacimiento,
+        aceptaTerminos,
         ...(refCode ? { ref: refCode } : {}),
       });
       if (r.ok) {
@@ -126,6 +133,23 @@ export function FormularioRegistro() {
         disabled={ocupado}
       />
 
+      {/* LA CASILLA. Dos cosas en una frase —edad y términos— porque es un solo acto: entrar aquí
+          siendo mayor y aceptando las reglas. `required` es UX; quien decide es el servidor, que
+          exige `aceptaTerminos: true` y vuelve a juzgar la fecha. */}
+      <label className="flex items-start gap-2.5 text-xs text-text-dim">
+        <input
+          type="checkbox"
+          checked={aceptaTerminos}
+          onChange={(e) => setAceptaTerminos(e.target.checked)}
+          disabled={ocupado}
+          required
+          className="mt-0.5 h-4 w-4 shrink-0 rounded-xs border-line accent-action"
+        />
+        <span>
+          Confirmo que soy mayor de edad y acepto los términos y la política de privacidad.
+        </span>
+      </label>
+
       {error ? (
         <p role="alert" className="text-sm text-alarm">
           {error}
@@ -142,9 +166,9 @@ export function FormularioRegistro() {
         {ocupado ? "Creando…" : "Crear cuenta"}
       </Boton>
 
-      <p className="text-xs text-text-dim">
-        Debes tener al menos 16 años. Te enviaremos un correo para verificar tu cuenta.
-      </p>
+      {/* La edad ya la dice la casilla de arriba; repetir "debes tener 18" aquí sería decirlo dos
+          veces. Y el número NO se escribe en el copy: viviría separado de `EDAD_MIN_USO`. */}
+      <p className="text-xs text-text-dim">Te enviaremos un correo para verificar tu cuenta.</p>
     </form>
   );
 }

@@ -450,9 +450,6 @@ export type CategoryKey = (typeof CATEGORIES)[number]["key"];
 export const ARGON2_MAX_CONCURRENT = 4;
 export const ARGON2_MAX_WAIT_MS = 2000;
 
-/** Edad minima para registrarse. Se valida EN SERVIDOR. */
-export const MIN_AGE_YEARS = 16;
-
 /** Caducidad del token de verificacion de email. */
 export const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24 h
 
@@ -476,6 +473,40 @@ export const LOGIN_UNLOCK_TTL_MS = 2 * 60 * 60 * 1000; // 2 h (ver acoplamiento 
  * contrasena, y minimiza la ventana en la que un enlace filtrado sigue siendo util.
  */
 export const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000; // 30 min
+
+/**
+ * EDAD MINIMA PARA USAR DAREFLASH. 18, global: no se varia por pais a proposito — una tabla de
+ * mayorias de edad por jurisdiccion obliga a saber DONDE esta cada persona, y eso es un dato que no
+ * tenemos ni queremos pedir para esto. Un unico numero, el mas alto de los habituales.
+ *
+ * ┌─ ES LA PUERTA DE **USAR**, Y ES **DECLARADA** ────────────────────────────────────────────────┐
+ * │ La persona escribe su fecha y marca una casilla. Nadie ha visto un documento, asi que esto no │
+ * │ es verificacion de edad y no autoriza a COBRAR nada.                                          │
+ * │                                                                                               │
+ * │ La verificacion de verdad —documento, identidad, contra listas— la hace STRIPE CONNECT cuando │
+ * │ alguien va a reclamar un premio, en otro momento y con otras consecuencias. Son dos puertas   │
+ * │ distintas: que esta este pasada no dice NADA sobre aquella, y ningun codigo puede tratar      │
+ * │ `fechaNacimiento` como permiso para mover dinero.                                             │
+ * │                                                                                               │
+ * │ Ni el codigo ni el copy pueden sugerir que la edad este "verificada": lo esta "declarada".    │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * SUSTITUYE A `MIN_AGE_YEARS`, que valia 16 y vivia aqui mismo. No se dejan las dos: dos umbrales
+ * para la misma puerta es la forma mas facil de mover uno y olvidarse del otro. Subir a 18 NO echa
+ * a nadie que ya este dentro — la puerta es el ALTA, y las cuentas existentes no se revisan.
+ */
+export const EDAD_MIN_USO = 18;
+
+/**
+ * Lo que se le dice a quien declara ser menor. Humano y sin reganar: no ha hecho nada malo.
+ * NO lleva el numero dentro ("mayor de edad", no "18 anos") a proposito: seria una segunda copia
+ * de `EDAD_MIN_USO` esperando a quedarse desfasada el dia que el umbral se mueva.
+ */
+export const MSG_EDAD_MINIMA = "Tienes que ser mayor de edad para registrarte.";
+/** Fecha con mala forma, inexistente, futura o imposible. */
+export const MSG_FECHA_NACIMIENTO_NO_VALIDA = "Revisa tu fecha de nacimiento.";
+/** La casilla es obligatoria: sin ella no hay alta. */
+export const MSG_TERMINOS_SIN_ACEPTAR = "Tienes que aceptar los términos para registrarte.";
 
 /**
  * GRACIA antes de que un reto borrado por el admin desaparezca del todo. Durante este plazo el reto ya

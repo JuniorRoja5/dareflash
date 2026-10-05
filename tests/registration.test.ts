@@ -46,6 +46,8 @@ beforeEach(async () => {
 });
 
 const BIRTH = new Date("2000-01-01T00:00:00.000Z");
+/** Sello de consentimiento: lo pone el servidor en el alta real, aqui basta un instante fijo. */
+const ACEPTO = new Date("2026-01-01T00:00:00.000Z");
 const PASS = "TEST-FIXTURE-pass-suficientemente-larga";
 
 function median(xs: number[]): number {
@@ -86,6 +88,7 @@ describe("registro: sin oraculo por tiempo ni carrera", () => {
         email: existente,
         password: PASS,
         birthDate: BIRTH,
+        terminosAceptadosEn: ACEPTO,
         appUrl: "https://x.test",
       });
       tExist.push(performance.now() - s);
@@ -95,6 +98,7 @@ describe("registro: sin oraculo por tiempo ni carrera", () => {
         email: `nuevo${i}@test.com`,
         password: PASS,
         birthDate: BIRTH,
+        terminosAceptadosEn: ACEPTO,
         appUrl: "https://x.test",
       });
       tNuevo.push(performance.now() - s);
@@ -159,8 +163,20 @@ describe("registro: sin oraculo por tiempo ni carrera", () => {
     const email = "carrera@test.com";
     // Ambas llaman a la vez: una crea, la otra choca con la UNIQUE (P2002) y es no-op.
     const results = await Promise.allSettled([
-      registerUser(prisma, { email, password: PASS, birthDate: BIRTH, appUrl: "https://x.test" }),
-      registerUser(prisma, { email, password: PASS, birthDate: BIRTH, appUrl: "https://x.test" }),
+      registerUser(prisma, {
+        email,
+        password: PASS,
+        birthDate: BIRTH,
+        terminosAceptadosEn: ACEPTO,
+        appUrl: "https://x.test",
+      }),
+      registerUser(prisma, {
+        email,
+        password: PASS,
+        birthDate: BIRTH,
+        terminosAceptadosEn: ACEPTO,
+        appUrl: "https://x.test",
+      }),
     ]);
 
     // Ninguna revienta: la colision se traga como no-op silencioso.
@@ -195,6 +211,7 @@ describe("registro: el no-op silencioso SOLO cubre la constraint de email", () =
       email: "x@test.com",
       password: PASS,
       birthDate: BIRTH,
+      terminosAceptadosEn: ACEPTO,
       appUrl: "https://x.test",
     };
 
@@ -232,6 +249,7 @@ describe("registro: el no-op silencioso SOLO cubre la constraint de email", () =
       email: "y@test.com",
       password: PASS,
       birthDate: BIRTH,
+      terminosAceptadosEn: ACEPTO,
       appUrl: "https://x.test",
     };
     let intentos = 0;
@@ -257,6 +275,7 @@ describe("registro: username auto-generado (nunca NULL)", () => {
       email: "nuevo@test.com",
       password: PASS,
       birthDate: BIRTH,
+      terminosAceptadosEn: ACEPTO,
       appUrl: "https://x.test",
     });
     const u = await prisma.user.findUnique({
@@ -281,7 +300,13 @@ describe("registro: username auto-generado (nunca NULL)", () => {
     let i = 0;
     await registerUser(
       prisma,
-      { email: "nueva@test.com", password: PASS, birthDate: BIRTH, appUrl: "https://x.test" },
+      {
+        email: "nueva@test.com",
+        password: PASS,
+        birthDate: BIRTH,
+        terminosAceptadosEn: ACEPTO,
+        appUrl: "https://x.test",
+      },
       { generarHandle: () => secuencia[i++]! },
     );
 

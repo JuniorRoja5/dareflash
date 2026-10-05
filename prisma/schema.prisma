@@ -106,13 +106,25 @@ model User {
   // `role === "ADMIN"` en otro lado.
   puedeCrearRetos Boolean @default(false)
 
-  // NULLABLE a proposito: el adaptador de Auth.js crea el usuario en el alta por
-  // OAuth (Google) con lo que da el proveedor (email, nombre, imagen), y Google NO
-  // devuelve fecha de nacimiento. Si fuera obligatoria, el alta con Google fallaria.
-  // La edad minima 16 NO se relaja: se exige en la CAPA DE APLICACION. Tras el alta
-  // por OAuth el usuario pasa por "completar perfil"; sin `birthDate` verificada no
-  // puede realizar ninguna accion con efectos (participar, votar, cobrar).
+  /// FECHA DE NACIMIENTO **DECLARADA** POR LA PERSONA. No esta verificada y no lo estara aqui:
+  /// nadie ha visto un documento. Es la puerta de USAR el producto (ver `EDAD_MIN_USO`), y NO
+  /// autoriza a cobrar nada — la verificacion de identidad y edad la hace Stripe Connect al
+  /// reclamar un premio, que es otra puerta, en otro momento. Ningun codigo puede leer esta
+  /// columna como permiso para mover dinero.
+  ///
+  /// NULLABLE porque hay cuentas ANTERIORES a que el alta la pidiera, y no se les inventa una
+  /// fecha: un NULL dice "no lo sabemos", que es la verdad. El registro de hoy la exige siempre
+  /// en la capa de aplicacion (`registerUser`). NULL NO significa "menor" ni "mayor".
+  ///
+  /// PII: no sale en ningun DTO publico (perfil, feed, busqueda, comentarios). Se guarda para la
+  /// puerta de edad y para pre-rellenar Connect el dia de manana.
   birthDate DateTime?
+
+  /// CUANDO acepto los terminos, o NULL si nunca lo hizo (cuentas anteriores a la casilla).
+  /// Se guarda la FECHA y no un booleano porque "acepto" sin "cuando" no sirve para nada: lo que
+  /// hace falta el dia que haya una reclamacion es poder decir en que momento, y por tanto contra
+  /// que version del documento. Igual que `birthDate`, es declarado y es PII: no sale en publico.
+  terminosAceptadosEn DateTime?
 
   // --- Saldos DENORMALIZADOS (cache guardado por transaccion + FOR UPDATE). ---
   // La verdad contable es la suma del ledger; estas columnas son un cache que se

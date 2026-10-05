@@ -23,6 +23,7 @@ beforeEach(async () => {
 });
 
 const APP_URL = "https://dareflash.com";
+const ACEPTO = new Date("2026-01-01T00:00:00.000Z");
 
 describe("registro", () => {
   it("email nuevo: crea usuario SIN verificar y encola el correo de verificacion", async () => {
@@ -30,6 +31,7 @@ describe("registro", () => {
       email: "nuevo@test.com",
       password: "TEST-FIXTURE-pass-larga-123",
       birthDate: new Date("2000-01-01T00:00:00Z"),
+      terminosAceptadosEn: ACEPTO,
       appUrl: APP_URL,
     });
 
@@ -58,6 +60,7 @@ describe("registro", () => {
       email: "ya@test.com",
       password: "TEST-FIXTURE-pass-otra-larga",
       birthDate: new Date("2000-01-01T00:00:00Z"),
+      terminosAceptadosEn: ACEPTO,
       appUrl: APP_URL,
     });
     expect(await prisma.user.count({ where: { email: "ya@test.com" } })).toBe(1);

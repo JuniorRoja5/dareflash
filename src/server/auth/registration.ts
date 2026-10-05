@@ -65,7 +65,18 @@ export async function registerUser(
   input: {
     email: string;
     password: string;
+    /**
+     * Fecha de nacimiento DECLARADA. Quien llama ya ha comprobado la puerta de edad: aqui no se
+     * vuelve a comprobar a proposito, para que no haya DOS sitios que decidan quien entra y puedan
+     * discrepar. El unico sitio que decide es la ruta (ver `declaraEdadMinima`).
+     */
     birthDate: Date;
+    /**
+     * CUANDO acepto los terminos. Obligatorio en el alta: sin casilla no hay registro, asi que
+     * aqui no es opcional — si lo fuera, una via de alta nueva podria crear cuentas sin consentir
+     * y nada lo notaria.
+     */
+    terminosAceptadosEn: Date;
     appUrl: string;
     now?: Date;
     /**
@@ -109,6 +120,7 @@ export async function registerUser(
           referredById,
           passwordHash,
           birthDate: input.birthDate,
+          terminosAceptadosEn: input.terminosAceptadosEn,
           emailVerified: null, // sin verificar: sin acciones con efectos
         },
       });
