@@ -165,6 +165,19 @@ function Fila({
             Ya retirado
           </span>
         ) : null}
+        {/* DOS ETIQUETAS DISTINTAS, y nunca la misma. "Ya retirado" significa que una PERSONA lo
+            decidió; esta significa que lo escondió un contador y todavía no lo ha mirado nadie.
+            Si las dos se pintaran igual, el moderador creería que ya hay una decisión detrás de
+            algo que no la tiene. Por eso esta va en el color del TIEMPO (algo en espera), no en
+            el de alarma. */}
+        {fila.ocultoAuto ? (
+          <span
+            data-oculto-auto="1"
+            className="rounded-xs bg-time/15 px-2 py-0.5 text-2xs text-time"
+          >
+            Oculto automáticamente · pendiente
+          </span>
+        ) : null}
         <span className="ml-auto text-2xs text-text-dim">de @{autor}</span>
       </div>
 

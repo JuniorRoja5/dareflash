@@ -93,6 +93,17 @@ export const AvisoSchema = z.discriminatedUnion("tipo", [
     // tumbaría la transacción del comentario entero por su aviso.
     datos: z.object({ autor: z.string().min(1).max(64), reto: RetoFoto.nullable() }).strict(),
   }),
+  z.object({
+    tipo: z.literal("CONTENIDO_AUTO_OCULTO"),
+    // El ÚNICO aviso con dos refType posibles, porque el umbral esconde las dos cosas. Sigue
+    // siendo la mitad de la clave de unicidad, así que un vídeo y un comentario con el mismo id
+    // (imposible, pero) tampoco se pisarían.
+    refType: z.enum(["VIDEO", "COMMENT"]),
+    refId: Id,
+    // VACÍO: el aviso dice "hay algo que mirar", y lo que hay que mirar se lee en la cola. Copiar
+    // aquí el texto denunciado sería repartir ese contenido por las bandejas del equipo.
+    datos: z.object({}).strict(),
+  }),
 ]);
 export type Aviso = z.infer<typeof AvisoSchema>;
 
@@ -188,6 +199,25 @@ export function avisoComentario(input: {
   };
 }
 
+/**
+ * El umbral de denuncias ha escondido algo. VA AL EQUIPO, no al autor.
+ *
+ * Uno por OBJETO: si el mismo vídeo vuelve a cruzar el umbral tras un descarte, el `@@unique` de
+ * Notification hace que el moderador no reciba un segundo aviso idéntico. Es lo correcto — el
+ * trabajo pendiente ya está en la cola, y repetir el aviso no añade nada que mirar.
+ */
+export function avisoContenidoAutoOculto(input: {
+  targetType: "VIDEO" | "COMMENT";
+  targetId: string;
+}): Aviso {
+  return {
+    tipo: "CONTENIDO_AUTO_OCULTO",
+    refType: input.targetType,
+    refId: input.targetId,
+    datos: {},
+  };
+}
+
 // ---------------------------------------------------------------------------------------------------
 // COPY: lo que dice cada aviso, ES y EN, y adónde lleva. Fuente única: la UI no escribe literales.
 // ---------------------------------------------------------------------------------------------------
@@ -245,6 +275,15 @@ export function textoAviso(
   if (!r.success) return null;
   const a = r.data;
   switch (a.tipo) {
+    case "CONTENIDO_AUTO_OCULTO":
+      return {
+        // DICE LO QUE PASÓ, no lo que hay que concluir: "se ha ocultado" (un contador llegó a
+        // tres), nunca "contenido inapropiado" — eso lo decide quien lo mire, que es a lo que se
+        // le invita. Lleva a la cola, que es donde se decide.
+        es: "Se ha ocultado contenido por denuncias. Está pendiente de revisar.",
+        en: "Content was hidden after multiple reports. It is pending review.",
+        href: "/panel/moderacion",
+      };
     case "VIDEO_LISTO":
       return {
         es: "Tu vídeo ya está publicado y se puede ver.",

@@ -322,6 +322,20 @@ model Video {
   // bloqueada antes (ver `services/comentarios.ts`). Sin backfill: no habia comentarios.
   commentCount Int @default(0)
 
+  /// OCULTADO AUTOMATICO POR UMBRAL DE DENUNCIAS: cuando lo escondieron las denuncias, o NULL.
+  ///
+  /// CAMPO PROPIO Y NO `status = REMOVED`, y es la pieza entera: el moderador tiene que poder
+  /// distinguir "lo escondio el umbral y esta PENDIENTE de mirar" de "lo retire yo". Si
+  /// compartieran estado, al descartar las denuncias habria que devolver el video a PUBLISHED y
+  /// eso podria resucitar algo que un humano retiro a mano, en silencio.
+  ///
+  /// UNA SOLA DIRECCION: lo pone el umbral (ver `lib/umbral-ocultado`), lo quita UNICAMENTE el
+  /// "descartar" del moderador. No hay barrido ni job que lo levante.
+  ///
+  /// ES BANDERA DE CONTENIDO, NO DE RESULTADO: ocultar NO toca Submission ni ChallengeResult. Un
+  /// video oculto sigue siendo la participacion de su dueno; lo que cambia es que no se ve.
+  ocultoAutoEn DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -944,6 +958,10 @@ model Comment {
   texto          String    @db.VarChar(300)
   retiradoEn     DateTime?
   retiradoMotivo String?
+  /// Ocultado AUTOMATICO por umbral de denuncias. Separado de `retiradoEn` (la retirada MANUAL del
+  /// moderador) por el mismo motivo que en `Video.ocultoAutoEn`: hay que poder distinguir lo que
+  /// escondio el umbral —pendiente de mirar— de lo que decidio una persona.
+  ocultoAutoEn   DateTime?
   createdAt      DateTime  @default(now())
 
   video Video @relation(fields: [videoId], references: [id], onDelete: Restrict)

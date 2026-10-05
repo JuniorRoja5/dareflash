@@ -13,4 +13,5 @@ export const ETIQUETA_TIPO: Record<TipoNotificacion, string> = {
   SUBISTE_NIVEL: "Subió de nivel",
   ANUNCIO: "Anuncio",
   COMENTARIO: "Comentario recibido",
+  CONTENIDO_AUTO_OCULTO: "Contenido ocultado por denuncias",
 };

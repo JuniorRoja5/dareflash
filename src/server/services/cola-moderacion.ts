@@ -43,6 +43,15 @@ export interface FilaCola {
    */
   video: { poster: string; titulo: string | null; retirado: boolean } | null;
   comentario: { texto: string; retirado: boolean; videoId: string } | null;
+  /**
+   * ¿Lo escondió el UMBRAL de denuncias, sin que lo mirara nadie?
+   *
+   * VA APARTE DE `retirado`, y en eso consiste toda la pieza: "lo escondió el umbral y está
+   * PENDIENTE de que yo decida" no es lo mismo que "lo retiré yo". Si la cola enseñara las dos
+   * como "retirado", el moderador creería que ya hay una decisión humana detrás de algo que solo
+   * ha decidido un contador.
+   */
+  ocultoAuto: boolean;
 }
 
 export interface PaginaCola {
@@ -170,6 +179,7 @@ async function hidratar(db: Db, filas: FilaAgregada[], firmar: Firmante): Promis
             thumbnailFileName: true,
             title: true,
             status: true,
+            ocultoAutoEn: true,
             user: { select: { username: true, displayName: true, image: true } },
           },
         }),
@@ -181,6 +191,7 @@ async function hidratar(db: Db, filas: FilaAgregada[], firmar: Firmante): Promis
             id: true,
             texto: true,
             retiradoEn: true,
+            ocultoAutoEn: true,
             videoId: true,
             user: { select: { username: true, displayName: true, image: true } },
           },
@@ -207,6 +218,7 @@ async function hidratar(db: Db, filas: FilaAgregada[], firmar: Firmante): Promis
         autor: v.user,
         video: { poster, titulo: v.title, retirado: v.status === "REMOVED" },
         comentario: null,
+        ocultoAuto: v.ocultoAutoEn !== null,
       });
       continue;
     }
@@ -221,6 +233,7 @@ async function hidratar(db: Db, filas: FilaAgregada[], firmar: Firmante): Promis
       autor: c.user,
       video: null,
       comentario: { texto: c.texto, retirado: c.retiradoEn !== null, videoId: c.videoId },
+      ocultoAuto: c.ocultoAutoEn !== null,
     });
   }
   return items;

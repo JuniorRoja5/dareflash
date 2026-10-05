@@ -20,6 +20,7 @@ import type { JobModel } from "@/generated/prisma/models";
 import type { EmailAdapter, EmailMessage } from "@/server/email/adapter";
 import { encolarTramo, repartirAnuncio } from "@/server/services/anuncios";
 import type { ClienteBunny, ConfigBunny } from "@/server/services/bunny";
+import { repartirAvisoAutoOculto } from "@/server/services/ocultado-automatico";
 
 export type PoliticaReaper = "FAIL" | "REQUEUE";
 
@@ -30,6 +31,12 @@ const BunnyDeletePayloadSchema = z.object({ bunnyVideoId: z.string().min(1) });
 const FanoutPayloadSchema = z.object({
   announcementId: z.string().min(1),
   desde: z.string().min(1).optional(),
+});
+
+/** Payload del aviso de auto-ocultado: QUÉ se escondió. Nada del contenido ni de quién denunció. */
+const AutoOcultoPayloadSchema = z.object({
+  targetType: z.enum(["VIDEO", "COMMENT"]),
+  targetId: z.string().min(1),
 });
 
 export interface DefTipoJob {
@@ -125,6 +132,28 @@ export function construirRegistro(deps: DepsRegistro): Registro {
               ...(p.data.desde ? { desde: p.data.desde } : {}),
             }
           : null;
+      },
+    },
+
+    /**
+     * Avisa al equipo de que el umbral de denuncias ha escondido algo. REQUEUE: escribe en NUESTRA
+     * BD con INSERT IGNORE sobre la UNIQUE de Notification, así que reintentarlo no duplica avisos
+     * y perder el efecto sí dolería — un contenido escondido del que nadie se entera se queda
+     * escondido para siempre, que es justo lo contrario de una revisión pendiente.
+     *
+     * Y por eso el aviso va AQUÍ y no dentro de la transacción del ocultado: si reventara, lo que
+     * no puede caerse es el ocultado.
+     */
+    AVISO_AUTO_OCULTO: {
+      reaper: "REQUEUE",
+      async handler(job) {
+        const objeto = AutoOcultoPayloadSchema.parse(job.payload);
+        await repartirAvisoAutoOculto(deps.db, objeto);
+      },
+      // Si acaba en FAILED, conserva QUÉ quedó sin avisar (ids internos, no personales).
+      resumenFallo(job) {
+        const p = AutoOcultoPayloadSchema.safeParse(job.payload);
+        return p.success ? { targetType: p.data.targetType, targetId: p.data.targetId } : null;
       },
     },
   };

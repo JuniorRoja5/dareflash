@@ -18,6 +18,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { listarComentarios } from "../src/server/services/comentarios";
+import { DENUNCIAS_PARA_OCULTAR } from "../src/config/constants";
 import { denunciar } from "../src/server/services/denuncias";
 import { feedPublicado, type Firmante } from "../src/server/services/feed";
 
@@ -91,7 +92,7 @@ describe("registrar", () => {
         targetId: videoId,
         reason: "SPAM",
       }),
-    ).toEqual({ estado: "registrada" });
+    ).toEqual({ estado: "registrada", ocultado: false });
 
     const filas = await denuncias();
     expect(filas).toHaveLength(1);
@@ -116,7 +117,7 @@ describe("registrar", () => {
         targetId: commentId,
         reason: "ACOSO",
       }),
-    ).toEqual({ estado: "registrada" });
+    ).toEqual({ estado: "registrada", ocultado: false });
 
     expect(await denuncias()).toHaveLength(1);
   });
@@ -173,7 +174,7 @@ describe("una por denunciante y objeto", () => {
       reason: "SPAM" as const,
     };
 
-    expect(await denunciar(prisma, entrada)).toEqual({ estado: "registrada" });
+    expect(await denunciar(prisma, entrada)).toEqual({ estado: "registrada", ocultado: false });
     expect(await denunciar(prisma, entrada)).toEqual({ estado: "repetida" });
     // Ni cambiando el motivo: el hecho es "esta persona ya avisó de esto".
     expect(await denunciar(prisma, { ...entrada, reason: "OTRO" })).toEqual({ estado: "repetida" });
@@ -200,13 +201,19 @@ describe("una por denunciante y objeto", () => {
 
   it("el no-op cubre SOLO esa colisión: cualquier otro fallo sube", async () => {
     const videoId = await crearVideo();
-    // Un cliente que revienta al escribir por otra razón (no un P2002 de la unique).
+    // Un cliente que revienta al escribir por otra razón (no un P2002 de la unique). Se intercepta
+    // `$transaction` y no `report`: desde que el ocultado automático existe, el `create` ocurre
+    // DENTRO de la transacción, así que un doble que solo cambiara `db.report` ya no lo tocaba —
+    // y este test pasaba sin probar nada. El resto del cliente sigue siendo el real, porque
+    // `duenoDelObjeto` consulta el vídeo de verdad antes de llegar aquí.
     const db = new Proxy(prisma, {
       get(obj, prop) {
-        if (prop !== "report") return Reflect.get(obj, prop) as unknown;
-        return {
-          create: () => Promise.reject(new Error("la BD se cayó")),
-        };
+        if (prop === "$transaction") {
+          return (fn: (tx: unknown) => Promise<unknown>) =>
+            fn({ report: { create: () => Promise.reject(new Error("la BD se cayó")) } });
+        }
+        const v = Reflect.get(obj, prop) as unknown;
+        return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(obj) : v;
       },
     }) as PrismaClient;
 
@@ -341,12 +348,20 @@ describe("nadie se denuncia a sí mismo", () => {
   });
 });
 
-describe("denunciar NO oculta nada (eso es la pieza 3)", () => {
-  it("el vídeo sigue en el feed y el comentario en su lista", async () => {
+/**
+ * POR DEBAJO DEL UMBRAL, DENUNCIAR NO HACE NADA VISIBLE.
+ *
+ * Este bloque decía "denunciar NO oculta nada (eso es la pieza 3)" y afirmaba que ni con TRES
+ * denuncias pasaba nada. Dejó de ser cierto el día que se construyó la pieza 3, y reescribirlo era
+ * obligatorio: un test que sigue afirmando lo contrario de lo que hace el producto es peor que no
+ * tenerlo. Lo que queda es el borde que SÍ sigue vivo — dos no esconden nada —; que la tercera sí,
+ * se prueba en `tests/ocultado-umbral.test.ts`.
+ */
+describe("por debajo del umbral, denunciar no oculta nada", () => {
+  it("con DOS denuncias el vídeo sigue en el feed y el comentario en su lista", async () => {
     const videoId = await crearVideo();
     const commentId = await crearComentario(videoId);
-    // Tres personas distintas: aunque hubiera umbral, esta pieza no lo aplica.
-    for (let i = 0; i < 3; i += 1) {
+    for (let i = 0; i < DENUNCIAS_PARA_OCULTAR - 1; i += 1) {
       const quien = await crearUsuario(prisma);
       await denunciar(prisma, {
         reporterId: quien,
@@ -366,5 +381,19 @@ describe("denunciar NO oculta nada (eso es la pieza 3)", () => {
     expect(items.map((i) => i.id)).toContain(videoId);
     const pagina = await listarComentarios(prisma, videoId);
     expect(pagina?.items.map((c) => c.id)).toEqual([commentId]);
+  });
+
+  it("y ninguna de ellas dice haber cruzado el umbral", async () => {
+    const videoId = await crearVideo();
+    for (let i = 0; i < DENUNCIAS_PARA_OCULTAR - 1; i += 1) {
+      const quien = await crearUsuario(prisma);
+      const r = await denunciar(prisma, {
+        reporterId: quien,
+        targetType: "VIDEO",
+        targetId: videoId,
+        reason: "SPAM",
+      });
+      expect(r).toEqual({ estado: "registrada", ocultado: false });
+    }
   });
 });

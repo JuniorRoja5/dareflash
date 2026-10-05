@@ -30,6 +30,7 @@ import type { Db } from "@/server/db/types";
 
 import { LEDGER_TX_OPTIONS } from "./ledger";
 import { emitirAviso } from "./notificaciones";
+import { COMENTARIO_VISIBLE } from "./comentario-visible";
 import { VIDEO_VISIBLE } from "./video-visible";
 
 /** Un comentario tal y como lo pinta el panel. */
@@ -237,7 +238,7 @@ export async function comentarioSuelto(
   opciones: { userId?: string | null } = {},
 ): Promise<{ comentario: ComentarioVista; videoId: string } | null> {
   const f = await db.comment.findFirst({
-    where: { id: commentId, retiradoEn: null, video: VIDEO_VISIBLE },
+    where: { id: commentId, ...COMENTARIO_VISIBLE, video: VIDEO_VISIBLE },
     select: {
       id: true,
       texto: true,
@@ -297,7 +298,7 @@ export async function listarComentarios(
   const filas = await db.comment.findMany({
     where: {
       videoId,
-      retiradoEn: null,
+      ...COMENTARIO_VISIBLE,
       ...(desde
         ? {
             OR: [{ createdAt: { lt: desde.en } }, { createdAt: desde.en, id: { lt: desde.id } }],

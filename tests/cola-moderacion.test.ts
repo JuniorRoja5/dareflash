@@ -22,6 +22,7 @@ import {
 } from "../src/server/services/cola-moderacion";
 import { denunciar } from "../src/server/services/denuncias";
 import type { Firmante } from "../src/server/services/feed";
+import { descartarDenuncias } from "../src/server/services/moderar";
 import { generarPublicCode } from "../src/server/services/reto-codigo";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
@@ -88,6 +89,29 @@ async function denunciadoPor(
   return gente;
 }
 
+/**
+ * Las mismas denuncias, pero escritas DIRECTAS, saltándose `denunciar`.
+ *
+ * Hace falta desde el ocultado automático: por la vía pública, la tercera denuncia esconde el
+ * objeto y a partir de ahí deja de ser denunciable, así que no hay forma de fabricar un recuento
+ * de 4 o 5 — que es justo lo que necesita el test de PAGINACIÓN para tener cinco recuentos
+ * distintos. Se usa SOLO donde lo que se prueba es la cola, no el umbral; donde se prueba el
+ * umbral se va siempre por `denunciar`.
+ */
+async function denunciasDirectas(
+  targetType: "VIDEO" | "COMMENT",
+  targetId: string,
+  cuantos: number,
+): Promise<void> {
+  for (let i = 0; i < cuantos; i += 1) {
+    const reporterId = await crearUsuario(prisma);
+    await prisma.report.create({
+      data: { reporterId, targetType, targetId, reason: "SPAM" },
+      select: { id: true },
+    });
+  }
+}
+
 describe("qué entra en la cola y en qué orden", () => {
   it("agrupa por objeto y ordena por denunciantes distintos, de más a menos", async () => {
     const pocos = await crearVideo();
@@ -122,11 +146,11 @@ describe("qué entra en la cola y en qué orden", () => {
   it("solo cuentan las ABIERTAS: lo resuelto o descartado no vuelve", async () => {
     const videoId = await crearVideo();
     await denunciadoPor("VIDEO", videoId, 3);
-    // Dos de las tres ya se revisaron.
-    await prisma.report.updateMany({
-      where: { targetId: videoId },
-      data: { status: "DISMISSED" },
-    });
+    // Las tres se revisan y se DESCARTAN, por la vía real del moderador. Antes esto flipeaba el
+    // estado a mano; desde el ocultado automático eso ya no modela nada: la tercera denuncia
+    // escondió el vídeo, y solo `descartarDenuncias` lo devuelve a la vista. Con el UPDATE crudo,
+    // el vídeo seguía oculto y la denuncia siguiente era rechazada por "no disponible".
+    await descartarDenuncias(prisma, { targetType: "VIDEO", targetId: videoId });
     expect((await cola()).items).toEqual([]);
     expect(await contarDenunciasAbiertas(prisma)).toBe(0);
 
@@ -188,10 +212,12 @@ describe("qué entra en la cola y en qué orden", () => {
 describe("paginación keyset", () => {
   it("recorre la cola entera sin repetir ni saltarse nada", async () => {
     const esperado: string[] = [];
-    // Cinco objetos con recuentos distintos: 5, 4, 3, 2, 1.
+    // Cinco objetos con recuentos distintos: 5, 4, 3, 2, 1. DIRECTAS: por la vía pública no se
+    // puede pasar de tres (a la tercera el objeto se oculta y deja de ser denunciable), y aquí lo
+    // que se prueba es que la paginación recorre la cola, no el umbral.
     for (let i = 5; i >= 1; i -= 1) {
       const videoId = await crearVideo();
-      await denunciadoPor("VIDEO", videoId, i);
+      await denunciasDirectas("VIDEO", videoId, i);
       esperado.push(videoId);
     }
 

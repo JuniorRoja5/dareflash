@@ -19,6 +19,7 @@ import {
   AvisoSchema,
   avisoAnuncio,
   avisoComentario,
+  avisoContenidoAutoOculto,
   avisoGanasteReto,
   avisoSubisteNivel,
   avisoTop20,
@@ -64,6 +65,8 @@ const UNO_DE_CADA: Aviso[] = [
   avisoSubisteNivel("challenger"),
   avisoAnuncio("a1"),
   avisoComentario({ commentId: "c1", autor: "comentarista", reto: RETO }),
+  // El unico que va AL EQUIPO y no al usuario: lo emite el umbral de denuncias.
+  avisoContenidoAutoOculto({ targetType: "VIDEO", targetId: "v7" }),
 ];
 /** El texto de los anuncios vive en `Announcement`: se une por refId al pintar. */
 const TEXTOS_ANUNCIO = new Map([["a1", "Mantenimiento programado el sábado por la mañana."]]);
@@ -154,6 +157,7 @@ describe("la unión de tipos", () => {
         "VIDEO_FALLIDO",
         "VIDEO_LISTO",
         "VOTO_RECIBIDO",
+        "CONTENIDO_AUTO_OCULTO",
       ].sort(),
     );
     const inventado = { tipo: "COMENTARIO_RECIBIDO", refType: "ANUNCIO", refId: "x", datos: {} };

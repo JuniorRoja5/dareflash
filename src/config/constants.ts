@@ -806,6 +806,10 @@ export const TipoNotificacionSchema = z.enum([
   "ANUNCIO",
   // Alguien comentó tu vídeo. Uno por COMENTARIO (clave refId = el comentario).
   "COMENTARIO",
+  // AL EQUIPO, no al usuario: el umbral de denuncias ha escondido algo y hay que mirarlo. Es el
+  // unico aviso que va en esta direccion —el resto son "te ha pasado esto a ti"— y por eso lleva
+  // su propio tipo en vez de colarse como un ANUNCIO: un anuncio lo escribe una persona.
+  "CONTENIDO_AUTO_OCULTO",
 ]);
 export type TipoNotificacion = z.infer<typeof TipoNotificacionSchema>;
 
@@ -1005,6 +1009,21 @@ export const MSG_MODERACION_NO_ENCONTRADO = "Ese contenido ya no está.";
 /** Cuántas filas de la cola se sirven por página en el panel. */
 export const COLA_MODERACION_PAGINA = 20;
 
+/**
+ * CUANTAS DENUNCIAS ABIERTAS OCULTAN UN CONTENIDO AUTOMATICAMENTE, sin que lo mire nadie.
+ *
+ * SON TRES PERSONAS DISTINTAS Y VERIFICADAS, no tres clics: el `@@unique` de `Report` impide que
+ * una misma cuenta cuente dos veces por el mismo objeto, y la ingesta ya exige correo verificado.
+ * Las dos cosas juntas son lo que hace que el umbral no sea un arma entre rivales — sin ellas,
+ * dos cuentas desechables coordinadas tumbarian la participacion de un competidor en un reto con
+ * premio.
+ *
+ * ES UNA RED DE SEGURIDAD, NO UN VEREDICTO: oculta PROVISIONALMENTE y siempre queda pendiente de
+ * que un moderador confirme o descarte. Y va en UNA DIRECCION — nada lo levanta solo (ver
+ * `lib/umbral-ocultado`).
+ */
+export const DENUNCIAS_PARA_OCULTAR = 3;
+
 /** Estado de un job de la cola. */
 export const JobStatusSchema = z.enum(["PENDING", "RUNNING", "DONE", "FAILED"]);
 export type JobStatus = z.infer<typeof JobStatusSchema>;
@@ -1037,6 +1056,11 @@ export const JobTypeSchema = z.enum([
   // Reparto de un anuncio del panel: INSERT IGNORE por lotes sobre la UNIQUE de Notification. Escribe
   // en NUESTRA BD y es idempotente de verdad -> REQUEUE. Se reanuda por tramos, con el cursor en el payload.
   "FANOUT_ANUNCIO",
+  // Avisa al equipo de que el umbral de denuncias ha escondido algo. VA POR LA COLA y no inline a
+  // proposito: son N escrituras (una por moderador) y un fallo suyo NO puede tumbar el ocultado,
+  // que es lo que de verdad protege. Escribe en NUESTRA BD con INSERT IGNORE sobre la UNIQUE de
+  // Notification -> idempotente de verdad -> REQUEUE.
+  "AVISO_AUTO_OCULTO",
 ]);
 export type JobType = z.infer<typeof JobTypeSchema>;
 

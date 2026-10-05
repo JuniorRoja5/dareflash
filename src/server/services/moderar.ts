@@ -31,6 +31,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import type { Db } from "@/server/db/types";
 
 import { retirarComentarioEnTx } from "./comentarios";
+import { levantarAutoOcultoEnTx } from "./ocultado-automatico";
 import { retirarParticipacionEnTx } from "./participacion";
 
 export type ResultadoModeracion =
@@ -70,6 +71,10 @@ export async function retirarPorModeracion(
     if (!video) return { estado: "rechazado", motivo: "NO_ENCONTRADO" };
 
     return db.$transaction(async (tx) => {
+      // Se LEVANTA el auto-oculto antes de retirar. Para un vídeo da casi igual; para un comentario
+      // es lo que hace que el contador baje una sola vez (ver `levantarAutoOcultoEnTx`), y el
+      // camino es el mismo en los dos para no tener dos reglas que recordar.
+      await levantarAutoOcultoEnTx(tx, objeto);
       let cambiado = false;
       if (video.submission) {
         // Con participación: la vía que ya existía, que arrastra la Submission y su motivo.
@@ -97,6 +102,7 @@ export async function retirarPorModeracion(
   if (!comentario) return { estado: "rechazado", motivo: "NO_ENCONTRADO" };
 
   return db.$transaction(async (tx) => {
+    await levantarAutoOcultoEnTx(tx, objeto);
     const r = await retirarComentarioEnTx(tx, {
       commentId: objeto.targetId,
       videoId: comentario.videoId,
@@ -112,13 +118,22 @@ export async function retirarPorModeracion(
 
 /**
  * DESCARTAR las denuncias: el contenido se queda como está y sus avisos pasan a DISMISSED.
+ *
+ * Y ES EL ÚNICO SITIO DE TODO EL CÓDIGO QUE LEVANTA UN AUTO-OCULTO sin retirar nada. Si el umbral
+ * lo había escondido, descartar lo devuelve a la vista: esa es la vuelta atrás del automatismo, y
+ * la toma una persona. No hay barrido, ni job, ni "se levanta solo al bajar el recuento".
  */
 export async function descartarDenuncias(
   db: PrismaClient,
   objeto: { targetType: ReportTargetDenunciable; targetId: string },
 ): Promise<ResultadoModeracion> {
-  const denunciasCerradas = await db.$transaction(async (tx) =>
-    cerrarDenuncias(tx, objeto, "DISMISSED"),
-  );
-  return denunciasCerradas > 0 ? { estado: "hecho", denunciasCerradas } : { estado: "sin_cambios" };
+  const { denunciasCerradas, levantado } = await db.$transaction(async (tx) => ({
+    levantado: await levantarAutoOcultoEnTx(tx, objeto),
+    denunciasCerradas: await cerrarDenuncias(tx, objeto, "DISMISSED"),
+  }));
+  // Devolver el contenido a la vista YA es un cambio, aunque no quedara ninguna denuncia abierta
+  // que cerrar: decir "sin cambios" después de des-ocultar algo sería mentirle al moderador.
+  return denunciasCerradas > 0 || levantado
+    ? { estado: "hecho", denunciasCerradas }
+    : { estado: "sin_cambios" };
 }
