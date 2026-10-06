@@ -30,7 +30,7 @@ import { progresoNivel } from "@/lib/progreso-nivel";
  * va el medidor de barras y el halo cae en gris neutro: sigue teniendo cuerpo, sin inventarle una
  * insignia que no ha ganado.
  */
-export function HeroNivel({ puntos }: { puntos: number }) {
+export function HeroNivel({ puntos, racha }: { puntos: number; racha: number }) {
   const { nivel, siguiente, faltan, porcentaje, esMaximo } = progresoNivel(puntos);
   const color = nivel.tokenColor ? `var(${nivel.tokenColor})` : "var(--df-line)";
   // Legend no tiene color propio: usa el oro del podio, y el halo va con él (ver `lib/niveles`).
@@ -109,6 +109,18 @@ export function HeroNivel({ puntos }: { puntos: number }) {
             >
               {nivel.emblema ? <EmblemaDeNivel nivel={nivel} clase="h-4 w-4" /> : null}
               {nivel.nombre}
+            </span>
+            {/* LA RACHA, al lado del nivel y no en una tarjeta aparte: las dos dicen "quién eres
+                ahora mismo". Va en NEUTRO —el color de esta pantalla es el del nivel, y dos colores
+                compitiendo en la misma fila no señalan nada—. Sin racha no se pinta un "0 días"
+                muerto: se invita, que es lo que un hueco tiene que hacer. */}
+            <span
+              data-racha={racha}
+              className="inline-flex items-center rounded-full border border-line px-3 py-1 text-sm text-text-dim"
+            >
+              {racha > 0
+                ? `Racha de ${racha} ${racha === 1 ? "día" : "días"}`
+                : "Empieza tu racha hoy"}
             </span>
           </p>
 

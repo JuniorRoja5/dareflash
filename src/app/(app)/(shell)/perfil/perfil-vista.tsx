@@ -81,6 +81,7 @@ export function PerfilVista({
   retosGanados,
   totalVideos,
   videos,
+  racha,
   esPropio,
 }: {
   /** Nombre visible (opcional). Si falta, el `handle` hace de nombre. */
@@ -95,6 +96,11 @@ export function PerfilVista({
   retosGanados: number;
   totalVideos: number;
   videos: VideoCelda[];
+  /**
+   * Días activos seguidos. SOLO llega en el perfil PROPIO: no está en el DTO público, así que
+   * mirar el perfil de otro no dice cuántos días seguidos lleva. Es su actividad, no su escaparate.
+   */
+  racha?: number;
   esPropio: boolean;
 }) {
   // Identidad (modelo TikTok/YouTube): el displayName manda; el @handle va debajo y solo si hay
@@ -115,8 +121,20 @@ export function PerfilVista({
               {conHandle ? (
                 <p className="mt-0.5 max-w-full truncate text-sm text-text-dim">@{handle}</p>
               ) : null}
-              <div className="mt-2">
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
                 <InsigniaNivel puntos={puntos} />
+                {/* La racha, al lado del nivel y solo si la hay. Aquí NO se invita cuando vale
+                    cero —eso es trabajo del hero de /puntos, que es su casa—: en el perfil una
+                    píldora de "empieza tu racha" sería ruido junto a la identidad. */}
+                {esPropio && racha ? (
+                  <span
+                    data-racha={racha}
+                    className="inline-flex items-center rounded-full border border-line px-2.5 py-1 text-2xs font-medium tracking-wide text-text-dim uppercase"
+                  >
+                    {/* El adjetivo concuerda también: con uno es "1 día seguido", no "seguidos". */}
+                    {racha} {racha === 1 ? "día seguido" : "días seguidos"}
+                  </span>
+                ) : null}
               </div>
             </div>
 

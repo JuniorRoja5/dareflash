@@ -21,7 +21,14 @@ export default async function PerfilPage() {
   const { miPerfil } = await import("@/server/services/perfil");
   const { firmarReproduccion } = await import("@/server/services/reproduccion-servidor");
 
-  const perfil = await miPerfil(prisma, user.userId);
+  // La racha solo en el perfil PROPIO: no entra en el DTO público (`perfil.ts`), así que mirar el
+  // perfil de otro no dice cuántos días seguidos lleva. Es su actividad, no su escaparate.
+  const { rachaDe } = await import("@/server/services/racha");
+
+  const [perfil, racha] = await Promise.all([
+    miPerfil(prisma, user.userId),
+    rachaDe(prisma, user.userId),
+  ]);
   // Sesión válida pero la fila pudo borrarse/banearse entre validar la cookie y consultar: mismo trato.
   if (!perfil) redirect("/entrar");
 
@@ -50,6 +57,7 @@ export default async function PerfilPage() {
       retosGanados={perfil.retosGanados}
       totalVideos={perfil.videos.length}
       videos={videos}
+      racha={racha}
       esPropio
     />
   );

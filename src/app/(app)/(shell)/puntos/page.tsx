@@ -49,12 +49,17 @@ export default async function PuntosPage({
   // del admin que lo firmó. Ver `server/services/puntos.ts`.
   const { miHistorialPuntos } = await import("@/server/services/puntos");
 
-  const [yo, pagina] = await Promise.all([
+  // La racha se CALCULA al mirarla (ver `lib/racha`): no se lee un número guardado, se deriva de
+  // las dos fechas y de hoy. Va en el mismo `Promise.all`, así que no añade una ida y vuelta.
+  const { rachaDe } = await import("@/server/services/racha");
+
+  const [yo, pagina, racha] = await Promise.all([
     prisma.user.findUnique({
       where: { id: sesion.userId },
       select: { pointsBalance: true },
     }),
     miHistorialPuntos(prisma, sesion.userId, { cursor: aqui.cursor }),
+    rachaDe(prisma, sesion.userId),
   ]);
 
   const puntos = yo?.pointsBalance ?? 0;
@@ -62,7 +67,7 @@ export default async function PuntosPage({
 
   return (
     <div className="df-rise mx-auto w-full max-w-5xl px-4 py-8 lg:px-8 lg:py-12">
-      <HeroNivel puntos={puntos} />
+      <HeroNivel puntos={puntos} racha={racha} />
 
       {/* LAS CIFRAS EXACTAS, debajo del hero. El hero dice quién eres; estas dicen cuánto. */}
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
