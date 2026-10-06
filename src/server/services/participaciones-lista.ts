@@ -28,6 +28,8 @@ import "server-only";
 import { retoEstaAbierto } from "@/lib/reto-ventana";
 import type { Db } from "@/server/db/types";
 
+import { misLikes } from "./likes";
+
 /**
  * Lo que TODA participación lleva, la vea el público o el panel. Se separa de `ParticipacionVista`
  * porque los campos de VOTO (`retoId`, `retoAbierto`, `miVoto`) solo tienen sentido en la vista
@@ -68,6 +70,9 @@ export interface ParticipacionVista extends ParticipacionBase {
   miVoto: string | null;
   /** Comentarios visibles de su vídeo (Video.commentCount), para el feed del reto. */
   comentarios: number;
+  /** Likes del vídeo, y si los míos están entre ellos. */
+  likes: number;
+  miLike: boolean;
   /** ¿Es de quien mira? Lo decide el SERVIDOR comparando ids; el cliente no compara nombres. Con él,
    *  el feed sabe qué no ofrecer (denunciar lo propio) sin preguntar por cada vídeo. */
   esMio: boolean;
@@ -196,6 +201,7 @@ export async function listarParticipacionesVisibles(
             thumbnailFileName: true,
             title: true,
             commentCount: true,
+            likeCount: true,
           },
         },
         user: { select: { username: true, displayName: true, image: true, pointsBalance: true } },
@@ -208,6 +214,13 @@ export async function listarParticipacionesVisibles(
 
   const hayMas = filas.length > limite;
   const visibles = hayMas ? filas.slice(0, limite) : filas;
+
+  // MIS LIKES de la pagina, en UNA consulta (no una por participacion). Mismo criterio que el feed.
+  const mios = await misLikes(
+    db,
+    opts.userId,
+    visibles.map((f) => f.video.id),
+  );
 
   const items = visibles.map((f) => ({
     submissionId: f.id,
@@ -224,6 +237,8 @@ export async function listarParticipacionesVisibles(
     retoAbierto: abierto,
     miVoto,
     comentarios: f.video.commentCount,
+    likes: f.video.likeCount,
+    miLike: mios.has(f.video.id),
     esMio: opts.userId ? f.userId === opts.userId : false,
   }));
 

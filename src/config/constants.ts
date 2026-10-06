@@ -288,6 +288,21 @@ export const VIDEOS_POR_HITO = 3;
 export const RAZON_HITO_VIDEOS = "VIDEOS_PUBLICADOS";
 
 /**
+ * LIKES QUE HACEN HITO en un video: a los 50, su dueno cobra `POINTS.VIDEO_50_LIKES`.
+ *
+ * ES UN HITO, NO UN SALDO, y por eso se otorga UNA VEZ por video y no se desotorga: si el contador
+ * baja de 50 y vuelve a subir, no se vuelve a pagar (la clave de idempotencia ya esta usada).
+ * Misma disciplina que `hito-videos`: la clave es funcion del ESTADO, no del evento que la disparo.
+ */
+export const LIKES_PARA_HITO = 50;
+/** Razon del movimiento. COINCIDE con la fila de `ACCIONES_PUNTOS`, que es lo que la activa. */
+export const RAZON_HITO_LIKES = "VIDEO_50_LIKES";
+
+/** Copy de los likes. El boton no dice numeros: el numero lo pone el contador. */
+export const MSG_LIKE_PROPIO = "No puedes dar me gusta a tu propio vídeo.";
+export const MSG_LIKE_NO_DISPONIBLE = "Este vídeo ya no está disponible.";
+
+/**
  * REFERIDOS. Una invitacion paga a los DOS lados con el MISMO importe (`POINTS.INVITE_FRIEND`), pero
  * con razones DISTINTAS, y eso es a proposito: las dos filas tienen `refType: "USER"` y se apuntan
  * mutuamente, asi que por (razon, tipo, id) serian indistinguibles y el historial no podria decir
@@ -382,10 +397,13 @@ export const ACCIONES_PUNTOS: readonly AccionPuntos[] = [
     activa: false,
   },
   {
-    razon: "VIDEO_50_LIKES",
-    etiqueta: "Recibir 50 likes en un vídeo",
+    razon: RAZON_HITO_LIKES,
+    etiqueta: `Recibir ${LIKES_PARA_HITO} likes en un vídeo`,
     puntos: POINTS.VIDEO_50_LIKES,
-    activa: false,
+    // ACTIVA desde que existen los likes. No se gira a mano: el test de `acciones-puntos` contrasta
+    // esta config contra lo que de verdad otorga `server/services`, asi que dejarla en `false`
+    // teniendo el otorgamiento cableado se pone rojo — y al reves tambien.
+    activa: true,
   },
 ];
 
@@ -744,7 +762,11 @@ export const RATE_LIMITS = {
   // efectos: mueve contadores. No pretende frenar el fraude —eso es el gate, el no-autovoto y el
   // unique de la BD—, sino que nadie martillee el endpoint.
   VOTO_PER_USER: { limit: 60, windowMs: 15 * 60 * 1000 }, // 60 / 15 min por usuario
-  // Comentar (y borrar los propios, mismo cubo): texto público, así que el tope frena el spam sin
+  // Like (y quitarlo, MISMO cubo): es la accion mas barata del producto y la que mas se repite al
+  // bajar por el feed, asi que el cubo es generoso. Lo que acota no es el fraude —el hito lo
+  // protegen el UNIQUE y el no-autolike— sino que nadie martillee el endpoint.
+  LIKE_PER_USER: { limit: 120, windowMs: 15 * 60 * 1000 }, // 120 / 15 min por usuario
+  // Comentar (y borrar los propios, mismo cubo):texto público, así que el tope frena el spam sin
   // estorbar a quien conversa. 30 en 15 min es uno cada 30 s sostenido.
   COMENTAR_PER_USER: { limit: 30, windowMs: 15 * 60 * 1000 }, // 30 / 15 min por usuario
   // Denunciar: no frena el abuso —eso lo hace el UNIQUE por denunciante y objeto—, sino que nadie

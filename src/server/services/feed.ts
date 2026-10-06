@@ -24,6 +24,9 @@ import { retoEstaAbierto } from "@/lib/reto-ventana";
 import type { Db } from "@/server/db/types";
 
 import { categoriaKeyDeVideo } from "./categoria-video";
+// Se renombra al importar porque el fichero ya tiene un `misVotosDe` local con el mismo papel, y
+// dos nombres casi iguales en el mismo módulo es cómo se llama a la función que no es.
+import { misLikes as misLikes_ } from "./likes";
 import { VIDEO_VISIBLE } from "./video-visible";
 
 /** Un post del feed, listo para pintar. `categoria` es el nombre ya resuelto (o null si no participa). */
@@ -43,6 +46,10 @@ export interface PostFeed {
   /** Comentarios VISIBLES del vídeo (Video.commentCount). Es del VÍDEO, así que también en una subida
    *  libre. */
   comentarios: number;
+  /** Likes del VÍDEO (`Video.likeCount`). Como los comentarios, también en una subida libre. */
+  likes: number;
+  /** ¿Le he dado yo? `false` para un invitado, que no tiene likes que resolver. */
+  miLike: boolean;
   src: string;
   poster: string;
   /**
@@ -100,6 +107,7 @@ const SELECT_FEED = {
   title: true,
   category: true,
   commentCount: true,
+  likeCount: true,
   user: { select: { username: true, displayName: true, image: true, pointsBalance: true } },
   submission: {
     select: {
@@ -122,6 +130,7 @@ function aPostFeed(
   ctx: {
     firmar: Firmante;
     misVotos: ReadonlyMap<string, string>;
+    misLikes: ReadonlySet<string>;
     ahora: Date;
     userId?: string | null;
   },
@@ -141,6 +150,8 @@ function aPostFeed(
     categoria: nombreCategoria(claveCategoria),
     votos: sub?.voteCount ?? 0,
     comentarios: v.commentCount,
+    likes: v.likeCount,
+    miLike: ctx.misLikes.has(v.id),
     src: urls.src,
     poster: urls.poster,
     // Del MISMO `sub` que ya filtra por "publicada": una participacion oculta no sale como votable.
@@ -191,10 +202,14 @@ export async function videoParaFeed(
 ): Promise<PostFeed | null> {
   const fila = await db.video.findFirst({ where: { id, ...VIDEO_VISIBLE }, select: SELECT_FEED });
   if (!fila) return null;
-  const misVotos = await misVotosDe(db, [fila], opts.userId);
+  const [misVotos, misLikes] = await Promise.all([
+    misVotosDe(db, [fila], opts.userId),
+    misLikes_(db, opts.userId, [fila.id]),
+  ]);
   return aPostFeed(fila, {
     firmar: opts.firmar,
     misVotos,
+    misLikes,
     ahora: opts.ahora ?? new Date(),
     userId: opts.userId,
   });
@@ -231,11 +246,19 @@ export async function feedPublicado(
   const hayMas = filas.length > limite;
   const visibles = hayMas ? filas.slice(0, limite) : filas;
 
-  // MI VOTO, en UNA sola consulta para toda la pagina (no una por video).
-  const misVotos = await misVotosDe(db, visibles, opts.userId);
+  // MI VOTO y MIS LIKES, en UNA consulta cada uno para toda la pagina (no una por video). Van en
+  // paralelo: son independientes y nada gana sirviendolas en fila.
+  const [misVotos, misLikes] = await Promise.all([
+    misVotosDe(db, visibles, opts.userId),
+    misLikes_(
+      db,
+      opts.userId,
+      visibles.map((v) => v.id),
+    ),
+  ]);
   const ahora = opts.ahora ?? new Date();
   const items: PostFeed[] = visibles.map((v) =>
-    aPostFeed(v, { firmar: opts.firmar, misVotos, ahora, userId: opts.userId }),
+    aPostFeed(v, { firmar: opts.firmar, misVotos, misLikes, ahora, userId: opts.userId }),
   );
 
   return {

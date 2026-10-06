@@ -3,6 +3,7 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
+import { BotonLike } from "@/components/ui/boton-like";
 import { BotonVoto } from "@/components/ui/boton-voto";
 import { Denunciar } from "@/components/ui/denunciar";
 import { PildoraCategoria } from "@/components/ui/pildora";
@@ -253,6 +254,15 @@ function PostInicio({
             haySesion={haySesion}
           />
         ) : null}
+        {/* ME GUSTA: del VÍDEO, así que se pinta siempre — también en una subida libre, al revés
+            que el voto, que necesita un reto detrás. Su estado sale del payload. */}
+        <BotonLike
+          videoId={post.id}
+          likes={post.likes}
+          miLike={post.miLike}
+          haySesion={haySesion}
+          esMio={post.esMio}
+        />
         <Accion label="Compartir" valor={0} icono={<IconoCompartir />} />
         {/* MUTE GLOBAL: última acción de la columna, DEBAJO de Compartir (antes tapaba la descripción
             abajo-izquierda). Mismo look de icono que las acciones pero SIN contador (no tiene número).

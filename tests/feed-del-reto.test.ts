@@ -42,6 +42,8 @@ const PARTICIPACION = {
   retoAbierto: true,
   miVoto: "sub-1",
   comentarios: 3,
+  likes: 0,
+  miLike: false,
   esMio: false,
 };
 const RETO = { titulo: "Reto de fitness", categoria: "Fitness" };
@@ -61,6 +63,8 @@ describe("el ítem tiene la MISMA forma que el que pinta el feed", () => {
       categoria: "Fitness",
       votos: 42,
       comentarios: 3,
+      likes: 0,
+      miLike: false,
       src: URLS.src,
       poster: URLS.poster,
       // Y el de la PARTICIPACIÓN va aparte: es de lo que hablan las rutas de voto y del gate.

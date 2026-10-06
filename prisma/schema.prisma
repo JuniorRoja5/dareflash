@@ -194,6 +194,7 @@ model User {
   // Avisos del usuario: CON FK y Cascade (dato personal, no material contable). Ver Notification.
   notificaciones Notification[]
   comentarios    Comment[]
+  likes          Like[]
 
   @@index([role])
   @@index([deletedAt])
@@ -322,6 +323,12 @@ model Video {
   // bloqueada antes (ver `services/comentarios.ts`). Sin backfill: no habia comentarios.
   commentCount Int @default(0)
 
+  /// LIKES del video: contador DENORMALIZADO, igual que `commentCount` y `Submission.voteCount`.
+  /// Se toca en la MISMA transaccion que la fila `Like`, con `increment`/`decrement` y la fila del
+  /// video BLOQUEADA antes (`SELECT ... FOR UPDATE`): sin ese cerrojo, MariaDB responde 1020 y dos
+  /// likes simultaneos pierden uno. Sin backfill: no habia likes.
+  likeCount Int @default(0)
+
   /// OCULTADO AUTOMATICO POR UMBRAL DE DENUNCIAS: cuando lo escondieron las denuncias, o NULL.
   ///
   /// CAMPO PROPIO Y NO `status = REMOVED`, y es la pieza entera: el moderador tiene que poder
@@ -352,6 +359,7 @@ model Video {
   user       User        @relation(fields: [userId], references: [id], onDelete: Restrict)
   submission Submission? // un video se usa en como mucho una submission
   comments   Comment[]
+  likes      Like[]
 
   @@index([userId])
   @@index([status])
@@ -1007,4 +1015,31 @@ model Announcement {
 
   /// Lista de anuncios del panel, por keyset (createdAt, id) DESC.
   @@index([createdAt, id])
+}
+
+/// ME GUSTA de un video. Uno por persona y video, y se puede quitar (toggle).
+///
+/// SOBRE EL VIDEO Y NO SOBRE LA PARTICIPACION: un like es "me gusta este video", exista o no un
+/// reto detras. Si colgara de Submission, un video de subida libre no se podria querer.
+///
+/// EL UNIQUE ES LA REGLA, no un `if`: dos peticiones simultaneas de la misma persona no pueden
+/// dejar dos filas, igual que en Vote y en Report. Y el contador (`Video.likeCount`) se mueve en
+/// la MISMA transaccion, con la fila del video bloqueada antes.
+///
+/// NO SE GUARDA LA IP, al contrario que en Vote: un like no reparte premio, asi que no hay fraude
+/// que investigar y no hay motivo para quedarse un dato personal mas.
+model Like {
+  id      String @id @default(cuid())
+  userId  String
+  videoId String
+
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  video Video @relation(fields: [videoId], references: [id], onDelete: Restrict)
+
+  /// LA REGLA: un like por persona y video. Cubre tambien "¿le he dado yo?" por prefijo.
+  @@unique([userId, videoId])
+  /// Los likes de UN video (para el recuento de reconciliacion y el hito de los 50).
+  @@index([videoId])
 }

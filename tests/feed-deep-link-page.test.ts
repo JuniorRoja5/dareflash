@@ -42,6 +42,8 @@ const post = (id: string): PostFeed => ({
   categoria: null,
   votos: 0,
   comentarios: 0,
+  likes: 0,
+  miLike: false,
   src: "s",
   poster: "p",
   participacionId: null,

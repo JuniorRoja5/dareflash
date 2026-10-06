@@ -27,6 +27,9 @@ export interface ParticipacionParaFeed {
   miVoto: string | null;
   /** Comentarios visibles del vídeo. */
   comentarios: number;
+  /** Likes del vídeo, y si los míos están entre ellos. */
+  likes: number;
+  miLike: boolean;
   /** ¿El vídeo es de quien mira? Lo resuelve el servidor por id. */
   esMio: boolean;
 }
@@ -62,6 +65,8 @@ export function postDeParticipacion(
     categoria: reto.categoria,
     votos: p.votos,
     comentarios: p.comentarios,
+    likes: p.likes,
+    miLike: p.miLike,
     src: urls.src,
     poster: urls.poster,
     participacionId: p.submissionId,

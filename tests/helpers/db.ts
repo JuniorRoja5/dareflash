@@ -63,6 +63,8 @@ export const DELETE_ORDER = [
   "Notification",
   "Announcement",
   "Comment",
+  // Antes que `Video` y que `User`: tiene FK a los dos (Restrict), así que borrarlos primero falla.
+  "Like",
   "Vote",
   "RankingMensual",
   "ChallengeResult",
