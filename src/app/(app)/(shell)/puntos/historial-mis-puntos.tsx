@@ -41,7 +41,9 @@ export function HistorialMisPuntos({ items }: { items: MovimientoPuntos[] }) {
           className="flex items-start gap-3 p-4 transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised/60"
         >
           <span className="min-w-0 flex-1">
-            <span className="block text-sm text-text">{razonHumanaPropia(m.razon)}</span>
+            {/* El importe viaja con el motivo: un ajuste del equipo se lee distinto si suma o si
+                resta, y el usuario no tiene por qué deducirlo del número de al lado. */}
+            <span className="block text-sm text-text">{razonHumanaPropia(m.razon, m.delta)}</span>
             <span className="block text-2xs text-text-dim">
               {fecha(m.creadoEnMs)}
               {/* La referencia solo se añade cuando dice algo: el servicio devuelve "—" cuando no

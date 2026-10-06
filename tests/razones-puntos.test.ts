@@ -54,3 +54,40 @@ describe("las dos voces", () => {
     expect(razonHumanaPropia("RAZON_QUE_NO_EXISTE")).toBe("RAZON_QUE_NO_EXISTE");
   });
 });
+
+describe("el ajuste del equipo se dice por su SIGNO", () => {
+  it("si suma, lo dice; si resta, también", () => {
+    // "Ajuste del equipo" era cierto y no servía: el usuario tenía que deducir del número de al
+    // lado si le habían dado o quitado puntos.
+    expect(razonHumanaPropia(RAZON_AJUSTE_ADMIN, 40)).toMatch(/añadió/);
+    expect(razonHumanaPropia(RAZON_AJUSTE_ADMIN, -20)).toMatch(/retiró/);
+  });
+
+  it("y los dos textos son DISTINTOS entre sí", () => {
+    expect(razonHumanaPropia(RAZON_AJUSTE_ADMIN, 1)).not.toBe(
+      razonHumanaPropia(RAZON_AJUSTE_ADMIN, -1),
+    );
+  });
+
+  it("sin importe, cae al texto neutro: sigue siendo cierto", () => {
+    const neutro = razonHumanaPropia(RAZON_AJUSTE_ADMIN);
+    expect(neutro).toBe(razonHumanaPropia(RAZON_AJUSTE_ADMIN, 0));
+    expect(neutro).not.toMatch(/añadió|retiró/);
+  });
+
+  it("NO repite la cifra ni cuenta el porqué", () => {
+    // El importe ya va en su columna. Y el porqué es la nota interna, que no viaja al dueño.
+    for (const delta of [40, -20]) {
+      const texto = razonHumanaPropia(RAZON_AJUSTE_ADMIN, delta);
+      expect(texto, "repite el número").not.toMatch(/\d/);
+      expect(texto, "insinúa un motivo que no se cuenta").not.toMatch(/porque|motivo|sanci/i);
+    }
+  });
+
+  it("y el signo NO cambia el resto de motivos: solo el ajuste va en dos direcciones", () => {
+    for (const razon of RAZONES_CONOCIDAS) {
+      if (razon === RAZON_AJUSTE_ADMIN) continue;
+      expect(razonHumanaPropia(razon, 10), razon).toBe(razonHumanaPropia(razon, -10));
+    }
+  });
+});

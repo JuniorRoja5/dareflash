@@ -233,6 +233,17 @@ describe.each(TEMAS)("tema %s", (tema) => {
       referencia,
     });
 
+    it("un ajuste del equipo se lee distinto si suma o si resta", () => {
+      // Lo que el usuario leía antes era "Ajuste del equipo" en los dos casos, y tenía que deducir
+      // del número si le habían dado o quitado puntos.
+      const texto = (delta: number) =>
+        render(<HistorialMisPuntos items={[mov("a", delta, "ADMIN_AJUSTE")]} />).container
+          .textContent ?? "";
+      expect(texto(40)).toContain("El equipo te añadió puntos");
+      cleanup();
+      expect(texto(-20)).toContain("El equipo te retiró puntos");
+    });
+
     it("traduce el motivo y enseña el signo", () => {
       const c = render(
         <HistorialMisPuntos

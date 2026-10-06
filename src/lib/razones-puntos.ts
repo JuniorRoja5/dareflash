@@ -38,8 +38,12 @@ const EN_TERCERA: Record<string, string> = {
 };
 
 /**
- * Copy del DUEÑO: segunda persona. El ajuste manual se llama "Ajuste del equipo" y no "Ajuste
- * manual": al usuario no le dice nada que fuera manual, le dice quién lo hizo.
+ * Copy del DUEÑO: segunda persona.
+ *
+ * EL AJUSTE MANUAL NO TIENE UN SOLO TEXTO, y ese era el problema: "Ajuste del equipo" era neutro
+ * porque un ajuste puede SUMAR o RESTAR, y no se podía decir cuál sin mirar el importe. Pero el
+ * usuario no tiene por qué deducir de un número qué le ha pasado — ver `razonHumanaPropia`, que
+ * elige por el signo. Esta entrada es el texto de reserva, para cuando no se sabe el importe.
  */
 const EN_SEGUNDA: Record<string, string> = {
   WIN_CHALLENGE: "Ganaste un reto",
@@ -59,7 +63,29 @@ export function razonHumana(razon: string): string {
   return EN_TERCERA[razon] ?? razon;
 }
 
-/** Motivo dirigido al dueño de la cuenta (su propio historial). */
-export function razonHumanaPropia(razon: string): string {
+/**
+ * El ajuste del equipo, dicho por su SIGNO. Es lo único que el usuario necesita saber de él.
+ *
+ * NO DICE POR QUÉ, y eso no es un olvido: el porqué es la nota interna del ajuste, escrita para el
+ * equipo y en voz de moderación, y no viaja al historial del dueño (ver `VozHistorial`). Si algún
+ * día hay que explicarle el motivo, será un campo nuevo escrito para él, no esta línea.
+ *
+ * Tampoco repite la cifra: el importe ya va en su columna, al lado.
+ */
+const AJUSTE_POR_SIGNO = {
+  suma: "El equipo te añadió puntos",
+  resta: "El equipo te retiró puntos",
+} as const;
+
+/**
+ * Motivo dirigido al dueño de la cuenta (su propio historial).
+ *
+ * `delta` es OPCIONAL y solo lo usa el ajuste manual, que es el único motivo que puede ir en las
+ * dos direcciones. Sin él se cae al texto neutro, que sigue siendo cierto — solo que menos útil.
+ */
+export function razonHumanaPropia(razon: string, delta?: number): string {
+  if (razon === RAZON_AJUSTE_ADMIN && typeof delta === "number" && delta !== 0) {
+    return delta > 0 ? AJUSTE_POR_SIGNO.suma : AJUSTE_POR_SIGNO.resta;
+  }
   return EN_SEGUNDA[razon] ?? razon;
 }
