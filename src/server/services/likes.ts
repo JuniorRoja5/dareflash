@@ -132,8 +132,12 @@ export async function darLike(
 
   // FUERA de la transacción (ver la cabecera). Solo cuando este like fue nuevo: si no cambió nada,
   // tampoco puede haber cruzado el umbral.
-  if (r.estado === "puesto" && r.likes >= LIKES_PARA_HITO) {
-    await otorgarHitoLikes(db, entrada.videoId);
+  if (r.estado === "puesto") {
+    if (r.likes >= LIKES_PARA_HITO) await otorgarHitoLikes(db, entrada.videoId);
+    // La racha, por la misma razón y en el mismo sitio: escribe en `User`, así que no puede ir
+    // dentro de la transacción que bloquea el vídeo.
+    const { marcarDiaActivo } = await import("./racha");
+    await marcarDiaActivo(db, entrada.userId);
   }
   return r;
 }

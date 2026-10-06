@@ -298,6 +298,35 @@ export const LIKES_PARA_HITO = 50;
 /** Razon del movimiento. COINCIDE con la fila de `ACCIONES_PUNTOS`, que es lo que la activa. */
 export const RAZON_HITO_LIKES = "VIDEO_50_LIKES";
 
+/**
+ * DIAS SEGUIDOS QUE HACEN RACHA: a los 7, `POINTS.RACHA_7_DIAS`.
+ *
+ * QUE CUENTA COMO DIA ACTIVO: una accion que IMPORTA —publicar, votar, comentar o dar like—, no
+ * entrar a secas. Abrir la app se farmea solo y vaciaria el sentido de la racha. La lista vive en
+ * `ACCIONES_RACHA` y un test exige que cada servicio de esa lista marque el dia.
+ *
+ * SE PAGA UNA VEZ POR RACHA, no una vez en la vida ni cada siete dias: treinta dias seguidos
+ * cobran UNA vez; perderla y reconstruirla vuelve a cobrar (ver `lib/racha`).
+ */
+export const RACHA_DIAS_PREMIO = 7;
+/** Razon del movimiento. COINCIDE con la fila de `ACCIONES_PUNTOS`, que es lo que la activa. */
+export const RAZON_RACHA = "RACHA_7_DIAS";
+
+/**
+ * LOS SERVICIOS CUYA ACCION CUENTA PARA LA RACHA. No es documentacion: `tests/racha-cobertura`
+ * exige que cada uno de estos ficheros llame a `marcarDiaActivo`.
+ *
+ * Anadir una quinta accion que cuente es anadirla aqui y cablearla; olvidarse de lo segundo se
+ * pone ROJO. Es la misma disciplina que `route-csrf` con `mutatingRoute`: un punto unico, y que
+ * saltarselo no pueda pasar en silencio.
+ */
+export const ACCIONES_RACHA: ReadonlyArray<{ servicio: string; que: string }> = [
+  { servicio: "votes.ts", que: "votar una participacion" },
+  { servicio: "comentarios.ts", que: "publicar un comentario" },
+  { servicio: "likes.ts", que: "dar me gusta a un video" },
+  { servicio: "video-confirmacion.ts", que: "publicar un video" },
+];
+
 /** Copy de los likes. El boton no dice numeros: el numero lo pone el contador. */
 export const MSG_LIKE_PROPIO = "No puedes dar me gusta a tu propio vídeo.";
 export const MSG_LIKE_NO_DISPONIBLE = "Este vídeo ya no está disponible.";
@@ -391,10 +420,12 @@ export const ACCIONES_PUNTOS: readonly AccionPuntos[] = [
     nota: "Depende de una verificación de origen que todavía no tenemos.",
   },
   {
-    razon: "RACHA_7_DIAS",
-    etiqueta: "Racha de 7 días seguidos",
+    razon: RAZON_RACHA,
+    etiqueta: `Racha de ${RACHA_DIAS_PREMIO} días seguidos`,
     puntos: POINTS.RACHA_7_DIAS,
-    activa: false,
+    // ACTIVA desde que la racha existe. Como en los likes, no se gira a mano: el test de
+    // `acciones-puntos` contrasta esta config contra lo que de verdad otorga `server/services`.
+    activa: true,
   },
   {
     razon: RAZON_HITO_LIKES,

@@ -156,6 +156,20 @@ model User {
   /// nunca con un INCREMENT: asi re-ejecutar un cierre converge en vez de sumar de mas.
   victoriasTotales Int @default(0)
 
+  /// RACHA DE DIAS ACTIVOS: el dia en que empezo la racha viva, y el ultimo dia activo. Dias UTC
+  /// (`@db.Date`), no instantes: una racha se cuenta por dias de calendario y guardar la hora
+  /// invitaria a compararlos con husos distintos.
+  ///
+  /// LA LONGITUD NO SE GUARDA: se deriva de estos dos (son dias CONSECUTIVOS, asi que su numero es
+  /// la distancia entre los extremos). Un tercer campo podria contradecir a los otros dos.
+  ///
+  /// Y NO HAY BARRIDO QUE LAS ROMPA: la racha se CALCULA al mirarla (ver `lib/racha`). Si el ultimo
+  /// dia no es hoy ni ayer, vale cero sin que nadie haya tocado nada.
+  ///
+  /// NULL = nunca ha hecho nada que cuente. Sin backfill: no se inventa actividad pasada.
+  rachaInicioEn DateTime? @db.Date
+  rachaUltimoEn DateTime? @db.Date
+
   // --- Busqueda (A1) ---
   // SCORE DE AUTORIDAD para ORDENAR resultados de busqueda. Cache DENORMALIZADO e INDEXADO que el
   // WORKER recalcula en barridos de baja cadencia (nunca al vuelo; la busqueda solo LEE esta columna).

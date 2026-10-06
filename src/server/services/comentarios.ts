@@ -86,7 +86,9 @@ export async function publicarComentario(
   const texto = limpiarComentario(input.texto);
   if (texto === null) return { estado: "rechazado", motivo: "TEXTO_INVALIDO" };
 
-  return db.$transaction(async (tx) => {
+  // El tipo del callback se anota: al dejar de estar en posición de `return` directo, TypeScript
+  // ensancha los literales de `estado` a `string` y la unión deja de encajar.
+  const r = await db.$transaction(async (tx): Promise<ResultadoPublicar> => {
     await bloquearVideo(tx, input.videoId);
     const video = await tx.video.findFirst({
       where: { id: input.videoId, ...VIDEO_VISIBLE },
@@ -142,6 +144,15 @@ export async function publicarComentario(
       comentarios: commentCount,
     };
   }, LEDGER_TX_OPTIONS);
+
+  // LA RACHA, FUERA de la transacción y solo si el comentario se publicó de verdad. Fuera porque
+  // escribe en `User` y la de arriba bloquea el vídeo: anidarlas cerraría el ciclo del veto de
+  // deadlock. Y nunca tumba esto — si falla, la siguiente acción del día lo arregla.
+  if (r.estado === "publicado") {
+    const { marcarDiaActivo } = await import("./racha");
+    await marcarDiaActivo(db, input.userId);
+  }
+  return r;
 }
 
 /**

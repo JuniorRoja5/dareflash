@@ -100,6 +100,11 @@ export async function aplicarTransicion(
     try {
       const { otorgarHitosDeVideos } = await import("./hito-videos");
       await otorgarHitosDeVideos(db, hecho.userId);
+      // LA RACHA, en el mismo sitio y por la misma razón: publicar cuenta como día activo, y esto
+      // escribe en `User`, así que va DESPUÉS de la transacción de la transición. El día es el de
+      // la publicación efectiva; es cuando el vídeo pasa a existir para los demás.
+      const { marcarDiaActivo } = await import("./racha");
+      await marcarDiaActivo(db, hecho.userId);
     } catch (e) {
       console.error(`[transicion] hito de vídeos de ${hecho.userId}: ${sanearError(e)}`);
     }

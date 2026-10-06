@@ -195,6 +195,26 @@ async function bloquearSubmissions(tx: Db, ids: string[]): Promise<void> {
  *    es una decisión suya, no nuestra. La ruta ofrecerá "mover" y llamará a `moverVoto`.
  */
 export async function emitirVoto(db: PrismaClient, input: EmitirVotoInput): Promise<ResultadoVoto> {
+  const r = await emitirVotoSinRacha(db, input);
+  // LA RACHA, FUERA de la transacción del voto y solo si se votó de verdad. Fuera porque escribe
+  // en `User` mientras la de arriba bloquea `Submission`: anidarlas cerraría el ciclo del veto de
+  // deadlock. Y nunca tumba el voto — si falla, la siguiente acción del día lo arregla.
+  if (r.estado === "votado") {
+    const { marcarDiaActivo } = await import("./racha");
+    await marcarDiaActivo(db, input.userId, ahoraDe(input));
+  }
+  return r;
+}
+
+/** El instante de la acción, con el mismo defecto que usa el voto. */
+function ahoraDe(input: EmitirVotoInput): Date {
+  return input.ahora ?? new Date();
+}
+
+async function emitirVotoSinRacha(
+  db: PrismaClient,
+  input: EmitirVotoInput,
+): Promise<ResultadoVoto> {
   const ahora = input.ahora ?? new Date();
   // Se guarda fuera de la transacción para poder usarlo en el `catch`: cuando salta el UNIQUE, la
   // transacción ya revirtió, pero necesitamos saber EN QUÉ RETO para buscar el voto que ya existía.
