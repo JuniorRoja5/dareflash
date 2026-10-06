@@ -89,6 +89,26 @@ describe("el número no se escribe a mano", () => {
     expect(form, "un número suelto en el copy se queda desfasado").not.toMatch(/\b1[0-9]\s*años/);
   });
 
+  it("y el aviso del cliente usa LA MISMA función que el servidor, no su propia cuenta", () => {
+    // El cliente adelanta el aviso mientras se escribe la fecha, pero no puede ser un segundo juez:
+    // si hiciera su propia aritmética, un día diría que sí donde el servidor dice que no, y el que
+    // discrepa en silencio es siempre el del cliente.
+    const form = codigo(...FORMULARIO);
+    expect(form, "el formulario no usa la puerta compartida").toContain("declaraEdadMinima");
+    expect(form, "el formulario no usa el lector compartido").toContain("leerFechaNacimiento");
+    expect(form, "se calcula la edad a mano").not.toMatch(/getUTCFullYear|getFullYear/);
+
+    // Y LA FUNCIÓN QUE DECIDE NO LLEVA NI UN NÚMERO: toda su decisión viene de lo importado.
+    // Se acota a ESA función a propósito. Buscarlo en el fichero entero no sirve: el formulario
+    // tiene un icono cuyo `path` es "M3 3l18 18" y una pista de contraseña que compara con 10, y
+    // un guard que enrojece por las coordenadas de un SVG se acaba borrando por pesado.
+    const i = form.indexOf("function avisoDeEdad(");
+    expect(i, "ya no existe `avisoDeEdad`: revisa este guard").toBeGreaterThan(-1);
+    const cuerpo = form.slice(i, form.indexOf("\n}", i));
+    expect(cuerpo).toContain("declaraEdadMinima");
+    expect(cuerpo, "un umbral a mano en la función que decide").not.toMatch(/\d/);
+  });
+
   it("y el mensaje de la config tampoco lo lleva", () => {
     expect(CONSTANTES.MSG_EDAD_MINIMA).not.toMatch(/\d/);
     expect(CONSTANTES.MSG_EDAD_MINIMA).toMatch(/mayor de edad/i);

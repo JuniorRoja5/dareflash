@@ -5,7 +5,8 @@ import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
-import { PARAM_REFERIDO } from "@/config/constants";
+import { MSG_EDAD_MINIMA, PARAM_REFERIDO } from "@/config/constants";
+import { declaraEdadMinima, leerFechaNacimiento } from "@/lib/edad";
 import { postJson } from "@/lib/cliente-http";
 import { mensajeError, MSG_REGISTRO } from "@/lib/mensajes-error";
 
@@ -23,6 +24,21 @@ import { mensajeError, MSG_REGISTRO } from "@/lib/mensajes-error";
  */
 type Estado = "idle" | "enviando" | "hecho";
 
+/**
+ * Qué decirle a quien acaba de elegir una fecha, o `null` si no hay nada que decir.
+ *
+ * `null` TAMBIÉN cuando la fecha está a medias o no vale: el `<input type="date">` va emitiendo
+ * valores incompletos mientras se teclea, y soltar "revisa tu fecha" en cada pulsación sería ruido.
+ * Lo único que se adelanta es lo útil: que esa fecha no llega a la edad mínima.
+ */
+function avisoDeEdad(valor: string): string | null {
+  if (!valor) return null;
+  const ahora = new Date();
+  const nacimiento = leerFechaNacimiento(valor, ahora);
+  if (!nacimiento) return null;
+  return declaraEdadMinima(nacimiento, ahora) ? null : MSG_EDAD_MINIMA;
+}
+
 export function FormularioRegistro() {
   // El codigo de invitacion viaja en la URL (`/entrar?ref=…`) y se reenvia tal cual. NO se valida
   // aqui ni se le ensena nada al usuario: si el enlace fuera malo, el alta sigue igual (lo decide el
@@ -37,6 +53,13 @@ export function FormularioRegistro() {
   const [error, setError] = useState("");
 
   const ocupado = estado === "enviando";
+
+  // LA MISMA REGLA QUE EL SERVIDOR, importada, no reescrita: `leerFechaNacimiento` +
+  // `declaraEdadMinima` son las que usa `/api/auth/register`. Una comprobación propia aquí sería
+  // un segundo juez que puede discrepar — y el que discrepa en silencio es siempre el del cliente.
+  // Mientras la fecha está a medias (el `type="date"` va dando valores incompletos) no se dice nada:
+  // avisar a cada tecla de que "la fecha no vale" es ruido, no ayuda.
+  const avisoEdad = avisoDeEdad(nacimiento);
 
   async function onSubmit(e: FormEvent): Promise<void> {
     e.preventDefault();
@@ -131,7 +154,17 @@ export function FormularioRegistro() {
         value={nacimiento}
         onChange={(e) => setNacimiento(e.target.value)}
         disabled={ocupado}
+        aria-describedby={avisoEdad ? "registro-aviso-edad" : undefined}
       />
+      {/* AVISO AL ESCRIBIR, no al enviar. Antes la persona rellenaba todo el formulario, pulsaba y
+          solo entonces se enteraba. Es SOLO UX: el gate de verdad sigue siendo el servidor, que
+          vuelve a juzgar la misma fecha con la MISMA función. Por eso no se deshabilita el botón —
+          si esto se equivocara, nadie se quedaría sin poder intentarlo. */}
+      {avisoEdad ? (
+        <p id="registro-aviso-edad" role="status" className="-mt-3 text-xs text-text-dim">
+          {avisoEdad}
+        </p>
+      ) : null}
 
       {/* LA CASILLA. Dos cosas en una frase —edad y términos— porque es un solo acto: entrar aquí
           siendo mayor y aceptando las reglas. `required` es UX; quien decide es el servidor, que
