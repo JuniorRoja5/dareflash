@@ -32,11 +32,9 @@ function IconoAccion({ children, bold = false }: { children: ReactNode; bold?: b
   );
 }
 
-const IconoCorazon = () => (
-  <IconoAccion>
-    <path d="M12 21C7 17.5 4 14.6 4 10.8 4 8.4 5.9 6.5 8.3 6.5c1.6 0 2.8.8 3.7 2 .9-1.2 2.1-2 3.7-2 2.4 0 4.3 1.9 4.3 4.3 0 3.8-3 6.7-8 10.2z" />
-  </IconoAccion>
-);
+// EL CORAZON ya NO se define aqui: cuando llego el boton de like real (`components/ui/boton-like`),
+// este se quedo como adorno sin `onClick` y el rail acabo con DOS corazones — el que se pulsaba era
+// el muerto. Se borra con el, por el mismo motivo por el que se borro el rayo del voto.
 const IconoComentario = () => (
   <IconoAccion>
     <path d="M5 5h14v10H9l-4 4z" />
@@ -232,7 +230,21 @@ function PostInicio({
 
       {/* ACCIONES: sobre el video en movil (absolute), FUERA del video en desktop (static) */}
       <div className="absolute right-2 bottom-24 z-10 flex flex-col items-center gap-5 lg:static lg:right-auto lg:bottom-auto">
-        <Accion label="Me gusta" valor={0} icono={<IconoCorazon />} />
+        {/* ME GUSTA: del VÍDEO, así que se pinta siempre — también en una subida libre, al revés
+            que el voto, que necesita un reto detrás. Su estado sale del payload.
+
+            AQUÍ HABÍA UN CORAZÓN DE ADORNO. Un `<Accion label="Me gusta" valor={0} />` sin
+            `onClick`, heredado de cuando los likes no existían: pintaba un corazón, decía 0 y no
+            hacía nada. Al construir los likes se añadió el botón DE VERDAD más abajo y el adorno
+            se quedó, así que el rail tenía DOS corazones y el que se pulsaba era el muerto. El
+            botón real ocupa ahora su sitio, que es el primero de la columna. */}
+        <BotonLike
+          videoId={post.id}
+          likes={post.likes}
+          miLike={post.miLike}
+          haySesion={haySesion}
+          esMio={post.esMio}
+        />
         <Accion
           label="Comentar"
           valor={post.comentarios}
@@ -254,15 +266,6 @@ function PostInicio({
             haySesion={haySesion}
           />
         ) : null}
-        {/* ME GUSTA: del VÍDEO, así que se pinta siempre — también en una subida libre, al revés
-            que el voto, que necesita un reto detrás. Su estado sale del payload. */}
-        <BotonLike
-          videoId={post.id}
-          likes={post.likes}
-          miLike={post.miLike}
-          haySesion={haySesion}
-          esMio={post.esMio}
-        />
         <Accion label="Compartir" valor={0} icono={<IconoCompartir />} />
         {/* MUTE GLOBAL: última acción de la columna, DEBAJO de Compartir (antes tapaba la descripción
             abajo-izquierda). Mismo look de icono que las acciones pero SIN contador (no tiene número).
