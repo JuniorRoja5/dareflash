@@ -9,6 +9,9 @@
  *  - EL CUERPO SE LEE CRUDO. La firma se calcula sobre esos bytes; reserializar el JSON la rompe.
  *  - 200 EN TODO LO DEMÁS, incluso al no acreditar: un 4xx/5xx haría que Stripe reintentara en
  *    bucle una entrega que nunca va a ir mejor (un importe que no cuadra no mejora al reenviarlo).
+ *  - EL IMPORTE Y LA MONEDA SALEN DE LA SESIÓN, no de una constante nuestra. El caso de la divisa
+ *    ajena es el que lo exige: con `DEFAULT_CURRENCY` escrito a mano aquí, el servicio compararía
+ *    nuestra moneda contra sí misma y el chequeo no mediría nada.
  *  - DOS TIPOS DE EVENTO, UNA COMPRA: `completed` y `async_payment_succeeded` traen la misma
  *    sesión, así que acreditan una sola vez.
  *  - UN PAGO NO COBRADO todavía no acredita.
@@ -19,7 +22,7 @@
 import Stripe from "stripe";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PAQUETES_BOOST } from "../src/config/constants";
+import { DEFAULT_CURRENCY, PAQUETES_BOOST } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
@@ -65,6 +68,8 @@ function cuerpoEvento(opciones: {
   packageId?: string | null;
   usuario?: string | null;
   pagadoCents?: number | null;
+  /** En MINÚSCULAS, como la manda Stripe de verdad. */
+  moneda?: string | null;
   estadoPago?: string;
 }): string {
   const metadata: Record<string, string> = {};
@@ -82,6 +87,7 @@ function cuerpoEvento(opciones: {
           opciones.pagadoCents === undefined
             ? PAQUETES_BOOST.boost_5.precioCents
             : opciones.pagadoCents,
+        currency: opciones.moneda === undefined ? DEFAULT_CURRENCY.toLowerCase() : opciones.moneda,
         metadata,
       },
     },
@@ -212,6 +218,24 @@ describe("200 en todo lo que no sea una firma mala", () => {
   it("un importe que no cuadra se RECHAZA, y aun así es 200", async () => {
     // Reintentar no va a arreglar un importe que no cuadra: un 5xx aquí sería un bucle.
     const res = await webhook(peticion(cuerpoEvento({ pagadoCents: 1 })));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ estado: "rechazada" });
+    expect(await saldo()).toBe(0);
+  });
+
+  it("una sesión cobrada en OTRA moneda se rechaza, con el importe correcto y todo", async () => {
+    // Este caso es el que exige que la moneda SALGA DE LA SESIÓN. Si la ruta pasara
+    // `DEFAULT_CURRENCY` a mano en vez de `sesion.currency`, el servicio compararía nuestra divisa
+    // contra sí misma, el chequeo no mediría nada y esto acreditaría cinco boosts.
+    const res = await webhook(peticion(cuerpoEvento({ moneda: "eur" })));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ estado: "rechazada" });
+    expect(await saldo()).toBe(0);
+    expect(await prisma.boostLedger.count()).toBe(0);
+  });
+
+  it("y una sesión SIN moneda, igual", async () => {
+    const res = await webhook(peticion(cuerpoEvento({ moneda: null })));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ estado: "rechazada" });
     expect(await saldo()).toBe(0);

@@ -21,10 +21,10 @@ export const dynamic = "force-dynamic";
  * por `req.json()` y volver a serializar cambia espacios y orden, y la firma deja de cuadrar — con
  * el agravante de que parecería que Stripe manda firmas malas.
  *
- * SIEMPRE 200 SALVO FIRMA INVÁLIDA. Un evento que no nos interesa, un paquete desconocido o un
- * importe que no cuadra se responden 200: no hay nada que reintentar, y un 4xx/5xx haría que Stripe
- * reenviara en bucle algo que nunca va a ir mejor. Lo que sí es 400 es una firma mala: ahí el
- * mensaje no es de quien dice ser.
+ * SIEMPRE 200 SALVO FIRMA INVÁLIDA. Un evento que no nos interesa, un paquete desconocido, una
+ * moneda ajena o un importe que no cuadra se responden 200: no hay nada que reintentar, y un
+ * 4xx/5xx haría que Stripe reenviara en bucle algo que nunca va a ir mejor. Lo que sí es 400 es una
+ * firma mala: ahí el mensaje no es de quien dice ser.
  *
  * DOS TIPOS DE EVENTO, UNA SOLA COMPRA. `completed` llega en el pago normal y
  * `async_payment_succeeded` en los métodos diferidos. Los dos traen la MISMA sesión, así que los
@@ -81,7 +81,10 @@ export async function POST(req: Request) {
     userId,
     packageId,
     sessionId: sesion.id,
+    // Los dos se CONTRASTAN contra el catálogo en el servicio, no se usan. La moneda viaja porque
+    // un importe sin divisa es una cifra sin unidad: ver la cabecera de `boost-compra`.
     pagadoCents: sesion.amount_total,
+    moneda: sesion.currency,
   });
 
   // 200 también cuando se rechaza o ya estaba: el detalle ya fue al log, y reintentar no arregla

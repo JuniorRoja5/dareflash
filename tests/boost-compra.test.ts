@@ -10,11 +10,16 @@
  *  - EL IMPORTE SE CONTRASTA CONTRA EL CATÁLOGO. Si lo pagado no cuadra, no se acredita nada. El
  *    precio ya se fijó en servidor al abrir el pago, así que un desajuste significa que algo no es
  *    lo que creemos — y ante eso no se regalan créditos.
+ *  - Y LA MONEDA, ANTES QUE EL IMPORTE. `amount_total` es una cifra SIN UNIDAD: 2000 son veinte
+ *    dólares o dos mil yenes. Una divisa que no es la nuestra se rechaza aunque el número cuadre, y
+ *    el ORDEN es parte de la decisión: se fija con un caso que manda los dos mal a la vez y exige
+ *    `MONEDA`. Sin él, comprobar la moneda después del importe pasaría igual de verde.
  *  - LOS BOOSTS SALEN DEL CATÁLOGO, nunca del evento ni del cliente.
  *  - EL SALDO SE MUEVE POR EL LEDGER, con su fila. Un `boostBalance` sin movimiento es un descuadre.
  *
  * Para romperlo: hacer la clave aleatoria o por evento (rojo en idempotencia), quitar la
- * comparación de importe (rojo), o leer los boosts de la entrada en vez del catálogo (rojo).
+ * comparación de importe o la de moneda (rojo), aceptar la moneda ausente (rojo), o leer los boosts
+ * de la entrada en vez del catálogo (rojo).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -42,12 +47,17 @@ const saldo = async () =>
   (await prisma.user.findUniqueOrThrow({ where: { id: userId } })).boostBalance;
 const movimientos = () => prisma.boostLedger.findMany({ where: { userId } });
 
-/** Una compra confirmada del paquete que se diga, con el importe correcto del catálogo. */
+/**
+ * Una compra confirmada del paquete que se diga, con el importe correcto del catálogo y la moneda
+ * tal y como la manda Stripe: en MINÚSCULAS. Si el fixture la pusiera en mayúsculas, una comparación
+ * sin normalizar pasaría aquí y fallaría en producción.
+ */
 const compra = (packageId: keyof typeof PAQUETES_BOOST, sessionId = "cs_test_1") => ({
   userId,
   packageId,
   sessionId,
   pagadoCents: PAQUETES_BOOST[packageId].precioCents,
+  moneda: DEFAULT_CURRENCY.toLowerCase(),
 });
 
 describe("el catálogo manda", () => {
@@ -120,6 +130,75 @@ describe("exactamente una vez", () => {
   });
 });
 
+describe("la moneda se contrasta, y antes que el importe", () => {
+  it("otra divisa con el MISMO número de céntimos no acredita", async () => {
+    // Es el flanco concreto: 2000 son veinte dólares o doscientas coronas. Con el importe como
+    // único filtro, el pack de 10 se llevaría por una fracción de su precio.
+    const r = await acreditarCompraBoost(prisma, { ...compra("boost_10"), moneda: "eur" });
+    expect(r).toEqual({ estado: "rechazada", motivo: "MONEDA" });
+    expect(await saldo()).toBe(0);
+    expect(await movimientos()).toHaveLength(0);
+  });
+
+  it.each(["jpy", "sek", "mxn", "ars"])(
+    "«%s» tampoco, aunque el importe cuadre",
+    async (moneda) => {
+      const r = await acreditarCompraBoost(prisma, { ...compra("boost_5"), moneda });
+      expect(r).toEqual({ estado: "rechazada", motivo: "MONEDA" });
+      expect(await saldo()).toBe(0);
+    },
+  );
+
+  it("SIN moneda (null) no acredita: «no se sabe» no es «la de siempre»", async () => {
+    const r = await acreditarCompraBoost(prisma, { ...compra("boost_1"), moneda: null });
+    expect(r).toEqual({ estado: "rechazada", motivo: "MONEDA" });
+    expect(await saldo()).toBe(0);
+  });
+
+  it("ni con la cadena vacía", async () => {
+    const r = await acreditarCompraBoost(prisma, { ...compra("boost_1"), moneda: "" });
+    expect(r).toEqual({ estado: "rechazada", motivo: "MONEDA" });
+    expect(await saldo()).toBe(0);
+  });
+
+  it("la NUESTRA sí, venga en minúsculas o en mayúsculas", async () => {
+    // Stripe la manda en minúsculas y el catálogo la escribe en mayúsculas: las dos tienen que
+    // valer. Una comparación literal contra `DEFAULT_CURRENCY` rechazaría TODAS las compras reales.
+    for (const [i, moneda] of [
+      DEFAULT_CURRENCY.toLowerCase(),
+      DEFAULT_CURRENCY.toUpperCase(),
+    ].entries()) {
+      const r = await acreditarCompraBoost(prisma, { ...compra("boost_1", `cs_m_${i}`), moneda });
+      expect(r, `rechazó la moneda propia escrita «${moneda}»`).toMatchObject({
+        estado: "acreditado",
+      });
+    }
+    expect(await saldo()).toBe(2);
+  });
+
+  it("con la moneda Y el importe mal, el motivo es MONEDA: se mira primero", async () => {
+    // Fija el ORDEN, no solo la existencia del chequeo. Un importe es una cifra sin unidad: hasta
+    // saber la divisa no significa nada, así que la divisa se resuelve antes.
+    const r = await acreditarCompraBoost(prisma, {
+      ...compra("boost_10"),
+      moneda: "eur",
+      pagadoCents: 1,
+    });
+    expect(r).toEqual({ estado: "rechazada", motivo: "MONEDA" });
+  });
+
+  it("y el paquete se mira ANTES que la moneda: sin paquete no hay precio que contrastar", async () => {
+    const r = await acreditarCompraBoost(prisma, {
+      userId,
+      packageId: "boost_999",
+      sessionId: "cs_test_orden",
+      pagadoCents: 500,
+      moneda: "eur",
+    });
+    expect(r).toEqual({ estado: "rechazada", motivo: "PAQUETE" });
+  });
+});
+
 describe("el importe se contrasta", () => {
   it("pagar de MENOS no acredita nada", async () => {
     const r = await acreditarCompraBoost(prisma, {
@@ -162,6 +241,7 @@ describe("el paquete se valida", () => {
         packageId,
         sessionId: "cs_test_x",
         pagadoCents: 500,
+        moneda: DEFAULT_CURRENCY.toLowerCase(),
       });
       expect(r).toEqual({ estado: "rechazada", motivo: "PAQUETE" });
       expect(await saldo()).toBe(0);
