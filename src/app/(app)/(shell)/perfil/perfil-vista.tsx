@@ -167,10 +167,14 @@ export function PerfilVista({
               <Estadistica valor={totalVideos} etiqueta="Vídeos" />
             </div>
 
-            {/* Boost = acción de pago = ÚNICO magenta: solo en el perfil PROPIO. */}
+            {/* Boost = acción de pago = ÚNICO magenta: solo en el perfil PROPIO.
+                LLEVA A /boosts, y antes no llevaba a ninguna parte: era un `<Boton>` sin `href` ni
+                `onClick`, o sea el mismo botón mudo que el corazón de adorno del feed y el de
+                compartir. `tests/perfil-sin-botones-muertos` lo vigila ahora. */}
             {esPropio ? (
               <>
                 <Boton
+                  href="/boosts"
                   variante="principal"
                   className="mt-6 w-full py-4 shadow-[var(--df-cta-lift)]"
                 >

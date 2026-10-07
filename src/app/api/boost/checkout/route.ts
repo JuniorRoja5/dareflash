@@ -73,8 +73,11 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
       // Lo que el webhook necesita saber. Nada más: ni el precio (lo resuelve del catálogo) ni
       // datos personales que no hagan falta ahí.
       metadata: { userId: user.userId, packageId: cuerpo.data.packageId },
-      success_url: `${env.APP_URL}/perfil?boost=ok`,
-      cancel_url: `${env.APP_URL}/perfil?boost=cancelado`,
+      // VUELVE A /boosts, que es desde donde se compró y donde está el saldo. Antes apuntaba a
+      // /perfil, que no tenía nada que recoger: el usuario volvía de pagar a una pantalla que no
+      // mencionaba la compra. Los dos valores de `?compra=` los lee esa página y nadie más.
+      success_url: `${env.APP_URL}/boosts?compra=ok`,
+      cancel_url: `${env.APP_URL}/boosts?compra=cancelada`,
     });
 
     if (!sesion.url) {

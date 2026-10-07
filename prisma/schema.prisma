@@ -793,6 +793,12 @@ model BoostLedger {
   idempotencyKey String   @unique
   createdAt      DateTime @default(now())
 
+  /// EL HISTORIAL PROPIO SE PAGINA POR KEYSET sobre (createdAt, id), igual que el de
+  /// puntos, y este indice es lo que lo hace honesto: con solo [userId] la consulta
+  /// ordenaba en memoria, que es un OFFSET disfrazado en cuanto alguien compra mucho.
+  /// El [userId] suelto se queda porque LEDGER_RECONCILE suma TODAS las filas de un
+  /// usuario sin orden, y para eso el indice corto es el que toca.
+  @@index([userId, createdAt, id])
   @@index([userId])
   @@index([refType, refId])
 }

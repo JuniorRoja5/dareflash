@@ -152,6 +152,31 @@ describe("la metadata es el puente con el webhook", () => {
   });
 });
 
+describe("la vuelta del pago aterriza donde hay quien la recoja", () => {
+  /**
+   * ESTO ES UN TEST DE COMPOSICIÓN, no de la ruta sola. Las dos URLs que se le dan a Stripe las
+   * tiene que LEER la pantalla de /boosts (`?compra=ok` / `?compra=cancelada`); si alguien cambia
+   * aquí el nombre del parámetro o el destino, la ruta sigue verde y la pantalla deja de decir si
+   * se ha cobrado, en silencio. Antes apuntaban a /perfil, que no recogía nada.
+   */
+  it("las dos van a /boosts, con los dos valores que esa página entiende", async () => {
+    await pedir({ packageId: "boost_1" });
+    const args = H.crearSesion.mock.calls[0]?.[0] as { success_url: string; cancel_url: string };
+
+    expect(args.success_url).toBe("https://x.test/boosts?compra=ok");
+    expect(args.cancel_url).toBe("https://x.test/boosts?compra=cancelada");
+  });
+
+  it("y salen de APP_URL, no de un dominio escrito a mano", async () => {
+    await pedir({ packageId: "boost_1" });
+    const args = H.crearSesion.mock.calls[0]?.[0] as { success_url: string; cancel_url: string };
+    for (const u of [args.success_url, args.cancel_url]) {
+      expect(u.startsWith("https://x.test/")).toBe(true);
+      expect(u).not.toMatch(/localhost|dareflash\.(com|app)/);
+    }
+  });
+});
+
 describe("quién puede comprar", () => {
   it("sin el correo verificado, no", async () => {
     H.user.emailVerified = null;

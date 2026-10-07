@@ -1,10 +1,14 @@
 /**
- * LAS DOS SECCIONES SE VEN DE LA MISMA FAMILIA.
+ * LAS TRES SECCIONES SE VEN DE LA MISMA FAMILIA.
  *
  * /puntos recibió el tratamiento de vida primero y /referidos se quedó a medias: heredó las
  * primitivas pero no el cuerpo, así que una parecía terminada y la otra un borrador de la misma
  * app. Eso no lo caza ningún test de la otra pieza —cada pantalla pasaba sus guards por separado—,
  * y es justo la clase de diferencia que vuelve a aparecer en cuanto se toque una sola de las dos.
+ *
+ * /boosts ENTRÓ AQUÍ EL DÍA QUE NACIÓ, y es la razón de que esta lista exista: una pantalla nueva
+ * que se añade a la familia sin pasar por este test es exactamente cómo se vuelve a tener una
+ * sección que "se parece" a las demás.
  *
  * LO QUE SE FIJA ES EL IDIOMA COMPARTIDO, no el diseño: que los dos heroes sean superficie glass
  * elevada con su halo, y que las listas de las dos vayan con el mismo tratamiento sobrio. Si mañana
@@ -30,6 +34,7 @@ const SHELL = ["src", "app", "(app)", "(shell)"];
 const HEROES = [
   { seccion: "puntos", fichero: "hero-nivel.tsx" },
   { seccion: "referidos", fichero: "hero-invitacion.tsx" },
+  { seccion: "boosts", fichero: "hero-boosts.tsx" },
 ] as const;
 
 describe.each(HEROES)("el hero de /$seccion tiene cuerpo", ({ seccion, fichero }) => {
@@ -61,12 +66,14 @@ describe.each(HEROES)("el hero de /$seccion tiene cuerpo", ({ seccion, fichero }
   });
 });
 
-describe("las listas de las dos van sobrias, y todas igual", () => {
+describe("las listas de las tres van sobrias, y todas igual", () => {
   const LISTAS = [
     { que: "tabla de puntos", src: leer(...SHELL, "puntos", "tabla-puntos.tsx") },
     { que: "historial de puntos", src: leer(...SHELL, "puntos", "historial-mis-puntos.tsx") },
     { que: "escalera de niveles", src: leer(...SHELL, "puntos", "escalera-niveles.tsx") },
     { que: "a quién has invitado", src: leer(...SHELL, "referidos", "page.tsx") },
+    { que: "historial de boosts", src: leer(...SHELL, "boosts", "historial-boosts.tsx") },
+    { que: "cómo funciona un boost", src: leer(...SHELL, "boosts", "como-funciona.tsx") },
   ];
 
   it.each(LISTAS)("$que usa el mismo idioma de tarjeta", ({ src }) => {
