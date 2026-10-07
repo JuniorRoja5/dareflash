@@ -32,7 +32,13 @@ const API_DIR = join(process.cwd(), "src", "app", "api");
 //  - confirmar-email: el dueño confirma su direccion NUEVA desde el correo, donde no hay sesion de
 //    DareFlash (la sesion que tuviera es de la cuenta VIEJA, y ademas se revoca al aplicar). El token
 //    es de un solo uso, de 256 bits, caduca en 24 h y su proposito va dentro del WHERE.
+//  - boost/webhook: lo llama el SERVIDOR de Stripe, no un navegador. No hay Origin, ni cookie, ni
+//    token al que atar un CSRF; con `mutatingRoute` se rechazarian TODOS los webhooks y los pagos
+//    se cobrarian sin acreditarse. Su proteccion es mas fuerte que el CSRF: la FIRMA
+//    (`STRIPE_WEBHOOK_SECRET`) sobre el cuerpo CRUDO, que demuestra que el mensaje viene de Stripe
+//    y que nadie lo ha tocado. Sin esa firma, cualquiera se regalaria boosts con un `curl`.
 const EXEMPT = new Set([
+  "boost/webhook",
   "auth/login",
   "auth/register",
   "auth/verify",

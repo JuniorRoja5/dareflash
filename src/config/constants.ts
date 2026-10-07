@@ -60,9 +60,11 @@ export const MARIADB_MAX_CONNECTIONS_DEFECTO = 151;
  * Moneda por defecto de la app. Toda la documentacion de producto esta en dolares
  * (premios "$20", VIP "$10/mes", Boost "$5"). NO se incrusta como default en el
  * esquema: la app la aplica desde aqui al crear filas con `currency`.
- * PENDIENTE: decision final del propietario (Sergio).
+ *
+ * CONFIRMADA (Sergio, 2026-10-07): USD se mantiene. Dejo de estar PENDIENTE al llegar el cobro de
+ * Boost — una moneda sin decidir se puede tolerar mientras no se cobra, no cuando ya se cobra.
  */
-export const DEFAULT_CURRENCY = "USD"; // PENDIENTE
+export const DEFAULT_CURRENCY = "USD";
 
 /**
  * Zona horaria de TODOS los limites temporales del producto. Decidido
@@ -78,6 +80,46 @@ export const RESET_TIMEZONE = "UTC";
  * Fuente: documentacion de producto ("3 apariciones destacadas por usuario al dia").
  */
 export const BOOST_DAILY_LIMIT = 3;
+
+/**
+ * PAQUETES DE BOOST a la venta. FUENTE UNICA: de aqui salen el precio Y los creditos, tanto al
+ * abrir el pago como al acreditarlo cuando Stripe confirma.
+ *
+ * ┌─ POR QUE UNA SOLA ESTRUCTURA ────────────────────────────────────────────────────────────────┐
+ * │ Ya nos mordio con las categorias: habia DOS listas y la invalida acabo en produccion. Aqui    │
+ * │ seria peor — una segunda lista de precios significa cobrar una cifra y acreditar otra.        │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * EL CLIENTE SOLO MANDA LA CLAVE. Ni el importe ni el numero de boosts viajan nunca desde el
+ * navegador: se resuelven aqui, en servidor, por `packageId`. Asi es IMPOSIBLE colar "el pack de
+ * 10 por un dolar", porque el precio no es un dato de entrada.
+ *
+ * Valores del documento maestro, en CENTIMOS enteros (nunca coma flotante):
+ *   1 boost  = $5  → 500¢   (5,00 $/boost)
+ *   5 boosts = $15 → 1500¢  (3,00 $/boost)
+ *  10 boosts = $20 → 2000¢  (2,00 $/boost)
+ */
+export const PAQUETES_BOOST = {
+  boost_1: { precioCents: 500, boosts: 1 },
+  boost_5: { precioCents: 1500, boosts: 5 },
+  boost_10: { precioCents: 2000, boosts: 10 },
+} as const satisfies Record<string, { precioCents: number; boosts: number }>;
+
+/** Las claves validas, como union. Un `packageId` que no este aqui no llega a Stripe. */
+export const PaqueteBoostSchema = z.enum(
+  Object.keys(PAQUETES_BOOST) as [keyof typeof PAQUETES_BOOST, ...(keyof typeof PAQUETES_BOOST)[]],
+);
+export type PaqueteBoost = z.infer<typeof PaqueteBoostSchema>;
+
+/** Razon del movimiento de creditos al COMPRAR. Coincide con `BoostReasonSchema`. */
+export const RAZON_BOOST_COMPRA = "PURCHASE";
+/** `refType` de la fila de ledger: a que apunta el movimiento. */
+export const REF_BOOST_STRIPE = "STRIPE_PAYMENT";
+
+/** Copy de la compra. Cero codigos ni jerga de Stripe en pantalla: eso va al log. */
+export const MSG_BOOST_PAGO_NO_DISPONIBLE = "Los pagos no están disponibles ahora mismo.";
+export const MSG_BOOST_PAQUETE_NO_VALIDO = "Ese paquete no existe.";
+export const MSG_BOOST_SIN_VERIFICAR = "Verifica tu correo para poder comprar.";
 
 // ============================================================================
 // DECISIONES DE PRODUCTO CONFIRMADAS POR EL PROPIETARIO
@@ -793,7 +835,11 @@ export const RATE_LIMITS = {
   // efectos: mueve contadores. No pretende frenar el fraude —eso es el gate, el no-autovoto y el
   // unique de la BD—, sino que nadie martillee el endpoint.
   VOTO_PER_USER: { limit: 60, windowMs: 15 * 60 * 1000 }, // 60 / 15 min por usuario
-  // Like (y quitarlo, MISMO cubo): es la accion mas barata del producto y la que mas se repite al
+  // Abrir un pago de Boost. MUY ajustado: cada intento crea una sesion en Stripe, asi que un bucle
+  // aqui es ruido en la cuenta de pagos, no solo en la nuestra. Nadie compra seis veces en un
+  // cuarto de hora de buena fe.
+  BOOST_CHECKOUT_PER_USER: { limit: 6, windowMs: 15 * 60 * 1000 }, // 6 / 15 min por usuario
+  // Like (y quitarlo, MISMO cubo):es la accion mas barata del producto y la que mas se repite al
   // bajar por el feed, asi que el cubo es generoso. Lo que acota no es el fraude —el hito lo
   // protegen el UNIQUE y el no-autolike— sino que nadie martillee el endpoint.
   LIKE_PER_USER: { limit: 120, windowMs: 15 * 60 * 1000 }, // 120 / 15 min por usuario
