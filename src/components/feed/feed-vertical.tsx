@@ -3,6 +3,7 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
+import { BotonCompartir } from "@/components/ui/boton-compartir";
 import { BotonLike } from "@/components/ui/boton-like";
 import { BotonVoto } from "@/components/ui/boton-voto";
 import { Denunciar } from "@/components/ui/denunciar";
@@ -44,13 +45,6 @@ const IconoComentario = () => (
 // se EXTRAJO a `components/ui/boton-voto` —como decia su propio comentario que habia que hacer— y esta
 // pantalla lo consume desde alli. Copiar el path en dos sitios era la unica salida que no valia.
 // (Fase 6: el Boost llevara icono PROPIO, distinto de este rayo.)
-const IconoCompartir = () => (
-  <IconoAccion>
-    <path d="M12 15V4" />
-    <path d="M8 8l4-4 4 4" />
-    <path d="M5 13v6h14v-6" />
-  </IconoAccion>
-);
 
 /** Icono de altavoz (con/sin ondas) para el botón de mute global del feed. SVG inline, trazo de marca. */
 function IconoSonido({ silenciado }: { silenciado: boolean }) {
@@ -266,7 +260,11 @@ function PostInicio({
             haySesion={haySesion}
           />
         ) : null}
-        <Accion label="Compartir" valor={0} icono={<IconoCompartir />} />
+        {/* COMPARTIR: hoja nativa en móvil, copiar el enlace donde no la haya. Era un `<Accion>`
+            sin `onClick` —un botón que se pulsaba y no hacía nada, igual que el corazón de
+            adorno—, y ademas decía `0` siempre: una cifra falsa, porque nada cuenta las veces que
+            se comparte. Ahora no lleva número. */}
+        <BotonCompartir videoId={post.id} titulo={post.retoTitulo} />
         {/* MUTE GLOBAL: última acción de la columna, DEBAJO de Compartir (antes tapaba la descripción
             abajo-izquierda). Mismo look de icono que las acciones pero SIN contador (no tiene número).
             Icono y aria según el mute EFECTIVO (nunca miente). Un cambio afecta a TODOS los vídeos. */}

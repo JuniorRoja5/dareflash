@@ -79,7 +79,11 @@ describe("ninguna acción del rail promete un clic que no existe", () => {
     // `Accion` renderiza un `<button>` SIEMPRE. Sin `onClick` es un botón que se puede pulsar y no
     // hace nada — exactamente lo que fue el corazón. Las que quedan sin cablear se declaran aquí,
     // una a una, para que añadir una nueva sin acción obligue a venir y justificarla.
-    const SIN_ACCION_TODAVIA = ["Compartir"];
+    //
+    // LA LISTA ESTÁ VACÍA, y esa es la forma en que esta pieza se cierra: "Compartir" era el único
+    // mudo que quedaba y ya hace algo (`components/ui/boton-compartir`), así que salió de aquí.
+    // Vacía es el estado deseable: cualquier botón mudo nuevo se pone rojo sin discusión.
+    const SIN_ACCION_TODAVIA: string[] = [];
     const mudas = acciones()
       .filter((a) => !a.includes("onClick"))
       .map((a) => /label="([^"]+)"/.exec(a)?.[1] ?? a);
