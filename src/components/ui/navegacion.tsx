@@ -60,6 +60,13 @@ const ICONO: Record<string, ReactNode> = {
       <path d="M6 19.5 12 14l6 5.5" />
     </>,
   ),
+  // DESTACADOS (Boost) — una estrella de cinco puntas, hueca y de un solo trazo. Es la marca
+  // universal de "destacado", y aquí además es la ÚNICA figura del juego que no es ni un rectángulo
+  // ni una silueta ni un galón: a 20 px no se confunde con ninguna de las otras siete, que es la
+  // prueba que de verdad importa en una barra lateral.
+  destacados: svg(
+    <path d="m12 3.5 2.6 5.3 5.9.9-4.25 4.15 1 5.85L12 16.9l-5.25 2.75 1-5.85L3.5 9.7l5.9-.9z" />,
+  ),
   // REFERIDOS — dos siluetas: la tuya y la que traes. Misma familia de trazo que el resto.
   referidos: svg(
     <>

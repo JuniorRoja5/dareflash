@@ -24,7 +24,7 @@
  */
 import "server-only";
 
-import { BOOST_DESTACADOS_PORTADA } from "@/config/constants";
+import { BOOST_DESTACADOS_PORTADA, BOOST_DESTACADOS_TOPE } from "@/config/constants";
 import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
 
@@ -94,7 +94,10 @@ export async function destacadosVigentes(
   opciones: { ahora?: Date; limite?: number } = {},
 ): Promise<PerfilDestacado[]> {
   const ahora = opciones.ahora ?? new Date();
-  const limite = Math.min(Math.max(opciones.limite ?? BOOST_DESTACADOS_PORTADA, 1), 100);
+  const limite = Math.min(
+    Math.max(opciones.limite ?? BOOST_DESTACADOS_PORTADA, 1),
+    BOOST_DESTACADOS_TOPE,
+  );
 
   const filas = await db.$queryRaw<FilaDestacado[]>(Prisma.sql`
     SELECT

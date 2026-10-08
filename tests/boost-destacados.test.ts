@@ -248,6 +248,26 @@ describe("la misma persona con dos apariciones vigentes", () => {
     expect(ps[0]!.activacionId).toBe(viva);
   });
 
+  it("y una expirada que es la MÁS RECIENTE tampoco: los filtros van DENTRO del subquery", async () => {
+    // ┌─ EL CASO QUE DISTINGUE "FILTROS DENTRO" DE "FILTROS FUERA" ──────────────────────────────┐
+    // │ Si el `WHERE expiresAt > ahora` viviera en la consulta de fuera, el `ROW_NUMBER()` elegiría │
+    // │ la aparición de arranque más reciente SIN mirar si está viva: ganaría la expirada, y el    │
+    // │ filtro de fuera tiraría esa única fila. Resultado: el usuario DESAPARECE de la vitrina    │
+    // │ aunque siga destacado por otra aparición. Es un fallo mudo — nadie ve lo que falta.       │
+    // │                                                                                           │
+    // │ Y NO ES HIPOTÉTICO: la Pieza 5 va a cortar apariciones poniendo `expiresAt = ahora`. Al    │
+    // │ cortar la última de alguien que encadenó dos, queda exactamente esto: su fila más reciente │
+    // │ expirada y una anterior todavía viva.                                                     │
+    // └───────────────────────────────────────────────────────────────────────────────────────────┘
+    const id = await crearUsuario(prisma, { username: "la_cortada" });
+    const larga = await destacar(id, 30, 90); // empezó hace 30 min y dura 90: VIVA
+    await destacar(id, 5, 2); // empezó hace 5 min y duró 2: la más reciente, EXPIRADA
+
+    const ps = await destacadosVigentes(prisma, { ahora: AHORA });
+    expect(ps, "el usuario ha desaparecido de la vitrina estando destacado").toHaveLength(1);
+    expect(ps[0]!.activacionId).toBe(larga);
+  });
+
   it("y `expiraEnMs` dice cuándo deja de estar destacado DE VERDAD", async () => {
     // Encadenar dos boosts alarga la presencia. El campo es "hasta cuándo se le ve", así que es el
     // final más lejano de sus apariciones vigentes, no el de la fila que se eligió para ordenar.

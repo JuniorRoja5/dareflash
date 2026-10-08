@@ -98,13 +98,14 @@ describe("boton: mapa variante -> tokens", () => {
 });
 
 describe("navegacion: catalogo canonico de destinos", () => {
-  it("ocho destinos, orden y claves exactos (reordenar o perder uno cae en rojo)", () => {
+  it("nueve destinos, orden y claves exactos (reordenar o perder uno cae en rojo)", () => {
     expect(NAV_DESTINOS.map((d) => d.clave)).toEqual([
       "inicio",
       "feed",
       "retos",
       "crear",
       "ranking",
+      "destacados",
       "perfil",
       "puntos",
       "referidos",
@@ -120,6 +121,9 @@ describe("navegacion: catalogo canonico de destinos", () => {
       "Retos",
       CTA_USUARIO.texto,
       "Ranking",
+      // El NOMBRE es "Boost" (la palabra del producto) y la RUTA es /destacados (lo que lista). Que
+      // no coincidan es deliberado: nadie busca "destacados" en un menú, buscan Boost.
+      "Boost",
       "Perfil",
       "Puntos",
       "Referidos",
@@ -130,6 +134,7 @@ describe("navegacion: catalogo canonico de destinos", () => {
       "/retos",
       CTA_USUARIO.href,
       "/ranking",
+      "/destacados",
       "/perfil",
       "/puntos",
       "/referidos",
@@ -143,15 +148,19 @@ describe("navegacion: catalogo canonico de destinos", () => {
 });
 
 describe("navegacion: subsets divergentes movil/escritorio (con dientes)", () => {
-  it("escritorio: los cinco de siempre + Puntos y Referidos, SIN Crear (es el CTA de la barra)", () => {
+  it("escritorio: descubrir (+ Boost) y luego lo mio, SIN Crear (es el CTA de la barra)", () => {
     expect(destinosDe(NAV_ESCRITORIO).map((d) => d.clave)).toEqual([
+      // DESCUBRIR: lo que hay ahi fuera. Boost va aqui y no al final porque es el escaparate de
+      // OTRA gente, no una seccion de "lo mio" — y el orden de la lateral agrupa por eso.
       "inicio",
       "feed",
       "retos",
       "ranking",
+      "destacados",
+      // LO MIO. Puntos, Referidos y Boost SOLO en escritorio: la barra inferior de movil ya tiene
+      // sus cinco. Alli la entrada a Puntos y Referidos son los botones del perfil propio, y a
+      // Boost el "ver todos" de la fila de la portada.
       "perfil",
-      // Puntos y Referidos SOLO en escritorio: la barra inferior de movil ya tiene sus cinco y alli
-      // la entrada a las dos son los botones del perfil propio.
       "puntos",
       "referidos",
     ]);

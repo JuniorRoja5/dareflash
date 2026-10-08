@@ -104,6 +104,19 @@ export const REF_BOOST_ACTIVACION = "BOOST_ACTIVATION";
 export const BOOST_DESTACADOS_PORTADA = 5;
 
 /**
+ * TOPE de perfiles que devuelve la consulta de destacados de una sola vez. Lo usa la seccion
+ * completa (/destacados), y es tambien el techo que `destacadosVigentes` aplica a cualquier limite
+ * que le pidan.
+ *
+ * NO ES UNA REGLA DE PRODUCTO, ES UN FRENO: hoy no puede haber tantos destacados a la vez (una
+ * aparicion dura BOOST_DURACION_MIN y cada persona ocupa UNA plaza), asi que la seccion entra de
+ * sobra en una sola pagina. El dia que este numero empiece a quedarse corto, lo que toca es paginar
+ * por KEYSET —como el resto del producto—, no subirlo: una lista sin tope es una consulta que
+ * crece sin que nadie lo decida.
+ */
+export const BOOST_DESTACADOS_TOPE = 100;
+
+/**
  * PAQUETES DE BOOST a la venta. FUENTE UNICA: de aqui salen el precio Y los creditos, tanto al
  * abrir el pago como al acreditarlo cuando Stripe confirma.
  *

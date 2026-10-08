@@ -101,6 +101,10 @@ export const NAV_DESTINOS = [
   { clave: "retos", nombre: "Retos", href: "/retos" },
   { clave: "crear", nombre: CTA_USUARIO.texto, href: CTA_USUARIO.href, central: true },
   { clave: "ranking", nombre: "Ranking", href: "/ranking" },
+  // DESTACADOS — la vitrina de perfiles con Boost. Se llama "Boost" porque es la palabra del
+  // producto; la ruta es /destacados porque es lo que lista. Va con los destinos de DESCUBRIR
+  // (inicio, feed, retos, ranking) y no con los de "lo mío": es el escaparate de otra gente.
+  { clave: "destacados", nombre: "Boost", href: "/destacados" },
   { clave: "perfil", nombre: "Perfil", href: "/perfil" },
   { clave: "puntos", nombre: "Puntos", href: "/puntos" },
   { clave: "referidos", nombre: "Referidos", href: "/referidos" },
@@ -115,13 +119,16 @@ export const NAV_ESCRITORIO = [
   "feed",
   "retos",
   "ranking",
+  "destacados",
   "perfil",
   "puntos",
   "referidos",
 ] as const;
-// PUNTOS y REFERIDOS solo en ESCRITORIO: la barra inferior de movil son cinco destinos y ya esta
-// llena; alli la entrada a las dos son los botones del perfil propio. Esta lista es justo donde se
-// ve esa decision.
+// PUNTOS, REFERIDOS y DESTACADOS solo en ESCRITORIO: la barra inferior de movil son cinco destinos y
+// ya esta llena. Para puntos y referidos la entrada de movil son los botones del perfil propio; para
+// DESTACADOS es el "ver todos" de la fila de la portada, que es publico y esta justo encima de las
+// tarjetas — o sea donde a alguien le entran las ganas de ver el resto. Esta lista es justo donde se
+// ve esa decision, y por eso hay un test que exige que no se cuele en movil.
 export const NAV_MOVIL = ["feed", "retos", "crear", "ranking", "perfil"] as const;
 
 /** Resuelve una lista de claves a sus destinos, preservando el orden. */
