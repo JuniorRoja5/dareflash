@@ -118,6 +118,8 @@ export async function crearUsuario(
   prisma: PrismaClient,
   overrides: {
     username?: string;
+    /** Nombre visible. Opcional de verdad: en el producto puede ser null y el handle hace de nombre. */
+    displayName?: string;
     referralCode?: string;
     pointsBalance?: number;
     walletBalanceCents?: number;
@@ -127,6 +129,7 @@ export async function crearUsuario(
   const u = await prisma.user.create({
     data: {
       username: overrides.username ?? generarHandle(),
+      ...(overrides.displayName !== undefined ? { displayName: overrides.displayName } : {}),
       // NOT NULL y UNIQUE: el helper usa el generador de produccion, igual que el registro.
       referralCode: overrides.referralCode ?? generarCodigoReferido(),
       pointsBalance: overrides.pointsBalance ?? 0,

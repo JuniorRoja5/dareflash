@@ -33,8 +33,9 @@ const NOMBRES_INVENTADOS = ["lucia.voz", "nico_skate", "usuario_demo", "entrenad
  *
  *  - `retos-datos.ts`     `RETOS_SEED`. El fichero es MIXTO: también exporta el catálogo de
  *                         categorías, que sí es real y lo usa la subida. Solo se va la semilla.
- *  - `portada-datos.ts`   hero, rejilla y perfiles de Boost de la portada, derivados de esa semilla.
- *                         Boost es Fase 6.
+ *  - `portada-datos.ts`   hero, rejilla y stats de la portada, derivados de esa semilla. (Los
+ *                         perfiles de Boost ya NO: `PERFILES_BOOST` se fue al construir la
+ *                         activacion, y los pinta `destacadosVigentes` con datos reales.)
  *
  * (`feed-datos.ts` estuvo aquí por `COMENTARIOS_FEED`, los comentarios de mentira del panel de
  * escritorio. Se fue con los comentarios reales, y `SIMBOLOS_RETIRADOS` impide que vuelva.)
@@ -52,7 +53,7 @@ const MAQUETA_PENDIENTE = [
  * Maqueta retirada que vivía DENTRO de un fichero que sigue (no un módulo entero): se vigila por su
  * nombre. `COMENTARIOS_FEED` compartía fichero con `formatearContador`, que es real.
  */
-const SIMBOLOS_RETIRADOS = ["COMENTARIOS_FEED"];
+const SIMBOLOS_RETIRADOS = ["COMENTARIOS_FEED", "PERFILES_BOOST"];
 
 /** Ficheros de código bajo src/, EXCLUIDA la guía de estilo (que es un catálogo de ejemplos). */
 function ficherosDeCodigo(dir: string): string[] {
@@ -89,7 +90,7 @@ describe("no hay datos de maqueta en producción", () => {
     expect(culpables).toEqual([]);
   });
 
-  it("la maqueta retirada dentro de ficheros vivos no vuelve (COMENTARIOS_FEED)", () => {
+  it(`la maqueta retirada dentro de ficheros vivos no vuelve (${SIMBOLOS_RETIRADOS.join(", ")})`, () => {
     const culpables = FICHEROS.filter((f) => {
       const src = soloCodigo(readFileSync(f, "utf8"));
       return SIMBOLOS_RETIRADOS.some((s) => src.includes(s));

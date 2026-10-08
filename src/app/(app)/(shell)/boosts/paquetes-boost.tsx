@@ -24,6 +24,11 @@ import { paquetesEnVenta } from "@/lib/boost-precio";
  * Cuál es el recomendado NO se escribe aquí, lo dice `mejorPrecio` — mover un precio en constants
  * mueve la etiqueta, el porcentaje y el magenta de golpe.
  *
+ * Y CON SALDO, EL MAGENTA NO ES DE AQUÍ. Si el usuario ya tiene Boosts, la acción de la pantalla es
+ * GASTARLOS (el botón del hero), no comprar más: entonces `cedeElAcento` pone los tres paquetes en
+ * secundario. Sigue habiendo exactamente un magenta, lo que cambia es cuál — y es la diferencia
+ * entre guiar y adornar.
+ *
  * UNA SOLA REGIÓN DE ESTADO para los tres botones, y no una por tarjeta. Solo puede haber una compra
  * en vuelo (los otros botones se deshabilitan), así que tres regiones serían tres sitios donde
  * buscar el mismo mensaje — y, en los tests, tres `role="alert"` colisionando.
@@ -35,13 +40,18 @@ import { paquetesEnVenta } from "@/lib/boost-precio";
 export function PaquetesBoost({
   puedeComprar,
   motivoBloqueo,
+  cedeElAcento = false,
 }: {
   /** Falso cuando el pago no se puede intentar: sin Stripe configurado o sin correo verificado. */
   puedeComprar: boolean;
   /** Por qué no se puede, en copy de producto. El servidor lo decide; aquí solo se enseña. */
   motivoBloqueo?: string | null;
+  /** Cierto cuando el magenta de la pantalla lo lleva otro botón (destacar). Ver la cabecera. */
+  cedeElAcento?: boolean;
 }) {
   const paquetes = paquetesEnVenta();
+  /** El recomendado solo se pinta en magenta si esta sección tiene el acento de la pantalla. */
+  const conAcento = (mejorPrecio: boolean) => mejorPrecio && !cedeElAcento;
   const [comprando, setComprando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -144,9 +154,12 @@ export function PaquetesBoost({
               ) : null}
             </p>
 
+            {/* EL ARO Y LA ETIQUETA se quedan aunque el acento se ceda: dicen un HECHO del paquete
+                (es el que sale más barato por Boost), no una acción. Lo que cede es el BOTÓN, que es
+                lo que la regla de `--df-action` gobierna: una acción principal por pantalla. */}
             <Boton
-              variante={p.mejorPrecio ? "principal" : "secundario"}
-              className={`mt-5 w-full py-3 ${p.mejorPrecio ? "shadow-[var(--df-cta-lift)]" : ""}`}
+              variante={conAcento(p.mejorPrecio) ? "principal" : "secundario"}
+              className={`mt-5 w-full py-3 ${conAcento(p.mejorPrecio) ? "shadow-[var(--df-cta-lift)]" : ""}`}
               onClick={() => void comprar(p.clave)}
               disabled={!puedeComprar || comprando !== null}
               aria-describedby={puedeComprar ? undefined : "boost-bloqueo"}

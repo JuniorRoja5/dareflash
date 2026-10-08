@@ -1,4 +1,5 @@
-import { BOOST_DAILY_LIMIT } from "@/config/constants";
+import { BOOST_DAILY_LIMIT, BOOST_DURACION_MIN } from "@/config/constants";
+import { duracionBoostHumana } from "@/lib/boost-duracion";
 
 /**
  * CÓMO FUNCIONA UN BOOST — las tres cosas que hay que saber antes de pagar.
@@ -8,16 +9,17 @@ import { BOOST_DAILY_LIMIT } from "@/config/constants";
  * que la escalera de niveles junto al hero de /puntos, y lo vigila `simetria-secciones`.
  *
  * ┌─ AQUÍ NO HAY NINGUNA CIFRA ESCRITA A MANO ────────────────────────────────────────────────────┐
- * │ El límite sale de `BOOST_DAILY_LIMIT`. Y la DURACIÓN del puesto destacado NO SE DICE: todavía │
- * │ no está decidida en el código (el esquema la deja en "~1h", que no es un número, es una nota  │
- * │ para nosotros). Escribir "1 hora" aquí sería inventarse una promesa de producto desde una      │
- * │ pantalla, que es exactamente el fallo que `panel-reto-vista` dejó prohibido.                   │
+ * │ El límite sale de `BOOST_DAILY_LIMIT` y la duración de `BOOST_DURACION_MIN`, dicha en          │
+ * │ castellano por `duracionBoostHumana` — "1 hora" escrito aquí se queda mintiendo el día que la │
+ * │ duración pase a 90 minutos.                                                                   │
+ * │                                                                                               │
+ * │ MIENTRAS LA ACTIVACIÓN NO EXISTIÓ, LA DURACIÓN NO SE DECÍA, y no era un olvido: el esquema la │
+ * │ dejaba en "~1h", que es una nota para nosotros y no un número decidido, así que escribirla     │
+ * │ habría sido inventarse una promesa de producto desde una pantalla. Ahora está decidida en      │
+ * │ constants, y por eso se puede decir. El aviso de "activar todavía no está disponible" se       │
+ * │ retiró en la misma pieza que construyó la activación — que es lo que su guard de dos lados     │
+ * │ obligaba a hacer, en vez de dejarlo puesto mintiendo al revés.                                 │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
- *
- * Y SE DICE QUE ACTIVAR NO EXISTE AÚN. Vender un crédito sin avisar de que todavía no hay botón
- * para gastarlo es cobrar por una expectativa. Cuando la activación se construya, esta línea se
- * cae — y hay un test que la exige MIENTRAS no exista, para que no se quede puesta mintiendo al
- * revés.
  */
 export function ComoFunciona() {
   const pasos = [
@@ -27,11 +29,12 @@ export function ComoFunciona() {
     },
     {
       titulo: "Gastas uno para destacar",
-      texto: `Cada Boost pone tu perfil en el espacio destacado. Como máximo ${BOOST_DAILY_LIMIT} veces al día.`,
+      texto: `Cada Boost pone tu perfil en el espacio destacado ${duracionBoostHumana(BOOST_DURACION_MIN)}. Como máximo ${BOOST_DAILY_LIMIT} veces al día.`,
     },
     {
       titulo: "Te ve quien entra",
-      texto: "El espacio destacado está donde más gente pasa, no escondido en una sección.",
+      texto:
+        "Sales en la portada, donde más gente pasa, y el último en activar aparece primero. No está escondido en una sección.",
     },
   ];
 
@@ -63,7 +66,8 @@ export function ComoFunciona() {
       </ol>
 
       <p className="mt-5 border-t border-line pt-4 text-2xs text-text-dim">
-        Activar un Boost todavía no está disponible: por ahora se quedan en tu saldo, y no caducan.
+        El contador de {BOOST_DAILY_LIMIT} al día se reinicia a medianoche UTC. Los Boosts sin
+        gastar no caducan.
       </p>
     </section>
   );

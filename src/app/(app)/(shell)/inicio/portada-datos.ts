@@ -10,18 +10,13 @@ import { retosDestacados, RETOS_SEED } from "../retos/retos-datos";
 export const RETO_HERO = [...RETOS_SEED].sort((a, b) => b.premioCents - a.premioCents)[0]!;
 export const RETOS_REJILLA = retosDestacados(RETOS_SEED, 6).filter((r) => r.id !== RETO_HERO.id);
 
-/**
- * PERFILES DESTACADOS (Boost) — maqueta de `BoostActivation` (Fase 6, Stripe): perfiles PAGADOS por
- * posicion (1..N). Son usuarios DISTINTOS del Top Ranking a proposito: el Boost es visibilidad
- * comprada (cualquiera paga por aparecer). El nivel se DERIVA de `puntos` con `nivelPorPuntos`.
+/*
+ * AQUI VIVIA `PERFILES_BOOST`: cinco usuarios inventados que la portada pintaba como perfiles
+ * destacados, en produccion. Se fue al construir la activacion de Boost (Fase 6, Pieza 3): ahora la
+ * fila la sirve `destacadosVigentes` con las `BoostActivation` reales, y cuando no hay ninguna la
+ * portada lo dice en vez de rellenar el hueco. `sin-datos-maqueta` vigila el nombre para que no
+ * vuelva.
  */
-export const PERFILES_BOOST = [
-  { username: "sara_p", puntos: 540 },
-  { username: "laia10", puntos: 780 },
-  { username: "rae", puntos: 140 },
-  { username: "nico_skate", puntos: 10 },
-  { username: "bea", puntos: 30 },
-] as const;
 
 /**
  * STATS del hero — agregados reales del producto (en produccion: consultas). Aqui `categorias` es

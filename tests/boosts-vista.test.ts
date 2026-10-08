@@ -44,17 +44,18 @@ const VISTAS = [
   "como-funciona.tsx",
   "historial-boosts.tsx",
   "aviso-compra.tsx",
+  "activar-boost.tsx",
 ] as const;
 
 describe("el detector mira el CÓDIGO, no el comentario que lo explica", () => {
   it("quitar comentarios cambia el fichero de verdad", () => {
-    // Control. Los seis ficheros EXPLICAN en sus docblocks lo que este test exige (hablan del
-    // límite, de los tokens, de la duración que no se dice). Si `leer` dejara de quitarlos, todo lo
-    // de abajo pasaría aunque el JSX estuviera vacío.
+    // Control. Los ficheros EXPLICAN en sus docblocks lo que este test exige (hablan del límite, de
+    // los tokens, de la duración). Si `leer` dejara de quitarlos, todo lo de abajo pasaría aunque el
+    // JSX estuviera vacío.
     for (const f of VISTAS) {
       expect(leer(f).length, f).toBeLessThan(crudo(f).length);
     }
-    expect(crudo("como-funciona.tsx")).toMatch(/1h|~1h/);
+    expect(crudo("como-funciona.tsx")).toMatch(/~1h/);
     expect(leer("como-funciona.tsx")).not.toMatch(/~1h/);
   });
 });
@@ -120,11 +121,17 @@ describe("cero cifras inventadas", () => {
     expect(hero).not.toMatch(/>\s*\d+\s*</);
   });
 
-  it("y NO se promete una duración del puesto destacado", () => {
-    // El esquema la deja en "~1h", que es una nota para nosotros, no un número decidido. Escribirla
-    // en una pantalla es inventarse una promesa de producto (lo que `panel-reto-vista` prohibió).
+  it("la DURACIÓN sale de BOOST_DURACION_MIN, nunca escrita en la pantalla", () => {
+    // ESTA REGLA CAMBIÓ DE FORMA, no de fondo. Mientras la activación no existió, la duración NO se
+    // decía: el esquema la dejaba en "~1h", que es una nota para nosotros y no un número decidido,
+    // así que escribirla habría sido inventarse una promesa de producto. Ahora está decidida en
+    // constants y se dice — pero DERIVADA, porque "1 hora" a mano se queda mintiendo el día que
+    // pase a 90 minutos.
     const todo = VISTAS.map(leer).join("\n");
-    expect(todo, "promete minutos u horas").not.toMatch(
+    expect(todo, "la duración no sale de la constante").toContain("BOOST_DURACION_MIN");
+    expect(todo, "la frase no se deriva: se ha escrito a mano").toContain("duracionBoostHumana");
+    // Y sigue sin haber ni un número junto a una unidad de tiempo en ninguna vista.
+    expect(todo, "promete minutos u horas con una cifra escrita").not.toMatch(
       /\b\d+\s*(h\b|hora|horas|min\b|minuto|minutos)/i,
     );
     expect(todo, "promete una duración en palabras").not.toMatch(/durante (una|un|1)\s/i);
@@ -132,13 +139,31 @@ describe("cero cifras inventadas", () => {
 });
 
 describe("un solo botón principal en toda la pantalla", () => {
-  it("el magenta es UNO, y se decide por `mejorPrecio`", () => {
-    const todo = VISTAS.map(leer).join("\n");
-    // NINGUNO fijo: en esta sección el magenta no se escribe, se decide. Con un `principal` a pelo,
-    // los tres botones de comprar serían tres acciones principales, o sea ninguna.
-    const fijos = [...todo.matchAll(/variante=\{?"principal"\}?/g)];
-    expect(fijos, "hay un botón principal escrito a mano").toHaveLength(0);
-    expect(leer("paquetes-boost.tsx")).toMatch(/mejorPrecio \? "principal" : "secundario"/);
+  /**
+   * AHORA HAY DOS CANDIDATOS AL MAGENTA —destacar y comprar— y sólo puede haber uno. Esto NO se
+   * puede fijar contando `variante="principal"` en el código: los dos están escritos, y cuál se
+   * PINTA depende del saldo. Lo que se comprueba aquí es que la decisión existe y de qué depende; el
+   * recuento de verdad, sobre el árbol renderizado, está en `tests/render/boost-activar` (el test de
+   * composición). Los dos juntos son la red: sin el de render, poner los tres paquetes en magenta
+   * pasaría de largo.
+   */
+  it("el de los paquetes NO es fijo: lo deciden `mejorPrecio` y si cede el acento", () => {
+    const paq = leer("paquetes-boost.tsx");
+    expect(paq).toMatch(/conAcento\(p\.mejorPrecio\) \? "principal" : "secundario"/);
+    expect(paq).toMatch(/mejorPrecio && !cedeElAcento/);
+  });
+
+  it("y el de destacar NO SE PINTA sin saldo: por eso puede ser fijo", () => {
+    // Si el componente no volviera `null`, con saldo cero habría dos magentas en pantalla.
+    const act = leer("activar-boost.tsx");
+    expect(act).toMatch(/if \(sinSaldo\) return null;/);
+    expect(act).toMatch(/const sinSaldo = saldo <= 0;/);
+  });
+
+  it("la página decide quién lo lleva, y lo decide por el SALDO", () => {
+    const page = leer("page.tsx");
+    expect(page).toMatch(/const destacarEsLaAccion = saldo > 0;/);
+    expect(page).toMatch(/cedeElAcento=\{destacarEsLaAccion\}/);
   });
 });
 
@@ -231,23 +256,42 @@ describe("la vuelta de Stripe no miente", () => {
   });
 });
 
-describe("se dice que activar todavía no existe (mientras no exista)", () => {
-  it("la pantalla lo avisa", () => {
-    // Vender un crédito sin decir que aún no hay botón para gastarlo es cobrar por una expectativa.
-    expect(leer("como-funciona.tsx")).toMatch(/Activar un Boost todav[íi]a no est[áa] disponible/);
+/**
+ * EL GUARD DE DOS LADOS, DESPUÉS DE DISPARARSE.
+ *
+ * Mientras no hubo activación, este bloque exigía el aviso "Activar un Boost todavía no está
+ * disponible" Y que NO existieran la ruta ni el servicio. El segundo lado es el que importaba: al
+ * construir la activación se puso rojo y obligó a venir aquí a retirar el aviso, en vez de dejarlo
+ * puesto mintiendo al revés — que es lo que habría pasado con un guard de un solo lado.
+ *
+ * Ahora el bloque vigila lo contrario: que el aviso se haya ido y que lo que lo sustituyó exista de
+ * verdad. Volver a escribir "todavía no está disponible" sobre algo que funciona cae en rojo.
+ */
+describe("activar existe, y la pantalla ya no dice lo contrario", () => {
+  it("el aviso de «todavía no disponible» se retiró", () => {
+    const todo = VISTAS.map(leer).join("\n");
+    expect(todo, "la pantalla sigue diciendo que activar no existe").not.toMatch(
+      /todav[íi]a no est[áa] disponible|pr[óo]ximamente/i,
+    );
   });
 
-  it("y la activación de verdad NO está construida: el día que lo esté, esto se pone rojo", () => {
-    // El guard tiene DOS lados a propósito. Sin este caso, el aviso se quedaría puesto para siempre
-    // mintiendo al revés: diciendo "no disponible" sobre algo que ya funciona.
+  it("y la activación está construida de verdad: ruta, servicio y botón", () => {
     expect(
-      existsSync(join(RAIZ, "src", "app", "api", "boost", "activar")),
-      "ya hay ruta de activar",
-    ).toBe(false);
+      existsSync(join(RAIZ, "src", "app", "api", "boost", "activar", "route.ts")),
+      "falta la ruta de activar",
+    ).toBe(true);
     expect(
       existsSync(join(RAIZ, "src", "server", "services", "boost-activacion.ts")),
-      "ya hay servicio de activación",
-    ).toBe(false);
+      "falta el servicio de activación",
+    ).toBe(true);
+    // Y el botón llama a esa ruta: un servicio sin puerta no activa nada.
+    expect(leer("activar-boost.tsx")).toContain('"/api/boost/activar"');
+  });
+
+  it("el botón gasta crédito interno: NO pasa por Stripe", () => {
+    // El dinero se movió al comprar. Si esto llamara al checkout, destacar cobraría otra vez.
+    const act = leer("activar-boost.tsx");
+    expect(act).not.toMatch(/stripe|checkout/i);
   });
 });
 

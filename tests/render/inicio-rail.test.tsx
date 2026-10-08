@@ -37,6 +37,9 @@ vi.mock("@/server/services/ranking", () => ({
     cursor: null,
   }),
 }));
+// La fila de destacados tiene su propio test (`inicio-destacados`): aquí sólo hace falta que no
+// toque la base de datos, porque la página la consulta de verdad.
+vi.mock("@/server/services/boost-destacados", () => ({ destacadosVigentes: async () => [] }));
 vi.mock("next/link", async () => {
   const { createElement } = await import("react");
   return { default: (props: Record<string, unknown>) => createElement("a", props) };

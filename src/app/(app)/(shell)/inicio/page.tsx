@@ -31,7 +31,14 @@ export default async function InicioPage() {
   // garantizaria que el rail y la pagina se contradigan en cuanto uno de los dos cambie.
   const { prisma } = await import("@/server/db/client");
   const { rankingMensual } = await import("@/server/services/ranking");
-  const { filas: topRanking } = await rankingMensual(prisma, { limite: 5 });
+  // DESTACADOS REALES: `BoostActivation` vigentes, del último en activar al primero. Antes esta fila
+  // la pintaba `PERFILES_BOOST`, cinco usuarios inventados, en producción.
+  const { destacadosVigentes } = await import("@/server/services/boost-destacados");
+
+  const [{ filas: topRanking }, destacados] = await Promise.all([
+    rankingMensual(prisma, { limite: 5 }),
+    destacadosVigentes(prisma),
+  ]);
 
   // CTA del hero POR ROL, de la misma fuente que el de la barra: "Crear reto" es del admin; el resto
   // sube un vídeo. `getCurrentUser` está memoizado por petición: el layout del shell ya lo resolvió.
@@ -82,7 +89,7 @@ export default async function InicioPage() {
 
         {/* PERFILES DESTACADOS (Boost) */}
         <div className="df-rise mt-12 lg:mt-16" style={{ animationDelay: "80ms" }}>
-          <BoostDestacados />
+          <BoostDestacados perfiles={destacados} />
         </div>
 
         {/* MURO de retos + rail de ranking */}

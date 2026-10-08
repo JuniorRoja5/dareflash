@@ -1,6 +1,9 @@
 import type { CSSProperties } from "react";
 
-import { BOOST_DAILY_LIMIT } from "@/config/constants";
+import { BOOST_DAILY_LIMIT, BOOST_DURACION_MIN } from "@/config/constants";
+import { duracionBoostHumana } from "@/lib/boost-duracion";
+
+import { ActivarBoost } from "./activar-boost";
 
 /**
  * HERO DE BOOSTS — cuántos tengo y qué compro con ellos.
@@ -26,10 +29,24 @@ import { BOOST_DAILY_LIMIT } from "@/config/constants";
  * porque "qué me llevo por cinco dólares" es justo lo que no se entiende leyendo la palabra Boost.
  * Geométrica y no un icono ilustrado ni un emoji, como todo el sistema.
  *
- * LA CIFRA DEL LÍMITE SALE DE `BOOST_DAILY_LIMIT`. Escribir "3" aquí sería la cifra inventada de
- * siempre: el día que el límite cambie, la pantalla seguiría prometiendo el número viejo.
+ * LAS DOS CIFRAS SALEN DE SU CONSTANTE (`BOOST_DAILY_LIMIT`, `BOOST_DURACION_MIN`, esta última ya
+ * dicha en castellano por `duracionBoostHumana`). Escribirlas aquí sería la cifra inventada de
+ * siempre: el día que cambien, la pantalla seguiría prometiendo el número viejo. Mientras la
+ * activación no existió, la duración NO se decía — ahora está decidida y se dice derivada.
+ *
+ * EL BOTÓN DE DESTACAR VIVE AQUÍ, junto al saldo, porque es la acción sobre ese saldo. Cuando hay
+ * Boosts es el único magenta de la pantalla; cuando no hay, no se pinta y el acento se va a los
+ * paquetes (lo decide la página).
  */
-export function HeroBoosts({ saldo }: { saldo: number }) {
+export function HeroBoosts({
+  saldo,
+  usadasHoy,
+  vigenteHastaMs,
+}: {
+  saldo: number;
+  usadasHoy: number;
+  vigenteHastaMs: number | null;
+}) {
   return (
     <section
       aria-labelledby="mis-boosts"
@@ -57,16 +74,28 @@ export function HeroBoosts({ saldo }: { saldo: number }) {
 
           <p className="mt-3 max-w-prose text-sm text-text-dim">
             Un Boost pone <strong className="font-semibold text-text">tu perfil</strong> en el
-            espacio destacado, donde lo ve quien entra. No caducan: se quedan en tu saldo hasta que
-            los uses.
+            espacio destacado {duracionBoostHumana(BOOST_DURACION_MIN)}, donde lo ve quien entra. No
+            caducan: se quedan en tu saldo hasta que los uses.
           </p>
 
           {/* EL LÍMITE, EN EL HERO Y NO EN LA LETRA PEQUEÑA. Es la única restricción del producto y
               afecta a cuánto tiene sentido comprar: enterarse DESPUÉS de pagar el pack de 10 es
-              enterarse tarde. */}
-          <p className="mt-4 inline-flex items-center rounded-full border border-line px-3 py-1 text-sm text-text-dim">
-            Máximo {BOOST_DAILY_LIMIT} al día
+              enterarse tarde. Cuando ya se ha gastado alguna, el chip pasa a decir CUÁNTAS quedan:
+              "máximo 3 al día" deja de ser lo útil en cuanto llevas dos. */}
+          <p className="mt-4 inline-flex flex-wrap items-center gap-x-2 rounded-full border border-line px-3 py-1 text-sm text-text-dim">
+            <span data-usadas-hoy={usadasHoy}>
+              {usadasHoy > 0
+                ? `Has destacado ${usadasHoy} de ${BOOST_DAILY_LIMIT} veces hoy`
+                : `Máximo ${BOOST_DAILY_LIMIT} al día`}
+            </span>
+            {vigenteHastaMs !== null ? (
+              <span data-destacado-ahora style={{ color: "var(--df-ok)" }}>
+                · Destacado ahora mismo
+              </span>
+            ) : null}
           </p>
+
+          <ActivarBoost saldo={saldo} usadasHoy={usadasHoy} vigenteHastaMs={vigenteHastaMs} />
         </div>
 
         {/* MAQUETA DEL ESPACIO DESTACADO. `aria-hidden`: lo que dice ya está dicho en el párrafo de

@@ -62,14 +62,16 @@ export default async function BoostsPage({
   const { prisma } = await import("@/server/db/client");
   const { env } = await import("@/config/env");
   const { boostsComprados, miHistorialBoosts } = await import("@/server/services/boost-historial");
+  const { miEstadoBoost } = await import("@/server/services/boost-activacion");
 
-  const [yo, pagina, comprados] = await Promise.all([
+  const [yo, pagina, comprados, estado] = await Promise.all([
     prisma.user.findUnique({
       where: { id: sesion.userId },
       select: { boostBalance: true },
     }),
     miHistorialBoosts(prisma, sesion.userId, { cursor: aqui.cursor }),
     boostsComprados(prisma, sesion.userId),
+    miEstadoBoost(prisma, sesion.userId),
   ]);
 
   const saldo = yo?.boostBalance ?? 0;
@@ -83,6 +85,16 @@ export default async function BoostsPage({
       ? MSG_BOOST_SIN_VERIFICAR
       : null;
 
+  /**
+   * DÓNDE VA EL ÚNICO MAGENTA DE LA PANTALLA.
+   *
+   * Ahora hay DOS acciones posibles —gastar un Boost y comprar más—, y el sistema reserva
+   * `--df-action` para UNA por pantalla. La regla: si ya tienes Boosts, la acción es gastarlos (el
+   * botón del hero); si no tienes, la acción es comprar. Así el acento señala siempre el siguiente
+   * paso real de quien está mirando, en vez de quedarse clavado en el que la maqueta eligió.
+   */
+  const destacarEsLaAccion = saldo > 0;
+
   return (
     <div className="df-rise mx-auto w-full max-w-5xl px-4 py-8 lg:px-8 lg:py-12">
       {/* LA VUELTA DE STRIPE, ARRIBA DE TODO: es la respuesta a "¿se ha cobrado?", y esa pregunta va
@@ -93,7 +105,11 @@ export default async function BoostsPage({
         </div>
       ) : null}
 
-      <HeroBoosts saldo={saldo} />
+      <HeroBoosts
+        saldo={saldo}
+        usadasHoy={estado.usadasHoy}
+        vigenteHastaMs={estado.vigenteHastaMs}
+      />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <TarjetaMetrica
@@ -101,10 +117,12 @@ export default async function BoostsPage({
           valor={saldo.toLocaleString("es-ES")}
           pie={saldo === 0 ? "Compra uno para destacar" : "No caducan"}
         />
+        {/* LA TARJETA DEL LÍMITE ENSEÑA LO QUE QUEDA, no el tope: el tope ya lo dice el hero, y lo
+            que alguien necesita saber aquí es si puede destacar otra vez hoy. */}
         <TarjetaMetrica
-          etiqueta="Máximo al día"
-          valor={BOOST_DAILY_LIMIT.toLocaleString("es-ES")}
-          pie="Apariciones destacadas por usuario"
+          etiqueta="Te quedan hoy"
+          valor={Math.max(BOOST_DAILY_LIMIT - estado.usadasHoy, 0).toLocaleString("es-ES")}
+          pie={`De ${BOOST_DAILY_LIMIT} apariciones al día`}
         />
         {/* COMPRADOS EN TOTAL, no "movimientos": el número sale de un `SUM` sobre las filas de
             compra (ver `boostsComprados`), así que es una cifra de verdad y no el largo de la
@@ -117,7 +135,11 @@ export default async function BoostsPage({
       </div>
 
       <div className="mt-10">
-        <PaquetesBoost puedeComprar={puedeComprar} motivoBloqueo={motivoBloqueo} />
+        <PaquetesBoost
+          puedeComprar={puedeComprar}
+          motivoBloqueo={motivoBloqueo}
+          cedeElAcento={destacarEsLaAccion}
+        />
       </div>
 
       {/* DOS COLUMNAS EN ESCRITORIO, el mismo reparto que /puntos: el panel corto (tres pasos) al

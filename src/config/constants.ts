@@ -82,6 +82,28 @@ export const RESET_TIMEZONE = "UTC";
 export const BOOST_DAILY_LIMIT = 3;
 
 /**
+ * Cuanto dura una aparicion destacada, en MINUTOS.
+ *
+ * El esquema de `BoostActivation` lo dejaba en "~1h", que es una nota para nosotros y no un numero:
+ * mientras no existio la activacion, la pantalla de /boosts NO decia la duracion a proposito (una
+ * cifra inventada en una pantalla es una promesa de producto que nadie ha tomado). Al construir la
+ * activacion hay que decidirlo, y queda aqui: de aqui sale el `expiresAt` que se escribe Y el texto
+ * que se lee. Dos sitios serian prometer una duracion y aplicar otra.
+ */
+export const BOOST_DURACION_MIN = 60;
+
+/** Razon y referencia del movimiento de ledger al GASTAR un boost. Union en `BoostReasonSchema`. */
+export const RAZON_BOOST_ACTIVACION = "ACTIVATION";
+export const REF_BOOST_ACTIVACION = "BOOST_ACTIVATION";
+
+/**
+ * Cuantos perfiles caben en el espacio destacado de la portada. El 6o y siguientes NO se pintan ahi:
+ * se veran en la seccion "Perfiles Boost" (Pieza 4). No es un limite del producto, es el ancho de
+ * una fila.
+ */
+export const BOOST_DESTACADOS_PORTADA = 5;
+
+/**
  * PAQUETES DE BOOST a la venta. FUENTE UNICA: de aqui salen el precio Y los creditos, tanto al
  * abrir el pago como al acreditarlo cuando Stripe confirma.
  *
@@ -120,6 +142,16 @@ export const REF_BOOST_STRIPE = "STRIPE_PAYMENT";
 export const MSG_BOOST_PAGO_NO_DISPONIBLE = "Los pagos no están disponibles ahora mismo.";
 export const MSG_BOOST_PAQUETE_NO_VALIDO = "Ese paquete no existe.";
 export const MSG_BOOST_SIN_VERIFICAR = "Verifica tu correo para poder comprar.";
+
+/** Copy de la ACTIVACION. Lo que el usuario puede hacer algo con, nunca el codigo del rechazo. */
+export const MSG_BOOST_SIN_SALDO = "No te quedan Boosts. Compra uno para destacar tu perfil.";
+/**
+ * EL LIMITE NO DICE "vuelve mañana", y no es un descuido: el contador se reinicia a medianoche UTC
+ * (ver RESET_TIMEZONE), que para alguien en UTC+10 no es "mañana" sino esta misma tarde. Decir la
+ * hora de verdad es menos redondo y no miente.
+ */
+export const MSG_BOOST_LIMITE_DIARIO = `Ya has destacado tu perfil ${BOOST_DAILY_LIMIT} veces hoy. El contador se reinicia a medianoche UTC.`;
+export const MSG_BOOST_ACTIVAR_SIN_VERIFICAR = "Verifica tu correo para poder destacar tu perfil.";
 
 // ============================================================================
 // DECISIONES DE PRODUCTO CONFIRMADAS POR EL PROPIETARIO

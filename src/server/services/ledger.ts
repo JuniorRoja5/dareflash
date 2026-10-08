@@ -274,6 +274,16 @@ export interface BoostCreditsInput {
   refId?: string;
   idempotencyKey: string;
   movementId?: string;
+  /**
+   * Efecto EXTRA en la MISMA transaccion y con el User AUN BLOQUEADO. Lo usa la activacion para
+   * contar las apariciones del dia e insertar la `BoostActivation`: ese conteo solo vale algo bajo
+   * este bloqueo (si no, dos activaciones simultaneas veen el mismo numero y cuelan una 4a), y el
+   * insert tiene que ir con el debito o ninguno de los dos.
+   *
+   * SI LANZA, LA TRANSACCION ENTERA SE DESHACE: el boost no se gasta. Es la via por la que el
+   * limite diario rechaza sin dejar rastro.
+   */
+  trasAplicar?: (tx: Prisma.TransactionClient, antes: number, despues: number) => Promise<void>;
 }
 
 export function applyBoostCredits(
@@ -309,6 +319,8 @@ export function applyBoostCredits(
             },
           })
           .then(() => undefined),
+      // Pasa TAL CUAL al núcleo: corre con el User bloqueado y dentro de la misma transacción.
+      ...(input.trasAplicar ? { trasAplicar: input.trasAplicar } : {}),
     },
     seams,
   );
