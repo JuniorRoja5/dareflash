@@ -242,17 +242,34 @@ describe("la vuelta de Stripe no miente", () => {
     expect(copy, "hay cifras en el copy de la vuelta").not.toMatch(/\d/);
   });
 
-  it("y ofrece ACTUALIZAR, que es la única salida honesta del hueco", () => {
-    expect(aviso).toMatch(/router\.refresh\(\)/);
+  it("y ofrece una salida que LIMPIA la query, no un refresco que la deja puesta", () => {
+    // ESTA ASERCIÓN EXIGÍA `router.refresh()`, y era un bug vestido de invariante: `refresh()` no
+    // quita `?compra=ok`, así que el aviso volvía al recargar y seguía puesto con el saldo ya al
+    // día. Lo que de verdad lo cierra es navegar al pathname sin parámetros — y eso, además, trae
+    // el saldo fresco, porque la página se renderiza por petición.
+    expect(aviso).toMatch(/router\.replace\(pathname/);
+    expect(aviso, "vuelve el refresh que dejaba el aviso pegado a la URL").not.toMatch(
+      /router\.refresh\(/,
+    );
     expect(aviso).toMatch(/Actualizar/);
   });
 
-  it("CANCELAR no se pinta como un error", () => {
+  it("el pendiente del botón es el de la TRANSICIÓN, no un estado propio", () => {
+    // El otro bug: `setActualizando(true)` y nadie lo bajaba, porque `refresh()` no remonta. Y no
+    // vale confiar en el desmontaje: una navegación que solo cambia la query NO recrea el segmento
+    // (ver `router.bfcacheId` en la doc de Next), así que el estado de cliente se conserva.
+    expect(aviso).toMatch(/useTransition\(\)/);
+    expect(aviso, "vuelve el booleano que se quedaba colgado").not.toMatch(/setActualizando/);
+  });
+
+  it("CANCELAR no se pinta como un error, y también se puede quitar de la URL", () => {
     // Quien cierra el formulario cambió de idea. Un rojo le dice que algo se rompió por su culpa.
     const bloqueCancelada = /estado === "cancelada"[\s\S]*?\n  \}/.exec(aviso)?.[0] ?? "";
     expect(bloqueCancelada.length, "no encuentro la rama de cancelada").toBeGreaterThan(50);
     expect(bloqueCancelada, "la cancelación va en color de alarma").not.toContain("--df-alarm");
     expect(bloqueCancelada).toMatch(/No se te ha cobrado nada/);
+    // Sin botón se quedaba pegada a `?compra=cancelada` igual que la otra.
+    expect(bloqueCancelada).toMatch(/onClick=\{descartar\}/);
   });
 });
 
