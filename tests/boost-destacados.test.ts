@@ -183,17 +183,80 @@ describe("una cuenta que no se puede promocionar no ocupa sitio", () => {
   });
 });
 
-describe("la misma persona con dos apariciones", () => {
-  it("sale una vez por aparición: la fila la ordena el momento de activar, no la persona", async () => {
-    // Activar dos veces seguidas es un desperdicio que el producto PERMITE (la pantalla lo avisa).
-    // Lo que no puede pasar es que la consulta se caiga o devuelva algo raro.
+/**
+ * UNA PERSONA, UNA PLAZA.
+ *
+ * Reactivar estando ya destacado está permitido y sirve para volver a encabezar. Sin deduplicar, esa
+ * segunda aparición vigente salía como una SEGUNDA tarjeta: la misma persona ocupando dos de las
+ * cinco plazas, y hasta tres con el límite diario. No es desperdicio del que paga, es desplazar a
+ * los demás de la vitrina.
+ */
+describe("la misma persona con dos apariciones vigentes", () => {
+  it("sale UNA vez, con su aparición más reciente", async () => {
     const id = await crearUsuario(prisma, { username: "la_insistente" });
-    await destacar(id, 20);
-    await destacar(id, 2);
+    const vieja = await destacar(id, 40);
+    const nueva = await destacar(id, 2);
 
     const ps = await destacadosVigentes(prisma, { ahora: AHORA });
-    expect(ps).toHaveLength(2);
-    expect(new Set(ps.map((p) => p.activacionId)).size).toBe(2);
-    expect(ps.every((p) => p.username === "la_insistente")).toBe(true);
+    expect(ps, "sale dos veces: la vitrina está duplicando a la misma persona").toHaveLength(1);
+    expect(ps[0]!.activacionId, "sale con la aparición vieja, no con la que le da el sitio").toBe(
+      nueva,
+    );
+    expect(ps[0]!.activacionId).not.toBe(vieja);
+  });
+
+  it("y reactivar la vuelve a poner ARRIBA, que es para lo que sirve", async () => {
+    const otra = await crearUsuario(prisma, { username: "la_otra" });
+    const insiste = await crearUsuario(prisma, { username: "la_insistente" });
+    await destacar(insiste, 40); // destacó hace rato
+    await destacar(otra, 10); // y la adelantaron
+
+    expect((await destacadosVigentes(prisma, { ahora: AHORA })).map((p) => p.username)).toEqual([
+      "la_otra",
+      "la_insistente",
+    ]);
+
+    await destacar(insiste, 1); // reactiva: vuelve a encabezar, sin ocupar dos plazas
+    const ps = await destacadosVigentes(prisma, { ahora: AHORA });
+    expect(ps.map((p) => p.username)).toEqual(["la_insistente", "la_otra"]);
+  });
+
+  it("el LIMIT cuenta PERSONAS, no filas: con 5 usuarios y uno repetido se ven 5 distintos", async () => {
+    // Es la razón de que el dedup vaya DENTRO de la consulta. Filtrando después, el repetido se
+    // habría llevado dos de las cinco plazas del `LIMIT` y la vitrina saldría con cuatro.
+    const dobla = await crearUsuario(prisma, { username: "u1" });
+    await destacar(dobla, 1);
+    await destacar(dobla, 2);
+    for (let i = 2; i <= 5; i += 1) {
+      const id = await crearUsuario(prisma, { username: `u${i}` });
+      await destacar(id, i + 2);
+    }
+
+    const ps = await destacadosVigentes(prisma, { ahora: AHORA, limite: 5 });
+    expect(ps).toHaveLength(5);
+    expect(new Set(ps.map((p) => p.userId)).size, "hay un usuario repetido").toBe(5);
+    expect([...ps.map((p) => p.username)].sort()).toEqual(["u1", "u2", "u3", "u4", "u5"]);
+  });
+
+  it("una aparición EXPIRADA no lo saca de la vitrina ni lo duplica", async () => {
+    const id = await crearUsuario(prisma, { username: "la_veterana" });
+    await destacar(id, BOOST_DURACION_MIN + 30); // ya terminada
+    const viva = await destacar(id, 5);
+
+    const ps = await destacadosVigentes(prisma, { ahora: AHORA });
+    expect(ps).toHaveLength(1);
+    expect(ps[0]!.activacionId).toBe(viva);
+  });
+
+  it("y `expiraEnMs` dice cuándo deja de estar destacado DE VERDAD", async () => {
+    // Encadenar dos boosts alarga la presencia. El campo es "hasta cuándo se le ve", así que es el
+    // final más lejano de sus apariciones vigentes, no el de la fila que se eligió para ordenar.
+    const id = await crearUsuario(prisma, { username: "la_encadenada" });
+    await destacar(id, 50, BOOST_DURACION_MIN * 3); // empezó antes y dura mucho más
+    await destacar(id, 1);
+
+    const [p] = await destacadosVigentes(prisma, { ahora: AHORA });
+    const finLargo = AHORA.getTime() - 50 * MIN + BOOST_DURACION_MIN * 3 * MIN;
+    expect(p!.expiraEnMs).toBe(finLargo);
   });
 });

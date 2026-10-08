@@ -25,9 +25,11 @@ import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
  * una acción por pantalla, y si tienes Boosts la acción es gastarlos, no comprar más: por eso los
  * botones de los paquetes pasan a secundario (lo decide la página, ver su docblock).
  *
- * APILAR NO SE PROHÍBE, SE AVISA. Si ya estás destacado, activar otro gasta un Boost y te devuelve
- * al primer puesto: es un desperdicio, pero las reglas del producto son el saldo y el límite diario,
- * no "uno a la vez". Inventar aquí una regla que nadie ha decidido sería peor que decirlo.
+ * REACTIVAR ESTANDO DESTACADO SIRVE PARA ALGO, y por eso no se prohíbe: vuelves a encabezar la fila
+ * y alargas tu presencia. Lo que NO hace es darte dos tarjetas — la vitrina enseña una por persona
+ * (ver `destacadosVigentes`). Antes de ese dedup esto SÍ era un problema: la misma persona ocupaba
+ * dos de las cinco plazas y desplazaba a los demás, y el aviso de esta pantalla no lo cubría porque
+ * no era un desperdicio del que paga, era acaparar el escaparate.
  */
 export function ActivarBoost({
   saldo,
@@ -113,8 +115,8 @@ export function ActivarBoost({
         </p>
       ) : vigenteHastaMs !== null ? (
         <p className="mt-2.5 text-2xs text-text-dim">
-          Ya estás destacado ahora mismo. Si activas otro, se gasta un Boost y vuelves al primer
-          puesto.
+          Ya estás destacado ahora mismo. Si activas otro, se gasta un Boost, vuelves al primer
+          puesto y alargas tu presencia. Sigues ocupando un solo sitio.
         </p>
       ) : (
         <p className="mt-2.5 text-2xs text-text-dim">

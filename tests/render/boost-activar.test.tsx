@@ -119,13 +119,15 @@ describe("qué se ve según el estado", () => {
     expect(mocks.post).not.toHaveBeenCalled();
   });
 
-  it("si ya estás destacado, se AVISA del desperdicio en vez de prohibirlo", () => {
-    // El producto no tiene una regla de "uno a la vez": las reglas son el saldo y el límite diario.
-    // Inventar aquí un bloqueo que nadie ha decidido sería peor que decir lo que cuesta.
+  it("si ya estás destacado, se puede reactivar y se dice QUÉ compras", () => {
+    // No hay regla de "uno a la vez": las reglas son el saldo y el límite diario. Reactivar sirve
+    // para volver a encabezar y alargar la presencia, y eso es lo que el copy tiene que decir —
+    // incluyendo que NO da dos sitios, porque la vitrina enseña uno por persona (`destacadosVigentes`).
     montar({ vigenteHastaMs: Date.now() + 10 * 60_000 });
     expect(boton()).toHaveProperty("disabled", false);
     expect(screen.getByText(/Ya estás destacado ahora mismo/)).toBeTruthy();
     expect(screen.getByText(/se gasta un Boost/)).toBeTruthy();
+    expect(screen.getByText(/un solo sitio/)).toBeTruthy();
   });
 
   it("la duración que promete sale de la constante", () => {
