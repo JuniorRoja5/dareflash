@@ -111,7 +111,7 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
           Clasificación
         </h1>
 
-        {/* Conmutador NEUTRO (no hay acción: nada de magenta), con etiquetas fijas de fuente única.
+        {/* Conmutador NEUTRO (no hay acción: nada de acento), con etiquetas fijas de fuente única.
             Ancho predecible: no depende de ningún dato. */}
         {reto ? (
           <div

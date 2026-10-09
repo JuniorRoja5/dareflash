@@ -11,7 +11,7 @@ const ESTILO_CIFRA = {
   fontVariationSettings: '"wght" 780, "wdth" 118',
 } as const;
 
-/** Métrica REAL: número grande (tabular) + etiqueta. `acento` la resalta (dinero -> lima). */
+/** Métrica REAL: número grande (tabular) + etiqueta. `acento` la resalta (dinero -> --df-money). */
 export function TarjetaMetrica({
   valor,
   etiqueta,

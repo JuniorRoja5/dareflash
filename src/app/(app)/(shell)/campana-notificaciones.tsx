@@ -48,7 +48,7 @@ type Carga =
  *
  *  - El BADGE sale del contador COMPARTIDO (`useNoLeidas`, ver `avisos-contexto`): el mismo número que
  *    el icono de Perfil en móvil, y que se refresca solo mientras la pestaña está a la vista. NEUTRO,
- *    como todos los recuentos (la lima es solo dinero). Sin nada nuevo no se pinta; pasado el tope, "99+".
+ *    como todos los recuentos (ese color es solo del dinero). Sin nada nuevo no se pinta; pasado el tope, "99+".
  *  - Al ABRIR se piden los `NOTIF_DESPLEGABLE` avisos más recientes y los que estaban sin leer se
  *    marcan como leídos (POST con CSRF: marcar cambia estado y nunca va por GET); lo que el servidor
  *    dice que queda sin leer va al contador compartido. El punto de "nuevo" se mantiene mientras el

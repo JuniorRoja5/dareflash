@@ -3,7 +3,7 @@
 /**
  * TARJETA de verificacion de email (/verify) — identidad v2: tarjeta glass sobre el void con glow
  * (el fondo lo aporta `page.tsx`), tipografia display, primitivas `Boton`/`Campo`. Como en
- * `/entrar`, UNA sola accion magenta por vista (el boton principal del estado activo); el resto de
+ * `/entrar`, UNA sola accion principal por vista (el boton principal del estado activo); el resto de
  * botones son secundarios (filete).
  *
  * LOGICA INTACTA (Rama 4 es solo rebrand, no toca el contrato con el backend):
@@ -73,7 +73,7 @@ export function TarjetaVerificacion() {
           <p className="mb-6 mt-1.5 text-sm text-text-dim">
             Pulsa el botón para confirmar tu dirección de correo.
           </p>
-          {/* ÚNICA acción magenta de la vista: plano (magenta sólido) + realce --df-cta-lift. */}
+          {/* ÚNICA acción principal de la vista: plano (relleno de acción sólido) + realce --df-cta-lift. */}
           <Boton
             type="button"
             variante="principal"
@@ -94,7 +94,7 @@ export function TarjetaVerificacion() {
           {/* A INICIAR SESIÓN, no a la home. Verificar el correo NO deja al usuario dentro: acaba de
               confirmar su dirección y lo siguiente que quiere es entrar. Mandarlo a la home le dejaba
               en la misma pantalla de invitado y teniendo que buscar el login por su cuenta.
-              Es la ÚNICA acción de esta vista, así que le toca el magenta. */}
+              Es la ÚNICA acción de esta vista, así que le toca el acento. */}
           <Boton
             href="/entrar"
             variante="principal"

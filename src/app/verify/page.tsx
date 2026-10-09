@@ -6,7 +6,7 @@ export const metadata = { title: "Verificar tu cuenta · DareFlash" };
 
 /**
  * VERIFICACION de email (/verify) — REHECHA con la identidad v2 (Rama 4). Ruta SUELTA, fuera del
- * grupo (app), sin nav (como /entrar y /unlock): fondo void con glow magenta ambiental y tarjeta
+ * grupo (app), sin nav (como /entrar y /unlock): fondo void con glow de acción ambiental y tarjeta
  * glass, mismo lenguaje visual que `/entrar`. Es SOLO un rebrand de superficie: la LOGICA (token
  * NO consumido en el GET, POST a /api/auth/verify tras el clic, estados sin-token/listo/
  * enviando/ok/error) vive intacta en `TarjetaVerificacion`.

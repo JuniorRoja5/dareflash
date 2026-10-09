@@ -18,7 +18,7 @@ function IconoPlay() {
 
 /**
  * TARJETA DE RETO (datos REALES). Presentación intacta (brief v2, reflowa por ancho): miniatura
- * VERTICAL 9:16 en móvil / APAISADA en lg, con el MARCADOR (premio en lima + cuenta atrás) superpuesto
+ * VERTICAL 9:16 en móvil / APAISADA en lg, con el MARCADOR (premio en --df-money + cuenta atrás) superpuesto
  * abajo. Enlaza a la URL canónica `/retos/{publicCode}-{slug}`. Solo campos de la doc: título, premio,
  * cierre y categoría (nada de autor/votos/miniatura maqueta). "Participar" es acción aparte, secundaria.
  */
@@ -50,10 +50,10 @@ export function TarjetaReto({ reto }: { reto: RetoPublicoVista }) {
         <span className="pointer-events-none absolute top-2.5 left-2.5 z-10">
           <PildoraCategoria>{nombreCategoria(reto.categoria)}</PildoraCategoria>
         </span>
-        {/* MARCADOR — firma, superpuesto abajo (siempre visible). Halo lima. */}
+        {/* MARCADOR — firma, superpuesto abajo (siempre visible). Halo de dinero. */}
         <span
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 block border-t border-line bg-void/70 px-2.5 py-2"
-          style={{ filter: "var(--df-glow-lima)" }}
+          style={{ filter: "var(--df-glow-dinero)" }}
         >
           <Marcador
             cents={reto.premioCents}

@@ -97,7 +97,7 @@ const ICONO: Record<string, ReactNode> = {
  * El [+] central es el CTA PRINCIPAL, por ROL y de la MISMA fuente que el de la barra de
  * escritorio y el hero (`ctaPrincipal`): "Subir vídeo" a /crear para el no-admin, "Crear reto" al panel
  * para el admin. Antes decia "Crear" e iba a /crear para todos: un tercer sitio con su propio texto.
- * Circulo de relleno --df-action con texto negro (--df-void), el UNICO magenta. Cada objetivo mide
+ * Circulo de relleno --df-action con texto --df-void, el UNICO de la nav. Cada objetivo mide
  * 44 px. Presentacional: la posicion fija la pone el layout, y el rol se lo pasa quien la monta.
  *
  * AVISOS en movil: no hay campana (no hay barra superior). Los avisos se leen desde /perfil, y por eso
@@ -170,7 +170,7 @@ export function NavegacionInferior({
 
 /**
  * NAVEGACION LATERAL (escritorio) — los destinos de `NAV_ESCRITORIO` (Inicio, Feed, Retos, Ranking,
- * Perfil). El CTA principal NO va aqui: es el boton magenta de la barra superior (el unico magenta).
+ * Perfil). El CTA principal NO va aqui: es el boton de --df-action de la barra superior (el unico de la pantalla).
  * Sin [+]. Cada fila mide 44 px; activo = neutro elevado. Presentacional: el layout la fija.
  */
 export function NavegacionLateral({ activo }: { activo?: string }) {

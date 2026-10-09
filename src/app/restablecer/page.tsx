@@ -16,7 +16,7 @@ const estiloDisplay = {
  * /api/auth/reset-password y ahí se consume (un solo uso). Los escáneres de correo hacen prefetch
  * del enlace y, sin esto, quemarían el token antes del clic (misma lección que /verify y /unlock).
  *
- * Marca (brief v2): fondo void con glow magenta ambiental y tarjeta glass. UNA sola acción magenta.
+ * Marca (brief v2): fondo void con glow de acción ambiental y tarjeta glass. UNA sola acción principal.
  */
 export default function RestablecerPage() {
   return (

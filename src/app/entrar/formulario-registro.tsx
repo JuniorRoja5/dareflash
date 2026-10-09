@@ -189,7 +189,7 @@ export function FormularioRegistro() {
         </p>
       ) : null}
 
-      {/* ÚNICA acción magenta de la vista de registro: plano + realce --df-cta-lift. */}
+      {/* ÚNICA acción principal de la vista de registro: plano + realce --df-cta-lift. */}
       <Boton
         type="submit"
         variante="principal"

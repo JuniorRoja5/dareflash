@@ -16,7 +16,7 @@ import { Avatar, type TamanoAvatar } from "./avatar";
  * manda ahí es el vídeo. Nada de halo que respira ni flote; esto es una etiqueta, no un reclamo.
  *
  * EL TONO ES `--df-action`, el acento del sistema, y por tokens: tiene su valor en los dos temas. No
- * es un magenta de ACCIÓN aquí —esto no se pulsa— sino la marca de quien pagó por destacar, que es
+ * es un acento de ACCIÓN aquí —esto no se pulsa— sino la marca de quien pagó por destacar, que es
  * para lo que el producto usa ese color en el espacio destacado.
  */
 export function MarcaBoost({ className = "" }: { className?: string }) {

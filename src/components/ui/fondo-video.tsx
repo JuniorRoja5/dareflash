@@ -29,8 +29,8 @@ import { CONSULTA_ESCRITORIO, CONSULTA_MOVIMIENTO, debeMontarVideoFondo } from "
  * fondo de `body` es un bloque en flujo y esos se pintan DESPUÉS de los z-index negativos. Ver el
  * comentario de `body` en `globals.css`.
  *
- * NO COMPITE CON EL CTA: el velo es oscuro y liso, sin glow magenta añadido. El vídeo ya trae sus rayos
- * horneados, y el único magenta de ACCIÓN de la pantalla sigue siendo el CTA principal (`ctaPrincipal`).
+ * NO COMPITE CON EL CTA: el velo es oscuro y liso, sin glow de acción añadido. El vídeo ya trae sus rayos
+ * horneados, y el único acento de la pantalla sigue siendo el CTA principal (`ctaPrincipal`).
  *
  * `aria-hidden` + `pointer-events-none`: es decoración. Ni la lee un lector de pantalla ni se come un
  * clic del contenido que tiene encima.

@@ -120,7 +120,7 @@ export function BuscarCliente({
 
   return (
     <div className="space-y-6">
-      {/* Pestañas (neutras, activo elevado — nunca magenta). */}
+      {/* Pestañas (neutras, activo elevado — nunca el acento). */}
       <div role="tablist" aria-label="Tipo de búsqueda" className="flex gap-2">
         <PildoraFiltro activo={tab === "usuarios"} onClick={() => cambiarTab("usuarios")}>
           Usuarios

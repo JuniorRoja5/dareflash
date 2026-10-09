@@ -73,8 +73,8 @@ function IconoSonido({ silenciado }: { silenciado: boolean }) {
 }
 
 /**
- * Boton de accion. Neutro (icono blanco) salvo VOTA (`destacado`): circulo magenta con icono NEGRO =
- * la UNICA accion magenta de contenido (movil sobre el video; desktop en la columna de acciones fuera
+ * Boton de accion. Neutro (icono blanco) salvo VOTA (`destacado`): circulo de --df-action con icono --df-void =
+ * la UNICA accion acentuada de contenido (movil sobre el video; desktop en la columna de acciones fuera
  * del video). Zona tactil 44 px.
  */
 function Accion({
@@ -248,7 +248,7 @@ function PostInicio({
           icono={<IconoComentario />}
           onClick={onComentar}
         />
-        {/* VOTAR: el unico magenta de contenido de la pantalla. Solo si el video ES una participacion
+        {/* VOTAR: el unico acento de contenido de la pantalla. Solo si el video ES una participacion
             —una subida libre no pertenece a ningun reto, asi que no hay nada que votar y no se pinta un
             boton muerto—. Todo su estado (visto, mi voto, reto abierto) sale del payload y de los
             registros compartidos; ver `components/ui/boton-voto`. */}

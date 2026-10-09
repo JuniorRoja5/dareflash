@@ -162,7 +162,7 @@ function RestablecerContenido() {
           </p>
         ) : null}
 
-        {/* ÚNICA acción magenta de la pantalla: plano + realce --df-cta-lift. */}
+        {/* ÚNICA acción principal de la pantalla: plano + realce --df-cta-lift. */}
         <Boton
           type="submit"
           variante="principal"

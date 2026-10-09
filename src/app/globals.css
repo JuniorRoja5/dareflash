@@ -235,7 +235,7 @@
   /* CTA PLANO: el relleno es el acento SOLIDO (--df-action); solo esta sombra lo eleva */
   --df-cta-lift: 0 10px 26px -12px color-mix(in srgb, var(--df-action) 50%, transparent);
   /* GLOW del dinero (halo del marcador; el color SIGUE siendo el del dinero) */
-  --df-glow-lima: drop-shadow(0 0 12px color-mix(in srgb, var(--df-money) 40%, transparent));
+  --df-glow-dinero: drop-shadow(0 0 12px color-mix(in srgb, var(--df-money) 40%, transparent));
   /* MOVIMIENTO (duraciones; el easing es --ease-mechanical) */
   --df-dur-fast: 180ms;
   --df-dur-reveal: 500ms;

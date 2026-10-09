@@ -9,8 +9,8 @@ import { MenuCuenta } from "./menu-cuenta";
  * BARRA SUPERIOR del shell de escritorio (solo >= lg; en movil no hay barra superior). Buscador +
  * CTA principal + campana de avisos + menu de cuenta. Cero sombras; filete inferior; geometria severa.
  *
- * El CTA principal (`CtaCrear`, por ROL: ver `ctaPrincipal`) es el magenta persistente del shell (cromo,
- * como el [+] de la nav), salvo en /inicio, donde se atenua a secundario para no competir con el magenta
+ * El CTA principal (`CtaCrear`, por ROL: ver `ctaPrincipal`) es el acento persistente del shell (cromo,
+ * como el [+] de la nav), salvo en /inicio, donde se atenua a secundario para no competir con el acento
  * de contenido del hero de la portada. Reusa el lenguaje del boton; no es un primitivo nuevo.
  *
  * La CAMPANA es real y SOLO con sesion: su numero sale del contador compartido de avisos (ver
@@ -33,7 +33,7 @@ export function BarraSuperior({
       <BuscadorBarra />
 
       <div className="ml-auto flex items-center gap-3">
-        {/* CTA principal por rol — magenta persistente (atenuado a secundario en /inicio) */}
+        {/* CTA principal por rol — acento persistente (atenuado a secundario en /inicio) */}
         <CtaCrear rol={rol} />
 
         {/* Tema claro/oscuro del sitio público. También para el INVITADO: es una preferencia de

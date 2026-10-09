@@ -6,7 +6,7 @@ import { useCerrarSesion } from "./usar-cerrar-sesion";
 
 /**
  * Botón "Cerrar sesión" para /perfil (mi perfil) — la vía que alcanza el MÓVIL (la barra superior es
- * solo escritorio). Acción de baja jerarquía: variante fantasma (nada de magenta, que es Boost).
+ * solo escritorio). Acción de baja jerarquía: variante fantasma (nada de acento, que es Boost).
  * Solo se monta en el perfil propio, que ya exige sesión.
  */
 export function CerrarSesion({ className = "" }: { className?: string }) {

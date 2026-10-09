@@ -410,7 +410,7 @@ export default function StyleGuide() {
         </div>
         <p className="mt-6 max-w-prose text-sm text-text-dim">
           Misma estructura, solo cambia el tamaño. Archivo Expanded, tabular-nums, SOLO --df-money
-          (texto lima, nunca relleno). Los puntos no son dinero: no usan esta pieza.
+          (texto en --df-money, nunca relleno). Los puntos no son dinero: no usan esta pieza.
         </p>
       </Seccion>
 
@@ -489,7 +489,7 @@ export default function StyleGuide() {
         </div>
         <p className="mt-6 max-w-prose text-sm text-text-dim">
           Oro SOLO en el podio (1/2/3); del 4 en adelante, neutro. Los puntos van en neutro, jamás
-          en lima. Nombres largos y cortos, cifras tabulares.
+          en --df-money. Nombres largos y cortos, cifras tabulares.
         </p>
       </Seccion>
 

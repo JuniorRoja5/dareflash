@@ -6,7 +6,7 @@ import type { InteraccionParticipacion } from "@/server/services/panel-metricas"
  * rejilla de estadísticas: cada fila es una participación VISIBLE con sus votos, de más a menos, tal
  * cual las da `interaccionPorParticipacion` (esta vista no calcula ni rellena nada).
  *
- * NEUTRA: son recuentos, no dinero ni podio — ni lima ni oro. La barra es la proporción frente a la
+ * NEUTRA: son recuentos, no dinero ni podio — ni --df-money ni oro. La barra es la proporción frente a la
  * más votada, en gris, para leer la distribución de un vistazo.
  *
  * Sin participaciones visibles, un vacío HONESTO que dice qué pasa: ni un 0 (se leería como "se midió

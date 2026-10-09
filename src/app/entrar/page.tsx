@@ -9,7 +9,7 @@ export const metadata = { title: "Iniciar sesión · DareFlash" };
  *
  * Login y registro conviven en la misma tarjeta con un TOGGLE (ver `TarjetaAcceso`): en escritorio un
  * panel oscuro se desliza y revela el otro formulario; en móvil, un enlace cambia de vista. Marca
- * (brief v2): fondo void con glow magenta ambiental y tarjeta glass. UNA sola acción magenta por
+ * (brief v2): fondo void con glow de acción ambiental y tarjeta glass. UNA sola acción principal por
  * vista (la del formulario activo). El reset de contraseña es una pieza siguiente (enlace listo).
  */
 export default function EntrarPage() {

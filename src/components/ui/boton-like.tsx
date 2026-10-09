@@ -100,7 +100,7 @@ export function BotonLike({
 /**
  * El corazón. RELLENO cuando es tuyo y de CONTORNO cuando no: la forma cambia, no solo el color,
  * porque quien no distingue bien los tonos tiene que poder saber si ya lo ha dado. El relleno usa
- * `--df-action` —es una acción— y solo cuando está puesto, así que sigue habiendo un magenta por
+ * `--df-action` —es una acción— y solo cuando está puesto, así que sigue habiendo un acento por
  * pantalla: el del botón que de verdad has pulsado.
  */
 function IconoCorazon({ relleno }: { relleno: boolean }) {

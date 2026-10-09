@@ -21,7 +21,7 @@ import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
  * │ doble clic cuesta dos Boosts. Es el mismo patrón que el ajuste de puntos del panel.            │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
- * ESTE ES EL ÚNICO MAGENTA DE LA PANTALLA CUANDO HAY SALDO. El sistema reserva `--df-action` para
+ * ESTE ES EL ÚNICO ACENTO DE LA PANTALLA CUANDO HAY SALDO. El sistema reserva `--df-action` para
  * una acción por pantalla, y si tienes Boosts la acción es gastarlos, no comprar más: por eso los
  * botones de los paquetes pasan a secundario (lo decide la página, ver su docblock).
  *

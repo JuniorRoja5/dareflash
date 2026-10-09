@@ -64,7 +64,7 @@ export default async function RankingPage() {
 
   return (
     <div className="relative mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
-      {/* ATMÓSFERA v2: glow --df-glow-accion MUY tenue detrás del contenido. NO es un magenta de
+      {/* ATMÓSFERA v2: glow --df-glow-accion MUY tenue detrás del contenido. NO es un acento de
           acción (no hay botón): da profundidad y color para que el glass (bg-surface/60 +
           backdrop-blur + sombras) LEA sobre el fondo plano, en vez de verse como v1. */}
       <div

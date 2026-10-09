@@ -77,7 +77,7 @@ const SONDEOS_MAX = 20;
  * ENTRADA DE VÍDEO honesta según el dispositivo (`entradasVideo`): móvil -> "Grabar" (cámara) + "Galería";
  * escritorio -> "Elegir vídeo". MINIATURA opcional del dueño: se elige aquí y, cuando la subida termina,
  * se envía a POST /api/videos/{id}/miniatura (Bunny Set Thumbnail); su fallo es un aviso, no rompe la
- * subida. El único magenta es "Publicar"; la barra de progreso es NEUTRA.
+ * subida. El único acento es "Publicar"; la barra de progreso es NEUTRA.
  */
 export function ModalSubida({
   challengeId,

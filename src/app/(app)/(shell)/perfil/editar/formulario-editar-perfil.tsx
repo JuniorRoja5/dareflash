@@ -24,7 +24,7 @@ type EstadoAvatar = "idle" | "subiendo";
 /**
  * Formulario de EDITAR PERFIL (isla cliente). Dos acciones independientes:
  *  - NOMBRE: PATCH /api/perfil (JSON) — 100% funcional. La validación de aquí es SOLO UX; el gate es
- *    el servidor (Zod). La ÚNICA acción magenta de la pantalla es "Guardar nombre".
+ *    el servidor (Zod). La ÚNICA acción principal de la pantalla es "Guardar nombre".
  *  - FOTO: POST /api/perfil/avatar (multipart) — el servidor valida/recomprime/quita EXIF y GUARDA el
  *    WebP en el volumen que Caddy sirve en /avatars/*; devuelve la nueva URL. `router.refresh()` en
  *    éxito revalida los Server Components para que el avatar se actualice también fuera de aquí.
@@ -209,7 +209,7 @@ export function FormularioEditarPerfil({
     <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-8">
       {/* COLUMNA IZQUIERDA — TU PERFIL: foto y datos. */}
       <div className="space-y-8">
-        {/* COLUMNA IZQUIERDA — FOTO. Previsualización + selector. Acción SECUNDARIA (el magenta único es
+        {/* COLUMNA IZQUIERDA — FOTO. Previsualización + selector. Acción SECUNDARIA (el acento único es
           "Guardar perfil"). */}
         <section className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md">
           <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">Foto</h2>
@@ -280,7 +280,7 @@ export function FormularioEditarPerfil({
           ) : null}
         </section>
 
-        {/* PERFIL — acción principal (magenta único). */}
+        {/* PERFIL — acción principal (acento único). */}
         <form
           onSubmit={guardarNombre}
           noValidate

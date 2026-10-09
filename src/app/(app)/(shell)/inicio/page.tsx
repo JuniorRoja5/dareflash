@@ -15,9 +15,9 @@ export const metadata = { title: "Inicio · DareFlash" };
 
 /**
  * INICIO — portada real con el BRIEF v2 (dirección aprobada, mockup E2). Impacto con NUESTRA paleta
- * (magenta/lima/oscuros): glow, sombras suaves, glass y movimiento vía los tokens `--df-*` de v2 en
- * globals.css. CTA principal PLANO (magenta sólido) = el ÚNICO magenta de acción, por ROL (ver
- * `ctaPrincipal`); semántica intacta (dinero lima, puntos neutro, oro/plata/bronce solo podio). Sin foto
+ * (acción/dinero/oscuros): glow, sombras suaves, glass y movimiento vía los tokens `--df-*` de v2 en
+ * globals.css. CTA principal PLANO (relleno de acción sólido) = el ÚNICO acento de la pantalla, por ROL (ver
+ * `ctaPrincipal`); semántica intacta (dinero en --df-money, puntos neutro, oro/plata/bronce solo podio). Sin foto
  * de stock, sin monigotes (vídeo real con Bunny). Copy en voz de usuario. Respeta prefers-reduced-motion.
  *
  * Coherencia de modelos: hero y muro = Challenge (+ Submission para el vídeo, 14 categorías válidas);
@@ -72,7 +72,7 @@ export default async function InicioPage() {
               lo que haces, no a quién conoces.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              {/* UNICO magenta de accion — PLANO (sin degradado), realzado con --df-cta-lift */}
+              {/* UNICO acento de accion — PLANO (sin degradado), realzado con --df-cta-lift */}
               <Boton href={cta.href} variante="principal" className="shadow-[var(--df-cta-lift)]">
                 <span className="text-lg font-bold leading-none">+</span>
                 <span>{cta.texto}</span>

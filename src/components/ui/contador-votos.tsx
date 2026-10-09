@@ -8,7 +8,7 @@ const prefiereMenosMovimiento = (): boolean =>
 
 /**
  * CONTADOR DE VOTOS — `tabular-nums`, color NEUTRO (los votos NO son un color semantico: no llevan
- * lima ni magenta). El incremento se anima LENTO (permitido: es de las pocas cosas que se mueven
+ * ni --df-money ni --df-action). El incremento se anima LENTO (permitido: es de las pocas cosas que se mueven
  * despacio); un voto propio se confirma con un GOLPE SECO (pulso rapido y mecanico), no con una
  * animacion mona. Bajo `prefers-reduced-motion` el numero salta sin tween.
  */

@@ -9,7 +9,7 @@ import { seccionActiva, seccionesPara } from "./secciones";
 /**
  * Navegación del panel. Barra lateral persistente en escritorio (icono + etiqueta, columna vertical);
  * en móvil, fila horizontal desplazable dentro del área. Resalta la sección activa (`seccionActiva`) sin
- * usar magenta —reservado a la ACCIÓN principal de cada pantalla—: el activo es fondo elevado + texto
+ * usar el acento —reservado a la ACCIÓN principal de cada pantalla—: el activo es fondo elevado + texto
  * pleno + una barra fina a la izquierda. Reutilizable, sin datos.
  */
 export function PanelNav({ rol }: { rol: string }) {

@@ -12,7 +12,7 @@ import { FormularioRegistro } from "./formulario-registro";
  *
  * ESCRITORIO (lg+): tarjeta deslizante. Los dos formularios ocupan cada mitad; un panel oscuro de
  * bienvenida (void + glow) se desliza sobre la mitad inactiva, TAPANDO el formulario anterior y
- * revelando el otro. La ÚNICA acción magenta la aporta el formulario activo ("Iniciar sesión" o
+ * revelando el otro. La ÚNICA acción principal la aporta el formulario activo ("Iniciar sesión" o
  * "Crear cuenta"); el botón del panel oscuro es secundario (solo cambia de vista, no envía nada).
  *
  * MÓVIL: sin deslizamiento (una sola columna). Se muestra el formulario activo y un enlace de texto

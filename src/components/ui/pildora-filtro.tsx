@@ -4,7 +4,7 @@ import type { ButtonHTMLAttributes } from "react";
  * PILDORA DE FILTRO — variante SELECCIONABLE (interactiva) de la pildora de categoria. Extension
  * EXPLICITA de `PildoraCategoria` (que es presentacional/neutra): aqui hay un <button> con estado.
  * Mismo lenguaje visual (radius-full, filete 1 px, neutra); el estado ACTIVO es neutro ELEVADO
- * (--df-raised, como el destino activo de la nav), NUNCA magenta. Zona tactil 44 px, foco global.
+ * (--df-raised, como el destino activo de la nav), NUNCA el acento. Zona tactil 44 px, foco global.
  */
 export function PildoraFiltro({
   activo = false,

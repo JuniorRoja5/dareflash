@@ -23,7 +23,7 @@ export interface FilaRankingPanel {
  * victorias —que son el ORDEN—, se ven los puntos y el nivel, porque el panel es donde se ajustan; y
  * cada fila abre al usuario en el inspector.
  *
- * Neutra: victorias y puntos son recuentos, no dinero. Nada de lima.
+ * Neutra: victorias y puntos son recuentos, no dinero. Nada de --df-money.
  */
 export function RankingMesPanel({
   filasIniciales,

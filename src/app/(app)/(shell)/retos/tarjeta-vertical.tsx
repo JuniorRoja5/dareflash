@@ -20,9 +20,9 @@ function IconoPlay() {
  * TARJETA del muro del Inicio (brief v2) — un Challenge con su Submission representativo (el vídeo).
  * Placeholder de vídeo SOBRIO en la CAJA de formato cerrado (16:9 en escritorio, 9:16 en móvil, con
  * blurred-fill vía `CajaVideo`; Bunny monta el player real), con la categoria arriba, los votos
- * (agregado del reto), y el MARCADOR (firma: premio en lima + cuenta atras) abajo. En el tile estrecho
+ * (agregado del reto), y el MARCADOR (firma: premio en --df-money + cuenta atras) abajo. En el tile estrecho
  * de móvil el marcador APILA premio/plazo (`apilarEnMovil`) para no recortar; en lg va en 1 línea.
- * Debajo, titulo + "Participar" (secundario, nunca magenta).
+ * Debajo, titulo + "Participar" (secundario, nunca el acento).
  *
  * v2: tarjeta GLASS + sombra suave (`--df-shadow-md`), realce en hover (`--df-glow-hover`) y brillo
  * `df-sheen` sobre el vídeo. `deadlineMs` puede ser null mientras el cliente calcula los plazos.

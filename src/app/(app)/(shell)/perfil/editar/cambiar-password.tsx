@@ -134,7 +134,7 @@ export function CambiarPassword() {
         </p>
       ) : null}
 
-      {/* Única acción magenta de esta tarjeta. */}
+      {/* Única acción principal de esta tarjeta. */}
       <Boton
         type="submit"
         variante="principal"

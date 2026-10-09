@@ -24,7 +24,7 @@ import type { PerfilDestacado } from "@/server/services/boost-destacados";
  * un hueco con usuarios de ejemplo es exactamente lo que había antes, y mentía a todo el mundo.
  *
  * Son usuarios DISTINTOS del Top Ranking por naturaleza: el Boost es visibilidad comprada, el
- * ranking se gana. Y aquí NO hay magenta: el único de la portada es el CTA del hero.
+ * ranking se gana. Y aquí NO hay acento: el único de la portada es el CTA del hero.
  */
 export function BoostDestacados({ perfiles }: { perfiles: PerfilDestacado[] }) {
   return (

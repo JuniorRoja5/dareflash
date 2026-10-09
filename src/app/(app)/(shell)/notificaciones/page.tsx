@@ -81,7 +81,7 @@ export default async function NotificacionesPage({
                 href={i.href}
                 className="flex h-full gap-3 rounded-sm border border-line bg-surface/60 p-4 transition-colors duration-150 ease-mechanical hover:bg-raised"
               >
-                {/* Punto de "nuevo": NEUTRO. La lima es dinero y el magenta es acción; esto no es ni una
+                {/* Punto de "nuevo": NEUTRO. El dinero tiene su color y la acción el suyo; esto no es ni una
                     cosa ni la otra. */}
                 <span
                   aria-hidden

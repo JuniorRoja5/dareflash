@@ -26,7 +26,7 @@ function IconoPlay() {
  * RETO DESTACADO del hero (brief v2) — un CHALLENGE (no una persona): el de MAYOR PREMIO activo. Vídeo
  * 9:16 con placeholder SOBRIO (Bunny monta el player; nada de monigotes/degradados), categoria + "Reto
  * destacado", agregados del reto (participantes · votos, NO un @autor) y el MARCADOR (firma) corriendo
- * con halo lima. v2: glow magenta detras, tarjeta glass + sombra, flotar sutil. Isla cliente solo para
+ * con halo de dinero. v2: glow de acción detras, tarjeta glass + sombra, flotar sutil. Isla cliente solo para
  * la cuenta atras en vivo (offset -> plazo absoluto en el montaje, sin mismatch de hidratacion).
  */
 export function HeroDestacado() {
@@ -38,7 +38,7 @@ export function HeroDestacado() {
 
   return (
     <div className="relative">
-      {/* glow magenta del v2 (impacto, nuestro color; NO foto de stock) */}
+      {/* glow de acción del v2 (impacto, nuestro color; NO foto de stock) */}
       <div
         aria-hidden
         className="pointer-events-none absolute -inset-8 -z-10"
@@ -63,7 +63,7 @@ export function HeroDestacado() {
                 <p className="mt-0.5 text-2xs tabular-nums text-text-dim">
                   {PARTICIPANTES} participantes · {RETO_HERO.votos.toLocaleString("en-US")} votos
                 </p>
-                <div className="mt-2" style={{ filter: "var(--df-glow-lima)" }}>
+                <div className="mt-2" style={{ filter: "var(--df-glow-dinero)" }}>
                   <Marcador
                     cents={RETO_HERO.premioCents}
                     deadlineMs={deadlineMs}

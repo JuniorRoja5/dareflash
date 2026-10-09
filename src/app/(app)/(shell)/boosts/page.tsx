@@ -86,7 +86,7 @@ export default async function BoostsPage({
       : null;
 
   /**
-   * DÓNDE VA EL ÚNICO MAGENTA DE LA PANTALLA.
+   * DÓNDE VA EL ÚNICO ACENTO DE LA PANTALLA.
    *
    * Ahora hay DOS acciones posibles —gastar un Boost y comprar más—, y el sistema reserva
    * `--df-action` para UNA por pantalla. La regla: si ya tienes Boosts, la acción es gastarlos (el

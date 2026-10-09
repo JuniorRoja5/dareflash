@@ -8,7 +8,7 @@ import { tokenPuesto } from "./logic";
 /**
  * FILA DE PUESTO (ranking) — --df-rank (oro) SOLO en los puestos 1, 2 y 3; el resto en neutro. El
  * oro NUNCA es decorativo (la eleccion vive en `tokenPuesto`, testeada). `tabular-nums` en el puesto
- * y en la cifra. La CIFRA va en NEUTRO, nunca en lima: la lima es solo dinero, y ni las victorias ni
+ * y en la cifra. La CIFRA va en NEUTRO, nunca en --df-money: ese color es solo del dinero, y ni las victorias ni
  * los puntos lo son.
  *
  * LA CIFRA ES EL CRITERIO DE ORDEN, y por eso la unidad se pasa desde fuera en vez de estar clavada.

@@ -35,7 +35,7 @@ import { ActivarBoost } from "./activar-boost";
  * activación no existió, la duración NO se decía — ahora está decidida y se dice derivada.
  *
  * EL BOTÓN DE DESTACAR VIVE AQUÍ, junto al saldo, porque es la acción sobre ese saldo. Cuando hay
- * Boosts es el único magenta de la pantalla; cuando no hay, no se pinta y el acento se va a los
+ * Boosts es el único acento de la pantalla; cuando no hay, no se pinta y el acento se va a los
  * paquetes (lo decide la página).
  */
 export function HeroBoosts({

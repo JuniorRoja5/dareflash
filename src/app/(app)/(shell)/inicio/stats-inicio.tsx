@@ -42,7 +42,7 @@ function Stat({ texto, etiqueta }: { texto: string; etiqueta: string }) {
 
 /**
  * STATS del hero (brief v2) — agregados reales del producto (14 categorias, premios en juego, retos
- * abiertos) con COUNT-UP en el montaje: movimiento SUTIL de interfaz (no del video). Dinero en lima
+ * abiertos) con COUNT-UP en el montaje: movimiento SUTIL de interfaz (no del video). Dinero en --df-money
  * (money), el resto neutro. Respeta prefers-reduced-motion.
  */
 export function StatsInicio() {

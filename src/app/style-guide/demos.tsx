@@ -48,7 +48,7 @@ export function MarcadorEnVivo({
 /**
  * Demo interactiva del CONTADOR DE VOTOS. El boton dice lo que pasa ("Votar" -> "Votado", la accion
  * conserva su nombre); el voto se confirma con el golpe seco del contador + la marca en --df-ok
- * (confirmacion). Un solo magenta.
+ * (confirmacion). Un solo acento.
  */
 export function VotoDemo({ inicial = 1248 }: { inicial?: number }) {
   const [votos, setVotos] = useState(inicial);

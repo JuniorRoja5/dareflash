@@ -17,7 +17,7 @@ function fechaCorta(dia: string): string {
  *
  * DOS gráficas pequeñas, una por serie, y no una con las dos: los votos suelen ser un orden de
  * magnitud más que las participaciones, y en una escala común las participaciones serían una raya.
- * NEUTRAS: recuentos en gris, sin lima (dinero) ni oro (podio).
+ * NEUTRAS: recuentos en gris, sin --df-money (dinero) ni oro (podio).
  *
  * Vacíos HONESTOS, y distintos: un reto que aún no ha abierto no tiene ventana que medir; uno abierto
  * sin actividad tiene su ventana medida y vacía. Ninguno se pinta como una gráfica de ceros.

@@ -6,7 +6,7 @@ export type TamanoImporte = keyof typeof TAMANO_PX;
 
 /**
  * IMPORTE DE PREMIO — el tratamiento del dinero. Archivo Expanded, peso muy alto, `tabular-nums`,
- * SOLO --df-money (texto lima sobre fondo oscuro; nunca relleno). Una cifra de dinero debe pesar en
+ * SOLO --df-money, y siempre como TEXTO; nunca de relleno. Una cifra de dinero debe pesar en
  * pantalla lo que pesa en la cabeza del usuario. El simbolo y los centimos van mas pequeños para que
  * mande el entero. Los PUNTOS no son dinero: no usan este componente ni --df-money.
  */

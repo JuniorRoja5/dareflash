@@ -131,7 +131,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
               {reto.titulo}
             </h1>
 
-            {/* Marcador: premio (en lima) + cuenta atrás al cierre. Unidad indivisible. */}
+            {/* Marcador: premio (en --df-money) + cuenta atrás al cierre. Unidad indivisible. */}
             <div className="mt-4 lg:mt-5">
               <Marcador
                 cents={reto.premioCents}

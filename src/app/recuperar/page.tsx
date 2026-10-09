@@ -14,7 +14,7 @@ const estiloDisplay = {
  * /unlock). Destino del enlace "He olvidado mi contraseña" de /entrar: pide el correo y, si esa
  * cuenta existe, envía un enlace de un solo uso a /restablecer.
  *
- * Marca (brief v2): fondo void con glow magenta ambiental y tarjeta glass. UNA sola acción magenta
+ * Marca (brief v2): fondo void con glow de acción ambiental y tarjeta glass. UNA sola acción principal
  * (la del formulario). La respuesta es UNIFORME (sin enumeración): el mismo mensaje exista o no la
  * cuenta, para no revelar qué direcciones tienen cuenta.
  */

@@ -38,7 +38,7 @@ function aInputLocal(fecha: Date): string {
  * Formulario de reto (panel admin), `multipart/form-data`. Sirve para CREAR (queda DRAFT) y para EDITAR
  * (`reto` presente): mismos campos y validación de UX; el gate real es el servidor (Zod + sanitizado de
  * imagen). Al editar, el `publicCode` NO cambia y el `status` se conserva (publicar es aparte). Único
- * magenta = el botón de acción. El premio va en CÉNTIMOS enteros (sin float); las fechas a ISO UTC.
+ * --df-action = el botón de acción. El premio va en CÉNTIMOS enteros (sin float); las fechas a ISO UTC.
  * PORTADA opcional: al editar, si no se elige una nueva se conserva la actual.
  */
 export function FormularioReto({

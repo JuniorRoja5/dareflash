@@ -53,7 +53,7 @@ function hostnameDe(url: string): string {
 function Estadistica({ valor, etiqueta }: { valor: number; etiqueta: string }) {
   return (
     <div className="flex-1 px-2 py-3 text-center">
-      {/* cifras tabulares y NEUTRAS: los puntos NO llevan lima */}
+      {/* cifras tabulares y NEUTRAS: los puntos NO llevan el color del dinero */}
       <p className="text-xl font-semibold tabular-nums text-text">
         {valor.toLocaleString("en-US")}
       </p>
@@ -66,7 +66,7 @@ function Estadistica({ valor, etiqueta }: { valor: number; etiqueta: string }) {
  * PERFIL — vista presentacional COMPARTIDA por `/perfil` (mi perfil, con Boost) y `/u/[username]`
  * (perfil público de otro, sin Boost). Recibe SOLO datos ya resueltos (nada de `env`, nada de Bunny):
  * identidad, stats, videos con póster firmado y `esPropio`. El NIVEL se deriva de `puntos` con la misma
- * `InsigniaNivel` (medidor + nombre), coherente con el ranking. Boost = ÚNICO magenta de la pantalla y
+ * `InsigniaNivel` (medidor + nombre), coherente con el ranking. Boost = ÚNICO acento de la pantalla y
  * solo en el perfil propio (es una acción sobre uno mismo).
  */
 export function PerfilVista({
@@ -167,7 +167,7 @@ export function PerfilVista({
               <Estadistica valor={totalVideos} etiqueta="Vídeos" />
             </div>
 
-            {/* Boost = acción de pago = ÚNICO magenta: solo en el perfil PROPIO.
+            {/* Boost = acción de pago = ÚNICO acento: solo en el perfil PROPIO.
                 LLEVA A /boosts, y antes no llevaba a ninguna parte: era un `<Boton>` sin `href` ni
                 `onClick`, o sea el mismo botón mudo que el corazón de adorno del feed y el de
                 compartir. `tests/perfil-sin-botones-muertos` lo vigila ahora. */}
@@ -180,7 +180,7 @@ export function PerfilVista({
                 >
                   Destacar mi perfil (Boost)
                 </Boton>
-                {/* Editar perfil: SECUNDARIO (el magenta es Boost). Solo tu propio perfil es editable;
+                {/* Editar perfil: SECUNDARIO (el acento es Boost). Solo tu propio perfil es editable;
                     la pantalla de edición exige sesión y actúa siempre sobre el usuario de la sesión. */}
                 <Boton href="/perfil/editar" variante="secundario" className="mt-3 w-full py-3">
                   Editar perfil

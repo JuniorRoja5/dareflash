@@ -29,12 +29,12 @@ import { ContadorVotos } from "./contador-votos";
  * │ - Un invitado no ve un botón muerto: va a /entrar con vuelta a donde estaba.                     │
  * └────────────────────────────────────────────────────────────────────────────────────────────────┘
  *
- * TRATAMIENTO heredado del style-guide (`VotoDemo`) y del brief: magenta PLANO (`bg-action`, sin
+ * TRATAMIENTO heredado del style-guide (`VotoDemo`) y del brief: relleno PLANO (`bg-action`, sin
  * degradado: los CTA no lo llevan) sobre `text-void`, el rayo, "Votar" -> "Votado", y la confirmación
  * en `--df-ok`. El recuento es la primitiva `ContadorVotos` (neutro, golpe seco). Aquí no se dibuja
  * nada nuevo: se ensambla.
  *
- * UN SOLO MAGENTA POR PANTALLA: este es el de la superficie de reproducción. El diálogo de mover es la
+ * UN SOLO ACENTO POR PANTALLA: este es el de la superficie de reproducción. El diálogo de mover es la
  * única otra cosa que puede llevarlo, y solo mientras está abierto (es LA acción en ese momento).
  */
 
@@ -207,7 +207,7 @@ export function BotonVoto({
     </span>
   );
 
-  // RAIL (feed): círculo magenta con el rayo y el recuento debajo, como el resto de acciones.
+  // RAIL (feed): círculo de --df-action con el rayo y el recuento debajo, como el resto de acciones.
   if (variante === "rail") {
     return (
       <div className="flex flex-col items-center gap-1">
@@ -300,7 +300,7 @@ function Aviso({ texto }: { texto: string }) {
 /**
  * Confirmación de MOVER. El voto es único por reto, así que moverlo se lo quita a otra persona: se
  * pregunta siempre, y el servidor no mueve nada sin `permitirMover` (el consentimiento no es solo de
- * la UI). Magenta SOLO aquí mientras está abierto: es LA acción de la pantalla en ese momento.
+ * la UI). El acento SOLO aquí mientras está abierto: es LA acción de la pantalla en ese momento.
  */
 function DialogoMover({
   mensaje,

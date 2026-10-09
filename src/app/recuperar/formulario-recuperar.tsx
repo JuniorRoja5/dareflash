@@ -83,7 +83,7 @@ export function FormularioRecuperar() {
         </p>
       ) : null}
 
-      {/* ÚNICA acción magenta de la pantalla: plano (magenta sólido) + realce --df-cta-lift. */}
+      {/* ÚNICA acción principal de la pantalla: plano (relleno de acción sólido) + realce --df-cta-lift. */}
       <Boton
         type="submit"
         variante="principal"

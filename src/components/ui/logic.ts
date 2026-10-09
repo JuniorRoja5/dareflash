@@ -90,7 +90,7 @@ export function botonTokens(variante: BotonVariante): BotonTokens {
 //
 // La nav DIVERGE entre movil y escritorio (el brief: "no son la misma pantalla a distinto ancho"):
 //   - Escritorio (barra lateral): Inicio, Feed, Retos, Ranking, Perfil, Puntos, Referidos. El CTA
-//     principal NO va aqui: es el boton magenta de la barra superior (el UNICO magenta).
+//     principal NO va aqui: es el boton de --df-action de la barra superior (el UNICO de la pantalla).
 //   - Movil (barra inferior): Feed (home del movil), Retos, [+] CTA principal, Ranking, Perfil.
 //     Inicio (portada) es concepto de escritorio, no va en la barra inferior.
 // ---------------------------------------------------------------------------

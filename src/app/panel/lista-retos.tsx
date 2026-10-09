@@ -193,7 +193,7 @@ function Restaurar({ id, onHecho }: { id: string; onHecho: () => void }) {
 
 /**
  * Lista de retos del panel como TABLA a ancho completo (pensada para muchos retos, no filas estrechas):
- * columnas Reto, Categoría, Premio (en lima), Cierre, Estado y Acciones (Editar siempre; Publicar en los
+ * columnas Reto, Categoría, Premio (en --df-money), Cierre, Estado y Acciones (Editar siempre; Publicar en los
  * borradores). En pantallas estrechas la tabla scrollea en su propio contenedor (`overflow-x-auto`), sin
  * romper el layout de la página. Editar delega en el padre (`onEditar`), que precarga el formulario.
  */

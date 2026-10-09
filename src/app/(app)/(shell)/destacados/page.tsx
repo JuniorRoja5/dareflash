@@ -67,7 +67,7 @@ export default async function DestacadosPage() {
             </p>
           </div>
 
-          {/* EL ÚNICO MAGENTA DE LA PANTALLA: la acción es destacarse. Mirar la lista no es una
+          {/* EL ÚNICO ACENTO DE LA PANTALLA: la acción es destacarse. Mirar la lista no es una
             acción, así que las tarjetas no compiten con esto. */}
           <Boton href="/boosts" variante="principal" className="shadow-[var(--df-cta-lift)]">
             Destacar mi perfil

@@ -18,15 +18,15 @@ import { paquetesEnVenta } from "@/lib/boost-precio";
  * │ expresar. Lo que se pinta aquí sale del MISMO catálogo, derivado en `lib/boost-precio`.        │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
- * UN SOLO MAGENTA, el del paquete de mejor precio por Boost. El sistema reserva `--df-action` para
+ * UN SOLO ACENTO, el del paquete de mejor precio por Boost. El sistema reserva `--df-action` para
  * UNA acción por pantalla; tres botones de relleno serían tres acciones principales, o sea ninguna.
  * Los otros dos van en secundario, que es exactamente lo que son: la misma compra, peor precio.
  * Cuál es el recomendado NO se escribe aquí, lo dice `mejorPrecio` — mover un precio en constants
- * mueve la etiqueta, el porcentaje y el magenta de golpe.
+ * mueve la etiqueta, el porcentaje y el acento de golpe.
  *
- * Y CON SALDO, EL MAGENTA NO ES DE AQUÍ. Si el usuario ya tiene Boosts, la acción de la pantalla es
+ * Y CON SALDO, EL ACENTO NO ES DE AQUÍ. Si el usuario ya tiene Boosts, la acción de la pantalla es
  * GASTARLOS (el botón del hero), no comprar más: entonces `cedeElAcento` pone los tres paquetes en
- * secundario. Sigue habiendo exactamente un magenta, lo que cambia es cuál — y es la diferencia
+ * secundario. Sigue habiendo exactamente un acento, lo que cambia es cuál — y es la diferencia
  * entre guiar y adornar.
  *
  * UNA SOLA REGIÓN DE ESTADO para los tres botones, y no una por tarjeta. Solo puede haber una compra
@@ -46,11 +46,11 @@ export function PaquetesBoost({
   puedeComprar: boolean;
   /** Por qué no se puede, en copy de producto. El servidor lo decide; aquí solo se enseña. */
   motivoBloqueo?: string | null;
-  /** Cierto cuando el magenta de la pantalla lo lleva otro botón (destacar). Ver la cabecera. */
+  /** Cierto cuando el acento de la pantalla lo lleva otro botón (destacar). Ver la cabecera. */
   cedeElAcento?: boolean;
 }) {
   const paquetes = paquetesEnVenta();
-  /** El recomendado solo se pinta en magenta si esta sección tiene el acento de la pantalla. */
+  /** El recomendado solo lleva el acento si esta sección tiene el acento de la pantalla. */
   const conAcento = (mejorPrecio: boolean) => mejorPrecio && !cedeElAcento;
   const [comprando, setComprando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
