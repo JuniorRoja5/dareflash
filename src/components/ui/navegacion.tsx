@@ -6,6 +6,7 @@ import { ctaPrincipal } from "@/lib/cta-principal";
 import { textoBadge } from "@/lib/notificaciones";
 
 import { destinosDe, NAV_ESCRITORIO, NAV_MOVIL } from "./logic";
+import { Logo } from "./logo";
 import { MenuMasMovil } from "./menu-mas-movil";
 
 // Iconos geometricos inline (sin dependencias): trazo de 1.5 px, currentColor, misma familia severa
@@ -178,15 +179,10 @@ export function NavegacionLateral({ activo }: { activo?: string }) {
       aria-label="Principal"
       className="flex h-full w-56 flex-col gap-1 border-r border-line bg-surface p-3"
     >
-      <p
-        className="mb-4 px-2 pt-2 text-xl leading-none text-text"
-        style={{
-          fontFamily: "var(--font-display)",
-          fontVariationSettings: '"wght" 800, "wdth" 125',
-        }}
-      >
-        DAREFLASH
-      </p>
+      {/* LA MARCA. Antes era la palabra en texto pelado; ahora es el logotipo (`Logo`), que lleva la
+          marca grafica y la palabra juntas. El literal "DAREFLASH" vive SOLO en `logo.tsx`: escribirlo
+          aqui otra vez volveria a crear dos marcas que pueden discrepar. */}
+      <Logo className="mb-4 px-2 pt-2" />
       {destinosDe(NAV_ESCRITORIO).map((d) => (
         <Link
           key={d.clave}
