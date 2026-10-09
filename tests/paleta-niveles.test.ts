@@ -17,42 +17,18 @@
  * parezca a `--df-action` en claro (rojo), o darle a Legend un oro propio (rojo: ya no sería el del
  * podio, que es justo lo que se decidió).
  */
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import { NIVELES } from "../src/lib/niveles";
 
 import { contraste, deltaE, tono } from "./helpers/color";
-
-const CSS = readFileSync(path.resolve(__dirname, "..", "src", "app", "globals.css"), "utf8");
-
-function tokensDe(selector: string): Map<string, string> {
-  const i = CSS.indexOf(selector);
-  expect(i, `no está el bloque ${selector}`).toBeGreaterThan(-1);
-  const abre = CSS.indexOf("{", i);
-  const cierra = CSS.indexOf("\n}", abre);
-  const tokens = new Map<string, string>();
-  for (const m of CSS.slice(abre, cierra).matchAll(/(--df-[a-z-]+):\s*([^;]+);/g)) {
-    tokens.set(m[1]!, m[2]!.trim());
-  }
-  return tokens;
-}
+// El lector de la paleta (y `hex`) lo comparten los tres tests que miden color. Ver `helpers/paleta`.
+import { CLARO, hex, OSCURO } from "./helpers/paleta";
 
 const TEMAS = {
-  oscuro: {
-    tokens: tokensDe(':root,\n[data-theme="dark"]'),
-    fondos: ["--df-surface", "--df-void"],
-  },
-  claro: { tokens: tokensDe('[data-theme="light"]'), fondos: ["--df-surface", "--df-void"] },
+  oscuro: { tokens: OSCURO, fondos: ["--df-surface", "--df-void"] },
+  claro: { tokens: CLARO, fondos: ["--df-surface", "--df-void"] },
 } as const;
-
-/** Un token que no exista, o que no sea un hex sólido, devuelve "" y revienta al medirlo. */
-const hex = (tokens: Map<string, string>, nombre: string): string => {
-  const v = tokens.get(nombre) ?? "";
-  return /^#[0-9a-f]{6}$/i.test(v) ? v : "";
-};
 
 /** Los niveles QUE LLEVAN EMBLEMA (Rookie no: es el estándar y no tiene color que medir). */
 const CON_EMBLEMA = NIVELES.filter((n) => n.emblema !== null);

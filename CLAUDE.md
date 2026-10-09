@@ -154,6 +154,12 @@ color de alarma por debajo de 24 h; el oro solo sale en el podio). Los colores s
 semántico** (`--df-money`, `--df-action`, `--df-time`, `--df-alarm`, `--df-rank`…), definidos en
 [src/app/globals.css](src/app/globals.css) y expuestos en `/style-guide`. Mobile-first.
 
+[MARCA.md](MARCA.md) traduce la marca a reglas comprobables: qué trabajo tiene cada token, los cuatro
+ficheros donde un hex está duplicado **porque el token no llega** (correo, favicon, `theme-color`,
+guía de estilo) y los mínimos medidos —contraste WCAG y ΔE— que cualquier paleta tiene que cumplir
+para entrar. Un color no se revisa a ojo y un comentario nombra el token, nunca el color ("el botón
+de `--df-action`", no "el botón magenta": lo segundo caduca con el siguiente repintado).
+
 ## Tests
 
 Vitest en Node, pool `forks`, ficheros en `tests/*.test.ts`.
@@ -190,6 +196,12 @@ borran para "limpiar"**:
 - `panel-usuarios-vista` — hay UN solo buscador de usuarios (el del panel es el mismo motor con un
   parámetro); el email no se pinta en la lista y su única puerta es la que escribe el `AuditLog`; el
   moderador no ve ni el ajuste de puntos ni el ledger; y los índices de los órdenes siguen ahí.
+- `paleta-oscura` / `paleta-clara` / `paleta-niveles` — la paleta MEDIDA (contraste WCAG + ΔE), tema
+  por tema: un valor que junta dos significados no entra. El par del CTA sólido se lee de
+  `botonTokens`, no se supone.
+- `marca-hex-duplicados` — los cuatro ficheros donde un hex está escrito a mano porque el token no
+  llega (correo, favicon, `theme-color`, guía) siguen el valor del token, y **no hay un quinto**. Sin
+  esto, un repintado deja los correos con el color anterior y no falla nada.
 
 Al tocar uno de estos, la comprobación no es que pase en verde: es **romper el invariante a
 propósito y confirmar que se pone rojo**.

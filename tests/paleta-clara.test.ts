@@ -18,34 +18,9 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { contraste, deltaE, tono } from "./helpers/color";
-
-const CSS = readFileSync(path.resolve(__dirname, "..", "src", "app", "globals.css"), "utf8");
-
-/** Los `--df-*: valor;` de un bloque, por el selector con el que empieza. */
-function tokensDe(selector: string): Map<string, string> {
-  const i = CSS.indexOf(selector);
-  expect(i, `no está el bloque ${selector}`).toBeGreaterThan(-1);
-  const abre = CSS.indexOf("{", i);
-  const cierra = CSS.indexOf("\n}", abre);
-  const cuerpo = CSS.slice(abre, cierra);
-  const tokens = new Map<string, string>();
-  for (const m of cuerpo.matchAll(/(--df-[a-z-]+):\s*([^;]+);/g)) {
-    tokens.set(m[1]!, m[2]!.trim());
-  }
-  return tokens;
-}
-
-const OSCURO = tokensDe(':root,\n[data-theme="dark"]');
-const CLARO = tokensDe('[data-theme="light"]');
-/**
- * Solo los que son un color sólido: los degradados y las sombras no se miden con contraste. Si falta
- * o no es un hex devuelve "", que revienta al medirlo — así el rojo sale en el test que lo usa (con su
- * nombre) y no al cargar el fichero, que dejaría la suite entera sin ejecutarse.
- */
-const hex = (tokens: Map<string, string>, nombre: string): string => {
-  const v = tokens.get(nombre) ?? "";
-  return /^#[0-9a-f]{6}$/i.test(v) ? v : "";
-};
+// El lector de la paleta (y `hex`) está en `helpers/paleta`: lo comparten los tres tests que miden
+// color. Estaba copiado aquí, en `paleta-niveles` y haría falta una tercera vez en `paleta-oscura`.
+import { CLARO, CSS, hex, OSCURO } from "./helpers/paleta";
 
 const C = {
   money: hex(CLARO, "--df-money"),
