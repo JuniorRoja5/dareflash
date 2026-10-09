@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 
 import { nombreMostrado } from "@/lib/identidad";
 
@@ -48,10 +49,21 @@ export function TarjetaDestacado({
     <Link
       href={`/u/${username}`}
       data-destacado={username}
-      className={`relative flex flex-col items-center gap-2 rounded-sm border border-line bg-surface/60 text-center shadow-[var(--df-shadow-sm)] backdrop-blur-md transition-[transform,box-shadow] duration-[var(--df-dur-fast)] ease-mechanical hover:-translate-y-0.5 hover:shadow-[var(--df-glow-hover)] ${
+      style={{ "--df-halo-color": "var(--df-action)" } as CSSProperties}
+      /* `overflow-hidden` es obligatorio con el halo: al respirar escala un 6% y sin recorte se
+         saldría por las esquinas redondeadas (un rectángulo de luz por fuera del filete, y solo en
+         algunos navegadores). Es la misma razón por la que lo llevan los heroes. */
+      className={`relative flex flex-col items-center gap-2 overflow-hidden rounded-sm border border-line bg-surface/60 text-center shadow-[var(--df-shadow-sm)] backdrop-blur-md transition-[transform,box-shadow] duration-[var(--df-dur-fast)] ease-mechanical hover:-translate-y-0.5 hover:shadow-[var(--df-glow-hover)] ${
         vitrina ? "p-6" : "p-4"
       }`}
     >
+      {/* LA FIRMA VIVA. El halo lo pinta `.df-halo` (estático) y `.df-respira` solo lo hace latir,
+          animando opacidad y transform — nunca `box-shadow` ni `filter`, que repintan en cada
+          fotograma y aquí hay hasta cien tarjetas. La regla global de `prefers-reduced-motion` lo
+          apaga y la tarjeta se queda con su halo quieto, que sigue marcando igual.
+          Va en la PRIMITIVA, así que entra en la vitrina y en la fila de la portada a la vez. */}
+      <span className="df-halo df-respira" aria-hidden />
+
       {posicion !== undefined ? (
         <span
           className="absolute top-2.5 left-3 text-sm font-bold tabular-nums text-text-dim"
@@ -66,19 +78,24 @@ export function TarjetaDestacado({
           a divergir de las otras tres superficies. */}
       <MarcaBoost className="absolute top-3 right-3" />
 
-      <Avatar
-        nombre={username}
-        imagen={imagen}
-        tamano={vitrina ? "xl" : "lg"}
-        perezosa
-        puntos={puntos}
-      />
-      <p
-        className={`mt-1 max-w-full truncate font-medium text-text ${vitrina ? "text-base" : "text-sm"}`}
-      >
-        {nombreMostrado(displayName, username)}
-      </p>
-      <InsigniaNivel puntos={puntos} />
+      {/* EL CONTENIDO VA `relative`, y no es cosmético: el halo es un elemento POSICIONADO, y un
+          posicionado se pinta por encima del contenido en flujo de sus hermanos. Sin esto, la cara y
+          el nombre quedarían DEBAJO de la luz. Es el mismo envoltorio que llevan los heroes. */}
+      <span className="relative flex w-full flex-col items-center gap-2">
+        <Avatar
+          nombre={username}
+          imagen={imagen}
+          tamano={vitrina ? "xl" : "lg"}
+          perezosa
+          puntos={puntos}
+        />
+        <span
+          className={`mt-1 max-w-full truncate font-medium text-text ${vitrina ? "text-base" : "text-sm"}`}
+        >
+          {nombreMostrado(displayName, username)}
+        </span>
+        <InsigniaNivel puntos={puntos} />
+      </span>
     </Link>
   );
 }

@@ -231,6 +231,11 @@
   --df-dur-fast: 180ms;
   --df-dur-reveal: 500ms;
   --df-dur-float: 5500ms;
+  /* RESPIRAR del halo de un perfil destacado. Lento a proposito: por debajo de ~5 s deja de leerse
+     como "esta vivo" y empieza a leerse como un parpadeo, y encima hay varias tarjetas a la vez. */
+  --df-dur-respira: 6500ms;
+  /* RESCOLDO del fondo de /destacados. Mas lento todavia: es ambiente, no tiene que notarse. */
+  --df-dur-rescoldo: 14000ms;
 }
 
 /* Utilidades de movimiento del v2. prefers-reduced-motion las apaga (regla global de abajo). */
@@ -278,6 +283,81 @@
     color-mix(in srgb, var(--df-halo-color, var(--df-text-dim)) var(--df-halo-fuerza), transparent),
     transparent 70%
   );
+}
+
+/**
+ * RESPIRAR — el halo de un perfil DESTACADO, vivo y contenido.
+ *
+ * Se pone SOBRE `.df-halo`, que ya pinta la luz: esta clase solo la hace latir. Es lo que distingue
+ * a quien pago de quien no, en la vitrina y en la fila de la portada a la vez (vive en la primitiva
+ * de la tarjeta).
+ *
+ * ┌─ SOLO `opacity` Y `transform`, Y NO ES UN DETALLE ────────────────────────────────────────────┐
+ * │ Animar `box-shadow` o `filter` obliga al navegador a REPINTAR en cada fotograma, y aqui hay   │
+ * │ hasta cien tarjetas a la vez: eso es el scroll de la vitrina a tirones. Opacidad y transform   │
+ * │ se resuelven en la capa compuesta, sin repintar ni recalcular la maqueta. La LUZ la pinta el   │
+ * │ degradado estatico de `.df-halo`; aqui solo se le cambia cuanto se ve y cuanto ocupa.          │
+ * │                                                                                               │
+ * │ Y SIN `will-change`: fijaria una capa permanente por tarjeta, y cien capas permanentes cuestan │
+ * │ mas memoria que la que ahorran. El navegador ya promociona lo que esta animando.               │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * `prefers-reduced-motion` la apaga por la regla global de mas abajo, como todo el movimiento del
+ * sistema: la tarjeta se queda con su halo quieto, que sigue marcando igual.
+ */
+@keyframes df-respira {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+.df-respira {
+  animation: df-respira var(--df-dur-respira) ease-in-out infinite;
+}
+
+/**
+ * RESCOLDO — el fondo ambiental de /destacados, y SOLO de ahi.
+ *
+ * Dos luces de marca muy tenues que se mueven despacio. No lleva colores propios: reusa
+ * `--df-glow-accion` y `--df-glow-money`, que se DERIVAN de los tokens con `color-mix`, asi que
+ * cambian con la paleta y con el tema sin tocar nada aqui. Cero neon: lo que hay es un tinte.
+ *
+ * NO VA DETRAS DE LA FILA DE LA PORTADA. Alli la fila es una seccion entre otras y un fondo animado
+ * competiria con el hero y con el video de fondo; aqui la pantalla ES la vitrina.
+ *
+ * ┌─ `fixed` EXIGE SER HERMANO DEL CONTENEDOR DE PAGINA ──────────────────────────────────────────┐
+ * │ Un ancestro con `overflow-*-clip` o que anime `transform` le crea BLOQUE CONTENEDOR a un      │
+ * │ `position: fixed`, y entonces deja de cubrir el viewport. El contenedor de /destacados lleva  │
+ * │ `df-rise` (anima transform), asi que esta capa se monta FUERA, como hermana — exactamente la  │
+ * │ misma regla que el fondo de video de la portada, que ya nos la enseno.                        │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * Aqui SI lleva `will-change`: es UNA capa en toda la pantalla, no cien.
+ */
+@keyframes df-rescoldo {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate3d(0, -2%, 0) scale(1.08);
+  }
+}
+.df-rescoldo {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--df-glow-accion), var(--df-glow-money);
+  animation: df-rescoldo var(--df-dur-rescoldo) ease-in-out infinite;
+  will-change: opacity, transform;
 }
 
 /**

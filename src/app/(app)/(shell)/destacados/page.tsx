@@ -5,6 +5,8 @@ import { TarjetaDestacado } from "@/components/ui/tarjeta-destacado";
 import { BOOST_DESTACADOS_TOPE, BOOST_DURACION_MIN } from "@/config/constants";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
 
+import { FondoRescoldo } from "./fondo-rescoldo";
+
 export const metadata = { title: "Perfiles Boost · DareFlash" };
 // Depende del RELOJ: quién está destacado cambia minuto a minuto. Nunca cacheada.
 export const dynamic = "force-dynamic";
@@ -42,62 +44,68 @@ export default async function DestacadosPage() {
   const perfiles = await destacadosVigentes(prisma, { limite: BOOST_DESTACADOS_TOPE });
 
   return (
-    <div className="df-rise mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <h1
-            className="text-[clamp(1.75rem,5vw,2.75rem)] leading-[1.05] text-text"
-            style={{
-              fontFamily: "var(--font-display)",
-              fontVariationSettings: '"wght" 800, "wdth" 110',
-            }}
-          >
-            Perfiles Boost
-          </h1>
-          <p className="mt-3 max-w-prose text-sm text-text-dim">
-            Quien ha destacado su perfil aparece aquí {duracionBoostHumana(BOOST_DURACION_MIN)}. El
-            último en activar sale primero.
-          </p>
-        </div>
+    <>
+      {/* HERMANO del contenedor, NUNCA dentro: la capa es `fixed` y el contenedor anima `transform`
+          (`df-rise`), lo que le crearía bloque contenedor y la dejaría recortada ahí dentro. Misma
+          regla que el fondo de vídeo de la portada (ver `FondoRescoldo`). */}
+      <FondoRescoldo />
+      <div className="df-rise mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
+        <header className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
+            <h1
+              className="text-[clamp(1.75rem,5vw,2.75rem)] leading-[1.05] text-text"
+              style={{
+                fontFamily: "var(--font-display)",
+                fontVariationSettings: '"wght" 800, "wdth" 110',
+              }}
+            >
+              Perfiles Boost
+            </h1>
+            <p className="mt-3 max-w-prose text-sm text-text-dim">
+              Quien ha destacado su perfil aparece aquí {duracionBoostHumana(BOOST_DURACION_MIN)}.
+              El último en activar sale primero.
+            </p>
+          </div>
 
-        {/* EL ÚNICO MAGENTA DE LA PANTALLA: la acción es destacarse. Mirar la lista no es una
+          {/* EL ÚNICO MAGENTA DE LA PANTALLA: la acción es destacarse. Mirar la lista no es una
             acción, así que las tarjetas no compiten con esto. */}
-        <Boton href="/boosts" variante="principal" className="shadow-[var(--df-cta-lift)]">
-          Destacar mi perfil
-        </Boton>
-      </header>
+          <Boton href="/boosts" variante="principal" className="shadow-[var(--df-cta-lift)]">
+            Destacar mi perfil
+          </Boton>
+        </header>
 
-      {perfiles.length === 0 ? (
-        <div className="mt-10 rounded-sm border border-line bg-surface/40 p-10 text-center">
-          <p className="text-base font-medium text-text">
-            Ahora mismo no hay ningún perfil destacado.
-          </p>
-          <p className="mx-auto mt-2 max-w-prose text-sm text-text-dim">
-            Cuando alguien gaste un Boost, aparecerá aquí y en la portada. Puedes ser el primero.
-          </p>
-        </div>
-      ) : (
-        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {perfiles.map((perfil) => (
-            <TarjetaDestacado
-              key={perfil.activacionId}
-              username={perfil.username}
-              displayName={perfil.displayName}
-              imagen={perfil.imagen}
-              puntos={perfil.puntos}
-              tamano="vitrina"
-            />
-          ))}
-        </div>
-      )}
+        {perfiles.length === 0 ? (
+          <div className="mt-10 rounded-sm border border-line bg-surface/40 p-10 text-center">
+            <p className="text-base font-medium text-text">
+              Ahora mismo no hay ningún perfil destacado.
+            </p>
+            <p className="mx-auto mt-2 max-w-prose text-sm text-text-dim">
+              Cuando alguien gaste un Boost, aparecerá aquí y en la portada. Puedes ser el primero.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {perfiles.map((perfil) => (
+              <TarjetaDestacado
+                key={perfil.activacionId}
+                username={perfil.username}
+                displayName={perfil.displayName}
+                imagen={perfil.imagen}
+                puntos={perfil.puntos}
+                tamano="vitrina"
+              />
+            ))}
+          </div>
+        )}
 
-      <p className="mt-10 text-2xs text-text-dim">
-        Esto no es el ranking: aquí se aparece por haber gastado un Boost, no por ganar retos.{" "}
-        <Link href="/ranking" className="underline underline-offset-2 hover:text-text">
-          Ver el ranking del mes
-        </Link>
-        .
-      </p>
-    </div>
+        <p className="mt-10 text-2xs text-text-dim">
+          Esto no es el ranking: aquí se aparece por haber gastado un Boost, no por ganar retos.{" "}
+          <Link href="/ranking" className="underline underline-offset-2 hover:text-text">
+            Ver el ranking del mes
+          </Link>
+          .
+        </p>
+      </div>
+    </>
   );
 }
