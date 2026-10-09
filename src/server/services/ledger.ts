@@ -274,6 +274,8 @@ export interface BoostCreditsInput {
   refId?: string;
   idempotencyKey: string;
   movementId?: string;
+  /** El POR QUE, cuando lo escribe una persona (ajuste manual del admin). Queda en la fila: es la traza. */
+  nota?: string;
   /**
    * Efecto EXTRA en la MISMA transaccion y con el User AUN BLOQUEADO. Lo usa la activacion para
    * contar las apariciones del dia e insertar la `BoostActivation`: ese conteo solo vale algo bajo
@@ -316,6 +318,7 @@ export function applyBoostCredits(
               refType: input.refType ?? null,
               refId: input.refId ?? null,
               idempotencyKey: input.idempotencyKey,
+              nota: input.nota ?? null,
             },
           })
           .then(() => undefined),

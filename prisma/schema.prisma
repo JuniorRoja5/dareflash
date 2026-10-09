@@ -791,6 +791,17 @@ model BoostLedger {
   refType        String? // STRIPE_PAYMENT, BOOST_ACTIVATION, VIP_SUBSCRIPTION...
   refId          String?
   idempotencyKey String   @unique
+  /// El POR QUE del movimiento, cuando lo escribe una persona: la nota OBLIGATORIA del ajuste manual
+  /// del admin (reason ADMIN_ADJUST, refType ADMIN, refId = quien). NULL en todo lo automatico —la
+  /// compra, el regalo del VIP, la activacion—, que ya se explican por su reason y su ref. Va EN la
+  /// fila porque no hay AuditLog hasta la Fase 7: la fila de ledger ES la traza.
+  ///
+  /// MISMA COLUMNA Y MISMO LARGO que la de PointsLedger a proposito: es la misma clase de dato y se
+  /// escribe desde el mismo gesto del panel. NULL = sin backfill: nada anterior tenia nota.
+  ///
+  /// NO VIAJA AL DUENO. Se escribe en voz de moderacion y para el equipo; el historial propio de
+  /// /boosts no la selecciona, y hay test de que su DTO no la trae.
+  nota           String?  @db.VarChar(500)
   createdAt      DateTime @default(now())
 
   /// EL HISTORIAL PROPIO SE PAGINA POR KEYSET sobre (createdAt, id), igual que el de

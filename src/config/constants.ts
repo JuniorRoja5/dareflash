@@ -156,6 +156,23 @@ export const MSG_BOOST_PAGO_NO_DISPONIBLE = "Los pagos no están disponibles aho
 export const MSG_BOOST_PAQUETE_NO_VALIDO = "Ese paquete no existe.";
 export const MSG_BOOST_SIN_VERIFICAR = "Verifica tu correo para poder comprar.";
 
+/**
+ * Razon del movimiento cuando el EQUIPO ajusta creditos de boost a mano. Coincide con
+ * `BoostReasonSchema` y es la que `razones-boost` dice por su signo.
+ */
+export const RAZON_BOOST_AJUSTE_ADMIN = "ADMIN_ADJUST";
+
+/**
+ * Tope de UN ajuste de creditos de boost, en cualquier sentido.
+ *
+ * NO ES UNA REGLA DE PRODUCTO, ES UN FRENO AL DEDO, igual que `AJUSTE_DELTA_MAX` en los puntos: un
+ * cero de mas tecleado por error no puede regalar mil apariciones destacadas. Si de verdad hiciera
+ * falta mas, son dos ajustes, con su motivo cada uno. El numero es generoso de sobra para lo que
+ * esto es (un detalle de soporte o una promocion), y deliberadamente mucho mas bajo que el de
+ * puntos: un boost se cobra en dolares.
+ */
+export const AJUSTE_BOOST_DELTA_MAX = 100;
+
 /** Copy de la ACTIVACION. Lo que el usuario puede hacer algo con, nunca el codigo del rechazo. */
 export const MSG_BOOST_SIN_SALDO = "No te quedan Boosts. Compra uno para destacar tu perfil.";
 /**

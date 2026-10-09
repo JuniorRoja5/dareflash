@@ -135,8 +135,17 @@ describe("moderación: reutiliza lo que ya existía", () => {
   it("NINGUNA ruta de retirar implementa la retirada: todas delegan en el mismo núcleo", () => {
     // El invariante original decía "solo puede haber UN endpoint de retirar". Con la cola de
     // moderación (Fase 5) hay dos puertas —la del reto y la de la cola—, y está bien que existan:
-    // lo que NO puede haber es dos IMPLEMENTACIONES. Así que lo que se afirma ahora es más fuerte:
-    // ninguna ruta escribe la retirada a mano, y la de moderación reutiliza el núcleo de la otra.
+    // lo que NO puede haber es dos IMPLEMENTACIONES.
+    //
+    // ┌─ Y SE DEJÓ DE BUSCAR POR LA PALABRA "retirar" EN LA RUTA ───────────────────────────────┐
+    // │ Era un filtro por nombre, no por concepto, y se rompió en cuanto el producto usó el      │
+    // │ mismo verbo para otra cosa: `/api/panel/boost/retirar` retira un PERFIL del escaparate,  │
+    // │ no una participación, y el guard le exigía llamar a `retirarParticipacion`. Un guard que │
+    // │ obliga a renombrar código inocente se acaba borrando.                                    │
+    // │                                                                                          │
+    // │ Ahora se afirma algo más FUERTE y sin depender del nombre: ninguna ruta de la API, se    │
+    // │ llame como se llame, escribe la retirada a mano; y las dos puertas conocidas delegan.    │
+    // └──────────────────────────────────────────────────────────────────────────────────────────┘
     const rutas: string[] = [];
     const recorrer = (dir: string): void => {
       for (const entrada of readdirSync(dir)) {
@@ -146,18 +155,32 @@ describe("moderación: reutiliza lo que ya existía", () => {
       }
     };
     recorrer(join(RAIZ, "src", "app", "api"));
+    expect(rutas.length, "el recorrido de rutas está roto").toBeGreaterThan(10);
 
-    const deRetirar = rutas.filter((p) => p.includes("retirar"));
-    expect(deRetirar.map((p) => relative(RAIZ, p).split(sep).join("/")).sort()).toEqual([
+    const rel = (p: string) => relative(RAIZ, p).split(sep).join("/");
+
+    // 1) QUIÉN escribe la retirada a mano, declarado una a una. Es lo que de verdad se protege, y ya
+    //    no depende de cómo se llame el directorio: una ruta nueva que la escriba cae en rojo y
+    //    tiene que venir aquí a justificarse.
+    //
+    //    LA ÚNICA DE HOY NO ES MODERACIÓN: es el borrado del DUEÑO de su propio vídeo. Marca REMOVED
+    //    y retira su Submission con motivo "DUENO" en la MISMA transacción que encola el borrado en
+    //    Bunny (ver su docblock: si el encolado fallara después, el objeto quedaría huérfano para
+    //    siempre). No pasa por `retirarParticipacion` a propósito — confundir las dos leía el
+    //    borrado propio como una retirada de moderación y vetaba al usuario del reto para siempre.
+    const ESCRIBEN_A_MANO = ["src/app/api/videos/[id]/route.ts"];
+    const aMano = rutas.filter((p) => /"REMOVED"|retiradaMotivo/.test(soloCodigo(leer(p))));
+    expect(aMano.map(rel).sort()).toEqual([...ESCRIBEN_A_MANO].sort());
+
+    // 2) Las puertas que SÍ retiran una participación son estas dos, y delegan en el núcleo. La
+    //    lista es la declaración: una tercera puerta tiene que venir aquí y justificarse.
+    const deRetirar = rutas.filter((p) =>
+      /retirarParticipacion|retirarPorModeracion/.test(soloCodigo(leer(p))),
+    );
+    expect(deRetirar.map(rel).sort()).toEqual([
       "src/app/api/panel/moderacion/retirar/route.ts",
       "src/app/api/panel/participaciones/[id]/retirar/route.ts",
     ]);
-    for (const p of deRetirar) {
-      const codigo = soloCodigo(leer(p));
-      // Ni el estado ni el motivo se escriben en la ruta: eso vive en el servicio.
-      expect(codigo, p).not.toMatch(/"REMOVED"|retiradaMotivo/);
-      expect(codigo, p).toMatch(/retirarParticipacion|retirarPorModeracion/);
-    }
     // Y la retirada por moderación de un vídeo con participación NO se reescribe: usa el núcleo.
     const moderar = soloCodigo(leer(RAIZ, "src", "server", "services", "moderar.ts"));
     expect(moderar).toContain("retirarParticipacionEnTx");

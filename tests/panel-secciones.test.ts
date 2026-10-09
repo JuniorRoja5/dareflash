@@ -31,8 +31,17 @@ describe("SECCIONES_PANEL", () => {
     expect(seccionPorHref("/panel/retos")?.fase).toBeNull();
     // Moderación dejó de ser placeholder cuando se construyó la cola (Fase 5).
     expect(seccionPorHref("/panel/moderacion")?.fase).toBeNull();
+    // Y Boost cuando se construyó su panel (Fase 6, última pieza): ver vigentes, retirar y ajustar.
+    expect(seccionPorHref("/panel/boost")?.fase).toBeNull();
     // Las que siguen siendo placeholder llevan una fase futura (número).
     expect(seccionPorHref("/panel/monedero")?.fase).toBe(7);
-    expect(seccionPorHref("/panel/boost")?.fase).toBe(6);
+  });
+
+  it("la única sección que sigue siendo placeholder es el Monedero (Fase 7)", () => {
+    // Lo que esto fija no es la lista, es el GESTO: construir una sección y olvidarse de bajar su
+    // `fase` a null deja el placeholder puesto encima de una pantalla que ya funciona. Pasó a estar
+    // a un descuido de distancia en cuanto hubo más de una sección viva.
+    const placeholders = SECCIONES_PANEL.filter((s) => s.fase !== null).map((s) => s.href);
+    expect(placeholders).toEqual(["/panel/monedero"]);
   });
 });

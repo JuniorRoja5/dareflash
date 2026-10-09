@@ -333,9 +333,12 @@ describe("el historial propio no enseña lo que no es suyo", () => {
   it("la vista no puede pintar un refId ni un handle de admin: no los recibe", () => {
     const vista = leer("historial-boosts.tsx");
     expect(vista).not.toMatch(/refId|refType/);
-    // El `select` de Prisma es la puerta: si vuelven ahí, vuelven al DTO.
+    // El `select` de Prisma es la puerta de FUERA: lo que no se trae no se puede filtrar por
+    // descuido. Desde la Pieza 5 hay además una `nota` —el motivo que escribe el admin al ajustar
+    // créditos—, y esa es traza interna: se escribe en voz de moderación y para el equipo.
     const select = /select:\s*\{[\s\S]*?\}/.exec(servicio)?.[0] ?? "";
     expect(select.length, "no encuentro el select del historial").toBeGreaterThan(20);
     expect(select, "el select vuelve a traer la referencia").not.toMatch(/refType|refId/);
+    expect(select, "el select se trae la nota interna del ajuste").not.toMatch(/\bnota\b/);
   });
 });

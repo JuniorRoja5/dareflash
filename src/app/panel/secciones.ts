@@ -68,7 +68,7 @@ export const SECCIONES_PANEL: SeccionPanel[] = [
     href: "/panel/boost",
     label: "Boost",
     descripcion: "Gestionar las apariciones destacadas de perfiles y sus créditos.",
-    fase: 6,
+    fase: null,
     rol: "ADMIN",
   },
   {

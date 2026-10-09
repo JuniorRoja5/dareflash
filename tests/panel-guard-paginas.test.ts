@@ -84,7 +84,13 @@ const PAGINAS_ADMIN: {
     args: [{ searchParams: Promise.resolve({}) }],
   },
   { ruta: "/panel/monedero", cargar: () => import("../src/app/panel/monedero/page"), args: [] },
-  { ruta: "/panel/boost", cargar: () => import("../src/app/panel/boost/page"), args: [] },
+  {
+    // Dejó de ser placeholder en la Fase 6 y pasó a leer `?q=`/`?u=` para buscar a quién ajustar,
+    // así que ahora recibe `searchParams` como las otras dos que buscan.
+    ruta: "/panel/boost",
+    cargar: () => import("../src/app/panel/boost/page"),
+    args: [{ searchParams: Promise.resolve({}) }],
+  },
 ];
 
 beforeEach(() => {

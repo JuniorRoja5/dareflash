@@ -96,14 +96,24 @@ describe("lo que ve cada rol", () => {
 describe("ninguna página del panel se queda sin guard (estructural)", () => {
   const PANEL = path.resolve(__dirname, "..", "src", "app", "panel");
 
+  /**
+   * SIN COMENTARIOS. Una página que EXPLICA en su docblock que no escribe `requireRole` a mano
+   * contiene esa cadena, y el guard la contaba como infracción: se ponía rojo por la prosa que
+   * documenta la regla que vigila. Un guard que castiga explicar la regla acaba borrado, y con él
+   * la vigilancia de verdad.
+   */
+  const soloCodigo = (src: string) =>
+    src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
   /** Todas las `page.tsx` bajo /panel, con la RUTA que les corresponde en la app. */
-  function paginas(dir = PANEL): { ruta: string; codigo: string }[] {
+  function paginas(dir = PANEL): { ruta: string; codigo: string; crudo: string }[] {
     return readdirSync(dir).flatMap((nombre) => {
       const p = path.join(dir, nombre);
       if (statSync(p).isDirectory()) return paginas(p);
       if (nombre !== "page.tsx") return [];
       const rel = path.relative(PANEL, path.dirname(p)).split(path.sep).filter(Boolean);
-      return [{ ruta: ["/panel", ...rel].join("/"), codigo: readFileSync(p, "utf8") }];
+      const crudo = readFileSync(p, "utf8");
+      return [{ ruta: ["/panel", ...rel].join("/"), codigo: soloCodigo(crudo), crudo }];
     });
   }
 
@@ -140,5 +150,15 @@ describe("ninguna página del panel se queda sin guard (estructural)", () => {
   it("y ninguna escribe su rol a mano: el rol vive en `secciones.ts`", () => {
     const culpables = PAGINAS.filter((p) => /requireRole\(/.test(p.codigo)).map((p) => p.ruta);
     expect(culpables).toEqual([]);
+  });
+
+  it("el detector mira el CÓDIGO, no el comentario que explica la regla", () => {
+    // Control con un caso REAL: /panel/boost documenta en su docblock que nunca escribe
+    // `requireRole("ADMIN")` aquí. Si `soloCodigo` dejara de quitar comentarios, el caso de arriba
+    // se pondría rojo por esa frase — y es lo que pasaba antes de esta pieza.
+    const boost = PAGINAS.find((p) => p.ruta === "/panel/boost");
+    expect(boost, "no encuentro la página de Boost").toBeDefined();
+    expect(boost!.crudo, "el docblock ya no menciona la regla").toMatch(/requireRole\(/);
+    expect(boost!.codigo, "el recorte de comentarios no funciona").not.toMatch(/requireRole\(/);
   });
 });
