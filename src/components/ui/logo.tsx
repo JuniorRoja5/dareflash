@@ -3,6 +3,17 @@
  * Sustituye al wordmark de texto pelado que habia en la barra lateral. Sin PNG, sin dependencias y
  * sin un solo hex: el color sale del token y por tanto sigue al tema Y al repintado de marca.
  *
+ * EL TAMANO ESTA MEDIDO, Y NO A LA PRIMERA: nacio con la marca a 28 px y la palabra a 22 px, y en
+ * produccion SE SALIA de la barra lateral. La cuenta: la columna son 224 px menos 12 de `p-3` por
+ * lado menos 8 del `px-2` del propio logo = 184 disponibles, y aquello pedia 219. Con la marca a 24
+ * y la palabra a 16 son 167, o sea 17 de holgura. La palabra mide 7,85 em en Archivo con
+ * `wght 800 / wdth 125` (medido sobre el woff2 que sirve el build), y esa cuenta la vigila
+ * `tests/logo-cabe.test.ts` para que cambiar un tamano sin rehacerla salga en rojo.
+ *
+ * `truncate` + `min-w-0` NO son el plan: son la valvula. Con 17 px de holgura no deberia recortar
+ * nunca, pero si la fuente display no carga, la pila de reserva tiene OTRAS metricas y puede venir
+ * mas ancha. Entre recortar la palabra y empujar la columna entera, se recorta.
+ *
  * TRES DECISIONES QUE PARECEN DETALLES Y NO LO SON:
  *
  *  - LA PALABRA ES TEXTO REAL, NO UN `<text>` DENTRO DEL SVG. Un `<text>` depende de que la fuente
@@ -66,13 +77,13 @@ export function Logo({ compacto = false, className }: { compacto?: boolean; clas
     <span
       role="img"
       aria-label="DareFlash"
-      className={`inline-flex items-center gap-2 ${className ?? ""}`}
+      className={`inline-flex min-w-0 max-w-full items-center gap-2 ${className ?? ""}`}
     >
-      <Marca className="h-7 w-auto shrink-0 text-action" />
+      <Marca className="h-6 w-auto shrink-0 text-action" />
       {compacto ? null : (
         <span
           aria-hidden="true"
-          className="text-xl leading-none text-text"
+          className="min-w-0 truncate text-base leading-none text-text"
           style={{
             fontFamily: "var(--font-display)",
             fontVariationSettings: '"wght" 800, "wdth" 125',
