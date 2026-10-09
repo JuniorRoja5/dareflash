@@ -87,23 +87,48 @@ describe("cobertura del nivel", () => {
   });
 
   it("las superficies donde MÁS gente ve a otra gente lo pintan de verdad", () => {
-    // Nombradas una a una: son las que el encargo decía "toda la plataforma" y no lo estaban.
-    const IMPRESCINDIBLES = [
-      "src/components/feed/feed-vertical.tsx", // el feed: el avatar del dueño del vídeo
-      "src/components/feed/comentarios-video.tsx", // comentarios
-      "src/app/(app)/(shell)/menu-cuenta.tsx", // el avatar de la barra superior
-      "src/app/(app)/(shell)/buscador-barra.tsx", // sugerencias del buscador
-      "src/app/(app)/(shell)/buscar/buscar-cliente.tsx", // resultados de búsqueda
-      "src/app/(app)/(shell)/perfil/perfil-vista.tsx", // perfil público
-      "src/app/(app)/(shell)/ranking/podio-ranking.tsx", // podio
-      "src/components/ui/fila-puesto.tsx", // filas de ranking
-      "src/app/panel/usuarios/ficha.tsx", // ficha del panel
+    /**
+     * Nombradas una a una: son las que el encargo decía "toda la plataforma" y no lo estaban.
+     *
+     * ┌─ ALGUNAS PINTAN LA PERSONA A TRAVÉS DE UNA PRIMITIVA ───────────────────────────────────┐
+     * │ Este caso exigía el literal `<Avatar` en cada fichero, y eso identificaba el concepto    │
+     * │ por una PALABRA: se puso rojo cuando el feed pasó a pintar al autor con `AutorFeed` —una │
+     * │ primitiva compartida con la vitrina, que dentro monta el `<Avatar>` con sus `puntos`—.   │
+     * │ El nivel seguía ahí; lo que se movió fue el nombre del componente.                       │
+     * │                                                                                          │
+     * │ Así que cada superficie declara CÓMO pinta a la persona. Lo que se sigue exigiendo es lo  │
+     * │ mismo: que el nivel viaje (`puntos=`). Y si la pinta por primitiva, el otro caso de este  │
+     * │ fichero —"TODO `<Avatar>` recibe `puntos`"— cubre el interior, porque la primitiva vive   │
+     * │ bajo `src` y se recorre igual.                                                           │
+     * └──────────────────────────────────────────────────────────────────────────────────────────┘
+     */
+    const IMPRESCINDIBLES: { rel: string; via?: RegExp }[] = [
+      // El feed: el avatar del dueño del vídeo, a través del bloque de autor compartido con la
+      // vitrina (el feed pinta DOS maquetas, y así no pueden divergir).
+      { rel: "src/components/feed/feed-vertical.tsx", via: /<AutorFeed[\s/>]/ },
+      { rel: "src/components/feed/comentarios-video.tsx" },
+      { rel: "src/app/(app)/(shell)/menu-cuenta.tsx" },
+      { rel: "src/app/(app)/(shell)/buscador-barra.tsx" },
+      { rel: "src/app/(app)/(shell)/buscar/buscar-cliente.tsx" },
+      { rel: "src/app/(app)/(shell)/perfil/perfil-vista.tsx" },
+      { rel: "src/app/(app)/(shell)/ranking/podio-ranking.tsx" },
+      { rel: "src/components/ui/fila-puesto.tsx" },
+      { rel: "src/app/panel/usuarios/ficha.tsx" },
     ];
-    for (const rel of IMPRESCINDIBLES) {
+    for (const { rel, via } of IMPRESCINDIBLES) {
       const codigo = readFileSync(join(RAIZ, ...rel.split("/")), "utf8");
-      expect(/<Avatar[\s/>]/.test(codigo), `${rel}: no pinta ningún avatar`).toBe(true);
-      expect(/\bpuntos=/.test(codigo), `${rel}: pinta un avatar sin nivel`).toBe(true);
+      const pinta = via ?? /<Avatar[\s/>]/;
+      expect(pinta.test(codigo), `${rel}: no pinta a la persona`).toBe(true);
+      expect(/\bpuntos=/.test(codigo), `${rel}: la pinta sin nivel`).toBe(true);
     }
+  });
+
+  it("y la primitiva por la que pasa el feed monta el avatar CON su nivel", () => {
+    // El otro lado de la excepción de arriba: si `AutorFeed` dejara de pasar `puntos`, el feed se
+    // quedaría sin nivel y el caso de arriba seguiría verde (él solo mira el fichero del feed).
+    const marca = readFileSync(join(RAIZ, "src", "components", "ui", "marca-boost.tsx"), "utf8");
+    expect(/<Avatar[\s/>]/.test(marca), "la primitiva ya no monta un avatar").toBe(true);
+    expect(/puntos=\{puntos\}/.test(marca), "la primitiva pinta sin nivel").toBe(true);
   });
 });
 

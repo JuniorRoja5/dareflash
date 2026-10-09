@@ -23,6 +23,7 @@ import { nombreCategoria } from "@/lib/categorias";
 import { retoEstaAbierto } from "@/lib/reto-ventana";
 import type { Db } from "@/server/db/types";
 
+import { autoresDestacados as autoresDestacados_ } from "./boost-destacados";
 import { categoriaKeyDeVideo } from "./categoria-video";
 // Se renombra al importar porque el fichero ya tiene un `misVotosDe` local con el mismo papel, y
 // dos nombres casi iguales en el mismo módulo es cómo se llama a la función que no es.
@@ -77,6 +78,20 @@ export interface PostFeed {
    * nombres). Lo usa lo que no tiene sentido ofrecer sobre lo propio, empezando por denunciar.
    */
   esMio: boolean;
+  /**
+   * ¿Su AUTOR tiene una aparición destacada vigente (Boost)? El feed lo resalta: aro en el avatar y
+   * la marca junto al nombre.
+   *
+   * VIAJA EN EL POST, y eso es lo que lo hace viable: se resuelve con UNA consulta del conjunto de
+   * autores destacados por página (ver `autoresDestacados`), no con una por vídeo. Y al ir en el
+   * payload sirve igual para el primer render del servidor y para el scroll infinito, que pide por
+   * `/api/feed` — sin el flag aquí, la segunda página tendría que preguntarlo otra vez por su
+   * cuenta y la marca aparecería tarde.
+   *
+   * NO REORDENA NADA. El feed sigue su orden (`createdAt desc, id desc`); el Boost resalta, no
+   * adelanta. Pagar por aparecer en el espacio destacado no compra sitio en el feed.
+   */
+  autorDestacado: boolean;
 }
 
 export interface PaginaFeed {
@@ -131,6 +146,8 @@ function aPostFeed(
     firmar: Firmante;
     misVotos: ReadonlyMap<string, string>;
     misLikes: ReadonlySet<string>;
+    /** Autores con aparición destacada vigente. Pertenencia O(1): ver `autoresDestacados`. */
+    destacados: ReadonlySet<string>;
     ahora: Date;
     userId?: string | null;
   },
@@ -160,8 +177,25 @@ function aPostFeed(
     retoAbierto: sub ? retoEstaAbierto(sub.challenge, ctx.ahora) : false,
     miVoto: sub ? (ctx.misVotos.get(sub.challengeId) ?? null) : null,
     esMio: ctx.userId ? v.userId === ctx.userId : false,
+    // Pertenencia al conjunto, no una consulta: O(1) por vídeo.
+    autorDestacado: ctx.destacados.has(v.userId),
   };
 }
+
+/**
+ * LOS AUTORES DE ESTE LOTE QUE ESTÁN DESTACADOS, en UNA consulta para toda la página.
+ *
+ * El trabajo lo hace `autoresDestacados` del servicio de destacados, que es donde vive la verdad de
+ * "quién está destacado ahora mismo" y de donde la lee también el feed de un reto: con una copia
+ * aquí, el mismo autor podría salir destacado en una pantalla y plano en la otra. Esto solo saca los
+ * ids del lote — el mismo patrón de `misVotosDe` y `misLikes`, y por la misma razón.
+ */
+const destacadosDe = (db: Db, filas: FilaFeed[], ahora: Date) =>
+  autoresDestacados_(
+    db,
+    filas.map((v) => v.userId),
+    ahora,
+  );
 
 /**
  * MI VOTO en los retos de un lote de vídeos, en UNA sola consulta (no una por vídeo). Sin sesión no se
@@ -202,15 +236,18 @@ export async function videoParaFeed(
 ): Promise<PostFeed | null> {
   const fila = await db.video.findFirst({ where: { id, ...VIDEO_VISIBLE }, select: SELECT_FEED });
   if (!fila) return null;
-  const [misVotos, misLikes] = await Promise.all([
+  const ahora = opts.ahora ?? new Date();
+  const [misVotos, misLikes, destacados] = await Promise.all([
     misVotosDe(db, [fila], opts.userId),
     misLikes_(db, opts.userId, [fila.id]),
+    destacadosDe(db, [fila], ahora),
   ]);
   return aPostFeed(fila, {
     firmar: opts.firmar,
     misVotos,
     misLikes,
-    ahora: opts.ahora ?? new Date(),
+    destacados,
+    ahora,
     userId: opts.userId,
   });
 }
@@ -246,19 +283,27 @@ export async function feedPublicado(
   const hayMas = filas.length > limite;
   const visibles = hayMas ? filas.slice(0, limite) : filas;
 
-  // MI VOTO y MIS LIKES, en UNA consulta cada uno para toda la pagina (no una por video). Van en
-  // paralelo: son independientes y nada gana sirviendolas en fila.
-  const [misVotos, misLikes] = await Promise.all([
+  const ahora = opts.ahora ?? new Date();
+  // MI VOTO, MIS LIKES y LOS AUTORES DESTACADOS: UNA consulta cada uno para toda la pagina (nunca
+  // una por video). Van en paralelo: son independientes y nada gana sirviendolas en fila.
+  const [misVotos, misLikes, destacados] = await Promise.all([
     misVotosDe(db, visibles, opts.userId),
     misLikes_(
       db,
       opts.userId,
       visibles.map((v) => v.id),
     ),
+    destacadosDe(db, visibles, ahora),
   ]);
-  const ahora = opts.ahora ?? new Date();
   const items: PostFeed[] = visibles.map((v) =>
-    aPostFeed(v, { firmar: opts.firmar, misVotos, misLikes, ahora, userId: opts.userId }),
+    aPostFeed(v, {
+      firmar: opts.firmar,
+      misVotos,
+      misLikes,
+      destacados,
+      ahora,
+      userId: opts.userId,
+    }),
   );
 
   return {

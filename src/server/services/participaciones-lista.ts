@@ -28,6 +28,7 @@ import "server-only";
 import { retoEstaAbierto } from "@/lib/reto-ventana";
 import type { Db } from "@/server/db/types";
 
+import { autoresDestacados } from "./boost-destacados";
 import { misLikes } from "./likes";
 
 /**
@@ -76,6 +77,12 @@ export interface ParticipacionVista extends ParticipacionBase {
   /** ¿Es de quien mira? Lo decide el SERVIDOR comparando ids; el cliente no compara nombres. Con él,
    *  el feed sabe qué no ofrecer (denunciar lo propio) sin preguntar por cada vídeo. */
   esMio: boolean;
+  /**
+   * ¿Su autor tiene una aparición destacada vigente (Boost)? Sale de `autoresDestacados`, el MISMO
+   * que usa el feed global: una consulta por página y pertenencia O(1), nunca una por participación.
+   * Va en el ítem para que el feed de un reto resalte igual que el global.
+   */
+  autorDestacado: boolean;
 }
 
 /** Estado de MI participación en el reto (para el dueño): visible / procesando / fallida / retirada. */
@@ -215,12 +222,22 @@ export async function listarParticipacionesVisibles(
   const hayMas = filas.length > limite;
   const visibles = hayMas ? filas.slice(0, limite) : filas;
 
-  // MIS LIKES de la pagina, en UNA consulta (no una por participacion). Mismo criterio que el feed.
-  const mios = await misLikes(
-    db,
-    opts.userId,
-    visibles.map((f) => f.video.id),
-  );
+  // MIS LIKES y LOS AUTORES DESTACADOS de la pagina: UNA consulta cada uno (nunca una por
+  // participacion). Mismo criterio —y el mismo `autoresDestacados`— que el feed global: si cada
+  // pantalla resolviera el Boost por su cuenta, el mismo autor saldria destacado en una y plano en
+  // la otra en cuanto se tocara una de las dos.
+  const [mios, destacados] = await Promise.all([
+    misLikes(
+      db,
+      opts.userId,
+      visibles.map((f) => f.video.id),
+    ),
+    autoresDestacados(
+      db,
+      visibles.map((f) => f.userId),
+      opts.ahora ?? new Date(),
+    ),
+  ]);
 
   const items = visibles.map((f) => ({
     submissionId: f.id,
@@ -240,6 +257,8 @@ export async function listarParticipacionesVisibles(
     likes: f.video.likeCount,
     miLike: mios.has(f.video.id),
     esMio: opts.userId ? f.userId === opts.userId : false,
+    // Pertenencia al conjunto, no una consulta: O(1) por participacion.
+    autorDestacado: destacados.has(f.userId),
   }));
 
   const ultima = visibles[visibles.length - 1];

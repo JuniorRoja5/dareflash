@@ -32,6 +32,13 @@ export interface ParticipacionParaFeed {
   miLike: boolean;
   /** ¿El vídeo es de quien mira? Lo resuelve el servidor por id. */
   esMio: boolean;
+  /**
+   * ¿Su autor tiene una aparición destacada vigente? Lo resuelve el servicio por pertenencia a un
+   * conjunto —una consulta por página, no una por participación— y viaja en el ítem para que el feed
+   * de un reto resalte igual que el global: el mismo autor no puede salir destacado en una pantalla
+   * y plano en la otra.
+   */
+  autorDestacado: boolean;
 }
 
 /** Datos del RETO, iguales para toda la lista: se pasan una vez, no por ítem. */
@@ -74,5 +81,6 @@ export function postDeParticipacion(
     retoAbierto: p.retoAbierto,
     miVoto: p.miVoto,
     esMio: p.esMio,
+    autorDestacado: p.autorDestacado,
   };
 }

@@ -2,11 +2,11 @@
 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
-import { Avatar } from "@/components/ui/avatar";
 import { BotonCompartir } from "@/components/ui/boton-compartir";
 import { BotonLike } from "@/components/ui/boton-like";
 import { BotonVoto } from "@/components/ui/boton-voto";
 import { Denunciar } from "@/components/ui/denunciar";
+import { AutorFeed } from "@/components/ui/marca-boost";
 import { PildoraCategoria } from "@/components/ui/pildora";
 import { ReproductorHls } from "@/components/ui/reproductor-hls";
 import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
@@ -190,17 +190,20 @@ function PostInicio({
         <div className="pointer-events-none absolute bottom-0 left-0 z-10 w-3/4 p-4 pb-24 lg:hidden">
           {/* EL AVATAR DEL DUEÑO, que hasta ahora no se dibujaba: el feed es donde más gente ve a más
               gente, y era justo el sitio donde el nivel no aparecía. Con su anillo de nivel, que sale
-              de los puntos que ya viajan en el post (misma consulta, una columna más). */}
-          <div className="mb-2 flex items-center gap-2">
-            <Avatar nombre={post.username} imagen={post.imagen} tamano="sm" puntos={post.puntos} />
-            <span className="min-w-0">
-              <span className="block truncate text-base font-semibold text-white">
-                {conHandle ? nombre : `@${nombre}`}
-              </span>
-              {conHandle ? (
-                <span className="block truncate text-sm text-white/80">@{post.username}</span>
-              ) : null}
-            </span>
+              de los puntos que ya viajan en el post (misma consulta, una columna más). Y con la marca
+              de Boost si su autor está destacado, en la MISMA primitiva que el panel de escritorio:
+              estas dos maquetas ya divergieron una vez. */}
+          <div className="mb-2">
+            <AutorFeed
+              username={post.username}
+              nombre={nombre}
+              conHandle={conHandle}
+              imagen={post.imagen}
+              puntos={post.puntos}
+              destacado={post.autorDestacado}
+              claseNombre="text-base font-semibold text-white"
+              claseHandle="text-sm text-white/80"
+            />
           </div>
           <p className="mt-1 line-clamp-2 text-sm text-white/90">Reto: {post.retoTitulo}</p>
           {post.categoria ? (
@@ -316,18 +319,19 @@ function PanelComentarios({
   return (
     <aside className="hidden border-l border-line bg-surface shadow-[var(--df-shadow-lg)] lg:flex lg:h-[100svh] lg:flex-col lg:overflow-hidden">
       <div className="border-b border-line p-4">
-        {/* Mismo avatar y mismo anillo que en movil: el dueno del video se ve en las dos maquetas. */}
-        <div className="flex items-center gap-2">
-          <Avatar nombre={post.username} imagen={post.imagen} tamano="sm" puntos={post.puntos} />
-          <span className="min-w-0">
-            <span className="block truncate font-semibold text-text">
-              {conHandle ? nombre : `@${nombre}`}
-            </span>
-            {conHandle ? (
-              <span className="block truncate text-sm text-text-dim">@{post.username}</span>
-            ) : null}
-          </span>
-        </div>
+        {/* Mismo bloque de autor que en movil —misma primitiva—: el dueno del video, su nivel y su
+            marca de Boost se ven igual en las dos maquetas. Lo unico que cambia son los colores del
+            texto: ahi va sobre video, aqui sobre el panel. */}
+        <AutorFeed
+          username={post.username}
+          nombre={nombre}
+          conHandle={conHandle}
+          imagen={post.imagen}
+          puntos={post.puntos}
+          destacado={post.autorDestacado}
+          claseNombre="font-semibold text-text"
+          claseHandle="text-sm text-text-dim"
+        />
         <p className="mt-1 line-clamp-2 text-sm text-text-dim">Reto: {post.retoTitulo}</p>
         <div className="mt-2 flex items-center gap-2">
           {post.categoria ? <PildoraCategoria>{post.categoria}</PildoraCategoria> : null}

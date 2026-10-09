@@ -4,6 +4,7 @@ import { nombreMostrado } from "@/lib/identidad";
 
 import { Avatar } from "./avatar";
 import { InsigniaNivel } from "./insignia-nivel";
+import { MarcaBoost } from "./marca-boost";
 
 /**
  * TARJETA DE UN PERFIL DESTACADO (Boost) — la misma cara en los dos sitios donde se enseña.
@@ -60,9 +61,10 @@ export function TarjetaDestacado({
           {posicion}
         </span>
       ) : null}
-      <span className="absolute top-3 right-3 text-2xs tracking-widest text-text-dim uppercase">
-        Boost
-      </span>
+      {/* LA MISMA MARCA que lleva el feed: una sola fuente para la palabra y el tono (ver
+          `MarcaBoost`). Antes era un `<span>` suelto con su propio estilo, o sea una copia esperando
+          a divergir de las otras tres superficies. */}
+      <MarcaBoost className="absolute top-3 right-3" />
 
       <Avatar
         nombre={username}

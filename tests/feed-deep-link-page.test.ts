@@ -51,6 +51,7 @@ const post = (id: string): PostFeed => ({
   retoAbierto: false,
   miVoto: null,
   esMio: false,
+  autorDestacado: false,
 });
 
 /** Las props con las que la página monta el feed (el elemento, sin renderizarlo). */

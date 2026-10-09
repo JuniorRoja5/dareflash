@@ -27,6 +27,7 @@ import "server-only";
 import { BOOST_DESTACADOS_PORTADA, BOOST_DESTACADOS_TOPE } from "@/config/constants";
 import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
+import type { Db } from "@/server/db/types";
 
 export interface PerfilDestacado {
   activacionId: string;
@@ -147,4 +148,41 @@ export async function destacadosVigentes(
     destacadoDesdeMs: f.destacadoDesde.getTime(),
     expiraEnMs: f.expiraEn.getTime(),
   }));
+}
+
+/**
+ * DE UN LOTE DE AUTORES, QUIÉNES ESTÁN DESTACADOS AHORA MISMO. Una consulta, y después pertenencia
+ * O(1).
+ *
+ * ┌─ VIVE AQUÍ PARA QUE HAYA UNA SOLA VERDAD ─────────────────────────────────────────────────────┐
+ * │ La usan el feed global y el feed de un reto. Con una copia en cada servicio, el mismo autor    │
+ * │ podría salir destacado en una pantalla y plano en la otra en cuanto una de las dos se tocara — │
+ * │ y "destacado" dejaría de significar lo mismo según por dónde hubieras entrado.                │
+ * │                                                                                               │
+ * │ Y ES UN CONJUNTO, NO UN DATO POR POST: preguntar por cada vídeo "¿su autor está destacado?"    │
+ * │ son N consultas en el componente más caro de la app, y N crece con el scroll infinito.        │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * "VIGENTE" ES `expiresAt > ahora`, la misma verdad que la vitrina: el estado se calcula, no hay
+ * columna ni job. Un Boost que expira deja de resaltar en la consulta siguiente, solo. `distinct`
+ * por usuario porque lo que se necesita es la pertenencia, no cuántas apariciones tiene quien
+ * encadenó varias.
+ *
+ * NO FILTRA CUENTAS SUSPENDIDAS, y no hace falta: quien llama solo trae autores de contenido
+ * visible (`VIDEO_VISIBLE` ya excluye borrados y baneados), así que un id de alguien suspendido no
+ * llega hasta aquí.
+ */
+export async function autoresDestacados(
+  db: Db,
+  userIds: readonly string[],
+  ahora: Date = new Date(),
+): Promise<ReadonlySet<string>> {
+  const unicos = [...new Set(userIds)];
+  if (unicos.length === 0) return new Set();
+  const vigentes = await db.boostActivation.findMany({
+    where: { userId: { in: unicos }, expiresAt: { gt: ahora } },
+    select: { userId: true },
+    distinct: ["userId"],
+  });
+  return new Set(vigentes.map((a) => a.userId));
 }
