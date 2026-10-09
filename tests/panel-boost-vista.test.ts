@@ -121,6 +121,24 @@ describe("el ajuste de créditos calca el de puntos", () => {
     expect(serv).toMatch(/^\s+nota,$/m);
   });
 
+  it("ni la ruta ni la pantalla se inventan su propio tope", () => {
+    // ┌─ ESTE CASO NACIÓ DE UN VERDE FALSO ─────────────────────────────────────────────────────┐
+    // │ Hay TRES sitios que validan la cantidad: el esquema de Zod de la ruta, la pantalla (para │
+    // │ decidir si habilita el botón) y el servicio. Subir el número en el `refine` de la ruta   │
+    // │ NO se ve por comportamiento: el cuerpo pasa el esquema y el servicio lo rechaza igual,   │
+    // │ así que la respuesta sigue siendo 400 y el test de la ruta sale verde — comprobado        │
+    // │ metiendo ese diente. Lo único que lo caza es exigir que los tres LEAN la constante.       │
+    // └─────────────────────────────────────────────────────────────────────────────────────────┘
+    for (const ruta of [RUTA_AJUSTAR, AJUSTAR_UI, SERVICIO]) {
+      const src = leer(...ruta);
+      expect(src, ruta.join("/")).toContain("AJUSTE_BOOST_DELTA_MAX");
+      // Una cifra a pelo comparada con la cantidad sería un cuarto tope, libre de discrepar.
+      expect(src, `${ruta.join("/")} escribe su propio tope`).not.toMatch(
+        /Math\.abs\([^)]*\)\s*(<=|>=|<|>)\s*\d/,
+      );
+    }
+  });
+
   it("y con la clave de idempotencia namespaceada por admin", () => {
     const serv = leer(...SERVICIO);
     expect(serv).toMatch(/claveAjusteBoost\(entrada\.adminId, entrada\.clave\)/);

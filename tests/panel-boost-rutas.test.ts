@@ -221,6 +221,36 @@ describe("ajustar créditos", () => {
     expect(await saldoDe(victima)).toBe(2);
   });
 
+  it("el tope son DIEZ, clavado: 10 pasa por la ruta y 11 da 400", async () => {
+    // ┌─ QUÉ FIJA ESTE CASO, Y QUÉ NO ────────────────────────────────────────────────────────────┐
+    // │ Fija el comportamiento DE PUNTA A PUNTA, que es lo que ve el panel: 10 entra, 11 se       │
+    // │ rechaza con 400. Con valores CONCRETOS y no `AJUSTE_BOOST_DELTA_MAX + 1`, porque un caso  │
+    // │ derivado sigue verde el día que alguien cambie el número.                                 │
+    // │                                                                                           │
+    // │ Lo que NO puede ver: cuál de las dos puertas rechazó. Subir el tope del `refine` de Zod   │
+    // │ de la ruta deja pasar el cuerpo, pero el servicio lo rechaza igual y la respuesta sigue   │
+    // │ siendo 400 — comprobado metiendo ese diente, que salió verde. Que la ruta no se invente   │
+    // │ su propio número lo vigila `panel-boost-vista` por estructura.                            │
+    // └───────────────────────────────────────────────────────────────────────────────────────────┘
+    const ok = await pedir(ajustar, {
+      userId: victima,
+      delta: 10,
+      nota: "el maximo de un solo ajuste",
+      clave: CLAVE,
+    });
+    expect(ok.status, "10 debería pasar: es el tope, no un exceso").toBe(200);
+    expect(await saldoDe(victima)).toBe(12);
+
+    const pasado = await pedir(ajustar, {
+      userId: victima,
+      delta: 11,
+      nota: "uno por encima del tope",
+      clave: "22222222-3333-4444-8555-666666666666",
+    });
+    expect(pasado.status).toBe(400);
+    expect(await saldoDe(victima), "el exceso movió el saldo").toBe(12);
+  });
+
   it("un usuario que no existe: 404", async () => {
     const res = await pedir(ajustar, {
       userId: "no-existe",

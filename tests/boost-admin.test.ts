@@ -22,6 +22,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
   AJUSTE_BOOST_DELTA_MAX,
+  AJUSTE_DELTA_MAX,
   AJUSTE_NOTA_MIN,
   BOOST_DURACION_MIN,
   RAZON_BOOST_AJUSTE_ADMIN,
@@ -335,6 +336,8 @@ describe("ajustar créditos: calca el ajuste de puntos", () => {
   });
 
   it("y la cantidad se valida: cero, decimal o pasada de tope se rechazan", async () => {
+    // DERIVADO a propósito: esto fija que la validación USE la constante, se llame como se llame su
+    // valor. El NÚMERO lo clava el bloque de abajo con valores concretos.
     const id = await crearUsuario(prisma, { username: "la_del_cero" });
     for (const delta of [0, 1.5, AJUSTE_BOOST_DELTA_MAX + 1, -(AJUSTE_BOOST_DELTA_MAX + 1)]) {
       await expect(
@@ -348,6 +351,79 @@ describe("ajustar créditos: calca el ajuste de puntos", () => {
       ).rejects.toMatchObject({ code: "DELTA_INVALIDO" });
     }
     expect(await prisma.boostLedger.count()).toBe(0);
+  });
+
+  /**
+   * EL TOPE SON DIEZ, CLAVADO CON VALORES CONCRETOS.
+   *
+   * ┌─ POR QUÉ NO SE LEE LA CONSTANTE AQUÍ ───────────────────────────────────────────────────────┐
+   * │ Un caso escrito como `AJUSTE_BOOST_DELTA_MAX + 1` comprueba que el tope se APLICA, y sigue  │
+   * │ verde el día que alguien cambie el número: o sea que no vigila el número. Este tope nació en │
+   * │ 100 —más de 200 $ a precio de catálogo, justo el dedazo que tenía que frenar— y se bajó a 10 │
+   * │ a mano. Para que el siguiente cambio sea una DECISIÓN y no un descuido, el valor se clava.   │
+   * └─────────────────────────────────────────────────────────────────────────────────────────────┘
+   *
+   * Los dos lados: 10 pasa, 11 no. Con uno solo, subirlo a 50 seguiría verde.
+   */
+  describe("el tope son DIEZ boosts por ajuste", () => {
+    it("+10 pasa y +11 se rechaza", async () => {
+      const id = await crearUsuario(prisma, { username: "la_del_tope" });
+
+      const r = await ajustarCreditosBoost(prisma, {
+        adminId,
+        userId: id,
+        delta: 10,
+        nota: "el maximo de un solo ajuste",
+        clave: "tope-ok",
+      });
+      expect(r, "10 debería pasar: es el tope, no un exceso").toEqual({
+        aplicado: true,
+        saldo: 10,
+      });
+
+      await expect(
+        ajustarCreditosBoost(prisma, {
+          adminId,
+          userId: id,
+          delta: 11,
+          nota: "uno por encima del tope",
+          clave: "tope-no",
+        }),
+      ).rejects.toMatchObject({ code: "DELTA_INVALIDO" });
+    });
+
+    it("y −10 pasa y −11 se rechaza: el tope es de magnitud, en los dos sentidos", async () => {
+      const id = await crearUsuario(prisma, { username: "la_del_tope_neg", boostBalance: 20 });
+
+      await expect(
+        ajustarCreditosBoost(prisma, {
+          adminId,
+          userId: id,
+          delta: -11,
+          nota: "uno por debajo del tope",
+          clave: "neg-no",
+        }),
+      ).rejects.toMatchObject({ code: "DELTA_INVALIDO" });
+
+      const r = await ajustarCreditosBoost(prisma, {
+        adminId,
+        userId: id,
+        delta: -10,
+        nota: "el maximo en negativo",
+        clave: "neg-ok",
+      });
+      expect(r).toEqual({ aplicado: true, saldo: 10 });
+    });
+
+    it("el rechazo por exceso sigue diciendo el tope en humano", () => {
+      // Lo único que cambió es el número: el copy sigue siendo copy.
+      expect(AJUSTE_BOOST_DELTA_MAX).toBe(10);
+    });
+
+    it("y sigue MUY por debajo del de puntos: un boost se compra con dinero", () => {
+      // La comparación es el porqué del número, no un adorno: 5.000 puntos no cuestan nada.
+      expect(AJUSTE_BOOST_DELTA_MAX).toBeLessThan(AJUSTE_DELTA_MAX / 100);
+    });
   });
 
   it("un usuario que no existe se dice en humano, no revienta", async () => {

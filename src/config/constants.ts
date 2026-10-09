@@ -166,12 +166,18 @@ export const RAZON_BOOST_AJUSTE_ADMIN = "ADMIN_ADJUST";
  * Tope de UN ajuste de creditos de boost, en cualquier sentido.
  *
  * NO ES UNA REGLA DE PRODUCTO, ES UN FRENO AL DEDO, igual que `AJUSTE_DELTA_MAX` en los puntos: un
- * cero de mas tecleado por error no puede regalar mil apariciones destacadas. Si de verdad hiciera
- * falta mas, son dos ajustes, con su motivo cada uno. El numero es generoso de sobra para lo que
- * esto es (un detalle de soporte o una promocion), y deliberadamente mucho mas bajo que el de
- * puntos: un boost se cobra en dolares.
+ * cero de mas tecleado por error no puede regalar un monton de apariciones destacadas. Si de verdad
+ * hiciera falta mas, son dos ajustes, con su motivo cada uno.
+ *
+ * DIEZ, Y NO CIEN. Nacio en 100 y Sergio lo bajo: un regalo de verdad son 1-10 boosts, y 100 son mas
+ * de 200 $ a precio de catalogo — o sea que el "freno" dejaba pasar justo el dedazo que tenia que
+ * frenar. Comparado con el de puntos (5.000) parece minusculo, y esa es la diferencia: un punto no
+ * se compra con dinero y un boost si.
+ *
+ * El test que lo fija clava el 10 con VALORES CONCRETOS (10 pasa, 11 no) en vez de leer esta
+ * constante: un test que la lee sigue verde el dia que alguien la cambie, o sea que no la vigila.
  */
-export const AJUSTE_BOOST_DELTA_MAX = 100;
+export const AJUSTE_BOOST_DELTA_MAX = 10;
 
 /** Copy de la ACTIVACION. Lo que el usuario puede hacer algo con, nunca el codigo del rechazo. */
 export const MSG_BOOST_SIN_SALDO = "No te quedan Boosts. Compra uno para destacar tu perfil.";
