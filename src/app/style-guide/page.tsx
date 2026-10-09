@@ -54,14 +54,14 @@ function Seccion({ etiqueta, children }: { etiqueta: string; children: ReactNode
 const COLORES = [
   {
     u: "money",
-    hex: "#d9f32b",
+    hex: "#e8f620",
     hexClaro: "#8a6100",
     solo: "Dinero: premios, saldo, bote.",
     nunca: "Decoración, enlaces, estados.",
   },
   {
     u: "action",
-    hex: "#ff2e88",
+    hex: "#2be84b",
     hexClaro: "#15803d",
     solo: "Acción principal: votar, participar, publicar.",
     nunca: "Más de UNA por pantalla.",
@@ -89,7 +89,7 @@ const COLORES = [
   },
   {
     u: "ok",
-    hex: "#2be58b",
+    hex: "#2dd4bf",
     hexClaro: "#0f766e",
     solo: "Confirmaciones: voto, publicado, verificado.",
     nunca: "Decorar.",
@@ -595,8 +595,8 @@ export default function StyleGuide() {
         </div>
         <p className="mt-6 max-w-prose text-sm text-text-dim">
           Los mismos cinco destinos, mismo orden y nombres (Inicio · Retos · [+] · Ranking ·
-          Perfil). El [+] central es la única acción magenta. Zonas táctiles de 44 px. Los destinos
-          son las rutas ANTICIPADAS del Paso C; hoy solo existe «/».
+          Perfil). El [+] central es la única acción de --df-action. Zonas táctiles de 44 px. Los
+          destinos son las rutas ANTICIPADAS del Paso C; hoy solo existe «/».
         </p>
       </Seccion>
     </main>

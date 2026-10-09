@@ -14,7 +14,9 @@ import { TEMA_COLOR_BARRA } from "@/lib/tema";
 
 beforeEach(() => {
   document.documentElement.dataset.theme = "dark";
-  document.head.innerHTML = '<meta name="theme-color" content="#07090d" />';
+  // El estado de partida sale del MISMO sitio que la aserción: con el hex escrito a mano, el
+  // repintado de marca lo dejó atrás y el fixture arrancaba con un color que ya no existía.
+  document.head.innerHTML = `<meta name="theme-color" content="${TEMA_COLOR_BARRA.oscuro}" />`;
   // Cookies de un test anterior: se vacían poniéndolas caducadas.
   for (const c of document.cookie.split(";")) {
     document.cookie = `${c.split("=")[0]!.trim()}=; max-age=0; path=/`;

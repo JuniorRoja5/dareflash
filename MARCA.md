@@ -14,10 +14,22 @@ no se decide aquí.
 claro. El realce ambiental (el "glow") es verde, y el logotipo es una marca gráfica propia —rayo en
 círculo— que toma su color de los tokens, no de valores incrustados.
 
-La dirección está fijada. Los **valores exactos** del repintado del tema oscuro no lo están todavía:
-el tema claro ya es verde+blanco y el oscuro sigue con la paleta anterior. Mientras eso no se cierre,
-`globals.css` es el único sitio donde cambia, y los números de la sección 6 son los que cualquier
-paleta tiene que cumplir para entrar.
+Los dos temas están repintados: la acción es `#2be84b` en oscuro y `#15803d` en claro, el mismo verde
+ajustado a su fondo. Esos valores están **firmados**, y los clava
+[tests/marca-v3-firmada.test.ts](tests/marca-v3-firmada.test.ts) con las cifras escritas, no leyendo
+el token (un test que lea la constante para compararla consigo misma está siempre verde).
+
+Tres cosas que el repintado dejó decididas y conviene no redescubrir:
+
+- **La confirmación es un TEAL, no una menta.** Con la acción en verde, una menta se le quedaba a ΔE
+  8,7 —el mínimo son 15— y "confirmado" se leía como "pulsa aquí".
+- **El dinero se quedó en el lima**, movido lo justo (ΔE 2,8). Es lo que compra el margen de la regla
+  de oro sin tocar el verde de marca: en oscuro los dos brillan, así que quien los separa es el TONO.
+- **Los oscuros tiran a verde**, no a azul: dos temperaturas discutiendo se nota aunque nadie sepa
+  decir por qué.
+
+El tema claro está en el **techo de AA** y por eso no se subió de brillo: medido, un verde más claro
+deja el texto del CTA en 3,31:1. Lo único que se movió ahí es la fuerza del halo.
 
 ## 2. El color se usa por TOKEN, nunca por valor
 
@@ -99,6 +111,11 @@ Quién lo comprueba:
 - [tests/paleta-niveles.test.ts](tests/paleta-niveles.test.ts) — los emblemas, en los dos temas.
 - [tests/marca-hex-duplicados.test.ts](tests/marca-hex-duplicados.test.ts) — los cuatro hex de la
   sección 5, y el censo de que no haya un quinto.
+- [tests/marca-v3-firmada.test.ts](tests/marca-v3-firmada.test.ts) — los valores firmados, clavados
+  con cifras escritas, y que no sobreviva ningún magenta ni morado en el repositorio. Los otros
+  cuatro miden **cualquier** paleta y sobreviven al próximo repintado; este clava **esta**. Hacen
+  falta los dos: medir sin clavar deja que el verde se vaya moviendo un dígito cada vez, y clavar
+  sin medir no dice si lo clavado se lee.
 
 ## 7. Movimiento
 

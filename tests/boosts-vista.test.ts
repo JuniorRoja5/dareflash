@@ -15,7 +15,7 @@
  *  - "PAGO RECIBIDO" NO ES "YA TIENES TUS BOOSTS": el webhook llega después, así que el aviso de
  *    vuelta no puede afirmar un abono que la pantalla no ha visto.
  *
- * Para romperlo: escribir un `#ff2e88` en cualquiera de las vistas (rojo), poner el "3" del límite a
+ * Para romperlo: escribir un hex a mano en cualquiera de las vistas (rojo), poner el "3" del límite a
  * mano (rojo), prometer una duración (rojo), hacer principales los tres botones de comprar (rojo),
  * subir el `import { env }` al ámbito de módulo (rojo), o decirle al usuario que ya tiene sus boosts
  * al volver de Stripe (rojo).
@@ -140,12 +140,12 @@ describe("cero cifras inventadas", () => {
 
 describe("un solo botón principal en toda la pantalla", () => {
   /**
-   * AHORA HAY DOS CANDIDATOS AL MAGENTA —destacar y comprar— y sólo puede haber uno. Esto NO se
+   * AHORA HAY DOS CANDIDATOS AL ACENTO —destacar y comprar— y sólo puede haber uno. Esto NO se
    * puede fijar contando `variante="principal"` en el código: los dos están escritos, y cuál se
    * PINTA depende del saldo. Lo que se comprueba aquí es que la decisión existe y de qué depende; el
    * recuento de verdad, sobre el árbol renderizado, está en `tests/render/boost-activar` (el test de
-   * composición). Los dos juntos son la red: sin el de render, poner los tres paquetes en magenta
-   * pasaría de largo.
+   * composición). Los dos juntos son la red: sin el de render, poner los tres paquetes en
+   * `--df-action` pasaría de largo.
    */
   it("el de los paquetes NO es fijo: lo deciden `mejorPrecio` y si cede el acento", () => {
     const paq = leer("paquetes-boost.tsx");
@@ -154,7 +154,7 @@ describe("un solo botón principal en toda la pantalla", () => {
   });
 
   it("y el de destacar NO SE PINTA sin saldo: por eso puede ser fijo", () => {
-    // Si el componente no volviera `null`, con saldo cero habría dos magentas en pantalla.
+    // Si el componente no volviera `null`, con saldo cero habría dos acentos en pantalla.
     const act = leer("activar-boost.tsx");
     expect(act).toMatch(/if \(sinSaldo\) return null;/);
     expect(act).toMatch(/const sinSaldo = saldo <= 0;/);

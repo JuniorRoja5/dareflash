@@ -47,8 +47,13 @@ export function cookieDeTema(tema: Tema): string {
   return `${TEMA_COOKIE}=${tema}; path=/; max-age=${TEMA_COOKIE_MAX_EDAD_S}; samesite=lax`;
 }
 
-/** Color de la barra del navegador (`theme-color`) en cada tema: el fondo de página. */
+/**
+ * Color de la barra del navegador (`theme-color`) en cada tema: el fondo de página, y el único hex
+ * que llega al HTML renderizado (la meta no admite una custom property). Que siga siendo igual a
+ * `--df-void` lo comprueba `tests/marca-hex-duplicados.test.ts`: si no, un repintado deja la barra
+ * del móvil con el color anterior y nadie se entera.
+ */
 export const TEMA_COLOR_BARRA: Record<Tema, string> = {
-  oscuro: "#07090d",
+  oscuro: "#070b08",
   claro: "#f4f6f8",
 };

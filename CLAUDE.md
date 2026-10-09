@@ -202,6 +202,9 @@ borran para "limpiar"**:
 - `marca-hex-duplicados` — los cuatro ficheros donde un hex está escrito a mano porque el token no
   llega (correo, favicon, `theme-color`, guía) siguen el valor del token, y **no hay un quinto**. Sin
   esto, un repintado deja los correos con el color anterior y no falla nada.
+- `marca-v3-firmada` — los valores de marca **firmados**, clavados con cifras escritas (no leyendo el
+  token, que estaría siempre verde), el contraste del CTA sobre el verde, y que no sobreviva ningún
+  magenta ni morado. Los de paleta miden cualquier paleta; este clava la que hay.
 
 Al tocar uno de estos, la comprobación no es que pase en verde: es **romper el invariante a
 propósito y confirmar que se pone rojo**.

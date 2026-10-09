@@ -87,14 +87,17 @@
 :root,
 [data-theme="dark"] {
   /* --- COLORES SEMANTICOS (un trabajo cada uno) --- */
-  --df-money: #d9f32b; /* lima acido. SOLO dinero: premios, saldo, bote. */
-  --df-action: #ff2e88; /* magenta. SOLO accion principal. UNO por pantalla. */
+  --df-money: #e8f620; /* lima acido. SOLO dinero: premios, saldo, bote. */
+  --df-action: #2be84b; /* verde de marca. SOLO accion principal. UNO por pantalla. */
   --df-time: #ffa114; /* ambar. SOLO tiempo restante no critico. */
   --df-alarm: #ff4d2e; /* rojo-naranja. Tiempo critico (<24h) Y error/peligro. */
   --df-rank: #e8c468; /* oro. Puesto 1 del podio; y puestos 1/2/3 en filas de tabla (FilaPuesto). */
   --df-silver: #b3bbc6; /* plata MATE. EXCLUSIVO de la medalla del PUESTO 2 del podio. */
   --df-bronze: #bb7f4f; /* bronce MATE. EXCLUSIVO de la medalla del PUESTO 3 del podio. */
-  --df-ok: #2be58b; /* menta. SOLO confirmaciones. */
+  /* TEAL, y es a proposito que NO sea una menta: con la accion en verde de marca, una menta y el
+     verde se separaban solo dE 8,7 (el minimo son 15) y "confirmado" se leia como "pulsa aqui". El
+     tema claro ya habia resuelto lo mismo con un teal; esto es la misma decision en oscuro. */
+  --df-ok: #2dd4bf; /* teal. SOLO confirmaciones. */
 
   /* --- NIVEL (DareUp). Color del EMBLEMA que lleva el avatar, uno por nivel. Rookie no tiene: es el
      estandar. LEGEND TAMPOCO TIENE EL SUYO y usa `--df-rank` a proposito (ver abajo, y el docblock
@@ -104,9 +107,12 @@
   --df-nivel-elite: #22d3ee; /* diamante */
 
   /* --- BASE Y SUPERFICIES (profundidad por LUMINOSIDAD, nunca por sombra) --- */
-  --df-void: #07090d; /* fondo de pagina */
-  --df-surface: #10141c; /* tarjetas, hojas, paneles */
-  --df-raised: #1a2029; /* elevado: menus, estados activos, campos enfocados */
+  /* Los oscuros tiran a VERDE, no a azul: con la marca en verde, un gris azulado de fondo pelea con
+     el acento (dos temperaturas discutiendo). El salto de luminosidad entre los tres es el mismo de
+     antes, que es como se da profundidad aqui — por luminosidad y nunca por sombra. */
+  --df-void: #070b08; /* fondo de pagina */
+  --df-surface: #0f1511; /* tarjetas, hojas, paneles */
+  --df-raised: #19211b; /* elevado: menus, estados activos, campos enfocados */
   --df-line: rgb(255 255 255 / 0.1); /* filetes de 1 px: como se separan las cosas */
   --df-text: #f2f4f7; /* texto principal */
   --df-text-dim: #8d95a3; /* texto secundario, etiquetas, metadatos */
@@ -152,8 +158,10 @@
 
 /* ============================================================================
    PALETA CLARA — blanco y verde (encargo de Sergio). MISMOS trabajos, otros
-   valores. La regla de oro no se toca: ACCION != DINERO. En oscuro se separan
-   por magenta vs lima; en claro, por verde (accion) vs dorado (dinero).
+   valores. La regla de oro no se toca: ACCION != DINERO. En los DOS temas se
+   separan por verde (accion) vs dorado/lima (dinero); lo que cambia es la
+   luminosidad: en oscuro los dos brillan y separa el TONO, en claro el dorado
+   del dinero es oscuro y el que separa es el BRILLO.
    Los valores estan MEDIDOS, no elegidos a ojo: contraste WCAG sobre blanco y
    separacion CIEDE2000 entre significados los fija `tests/paleta-clara.test.ts`.
    ============================================================================ */
@@ -195,10 +203,11 @@
   --df-shadow-lg: 0 36px 80px -32px rgb(13 17 23 / 0.36);
   /* El sheen invierte: sobre claro, lo que barre es una SOMBRA, no una luz. */
   --df-sheen: linear-gradient(115deg, transparent 44%, rgb(13 17 23 / 0.05) 50%, transparent 56%);
-  /* EL HALO PESA LA MITAD EN CLARO, y no es un ajuste a ojo: los colores de nivel del tema claro son
-     OSCUROS (bajados de luminosidad para leerse sobre blanco), asi que sobre una tarjeta blanca el
-     mismo 22% no da luz, da una mancha sucia. Con 10% se lee como un tinte. */
-  --df-halo-fuerza: 10%;
+  /* EL HALO PESA MENOS EN CLARO, y no es un ajuste a ojo del todo: los colores de nivel del tema
+     claro son OSCUROS (bajados de luminosidad para leerse sobre blanco), asi que sobre una tarjeta
+     blanca el mismo 22% del oscuro no da luz, da una mancha sucia. 10% se quedaba invisible con la
+     marca en verde; 18% es el punto que firmo Sergio mirandolo. Por encima vuelve la mancha. */
+  --df-halo-fuerza: 18%;
 
   /* El QR NO cambia con el tema: ver el porque en el bloque oscuro. Se repiten aqui, y no se
      omiten, para que el test de simetria siga exigiendo que todo token exista en los dos sitios. */

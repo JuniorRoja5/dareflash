@@ -2,7 +2,7 @@
  * PLANTILLA de marca para correos transaccionales — SOLO presentacion (genera el `html` de un
  * `EmailMessage`; el `text` de cada correo se sigue escribiendo a mano en su builder, sin tocar).
  * Compartida por verificacion y desbloqueo para que los dos correos usen el MISMO lenguaje visual
- * (brief v2: fondo void, una accion magenta, tipografia display) sin duplicar el maquetado.
+ * (fondo void, UNA accion en el verde de marca, tipografia display) sin duplicar el maquetado.
  *
  * Reglas de un email que sobrevive a un cliente de correo real:
  *  - Tablas + estilos INLINE (nada de <style> de bloque: Gmail/Outlook los recortan o ignoran).
@@ -17,14 +17,19 @@
 import "server-only";
 
 // Mismos valores que --df-* en globals.css, en HEX literal (los emails no leen custom properties).
+// Que sigan siendo los mismos NO se confia: lo comprueba `tests/marca-hex-duplicados.test.ts`, que
+// es lo que impide que un repintado cambie el producto y deje los correos con el color de antes.
 const COLOR = {
-  void: "#07090d",
-  surface: "#10141c",
-  line: "#232a35", // aproximacion solida de --color-line (rgb 255 255 255 / 0.1) sobre --color-surface
+  void: "#070b08",
+  surface: "#0f1511",
+  // Aproximacion SOLIDA de --df-line (rgb 255 255 255 / 0.1) compuesta sobre `surface`, porque en un
+  // correo no hay composicion fiable. Calculada, no a ojo: 0,1*255 + 0,9*(15,21,17) = (39,44,41).
+  // Si cambia `surface`, este cambia con el — por eso va el calculo escrito y no solo el resultado.
+  line: "#272c29",
   text: "#f2f4f7",
   textDim: "#8d95a3",
   textFaint: "#5b6270",
-  action: "#ff2e88",
+  action: "#2be84b",
 } as const;
 
 const FUENTE = "Arial, Helvetica, sans-serif";
@@ -44,7 +49,8 @@ export interface PlantillaCorreoInput {
   titulo: string;
   /** Parrafo de introduccion, antes del boton. */
   intro: string;
-  /** UNICA accion del correo: boton magenta solido (mismo lenguaje que el CTA principal de /entrar). */
+  /** UNICA accion del correo: boton SOLIDO de --df-action con texto --df-void encima (mismo lenguaje
+   * que el CTA principal de /entrar; el texto va oscuro porque el relleno es un verde brillante). */
   cta: { texto: string; href: string };
   /** Parrafos adicionales tras el boton (caducidad, avisos de seguridad), en orden. */
   notas: string[];
