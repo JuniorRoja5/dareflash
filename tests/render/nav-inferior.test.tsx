@@ -66,6 +66,17 @@ describe("el [+] de la nav móvil", () => {
     unmount();
     render(<NavegacionInferior rol="ADMIN" />);
     expect(resto()).toEqual(deUsuario);
-    expect(deUsuario).toEqual(["/feed", "/retos", "/ranking", "/perfil"]);
+    // RANKING YA NO ESTÁ EN LA BARRA: su hueco lo ocupa el menú "Más", que lo lleva dentro junto a
+    // Inicio, Boost, Puntos y Referidos (ver `tests/nav-movil-cobertura`). Estos son los enlaces de
+    // la barra con el menú CERRADO, que es como arranca.
+    expect(deUsuario).toEqual(["/feed", "/retos", "/perfil"]);
+  });
+
+  it("y el quinto hueco es el menú «Más», cerrado y con su botón", () => {
+    // Cinco huecos: cuatro destinos (uno de ellos el [+]) y el botón. Si el menú arrancara abierto,
+    // taparía el contenido de la pantalla en cada carga.
+    render(<NavegacionInferior rol="USER" />);
+    const mas = screen.getByRole("button", { name: /Más/ });
+    expect(mas.getAttribute("aria-expanded")).toBe("false");
   });
 });

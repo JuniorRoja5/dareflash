@@ -124,12 +124,35 @@ export const NAV_ESCRITORIO = [
   "puntos",
   "referidos",
 ] as const;
-// PUNTOS, REFERIDOS y DESTACADOS solo en ESCRITORIO: la barra inferior de movil son cinco destinos y
-// ya esta llena. Para puntos y referidos la entrada de movil son los botones del perfil propio; para
-// DESTACADOS es el "ver todos" de la fila de la portada, que es publico y esta justo encima de las
-// tarjetas — o sea donde a alguien le entran las ganas de ver el resto. Esta lista es justo donde se
-// ve esa decision, y por eso hay un test que exige que no se cuele en movil.
-export const NAV_MOVIL = ["feed", "retos", "crear", "ranking", "perfil"] as const;
+/**
+ * LOS DESTINOS QUE VAN EN LA BARRA DE MOVIL. Son CUATRO, no cinco: el quinto hueco lo ocupa el boton
+ * "Mas", que no es un destino sino la puerta al resto (ver `NAV_MOVIL_MAS`).
+ *
+ * RANKING SALIO DE LA BARRA al construirse ese menu. No se perdio: pasa al desplegable como todo lo
+ * que no cabe. Antes la barra eran cinco destinos fijos y los otros cuatro —Inicio, Puntos,
+ * Referidos y Boost— NO TENIAN PUERTA EN MOVIL: habia que llegar por los botones del perfil propio o
+ * por un enlace suelto de la portada. Eso es lo que esta lista deja de significar.
+ *
+ * SIN "inicio": la portada es un concepto de escritorio; en movil el home es el feed.
+ */
+export const NAV_MOVIL = ["feed", "retos", "crear", "perfil"] as const;
+
+/**
+ * EL CONTENIDO DEL MENU "MAS", DERIVADO: lo que esta en la barra de escritorio y NO en la de movil.
+ *
+ * ┌─ NO ES UNA TERCERA LISTA, Y ESO ES EL PUNTO ─────────────────────────────────────────────────┐
+ * │ Escrito a mano, mover un destino de la barra al menu (o al reves) serian DOS ediciones, y     │
+ * │ olvidar una deja un destino DUPLICADO o, peor, INALCANZABLE en movil sin que nada falle: no   │
+ * │ hay pantalla que se rompa por un destino que nadie puede abrir. Derivandolo, mover algo es    │
+ * │ una sola edicion y la cobertura se cumple por construccion.                                  │
+ * │                                                                                               │
+ * │ Hoy da: Inicio, Ranking, Puntos, Referidos y Boost. Un destino nuevo de escritorio aparece    │
+ * │ aqui solo, sin tocar nada.                                                                    │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+export const NAV_MOVIL_MAS = NAV_ESCRITORIO.filter(
+  (clave) => !(NAV_MOVIL as readonly string[]).includes(clave),
+);
 
 /** Resuelve una lista de claves a sus destinos, preservando el orden. */
 export function destinosDe(claves: readonly DestinoClave[]): NavDestino[] {

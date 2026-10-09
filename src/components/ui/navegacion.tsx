@@ -6,6 +6,7 @@ import { ctaPrincipal } from "@/lib/cta-principal";
 import { textoBadge } from "@/lib/notificaciones";
 
 import { destinosDe, NAV_ESCRITORIO, NAV_MOVIL } from "./logic";
+import { MenuMasMovil } from "./menu-mas-movil";
 
 // Iconos geometricos inline (sin dependencias): trazo de 1.5 px, currentColor, misma familia severa
 // del sistema. Uno por destino no central.
@@ -78,8 +79,21 @@ const ICONO: Record<string, ReactNode> = {
 };
 
 /**
- * NAVEGACION INFERIOR (movil) — los cinco destinos de `NAV_MOVIL` en orden (Feed es el home del
- * movil). El [+] central es el CTA PRINCIPAL, por ROL y de la MISMA fuente que el de la barra de
+ * NAVEGACION INFERIOR (movil) — CINCO HUECOS: los cuatro destinos de `NAV_MOVIL` (Feed es el home
+ * del movil) y, en el quinto, el menu "Mas".
+ *
+ * ┌─ POR QUE EL QUINTO HUECO ES UN MENU Y NO UN DESTINO ──────────────────────────────────────────┐
+ * │ Antes la barra eran cinco destinos fijos y los otros cinco de escritorio —Inicio, Ranking,    │
+ * │ Puntos, Referidos y Boost— no tenian puerta en movil: se llegaba por los botones del perfil   │
+ * │ propio, por un enlace suelto de la portada, o no se llegaba. Un destino que nadie puede abrir │
+ * │ no rompe ninguna pantalla, asi que no lo caza nada.                                           │
+ * │                                                                                               │
+ * │ Ranking salio de la barra para dejarle el sitio; no se perdio, esta en el menu con el resto.  │
+ * │ El contenido del menu se DERIVA (escritorio menos barra), asi que mover un destino de un sitio│
+ * │ a otro no puede dejarlo inalcanzable (ver `NAV_MOVIL_MAS` y `MenuMasMovil`).                   │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * El [+] central es el CTA PRINCIPAL, por ROL y de la MISMA fuente que el de la barra de
  * escritorio y el hero (`ctaPrincipal`): "Subir vídeo" a /crear para el no-admin, "Crear reto" al panel
  * para el admin. Antes decia "Crear" e iba a /crear para todos: un tercer sitio con su propio texto.
  * Circulo de relleno --df-action con texto negro (--df-void), el UNICO magenta. Cada objetivo mide
@@ -87,7 +101,8 @@ const ICONO: Record<string, ReactNode> = {
  *
  * AVISOS en movil: no hay campana (no hay barra superior). Los avisos se leen desde /perfil, y por eso
  * el icono de PERFIL lleva el numero de no-leidas, NEUTRO como todo recuento y con el mismo tope
- * ("99+") que la campana de escritorio.
+ * ("99+") que la campana de escritorio. El badge va atado a la CLAVE `perfil`, asi que se movio con
+ * el solo al cambiar el orden de la barra.
  */
 export function NavegacionInferior({
   activo,
@@ -144,6 +159,10 @@ export function NavegacionInferior({
           </Link>
         ),
       )}
+      {/* EL QUINTO HUECO. Va después del bucle y no dentro: no es un destino del catálogo, es la
+          puerta a los que no caben. Recibe el MISMO juego de iconos, así que las filas del
+          desplegable se ven como las de la lateral y no como otra cosa. */}
+      <MenuMasMovil activo={activo} icono={ICONO} />
     </nav>
   );
 }

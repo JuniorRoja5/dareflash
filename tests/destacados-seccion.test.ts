@@ -24,6 +24,7 @@ import {
   NAV_DESTINOS,
   NAV_ESCRITORIO,
   NAV_MOVIL,
+  NAV_MOVIL_MAS,
 } from "../src/components/ui/logic";
 
 const RAIZ = process.cwd();
@@ -63,11 +64,14 @@ describe("en escritorio sí, en móvil NO", () => {
     expect(destinosDe(NAV_ESCRITORIO).map((d) => d.clave)).toContain("destacados");
   });
 
-  it("y NO está en la barra inferior de móvil", () => {
-    // La barra de móvil son CINCO destinos y ya está llena; meter un sexto los aprieta a todos por
-    // debajo del objetivo táctil. La entrada de móvil es el "ver todos" de la portada.
+  it("no está en la barra inferior de móvil, pero SÍ en su menú «Más»", () => {
+    // Antes la frase era "la barra está llena y se llega por el «ver todos» de la portada". Dejó de
+    // ser cierta al construirse el menú: ahora Boost tiene su puerta de móvil como cualquier otro
+    // destino, y el enlace de la portada es un atajo, no la única vía. La barra son CUATRO destinos
+    // más el botón del menú; un quinto destino la apretaría por debajo del objetivo táctil.
     expect([...NAV_MOVIL]).not.toContain("destacados");
-    expect(NAV_MOVIL).toHaveLength(5);
+    expect(NAV_MOVIL).toHaveLength(4);
+    expect([...NAV_MOVIL_MAS], "Boost se quedó sin puerta en móvil").toContain("destacados");
   });
 
   it("la lateral NO la trata aparte: pinta la lista y ya", () => {

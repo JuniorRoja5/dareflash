@@ -167,14 +167,11 @@ describe("navegacion: subsets divergentes movil/escritorio (con dientes)", () =>
     expect(NAV_ESCRITORIO).not.toContain("crear");
   });
 
-  it("movil: Feed·Retos·[+]Crear·Ranking·Perfil, SIN Inicio (portada es de escritorio)", () => {
-    expect(destinosDe(NAV_MOVIL).map((d) => d.clave)).toEqual([
-      "feed",
-      "retos",
-      "crear",
-      "ranking",
-      "perfil",
-    ]);
+  it("movil: Feed·Retos·[+]Crear·Perfil y, en el quinto hueco, el menu Mas", () => {
+    // CUATRO destinos, no cinco: el quinto hueco de la barra lo ocupa el boton "Mas", que no es un
+    // destino sino la puerta a los que no caben (ver `NAV_MOVIL_MAS` y `tests/nav-movil-cobertura`).
+    // Ranking salio de la barra para dejarle sitio, y no se perdio: esta en el menu.
+    expect(destinosDe(NAV_MOVIL).map((d) => d.clave)).toEqual(["feed", "retos", "crear", "perfil"]);
     expect(NAV_MOVIL).not.toContain("inicio");
     // el [+] (central) sigue siendo Crear, presente solo en movil
     expect(destinosDe(NAV_MOVIL).find((d) => "central" in d && d.central)?.clave).toBe("crear");
