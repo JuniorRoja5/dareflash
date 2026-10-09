@@ -193,6 +193,23 @@ describe("cero hex fuera de los tokens", () => {
     ).toEqual([]);
   });
 
+  /**
+   * EL HEX SE ESCRIBE EN MINÚSCULA, Y AHORA ES UNA REGLA, NO UNA COSTUMBRE. Medio sistema de color
+   * se apoya en ello —los guards que atan `/style-guide` a la paleta comparan cadenas, y varios
+   * regex buscan `[0-9a-f]`— pero nada lo obligaba. Se coló por ahí: tres valores en MAYÚSCULA en
+   * la guía de estilo, que ningún guard comparó porque ningún regex los veía. Con esto, un
+   * `#FF2E88` de mañana cae aquí aunque todo lo demás mire para otro lado.
+   */
+  it("todo hex se escribe en minúscula: un regex que busca [0-9a-f] no ve los demás", () => {
+    const conMayuscula: string[] = [];
+    for (const f of ficherosConHex) {
+      for (const m of leer(f).matchAll(/#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\b/g)) {
+        if (m[0] !== m[0].toLowerCase()) conMayuscula.push(`${m[0]} en ${f}`);
+      }
+    }
+    expect([...new Set(conMayuscula)].sort(), "escríbelo en minúscula").toEqual([]);
+  });
+
   it("y los permitidos siguen llevando hex: no se aparcan permisos muertos", () => {
     // Un permiso para un fichero que ya no tiene hex es una puerta abierta esperando a que alguien
     // escriba un color ahí dentro sin que nadie lo vea.

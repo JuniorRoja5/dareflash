@@ -86,23 +86,77 @@ describe("ningún token se queda sin contrapartida", () => {
   });
 });
 
+/**
+ * LA GUÍA DE ESTILO NO MIENTE — y la comprobación es EXHAUSTIVA, por un fallo real.
+ *
+ * Este bloque miraba una sola forma de tabla: `u / hex / hexClaro`, los seis colores semánticos. La
+ * página tenía ADEMÁS una tabla de superficies con otra forma —`u / n / t`— que nadie comprobaba,
+ * y se quedó con los tres valores del tema anterior mientras el swatch de al lado se pintaba del
+ * token nuevo: la página de referencia de la paleta contradiciéndose a sí misma. Salieron a la luz
+ * porque estaban en MAYÚSCULA, pero en minúscula habrían pasado igual — el problema no era el caso,
+ * era que el guard solo sabía mirar la tabla que conocía.
+ *
+ * Así que ahora, además de comprobar cada etiqueta contra su token, NO PUEDE QUEDAR UN SOLO HEX de
+ * la página sin explicar: o es la etiqueta de un token verificado, o está en la lista de literales
+ * con su porqué. Una tercera tabla con una cuarta forma ya no se cuela.
+ */
 describe("la guía de estilo no miente", () => {
-  it("los hex que publica /style-guide son los de globals.css, en los DOS temas", () => {
-    // La guía es la referencia de diseño: si alguien retoca un valor en el CSS y no aquí, la página
-    // enseñaría un color que ya no existe. Se comprueba, no se confía.
-    const guia = readFileSync(
-      path.resolve(__dirname, "..", "src", "app", "style-guide", "page.tsx"),
-      "utf8",
-    );
-    const entradas = [
-      ...guia.matchAll(
-        /u:\s*"([a-z]+)",\s*hex:\s*"(#[0-9a-f]{6})",\s*hexClaro:\s*"(#[0-9a-f]{6})"/g,
-      ),
-    ];
-    expect(entradas.length).toBeGreaterThanOrEqual(6);
-    for (const [, token, oscuro, claro] of entradas) {
+  const GUIA = readFileSync(
+    path.resolve(__dirname, "..", "src", "app", "style-guide", "page.tsx"),
+    "utf8",
+  );
+
+  /** Hex que la guía escribe SIN ser la etiqueta de un token de la paleta, y por qué. */
+  const LITERALES: Record<string, string> = {
+    // El CONTRAEJEMPLO tachado: "VOTAR" en blanco sobre el relleno de acción, con la leyenda de que
+    // el blanco falla AA. Es la regla enseñándose al revés a propósito, no un color del sistema.
+    "#ffffff": "el contraejemplo tachado: blanco sobre el relleno, que es justo lo que no se hace",
+  };
+
+  /** Los seis colores semánticos: etiqueta de los DOS temas. */
+  const SEMANTICOS = [
+    ...GUIA.matchAll(/u:\s*"([a-z]+)",\s*hex:\s*"(#[0-9a-f]{6})",\s*hexClaro:\s*"(#[0-9a-f]{6})"/g),
+  ];
+  /** Las superficies: etiqueta del tema oscuro (la guía se mira en oscuro). */
+  const SUPERFICIES = [...GUIA.matchAll(/u:\s*"([a-z]+)",\s*n:\s*"(#[0-9a-f]{6})"/g)];
+
+  it("se encontraron las dos tablas (si no, lo de abajo no compara nada)", () => {
+    expect(SEMANTICOS.length, "la tabla de colores semánticos").toBeGreaterThanOrEqual(6);
+    expect(SUPERFICIES.length, "la tabla de superficies").toBeGreaterThanOrEqual(3);
+  });
+
+  it("cada color semántico coincide con globals.css, en los DOS temas", () => {
+    for (const [, token, oscuro, claro] of SEMANTICOS) {
       expect(OSCURO.get(`--df-${token}`), `${token} (oscuro)`).toBe(oscuro);
       expect(CLARO.get(`--df-${token}`), `${token} (claro)`).toBe(claro);
+    }
+  });
+
+  it("y cada SUPERFICIE también: la etiqueta dice el valor que pinta el swatch", () => {
+    // El swatch va con `var(--color-x)`, así que se repinta solo; la etiqueta de al lado no. Esa es
+    // justo la pareja que puede discrepar sin que se rompa nada.
+    for (const [, token, oscuro] of SUPERFICIES) {
+      expect(OSCURO.get(`--df-${token}`), `${token} (superficie, oscuro)`).toBe(oscuro);
+    }
+  });
+
+  it("y no queda NINGÚN hex sin explicar en toda la página", () => {
+    const verificados = new Set<string>([
+      ...SEMANTICOS.flatMap((m) => [m[2]!, m[3]!]),
+      ...SUPERFICIES.map((m) => m[2]!),
+    ]);
+    const sueltos = [...GUIA.matchAll(/#[0-9a-fA-F]{6}\b/g)]
+      .map((m) => m[0])
+      .filter((h) => !verificados.has(h) && !(h.toLowerCase() in LITERALES));
+    expect(
+      [...new Set(sueltos)].sort(),
+      "o lo publica como etiqueta de un token, o va a la lista de literales con su porqué",
+    ).toEqual([]);
+  });
+
+  it("y los literales permitidos siguen ahí: no se aparcan permisos muertos", () => {
+    for (const h of Object.keys(LITERALES)) {
+      expect(GUIA.toLowerCase(), `${h} ya no está en la guía: quita su permiso`).toContain(h);
     }
   });
 });

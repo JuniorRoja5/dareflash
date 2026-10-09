@@ -267,9 +267,9 @@ export default function StyleGuide() {
       <Seccion etiqueta="Superficies · profundidad por luminosidad, no por sombra">
         <div className="flex flex-wrap gap-px border border-line rounded-sm bg-line">
           {[
-            { u: "void", n: "#07090D", t: "fondo de página" },
-            { u: "surface", n: "#10141C", t: "tarjetas, hojas" },
-            { u: "raised", n: "#1A2029", t: "elevado, activo" },
+            { u: "void", n: "#070b08", t: "fondo de página" },
+            { u: "surface", n: "#0f1511", t: "tarjetas, hojas" },
+            { u: "raised", n: "#19211b", t: "elevado, activo" },
           ].map((s) => (
             <div
               key={s.u}
