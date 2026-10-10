@@ -176,7 +176,18 @@ describe("una sola tarjeta para los dos sitios", () => {
   it("el nivel se DERIVA de los puntos: no llega como dato", () => {
     const tarjeta = leer(...TARJETA);
     expect(tarjeta).toMatch(/puntos=\{puntos\}/);
-    expect(tarjeta, "el nivel viaja como prop y puede discrepar").not.toMatch(/nivel[:=]/);
+
+    // ┌─ SE MIRA LA FIRMA, NO EL FICHERO ENTERO ──────────────────────────────────────────────────┐
+    // │ Antes prohibía `/nivel[:=]/` en todo el fuente, y eso no dice "no llega como dato": dice  │
+    // │ "no se nombra". Se puso rojo el día que la tarjeta empezó a DERIVAR el nivel para pintar  │
+    // │ el halo de cada persona —un `data-nivel=` calculado aquí mismo—, que es justo lo que este │
+    // │ caso quiere que pase. Lo que importa es que no entre por la PUERTA, así que se mira la    │
+    // │ lista de props; y se exige además el lado positivo, que antes faltaba: que se derive.     │
+    // └───────────────────────────────────────────────────────────────────────────────────────────┘
+    const firma = /export function TarjetaDestacado\(([\s\S]*?)\)\s*\{/.exec(tarjeta)?.[1];
+    expect(firma, "no encuentro la firma de la tarjeta").toBeTruthy();
+    expect(firma!, "el nivel viaja como prop y puede discrepar").not.toMatch(/nivel/i);
+    expect(tarjeta, "el nivel ya no se deriva de los puntos").toMatch(/nivelPorPuntos\(puntos\)/);
   });
 
   it("la POSICIÓN es opcional: la vitrina larga no numera", () => {

@@ -45,7 +45,15 @@ describe("la firma vive en la primitiva: entra en las dos superficies a la vez",
     expect(t).toMatch(/className="df-halo df-respira"/);
     // Y le pasa SU color por token: sin esto el halo cae en un gris neutro.
     expect(t).toContain("--df-halo-color");
-    expect(t).toContain("var(--df-action)");
+    // ┌─ ESTE CASO CLAVABA UN BUG ────────────────────────────────────────────────────────────────┐
+    // │ Exigía `var(--df-action)`: el verde de marca, el mismo para las cuarenta caras. Era la    │
+    // │ implementación de entonces escrita como si fuera la regla, así que el día que el halo     │
+    // │ pasó a decir el NIVEL de cada persona, el guard defendió el fallo en vez del acuerdo.     │
+    // │ Lo que de verdad importa es que el color salga de un TOKEN y no de un hex; cuál token es  │
+    // │ por persona, y eso se mide con el componente montado en `render/destacado-halo-nivel`.    │
+    // └───────────────────────────────────────────────────────────────────────────────────────────┘
+    expect(t, "el halo volvió a un color a mano").not.toMatch(/--df-halo-color[^;}]*#[0-9a-f]/i);
+    expect(t, "el halo dejó de salir del nivel").toContain("conEmblema.tokenColor");
   });
 
   it("y recorta: al respirar escala, y sin recorte la luz se sale de las esquinas", () => {
