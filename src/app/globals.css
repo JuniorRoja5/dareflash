@@ -151,6 +151,8 @@
   --df-glow-accion-fuerza: 18%;
   --df-glow-vitrina-fuerza: 18%;
   --df-glow-money-fuerza: 6%;
+  /* Opacidad base del tejido de rayos de /destacados (ver `.df-rayos`). Sobre negro, poco basta. */
+  --df-rayos-opacidad: 0.15;
 
   /* ------------------------------------------------------------------------------------------
      CODIGO QR — LOS DOS UNICOS TOKENS QUE VALEN LO MISMO EN LOS DOS TEMAS, y es a proposito.
@@ -238,6 +240,9 @@
   --df-glow-accion-fuerza: 18%;
   --df-glow-vitrina-fuerza: 30%;
   --df-glow-money-fuerza: 14%;
+  /* Sobre blanco el trazo verde solo puede RESTAR luminosidad, asi que necesita mas para leerse.
+     Mismo razonamiento que el tinte, y tambien medido a ojo contra la maqueta de referencia. */
+  --df-rayos-opacidad: 0.26;
 
   /* El QR NO cambia con el tema: ver el porque en el bloque oscuro. Se repiten aqui, y no se
      omiten, para que el test de simetria siga exigiendo que todo token exista en los dos sitios. */
@@ -287,6 +292,9 @@
   --df-dur-respira: 6500ms;
   /* RESCOLDO del fondo de /destacados. Mas lento todavia: es ambiente, no tiene que notarse. */
   --df-dur-rescoldo: 14000ms;
+  /* CHISPA del tejido de rayos. Corta a proposito —es una descarga, no una respiracion—, pero los
+     siete trazos van desfasados, asi que lo que se ve es un tejido vivo y no siete parpadeos. */
+  --df-dur-chispa: 3200ms;
 }
 
 /* Utilidades de movimiento del v2. prefers-reduced-motion las apaga (regla global de abajo). */
@@ -414,6 +422,83 @@
   background: var(--df-glow-vitrina), var(--df-glow-money);
   animation: df-rescoldo var(--df-dur-rescoldo) ease-in-out infinite;
   will-change: opacity, transform;
+}
+
+/**
+ * TEJIDO DE RAYOS — el escenario de /destacados. Va ENCIMA del rescoldo (misma capa de fondo) y
+ * tambien solo ahi: es la pantalla que ES la vitrina.
+ *
+ * UNA CAPA, NUNCA UN EFECTO POR TARJETA. Con cuarenta caras en pantalla, un rayo por tarjeta son
+ * cuarenta animaciones que el movil paga en bateria. Esto son siete trazos en un SVG que cubre el
+ * viewport una sola vez, pase el que pase por delante.
+ *
+ * SOLO SE ANIMA LA OPACIDAD. Ni `filter` ni `box-shadow`: repintan en cada fotograma. El brillo que
+ * en la maqueta daba un `drop-shadow` lo pone aqui el rescoldo, que ya esta detras — y a esta
+ * opacidad un halo apenas se distingue, asi que se gana el fotograma y no se pierde el look.
+ *
+ * LA OPACIDAD VA POR TEMA (`--df-rayos-opacidad`), por la misma fisica de siempre: sobre negro un
+ * trazo verde ES luz y con poco basta; sobre blanco solo resta luminosidad y necesita mas. Es un
+ * token de ESTA capa, no uno compartido — la leccion de /ranking.
+ */
+@keyframes df-chispea {
+  0%,
+  44%,
+  100% {
+    opacity: calc(var(--df-rayos-opacidad) * 0.6);
+  }
+  50% {
+    opacity: calc(var(--df-rayos-opacidad) * 1.7);
+  }
+  56% {
+    opacity: calc(var(--df-rayos-opacidad) * 0.8);
+  }
+  70% {
+    opacity: calc(var(--df-rayos-opacidad) * 1.35);
+  }
+  76% {
+    opacity: calc(var(--df-rayos-opacidad) * 0.65);
+  }
+}
+.df-rayos {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  /* El color baja por `currentColor`: los atributos de presentacion de un SVG no admiten `var()`
+     de forma fiable, igual que en el logotipo. */
+  color: var(--df-action);
+}
+.df-rayos svg {
+  width: 100%;
+  height: 100%;
+}
+.df-rayos path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: var(--df-rayos-opacidad);
+  animation: df-chispea var(--df-dur-chispa) ease-in-out infinite;
+}
+/* Desfasados para que no parpadeen a la vez: un tejido, no un interruptor. */
+.df-rayos path:nth-child(2) {
+  animation-delay: -600ms;
+}
+.df-rayos path:nth-child(3) {
+  animation-delay: -1300ms;
+}
+.df-rayos path:nth-child(4) {
+  animation-delay: -2100ms;
+}
+.df-rayos path:nth-child(5) {
+  animation-delay: -900ms;
+}
+.df-rayos path:nth-child(6) {
+  animation-delay: -1700ms;
+}
+.df-rayos path:nth-child(7) {
+  animation-delay: -2600ms;
 }
 
 /**

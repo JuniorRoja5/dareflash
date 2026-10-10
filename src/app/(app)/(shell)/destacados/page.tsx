@@ -5,6 +5,7 @@ import { TarjetaDestacado } from "@/components/ui/tarjeta-destacado";
 import { BOOST_DESTACADOS_TOPE, BOOST_DURACION_MIN } from "@/config/constants";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
 
+import { FondoRayos } from "./fondo-rayos";
 import { FondoRescoldo } from "./fondo-rescoldo";
 
 export const metadata = { title: "Perfiles Boost · DareFlash" };
@@ -49,28 +50,52 @@ export default async function DestacadosPage() {
           (`df-rise`), lo que le crearía bloque contenedor y la dejaría recortada ahí dentro. Misma
           regla que el fondo de vídeo de la portada (ver `FondoRescoldo`). */}
       <FondoRescoldo />
+      {/* EL ESCENARIO. Va DESPUÉS del rescoldo porque los dos son capa de fondo y el tejido se lee
+          encima del tinte, no debajo. Las dos son hermanas del contenedor por la misma razón: son
+          `fixed` y el contenedor anima `transform`. */}
+      <FondoRayos />
       <div className="df-rise mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
-        <header className="flex flex-wrap items-end justify-between gap-4">
+        <header className="flex flex-wrap items-end justify-between gap-6">
           <div className="min-w-0">
+            {/* TITULAR DE ESCENARIO, no de sección: esta pantalla no es una lista más del producto,
+                es el sitio donde se sale a la luz. Por eso ocupa, y por eso la tipografía va al
+                ancho alto. El salto de línea es parte del remate ("Bajo los focos / ahora mismo"),
+                así que se escribe, no se deja al azar del ancho. */}
             <h1
-              className="text-[clamp(1.75rem,5vw,2.75rem)] leading-[1.05] text-text"
+              className="text-[clamp(2.25rem,6.5vw,4.5rem)] leading-[0.95] tracking-tight text-text"
               style={{
                 fontFamily: "var(--font-display)",
-                fontVariationSettings: '"wght" 800, "wdth" 110',
+                fontVariationSettings: '"wght" 900, "wdth" 115',
               }}
             >
-              Perfiles Boost
+              Bajo los focos
+              <br />
+              ahora mismo
             </h1>
-            <p className="mt-3 max-w-prose text-sm text-text-dim">
-              Quien ha destacado su perfil aparece aquí {duracionBoostHumana(BOOST_DURACION_MIN)}.
-              El último en activar sale primero.
+            <p className="mt-4 max-w-[52ch] text-sm leading-relaxed text-text-dim sm:text-base">
+              Quien enciende un Boost sube al escenario durante{" "}
+              {duracionBoostHumana(BOOST_DURACION_MIN)}. No se gana ganando retos: se gana
+              apareciendo. El último en activar entra arriba.
             </p>
           </div>
 
-          {/* EL ÚNICO ACENTO DE LA PANTALLA: la acción es destacarse. Mirar la lista no es una
-            acción, así que las tarjetas no compiten con esto. */}
-          <Boton href="/boosts" variante="principal" className="shadow-[var(--df-cta-lift)]">
-            Destacar mi perfil
+          {/* EL ÚNICO ACENTO DE ACCIÓN DE LA PANTALLA: la acción es destacarse. Mirar la lista no
+              es una acción, así que las tarjetas no compiten con esto — ni el tejido del fondo ni
+              los halos de nivel, que no son acciones sino identidad.
+
+              EL BRILLO ES ESTÁTICO (se abre al pasar por encima) y no late. La maqueta lo latía
+              animando `box-shadow`, y eso repinta la página en cada fotograma; además, con el
+              tejido ya moviéndose detrás, un CTA parpadeando sería el segundo reclamo de una
+              pantalla que solo pide una cosa. */}
+          <Boton
+            href="/boosts"
+            variante="principal"
+            className="shadow-[var(--df-cta-lift)] transition-shadow duration-[var(--df-dur-fast)] ease-mechanical hover:shadow-[var(--df-glow-hover)]"
+          >
+            <span className="flex flex-col items-start gap-0.5 text-left">
+              <span>Destacar mi perfil</span>
+              <span className="text-2xs font-medium opacity-75">Consigue visibilidad ahora</span>
+            </span>
           </Boton>
         </header>
 
