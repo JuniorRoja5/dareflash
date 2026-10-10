@@ -29,7 +29,13 @@ Tres cosas que el repintado dejó decididas y conviene no redescubrir:
   decir por qué.
 
 El tema claro está en el **techo de AA** y por eso no se subió de brillo: medido, un verde más claro
-deja el texto del CTA en 3,31:1. Lo único que se movió ahí es la fuerza del halo.
+deja el texto del CTA en 3,31:1.
+
+**El tinte ambiental pesa MÁS en claro, que es lo contrario de lo que dice la intuición.** Sobre
+negro un color saturado al 18% es luz y con poco basta; sobre blanco solo puede restar luminosidad,
+así que el mismo número se lee casi la mitad (ΔE 20,1 contra 11,9). Las fuerzas van por tema
+(`--df-glow-*-fuerza`, `--df-halo-fuerza`) y el techo no es de gusto: por encima, el texto
+secundario deja de leerse **encima del tinte**.
 
 ## 2. El color se usa por TOKEN, nunca por valor
 
@@ -111,6 +117,11 @@ Quién lo comprueba:
 - [tests/paleta-niveles.test.ts](tests/paleta-niveles.test.ts) — los emblemas, en los dos temas.
 - [tests/marca-hex-duplicados.test.ts](tests/marca-hex-duplicados.test.ts) — los cuatro hex de la
   sección 5, y el censo de que no haya un quinto.
+- [tests/glow-por-tema.test.ts](tests/glow-por-tema.test.ts) — la fuerza del tinte verde, que va por
+  TEMA, y el contraste del texto **sobre el fondo ya tintado**. Es la medida que faltaba: las demás
+  comparan token contra token, pero donde el glow pega el fondo deja de ser `--df-void`.
+- [tests/marca-prosa.test.ts](tests/marca-prosa.test.ts) — ningún comentario nombra un color, y el
+  realce del dinero se llama por su trabajo.
 - [tests/marca-v3-firmada.test.ts](tests/marca-v3-firmada.test.ts) — los valores firmados, clavados
   con cifras escritas, y que no sobreviva ningún magenta ni morado en el repositorio. Los otros
   cuatro miden **cualquier** paleta y sobreviven al próximo repintado; este clava **esta**. Hacen

@@ -143,6 +143,14 @@
      se lee como luz; ver la version clara, que NO puede usar este mismo numero. */
   --df-halo-fuerza: 22%;
 
+  /* CUANTO TINEN LOS GLOW AMBIENTALES (los degradados radiales que dan color al fondo de una
+     seccion). Van por TEMA y no compartidos, porque un tinte no pesa igual sobre negro que sobre
+     blanco: sobre oscuro el color ES luz y con poco basta; sobre blanco solo puede restar
+     luminosidad, asi que necesita mas para leerse igual. Los numeros estan medidos por lo que SE
+     VE —dE entre el pico del degradado y el fondo— y con techo: ver `tests/glow-por-tema`. */
+  --df-glow-accion-fuerza: 18%;
+  --df-glow-money-fuerza: 6%;
+
   /* ------------------------------------------------------------------------------------------
      CODIGO QR — LOS DOS UNICOS TOKENS QUE VALEN LO MISMO EN LOS DOS TEMAS, y es a proposito.
      Un QR no es interfaz: es una marca que tiene que LEER UNA CAMARA. Los lectores esperan modulos
@@ -192,7 +200,11 @@
   --df-raised: #eceff3; /* elevado: menus, estados activos, campos enfocados */
   --df-line: rgb(13 17 23 / 0.12); /* filetes oscuros con opacidad */
   --df-text: #0d1117; /* texto principal */
-  --df-text-dim: #5b6472; /* texto secundario, etiquetas, metadatos */
+  /* SE OSCURECIO AL SUBIR EL TINTE, y no es cosmetica: con el glow al 30%, el fondo deja de ser
+     blanco donde el tinte pega, y el gris de antes (#5b6472) caia a 3,69:1 encima — por debajo de
+     AA. Con este aguanta 4,93:1 sobre el tinte y de paso sube en todas partes (8,00 sobre la
+     tarjeta, frente a 5,98). Sigue siendo SECUNDARIO: dE 20,4 del texto principal. */
+  --df-text-dim: #4a515d; /* texto secundario, etiquetas, metadatos */
 
   /* En claro la portada NO lleva vídeo (decision de Sergio): el velo es el fondo, liso y blanco.
      Sigue derivandose de --df-void, asi que es exactamente el color de pagina. */
@@ -209,6 +221,14 @@
      marca en verde; 18% es el punto que firmo Sergio mirandolo. Por encima vuelve la mancha. */
   --df-halo-fuerza: 18%;
 
+  /* EL TINTE PESA MAS EN CLARO, que es lo contrario de lo que dice la intuicion. Medido por lo que
+     SE VE: el verde al 18% sobre blanco da dE 11,9 contra el fondo, mientras que en oscuro ese
+     mismo 18% da 20,1 — o sea que el mismo numero se lee casi la mitad. Al 30% sube a 18,0, cerca
+     de la paridad. El TECHO no es de gusto: por encima, el texto secundario deja de leerse sobre el
+     tinte (a 35% cae a 4,58:1). El dinero al 14% da dE 8,1, la paridad exacta con su 6% en oscuro. */
+  --df-glow-accion-fuerza: 30%;
+  --df-glow-money-fuerza: 14%;
+
   /* El QR NO cambia con el tema: ver el porque en el bloque oscuro. Se repiten aqui, y no se
      omiten, para que el test de simetria siga exigiendo que todo token exista en los dos sitios. */
   --df-qr-tinta: #0d1117;
@@ -218,14 +238,17 @@
 /* Lo que NO depende del tema, o se DERIVA de el con color-mix (y entonces cambia solo). */
 :root {
   /* DEGRADADOS/GLOW (radial color -> transparente; para fondos de seccion) */
+  /* La FORMA del degradado se comparte; la FUERZA la pone cada tema (ver `--df-glow-*-fuerza`
+     arriba). Es el mismo patron que `.df-halo`, que ya metia un porcentaje por token en el
+     `color-mix` — o sea que esto no estrena nada: extiende lo que ya funcionaba. */
   --df-glow-accion: radial-gradient(
     600px 480px at 82% 26%,
-    color-mix(in srgb, var(--df-action) 18%, transparent),
+    color-mix(in srgb, var(--df-action) var(--df-glow-accion-fuerza), transparent),
     transparent 60%
   );
   --df-glow-money: radial-gradient(
     900px 520px at 4% 106%,
-    color-mix(in srgb, var(--df-money) 6%, transparent),
+    color-mix(in srgb, var(--df-money) var(--df-glow-money-fuerza), transparent),
     transparent 60%
   );
   /* REALCE EN HOVER (glow del acento + filo) */
