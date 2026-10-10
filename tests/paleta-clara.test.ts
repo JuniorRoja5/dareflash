@@ -61,6 +61,12 @@ describe("ningún token se queda sin contrapartida", () => {
     // siguieran al tema, en oscuro habría teléfonos que no cogerían el código — roto sin verse roto.
     "--df-qr-tinta": "el QR no sigue al tema: lo lee una cámara, no una persona",
     "--df-qr-fondo": "ídem: la placa del QR es clara en los dos temas",
+    // POR TEMA DONDE TIENE QUE LEERSE; IGUAL DONDE NO. El tinte de la VITRINA sí cambia con el tema
+    // (sobre blanco el verde se lava y necesita más), y por eso no está en esta lista. La ATMÓSFERA
+    // es lo contrario: un velo para que el fondo no sea plano, que NO tiene que leerse en ninguno de
+    // los dos. Ahí el mismo número es la decisión, no el olvido — y subirlo "para que se vea" es
+    // justo el fallo que llevó el verde de la vitrina a /ranking y a las pantallas de acceso.
+    "--df-glow-accion-fuerza": "la atmósfera no tiene que leerse en ningún tema; la vitrina sí",
   };
 
   it("y ninguno repite el valor del oscuro (sería un olvido, no una decisión)", () => {

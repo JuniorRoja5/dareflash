@@ -17,14 +17,25 @@
  * Por eso aquí se mide el PICO del degradado, que es el caso peor: es el único límite seguro,
  * porque nada garantiza que no haya una etiqueta justo debajo del centro del radial.
  *
+ * Y HAY DOS TINTES DE ACENTO, NO UNO, por un segundo fallo que también llegó a producción: mientras
+ * compartían token, subir la fuerza para que el verde se leyera en la vitrina de /destacados se la
+ * subió igual a /ranking, a /inicio y a las seis pantallas de acceso — nueve superficies con una
+ * fuerza decidida para una. La regla que queda: POR TEMA DONDE TIENE QUE LEERSE, SUAVE DONDE NO.
+ * La atmósfera lleva TECHO y la vitrina SUELO, que es lo que impide que vuelvan a confundirse.
+ *
  * Para romperlo a propósito: subir un `--df-glow-*-fuerza` hasta que el texto secundario no se lea
- * (rojo), igualar los dos temas con el mismo número (rojo), o aclarar `--df-text-dim` del claro
- * (rojo: vuelve la fuga).
+ * (rojo), subir la ATMÓSFERA hasta que se vea (rojo: para eso está la vitrina), enchufar otra
+ * pantalla al glow de la vitrina (rojo), o aclarar `--df-text-dim` del claro (rojo: vuelve la fuga).
  */
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { contraste, deltaE } from "./helpers/color";
 import { CLARO, CSS, hex, OSCURO } from "./helpers/paleta";
+
+const RAIZ = path.resolve(__dirname, "..");
 
 /** `color-mix(in srgb, X p%, transparent)` sobre un fondo opaco: mezcla lineal en sRGB. */
 function componer(color: string, pct: number, fondo: string): string {
@@ -52,49 +63,128 @@ const TEMAS = [
 ] as const;
 
 describe("la fuerza del tinte se decide POR TEMA", () => {
-  it("los dos temas definen su propia fuerza, para el acento y para el dinero", () => {
+  it("los tres tintes tienen su fuerza en los dos temas", () => {
     for (const { nombre, t } of TEMAS) {
-      expect(pct(t, "--df-glow-accion-fuerza"), `acento en ${nombre}`).toBeGreaterThan(0);
-      expect(pct(t, "--df-glow-money-fuerza"), `dinero en ${nombre}`).toBeGreaterThan(0);
+      for (const token of [
+        "--df-glow-accion-fuerza",
+        "--df-glow-vitrina-fuerza",
+        "--df-glow-money-fuerza",
+      ]) {
+        expect(pct(t, token), `${token} en ${nombre}`).toBeGreaterThan(0);
+      }
     }
   });
 
-  it("y NO valen lo mismo: un número compartido es el fallo que esto corrige", () => {
-    for (const token of ["--df-glow-accion-fuerza", "--df-glow-money-fuerza"]) {
+  it("y los de la VITRINA no valen lo mismo en los dos temas: es lo que la hace visible", () => {
+    for (const token of ["--df-glow-vitrina-fuerza", "--df-glow-money-fuerza"]) {
       expect(CLARO.get(token), `${token} repite el valor del oscuro`).not.toBe(OSCURO.get(token));
+      expect(pct(CLARO, token), `${token} tiene que pesar MÁS en claro`).toBeGreaterThan(
+        pct(OSCURO, token),
+      );
     }
   });
 
-  it("el degradado LEE la fuerza del tema en vez de llevar el número escrito", () => {
+  it("cada degradado LEE su fuerza en vez de llevar el número escrito", () => {
     // Si alguien devuelve un literal al `color-mix`, los tokens de arriba se quedan de adorno y el
     // tema claro vuelve a tintar como el oscuro sin que nada falle.
     expect(CSS).toMatch(
       /--df-glow-accion:[\s\S]*?color-mix\(in srgb, var\(--df-action\) var\(--df-glow-accion-fuerza\)/,
     );
     expect(CSS).toMatch(
+      /--df-glow-vitrina:[\s\S]*?color-mix\(in srgb, var\(--df-action\) var\(--df-glow-vitrina-fuerza\)/,
+    );
+    expect(CSS).toMatch(
       /--df-glow-money:[\s\S]*?color-mix\(in srgb, var\(--df-money\) var\(--df-glow-money-fuerza\)/,
-    );
-  });
-
-  it("en CLARO el tinte pesa más que en oscuro: es lo que lo hace visible sobre blanco", () => {
-    expect(pct(CLARO, "--df-glow-accion-fuerza")).toBeGreaterThan(
-      pct(OSCURO, "--df-glow-accion-fuerza"),
-    );
-    expect(pct(CLARO, "--df-glow-money-fuerza")).toBeGreaterThan(
-      pct(OSCURO, "--df-glow-money-fuerza"),
     );
   });
 });
 
-describe("el tinte SE VE en los dos temas (ΔE contra su fondo)", () => {
+/**
+ * LA FUERZA DE LA VITRINA ES DE LA VITRINA, Y ESTO NACIÓ DE UN FALLO EN PRODUCCIÓN. Mientras hubo
+ * un solo token, subirlo al 30% para que el verde se leyera sobre blanco en /destacados se lo subió
+ * también a /ranking, a /inicio y a las seis pantallas de acceso: NUEVE superficies heredaron una
+ * fuerza decidida para una. En /ranking, donde la atmósfera tenía que ser "muy tenue", salió un
+ * verde de esquina feo y visible.
+ *
+ * La regla que queda: POR TEMA DONDE TIENE QUE LEERSE, SUAVE DONDE NO. Y dos candados, porque con
+ * uno solo esto se repite — uno impide que la atmósfera vuelva a subir, y el otro impide que otra
+ * pantalla se enchufe al glow de la vitrina.
+ */
+describe("el glow fuerte es de la vitrina y de nadie más", () => {
+  /**
+   * EL TECHO DE LA ATMÓSFERA, EN PORCENTAJE Y NO EN ΔE — y la primera versión de este caso lo tenía
+   * mal. Puse un techo de ΔE pensando "la atmósfera casi no se ve", y se puso rojo en OSCURO: ahí
+   * el 18% de siempre da ΔE 20,1, porque sobre negro el verde ES luz. Y ese 18% lleva años puesto
+   * sin que nadie se queje. O sea que el invariante no era "se ve poco": es "LA ATMÓSFERA NO SUBE".
+   * Si una pantalla necesita más verde, pide su propia fuerza como hizo la vitrina; no empuja la
+   * que comparten nueve superficies.
+   */
+  const TECHO_ATMOSFERA = 18;
+
+  for (const { nombre, t } of TEMAS) {
+    it(`${nombre}: la atmósfera no sube del ${TECHO_ATMOSFERA}%`, () => {
+      expect(
+        pct(t, "--df-glow-accion-fuerza"),
+        "no subas la atmósfera: la comparten /ranking, /inicio y las seis pantallas de acceso",
+      ).toBeLessThanOrEqual(TECHO_ATMOSFERA);
+    });
+  }
+
+  it("y la vitrina pesa más que la atmósfera: si no, no haría falta tener dos", () => {
+    for (const { nombre, t } of TEMAS) {
+      expect(
+        pct(t, "--df-glow-vitrina-fuerza"),
+        `en ${nombre} la vitrina no pesa más que la atmósfera`,
+      ).toBeGreaterThanOrEqual(pct(t, "--df-glow-accion-fuerza"));
+    }
+    // Y en CLARO, que es donde el verde se lava, tiene que pesar estrictamente más.
+    expect(pct(CLARO, "--df-glow-vitrina-fuerza")).toBeGreaterThan(
+      pct(CLARO, "--df-glow-accion-fuerza"),
+    );
+  });
+
+  it("SOLO el rescoldo de /destacados monta el glow de la vitrina", () => {
+    // El candado que faltaba. Sin esto, la próxima pantalla que quiera "más verde" se engancha al
+    // token fuerte en vez de pedir el suyo, y volvemos al mismo sitio por otro camino.
+    const culpables: string[] = [];
+    const andar = (dir: string): void => {
+      for (const e of readdirSync(path.resolve(RAIZ, dir), { withFileTypes: true })) {
+        const rel = `${dir}/${e.name}`;
+        if (rel.includes("/generated")) continue;
+        if (e.isDirectory()) andar(rel);
+        else if (
+          /\.(tsx?|css)$/.test(rel) &&
+          readFileSync(path.resolve(RAIZ, rel), "utf8").includes("--df-glow-vitrina")
+        ) {
+          culpables.push(rel);
+        }
+      }
+    };
+    andar("src");
+    expect(culpables.sort(), "pide tu propia fuerza; no te enchufes a la de la vitrina").toEqual([
+      "src/app/(app)/(shell)/destacados/fondo-rescoldo.tsx",
+      "src/app/globals.css",
+    ]);
+  });
+
+  it("y el rescoldo usa la de la vitrina, no la atmósfera", () => {
+    const regla = /\.df-rescoldo\s*\{[\s\S]*?\n\}/.exec(CSS)?.[0] ?? "";
+    expect(regla, "no está `.df-rescoldo`").toBeTruthy();
+    expect(regla).toContain("var(--df-glow-vitrina)");
+    expect(regla, "el rescoldo volvió a la atmósfera").not.toContain("var(--df-glow-accion)");
+  });
+});
+
+describe("el tinte de la VITRINA se ve en los dos temas (ΔE contra su fondo)", () => {
   for (const { nombre, t } of TEMAS) {
     it(`${nombre}: el acento tiñe de verdad`, () => {
       const pico = componer(
         hex(t, "--df-action"),
-        pct(t, "--df-glow-accion-fuerza"),
+        pct(t, "--df-glow-vitrina-fuerza"),
         hex(t, "--df-void"),
       );
-      // 15 es el suelo de "esto se nota": por debajo es un tinte que nadie ve y sobra.
+      // 15 es el suelo de "esto se nota": por debajo es un tinte que nadie ve y sobra. Esto se le
+      // exige a la VITRINA; a la ATMÓSFERA se le exige justo lo contrario —un techo—, más abajo.
       expect(Number(deltaE(pico, hex(t, "--df-void")).toFixed(1))).toBeGreaterThanOrEqual(15);
     });
 
@@ -112,11 +202,14 @@ describe("el tinte SE VE en los dos temas (ΔE contra su fondo)", () => {
 
 describe("y el texto SIGUE LEYÉNDOSE encima del tinte (la medida que faltaba)", () => {
   for (const { nombre, t } of TEMAS) {
+    // LOS TRES, y el de la vitrina es el que manda: es el más fuerte, así que es el que decide
+    // cuánto se puede subir antes de que el texto deje de leerse encima.
     for (const [glow, color] of [
       ["--df-glow-accion-fuerza", "--df-action"],
+      ["--df-glow-vitrina-fuerza", "--df-action"],
       ["--df-glow-money-fuerza", "--df-money"],
     ] as const) {
-      it(`${nombre}: sobre el pico de ${color} se leen el texto y el secundario`, () => {
+      it(`${nombre}: sobre el pico de ${glow} se leen el texto y el secundario`, () => {
         const pico = componer(hex(t, color), pct(t, glow), hex(t, "--df-void"));
         const principal = contraste(hex(t, "--df-text"), pico);
         const secundario = contraste(hex(t, "--df-text-dim"), pico);

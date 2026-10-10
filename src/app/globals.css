@@ -149,6 +149,7 @@
      luminosidad, asi que necesita mas para leerse igual. Los numeros estan medidos por lo que SE
      VE —dE entre el pico del degradado y el fondo— y con techo: ver `tests/glow-por-tema`. */
   --df-glow-accion-fuerza: 18%;
+  --df-glow-vitrina-fuerza: 18%;
   --df-glow-money-fuerza: 6%;
 
   /* ------------------------------------------------------------------------------------------
@@ -221,12 +222,21 @@
      marca en verde; 18% es el punto que firmo Sergio mirandolo. Por encima vuelve la mancha. */
   --df-halo-fuerza: 18%;
 
-  /* EL TINTE PESA MAS EN CLARO, que es lo contrario de lo que dice la intuicion. Medido por lo que
-     SE VE: el verde al 18% sobre blanco da dE 11,9 contra el fondo, mientras que en oscuro ese
-     mismo 18% da 20,1 — o sea que el mismo numero se lee casi la mitad. Al 30% sube a 18,0, cerca
-     de la paridad. El TECHO no es de gusto: por encima, el texto secundario deja de leerse sobre el
-     tinte (a 35% cae a 4,58:1). El dinero al 14% da dE 8,1, la paridad exacta con su 6% en oscuro. */
-  --df-glow-accion-fuerza: 30%;
+  /* POR TEMA DONDE TIENE QUE LEERSE; IGUAL DONDE NO. Esa es la regla, y nacio de un fallo: la
+     VITRINA se subio al 30% para que el verde se viera sobre blanco, pero como el token era uno
+     solo, el mismo 30% se colo en la atmosfera de /ranking y de las pantallas de acceso, donde lo
+     que se pide es justo lo contrario — que casi no se note. Un token empujado para una superficie
+     se nota en TODAS.
+       - ATMOSFERA (`--df-glow-accion`): un velo para que el fondo no sea plano. No tiene que leerse,
+         asi que vale el mismo numero en los dos temas (ver la excepcion documentada en
+         `paleta-clara`). Es el valor de siempre.
+       - VITRINA (`--df-glow-vitrina`, solo /destacados): aqui el verde SI tiene que estar presente.
+         Medido: al 18% sobre blanco da dE 11,9 contra el fondo y en oscuro ese mismo 18% da 20,1
+         —el mismo numero se lee casi la mitad—; al 30% sube a 18,0, cerca de la paridad. El TECHO
+         no es de gusto: a 35% el texto secundario cae a 4,58:1 sobre el tinte.
+     El dinero al 14% da dE 8,1, la paridad exacta con su 6% en oscuro, y solo lo usa la vitrina. */
+  --df-glow-accion-fuerza: 18%;
+  --df-glow-vitrina-fuerza: 30%;
   --df-glow-money-fuerza: 14%;
 
   /* El QR NO cambia con el tema: ver el porque en el bloque oscuro. Se repiten aqui, y no se
@@ -246,6 +256,15 @@
     color-mix(in srgb, var(--df-action) var(--df-glow-accion-fuerza), transparent),
     transparent 60%
   );
+  /* EL DE LA VITRINA: misma forma que la atmosfera, otra fuerza. Existe porque compartir uno solo
+     significa que subirlo para /destacados se lo sube tambien a /ranking y a /entrar. Lo usa
+     EXCLUSIVAMENTE `.df-rescoldo`; lo vigila `tests/glow-por-tema`. */
+  --df-glow-vitrina: radial-gradient(
+    600px 480px at 82% 26%,
+    color-mix(in srgb, var(--df-action) var(--df-glow-vitrina-fuerza), transparent),
+    transparent 60%
+  );
+  /* Tambien es de la vitrina: `--df-glow-money` solo lo monta `.df-rescoldo`. */
   --df-glow-money: radial-gradient(
     900px 520px at 4% 106%,
     color-mix(in srgb, var(--df-money) var(--df-glow-money-fuerza), transparent),
@@ -355,9 +374,14 @@
 /**
  * RESCOLDO — el fondo ambiental de /destacados, y SOLO de ahi.
  *
- * Dos luces de marca muy tenues que se mueven despacio. No lleva colores propios: reusa
- * `--df-glow-accion` y `--df-glow-money`, que se DERIVAN de los tokens con `color-mix`, asi que
- * cambian con la paleta y con el tema sin tocar nada aqui. Cero neon: lo que hay es un tinte.
+ * Dos luces de marca que se mueven despacio. No lleva colores propios: reusa `--df-glow-vitrina` y
+ * `--df-glow-money`, que se DERIVAN de los tokens con `color-mix`, asi que cambian con la paleta y
+ * con el tema sin tocar nada aqui. Cero neon: lo que hay es un tinte.
+ *
+ * USA EL GLOW DE LA VITRINA, NO EL DE LA ATMOSFERA, y esa distincion costo un fallo en produccion:
+ * mientras los dos eran el mismo token, subirlo para que el verde se viera sobre blanco AQUI se lo
+ * subio tambien a /ranking y a las pantallas de acceso, donde lo que se pide es que casi no se vea.
+ * Aqui la pantalla ES la vitrina; alli el glow es solo un velo para que el fondo no sea plano.
  *
  * NO VA DETRAS DE LA FILA DE LA PORTADA. Alli la fila es una seccion entre otras y un fondo animado
  * competiria con el hero y con el video de fondo; aqui la pantalla ES la vitrina.
@@ -387,7 +411,7 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: var(--df-glow-accion), var(--df-glow-money);
+  background: var(--df-glow-vitrina), var(--df-glow-money);
   animation: df-rescoldo var(--df-dur-rescoldo) ease-in-out infinite;
   will-change: opacity, transform;
 }

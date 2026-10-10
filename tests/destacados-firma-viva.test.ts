@@ -132,7 +132,9 @@ describe("el fondo ambiental es de la vitrina, no de la portada", () => {
     const hoja = css();
     const regla = /\.df-rescoldo\s*\{[\s\S]*?\}/.exec(hoja)?.[0] ?? "";
     expect(regla.length, "no encuentro la regla del rescoldo").toBeGreaterThan(50);
-    expect(regla).toContain("var(--df-glow-accion)");
+    // El de la VITRINA, no el de la atmósfera: son dos tokens distintos desde que compartirlos
+    // llevó el verde fuerte de aquí a /ranking y a las pantallas de acceso. Ver `glow-por-tema`.
+    expect(regla).toContain("var(--df-glow-vitrina)");
     expect(regla).toContain("var(--df-glow-money)");
     expect(regla, "el rescoldo escribe un color a mano").not.toMatch(/#[0-9a-f]{3,8}\b|\brgba?\(/i);
   });
@@ -241,8 +243,8 @@ describe("el detector mira el CÓDIGO, no el comentario", () => {
     expect(css().length).toBeLessThan(crudo(...CSS).length);
     // Controles reales: el fondo NOMBRA en prosa los tokens que no escribe, y el CSS menciona
     // `box-shadow` y `filter` justo para decir que no los anima.
-    expect(crudo(...FONDO)).toContain("--df-glow-accion");
-    expect(leer(...FONDO)).not.toContain("--df-glow-accion");
+    expect(crudo(...FONDO)).toContain("--df-glow-vitrina");
+    expect(leer(...FONDO)).not.toContain("--df-glow-vitrina");
     expect(crudo(...CSS)).toMatch(/box-shadow` o `filter/);
   });
 });

@@ -31,11 +31,23 @@ Tres cosas que el repintado dejó decididas y conviene no redescubrir:
 El tema claro está en el **techo de AA** y por eso no se subió de brillo: medido, un verde más claro
 deja el texto del CTA en 3,31:1.
 
-**El tinte ambiental pesa MÁS en claro, que es lo contrario de lo que dice la intuición.** Sobre
-negro un color saturado al 18% es luz y con poco basta; sobre blanco solo puede restar luminosidad,
-así que el mismo número se lee casi la mitad (ΔE 20,1 contra 11,9). Las fuerzas van por tema
+**El tinte verde pesa MÁS en claro, que es lo contrario de lo que dice la intuición.** Sobre negro
+un color saturado al 18% es luz y con poco basta; sobre blanco solo puede restar luminosidad, así
+que el mismo número se lee casi la mitad (ΔE 20,1 contra 11,9). Las fuerzas van por tema
 (`--df-glow-*-fuerza`, `--df-halo-fuerza`) y el techo no es de gusto: por encima, el texto
 secundario deja de leerse **encima del tinte**.
+
+**Y hay DOS tintes de acento, no uno.** La regla es _por tema donde tiene que leerse, suave donde
+no_:
+
+- `--df-glow-vitrina` — **solo** el rescoldo de `/destacados`, donde la pantalla **es** el
+  escaparate y el verde tiene que estar presente. Es el que sube en claro.
+- `--df-glow-accion` — la atmósfera del resto (`/ranking`, `/inicio`, las seis pantallas de
+  acceso): un velo para que el fondo no sea plano. **No sube.**
+
+Son dos porque fueron uno: subirlo para que el escaparate se leyera sobre blanco se lo subió a las
+nueve superficies, y en `/ranking` apareció un verde de esquina que nadie había pedido. Si una
+pantalla necesita más verde, **pide su propia fuerza**; no empuja la que comparten las demás.
 
 ## 2. El color se usa por TOKEN, nunca por valor
 

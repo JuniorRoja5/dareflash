@@ -8,10 +8,15 @@
  * │ cuela en la portada.                                                                          │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
- * NO LLEVA NI UN COLOR PROPIO: toda la pintura está en `.df-rescoldo`, que reusa `--df-glow-accion`
+ * NO LLEVA NI UN COLOR PROPIO: toda la pintura está en `.df-rescoldo`, que reusa `--df-glow-vitrina`
  * y `--df-glow-money`. Esos dos se DERIVAN de los tokens con `color-mix`, así que el rescoldo cambia
  * con la paleta y con el tema sin tocar nada aquí, y es imposible que se convierta en neón: lo que
  * hay es un tinte del acento y del dinero.
+ *
+ * LA FUERZA DE LA VITRINA ES SUYA Y DE NADIE MÁS, y eso se aprendió rompiéndolo: cuando el tinte de
+ * aquí compartía token con la atmósfera del resto, subirlo para que el verde se leyera sobre blanco
+ * lo subió también en /ranking y en las pantallas de acceso, donde lo que se pide es que casi no se
+ * vea. Un token empujado para una superficie se nota en todas. Por eso hay dos.
  *
  * ┌─ ES HERMANO DEL CONTENEDOR DE PÁGINA, NUNCA HIJO ─────────────────────────────────────────────┐
  * │ La capa es `position: fixed`, y un ancestro que anime `transform` —el contenedor lleva         │
