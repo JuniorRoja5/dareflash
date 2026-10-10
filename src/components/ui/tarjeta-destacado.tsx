@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import { nombreMostrado } from "@/lib/identidad";
+import { nivelPorPuntos } from "@/lib/niveles";
 
 import { Avatar } from "./avatar";
 import { InsigniaNivel } from "./insignia-nivel";
@@ -25,8 +26,9 @@ import { MarcaBoost } from "./marca-boost";
  * pasa desde fuera porque solo quien pinta la lista sabe en qué orden la está pintando, y es
  * OPCIONAL: en la vitrina larga numerar hasta el cuarenta no dice nada.
  *
- * EL NIVEL SE DERIVA de los puntos con `InsigniaNivel`, como en todo el producto. Si viniera como
- * dato, dos pantallas podrían decir niveles distintos del mismo saldo.
+ * EL NIVEL SE DERIVA de los puntos, como en todo el producto. Si viniera como dato, dos pantallas
+ * podrían decir niveles distintos del mismo saldo. Y lo dice TRES veces con el mismo cálculo: el
+ * aro del avatar, el halo de la tarjeta y la insignia de abajo.
  */
 export function TarjetaDestacado({
   username,
@@ -45,11 +47,32 @@ export function TarjetaDestacado({
   tamano?: "fila" | "vitrina";
 }) {
   const vitrina = tamano === "vitrina";
+  /**
+   * EL HALO ES EL NIVEL DE LA PERSONA, NO EL VERDE DE LA MARCA. Antes forzaba `--df-action` para
+   * todo el mundo, así que cuarenta caras salían con la misma luz y el halo no decía nada: era
+   * decoración repetida cuarenta veces. El nivel se deriva aquí igual que en `Avatar` y que en
+   * `InsigniaNivel` —de los puntos, con `nivelPorPuntos`—, así que las tres cosas de la tarjeta
+   * (aro, halo e insignia) no pueden discrepar: salen del mismo cálculo.
+   *
+   * ROOKIE NO LLEVA HALO, y es la misma decisión que el aro del avatar: Rookie es el ESTÁNDAR, no
+   * una insignia. Si se le diera un halo gris, la luz pasaría a significar "esta tarjeta existe"
+   * en vez de "esta persona ha subido de nivel".
+   *
+   * El verde de marca sigue estando en la tarjeta —la `MarcaBoost` de la esquina, que es la marca
+   * de quien pagó—, pero esa es otra cosa: dice CÓMO llegó aquí, no QUIÉN es.
+   */
+  const nivel = nivelPorPuntos(puntos);
+  const conEmblema = nivel.emblema && nivel.tokenColor ? nivel : null;
   return (
     <Link
       href={`/u/${username}`}
       data-destacado={username}
-      style={{ "--df-halo-color": "var(--df-action)" } as CSSProperties}
+      data-nivel={conEmblema?.clave}
+      style={
+        conEmblema
+          ? ({ "--df-halo-color": `var(${conEmblema.tokenColor})` } as CSSProperties)
+          : undefined
+      }
       /* `overflow-hidden` es obligatorio con el halo: al respirar escala un 6% y sin recorte se
          saldría por las esquinas redondeadas (un rectángulo de luz por fuera del filete, y solo en
          algunos navegadores). Es la misma razón por la que lo llevan los heroes. */
@@ -61,8 +84,9 @@ export function TarjetaDestacado({
           animando opacidad y transform — nunca `box-shadow` ni `filter`, que repintan en cada
           fotograma y aquí hay hasta cien tarjetas. La regla global de `prefers-reduced-motion` lo
           apaga y la tarjeta se queda con su halo quieto, que sigue marcando igual.
-          Va en la PRIMITIVA, así que entra en la vitrina y en la fila de la portada a la vez. */}
-      <span className="df-halo df-respira" aria-hidden />
+          Va en la PRIMITIVA, así que entra en la vitrina y en la fila de la portada a la vez.
+          Solo si la persona TIENE nivel: ver el porqué arriba. */}
+      {conEmblema ? <span className="df-halo df-respira" aria-hidden /> : null}
 
       {posicion !== undefined ? (
         <span
