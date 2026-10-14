@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { PieLegal } from "@/components/ui/pie-legal";
+
 export const metadata = { title: "Política de Privacidad · DareFlash" };
 
 /**
@@ -300,6 +302,10 @@ export default function PrivacidadPage() {
           <Pendiente>correo de contacto</Pendiente>.
         </p>
       </Apartado>
+
+      {/* EL MISMO PIE QUE EL RESTO, también aquí: una página legal sin camino de vuelta deja a quien
+          la abre en un callejón. Sin barra inferior —esta ruta está fuera del grupo `(app)`—. */}
+      <PieLegal />
     </main>
   );
 }

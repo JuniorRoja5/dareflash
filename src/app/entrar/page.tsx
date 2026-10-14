@@ -1,3 +1,5 @@
+import { PieLegal } from "@/components/ui/pie-legal";
+
 import { TarjetaAcceso } from "./tarjeta-acceso";
 
 export const metadata = { title: "Iniciar sesión · DareFlash" };
@@ -14,14 +16,20 @@ export const metadata = { title: "Iniciar sesión · DareFlash" };
  */
 export default function EntrarPage() {
   return (
-    <main className="relative grid min-h-svh place-items-center overflow-hidden bg-void px-4 py-10">
+    <div className="relative flex min-h-svh flex-col overflow-hidden bg-void">
       {/* Glow ambiental de marca (muy tenue) detrás de la tarjeta. */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"
         style={{ background: "var(--df-glow-accion)" }}
       />
-      <TarjetaAcceso />
-    </main>
+      <main className="relative grid flex-1 place-items-center px-4 py-10">
+        <TarjetaAcceso />
+      </main>
+      {/* EL PIE AQUÍ NO ES DECORACIÓN: esta es la pantalla donde se pide el consentimiento, así que
+          es donde más falta hace poder abrir la política. Sin barra inferior: /entrar está fuera del
+          grupo `(app)`. */}
+      <PieLegal />
+    </div>
   );
 }
