@@ -33,15 +33,20 @@ describe("SECCIONES_PANEL", () => {
     expect(seccionPorHref("/panel/moderacion")?.fase).toBeNull();
     // Y Boost cuando se construyó su panel (Fase 6, última pieza): ver vigentes, retirar y ajustar.
     expect(seccionPorHref("/panel/boost")?.fase).toBeNull();
-    // Las que siguen siendo placeholder llevan una fase futura (número).
-    expect(seccionPorHref("/panel/monedero")?.fase).toBe(7);
+    // Y el Monedero con la cola de retiradas (Fase 7): aceptar, rechazar —que devuelve el dinero—,
+    // marcar el envío y finalizar.
+    expect(seccionPorHref("/panel/monedero")?.fase).toBeNull();
   });
 
-  it("la única sección que sigue siendo placeholder es el Monedero (Fase 7)", () => {
+  it("ya no queda ninguna sección placeholder", () => {
     // Lo que esto fija no es la lista, es el GESTO: construir una sección y olvidarse de bajar su
     // `fase` a null deja el placeholder puesto encima de una pantalla que ya funciona. Pasó a estar
     // a un descuido de distancia en cuanto hubo más de una sección viva.
+    //
+    // La lista está VACÍA, y sigue sirviendo igual en los dos sentidos: bajar una sección a null sin
+    // construirla rompe sus propios tests, y añadir una sección NUEVA con fase futura cae aquí — que
+    // es lo correcto, porque meter un placeholder en el panel es una decisión, no un trámite.
     const placeholders = SECCIONES_PANEL.filter((s) => s.fase !== null).map((s) => s.href);
-    expect(placeholders).toEqual(["/panel/monedero"]);
+    expect(placeholders).toEqual([]);
   });
 });

@@ -61,7 +61,7 @@ export const SECCIONES_PANEL: SeccionPanel[] = [
     href: "/panel/monedero",
     label: "Monedero y retiradas",
     descripcion: "Revisar y aprobar las retiradas de dinero y auditar el ledger del monedero.",
-    fase: 7,
+    fase: null,
     rol: "ADMIN",
   },
   {

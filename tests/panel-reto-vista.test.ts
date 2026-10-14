@@ -86,9 +86,18 @@ describe("cero cifras inventadas", () => {
       huecosTotales += huecos.length;
       for (const h of huecos) expect(h, p).toMatch(/fase=\{\d+\}/);
     }
-    // Y el panel sigue teniendo secciones declaradas como futuras (monedero, boost): la honestidad
-    // sobre lo que aún no existe no ha desaparecido, solo se ha movido a donde toca.
-    expect(SECCIONES_PANEL.filter((s) => s.fase !== null).length).toBeGreaterThan(0);
+    // ┌─ AQUÍ HABÍA UN REFUERZO QUE EL ÉXITO VOLVIÓ FALSO ────────────────────────────────────────┐
+    // │ Decía: "y el panel sigue teniendo secciones declaradas como futuras", y se cumplía porque │
+    // │ quedaban placeholders. Al construirse el Monedero (Fase 7) no quedó ninguno, y el caso se │
+    // │ puso rojo sin que nada estuviera mal — se puso rojo por haber TERMINADO.                  │
+    // │                                                                                           │
+    // │ Lo que este caso fija de verdad sigue intacto arriba: todo hueco DICE de qué fase es. El  │
+    // │ mecanismo de honestidad (el campo `fase` y su `Placeholder`) no se ha ido a ninguna parte │
+    // │ y lo vigila `panel-secciones`, que exige que la lista de placeholders esté vacía y que    │
+    // │ añadir uno nuevo sea una decisión. Afirmar aquí que TIENE que haber alguno era pedirle al │
+    // │ producto que no se acabe nunca.                                                           │
+    // └───────────────────────────────────────────────────────────────────────────────────────────┘
+    expect(SECCIONES_PANEL.length, "el catálogo de secciones se vació").toBeGreaterThan(0);
     expect(huecosTotales).toBeGreaterThanOrEqual(0);
   });
 
