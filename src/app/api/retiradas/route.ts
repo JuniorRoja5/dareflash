@@ -30,6 +30,42 @@ const CuerpoSchema = z.object({
   metodoPagoId: z.string().min(1).max(191),
 });
 
+const QuerySchema = z.object({
+  cursor: z.string().max(100).optional(),
+});
+
+/**
+ * GET /api/retiradas — una página del historial PROPIO (keyset). La usa el "Ver más" del monedero.
+ *
+ * Es una LECTURA y no mueve nada: pedir un cobro es el POST de abajo, con su CSRF. Un GET que
+ * debitara saldo lo dispararía cualquier prefetch.
+ *
+ * DE QUIÉN sale de la SESIÓN, nunca de la petición: no hay forma de pedir el historial de otro
+ * porque no hay dónde escribir su id. Y lo que vuelve es el DTO de `misRetiradas`, que no lleva los
+ * datos de pago ni quién la procesó.
+ *
+ * `no-store`: es dinero de una persona concreta y cambia cuando el admin la mueve.
+ */
+export async function GET(req: Request) {
+  const { getCurrentUser } = await import("@/server/auth/current-user");
+  const user = await getCurrentUser();
+  if (!user) return apiError("UNAUTHENTICATED", "Inicia sesión para ver tus cobros.", 401);
+
+  const url = new URL(req.url);
+  const q = QuerySchema.safeParse({ cursor: url.searchParams.get("cursor") ?? undefined });
+  if (!q.success) return apiError("VALIDATION", "Parámetros inválidos.", 400);
+
+  const { prisma } = await import("@/server/db/client");
+  const { misRetiradas } = await import("@/server/services/retirada");
+
+  const pagina = await misRetiradas(prisma, user.userId, { cursor: q.data.cursor ?? null });
+  // Campo a campo y no `apiOk(pagina)`: así lo que sale de aquí está ESCRITO. El día que el DTO del
+  // servicio crezca con algo interno, no se cuela en la respuesta por ser parte del mismo objeto.
+  const res = apiOk({ items: pagina.items, nextCursor: pagina.nextCursor });
+  res.headers.set("Cache-Control", "no-store");
+  return res;
+}
+
 /** Copy por motivo. Lo que la persona puede hacer algo con, nunca el código del rechazo. */
 const MENSAJE: Record<string, string> = {
   BAJO_MINIMO: MSG_RETIRADA_SIN_MINIMO,

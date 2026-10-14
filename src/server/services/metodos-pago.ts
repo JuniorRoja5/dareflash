@@ -95,6 +95,73 @@ export async function misMetodosPago(
 }
 
 /**
+ * REEMPLAZA un método: borra el viejo y guarda el nuevo, en UNA transacción.
+ *
+ * ┌─ POR QUÉ "REEMPLAZAR" Y NO "EDITAR" ──────────────────────────────────────────────────────────┐
+ * │ Un editor de verdad tendría que RELLENAR el formulario con el IBAN guardado, y ese dato no     │
+ * │ vuelve del servidor ni para su dueño: el DTO no lo lleva (es la puerta que impide que la PII   │
+ * │ financiera ande suelta). Así que "editar" es inevitablemente volver a escribirlo entero. Lo    │
+ * │ que la pantalla llama Editar es esto, y lo dice: se teclea de nuevo y sustituye al anterior.   │
+ * │                                                                                                │
+ * │ EN UNA TRANSACCIÓN, y no borrar-y-luego-crear desde el cliente, por dos motivos: un fallo      │
+ * │ entre medias dejaría a la persona SIN método (y con el IBAN ya escrito, perdido), y el TOPE se │
+ * │ cuenta después del borrado, así que quien tiene los cinco puede cambiar uno sin que le salte   │
+ * │ "ya tienes todos los que caben".                                                               │
+ * └────────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * NO TOCA LAS SOLICITUDES EN CURSO, igual que borrar: cada retirada se quedó con su propia copia
+ * cifrada al pedirse. Cambiar dónde quieres cobrar MAÑANA no reescribe a dónde iba un pago de AYER.
+ */
+export async function reemplazarMetodoPago(
+  db: PrismaClient,
+  input: { userId: string; metodoId: string; destino: DestinoRetirada },
+): Promise<{ ok: true; id: string } | { ok: false; rechazo: RechazoMetodo }> {
+  const forma = validarDestino(input.destino);
+  if (!forma.ok) return { ok: false, rechazo: forma.motivo };
+  if (!cifradoDePagosDisponible()) return { ok: false, rechazo: "SIN_CIFRADO" };
+
+  // Se cifra ANTES de abrir la transacción: así la transacción solo contiene las dos escrituras y no
+  // se queda esperando a una operación de CPU con filas tomadas.
+  const datosPago = cifrarDatoDePago(serializarDestino(input.destino));
+  const pista = pistaDeDestino(colaDelDestino(input.destino));
+
+  return db.$transaction(async (tx) => {
+    // ┌─ EL TOPE SE DECIDE ANTES DE BORRAR, y esto es un fallo que casi escribo ────────────────────┐
+    // │ La primera versión borraba, contaba y devolvía `DEMASIADOS` si no cabía. Pero una           │
+    // │ transacción interactiva de Prisma solo revierte si el callback LANZA: devolver un valor la  │
+    // │ CONFIRMA. O sea que ese rechazo habría dejado a la persona sin su método y con el IBAN      │
+    // │ recién tecleado perdido — un "no se ha podido" que sí hizo algo, que es la peor clase.      │
+    // │ Decidiendo antes, el único camino que borra es el que también crea.                         │
+    // └─────────────────────────────────────────────────────────────────────────────────────────────┘
+    // La autorización, en el `where`: el método de otra persona no cuenta como "el que sustituyo",
+    // así que la operación se trata como un alta normal y el tope decide.
+    const sustituye = await tx.paymentMethod.count({
+      where: { id: input.metodoId, userId: input.userId },
+    });
+    const cuantos = await tx.paymentMethod.count({ where: { userId: input.userId } });
+    if (cuantos - sustituye >= MAX_METODOS_PAGO) {
+      return { ok: false as const, rechazo: "DEMASIADOS" as const };
+    }
+
+    if (sustituye > 0) {
+      await tx.paymentMethod.deleteMany({ where: { id: input.metodoId, userId: input.userId } });
+    }
+
+    const fila = await tx.paymentMethod.create({
+      data: {
+        userId: input.userId,
+        metodo: input.destino.metodo,
+        datosPago,
+        pista,
+        red: input.destino.metodo === "CRYPTO" ? input.destino.red : null,
+      },
+      select: { id: true },
+    });
+    return { ok: true as const, id: fila.id };
+  });
+}
+
+/**
  * Borra un método. LA AUTORIZACIÓN VA EN EL `where`, no en un `if` después de leer: si la fila no
  * es de quien pide, el `deleteMany` borra cero y se responde lo mismo que si no existiera. Nadie
  * averigua por la respuesta si el método de otra persona existe.

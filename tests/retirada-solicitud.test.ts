@@ -335,11 +335,16 @@ describe("los datos de pago no salen de aquí", () => {
     });
 
     const mias = await misRetiradas(prisma, userId);
-    expect(mias.length).toBe(1);
+    expect(mias.items.length).toBe(1);
     expect(JSON.stringify(mias), "los datos de pago viajan en el DTO del usuario").not.toMatch(
       /datosPago|iban|titular/i,
     );
-    expect(mias[0]!.pista).toBe(IBAN_OK.slice(-4));
+    // Y tampoco QUIÉN la procesó: el handle del admin que firma un movimiento es traza interna,
+    // igual que la nota de un ajuste de puntos. No se le enseña a su dueño.
+    expect(JSON.stringify(mias), "el admin que la procesó viaja en el DTO").not.toMatch(
+      /procesadaPor/i,
+    );
+    expect(mias.items[0]!.pista).toBe(IBAN_OK.slice(-4));
   });
 
   it("el resultado de la solicitud tampoco los devuelve", async () => {

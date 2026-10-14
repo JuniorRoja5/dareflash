@@ -1,28 +1,16 @@
 import { redirect } from "next/navigation";
 
-import { ImportePremio } from "@/components/ui/importe-premio";
-import { REDES_CRIPTO, RETIRADA_MINIMA_CENTS } from "@/config/constants";
-import { importeConMoneda } from "@/lib/dinero";
+import { ESTADOS_RETIRADA_EN_CURSO, puedePedirCobro } from "@/lib/retirada";
 
 import { HeroMonedero } from "./hero-monedero";
+import { HistorialRetiradas } from "./historial-retiradas";
+import { InformacionCobro } from "./informacion-cobro";
 import { MetodosDeCobro } from "./metodos-de-cobro";
 import { PedirCobro } from "./pedir-cobro";
 
 export const metadata = { title: "Mi monedero · DareFlash" };
 // Depende del SALDO, que cambia con cada cierre de reto. Nunca cacheada.
 export const dynamic = "force-dynamic";
-
-/** Lo que una solicitud está haciendo, dicho en castellano. Los códigos son de la BD, no del copy. */
-const ESTADO_HUMANO: Record<string, string> = {
-  PENDING: "En revisión",
-  APPROVED: "Aceptada",
-  PROCESSING: "En camino",
-  PAID: "Pagada",
-  REJECTED: "Rechazada",
-};
-
-/** Los estados que NO son finales: ese dinero ya salió del saldo y todavía no ha llegado. */
-const EN_CURSO = ["PENDING", "APPROVED", "PROCESSING"] as const;
 
 /**
  * MI MONEDERO — el saldo, dónde cobrar y las solicitudes.
@@ -35,16 +23,21 @@ const EN_CURSO = ["PENDING", "APPROVED", "PROCESSING"] as const;
  * │ cuántos puntos son un euro.                                                                   │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
- * LA PANTALLA SE ABRE POR CAPAS, y cada una aparece cuando sirve de algo:
- *   · el HERO con el saldo, siempre;
- *   · DÓNDE COBRAR, en cuanto hay dinero (`saldo > 0`): pedirle a alguien su IBAN con el monedero
- *     vacío es pedirle un dato para nada;
- *   · PEDIR EL COBRO, al llegar al mínimo, y solo si hay algún método guardado.
- * Enseñar las tres de golpe con el saldo a cero sería una pantalla llena de cosas que no se pueden
- * hacer, que es la forma más rápida de que alguien deje de leerlas.
+ * ┌─ HAY UNA SOLA PUERTA, Y ES LA DE PEDIR EL COBRO ──────────────────────────────────────────────┐
+ * │ DÓNDE COBRAR se enseña SIEMPRE, también con el saldo a cero. La primera versión lo escondía   │
+ * │ tras `saldo > 0` razonando que "pedirle el IBAN a quien no tiene dinero es pedirle un dato    │
+ * │ para nada", y el razonamiento estaba del revés: guardar un método NO mueve dinero, así que    │
+ * │ esconderlo solo consigue que la primera vez que alguien gana se encuentre con DOS pasos —     │
+ * │ configurar y pedir— justo en el momento en que quiere cobrar. Dejarlo listo antes es          │
+ * │ exactamente lo que una persona con saldo cero puede hacer de útil en esta pantalla.           │
+ * │                                                                                               │
+ * │ Lo que sí es una puerta es PEDIR EL COBRO: hace falta llegar al mínimo Y tener algún método   │
+ * │ guardado (sin método, el formulario diría "elige uno" sobre una lista vacía).                 │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
  * LA PUERTA DEL MÍNIMO ES DE VERDAD: por debajo no se pinta el formulario Y la ruta rechaza igual
- * (`RETIRADA_MINIMA_CENTS` en los dos sitios). Esconder un botón no es una regla.
+ * —las dos leen `RETIRADA_MINIMA_CENTS`, la vista a través de `puedePedirCobro`—. Esconder un botón
+ * no es una regla.
  */
 export default async function WalletPage() {
   const { requireVerifiedUser, AuthError } = await import("@/server/auth/rbac");
@@ -66,8 +59,10 @@ export default async function WalletPage() {
   });
   const saldo = usuario.walletBalanceCents;
 
-  const [metodos, retiradas, porEstado] = await Promise.all([
+  const [metodos, historial, porEstado] = await Promise.all([
     misMetodosPago(prisma, userId),
+    // La PRIMERA página del histórico, ya pintada por el servidor; el "Ver más" sigue desde su
+    // cursor. Lo que no se hace es traerlo entero: un histórico largo es una pantalla lenta.
     misRetiradas(prisma, userId),
     // LAS DOS CIFRAS DEL HERO, DE UNA CONSULTA Y SOBRE TODO EL HISTORIAL. Sumarlas en memoria a
     // partir de `misRetiradas` daría un número que parece total y solo cuenta las 20 últimas, que es
@@ -84,19 +79,24 @@ export default async function WalletPage() {
       .filter((g) => estados.includes(g.status))
       .reduce((t, g) => t + (g._sum.amountCents ?? 0), 0);
 
-  const hayDinero = saldo > 0;
-  const llegaAlMinimo = saldo >= RETIRADA_MINIMA_CENTS;
+  // LA MISMA FUNCIÓN PURA QUE DEFINE LA REGLA, no una comparación escrita otra vez aquí: así la
+  // vista y el servidor no pueden discrepar sobre dónde está el mínimo.
+  const llegaAlMinimo = puedePedirCobro(saldo);
 
   return (
     <div className="df-rise mx-auto w-full max-w-3xl px-4 py-8 lg:px-8 lg:py-12">
       <HeroMonedero
         saldoCents={saldo}
-        enRevisionCents={sumaDe(EN_CURSO)}
+        // DERIVADO de la máquina de estados (`en curso` = lo que no es final), no una lista escrita
+        // aquí: una segunda lista de estados es una lista libre de discrepar, y lo que contaría mal
+        // es dinero.
+        enRevisionCents={sumaDe(ESTADOS_RETIRADA_EN_CURSO)}
         cobradoCents={sumaDe(["PAID"])}
       />
 
-      {/* DÓNDE COBRAR: en cuanto hay dinero. Antes no sirve de nada. */}
-      {hayDinero ? <MetodosDeCobro metodos={metodos} /> : null}
+      {/* DÓNDE COBRAR: SIEMPRE, saldo o no. Guardar un método no mueve dinero y dejarlo listo de
+          antemano es lo único útil que se puede hacer aquí con el monedero vacío. */}
+      <MetodosDeCobro metodos={metodos} saldoCents={saldo} />
 
       {/* PEDIR EL COBRO: al llegar al mínimo Y con algún método guardado. Sin método no hay a dónde
           mandarlo, así que el formulario diría "elige uno" sobre una lista vacía. */}
@@ -104,67 +104,16 @@ export default async function WalletPage() {
         <PedirCobro saldoCents={saldo} metodos={metodos} />
       ) : null}
 
-      <section aria-label="Tus solicitudes" className="mt-10">
-        <h2 className="font-medium text-text">Tus solicitudes</h2>
-        {retiradas.length === 0 ? (
-          <p className="mt-2 text-sm text-text-dim">Todavía no has pedido ningún cobro.</p>
-        ) : (
-          <ul className="mt-3 divide-y divide-line border-y border-line">
-            {retiradas.map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-4 py-3 text-sm">
-                <span className="min-w-0">
-                  {/* La MISMA primitiva del hero, en su tamaño de lista: el dinero se trata igual en
-                      toda la app o se trata de dos maneras. */}
-                  <ImportePremio cents={r.amountCents} tamano="lista" />
-                  {/* LA PISTA, no el destino: cuatro caracteres bastan para reconocer la fila, y el
-                      IBAN completo no tiene nada que hacer viajando hasta el navegador. */}
-                  <span className="ml-2 text-text-dim">
-                    {r.metodo === "BANK" ? "Banco" : `Cripto · ${r.red}`} ····{r.pista}
-                  </span>
-                </span>
-                <span className="shrink-0 text-2xs tracking-widest text-text-dim uppercase">
-                  {ESTADO_HUMANO[r.status] ?? r.status}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+      <section aria-labelledby="tus-solicitudes" className="mt-10">
+        <h2 id="tus-solicitudes" className="font-medium text-text">
+          Tus solicitudes
+        </h2>
+        {/* La lista es CLIENTE porque el "Ver más" añade páginas sin recargar; la PRIMERA la trae
+            el servidor ya pintada, así que no hay un salto en blanco al abrir. */}
+        <HistorialRetiradas inicial={historial.items} cursorInicial={historial.nextCursor} />
       </section>
 
-      <section
-        aria-label="Cómo funciona el cobro"
-        className="mt-10 space-y-5 text-sm text-text-dim"
-      >
-        <div>
-          <h2 className="font-medium text-text">Cómo funciona</h2>
-          <p className="mt-1.5 max-w-prose leading-relaxed">
-            Al pedir un cobro, ese importe sale de tu saldo al momento, el equipo lo revisa y te lo
-            envía por el método que elijas. Puede tardar unos días. Si lo rechazamos, el dinero
-            vuelve entero a tu monedero.
-          </p>
-        </div>
-
-        <div>
-          <h2 className="font-medium text-text">Comisiones</h2>
-          <p className="mt-1.5 max-w-prose leading-relaxed">
-            Las comisiones de la red (cripto) o del banco corren por tu cuenta, no por la de
-            DareFlash. Recibirás el importe solicitado menos esas comisiones: si pides{" "}
-            {importeConMoneda(5000)}, pueden llegarte, por ejemplo, {importeConMoneda(4890)}.
-          </p>
-        </div>
-
-        {/* EL AVISO IRREVERSIBLE va en `--df-alarm`, que es exactamente para lo que existe ese token
-            —peligro—, no para decorar: equivocarse de red es dinero que desaparece. */}
-        <div className="rounded-sm border border-alarm/40 bg-alarm/5 p-4">
-          <h2 className="font-medium text-alarm">Red de la cripto: léelo con cuidado</h2>
-          <p className="mt-1.5 max-w-prose leading-relaxed">
-            Solo enviamos USDC/USDT por {REDES_CRIPTO.map((r) => r.nombre).join(" y ")}. Tu
-            dirección tiene que ser de esa misma red. Si nos das una de otra red,{" "}
-            <span className="text-text">el dinero se pierde y no se puede recuperar</span>: los
-            envíos de cripto son irreversibles.
-          </p>
-        </div>
-      </section>
+      <InformacionCobro />
     </div>
   );
 }

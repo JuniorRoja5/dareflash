@@ -38,10 +38,17 @@ const sinComentarios = (src: string) =>
   src.replace(/\{?\/\*[\s\S]*?\*\/\}?/g, "").replace(/^\s*\/\/.*$/gm, "");
 const codigo = (f: string) => sinComentarios(crudo(f));
 
-const VISTAS = ["page.tsx", "hero-monedero.tsx", "metodos-de-cobro.tsx", "pedir-cobro.tsx"];
+const VISTAS = [
+  "page.tsx",
+  "hero-monedero.tsx",
+  "metodos-de-cobro.tsx",
+  "pedir-cobro.tsx",
+  "historial-retiradas.tsx",
+  "informacion-cobro.tsx",
+];
 
 describe("la pantalla está en /wallet, y /cobros ya no existe", () => {
-  it("las tres vistas del monedero están donde se dice", () => {
+  it("las vistas del monedero están donde se dice", () => {
     for (const f of VISTAS) expect(existsSync(join(WALLET, f)), f).toBe(true);
   });
 
@@ -177,13 +184,57 @@ describe("la pantalla usa tokens, no colores", () => {
   it("y el aviso irreversible va en `--df-alarm`, que es para lo que existe ese token", () => {
     // Equivocarse de red es dinero que desaparece: eso es peligro, no "ojo". Si alguien lo baja a un
     // gris o lo sube a un acento de marca, el aviso deja de leerse como lo que es.
-    expect(codigo("page.tsx")).toMatch(/text-alarm|border-alarm|bg-alarm/);
+    expect(codigo("informacion-cobro.tsx")).toMatch(/text-alarm|border-alarm|bg-alarm/);
+  });
+
+  it("el movimiento es SOLO `opacity`/`transform`, que es lo que el compositor sabe apagar", () => {
+    // La regla global de `prefers-reduced-motion` mata animaciones y transiciones con `!important`
+    // sobre `*`. Lo que se le escapa es el movimiento hecho desde JS, y una transición sobre una
+    // propiedad que repinta (`height`, `background-position`) cuesta cada fotograma aunque nadie la
+    // vea. Aquí solo se transiciona la ANCHURA de la barra del recorrido (una vez, al abrir) y el
+    // giro de la flecha, que es un `transform`.
+    for (const f of VISTAS) {
+      const src = codigo(f);
+      expect(src, `${f} anima desde JS`).not.toMatch(
+        /requestAnimationFrame|\.animate\(|setInterval/,
+      );
+    }
+  });
+});
+
+describe("la configuración del cobro NO depende del saldo", () => {
+  const pagina = codigo("page.tsx");
+
+  it("`MetodosDeCobro` se monta sin condición ninguna", () => {
+    // ┌─ EL INVARIANTE QUE ESTABA DEL REVÉS ────────────────────────────────────────────────────┐
+    // │ Estuvo escondido tras `saldo > 0` razonando que pedirle el IBAN a quien no tiene dinero  │
+    // │ es pedirle un dato para nada. Pero guardar un método NO mueve dinero: esconderlo solo    │
+    // │ conseguía que la primera vez que alguien gana se encontrara con DOS pasos justo cuando   │
+    // │ quiere cobrar. Con saldo cero, dejarlo listo es lo único útil que se puede hacer aquí.   │
+    // └──────────────────────────────────────────────────────────────────────────────────────────┘
+    const montaje = /<MetodosDeCobro[\s\S]{0,120}?\/>/.exec(pagina)?.[0];
+    expect(montaje, "ya no se monta `MetodosDeCobro`").toBeTruthy();
+
+    // Lo que se mira es si hay una CONDICIÓN delante: `{algo ? <MetodosDeCobro …`.
+    const antes = pagina.slice(Math.max(0, pagina.indexOf("<MetodosDeCobro") - 120));
+    expect(antes.slice(0, 120), "vuelve a estar detrás de una condición").not.toMatch(/\?\s*$/);
+    expect(pagina, "ha vuelto la puerta del saldo a la configuración").not.toMatch(/hayDinero/);
+  });
+
+  it("y la puerta del saldo sigue puesta en PEDIR EL COBRO", () => {
+    // La otra mitad: aflojar la de arriba no puede aflojar esta. Sin método no hay a dónde mandar
+    // el dinero, y por debajo del mínimo no se pide.
+    expect(pagina).toMatch(/\{llegaAlMinimo && metodos\.length > 0 \?\s*\(?\s*<PedirCobro/);
   });
 });
 
 describe("el mínimo es una regla, no un botón escondido", () => {
-  it("la vista lo lee de la constante", () => {
-    expect(codigo("page.tsx")).toMatch(/RETIRADA_MINIMA_CENTS/);
+  it("la vista lo decide con la MISMA función pura que define la regla", () => {
+    // Antes comparaba a mano contra la constante. `puedePedirCobro` es esa comparación con nombre:
+    // un sitio donde está escrita, y el resto la usa.
+    expect(codigo("page.tsx")).toMatch(/puedePedirCobro\(saldo\)/);
+    const lib = sinComentarios(readFileSync(join(RAIZ, "src", "lib", "retirada.ts"), "utf8"));
+    expect(lib).toMatch(/function puedePedirCobro[\s\S]{0,120}RETIRADA_MINIMA_CENTS/);
   });
 
   it("y la RUTA lo exige igual, con la misma constante", () => {
@@ -197,8 +248,49 @@ describe("el mínimo es una regla, no un botón escondido", () => {
   });
 });
 
+describe("la información que hay que leer antes de cobrar", () => {
+  const info = codigo("informacion-cobro.tsx");
+  /** El texto como lo lee una persona: sin saltos de línea del JSX ni llaves de interpolación. */
+  const plano = info.replace(/\{"\s*"\}/g, " ").replace(/\s+/g, " ");
+
+  it("los tres textos están, literales", () => {
+    expect(plano).toContain(
+      "Al pedir un cobro, ese importe sale de tu saldo al momento, el equipo lo revisa y te lo envía por el método que elijas. Puede tardar unos días. Si lo rechazamos, el dinero vuelve entero a tu monedero.",
+    );
+    expect(plano).toContain(
+      "Las comisiones de la red (cripto) o del banco corren por tu cuenta, no por la de DareFlash. Recibirás el importe solicitado menos esas comisiones: si pides",
+    );
+    expect(plano).toContain(
+      "Tu dirección tiene que ser de esa misma red. Si nos das una de otra red,",
+    );
+    expect(plano).toContain("el dinero se pierde y no se puede recuperar");
+  });
+
+  it("y las cifras del ejemplo de comisiones salen del formateador, no escritas a mano", () => {
+    // "$50.00" escrito en el texto se queda clavado el día que cambie la moneda o el formato.
+    expect(info).toMatch(/importeConMoneda\(5000\)/);
+    expect(info).toMatch(/importeConMoneda\(4890\)/);
+    expect(plano, "el importe del ejemplo está escrito a mano").not.toMatch(/\$\s?50\.00/);
+  });
+
+  it("el aviso de la RED se ve sin desplegar nada", () => {
+    // Es el único de los tres que, si no se lee, cuesta dinero irrecuperable. Los otros dos se
+    // arreglan preguntando; este no. Así que no puede estar detrás de un clic.
+    //
+    // SE COMPARA CONTRA LA APERTURA DEL `<details>`, no contra el `<summary>`, y la primera versión
+    // lo tenía mal: al meter el aviso DENTRO del desplegable —justo encima del `<summary>`— el caso
+    // seguía verde, porque seguía apareciendo antes. Lo que importa no es ir antes del resumen, es
+    // quedar FUERA del elemento que se pliega.
+    const desplegable = info.indexOf("<details");
+    const aviso = info.indexOf("Red de la cripto");
+    expect(desplegable, "ya no hay desplegable que mirar").toBeGreaterThan(-1);
+    expect(aviso).toBeGreaterThan(-1);
+    expect(aviso, "el aviso irreversible se ha metido en el desplegable").toBeLessThan(desplegable);
+  });
+});
+
 describe("el detector mira el CÓDIGO, no el comentario", () => {
-  it("quitar comentarios cambia las tres vistas", () => {
+  it("quitar comentarios cambia todas las vistas", () => {
     for (const f of VISTAS) {
       expect(codigo(f).length, f).toBeLessThan(crudo(f).length);
     }

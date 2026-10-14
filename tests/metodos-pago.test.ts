@@ -31,6 +31,7 @@ import {
   guardarMetodoPago,
   MAX_METODOS_PAGO,
   misMetodosPago,
+  reemplazarMetodoPago,
 } from "../src/server/services/metodos-pago";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
@@ -185,6 +186,110 @@ describe("sin cifrado no se guarda un dato de pago", () => {
     expect(await prisma.paymentMethod.count()).toBe(0);
     vi.doUnmock("@/config/env");
     vi.resetModules();
+  });
+});
+
+describe("sustituir un método ('editar')", () => {
+  /** El id del método guardado, o revienta: una fixture que calla deja el caso midiendo nada. */
+  async function guardar(destino: DestinoRetirada = BANCO, deQuien = ""): Promise<string> {
+    const r = await guardarMetodoPago(prisma, { userId: deQuien || userId, destino });
+    if (!r.ok) throw new Error(`la fixture no pudo guardar: ${r.rechazo}`);
+    return r.id;
+  }
+
+  it("el viejo se va y el nuevo entra: nunca quedan los dos", async () => {
+    const viejo = await guardar();
+    const r = await reemplazarMetodoPago(prisma, {
+      userId,
+      metodoId: viejo,
+      destino: { metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" },
+    });
+
+    expect(r.ok).toBe(true);
+    const mios = await misMetodosPago(prisma, userId);
+    expect(mios).toHaveLength(1);
+    expect(mios[0]!.metodo).toBe("CRYPTO");
+    expect(mios[0]!.pista).toBe(TRON_OK.slice(-4));
+    expect(await prisma.paymentMethod.findUnique({ where: { id: viejo } })).toBeNull();
+  });
+
+  it("CON EL TOPE LLENO se puede sustituir: no es un alta", async () => {
+    // El tope cuenta lo que quedará, no lo que hay: si contara lo que hay, quien tiene los cinco no
+    // podría cambiar una cuenta sin borrar antes —y borrar antes es quedarse sin ninguna si falla—.
+    const ids: string[] = [];
+    for (let i = 0; i < MAX_METODOS_PAGO; i++) ids.push(await guardar());
+
+    const r = await reemplazarMetodoPago(prisma, {
+      userId,
+      metodoId: ids[0]!,
+      destino: { metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" },
+    });
+
+    expect(r.ok, "con el tope lleno no deja ni sustituir").toBe(true);
+    expect(await prisma.paymentMethod.count({ where: { userId } })).toBe(MAX_METODOS_PAGO);
+  });
+
+  it("UN RECHAZO NO BORRA NADA, que es el fallo que casi se cuela", async () => {
+    // ┌───────────────────────────────────────────────────────────────────────────────────────────┐
+    // │ La primera versión borraba, contaba y devolvía `DEMASIADOS` si no cabía. Pero DEVOLVER un  │
+    // │ valor desde una transacción de Prisma la CONFIRMA (solo revierte si lanza): ese "no se ha  │
+    // │ podido" habría dejado a la persona sin su método y con el IBAN recién tecleado perdido.    │
+    // │ Aquí se comprueba con el rechazo más fácil de provocar: una forma inválida.                │
+    // └───────────────────────────────────────────────────────────────────────────────────────────┘
+    const viejo = await guardar();
+    const r = await reemplazarMetodoPago(prisma, {
+      userId,
+      metodoId: viejo,
+      destino: { metodo: "BANK", iban: "NO-ES-UN-IBAN", titular: "Marta" },
+    });
+
+    expect(r.ok).toBe(false);
+    expect(r.ok === false && r.rechazo).toBe("IBAN_INVALIDO");
+    const mios = await misMetodosPago(prisma, userId);
+    expect(
+      mios.map((m) => m.id),
+      "el rechazo se llevó el método por delante",
+    ).toEqual([viejo]);
+  });
+
+  it("y sin cifrado tampoco: falla cerrada antes de tocar nada", async () => {
+    const viejo = await guardar();
+    vi.resetModules();
+    vi.doMock("@/config/env", () => ({ env: { PAGOS_SECRET: undefined } }));
+    const { reemplazarMetodoPago: sinClave } = await import("../src/server/services/metodos-pago");
+
+    const r = await sinClave(prisma, { userId, metodoId: viejo, destino: BANCO });
+
+    expect(r.ok === false && r.rechazo).toBe("SIN_CIFRADO");
+    expect(await prisma.paymentMethod.count({ where: { userId } })).toBe(1);
+    vi.doUnmock("@/config/env");
+    vi.resetModules();
+  });
+
+  it("el método de OTRA PERSONA no se sustituye ni se borra", async () => {
+    const otra = await crearUsuario(prisma, { username: "la_otra" });
+    const suyo = await guardar(BANCO, otra);
+
+    const r = await reemplazarMetodoPago(prisma, {
+      userId,
+      metodoId: suyo,
+      destino: { metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" },
+    });
+
+    // La operación se trata como un alta MÍA: el suyo sigue intacto y yo me quedo con uno nuevo.
+    expect(r.ok).toBe(true);
+    expect(await prisma.paymentMethod.findUnique({ where: { id: suyo } })).not.toBeNull();
+    expect(await prisma.paymentMethod.count({ where: { userId: otra } })).toBe(1);
+    expect(await prisma.paymentMethod.count({ where: { userId } })).toBe(1);
+  });
+
+  it("y el dato nuevo queda CIFRADO, como el de un alta", async () => {
+    const viejo = await guardar({ metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" });
+    const r = await reemplazarMetodoPago(prisma, { userId, metodoId: viejo, destino: BANCO });
+    const fila = await prisma.paymentMethod.findUniqueOrThrow({ where: { id: r.ok ? r.id : "" } });
+    expect(fila.datosPago).not.toContain(IBAN_OK);
+    expect(fila.datosPago).toMatch(/^v1:/);
+    expect(fila.red, "se quedó la red del método anterior").toBeNull();
   });
 });
 

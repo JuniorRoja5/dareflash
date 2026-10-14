@@ -1,5 +1,6 @@
 import { importeConMoneda } from "@/lib/dinero";
 import { nombreMostrado } from "@/lib/identidad";
+import { ETIQUETA_ESTADO } from "@/lib/retirada";
 
 import { requireSeccion } from "../panel-guard";
 
@@ -13,14 +14,14 @@ const ESTILO_TITULO = {
   fontVariationSettings: '"wght" 720, "wdth" 112',
 } as const;
 
-/** El estado, en palabras. El código no se enseña ni aquí. */
-const ESTADO_HUMANO: Record<string, string> = {
-  PENDING: "Pendiente",
-  APPROVED: "Aceptada",
-  PROCESSING: "En proceso",
-  PAID: "Pagada",
-  REJECTED: "Rechazada",
-};
+/**
+ * El estado, en palabras. El código no se enseña ni aquí.
+ *
+ * SALE DE `ETIQUETA_ESTADO`, la misma tabla que usa el monedero del usuario: tuvo su copia hasta que
+ * el monedero se rehizo, y entonces las dos pantallas decían cosas distintas del mismo estado —aquí
+ * "Pendiente", allí "En revisión"—. Quien escribe a soporte cita una palabra que el admin no ve.
+ */
+const ESTADO_HUMANO = ETIQUETA_ESTADO;
 
 function cuando(fecha: Date): string {
   return fecha.toLocaleString("es-ES", {

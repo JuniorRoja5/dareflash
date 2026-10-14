@@ -113,6 +113,21 @@ export async function patchJsonCsrf<T = unknown>(
   return aRespuesta<T>(res);
 }
 
+/** PUT JSON CON CSRF (sustituir un metodo de cobro: se manda el recurso ENTERO, no un parche). */
+export async function putJsonCsrf<T = unknown>(
+  url: string,
+  body: unknown,
+): Promise<RespuestaHttp<T>> {
+  const csrfToken = await obtenerCsrfToken();
+  const res = await fetch(url, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+    body: JSON.stringify(body),
+  });
+  return aRespuesta<T>(res);
+}
+
 /** DELETE CON CSRF, sin cuerpo (borrar mi video). */
 export async function delCsrf<T = unknown>(url: string): Promise<RespuestaHttp<T>> {
   const csrfToken = await obtenerCsrfToken();

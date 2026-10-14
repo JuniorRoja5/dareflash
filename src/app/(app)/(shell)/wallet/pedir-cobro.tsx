@@ -8,7 +8,7 @@ import { Campo } from "@/components/ui/campo";
 import { RETIRADA_MINIMA_CENTS } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { importeACentimos, importeConMoneda } from "@/lib/dinero";
-import { evaluarImporte } from "@/lib/retirada";
+import { evaluarImporte, nombreDeMetodo } from "@/lib/retirada";
 import type { MetodoPagoPropio } from "@/server/services/metodos-pago";
 
 /**
@@ -105,7 +105,10 @@ export function PedirCobro({
         >
           {metodos.map((m) => (
             <option key={m.id} value={m.id}>
-              {m.metodo === "BANK" ? "Cuenta bancaria" : `Cripto · ${m.red}`} ····{m.pista}
+              {/* El MISMO nombre que la tarjeta de arriba (`nombreDeMetodo`): aquí decía
+                  "Cripto · TRC20" —el código de la red, no su nombre— y allí "Cripto · TRON
+                  (TRC-20)". Dos formas de llamar a lo mismo en la misma pantalla. */}
+              {nombreDeMetodo(m)} ····{m.pista}
             </option>
           ))}
         </select>

@@ -1,6 +1,7 @@
 import {
   MetodoRetiradaSchema,
   RedCriptoSchema,
+  REDES_CRIPTO,
   RETIRADA_MINIMA_CENTS,
   type MetodoRetirada,
   type RedCripto,
@@ -180,6 +181,100 @@ export const ESTADOS_RETIRADA_EN_CURSO: readonly EstadoRetirada[] = ESTADOS_RETI
  */
 export function devuelveDinero(hasta: EstadoRetirada): boolean {
   return hasta === "REJECTED";
+}
+
+// ---------------------------------------------------------------------------
+// CÓMO SE CUENTA EL ESTADO (el chip y el recorrido)
+// ---------------------------------------------------------------------------
+
+/**
+ * EL ESTADO, DICHO EN CASTELLANO. Una sola tabla para el panel y para el monedero del usuario: dos
+ * mapas serían dos juegos de palabras libres de discrepar, y la persona que escribe a soporte
+ * citaría una palabra que el admin no ve en su pantalla.
+ */
+export const ETIQUETA_ESTADO: Record<EstadoRetirada, string> = {
+  PENDING: "Pendiente",
+  APPROVED: "Aceptada",
+  PROCESSING: "En proceso",
+  PAID: "Pagada",
+  REJECTED: "Rechazada",
+};
+
+/**
+ * EL CAMINO FELIZ, DERIVADO DE LA TABLA y no escrito a mano: se arranca en el estado inicial y se
+ * sigue el único sucesor que NO devuelve el dinero, hasta que no hay a dónde ir. Si mañana se mete
+ * un paso entre medias ("en revisión manual"), el recorrido crece solo y el stepper lo pinta sin
+ * que nadie se acuerde de venir aquí.
+ */
+export const CAMINO_RETIRADA: readonly EstadoRetirada[] = (() => {
+  const camino: EstadoRetirada[] = ["PENDING"];
+  for (;;) {
+    const actual = camino[camino.length - 1]!;
+    const siguiente = siguientesEstados(actual).find((e) => !devuelveDinero(e));
+    // El corte por longitud es una red, no una regla: si alguien cerrara un ciclo en la tabla, esto
+    // colgaría el render en vez de fallar, y un bucle infinito en una vista no se diagnostica.
+    if (!siguiente || camino.includes(siguiente) || camino.length > ESTADOS_RETIRADA.length) break;
+    camino.push(siguiente);
+  }
+  return camino;
+})();
+
+/** Cómo está un paso del recorrido: ya ocurrió, está ocurriendo, o no ha llegado. */
+export type PasoRetirada = {
+  estado: EstadoRetirada;
+  /** El EVENTO, no el estado: un recorrido nombra lo que pasó ("Pedida"), el chip nombra dónde está
+   *  ("Pendiente"). Son dos cosas distintas y por eso no comparten texto. */
+  etiqueta: string;
+  situacion: "hecho" | "actual" | "pendiente";
+};
+
+const EVENTO: Record<EstadoRetirada, string> = {
+  PENDING: "Pedida",
+  APPROVED: "Aceptada",
+  PROCESSING: "En proceso",
+  PAID: "Pagada",
+  REJECTED: "Rechazada",
+};
+
+/**
+ * EL RECORRIDO DE UNA RETIRADA, para pintarlo.
+ *
+ * `null` CUANDO ESTÁ RECHAZADA, y es la parte que importa: una rechazada no avanzó por el camino, se
+ * salió de él. Pintarle un stepper —aunque fuera con los pasos apagados— contaría un progreso que no
+ * existe, que es justo lo que un recorrido no puede hacer. Quien lo pinte tiene que dar su propio
+ * cierre: el dinero volvió al saldo.
+ *
+ * `progreso` es el porcentaje de camino RECORRIDO (0 en el primer paso, 100 en el último), para la
+ * barra. Sale de la posición en el camino, no de un número por estado escrito a mano.
+ */
+export function pasosDe(
+  estado: EstadoRetirada,
+): { pasos: PasoRetirada[]; progreso: number } | null {
+  const i = CAMINO_RETIRADA.indexOf(estado);
+  if (i === -1) return null;
+  // UN ESTADO FINAL NO TIENE PASO "EN CURSO": "Pagada" ya ocurrió. Se vio mirando la pantalla —el
+  // último punto salía hueco, con su aro de "esto está pasando", sobre una retirada terminada— y
+  // ningún test lo decía, porque lo que se afirmaba era "no queda nada pendiente", y era verdad.
+  const final = esEstadoFinal(estado);
+  const pasos = CAMINO_RETIRADA.map<PasoRetirada>((e, j) => ({
+    estado: e,
+    etiqueta: EVENTO[e],
+    // El paso actual está "ocurriendo", no "hecho": "en proceso" no es "ya te lo hemos mandado".
+    situacion: j < i || (j === i && final) ? "hecho" : j === i ? "actual" : "pendiente",
+  }));
+  const ultimo = CAMINO_RETIRADA.length - 1;
+  return { pasos, progreso: ultimo === 0 ? 100 : Math.round((i / ultimo) * 100) };
+}
+
+/**
+ * EL NOMBRE HUMANO DE UN MÉTODO DE COBRO, en un solo sitio: la tarjeta de "Dónde cobrar", el
+ * selector de "Pedir un cobro" y cada fila del historial decían lo mismo de tres maneras —una de
+ * ellas, con el CÓDIGO de la red ("TRC20") en vez de su nombre—. Es el mismo dato; se lee igual.
+ */
+export function nombreDeMetodo(m: { metodo: string; red?: string | null }): string {
+  if (m.metodo === MetodoRetiradaSchema.enum.BANK) return "Cuenta bancaria";
+  const red = REDES_CRIPTO.find((r) => r.red === m.red);
+  return red ? `Cripto · ${red.nombre}` : "Cripto";
 }
 
 /** Clave de idempotencia de la SOLICITUD. Namespaced por usuario: ver `claveAjusteBoost`. */
