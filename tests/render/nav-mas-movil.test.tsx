@@ -89,7 +89,7 @@ describe("lo que lleva dentro", () => {
     expect(filas().map((a) => a.textContent)).toEqual(esperados.map((d) => d.nombre));
   });
 
-  it("y hoy eso es Inicio, Ranking, Boost, Puntos y Referidos", () => {
+  it("y hoy eso es Inicio, Ranking, Boost, Puntos, Cobros y Referidos", () => {
     montar();
     fireEvent.click(boton());
     expect(filas().map((a) => a.textContent)).toEqual([
@@ -97,6 +97,7 @@ describe("lo que lleva dentro", () => {
       "Ranking",
       "Boost",
       "Puntos",
+      "Cobros",
       "Referidos",
     ]);
   });

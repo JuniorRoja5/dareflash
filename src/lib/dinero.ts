@@ -16,6 +16,17 @@ export function importeACentimos(entrada: string): number | null {
   return Number.isSafeInteger(centimos) ? centimos : null;
 }
 
+/**
+ * Céntimos -> importe CON MONEDA, para texto corrido ("5000" -> "$50.00").
+ *
+ * No sustituye a `ImportePremio`: esa es la primitiva del dinero cuando el importe es la figura de
+ * la pantalla (Archivo Expanded, `--df-money`, el entero mandando). Esto es para cuando el importe
+ * va DENTRO de una frase —"el mínimo son $50.00"— y poner ahí la primitiva rompería el renglón.
+ */
+export function importeConMoneda(centimos: number, currency = "USD"): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(centimos / 100);
+}
+
 /** Céntimos enteros -> importe con 2 decimales ("2000" -> "20.00"). Para MOSTRAR el premio. */
 export function centimosAImporte(centimos: number): string {
   const signo = centimos < 0 ? "-" : "";

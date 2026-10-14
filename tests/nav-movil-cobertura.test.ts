@@ -57,9 +57,16 @@ describe("nadie queda inalcanzable en móvil", () => {
     expect(repetidos).toEqual([]);
   });
 
-  it("los cinco que hoy viven en el menú son los que no caben en la barra", () => {
+  it("los seis que hoy viven en el menú son los que no caben en la barra", () => {
     // Clavados: si alguien los mueve, que tenga que venir aquí y decidirlo.
-    expect([...NAV_MOVIL_MAS]).toEqual(["inicio", "ranking", "destacados", "puntos", "referidos"]);
+    expect([...NAV_MOVIL_MAS]).toEqual([
+      "inicio",
+      "ranking",
+      "destacados",
+      "puntos",
+      "cobros",
+      "referidos",
+    ]);
   });
 
   it("y cada uno se resuelve a un destino de verdad, con su ruta", () => {

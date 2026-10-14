@@ -224,6 +224,15 @@ export interface WalletInput {
   movementId?: string;
   /** Permitir saldo negativo (p.ej. ajustes administrativos). Por defecto no. */
   allowNegative?: boolean;
+  /**
+   * Efecto EXTRA en la MISMA transaccion y con el User AUN BLOQUEADO. Lo usa la SOLICITUD DE
+   * RETIRADA para insertar su fila: el debito y la retirada tienen que ir juntos o ninguno de los
+   * dos. Sin esto, un fallo entre medias deja una de dos ruinas — dinero debitado sin retirada que
+   * lo explique (el usuario pierde el saldo), o una retirada que nadie pago (se paga dos veces).
+   *
+   * SI LANZA, LA TRANSACCION ENTERA SE DESHACE: no se debita nada.
+   */
+  trasAplicar?: (tx: Prisma.TransactionClient, antes: number, despues: number) => Promise<void>;
 }
 
 export function applyWallet(
@@ -259,6 +268,8 @@ export function applyWallet(
             },
           })
           .then(() => undefined),
+      // Pasa TAL CUAL al núcleo: corre con el User bloqueado y dentro de la misma transacción.
+      ...(input.trasAplicar ? { trasAplicar: input.trasAplicar } : {}),
     },
     seams,
   );

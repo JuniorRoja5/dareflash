@@ -107,6 +107,10 @@ export const NAV_DESTINOS = [
   { clave: "destacados", nombre: "Boost", href: "/destacados" },
   { clave: "perfil", nombre: "Perfil", href: "/perfil" },
   { clave: "puntos", nombre: "Puntos", href: "/puntos" },
+  // COBROS — el monedero y las solicitudes de retirada. Va con "lo mío" (perfil, puntos, referidos)
+  // y NO con Puntos: los puntos y el dinero son dos ledgers que no se convierten entre sí, y
+  // meterlos en la misma pantalla invitaría justo a esa confusión.
+  { clave: "cobros", nombre: "Cobros", href: "/cobros" },
   { clave: "referidos", nombre: "Referidos", href: "/referidos" },
 ] as const;
 
@@ -122,6 +126,7 @@ export const NAV_ESCRITORIO = [
   "destacados",
   "perfil",
   "puntos",
+  "cobros",
   "referidos",
 ] as const;
 /**

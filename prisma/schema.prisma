@@ -757,6 +757,54 @@ model WalletLedger {
   @@index([refType, refId])
 }
 
+/// SOLICITUD DE RETIRADA. El usuario pide cobrar y el dinero SALE DEL MONEDERO EN
+/// ESE MISMO INSTANTE: la fila se crea dentro de la transaccion del DEBIT, con el
+/// User bloqueado. No hay estado "pedido pero aun en tu saldo", porque ese estado
+/// es justo el que deja pedir dos veces el mismo dinero.
+///
+/// EL IMPORTE ES EL SOLICITADO, NO LO QUE LLEGA. Las comisiones de red o de banco
+/// las paga quien cobra y reducen lo que RECIBE, no lo que sale de aqui: asi los
+/// libros cuadran en el importe pedido y la comision queda entre la red y la persona.
+///
+/// LOS DATOS DE PAGO VAN CIFRADOS (AES-256-GCM, clave propia de entorno). Son PII
+/// financiera: un IBAN o una direccion de cripto en claro en la base de datos es una
+/// fuga con nombre y apellidos. Se descifran SOLO en el panel del admin que procesa
+/// el pago; nunca viajan en un DTO de usuario ni en un log. Lo que el usuario ve de
+/// su propia retirada sale de `pista`, que no es sensible.
+///
+/// LA MAQUINA DE ESTADOS la aplica el servicio, no la base de datos:
+///   PENDING -> APPROVED -> PROCESSING -> PAID
+///   PENDING|APPROVED -> REJECTED  (y REJECTED DEVUELVE el dinero, con su CREDIT)
+/// PAID y REJECTED son finales. El dinero nunca se queda en el limbo: o esta fuera
+/// (PAID) o ha vuelto (REJECTED).
+model Withdrawal {
+  id          String @id @default(cuid())
+  userId      String
+  amountCents Int // SIEMPRE positivo: lo solicitado. El DEBIT del ledger lleva el signo.
+  currency    String @db.Char(3)
+  status      String @default("PENDING") // union en constants (WalletStatusSchema)
+  metodo      String // BANK | CRYPTO (union en constants)
+
+  /// PII financiera CIFRADA. Formato versionado (`v1:iv:tag:dato`) para poder rotar.
+  datosPago String  @db.Text
+  /// Lo NO sensible, para listar sin descifrar: los ultimos caracteres del destino.
+  pista     String  @db.VarChar(16)
+  /// Solo en CRYPTO: la red elegida (union en constants). El importe no se mueve de
+  /// red: si la direccion es de otra, el dinero se pierde y no se recupera.
+  red       String? @db.VarChar(16)
+
+  /// Del intento del usuario, para que un doble envio del formulario no pida dos veces.
+  idempotencyKey String    @unique
+  procesadaPorId String?
+  procesadaEn    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Keyset del historial del usuario y de la cola del panel.
+  @@index([userId, createdAt, id])
+  @@index([status, createdAt, id])
+}
+
 // ============================================================================
 // BOOST — comprar/regalar (creditos) y activar (puesto destacado) SEPARADOS
 // ============================================================================

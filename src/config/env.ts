@@ -120,6 +120,19 @@ const serverSchema = z.object({
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
   /**
+   * Secreto del que sale la clave con la que se cifran los DATOS DE PAGO de una retirada (IBAN,
+   * dirección de cripto). Ver `server/security/cifrado-pagos`.
+   *
+   * OPCIONAL porque tiene que serlo: el build corre sin ninguna variable, y exigirla aquí tumbaría
+   * el despliegue. Lo que NO es opcional es el comportamiento sin ella: sin secreto no se cifra y
+   * sin cifrar no se guarda — la solicitud de retirada falla en alto en vez de dejar un IBAN en
+   * claro en la base de datos. 32 caracteres mínimo porque de aquí sale una clave de 256 bits.
+   *
+   * SE ROTA SOLA, NO CON `AUTH_SECRET`: rotar el de sesiones es una operación normal y dejaría los
+   * datos de pago ilegibles para siempre. Van en secretos distintos a propósito.
+   */
+  PAGOS_SECRET: z.string().min(32).optional(),
+  /**
    * Email por SMTP autenticado (Paso 6). El envio pasa por
    * la cola. Se promueven a obligatorias cuando se conecte el envio real.
    */

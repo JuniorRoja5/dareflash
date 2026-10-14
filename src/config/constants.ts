@@ -66,6 +66,49 @@ export const MARIADB_MAX_CONNECTIONS_DEFECTO = 151;
  */
 export const DEFAULT_CURRENCY = "USD";
 
+// ============================================================================
+// RETIRADAS (Fase 7) — sacar el dinero del monedero
+// ============================================================================
+
+/**
+ * MINIMO PARA PEDIR UN COBRO, en centimos.
+ *
+ * ┌─ PENDIENTE DE SERGIO: EL NUMERO NO ESTA DECIDIDO ─────────────────────────────────────────────┐
+ * │ Arranca en 50 $ como ARRANQUE, no como decision. Un minimo existe por una razon concreta: la  │
+ * │ comision de red o de banco es casi fija, asi que por debajo de cierto importe se come una     │
+ * │ parte indecente de lo que cobra la persona — pedir 3 $ y recibir 1,50 $ es una mala           │
+ * │ experiencia que ademas parece un timo. El numero sale de lo que cueste la via de pago real.   │
+ * │ Cambiarlo es UNA linea; lo que no se puede es no tenerlo.                                     │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+export const RETIRADA_MINIMA_CENTS = 5000;
+
+/** Como quiere cobrar. Union CERRADA: cada valor tiene su formulario y su validacion. */
+export const MetodoRetiradaSchema = z.enum(["BANK", "CRYPTO"]);
+export type MetodoRetirada = z.infer<typeof MetodoRetiradaSchema>;
+
+/**
+ * LAS REDES QUE DAREFLASH ENVIA, y solo esas. No es una preferencia: un envio de cripto es
+ * IRREVERSIBLE, y una direccion de una red que no enviamos es dinero perdido sin vuelta atras. Por
+ * eso la persona se adapta a esta lista y no al reves, y por eso la lista es cerrada aqui y no un
+ * texto libre en un formulario.
+ */
+export const RedCriptoSchema = z.enum(["TRC20", "ERC20"]);
+export type RedCripto = z.infer<typeof RedCriptoSchema>;
+
+/** El catalogo que pinta el desplegable: la red, su nombre humano y las monedas que van por ella. */
+export const REDES_CRIPTO = [
+  { red: "TRC20", nombre: "TRON (TRC-20)", monedas: "USDC · USDT" },
+  { red: "ERC20", nombre: "Ethereum (ERC-20)", monedas: "USDC · USDT" },
+] as const;
+
+/** Copy de la retirada. Humano, y sin un solo codigo de error dentro. */
+export const MSG_RETIRADA_SIN_MINIMO =
+  "Todavia no llegas al minimo para pedir un cobro. Sigue participando: el saldo se acumula.";
+export const MSG_RETIRADA_SIN_SALDO = "No tienes saldo suficiente para pedir ese importe.";
+export const MSG_RETIRADA_NO_DISPONIBLE =
+  "Ahora mismo no podemos aceptar datos de cobro. Vuelve a intentarlo en un rato.";
+
 /**
  * Zona horaria de TODOS los limites temporales del producto. Decidido
  * EXPLICITAMENTE: **UTC**, como el resto del sistema. Afecta al "dia" del limite
@@ -937,7 +980,17 @@ export const RATE_LIMITS = {
 // ============================================================================
 
 /** Estado de los movimientos de monedero (dinero). */
-export const WalletStatusSchema = z.enum(["PENDING", "APPROVED", "PAID", "REJECTED", "COMPLETED"]);
+export const WalletStatusSchema = z.enum([
+  "PENDING",
+  "APPROVED",
+  // Entre "aprobada" y "pagada": el admin ya ha lanzado la transferencia y esta en vuelo. Existe
+  // porque sin el no hay forma de distinguir "aun no la he mandado" de "mandada, esperando" — y esa
+  // es justo la pregunta que se hace quien reclama que no le ha llegado.
+  "PROCESSING",
+  "PAID",
+  "REJECTED",
+  "COMPLETED",
+]);
 export type WalletStatus = z.infer<typeof WalletStatusSchema>;
 
 /** Tipo de movimiento de monedero. */

@@ -74,6 +74,11 @@ export const DELETE_ORDER = [
   "Account",
   "Session",
   "PointsLedger",
+  // Antes que `WalletLedger` no hace falta (no hay FK entre las dos), pero sí antes que `User`.
+  // Olvidarla fue instructivo: sin esta línea las retiradas de un caso sobreviven al siguiente y el
+  // fichero entero pasa a depender del ORDEN en que se ejecuten sus casos — que es una forma
+  // elegante de que los tests dejen de significar nada.
+  "Withdrawal",
   "WalletLedger",
   "BoostLedger",
   "BoostActivation",
