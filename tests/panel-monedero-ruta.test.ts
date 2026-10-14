@@ -87,10 +87,15 @@ async function retiradaPendiente(cents = 7500): Promise<string> {
     entryType: "CREDIT",
     idempotencyKey: `semilla:${duenyo}`,
   });
+  const { guardarMetodoPago } = await import("../src/server/services/metodos-pago");
+  const m = await guardarMetodoPago(prisma, {
+    userId: duenyo,
+    destino: { metodo: "BANK", iban: IBAN_OK, titular: "Marta Ruiz" },
+  });
   const r = await solicitarRetirada(prisma, {
     userId: duenyo,
     importeCents: cents,
-    destino: { metodo: "BANK", iban: IBAN_OK, titular: "Marta Ruiz" },
+    metodoPagoId: m.ok ? m.id : "",
     clave: "99999999-2222-4333-8444-555555555551",
   });
   return r.retiradaId!;

@@ -79,6 +79,9 @@ export const DELETE_ORDER = [
   // fichero entero pasa a depender del ORDEN en que se ejecuten sus casos — que es una forma
   // elegante de que los tests dejen de significar nada.
   "Withdrawal",
+  // Y el método guardado por el mismo motivo: un método que sobrevive al reset hace que el tope de
+  // cinco se alcance en un caso que no guardó cinco.
+  "PaymentMethod",
   "WalletLedger",
   "BoostLedger",
   "BoostActivation",

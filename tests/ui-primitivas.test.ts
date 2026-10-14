@@ -98,7 +98,7 @@ describe("boton: mapa variante -> tokens", () => {
 });
 
 describe("navegacion: catalogo canonico de destinos", () => {
-  it("diez destinos, orden y claves exactos (reordenar o perder uno cae en rojo)", () => {
+  it("nueve destinos, orden y claves exactos (reordenar o perder uno cae en rojo)", () => {
     expect(NAV_DESTINOS.map((d) => d.clave)).toEqual([
       "inicio",
       "feed",
@@ -108,7 +108,6 @@ describe("navegacion: catalogo canonico de destinos", () => {
       "destacados",
       "perfil",
       "puntos",
-      "cobros",
       "referidos",
     ]);
   });
@@ -127,7 +126,6 @@ describe("navegacion: catalogo canonico de destinos", () => {
       "Boost",
       "Perfil",
       "Puntos",
-      "Cobros",
       "Referidos",
     ]);
     expect(NAV_DESTINOS.map((d) => d.href)).toEqual([
@@ -139,7 +137,6 @@ describe("navegacion: catalogo canonico de destinos", () => {
       "/destacados",
       "/perfil",
       "/puntos",
-      "/cobros",
       "/referidos",
     ]);
   });
@@ -165,7 +162,6 @@ describe("navegacion: subsets divergentes movil/escritorio (con dientes)", () =>
       // Boost el "ver todos" de la fila de la portada.
       "perfil",
       "puntos",
-      "cobros",
       "referidos",
     ]);
     expect(NAV_ESCRITORIO).not.toContain("crear");

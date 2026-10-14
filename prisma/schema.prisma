@@ -757,6 +757,32 @@ model WalletLedger {
   @@index([refType, refId])
 }
 
+/// METODO DE PAGO GUARDADO. Donde quiere cobrar una persona, configurado UNA VEZ y
+/// reutilizado en cada solicitud. Antes los datos se tecleaban en cada cobro: eso es
+/// pedirle a alguien que vuelva a escribir su IBAN cada vez, y cada tecleo es una
+/// oportunidad de equivocarse en un numero que no se puede recuperar.
+///
+/// LOS DATOS VAN CIFRADOS (AES-256-GCM, misma clave y mismo formato versionado que la
+/// retirada; ver `server/security/cifrado-pagos`). `pista` es lo unico que se puede
+/// enseñar sin descifrar: los cuatro ultimos caracteres, para reconocer cual es cual.
+///
+/// SE BORRA DE VERDAD, no se marca. Una solicitud en curso NO depende de esta fila:
+/// al pedir el cobro, la retirada se queda con una COPIA cifrada de estos datos (ver
+/// `Withdrawal.datosPago`). Asi, borrar el metodo no deja a un pago pendiente sin
+/// saber a donde iba, y cambiarlo no reescribe a donde iba un pago ya pedido.
+model PaymentMethod {
+  id        String   @id @default(cuid())
+  userId    String
+  metodo    String // BANK | CRYPTO (union en constants)
+  datosPago String   @db.Text // cifrado, formato `v1:iv:tag:dato`
+  pista     String   @db.VarChar(16)
+  /// Solo en CRYPTO: la red. Un envio a otra red es dinero perdido.
+  red       String?  @db.VarChar(16)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt, id])
+}
+
 /// SOLICITUD DE RETIRADA. El usuario pide cobrar y el dinero SALE DEL MONEDERO EN
 /// ESE MISMO INSTANTE: la fila se crea dentro de la transaccion del DEBIT, con el
 /// User bloqueado. No hay estado "pedido pero aun en tu saldo", porque ese estado

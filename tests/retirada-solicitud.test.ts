@@ -1,8 +1,8 @@
 /**
  * SOLICITAR UNA RETIRADA — la pieza en la que el dinero SALE del monedero.
  *
- * Los casos ejecutan la ruta real contra la base de datos: ninguno escribe un `WalletLedger` ni una
- * `Withdrawal` a mano. Lo que se fija:
+ * Los casos ejecutan el servicio real contra la base de datos: ninguno escribe un `WalletLedger` ni
+ * una `Withdrawal` a mano. Lo que se fija:
  *
  *  - EL DINERO SALE AL PEDIR, no al pagar. La alternativa —dejar el saldo hasta que el admin
  *    transfiera— crea un estado en el que el dinero está pedido Y disponible, y ese estado se puede
@@ -12,21 +12,28 @@
  *    dinero que sigue en el monedero). Las dos son descuadres.
  *  - SALE LO SOLICITADO. La comisión reduce lo que LLEGA, no lo que sale: los libros cuadran en lo
  *    pedido. Aquí no se resta ni se estima nada — estimar una comisión es inventar una cifra.
+ *  - SE PIDE CONTRA UN MÉTODO GUARDADO, y la retirada se queda con una COPIA de sus datos. Borrar
+ *    o cambiar el método NO reescribe a dónde iba un pago ya pedido.
  *  - LOS DATOS DE PAGO NO SALEN. Ni en el DTO propio, ni en el resultado de la solicitud.
  *
  * Para romperlo a propósito: debitar `importe - comision` (rojo), sacar el `create` de la retirada
- * del `trasAplicar` (rojo: deja de ser atómico), o meter `datosPago` en el DTO (rojo).
+ * del `trasAplicar` (rojo: deja de ser atómico), guardar `metodoPagoId` en vez de copiar los datos
+ * (rojo: el caso del snapshot), o meter `datosPago` en el DTO (rojo).
+ *
+ * La VALIDACIÓN del destino ya no vive en este camino: vive donde el dato entra en claro, o sea al
+ * guardar el método. Sus casos están en `metodos-pago.test.ts`.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_CURRENCY, RETIRADA_MINIMA_CENTS } from "@/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
-import { claveRetirada } from "../src/lib/retirada";
+import { claveRetirada, type DestinoRetirada } from "../src/lib/retirada";
 
 vi.mock("@/config/env", () => ({
   env: { PAGOS_SECRET: "x".repeat(40), AUTH_SECRET: "TEST-FIXTURE-auth-secret-retiradas" },
 }));
 
+import { guardarMetodoPago } from "../src/server/services/metodos-pago";
 import { misRetiradas, solicitarRetirada } from "../src/server/services/retirada";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
@@ -36,9 +43,8 @@ let userId: string;
 
 const IBAN_OK = "ES9121000418450200051332";
 const TRON_OK = "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE";
-const ETH_OK = "0x52908400098527886E0F7030069857D2E4169EE7";
 
-const BANCO = { metodo: "BANK", iban: IBAN_OK, titular: "Marta Ruiz" } as const;
+const BANCO: DestinoRetirada = { metodo: "BANK", iban: IBAN_OK, titular: "Marta Ruiz" };
 
 beforeAll(() => {
   prisma = createTestPrisma();
@@ -52,21 +58,29 @@ beforeEach(async () => {
 });
 
 /** Pone saldo del modo honesto: por el ledger, no con un UPDATE a mano. */
-async function conSaldo(cents: number): Promise<void> {
+async function conSaldo(cents: number, deQuien = ""): Promise<void> {
+  const quien = deQuien || userId;
   const { applyWallet } = await import("../src/server/services/ledger");
   await applyWallet(prisma, {
-    userId,
+    userId: quien,
     amountCents: cents,
     currency: DEFAULT_CURRENCY,
     entryType: "CREDIT",
-    idempotencyKey: `semilla:${userId}:${cents}`,
+    idempotencyKey: `semilla:${quien}:${cents}`,
   });
 }
 
-const saldo = async (): Promise<number> =>
+/** Guarda un método de cobro y devuelve su id. Es el paso previo a cualquier solicitud. */
+async function conMetodo(destino: DestinoRetirada = BANCO, deQuien = ""): Promise<string> {
+  const r = await guardarMetodoPago(prisma, { userId: deQuien || userId, destino });
+  if (!r.ok) throw new Error(`la fixture no pudo guardar el método: ${r.rechazo}`);
+  return r.id;
+}
+
+const saldo = async (deQuien = ""): Promise<number> =>
   (
     await prisma.user.findUniqueOrThrow({
-      where: { id: userId },
+      where: { id: deQuien || userId },
       select: { walletBalanceCents: true },
     })
   ).walletBalanceCents;
@@ -74,11 +88,12 @@ const saldo = async (): Promise<number> =>
 describe("la puerta del mínimo", () => {
   it("por debajo del mínimo no se puede pedir, ni llamando al servicio directamente", async () => {
     await conSaldo(RETIRADA_MINIMA_CENTS - 1);
+    const metodoPagoId = await conMetodo();
 
     const r = await solicitarRetirada(prisma, {
       userId,
       importeCents: RETIRADA_MINIMA_CENTS - 1,
-      destino: BANCO,
+      metodoPagoId,
       clave: "11111111-2222-4333-8444-555555555555",
     });
 
@@ -95,7 +110,7 @@ describe("la puerta del mínimo", () => {
     const r = await solicitarRetirada(prisma, {
       userId,
       importeCents: 100,
-      destino: BANCO,
+      metodoPagoId: await conMetodo(),
       clave: "11111111-2222-4333-8444-555555555556",
     });
     expect(r.rechazo).toBe("BAJO_MINIMO");
@@ -106,11 +121,49 @@ describe("la puerta del mínimo", () => {
     const r = await solicitarRetirada(prisma, {
       userId,
       importeCents: RETIRADA_MINIMA_CENTS + 1,
-      destino: BANCO,
+      metodoPagoId: await conMetodo(),
       clave: "11111111-2222-4333-8444-555555555557",
     });
     expect(r.rechazo).toBe("SIN_SALDO");
     expect(await saldo()).toBe(RETIRADA_MINIMA_CENTS);
+    expect(await prisma.withdrawal.count()).toBe(0);
+  });
+});
+
+describe("sin un método guardado no se pide nada", () => {
+  it("un id que no existe se rechaza sin tocar el saldo", async () => {
+    await conSaldo(20_000);
+    const r = await solicitarRetirada(prisma, {
+      userId,
+      importeCents: 6000,
+      metodoPagoId: "no-existe",
+      clave: "88888888-2222-4333-8444-555555555551",
+    });
+
+    expect(r.rechazo).toBe("METODO_NO_EXISTE");
+    expect(await saldo()).toBe(20_000);
+    expect(await prisma.withdrawal.count()).toBe(0);
+  });
+
+  it("y el método DE OTRA PERSONA tampoco: la autorización va en el `where`", async () => {
+    // Si fuera un `if` después de leer, un `select` que un día deja de traer `userId` convierte el
+    // chequeo en `undefined !== userId` -> siempre verdadero, y el cobro se iría a la cuenta de otra
+    // persona. En el `where` no se puede olvidar: la fila simplemente no aparece.
+    const otra = await crearUsuario(prisma, { username: "la_otra" });
+    const suyo = await conMetodo(BANCO, otra);
+    await conSaldo(20_000);
+
+    const r = await solicitarRetirada(prisma, {
+      userId,
+      importeCents: 6000,
+      metodoPagoId: suyo,
+      clave: "88888888-2222-4333-8444-555555555552",
+    });
+
+    // Mismo rechazo que si no existiera: nadie averigua por la respuesta que el método de otra
+    // persona existe.
+    expect(r.rechazo).toBe("METODO_NO_EXISTE");
+    expect(await saldo()).toBe(20_000);
     expect(await prisma.withdrawal.count()).toBe(0);
   });
 });
@@ -122,7 +175,7 @@ describe("el dinero sale al pedir", () => {
     const r = await solicitarRetirada(prisma, {
       userId,
       importeCents: 7500,
-      destino: BANCO,
+      metodoPagoId: await conMetodo(),
       clave: "11111111-2222-4333-8444-555555555558",
     });
 
@@ -144,17 +197,18 @@ describe("el dinero sale al pedir", () => {
 
   it("el doble envío del MISMO intento no debita dos veces", async () => {
     await conSaldo(20_000);
+    const metodoPagoId = await conMetodo();
     const clave = "11111111-2222-4333-8444-555555555559";
     const uno = await solicitarRetirada(prisma, {
       userId,
       importeCents: 7500,
-      destino: BANCO,
+      metodoPagoId,
       clave,
     });
     const dos = await solicitarRetirada(prisma, {
       userId,
       importeCents: 7500,
-      destino: BANCO,
+      metodoPagoId,
       clave,
     });
 
@@ -170,16 +224,17 @@ describe("el dinero sale al pedir", () => {
     // Es la razón de debitar al pedir: el segundo se queda sin saldo él solo, sin un `if` que lo
     // impida. Con el saldo intacto hasta el pago, los dos serían "válidos" y alguien pagaría doble.
     await conSaldo(10_000);
+    const metodoPagoId = await conMetodo();
     const a = await solicitarRetirada(prisma, {
       userId,
       importeCents: 7500,
-      destino: BANCO,
+      metodoPagoId,
       clave: "22222222-2222-4333-8444-555555555551",
     });
     const b = await solicitarRetirada(prisma, {
       userId,
       importeCents: 7500,
-      destino: BANCO,
+      metodoPagoId,
       clave: "22222222-2222-4333-8444-555555555552",
     });
 
@@ -194,7 +249,7 @@ describe("el dinero sale al pedir", () => {
     await solicitarRetirada(prisma, {
       userId,
       importeCents: 6000,
-      destino: BANCO,
+      metodoPagoId: await conMetodo(),
       clave: "33333333-2222-4333-8444-555555555551",
     });
 
@@ -205,50 +260,50 @@ describe("el dinero sale al pedir", () => {
   });
 });
 
-describe("el destino: la red se exige y se contrasta", () => {
-  beforeEach(async () => {
+describe("la retirada se queda con una COPIA del método, no con un puntero", () => {
+  it("copia el blob cifrado TAL CUAL, con su pista y su red", async () => {
     await conSaldo(20_000);
-  });
+    const metodoPagoId = await conMetodo({ metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" });
+    const guardado = await prisma.paymentMethod.findUniqueOrThrow({ where: { id: metodoPagoId } });
 
-  const pedir = (destino: Parameters<typeof solicitarRetirada>[1]["destino"], n: string) =>
-    solicitarRetirada(prisma, {
+    const r = await solicitarRetirada(prisma, {
       userId,
       importeCents: 6000,
-      destino,
-      clave: `44444444-2222-4333-8444-55555555555${n}`,
+      metodoPagoId,
+      clave: "99999999-2222-4333-8444-555555555551",
     });
 
-  it("cripto por su red correcta: pasa", async () => {
-    const r = await pedir({ metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" }, "1");
-    expect(r.ok).toBe(true);
     const w = await prisma.withdrawal.findUniqueOrThrow({ where: { id: r.retiradaId! } });
+    // El MISMO blob: se copia sin descifrar, así que la dirección no llega a estar en claro por este
+    // camino. Si se descifrara y volviera a cifrar, el texto cambiaría (IV aleatorio) y este caso se
+    // pondría rojo — que es justo lo que se quiere saber.
+    expect(w.datosPago).toBe(guardado.datosPago);
+    expect(w.metodo).toBe("CRYPTO");
     expect(w.red).toBe("TRC20");
+    expect(w.pista).toBe(TRON_OK.slice(-4));
   });
 
-  it("una dirección de OTRA red se rechaza aunque sea válida en la suya", async () => {
-    // El fallo más caro de la pieza: un envío de cripto es irreversible. Una dirección de Ethereum
-    // es perfectamente válida… en Ethereum. Por TRON, ese dinero desaparece.
-    const r = await pedir({ metodo: "CRYPTO", direccion: ETH_OK, red: "TRC20" }, "2");
-    expect(r.rechazo).toBe("DIRECCION_NO_ES_DE_LA_RED");
-    expect(await saldo()).toBe(20_000);
-    expect(await prisma.withdrawal.count()).toBe(0);
-  });
+  it("BORRAR el método NO cambia a dónde iba una solicitud ya pedida", async () => {
+    // Con una referencia al `PaymentMethod`, el admin se encontraría una retirada pendiente sin
+    // destino —o, peor, con el destino de otro método— y tendría que preguntar. Lo que se pidió no
+    // se puede editar después.
+    await conSaldo(20_000);
+    const metodoPagoId = await conMetodo();
+    const r = await solicitarRetirada(prisma, {
+      userId,
+      importeCents: 6000,
+      metodoPagoId,
+      clave: "99999999-2222-4333-8444-555555555552",
+    });
+    const antes = await prisma.withdrawal.findUniqueOrThrow({ where: { id: r.retiradaId! } });
 
-  it("una red que DareFlash no envía se rechaza", async () => {
-    const r = await pedir({ metodo: "CRYPTO", direccion: TRON_OK, red: "BEP20" as never }, "3");
-    expect(r.rechazo).toBe("RED_NO_SOPORTADA");
-    expect(await prisma.withdrawal.count()).toBe(0);
-  });
+    const { borrarMetodoPago } = await import("../src/server/services/metodos-pago");
+    expect((await borrarMetodoPago(prisma, { userId, metodoId: metodoPagoId })).borrado).toBe(true);
 
-  it("un IBAN inválido se rechaza antes de tocar el saldo", async () => {
-    const r = await pedir({ metodo: "BANK", iban: "NO-ES-UN-IBAN", titular: "Marta" }, "4");
-    expect(r.rechazo).toBe("IBAN_INVALIDO");
-    expect(await saldo()).toBe(20_000);
-  });
-
-  it("un banco sin titular se rechaza", async () => {
-    const r = await pedir({ metodo: "BANK", iban: IBAN_OK, titular: " " }, "5");
-    expect(r.rechazo).toBe("TITULAR_VACIO");
+    const despues = await prisma.withdrawal.findUniqueOrThrow({ where: { id: r.retiradaId! } });
+    expect(despues.datosPago).toBe(antes.datosPago);
+    expect(despues.pista).toBe(antes.pista);
+    expect(despues.status).toBe("PENDING");
   });
 });
 
@@ -258,7 +313,7 @@ describe("los datos de pago no salen de aquí", () => {
     const r = await solicitarRetirada(prisma, {
       userId,
       importeCents: 6000,
-      destino: BANCO,
+      metodoPagoId: await conMetodo(),
       clave: "55555555-2222-4333-8444-555555555551",
     });
 
@@ -275,7 +330,7 @@ describe("los datos de pago no salen de aquí", () => {
     await solicitarRetirada(prisma, {
       userId,
       importeCents: 6000,
-      destino: BANCO,
+      metodoPagoId: await conMetodo(),
       clave: "55555555-2222-4333-8444-555555555552",
     });
 
@@ -292,34 +347,10 @@ describe("los datos de pago no salen de aquí", () => {
     const r = await solicitarRetirada(prisma, {
       userId,
       importeCents: 6000,
-      destino: { metodo: "CRYPTO", direccion: TRON_OK, red: "ERC20" as never },
+      metodoPagoId: await conMetodo({ metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" }),
       clave: "55555555-2222-4333-8444-555555555553",
     });
     expect(JSON.stringify(r)).not.toContain(TRON_OK);
-  });
-});
-
-describe("sin cifrado no se piden datos de pago", () => {
-  it("falla cerrada: ni retirada ni débito", async () => {
-    // Lo contrario —guardar el IBAN en claro "mientras tanto"— es exactamente la fuga que el
-    // cifrado evita, y además silenciosa. Que la solicitud falle es ruidoso, y lo ruidoso se arregla.
-    vi.resetModules();
-    vi.doMock("@/config/env", () => ({ env: { PAGOS_SECRET: undefined } }));
-    const { solicitarRetirada: sinClave } = await import("../src/server/services/retirada");
-
-    await conSaldo(20_000);
-    const r = await sinClave(prisma, {
-      userId,
-      importeCents: 6000,
-      destino: BANCO,
-      clave: "66666666-2222-4333-8444-555555555551",
-    });
-
-    expect(r.rechazo).toBe("SIN_CIFRADO");
-    expect(await saldo()).toBe(20_000);
-    expect(await prisma.withdrawal.count()).toBe(0);
-    vi.doUnmock("@/config/env");
-    vi.resetModules();
   });
 });
 
@@ -328,25 +359,18 @@ describe("la clave de idempotencia va por usuario", () => {
     const otro = await crearUsuario(prisma, { username: "la_otra" });
     const clave = "77777777-2222-4333-8444-555555555551";
     await conSaldo(20_000);
-    const { applyWallet } = await import("../src/server/services/ledger");
-    await applyWallet(prisma, {
-      userId: otro,
-      amountCents: 20_000,
-      currency: DEFAULT_CURRENCY,
-      entryType: "CREDIT",
-      idempotencyKey: `semilla:${otro}`,
-    });
+    await conSaldo(20_000, otro);
 
     const a = await solicitarRetirada(prisma, {
       userId,
       importeCents: 6000,
-      destino: BANCO,
+      metodoPagoId: await conMetodo(),
       clave,
     });
     const b = await solicitarRetirada(prisma, {
       userId: otro,
       importeCents: 6000,
-      destino: BANCO,
+      metodoPagoId: await conMetodo(BANCO, otro),
       clave,
     });
 

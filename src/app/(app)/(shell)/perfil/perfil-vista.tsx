@@ -192,6 +192,13 @@ export function PerfilVista({
                 <Boton href="/puntos" variante="secundario" className="mt-3 w-full py-3">
                   Mis puntos y nivel
                 </Boton>
+                {/* EL MONEDERO. Su puerta es ESTA, y no la barra lateral: cobrar no es algo que se
+                    haga a menudo, así que vive donde una persona busca la configuración de su
+                    cuenta —junto a editar perfil y cambiar contraseña— y no entre los destinos de
+                    uso diario. En móvil, además, esta es la única vía. */}
+                <Boton href="/wallet" variante="secundario" className="mt-3 w-full py-3">
+                  Mi monedero
+                </Boton>
                 <Boton href="/referidos" variante="secundario" className="mt-3 w-full py-3">
                   Ir a mis referidos
                 </Boton>

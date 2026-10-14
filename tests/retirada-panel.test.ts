@@ -59,10 +59,15 @@ async function pedir(cents = 7500): Promise<string> {
     entryType: "CREDIT",
     idempotencyKey: `semilla:${userId}:${n}`,
   });
+  // Un método guardado por solicitud: el destino ya no se teclea al pedir, se elige de los que la
+  // persona configuró. Ver `metodos-pago`.
+  const { guardarMetodoPago } = await import("../src/server/services/metodos-pago");
+  const m = await guardarMetodoPago(prisma, { userId, destino: BANCO });
+  expect(m.ok, "la fixture no pudo guardar el método de cobro").toBe(true);
   const r = await solicitarRetirada(prisma, {
     userId,
     importeCents: cents,
-    destino: BANCO,
+    metodoPagoId: m.ok ? m.id : "",
     clave: `8888888${n}-2222-4333-8444-555555555551`,
   });
   expect(r.ok, "la solicitud de prueba no salió").toBe(true);

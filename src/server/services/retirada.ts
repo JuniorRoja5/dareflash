@@ -4,21 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { DEFAULT_CURRENCY } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
-import {
-  claveRetirada,
-  colaDelDestino,
-  evaluarImporte,
-  serializarDestino,
-  validarDestino,
-  type DestinoRetirada,
-  type RechazoDestino,
-  type RechazoImporte,
-} from "@/lib/retirada";
-import {
-  cifradoDePagosDisponible,
-  cifrarDatoDePago,
-  pistaDeDestino,
-} from "@/server/security/cifrado-pagos";
+import { claveRetirada, evaluarImporte, type RechazoImporte } from "@/lib/retirada";
 
 import { applyWallet, LedgerError } from "./ledger";
 
@@ -43,9 +29,14 @@ import { applyWallet, LedgerError } from "./ledger";
  * SALE EL IMPORTE SOLICITADO, NO MENOS. Las comisiones de red o de banco reducen lo que LLEGA, no lo
  * que sale: así los libros cuadran en lo pedido y la comisión queda entre la red y quien cobra. Aquí
  * no se resta nada ni se estima nada — estimar una comisión sería inventar una cifra de dinero.
+ *
+ * EL DESTINO YA NO SE TECLEA AQUÍ: se elige un método GUARDADO y la retirada se queda con una COPIA
+ * cifrada de sus datos. Por eso este camino ya no cifra nada —solo copia un blob que ya lo está—, y
+ * por eso no comprueba `PAGOS_SECRET`: la puerta del cifrado está donde se GUARDA el método, que es
+ * donde el dato entra en claro. Ver `metodos-pago`.
  */
 
-export type RechazoRetirada = RechazoImporte | RechazoDestino | "SIN_CIFRADO" | "USUARIO_NO_EXISTE";
+export type RechazoRetirada = RechazoImporte | "METODO_NO_EXISTE" | "USUARIO_NO_EXISTE";
 
 export interface ResultadoSolicitud {
   ok: boolean;
@@ -63,24 +54,29 @@ export async function solicitarRetirada(
   input: {
     userId: string;
     importeCents: number;
-    destino: DestinoRetirada;
+    /** Un método YA GUARDADO de esta persona. Los datos no se vuelven a teclear. */
+    metodoPagoId: string;
     /** Del formulario (uuid). Dos envíos del mismo intento comparten clave y debitan una vez. */
     clave: string;
     /** Inyectable para los tests; en producción lo genera esta función. */
     retiradaId?: string;
   },
 ): Promise<ResultadoSolicitud> {
-  // LA FORMA ANTES QUE EL DINERO: un destino inválido no debe ni llegar a tocar el saldo, y además
-  // así el rechazo es el que la persona puede arreglar (su IBAN), no uno genérico.
-  const destino = validarDestino(input.destino);
-  if (!destino.ok) {
-    return { ok: false, rechazo: destino.motivo, retiradaId: null, creada: false, saldoCents: 0 };
-  }
-
-  // SIN CIFRADO NO SE PIDEN DATOS DE PAGO. Se comprueba ANTES de tocar el saldo para no debitar a
-  // alguien y descubrir después que su IBAN no se puede guardar. Ver `cifrado-pagos`: falla cerrada.
-  if (!cifradoDePagosDisponible()) {
-    return { ok: false, rechazo: "SIN_CIFRADO", retiradaId: null, creada: false, saldoCents: 0 };
+  // LA AUTORIZACIÓN VA EN EL `where`, no en un `if` después de leer: un método de otra persona
+  // sencillamente no se encuentra, y se responde lo mismo que si no existiera. Nadie averigua por
+  // la respuesta si el método de otro existe.
+  const metodo = await db.paymentMethod.findFirst({
+    where: { id: input.metodoPagoId, userId: input.userId },
+    select: { metodo: true, datosPago: true, pista: true, red: true },
+  });
+  if (!metodo) {
+    return {
+      ok: false,
+      rechazo: "METODO_NO_EXISTE",
+      retiradaId: null,
+      creada: false,
+      saldoCents: 0,
+    };
   }
 
   const usuario = await db.user.findUnique({
@@ -113,8 +109,6 @@ export async function solicitarRetirada(
 
   const retiradaId = input.retiradaId ?? randomUUID();
   const idempotencyKey = claveRetirada(input.userId, input.clave);
-  const cifrado = cifrarDatoDePago(serializarDestino(input.destino));
-  const pista = pistaDeDestino(colaDelDestino(input.destino));
 
   try {
     const r = await applyWallet(db, {
@@ -135,10 +129,18 @@ export async function solicitarRetirada(
             amountCents: input.importeCents,
             currency: DEFAULT_CURRENCY,
             status: "PENDING",
-            metodo: input.destino.metodo,
-            datosPago: cifrado,
-            pista,
-            red: input.destino.metodo === "CRYPTO" ? input.destino.red : null,
+            // ┌─ LA COPIA (SNAPSHOT), Y POR QUÉ NO UNA REFERENCIA AL MÉTODO ─────────────────────┐
+            // │ La retirada se queda con los datos TAL CUAL estaban al pedirla, ya cifrados: se  │
+            // │ copia el blob sin descifrarlo, así que el IBAN no llega a estar en claro ni en   │
+            // │ memoria por este camino. Si apuntara al `PaymentMethod`, cambiar o borrar el     │
+            // │ método reescribiría —o borraría— a dónde iba un pago YA PEDIDO, y el admin se    │
+            // │ encontraría una solicitud pendiente sin destino, o con otro. Lo que se pidió no  │
+            // │ se puede editar después.                                                         │
+            // └──────────────────────────────────────────────────────────────────────────────────┘
+            metodo: metodo.metodo,
+            datosPago: metodo.datosPago,
+            pista: metodo.pista,
+            red: metodo.red,
             idempotencyKey,
           },
         });

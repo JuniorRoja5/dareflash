@@ -107,10 +107,6 @@ export const NAV_DESTINOS = [
   { clave: "destacados", nombre: "Boost", href: "/destacados" },
   { clave: "perfil", nombre: "Perfil", href: "/perfil" },
   { clave: "puntos", nombre: "Puntos", href: "/puntos" },
-  // COBROS — el monedero y las solicitudes de retirada. Va con "lo mío" (perfil, puntos, referidos)
-  // y NO con Puntos: los puntos y el dinero son dos ledgers que no se convierten entre sí, y
-  // meterlos en la misma pantalla invitaría justo a esa confusión.
-  { clave: "cobros", nombre: "Cobros", href: "/cobros" },
   { clave: "referidos", nombre: "Referidos", href: "/referidos" },
 ] as const;
 
@@ -126,9 +122,17 @@ export const NAV_ESCRITORIO = [
   "destacados",
   "perfil",
   "puntos",
-  "cobros",
   "referidos",
 ] as const;
+// EL MONEDERO NO ESTÁ EN ESTA LISTA, y es una decisión. Estuvo un rato como destino propio y era un
+// sitio equivocado: la barra es para las cosas que se hacen a menudo —mirar el feed, ver los retos—,
+// y cobrar no es una de ellas. Su puerta vive donde viven "editar perfil" y "cambiar contraseña",
+// que es donde una persona busca la configuración de su cuenta. En móvil, por el perfil, igual.
+//
+// Lo que sí sigue siendo cierto es por qué no está dentro de `/puntos`: los puntos y el dinero son
+// dos ledgers que NO se convierten entre sí, y juntarlos invita a preguntar cuántos puntos son un
+// euro. Son dos pantallas distintas; lo que cambió es por dónde se entra a la segunda.
+
 /**
  * LOS DESTINOS QUE VAN EN LA BARRA DE MOVIL. Son CUATRO, no cinco: el quinto hueco lo ocupa el boton
  * "Mas", que no es un destino sino la puerta al resto (ver `NAV_MOVIL_MAS`).
