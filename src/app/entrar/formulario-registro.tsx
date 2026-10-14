@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
@@ -179,7 +180,22 @@ export function FormularioRegistro() {
           className="mt-0.5 h-4 w-4 shrink-0 rounded-xs border-line accent-action"
         />
         <span>
-          Confirmo que soy mayor de edad y acepto los términos y la política de privacidad.
+          Confirmo que soy mayor de edad y acepto los términos y la{" "}
+          {/* ┌─ EL ENLACE PARA EL CLIC ANTES DE QUE LLEGUE A LA ETIQUETA ──────────────────────┐
+              │ Un enlace DENTRO de un `<label>` hereda su comportamiento: al pulsarlo, el       │
+              │ navegador marca o desmarca la casilla ADEMÁS de navegar. En una casilla          │
+              │ cualquiera sería una molestia; en una de CONSENTIMIENTO es un fallo: ir a leer   │
+              │ la política te cambiaría lo que has consentido, y al volver estaría distinto de  │
+              │ como lo dejaste. `stopPropagation` corta el clic antes de que la etiqueta lo vea.│
+              └────────────────────────────────────────────────────────────────────────────────┘ */}
+          <Link
+            href="/privacidad"
+            onClick={(e) => e.stopPropagation()}
+            className="underline underline-offset-2 hover:text-text"
+          >
+            política de privacidad
+          </Link>
+          .
         </span>
       </label>
 

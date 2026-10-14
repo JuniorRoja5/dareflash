@@ -49,6 +49,16 @@ Son dos porque fueron uno: subirlo para que el escaparate se leyera sobre blanco
 nueve superficies, y en `/ranking` apareció un verde de esquina que nadie había pedido. Si una
 pantalla necesita más verde, **pide su propia fuerza**; no empuja la que comparten las demás.
 
+La misma regla vale para cualquier capa con carácter propio: el tejido de rayos de `/destacados`
+lleva su `--df-rayos-opacidad`, por tema y **de esa capa**, no un token general al que puedan
+engancharse otras pantallas.
+
+**El verde de marca NO es el aro.** Es el rayo del fondo y el CTA. El aro y el halo de una persona
+son el color de su **nivel** (`--df-nivel-*`, y el oro del podio para Legend); Rookie no lleva
+ninguno, porque es el estándar y no una insignia. Forzar el verde ahí parecía coherente y hacía lo
+contrario: cuarenta caras con la misma luz, que no dice nada, y encima contradiciendo al aro del
+avatar, que sí decía el nivel. Identidad y acento son dos trabajos distintos y no comparten color.
+
 ## 2. El color se usa por TOKEN, nunca por valor
 
 Un color se escribe una vez, en [src/app/globals.css](src/app/globals.css), como token `--df-*`, y se
@@ -134,6 +144,10 @@ Quién lo comprueba:
   comparan token contra token, pero donde el glow pega el fondo deja de ser `--df-void`.
 - [tests/marca-prosa.test.ts](tests/marca-prosa.test.ts) — ningún comentario nombra un color, y el
   realce del dinero se llama por su trabajo.
+- [tests/render/destacado-halo-nivel.test.tsx](tests/render/destacado-halo-nivel.test.tsx) — el aro y
+  el halo de una persona son su NIVEL, no el acento de marca, y Rookie no lleva ninguno.
+- [tests/destacados-escenario.test.ts](tests/destacados-escenario.test.ts) — el tejido de rayos es
+  UNA capa y solo de la vitrina, con su opacidad por tema y un único acento de acción en pantalla.
 - [tests/marca-v3-firmada.test.ts](tests/marca-v3-firmada.test.ts) — los valores firmados, clavados
   con cifras escritas, y que no sobreviva ningún magenta ni morado en el repositorio. Los otros
   cuatro miden **cualquier** paleta y sobreviven al próximo repintado; este clava **esta**. Hacen
