@@ -1,15 +1,20 @@
 /**
- * Métricas REALES del panel. SOLO datos que ya existen en la BD: CERO cifras inventadas. Lo que aún no
- * tiene backend (dinero/monedero, reportes) NO se calcula aquí — la vista lo muestra como
- * "próximamente", no como un 0 engañoso.
+ * Métricas REALES del panel. SOLO datos que ya existen en la BD: CERO cifras inventadas.
  *
- * Dos ámbitos: el RESUMEN del panel (`metricasPanel`) y la gestión de UN reto (`metricasReto`,
- * `interaccionPorParticipacion`, `serieDiariaReto`).
+ * Tres ámbitos: el RESUMEN del panel (`metricasPanel`), el DINERO (`metricasDinero`, aparte y por su
+ * propia razón) y la gestión de UN reto (`metricasReto`, `interaccionPorParticipacion`,
+ * `serieDiariaReto`).
+ *
+ * YA NO QUEDA NADA EN "PRÓXIMAMENTE" AQUÍ. Mientras el monedero no existía, la portada del panel
+ * pintaba "Premios pagados — Fase 7", que era lo honesto entonces; con la Fase 7 construida, ese
+ * hueco pasó a ser lo contrario de honesto —decía "aún no se mide" sobre algo que ya se medía—. Un
+ * placeholder que sobrevive a su fase miente igual que una cifra inventada, y encima no falla nada.
  */
 import "server-only";
 
-import { PANEL_INTERACCION_TOPE } from "@/config/constants";
+import { ChallengeStatusSchema, PANEL_INTERACCION_TOPE } from "@/config/constants";
 import { Prisma } from "@/generated/prisma/client";
+import { ESTADOS_RETIRADA_EN_CURSO } from "@/lib/retirada";
 import { type DiaActividad, diasUtcEntre, rellenarSerie } from "@/lib/serie-diaria";
 import type { Db } from "@/server/db/types";
 import { PARTICIPACION_QUE_CUENTA } from "@/server/services/ranking";
@@ -19,27 +24,125 @@ export interface MetricasPanel {
   retosPublicados: number;
   retosBorradores: number;
   usuarios: number;
+  /**
+   * Retos ABIERTOS AHORA MISMO: publicados, ya empezados, sin vencer y sin borrado en marcha. No es
+   * lo mismo que `retosPublicados`, que cuenta la COLUMNA —lo que el admin quiso— e incluye los
+   * programados y los que ya vencieron. Ese desfase fue un fallo real de la lista de retos.
+   */
+  retosAbiertos: number;
+  /**
+   * Retos cerrados ESPERANDO una decisión del admin por empate. Es la única cola de retos que
+   * requiere a una persona, así que es la que vale en una portada.
+   */
+  retosEmpatePendiente: number;
+  /**
+   * Objetos DISTINTOS con denuncias abiertas, que es lo que de verdad hay que revisar: la cola de
+   * moderación agrupa por objeto, y contar filas de `Report` daría un número más alto que la cola
+   * —quince denuncias del mismo vídeo son UNA cosa que mirar—.
+   */
+  denunciasAbiertas: number;
+}
+
+/**
+ * "ABIERTO" expresado para la BD. Es el MISMO estado que `estadoRetoAdmin` calcula para una fila, y
+ * aquí tiene que ir como filtro porque esto es un `COUNT`: traerse los retos para clasificarlos en
+ * memoria es cargar la tabla entera para devolver un número.
+ *
+ * Que las dos formas de decirlo no se separen lo vigila `panel-metricas` con un caso que crea un reto
+ * de CADA estado y compara el conteo con lo que dice `estadoRetoAdmin`. Si alguien cambia una y no la
+ * otra, ese caso se pone rojo — el texto de aquí no lo garantizaría.
+ */
+function retoAbiertoEnBd(ahora: Date) {
+  return {
+    status: ChallengeStatusSchema.enum.PUBLISHED,
+    deletedAt: null,
+    eliminacionProgramadaEn: null,
+    startsAt: { lte: ahora },
+    deadline: { gt: ahora },
+  };
 }
 
 /**
  * Conteos en paralelo. Los retos por estado se agrupan en UNA consulta (`groupBy status`) y el total se
  * deriva sumando (evita una consulta extra y que total y desglose se contradigan). CLOSED existe en el
  * dominio pero hoy no hay cierre automático; se ignora en el desglose y se cuenta solo en el total.
+ *
+ * `ahora` es inyectable para que el caso de "abierto" se pueda situar en el tiempo sin esperar.
  */
-export async function metricasPanel(db: Db): Promise<MetricasPanel> {
-  const [porEstado, usuarios] = await Promise.all([
-    db.challenge.groupBy({ by: ["status"], _count: { _all: true } }),
-    db.user.count(),
-  ]);
+export async function metricasPanel(db: Db, ahora: Date = new Date()): Promise<MetricasPanel> {
+  const [porEstado, usuarios, retosAbiertos, retosEmpatePendiente, objetosDenunciados] =
+    await Promise.all([
+      db.challenge.groupBy({ by: ["status"], _count: { _all: true } }),
+      db.user.count(),
+      db.challenge.count({ where: retoAbiertoEnBd(ahora) }),
+      db.challenge.count({ where: { motivoCierre: "EMPATE_PENDIENTE", deletedAt: null } }),
+      // POR OBJETO, no por denuncia: el `groupBy` devuelve una fila por objeto distinto, que es
+      // exactamente lo que la cola de moderación enseña. Y solo las ABIERTAS: lo resuelto o
+      // descartado no vuelve a subir (ver `cola-moderacion`).
+      db.report.groupBy({ by: ["targetType", "targetId"], where: { status: "OPEN" } }),
+    ]);
 
   const cuenta = (estado: string) => porEstado.find((g) => g.status === estado)?._count._all ?? 0;
   const retosTotal = porEstado.reduce((acc, g) => acc + g._count._all, 0);
 
   return {
     retosTotal,
-    retosPublicados: cuenta("PUBLISHED"),
-    retosBorradores: cuenta("DRAFT"),
+    retosPublicados: cuenta(ChallengeStatusSchema.enum.PUBLISHED),
+    retosBorradores: cuenta(ChallengeStatusSchema.enum.DRAFT),
     usuarios,
+    retosAbiertos,
+    retosEmpatePendiente,
+    denunciasAbiertas: objetosDenunciados.length,
+  };
+}
+
+/**
+ * LAS CIFRAS DE DINERO DEL PANEL, APARTE A PROPÓSITO.
+ *
+ * ┌─ POR QUÉ NO ESTÁN EN `metricasPanel` ─────────────────────────────────────────────────────────────┐
+ * │ `/panel` (el Resumen) es de ADMIN y un moderador ni llega: `primeraSeccionPara` lo desvía a su  │
+ * │ sección antes de que esta pantalla se renderice. Pero el día que una pantalla compartida quiera │
+ * │ "las métricas del panel", lo que NO puede pasar es que el dinero venga de propina dentro del    │
+ * │ mismo objeto. Separarlas hace que enseñar dinero sea siempre una llamada EXPLÍCITA, que es la   │
+ * │ misma disciplina del DTO de las retiradas: la puerta es la forma, no la buena intención.        │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+export interface MetricasDinero {
+  /** Retiradas esperando una decisión humana (`PENDING`): la cola de trabajo del admin. */
+  retiradasPendientes: number;
+  /** Retiradas en algún estado NO final: dinero ya debitado que aún no ha llegado a su destino. */
+  retiradasEnCurso: number;
+  /** Importe de esas retiradas en curso. Es lo que hay que transferir. */
+  retiradasEnCursoCents: number;
+  /** Lo ya pagado, histórico. */
+  pagadoCents: number;
+  /**
+   * Suma de TODOS los saldos de monedero. Es el pasivo de la plataforma: lo que debe hoy si todo el
+   * mundo pidiera cobrar. No se cruza con lo anterior —ese dinero ya salió del saldo—, así que las
+   * dos cifras no se suman y la vista no las presenta como si lo hicieran.
+   */
+  monederosCents: number;
+}
+
+export async function metricasDinero(db: Db): Promise<MetricasDinero> {
+  const [porEstado, monederos] = await Promise.all([
+    db.withdrawal.groupBy({ by: ["status"], _count: { _all: true }, _sum: { amountCents: true } }),
+    db.user.aggregate({ _sum: { walletBalanceCents: true } }),
+  ]);
+
+  const grupo = (estado: string) => porEstado.find((g) => g.status === estado);
+  // "EN CURSO" SE DERIVA DE LA MÁQUINA DE ESTADOS (`ESTADOS_RETIRADA_EN_CURSO`), no se enumera aquí:
+  // una segunda lista de estados es una lista libre de discrepar, y lo que contaría mal es dinero.
+  const enCurso = porEstado.filter((g) =>
+    (ESTADOS_RETIRADA_EN_CURSO as readonly string[]).includes(g.status),
+  );
+
+  return {
+    retiradasPendientes: grupo("PENDING")?._count._all ?? 0,
+    retiradasEnCurso: enCurso.reduce((t, g) => t + g._count._all, 0),
+    retiradasEnCursoCents: enCurso.reduce((t, g) => t + (g._sum.amountCents ?? 0), 0),
+    pagadoCents: grupo("PAID")?._sum.amountCents ?? 0,
+    monederosCents: monederos._sum.walletBalanceCents ?? 0,
   };
 }
 

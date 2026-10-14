@@ -152,6 +152,27 @@ export function siguientesEstados(desde: EstadoRetirada): readonly EstadoRetirad
   return TRANSICIONES[desde] ?? [];
 }
 
+/** Todos los estados que existen. Sale de la TABLA, así que uno nuevo entra aquí él solo. */
+export const ESTADOS_RETIRADA = Object.keys(TRANSICIONES) as readonly EstadoRetirada[];
+
+/**
+ * ¿Es un estado FINAL? Se DERIVA de la tabla —final es "no se va a ninguna parte"— en vez de
+ * enumerar `["PAID", "REJECTED"]` en un segundo sitio. Una segunda lista es una lista libre de
+ * discrepar: el día que entre otro estado final, quien enumeró se queda corto SIN fallar, y lo que
+ * se cuenta mal es dinero.
+ */
+export function esEstadoFinal(estado: EstadoRetirada): boolean {
+  return siguientesEstados(estado).length === 0;
+}
+
+/**
+ * Los estados VIVOS: dinero ya debitado del monedero que todavía no ha llegado a su destino. Es lo
+ * que la plataforma tiene pendiente de pagar, y por eso se deriva en vez de escribirse.
+ */
+export const ESTADOS_RETIRADA_EN_CURSO: readonly EstadoRetirada[] = ESTADOS_RETIRADA.filter(
+  (e) => !esEstadoFinal(e),
+);
+
 /**
  * ¿Esta transición DEVUELVE el dinero? Solo una: rechazar. Las demás no mueven saldo porque el
  * dinero ya salió al solicitar — aprobar o marcar "en proceso" son anotaciones de lo que el admin

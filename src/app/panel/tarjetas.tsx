@@ -1,3 +1,5 @@
+import { ImportePremio } from "@/components/ui/importe-premio";
+
 /**
  * TARJETAS de métrica del panel. Fuente ÚNICA: las usan el Resumen y la gestión de un reto, para que
  * "dato real" y "todavía no hay dato" se lean EXACTAMENTE igual en todo el panel.
@@ -11,27 +13,59 @@ const ESTILO_CIFRA = {
   fontVariationSettings: '"wght" 780, "wdth" 118',
 } as const;
 
-/** Métrica REAL: número grande (tabular) + etiqueta. `acento` la resalta (dinero -> --df-money). */
+/**
+ * Métrica REAL: número grande (tabular) + etiqueta. CUENTA COSAS, y por eso es neutra.
+ *
+ * TUVO UN `acento` que la pintaba de `--df-money`, pensado "para cuando haya dinero". Cuando llegó el
+ * dinero resultó que no servía: un importe no es un número grande con otro color, es céntimos
+ * formateados con la primitiva del dinero. Nadie lo usó nunca, así que se ha ido — un permiso
+ * aparcado "para el futuro" es el camino más corto a pintar un recuento con el color del dinero. Para
+ * importes está `TarjetaDinero`.
+ */
 export function TarjetaMetrica({
   valor,
   etiqueta,
-  acento = false,
   nota,
 }: {
   valor: number;
   etiqueta: string;
-  acento?: boolean;
   /** Matiz opcional bajo la cifra (p.ej. de qué se está contando exactamente). */
   nota?: string;
 }) {
   return (
     <div className="rounded-sm border border-line bg-surface/60 p-5 shadow-[var(--df-shadow-md)]">
-      <p
-        className={`text-3xl leading-none tabular-nums ${acento ? "text-money" : "text-text"}`}
-        style={ESTILO_CIFRA}
-      >
+      <p className="text-3xl leading-none tabular-nums text-text" style={ESTILO_CIFRA}>
         {valor.toLocaleString("es-ES")}
       </p>
+      <p className="mt-2 text-2xs font-semibold tracking-widest text-text-dim uppercase">
+        {etiqueta}
+      </p>
+      {nota ? <p className="mt-1 text-2xs text-text-dim">{nota}</p> : null}
+    </div>
+  );
+}
+
+/**
+ * Métrica de DINERO. Céntimos enteros, nunca un número suelto: un importe pintado con
+ * `toLocaleString` se lee como una cantidad de cosas, y "5000" no es cinco mil euros.
+ *
+ * LA CIFRA LA PINTA `ImportePremio`, la primitiva del dinero del producto (Archivo Expanded,
+ * `--df-money`, el entero mandando sobre símbolo y céntimos). Así el importe se ve IGUAL en el panel
+ * que en el monedero del usuario y que en el premio de un reto; con un tamaño escrito aquí a mano,
+ * serían tres tratamientos del dinero libres de separarse.
+ */
+export function TarjetaDinero({
+  cents,
+  etiqueta,
+  nota,
+}: {
+  cents: number;
+  etiqueta: string;
+  nota?: string;
+}) {
+  return (
+    <div className="rounded-sm border border-line bg-surface/60 p-5 shadow-[var(--df-shadow-md)]">
+      <ImportePremio cents={cents} tamano="tarjeta" className="block" />
       <p className="mt-2 text-2xs font-semibold tracking-widest text-text-dim uppercase">
         {etiqueta}
       </p>
@@ -44,6 +78,10 @@ export function TarjetaMetrica({
  * Métrica SIN backend todavía. Pinta una RAYA, nunca un número: un 0 aquí sería mentira (no es que
  * haya cero, es que aún no se mide). Cuando llegue su fase se sustituye por una `TarjetaMetrica` en
  * el mismo hueco, sin tocar la maqueta.
+ *
+ * Y CUANDO LLEGA SU FASE, SE VA. Un `próximamente` que sobrevive a la fase que prometía dice "aún no
+ * se mide" sobre algo que ya se mide, o sea que miente igual que una cifra inventada y encima parece
+ * honesto. Pasó con "Premios pagados · Fase 7", que siguió ahí con el monedero ya construido.
  */
 export function TarjetaProximamente({ etiqueta, fase }: { etiqueta: string; fase?: number }) {
   return (
