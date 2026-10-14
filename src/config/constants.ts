@@ -110,6 +110,39 @@ export const MSG_RETIRADA_NO_DISPONIBLE =
   "Ahora mismo no podemos aceptar datos de cobro. Vuelve a intentarlo en un rato.";
 
 /**
+ * TOPE de un ajuste manual de saldo del monedero, en centimos (1.000 $).
+ *
+ * No es una regla de producto: es un pasamanos. El ajuste existe para corregir y para probar, y un
+ * cero de mas tecleado en un campo de dinero es el tipo de error que no avisa — el saldo sube, nada
+ * falla, y se entera quien lo cobre. Lo que no cabe en el tope se hace en varios ajustes, cada uno
+ * con su motivo, que ademas deja mejor traza que uno enorme.
+ */
+export const AJUSTE_SALDO_CENTS_MAX = 100_000;
+
+/** El `refType` de un movimiento de monedero escrito por un ADMIN a mano. Ver `monedero-admin`. */
+export const REF_WALLET_AJUSTE_ADMIN = "ADMIN";
+
+/**
+ * QUE FUE CADA MOVIMIENTO DEL MONEDERO, dicho para su dueño. La clave sale de `refType`, y la frase
+ * de aqui: la fila guarda el HECHO y el copy lo traduce, asi que reescribir esta frase reescribe
+ * tambien los movimientos antiguos en vez de congelarlos (mismo patron que `nivelMinimo`).
+ *
+ * EL AJUSTE DEL ADMIN SE LLAMA POR SU NOMBRE. Disfrazarlo de premio seria mentir en el historial de
+ * dinero de una persona; y al reves —no enseñarlo— deja un saldo que cambia solo. Lo que NO entra
+ * aqui es el MOTIVO que escribio el admin ni QUIEN lo firmo: eso es traza interna y vive en el
+ * `AuditLog` (ver la nota del ajuste de puntos, misma disciplina).
+ */
+export const CONCEPTO_MOVIMIENTO: Record<string, string> = {
+  PRIZE: "Premio de un reto",
+  WITHDRAWAL: "Cobro solicitado",
+  WITHDRAWAL_REFUND: "Cobro devuelto",
+  ADMIN: "Ajuste del equipo",
+};
+
+/** Lo que se dice de un movimiento cuyo `refType` ya no esta en el catalogo. Honesto, no un hueco. */
+export const CONCEPTO_MOVIMIENTO_OTRO = "Movimiento";
+
+/**
  * Zona horaria de TODOS los limites temporales del producto. Decidido
  * EXPLICITAMENTE: **UTC**, como el resto del sistema. Afecta al "dia" del limite
  * de boosts y al "mes" del reinicio del ranking. Fijarlo aqui evita que cada

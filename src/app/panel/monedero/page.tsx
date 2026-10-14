@@ -1,3 +1,6 @@
+import Link from "next/link";
+
+import { Avatar } from "@/components/ui/avatar";
 import { importeConMoneda } from "@/lib/dinero";
 import { nombreMostrado } from "@/lib/identidad";
 import { ETIQUETA_ESTADO } from "@/lib/retirada";
@@ -5,6 +8,7 @@ import { ETIQUETA_ESTADO } from "@/lib/retirada";
 import { requireSeccion } from "../panel-guard";
 
 import { AccionesRetirada } from "./acciones-retirada";
+import { AjustarSaldo } from "./ajustar-saldo";
 
 export const metadata = { title: "Monedero y retiradas · Panel" };
 export const dynamic = "force-dynamic";
@@ -52,12 +56,29 @@ function cuando(fecha: Date): string {
  * servicio. Una retirada ya pagada o ya rechazada no ofrece NADA — son estados finales, y un botón
  * desactivado sugeriría que hay algo que hacer.
  */
-export default async function Pagina() {
+export default async function Pagina({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireSeccion("/panel/monedero");
+
+  const sp = await searchParams;
+  // TODO POR URL, como el inspector de puntos y el de Boost: `?q=` busca y `?u=` abre la ficha. Sin
+  // estado de cliente que se desincronice, y el enlace a una ficha se puede pegar en un hilo.
+  const q = typeof sp["q"] === "string" ? sp["q"].trim().slice(0, 100) : "";
+  const u = typeof sp["u"] === "string" ? sp["u"] : null;
+
   const { prisma } = await import("@/server/db/client");
   const { listarRetiradas } = await import("@/server/services/retirada-admin");
+  const { fichaMonedero } = await import("@/server/services/monedero-admin");
+  const { buscarUsuarios } = await import("@/server/services/buscar");
 
-  const retiradas = await listarRetiradas(prisma);
+  const [retiradas, resultados, ficha] = await Promise.all([
+    listarRetiradas(prisma),
+    q.length >= 2 ? buscarUsuarios(prisma, q, null, 10) : Promise.resolve(null),
+    u ? fichaMonedero(prisma, u) : Promise.resolve(null),
+  ]);
   const pendientes = retiradas.filter((r) => r.estado === "PENDING").length;
 
   return (
@@ -124,6 +145,89 @@ export default async function Pagina() {
           ))}
         </ul>
       )}
+
+      {/* ┌─ EL AJUSTE MANUAL, ABAJO Y APARTE ──────────────────────────────────────────────────────┐
+          │ No es parte de la cola: es una corrección (y la única forma honesta de sembrar saldo    │
+          │ para probar un cobro entero, en vez de escribir SQL contra la base de datos). Va al     │
+          │ final para que lo primero que se vea al entrar siga siendo lo que espera una decisión.  │
+          └─────────────────────────────────────────────────────────────────────────────────────────┘ */}
+      <section id="ajuste" aria-labelledby="ajuste-titulo" className="border-t border-line pt-8">
+        <h2 id="ajuste-titulo" className="text-sm font-semibold text-text">
+          Ajustar el saldo de alguien
+        </h2>
+        <p className="mt-1 max-w-prose text-sm text-text-dim">
+          Para corregir un premio que no entró, devolver algo a mano o preparar una prueba. Cada
+          ajuste escribe un movimiento en su monedero —nunca se toca el saldo directamente— y queda
+          en la auditoría con tu nombre y el motivo.
+        </p>
+
+        <form method="get" action="/panel/monedero" className="mt-4 flex flex-wrap gap-2">
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Buscar por @usuario o nombre"
+            aria-label="Buscar usuario"
+            className="min-h-[40px] min-w-0 flex-1 rounded-sm border border-line bg-raised px-3 text-sm text-text"
+          />
+          <button
+            type="submit"
+            className="min-h-[40px] rounded-sm border border-line px-4 text-sm font-medium text-text transition-colors hover:bg-raised"
+          >
+            Buscar
+          </button>
+        </form>
+        <p className="mt-1 text-2xs text-text-dim">
+          Busca entre las cuentas activas (sin borradas ni baneadas).
+        </p>
+
+        {resultados ? (
+          resultados.items.length === 0 ? (
+            <p className="mt-4 text-sm text-text-dim">Nadie coincide con «{q}».</p>
+          ) : (
+            <ul className="mt-4 flex flex-wrap gap-2">
+              {resultados.items.map((r) => (
+                <li key={r.id}>
+                  <Link
+                    href={`/panel/monedero?q=${encodeURIComponent(q)}&u=${encodeURIComponent(r.id)}#ajuste`}
+                    aria-current={r.id === u ? "true" : undefined}
+                    className={`flex items-center gap-2 rounded-sm border border-line px-3 py-1.5 text-sm transition-colors hover:bg-raised ${
+                      r.id === u ? "bg-raised text-text" : "text-text-dim"
+                    }`}
+                  >
+                    <Avatar
+                      nombre={r.username ?? "?"}
+                      imagen={r.image}
+                      tamano="sm"
+                      puntos={r.puntos}
+                    />
+                    @{r.username}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : null}
+
+        {u && !ficha ? <p className="mt-4 text-sm text-text-dim">Ese usuario no existe.</p> : null}
+
+        {ficha ? (
+          <div className="mt-6">
+            <p className="mb-3 text-sm text-text-dim">
+              @{ficha.username} tiene ahora mismo{" "}
+              <span className="tabular-nums text-text">{importeConMoneda(ficha.saldoCents)}</span>.
+            </p>
+            <AjustarSaldo
+              // La clave incluye el saldo: tras un ajuste, el formulario se rehace limpio en vez de
+              // quedarse con el importe escrito sobre un saldo que ya cambió.
+              key={`${ficha.id}:${ficha.saldoCents}`}
+              userId={ficha.id}
+              username={ficha.username}
+              saldoCents={ficha.saldoCents}
+            />
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }

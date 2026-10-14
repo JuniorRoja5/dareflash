@@ -43,6 +43,7 @@ vi.mock("@/server/auth/current-user", () => ({
   getCurrentUser: async () => (H.user.userId ? H.user : null),
 }));
 
+import { POST as ajuste } from "../src/app/api/panel/monedero/ajustar/route";
 import { POST as transicion } from "../src/app/api/panel/monedero/transicion/route";
 import { solicitarRetirada } from "../src/server/services/retirada";
 
@@ -176,5 +177,79 @@ describe("rechazar desde la ruta devuelve el dinero y lo dice", () => {
     const cuerpo = JSON.stringify(await res.json());
     expect(cuerpo).not.toContain(IBAN_OK);
     expect(cuerpo).not.toMatch(/iban|titular|datosPago/i);
+  });
+});
+
+/**
+ * LA RUTA QUE AJUSTA UN SALDO A MANO. Mismo edificio y mismo criterio: el rol se deriva de
+ * `secciones.ts` y quién firma sale de la sesión. Lo que cambia es que esto CREA dinero, así que
+ * un moderador que pasara aquí no movería una cola: se acreditaría a sí mismo.
+ */
+describe("el ajuste manual de saldo", () => {
+  const ajustar = (cuerpo: unknown): Promise<Response> =>
+    ajuste(
+      new Request("http://test/api/panel/monedero/ajustar", {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://test" },
+        body: JSON.stringify(cuerpo),
+      }),
+      undefined,
+    );
+
+  const CLAVE = "99999999-3333-4333-8444-555555555551";
+  const NOTA = "Premio del reto de octubre que no entró";
+
+  it("el administrador acredita, y el saldo sube", async () => {
+    const res = await ajustar({ userId: duenyo, deltaCents: 5000, nota: NOTA, clave: CLAVE });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ aplicado: true, saldoCents: 5000 });
+    expect(await saldoDuenyo()).toBe(5000);
+  });
+
+  it("un MODERADOR no: con esto se regalaría dinero a sí mismo", async () => {
+    H.user.role = "MODERATOR";
+
+    const res = await ajustar({ userId: duenyo, deltaCents: 5000, nota: NOTA, clave: CLAVE });
+
+    expect(res.status).toBe(403);
+    expect(await saldoDuenyo(), "el moderador movió dinero").toBe(0);
+    expect(await prisma.walletLedger.count()).toBe(0);
+  });
+
+  it("QUIÉN ajusta sale de la sesión: un `adminId` del cuerpo se ignora", async () => {
+    const otro = await crearUsuario(prisma, { username: "el_otro_admin" });
+
+    await ajustar({ userId: duenyo, deltaCents: 5000, nota: NOTA, clave: CLAVE, adminId: otro });
+
+    const linea = await prisma.auditLog.findFirstOrThrow({ where: { action: "WALLET_ADJUST" } });
+    expect(linea.actorId, "el ajuste se firmó a nombre de otro").toBe(H.user.userId);
+    expect((await prisma.walletLedger.findFirstOrThrow({ where: { userId: duenyo } })).refId).toBe(
+      H.user.userId,
+    );
+  });
+
+  it("sin motivo, con importe 0 o sin clave: 400 y nada escrito", async () => {
+    for (const cuerpo of [
+      { userId: duenyo, deltaCents: 5000, nota: "", clave: CLAVE },
+      { userId: duenyo, deltaCents: 0, nota: NOTA, clave: CLAVE },
+      { userId: duenyo, deltaCents: 5000, nota: NOTA },
+      { userId: duenyo, deltaCents: 5000, nota: NOTA, clave: "no-es-un-uuid" },
+    ]) {
+      const res = await ajustar(cuerpo);
+      expect(res.status, JSON.stringify(cuerpo)).toBe(400);
+    }
+    expect(await prisma.walletLedger.count()).toBe(0);
+  });
+
+  it("quitar más de lo que hay da 409, no 400: el cuerpo estaba bien", async () => {
+    const res = await ajustar({ userId: duenyo, deltaCents: -5000, nota: NOTA, clave: CLAVE });
+    expect(res.status).toBe(409);
+    expect(await saldoDuenyo()).toBe(0);
+  });
+
+  it("y un usuario que no existe, 404", async () => {
+    const res = await ajustar({ userId: "no-existe", deltaCents: 5000, nota: NOTA, clave: CLAVE });
+    expect(res.status).toBe(404);
   });
 });

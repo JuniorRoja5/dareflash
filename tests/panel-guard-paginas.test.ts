@@ -83,7 +83,13 @@ const PAGINAS_ADMIN: {
     cargar: () => import("../src/app/panel/notificaciones/page"),
     args: [{ searchParams: Promise.resolve({}) }],
   },
-  { ruta: "/panel/monedero", cargar: () => import("../src/app/panel/monedero/page"), args: [] },
+  {
+    // Al llegar el AJUSTE manual de saldo pasó a leer `?q=`/`?u=` para buscar a quién ajustar, como
+    // Boost y el inspector de puntos: ahora recibe `searchParams`.
+    ruta: "/panel/monedero",
+    cargar: () => import("../src/app/panel/monedero/page"),
+    args: [{ searchParams: Promise.resolve({}) }],
+  },
   {
     // Dejó de ser placeholder en la Fase 6 y pasó a leer `?q=`/`?u=` para buscar a quién ajustar,
     // así que ahora recibe `searchParams` como las otras dos que buscan.

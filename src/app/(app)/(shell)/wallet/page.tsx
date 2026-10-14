@@ -6,6 +6,7 @@ import { HeroMonedero } from "./hero-monedero";
 import { HistorialRetiradas } from "./historial-retiradas";
 import { InformacionCobro } from "./informacion-cobro";
 import { MetodosDeCobro } from "./metodos-de-cobro";
+import { MovimientosMonedero } from "./movimientos-monedero";
 import { PedirCobro } from "./pedir-cobro";
 
 export const metadata = { title: "Mi monedero · DareFlash" };
@@ -42,7 +43,7 @@ export const dynamic = "force-dynamic";
 export default async function WalletPage() {
   const { requireVerifiedUser, AuthError } = await import("@/server/auth/rbac");
   const { prisma } = await import("@/server/db/client");
-  const { misRetiradas } = await import("@/server/services/retirada");
+  const { misMovimientosMonedero, misRetiradas } = await import("@/server/services/retirada");
   const { misMetodosPago } = await import("@/server/services/metodos-pago");
 
   let userId: string;
@@ -59,11 +60,14 @@ export default async function WalletPage() {
   });
   const saldo = usuario.walletBalanceCents;
 
-  const [metodos, historial, porEstado] = await Promise.all([
+  const [metodos, historial, movimientos, porEstado] = await Promise.all([
     misMetodosPago(prisma, userId),
     // La PRIMERA página del histórico, ya pintada por el servidor; el "Ver más" sigue desde su
     // cursor. Lo que no se hace es traerlo entero: un histórico largo es una pantalla lenta.
     misRetiradas(prisma, userId),
+    // DE DÓNDE SALE EL SALDO. Desde que el equipo puede ajustarlo a mano, el dinero puede cambiar
+    // sin que ninguna solicitud lo explique: un saldo que se mueve solo parece un error.
+    misMovimientosMonedero(prisma, userId),
     // LAS DOS CIFRAS DEL HERO, DE UNA CONSULTA Y SOBRE TODO EL HISTORIAL. Sumarlas en memoria a
     // partir de `misRetiradas` daría un número que parece total y solo cuenta las 20 últimas, que es
     // peor que no ponerlo: una cifra de dinero equivocada no se distingue de una correcta mirándola.
@@ -112,6 +116,8 @@ export default async function WalletPage() {
             el servidor ya pintada, así que no hay un salto en blanco al abrir. */}
         <HistorialRetiradas inicial={historial.items} cursorInicial={historial.nextCursor} />
       </section>
+
+      <MovimientosMonedero movimientos={movimientos} />
 
       <InformacionCobro />
     </div>

@@ -248,6 +248,52 @@ function decodificarCursor(raw: string | null | undefined): PosicionRetirada | n
  * (t, i)` la referencia es un valor de orden y nada se repite ni se salta. Recorre de una pasada el
  * índice [userId, createdAt, id], que ya existía.
  */
+/**
+ * UN MOVIMIENTO DEL MONEDERO, dicho para su dueño.
+ *
+ * ┌─ ESTE DTO TIENE UN CAMPO QUE NO EXISTE A PROPÓSITO ───────────────────────────────────────────┐
+ * │ `refId`. En un ajuste manual, el `refId` de la fila es el ID DEL ADMIN que lo firmó, y eso no │
+ * │ se le enseña al dueño de la cuenta —es la misma regla que mantiene fuera del historial propio │
+ * │ la nota y el handle del ajuste de puntos—. Como el concepto se deriva de `refType`, el `refId`│
+ * │ no hace falta para nada aquí, así que no se selecciona siquiera.                              │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+export interface MovimientoMonedero {
+  id: string;
+  /** Con signo: positivo entra, negativo sale. El importe en céntimos, como todo el dinero. */
+  amountCents: number;
+  currency: string;
+  /** Clave del concepto (`refType`). La frase la pone el copy, no la fila. */
+  concepto: string | null;
+  createdAt: Date;
+}
+
+/**
+ * LOS ÚLTIMOS MOVIMIENTOS DEL MONEDERO. Existe porque el saldo tenía que poder explicarse: desde que
+ * el admin puede ajustarlo, una cuenta puede ver su dinero cambiar sin una sola línea que lo cuente,
+ * y un saldo que se mueve solo es indistinguible de un error.
+ *
+ * ES UN TOPE, NO UNA PÁGINA, y la pantalla lo dice ("últimos movimientos"). No se pagina por dos
+ * razones honestas: `WalletLedger` solo tiene índice por `userId` —un keyset por `(createdAt, id)`
+ * se apoyaría en una ordenación en memoria, y el índice compuesto es una migración que esta pieza no
+ * lleva—, y una lista que no promete ser completa no necesita un "ver más" que lo parezca. El día
+ * que haga falta el histórico entero, lo que toca es el índice y el mismo keyset de `misRetiradas`.
+ */
+export async function misMovimientosMonedero(
+  db: PrismaClient,
+  userId: string,
+  limite = 10,
+): Promise<MovimientoMonedero[]> {
+  const filas = await db.walletLedger.findMany({
+    where: { userId },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: Math.min(Math.max(1, Math.floor(limite)), 50),
+    // `refId` NO: ver el docblock del DTO. En un ajuste es el id del admin.
+    select: { id: true, amountCents: true, currency: true, refType: true, createdAt: true },
+  });
+  return filas.map(({ refType, ...f }) => ({ ...f, concepto: refType }));
+}
+
 export async function misRetiradas(
   db: PrismaClient,
   userId: string,
