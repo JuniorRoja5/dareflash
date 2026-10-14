@@ -30,10 +30,12 @@ import type { MetodoPagoPropio } from "@/server/services/metodos-pago";
  * para pintar esta lista: basta la pista para saber cuál es cuál, y lo que no viaja no se puede
  * quedar por el camino.
  *
- * "EDITAR" ES SUSTITUIR, y la pantalla lo dice. Precisamente porque el dato no vuelve, no se puede
- * rellenar el formulario con él: cambiar un método es escribirlo entero otra vez. Lo que sí se
- * conserva es que el cambio sea atómico (`PUT`, una transacción en el servidor), para que un fallo
- * a mitad no deje a nadie sin método con el IBAN ya tecleado.
+ * SE DICE "REEMPLAZAR", NO "EDITAR", Y ESO ES LA DECISIÓN. Precisamente porque el dato no vuelve, el
+ * formulario no se puede rellenar con él: cambiar un método es escribirlo entero otra vez. "Editar"
+ * PROMETE encontrarlo relleno, así que la palabra mentía antes de que nadie pulsara. Lo que de
+ * verdad ocurre —escribes otro y sustituye al anterior— es lo que dice el botón. Y el cambio es
+ * atómico (`PUT`, una transacción en el servidor), para que un fallo a mitad no deje a nadie sin
+ * método con el IBAN ya tecleado.
  */
 
 type Icono = (p: SVGProps<SVGSVGElement>) => React.ReactElement;
@@ -79,7 +81,7 @@ export function MetodosDeCobro({
   saldoCents: number;
 }) {
   const router = useRouter();
-  /** `null` = cerrado; `""` = añadiendo uno nuevo; un id = sustituyendo ese. */
+  /** `null` = cerrado; `""` = añadiendo uno nuevo; un id = reemplazando ese. */
   const [editando, setEditando] = useState<string | null>(metodos.length === 0 ? "" : null);
   const [metodo, setMetodo] = useState<"BANK" | "CRYPTO">("BANK");
   const [iban, setIban] = useState("");
@@ -96,7 +98,7 @@ export function MetodosDeCobro({
     [metodo, iban, titular, direccion, red],
   );
   const puede = validarDestino(destino).ok && !ocupado;
-  const sustituyendo = editando !== null && editando !== "";
+  const reemplazando = editando !== null && editando !== "";
 
   function limpiar() {
     setIban("");
@@ -111,8 +113,8 @@ export function MetodosDeCobro({
     setEditando("");
   }
 
-  /** Abre el formulario YA en el tipo y la red del método que se sustituye: lo único que se sabe. */
-  function abrirSustitucion(m: MetodoPagoPropio) {
+  /** Abre el formulario YA en el tipo y la red del método que se reemplaza: lo único que se sabe. */
+  function abrirReemplazo(m: MetodoPagoPropio) {
     limpiar();
     setMetodo(m.metodo === "CRYPTO" ? "CRYPTO" : "BANK");
     const suRed = REDES_CRIPTO.find((r) => r.red === m.red);
@@ -125,7 +127,7 @@ export function MetodosDeCobro({
     if (!puede || editando === null) return;
     setError(null);
     setOcupado(true);
-    const r = sustituyendo
+    const r = reemplazando
       ? await putJsonCsrf(`/api/metodos-pago/${editando}`, destino)
       : await postJsonCsrf("/api/metodos-pago", destino);
     setOcupado(false);
@@ -180,8 +182,12 @@ export function MetodosDeCobro({
               <span className="block font-mono text-xs text-text-dim">····{m.pista}</span>
             </span>
             <span className="flex shrink-0 gap-1">
-              <Boton variante="fantasma" onClick={() => abrirSustitucion(m)}>
-                Editar
+              {/* "REEMPLAZAR", NO "EDITAR", y la palabra importa: editar PROMETE que el formulario
+                  viene relleno, y no puede venirlo — los datos se guardan cifrados y no vuelven del
+                  servidor ni para su dueño. Lo que ocurre de verdad es que se escribe otro y
+                  sustituye al anterior, así que eso es lo que dice el botón. */}
+              <Boton variante="fantasma" onClick={() => abrirReemplazo(m)}>
+                Reemplazar
               </Boton>
               <Boton
                 variante="fantasma"
@@ -215,11 +221,11 @@ export function MetodosDeCobro({
         <form
           onSubmit={guardar}
           className="mt-4 space-y-5 rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-sm)] backdrop-blur-md"
-          aria-label={sustituyendo ? "Sustituir método de cobro" : "Añadir método de cobro"}
+          aria-label={reemplazando ? "Reemplazar método de cobro" : "Añadir método de cobro"}
         >
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h3 className="font-medium text-text">
-              {sustituyendo ? "Sustituir este método" : "Nuevo método de cobro"}
+              {reemplazando ? "Reemplazar este método" : "Nuevo método de cobro"}
             </h3>
             {metodos.length > 0 ? (
               <Boton variante="fantasma" onClick={() => setEditando(null)}>
@@ -228,12 +234,12 @@ export function MetodosDeCobro({
             ) : null}
           </div>
 
-          {sustituyendo ? (
+          {reemplazando ? (
             // Decirlo evita la pregunta "¿por qué está vacío?" y, sobre todo, evita que alguien crea
             // que el campo en blanco significa "déjalo como estaba".
             <p className="max-w-prose text-xs leading-relaxed text-text-dim">
               Escríbelo entero otra vez: guardamos los datos cifrados y no vuelven a salir del
-              servidor, ni siquiera para rellenar este formulario. Al guardar, sustituye al anterior
+              servidor, ni siquiera para rellenar este formulario. Al guardar, reemplaza al anterior
               — y no cambia a dónde va un cobro que ya hayas pedido.
             </p>
           ) : null}
@@ -326,7 +332,7 @@ export function MetodosDeCobro({
           ) : null}
 
           <Boton type="submit" variante="secundario" disabled={!puede}>
-            {ocupado ? "Guardando…" : sustituyendo ? "Sustituir método" : "Guardar método"}
+            {ocupado ? "Guardando…" : reemplazando ? "Reemplazar método" : "Guardar método"}
           </Boton>
         </form>
       ) : null}

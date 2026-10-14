@@ -142,6 +142,25 @@ describe("los datos de pago no se nombran en la superficie", () => {
     expect(src).not.toMatch(/m\.(iban|direccion|titular)/);
   });
 
+  it("el botón dice REEMPLAZAR, porque editar sería una promesa que no se puede cumplir", () => {
+    // ┌─ LA PALABRA ES PARTE DE LA DECISIÓN DE SEGURIDAD ───────────────────────────────────────┐
+    // │ Los datos de pago se guardan cifrados y NO vuelven del servidor ni para su dueño. Por    │
+    // │ eso el formulario no puede venir relleno, y por eso "Editar" mentía antes de que nadie   │
+    // │ pulsara: prometía encontrar el IBAN escrito. Lo que ocurre es que se escribe otro y      │
+    // │ sustituye al anterior. El día que alguien "mejore" el copy a "Editar", lo siguiente que  │
+    // │ parecerá razonable es devolver el dato para rellenarlo — y ahí se acabó la puerta.       │
+    // └──────────────────────────────────────────────────────────────────────────────────────────┘
+    const src = codigo("metodos-de-cobro.tsx");
+    expect(src).toMatch(/>\s*Reemplazar\s*</);
+    // La palabra entera, no solo la del botón: la primera versión de este caso ataba la FORMA
+    // `>Editar<` y dejaba pasar un `"Editar este método"` en el título del formulario, que promete
+    // exactamente lo mismo. (`editando`/`setEditando` no casan: `\b` exige el corte después de
+    // "Editar", y ahí sigue una "n".)
+    expect(src, "el copy volvió a prometer que el formulario viene relleno").not.toMatch(
+      /\bEditar\b/,
+    );
+  });
+
   it("y SOLO ahí se teclea un destino: el formulario de cobro no lo vuelve a pedir", () => {
     const pedir = codigo("pedir-cobro.tsx");
     expect(pedir, "el formulario de cobro vuelve a pedir el destino").not.toMatch(
