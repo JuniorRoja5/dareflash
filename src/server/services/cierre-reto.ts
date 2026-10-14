@@ -26,10 +26,11 @@
  * aplica al leer, un vídeo que termine de codificar DESPUÉS ya no puede colarse: para entonces el
  * hecho está escrito y no se recalcula.
  */
-import { POINTS } from "@/config/constants";
+import { DEFAULT_CURRENCY, POINTS } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
 import {
   analizarEmpate,
+  clavePremioCierre,
   clavePuntosCierre,
   decidirCierre,
   top20DeParticipaciones,
@@ -41,7 +42,7 @@ import {
 import { avisoGanasteReto, avisoTop20 } from "@/lib/notificaciones";
 import { sanearError } from "@/server/observability/sanitize-error";
 
-import { applyPoints } from "./ledger";
+import { applyPoints, applyWallet } from "./ledger";
 import { emitirAviso } from "./notificaciones";
 import { periodoActual, recontarVictoriasDelPeriodo, recontarVictoriasTotales } from "./ranking";
 
@@ -52,11 +53,14 @@ export interface ResultadoCierre {
   ganadores: number;
   /** Otorgamientos que se aplicaron AHORA. 0 en una re-ejecución ya completa. */
   puntosAplicados: number;
+  /** Premios acreditados al monedero AHORA. 0 en una re-ejecucion ya completa. */
+  premiosAcreditados: number;
 }
 
 const NADA: ResultadoCierre = {
   cerradoAhora: false,
   motivo: null,
+  premiosAcreditados: 0,
   ganadores: 0,
   puntosAplicados: 0,
 };
@@ -158,14 +162,127 @@ export async function cerrarRetoVencido(
   }
 
   // ---- PASO 2: la PROYECCIÓN. Se re-ejecuta sin miedo: cada otorgamiento es idempotente ----
-  const puntosAplicados = await otorgarPuntosDelCierre(db, reto.id, now);
+  const proyeccion = await proyectarCierre(db, reto.id, now);
 
   return {
     cerradoAhora,
     motivo,
     ganadores: await db.challengeResult.count({ where: { challengeId: reto.id } }),
-    puntosAplicados,
+    puntosAplicados: proyeccion.puntosAplicados,
+    premiosAcreditados: proyeccion.premiosAcreditados,
   };
+}
+
+/**
+ * LA PROYECCIÓN ENTERA DE UN CIERRE: el dinero y los puntos. Vive FUERA de la transacción del paso 1,
+ * y eso no es una preferencia de estilo — es el veto del deadlock:
+ *
+ * ┌─ POR QUÉ EL DINERO NO PUEDE IR DENTRO DE LA TRANSACCIÓN DEL HECHO ────────────────────────────┐
+ * │ Acreditar bloquea la fila del `User` con `SELECT … FOR UPDATE` (orden de bloqueo fijo del      │
+ * │ ledger: el usuario SIEMPRE primero). El paso 1 ya tiene bloqueadas filas de CONTENIDO —el      │
+ * │ `Challenge` y sus `ChallengeResult`—. Anidar un bloqueo de `User` dentro de esa transacción    │
+ * │ es exactamente la receta de un deadlock: dos cierres concurrentes, cada uno con una mitad.     │
+ * │ Primero se escribe QUIÉN ganó; después, aparte, se le paga.                                   │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * `premiadosEn` lo marca ESTA función y no las de dentro, porque ahora el cierre promete DOS cosas y
+ * la marca significa "las dos están". Si falla cualquiera —el dinero o los puntos—, no se marca y el
+ * barrido vuelve a pasar: con las claves idempotentes, repetir no duplica nada y repara lo que faltó.
+ *
+ * EL DINERO VA PRIMERO. Da igual para la corrección (los dos lados se reintentan), pero no para lo
+ * que pasa si el proceso muere en medio: es mejor que lo que quede a deber sea un marcador que una
+ * transferencia.
+ */
+async function proyectarCierre(
+  db: PrismaClient,
+  challengeId: string,
+  now: Date,
+): Promise<{ premiosAcreditados: number; puntosAplicados: number }> {
+  const premios = await acreditarPremiosDelCierre(db, challengeId);
+  const puntos = await otorgarPuntosDelCierre(db, challengeId);
+
+  if (premios.fallos === 0 && puntos.fallos === 0) {
+    await db.challenge.updateMany({
+      where: { id: challengeId, premiadosEn: null },
+      data: { premiadosEn: now },
+    });
+  }
+  return { premiosAcreditados: premios.acreditados, puntosAplicados: puntos.aplicados };
+}
+
+/**
+ * ACREDITA EL PREMIO a cada ganador, en su monedero.
+ *
+ * EL IMPORTE SALE DE `ChallengeResult`, NO DEL RETO. Está congelado ahí desde el cierre justamente
+ * para esto: editar el premio del reto después no cambia lo que se debe. Leerlo del `Challenge` en
+ * este punto reabriría esa puerta.
+ *
+ * QUIEN TIENE 0, NO COBRA. No es un caso raro: es la regla del reparto, ya decidida y escrita en el
+ * paso 1 —el importe va ÍNTEGRO al rank 1 y 0 al resto, porque repartir entre varios ganadores es una
+ * decisión que nadie ha tomado—. Un reto con premio 0 tampoco acredita nada. Un `CREDIT` de cero
+ * sería una fila de dinero que no mueve dinero: ruido en el sitio donde menos conviene.
+ *
+ * LA MONEDA SE COMPRUEBA ANTES DEL IMPORTE, y es el guardián de una suposición que el esquema hace
+ * explícita: `User.walletBalanceCents` es UN número, así que da por hecho que todos los movimientos
+ * de una persona van en la misma moneda. Un premio congelado en otra moneda no se convierte ni se
+ * acredita "a ver": se deja sin acreditar y se registra, porque sumar céntimos de dos monedas en un
+ * mismo saldo no falla — da un número que parece dinero y no lo es.
+ *
+ * UN GANADOR QUE FALLA NO TUMBA A LOS DEMÁS. Se anota y se sigue, igual que en los puntos: sin
+ * `premiadosEn`, el barrido reintenta y la clave idempotente impide pagar dos veces.
+ */
+async function acreditarPremiosDelCierre(
+  db: PrismaClient,
+  challengeId: string,
+): Promise<{ acreditados: number; fallos: number }> {
+  const ganadores = await db.challengeResult.findMany({
+    where: { challengeId },
+    select: { userId: true, prizeAmountCents: true, currency: true },
+  });
+
+  let acreditados = 0;
+  let fallos = 0;
+  for (const g of ganadores) {
+    if (g.prizeAmountCents <= 0) continue;
+    if (g.currency !== DEFAULT_CURRENCY) {
+      fallos += 1;
+      console.error(
+        `[cierre] premio de ${g.userId} en ${challengeId} congelado en ${g.currency} y el monedero` +
+          ` es ${DEFAULT_CURRENCY}: no se acredita`,
+      );
+      continue;
+    }
+    try {
+      const r = await applyWallet(db, {
+        userId: g.userId,
+        amountCents: g.prizeAmountCents,
+        currency: g.currency,
+        entryType: "CREDIT",
+        refType: "CHALLENGE",
+        refId: challengeId,
+        idempotencyKey: clavePremioCierre({ challengeId, userId: g.userId }),
+      });
+      if (!r.applied) continue;
+      acreditados += 1;
+      // LA AUDITORÍA, SOLO CUANDO SE ACREDITÓ DE VERDAD. `AuditLog` no tiene clave única, así que
+      // escribirla siempre llenaría la traza de duplicados en cada reintento del barrido. Atada a
+      // `applied`, hay exactamente una línea por pago — que es lo que se va a leer el día que
+      // alguien pregunte por qué tiene ese saldo. El actor es el SISTEMA (`null`): no lo hizo nadie.
+      await db.auditLog.create({
+        data: {
+          actorId: null,
+          action: "WALLET_PRIZE_CREDIT",
+          targetType: "USER",
+          targetId: g.userId,
+          metadata: { challengeId, amountCents: g.prizeAmountCents, currency: g.currency },
+        },
+      });
+    } catch (e) {
+      fallos += 1;
+      console.error(`[cierre] premio de ${g.userId} en ${challengeId}: ${sanearError(e)}`);
+    }
+  }
+  return { acreditados, fallos };
 }
 
 /**
@@ -213,14 +330,15 @@ async function decidirDesdeBd(
  * nadie más. El top-20 se recalcula, y puede hacerlo con seguridad porque su entrada está congelada:
  * los votos ya no cambian (el deadline pasó) y ninguna participación nueva puede publicarse ya.
  *
- * `premiadosEn` se marca SOLO si todo salió bien. Si algún otorgamiento falló, la marca no se pone y
- * el barrido vuelve a pasar por aquí: es lo que convierte "se puede reintentar" en "se repara solo".
+ * YA NO MARCA `premiadosEn`: lo hace `proyectarCierre`, porque la marca significa "el cierre está
+ * proyectado entero" y ahora eso incluye el DINERO. Si lo marcara aquí, unos puntos correctos con un
+ * premio fallido darían el cierre por terminado y nadie volvería a intentar el pago. Esta función
+ * devuelve sus fallos y deja la decisión arriba, donde se ven los dos lados.
  */
 async function otorgarPuntosDelCierre(
   db: PrismaClient,
   challengeId: string,
-  now: Date,
-): Promise<number> {
+): Promise<{ aplicados: number; fallos: number }> {
   const reto = await db.challenge.findUnique({
     where: { id: challengeId },
     select: {
@@ -233,7 +351,7 @@ async function otorgarPuntosDelCierre(
       slug: true,
     },
   });
-  if (!reto) return 0;
+  if (!reto) return { aplicados: 0, fallos: 0 };
   const foto = { titulo: reto.title, codigo: reto.publicCode, slug: reto.slug };
 
   const ganadores = await db.challengeResult.findMany({
@@ -307,13 +425,7 @@ async function otorgarPuntosDelCierre(
     }
   }
 
-  if (fallos === 0) {
-    await db.challenge.updateMany({
-      where: { id: challengeId, premiadosEn: null },
-      data: { premiadosEn: now },
-    });
-  }
-  return aplicados;
+  return { aplicados, fallos };
 }
 
 /**
@@ -375,7 +487,10 @@ export async function resolverEmpate(
     });
   });
 
-  await otorgarPuntosDelCierre(db, challengeId, now);
+  // LA MISMA PROYECCIÓN que el cierre automático, no una copia: resolver un empate produce ganadores
+  // igual que cualquier cierre, así que cobran igual —premio y puntos—. Si esto llamara solo a los
+  // puntos, los retos que el admin desempata se cerrarían sin pagar a nadie, y nada fallaría.
+  await proyectarCierre(db, challengeId, now);
   return { resuelto: true, rechazo: null, ganadores: validacion.ganadores.length };
 }
 

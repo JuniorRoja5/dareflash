@@ -268,3 +268,15 @@ export function clavePuntosCierre(input: {
 }): string {
   return `cierre:${input.challengeId}:${input.userId}:${input.razon}`;
 }
+
+/**
+ * Clave de idempotencia del PREMIO de un cierre. Mismo criterio que la de puntos —se deriva del
+ * hecho: a esta persona, por este reto— y por eso re-cerrar, reintentar el job o resolver un empate
+ * no vuelve a pagar. Aquí importa el doble, porque lo que se repetiría es DINERO.
+ *
+ * Va en su propio espacio (`premio:`) y no comparte forma con la de puntos: son dos ledgers
+ * distintos, y dos claves que se parecen invitan a copiar una donde iba la otra.
+ */
+export function clavePremioCierre(input: { challengeId: string; userId: string }): string {
+  return `cierre:premio:${input.challengeId}:${input.userId}`;
+}

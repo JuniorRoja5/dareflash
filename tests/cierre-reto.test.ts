@@ -363,12 +363,23 @@ describe("premio y puntos", () => {
     ]);
   });
 
-  it("el cierre NO mueve dinero: esta pieza registra lo debido, no paga", async () => {
-    const reto = await crearReto();
+  it("el cierre ACREDITA el premio al monedero del ganador", async () => {
+    // ┌─ ESTE CASO DECÍA LO CONTRARIO, Y ESTABA BIEN ─────────────────────────────────────────────┐
+    // │ Hasta la Fase 7 decía "el cierre NO mueve dinero: esta pieza registra lo debido, no       │
+    // │ paga", y era verdad y deliberado: el cierre congelaba la deuda en `ChallengeResult` y el  │
+    // │ monedero no existía. No era un guard flojo — era un guard de un alcance que ya pasó. Se   │
+    // │ relevó a propósito, no se borró para que dejara de molestar, y la diferencia es que esta  │
+    // │ nota existe. El detalle del pago (idempotencia, veto, moneda) está en `premio-monedero`.  │
+    // └───────────────────────────────────────────────────────────────────────────────────────────┘
+    const reto = await crearReto({ premio: 5000 });
     const ganador = await participar(reto.id, { votos: 2 });
     await cerrarRetoVencido(prisma, reto.id);
 
-    expect(await prisma.walletLedger.count({ where: { userId: ganador.userId } })).toBe(0);
+    const filas = await prisma.walletLedger.findMany({
+      where: { userId: ganador.userId },
+      select: { amountCents: true, entryType: true, currency: true },
+    });
+    expect(filas).toEqual([{ amountCents: 5000, entryType: "CREDIT", currency: "USD" }]);
     expect(
       (
         await prisma.user.findUniqueOrThrow({
@@ -376,7 +387,7 @@ describe("premio y puntos", () => {
           select: { walletBalanceCents: true },
         })
       ).walletBalanceCents,
-    ).toBe(0);
+    ).toBe(5000);
   });
 
   it("ganar y estar en el top-20 son DOS razones: dos filas de ledger, no una", async () => {
