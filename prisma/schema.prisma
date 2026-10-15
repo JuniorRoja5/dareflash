@@ -209,6 +209,8 @@ model User {
   notificaciones Notification[]
   comentarios    Comment[]
   likes          Like[]
+  /// Como mucho UNA: la suscripcion VIP. `onDelete: Restrict` como el resto del material de pago.
+  suscripcion    Subscription?
 
   @@index([role])
   @@index([deletedAt])
@@ -1175,4 +1177,48 @@ model Like {
   @@unique([userId, videoId])
   /// Los likes de UN video (para el recuento de reconciliacion y el hito de los 50).
   @@index([videoId])
+}
+
+/// SUSCRIPCION VIP MYTHIC (Fase 8). Una por persona, como mucho.
+///
+/// ┌─ AQUI NO HAY NINGUN BOOLEANO "esVip", Y ESA ES LA PIEZA ──────────────────────────────────────┐
+/// │ Un flag guardado se queda pegado: alguien cancela, el webhook de Stripe se pierde, y ese      │
+/// │ `true` sigue regalando sello, color y boosts para siempre sin que nada falle. Lo que se       │
+/// │ guarda es HASTA CUANDO esta pagado (`periodoFin`) y QUE va a pasar al llegar (`estado`), y el │
+/// │ acceso se CALCULA de los dos (ver `lib/vip`). Un reloj no se queda pegado.                    │
+/// └───────────────────────────────────────────────────────────────────────────────────────────────┘
+///
+/// `periodoFin` SE ESCRIBE EN ABSOLUTO, nunca sumando un mes: el valor sale de Stripe
+/// (`current_period_end`), asi que reprocesar el mismo evento —que Stripe reentrega cuando duda de
+/// nuestra respuesta— deja la misma fecha en vez de regalar otro mes. Es la misma razon por la que
+/// los agregados del ranking se escriben con el valor recontado y no con `increment`.
+model Subscription {
+  id     String @id @default(cuid())
+  /// UNA por persona: la segunda suscripcion del mismo usuario es la misma fila, actualizada.
+  userId String @unique
+  plan   String // VIP_MYTHIC (union en constants)
+
+  /// ACTIVA | CANCELADA | CORTADA (union en constants). NO dice si hoy eres VIP: dice que pasara
+  /// al acabar el periodo. Lo de hoy lo decide `periodoFin` contra el reloj.
+  estado String
+
+  /// HASTA CUANDO esta pagado el acceso. Es el campo que manda.
+  periodoFin DateTime
+
+  /// Cuando pidio la baja, si la pidio. No corta nada: el acceso sigue hasta `periodoFin`, que es
+  /// lo prometido (sin prorrateo y sin reembolso). Existe para poder decirselo en pantalla.
+  canceladaEn DateTime?
+
+  /// Las referencias de Stripe. UNICAS: dos filas con el mismo cliente o la misma suscripcion
+  /// serian dos verdades sobre el mismo cobro.
+  stripeCustomerId     String? @unique
+  stripeSubscriptionId String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  /// Para barrer las que vencen (renovaciones que no llegaron) sin recorrer la tabla.
+  @@index([estado, periodoFin])
 }

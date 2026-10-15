@@ -82,6 +82,9 @@ export const DELETE_ORDER = [
   // Y el método guardado por el mismo motivo: un método que sobrevive al reset hace que el tope de
   // cinco se alcance en un caso que no guardó cinco.
   "PaymentMethod",
+  // La suscripción VIP: tiene FK al User (Restrict), así que va antes. Y además, una que sobreviva
+  // al reset deja a un usuario nuevo siendo VIP sin que su caso lo haya pedido.
+  "Subscription",
   "WalletLedger",
   "BoostLedger",
   "BoostActivation",

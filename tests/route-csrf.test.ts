@@ -37,8 +37,12 @@ const API_DIR = join(process.cwd(), "src", "app", "api");
 //    se cobrarian sin acreditarse. Su proteccion es mas fuerte que el CSRF: la FIRMA
 //    (`STRIPE_WEBHOOK_SECRET`) sobre el cuerpo CRUDO, que demuestra que el mensaje viene de Stripe
 //    y que nadie lo ha tocado. Sin esa firma, cualquiera se regalaria boosts con un `curl`.
+//  - vip/webhook: lo mismo que el de Boost, y por el mismo motivo. Lo que cuenta Stripe aqui es el
+//    estado y el fin de periodo de una suscripcion; sin firma, cualquiera se regalaria el VIP —y
+//    el sello, el color y el boost semanal— con un `curl`.
 const EXEMPT = new Set([
   "boost/webhook",
+  "vip/webhook",
   "auth/login",
   "auth/register",
   "auth/verify",

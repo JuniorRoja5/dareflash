@@ -298,6 +298,45 @@ export const MSG_BOOST_SIN_VERIFICAR = "Verifica tu correo para poder comprar.";
  */
 export const RAZON_BOOST_AJUSTE_ADMIN = "ADMIN_ADJUST";
 
+// ============================================================================
+// VIP MYTHIC (Fase 8) — la suscripcion
+// ============================================================================
+
+/** La clave del plan. Union de uno: el dia que haya otro, entra aqui y nada mas. */
+export const PlanVipSchema = z.enum(["VIP_MYTHIC"]);
+export type PlanVip = z.infer<typeof PlanVipSchema>;
+export const PLAN_VIP = "VIP_MYTHIC";
+
+/** 10 $/mes, en centimos enteros como todo el dinero del producto (documento maestro, §5). */
+export const VIP_PRECIO_CENTS = 1000;
+
+/**
+ * EN QUE ESTADO ESTA UNA SUSCRIPCION. Las tres, y ninguna mas:
+ *
+ *  · ACTIVA    — se renueva sola al final del periodo.
+ *  · CANCELADA — NO se renueva, pero el acceso sigue hasta `periodoFin`. Cancelar no es cortar:
+ *                esta pagado hasta esa fecha y se respeta (sin prorrateo y sin reembolso).
+ *  · CORTADA   — el acceso se retira YA, pase lo que pase con la fecha. Es para una devolucion de
+ *                cargo o un fraude, no para una cancelacion normal.
+ *
+ * El acceso NO se lee de aqui: se CALCULA (ver `lib/vip`). Este campo dice que va a pasar al
+ * terminar el periodo, no si hoy eres VIP.
+ */
+export const EstadoSuscripcionSchema = z.enum(["ACTIVA", "CANCELADA", "CORTADA"]);
+export type EstadoSuscripcion = z.infer<typeof EstadoSuscripcionSchema>;
+
+/**
+ * El UNICO estado que QUITA el acceso por si mismo. Se declara en positivo y en un solo sitio para
+ * que `esVipActivo` lo derive en vez de enumerar: añadir un estado nuevo obliga a decidir aqui si
+ * corta o no, en vez de heredar un "pasa" por omision.
+ */
+export const ESTADOS_SIN_ACCESO_VIP: readonly EstadoSuscripcion[] = ["CORTADA"];
+
+/** Copy de la suscripcion. Cero codigos ni jerga de Stripe en pantalla: eso va al log. */
+export const MSG_VIP_PAGO_NO_DISPONIBLE = "Las suscripciones no están disponibles ahora mismo.";
+export const MSG_VIP_SIN_VERIFICAR = "Verifica tu correo para poder suscribirte.";
+export const MSG_VIP_YA_ACTIVO = "Ya tienes VIP Mythic activo.";
+
 /**
  * Tope de UN ajuste de creditos de boost, en cualquier sentido.
  *
