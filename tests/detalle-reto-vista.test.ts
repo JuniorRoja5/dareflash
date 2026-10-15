@@ -51,7 +51,10 @@ describe("presentación de las participaciones", () => {
   });
 
   it("muestra autor y votos con las piezas compartidas (misma lectura que el feed)", () => {
-    expect(VISTA_PARTICIPACIONES).toContain('from "@/lib/identidad"');
+    // La identidad entra por el componente compartido, que es la ÚNICA puerta desde la Fase 8: un
+    // `@/lib/identidad` aquí volvería a pintar el nombre a mano y se dejaría la marca VIP fuera.
+    expect(VISTA_PARTICIPACIONES).toContain('from "@/components/ui/identidad-usuario"');
+    expect(VISTA_PARTICIPACIONES).not.toContain('from "@/lib/identidad"');
     // El recuento pasa por `RecuentoVotos` (Pieza 3B), que envuelve a `ContadorVotos` reconciliando
     // el voto propio contra el total de esta superficie. La decisión que fija este test es la misma —el número lo
     // pinta una primitiva compartida, no un `toLocaleString` a mano—, pero ahora la celda tiene que

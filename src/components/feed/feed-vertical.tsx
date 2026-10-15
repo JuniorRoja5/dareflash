@@ -9,7 +9,6 @@ import { Denunciar } from "@/components/ui/denunciar";
 import { AutorFeed } from "@/components/ui/marca-boost";
 import { PildoraCategoria } from "@/components/ui/pildora";
 import { ReproductorHls } from "@/components/ui/reproductor-hls";
-import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
 import type { PostFeed } from "@/server/services/feed";
 
 import { ComentariosVideo } from "./comentarios-video";
@@ -155,9 +154,6 @@ function PostInicio({
   // listener del contenedor (fase de burbuja) desbloquee el audio y flipe `mutedEfectivo`. Sin esto,
   // si el PRIMER gesto es el botón, el onClick leería el estado ya cambiado y mutearía en vez de sonar.
   const intentoRef = useRef(muted);
-  // Identidad: displayName prominente; @handle debajo (o de nombre si no hay displayName).
-  const nombre = nombreMostrado(post.displayName, post.username);
-  const conHandle = mostrarHandleSecundario(post.displayName);
   return (
     <section
       ref={alRef}
@@ -186,8 +182,19 @@ function PostInicio({
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-24 bg-gradient-to-b from-black/50 to-transparent lg:hidden" />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-56 bg-gradient-to-t from-black/75 to-transparent lg:hidden" />
         {/* Info sobre el video — solo movil. `pointer-events-none`: los taps la ATRAVIESAN y llegan a la
-            capa de pausa/reanudar del player (no es un target interactivo). */}
-        <div className="pointer-events-none absolute bottom-0 left-0 z-10 w-3/4 p-4 pb-24 lg:hidden">
+            capa de pausa/reanudar del player (no es un target interactivo).
+
+            `data-theme="dark"` NO ES UN DESCUIDO NI UN PARCHE: esta capa va encima del VELO NEGRO
+            del vídeo, así que es una superficie oscura ESTÉ LA PÁGINA EN EL TEMA QUE ESTÉ. Con los
+            tokens del tema claro aquí dentro, lo que se pinta son los valores pensados para leerse
+            sobre blanco encima de un fondo negro: el nombre de un VIP en el oliva del tema claro,
+            o el anillo de nivel en su verde oscuro. El mismo mecanismo con el que el panel se
+            queda oscuro dentro de una página clara. El texto en blanco ya estaba así escrito a
+            mano, que era esta misma decisión tomada a medias. */}
+        <div
+          data-theme="dark"
+          className="pointer-events-none absolute bottom-0 left-0 z-10 w-3/4 p-4 pb-24 lg:hidden"
+        >
           {/* EL AVATAR DEL DUEÑO, que hasta ahora no se dibujaba: el feed es donde más gente ve a más
               gente, y era justo el sitio donde el nivel no aparecía. Con su anillo de nivel, que sale
               de los puntos que ya viajan en el post (misma consulta, una columna más). Y con la marca
@@ -196,11 +203,12 @@ function PostInicio({
           <div className="mb-2">
             <AutorFeed
               username={post.username}
-              nombre={nombre}
-              conHandle={conHandle}
+              displayName={post.displayName}
               imagen={post.imagen}
               puntos={post.puntos}
               destacado={post.autorDestacado}
+              esVip={post.autorVip}
+              colorNombre={post.colorNombre}
               claseNombre="text-base font-semibold text-white"
               claseHandle="text-sm text-white/80"
             />
@@ -314,8 +322,6 @@ function PanelComentarios({
   onContador: (videoId: string, comentarios: number) => void;
   anclaComentario?: string;
 }) {
-  const nombre = nombreMostrado(post.displayName, post.username);
-  const conHandle = mostrarHandleSecundario(post.displayName);
   return (
     <aside className="hidden border-l border-line bg-surface shadow-[var(--df-shadow-lg)] lg:flex lg:h-[100svh] lg:flex-col lg:overflow-hidden">
       <div className="border-b border-line p-4">
@@ -324,11 +330,12 @@ function PanelComentarios({
             texto: ahi va sobre video, aqui sobre el panel. */}
         <AutorFeed
           username={post.username}
-          nombre={nombre}
-          conHandle={conHandle}
+          displayName={post.displayName}
           imagen={post.imagen}
           puntos={post.puntos}
           destacado={post.autorDestacado}
+          esVip={post.autorVip}
+          colorNombre={post.colorNombre}
           claseNombre="font-semibold text-text"
           claseHandle="text-sm text-text-dim"
         />

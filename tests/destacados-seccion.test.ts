@@ -170,7 +170,9 @@ describe("una sola tarjeta para los dos sitios", () => {
     // La cara, el nombre y el nivel son los mismos en los dos tamaños.
     expect(tarjeta).toContain("<Avatar");
     expect(tarjeta).toContain("<InsigniaNivel");
-    expect(tarjeta).toContain("nombreMostrado");
+    // El nombre sale del componente de identidad compartido, no de un `<span>` propio: así la
+    // tarjeta hereda la marca VIP sin tener que acordarse de ella (ver `identidad-vip`).
+    expect(tarjeta).toContain("<NombreUsuario");
   });
 
   it("el nivel se DERIVA de los puntos: no llega como dato", () => {

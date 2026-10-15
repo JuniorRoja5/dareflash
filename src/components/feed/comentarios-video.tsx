@@ -5,6 +5,7 @@ import { type FormEvent, useEffect, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Denunciar } from "@/components/ui/denunciar";
+import { NombreUsuario } from "@/components/ui/identidad-usuario";
 import { COMENTARIO_TEXTO_MAX } from "@/config/constants";
 import { delCsrf, getJson, mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { limpiarComentario } from "@/lib/comentarios";
@@ -227,10 +228,17 @@ export function ComentariosVideo({
                   tamano="sm"
                   perezosa
                   puntos={c.autor.pointsBalance}
+                  esVip={c.autor.esVip}
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm">
-                    <span className="font-medium text-text">@{c.autor.username}</span>{" "}
+                    <NombreUsuario
+                      username={c.autor.username}
+                      prefijo
+                      esVip={c.autor.esVip}
+                      colorNombre={c.autor.colorNombre}
+                      clase="font-medium text-text"
+                    />{" "}
                     <span className="text-2xs text-text-dim">
                       {haceCuanto(c.creadoMs, ahoraMs)}
                     </span>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { EmblemaDeNivel } from "@/components/ui/emblema-nivel";
+import { SelloVipEsquina } from "@/components/ui/identidad-usuario";
 import { nivelPorPuntos } from "@/lib/niveles";
 
 /**
@@ -14,6 +15,23 @@ const EMBLEMA: Record<string, string> = {
   md: "h-4 w-4 -right-0.5 -bottom-0.5",
   lg: "h-5 w-5 -right-1 -bottom-1",
   xl: "h-6 w-6 -right-1 -bottom-1",
+};
+
+/**
+ * EL SELLO VIP, EN LA ESQUINA DE ARRIBA — y no en la de abajo, donde lo pone la maqueta.
+ *
+ * ┌─ POR QUÉ SE MUEVE DE ESQUINA ────────────────────────────────────────────────────────────────┐
+ * │ La maqueta pone el sello abajo a la derecha, que es donde este avatar lleva YA el emblema de │
+ * │ NIVEL. Dejarlos en el mismo sitio obliga a elegir: o se tapan, o el VIP pierde su nivel. Las │
+ * │ dos cosas son información distinta —cuánto ha jugado y si paga— y las dos estaban decididas  │
+ * │ antes. Arriba hay sitio libre y no se pisa nada.                                              │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+const SELLO: Record<string, string> = {
+  sm: "h-4 w-4 -right-1 -top-1",
+  md: "h-[18px] w-[18px] -right-1 -top-1",
+  lg: "h-6 w-6 -right-1.5 -top-1.5",
+  xl: "h-7 w-7 -right-1.5 -top-1.5",
 };
 
 /**
@@ -72,6 +90,7 @@ export function Avatar({
   imagen,
   perezosa = false,
   puntos,
+  esVip = false,
 }: {
   nombre: string;
   tamano?: TamanoAvatar;
@@ -87,6 +106,11 @@ export function Avatar({
    * no es "no lo sé": es Rookie. Ausente significa "esta superficie no lo sabe", que es la verdad.
    */
   puntos?: number;
+  /**
+   * ¿Es VIP activo? Lo resuelve el chokepoint de la Fase 8 y llega YA decidido: este componente no
+   * consulta nada —en una lista serían veinte consultas— ni interpreta un estado.
+   */
+  esVip?: boolean;
 }) {
   const [falla, setFalla] = useState(false);
   const inicial = (nombre.trim().charAt(0) || "?").toUpperCase();
@@ -129,21 +153,26 @@ export function Avatar({
       </span>
     );
 
-  // Sin emblema —sin puntos, o Rookie— se devuelve EL MISMO nodo de siempre: ni un envoltorio de
-  // más. Así esto no puede mover una sola maqueta de las que ya existen.
-  if (!conEmblema) return circulo;
+  // Sin emblema NI sello —sin puntos o Rookie, y no VIP— se devuelve EL MISMO nodo de siempre: ni
+  // un envoltorio de más. Así esto no puede mover una sola maqueta de las que ya existen.
+  if (!conEmblema && !esVip) return circulo;
 
   return (
     <span className="relative inline-flex">
       {circulo}
+      {/* EL SELLO SOLO SI ES VIP. Esta es la única puerta por la que el sello entra en un avatar:
+          no hay otra forma de pintarlo, así que no puede acabar en quien no paga. */}
+      {esVip ? <SelloVipEsquina clase={`pointer-events-none absolute ${SELLO[tamano]}`} /> : null}
       {/* El anillo dice el nivel de lejos; el glifo lo dice DE CERCA y sin depender del color, que es
           lo que necesita quien no distingue bien los tonos. Los dos salen del mismo `nivel`.
           `EmblemaDeNivel` lleva su propio `aria-label`: en el feed o en un comentario es lo ÚNICO que
           comunica el nivel, así que sin eso ahí no existiría para un lector de pantalla. */}
-      <EmblemaDeNivel
-        nivel={conEmblema}
-        clase={`pointer-events-none absolute ${EMBLEMA[tamano]}`}
-      />
+      {conEmblema ? (
+        <EmblemaDeNivel
+          nivel={conEmblema}
+          clase={`pointer-events-none absolute ${EMBLEMA[tamano]}`}
+        />
+      ) : null}
     </span>
   );
 }

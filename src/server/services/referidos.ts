@@ -32,6 +32,7 @@ import type { Db } from "@/server/db/types";
 import { sanearError } from "@/server/observability/sanitize-error";
 
 import { applyPoints } from "./ledger";
+import { vipsActivosEntre } from "./vip";
 
 /**
  * El ENLACE que se comparte. Se construye desde `appUrl` (nunca una URL fija) y apunta a la entrada,
@@ -201,6 +202,10 @@ export interface ReferidoMio {
    * dice la verdad, que es lo único que se puede pintar al lado de una cifra.
    */
   cobrado: boolean;
+  /** ¿VIP ahora mismo? UNA consulta para toda la página, nunca una por invitado. */
+  esVip: boolean;
+  /** CLAVE del color de nombre (nunca un hex). Solo pinta si `esVip`. */
+  colorNombre: string | null;
 }
 
 export interface PaginaReferidos {
@@ -242,6 +247,7 @@ export async function misReferidos(
       displayName: true,
       image: true,
       pointsBalance: true,
+      colorNombre: true,
       createdAt: true,
     },
     // Una de más para saber si hay página siguiente sin un COUNT aparte.
@@ -266,6 +272,12 @@ export async function misReferidos(
       : [];
   const cobrados = new Set(cobros.map((c) => c.refId));
 
+  // LA MARCA VIP, también en lote y por el mismo motivo: una invitación puede traer veinte nombres.
+  const vips = await vipsActivosEntre(
+    db,
+    pagina.map((f) => f.id),
+  );
+
   const ultima = pagina[pagina.length - 1];
   return {
     items: pagina.map((f) => ({
@@ -276,6 +288,8 @@ export async function misReferidos(
       puntos: f.pointsBalance,
       altaMs: f.createdAt.getTime(),
       cobrado: cobrados.has(f.id),
+      esVip: vips.has(f.id),
+      colorNombre: f.colorNombre,
     })),
     proximoCursor:
       hayMas && ultima

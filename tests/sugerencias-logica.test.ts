@@ -20,6 +20,8 @@ const usuario = (
   displayName: o.displayName ?? null,
   image: null,
   puntos: 0,
+  esVip: false,
+  colorNombre: null,
 });
 const reto = (
   o: Partial<{ id: string; publicCode: string; slug: string; title: string; category: string }>,
@@ -57,6 +59,10 @@ describe("construirSugerencias", () => {
       displayName: "Ana G",
       image: null,
       puntos: 0,
+      // La marca viaja con la sugerencia: el desplegable es una lista de gente, y ahí un VIP
+      // tiene que salir marcado igual que en cualquier otra.
+      esVip: false,
+      colorNombre: null,
     });
   });
 });
@@ -70,6 +76,8 @@ describe("destinoSugerencia", () => {
       displayName: null,
       image: null,
       puntos: 0,
+      esVip: false,
+      colorNombre: null,
     };
     const r: Sugerencia = {
       tipo: "reto",

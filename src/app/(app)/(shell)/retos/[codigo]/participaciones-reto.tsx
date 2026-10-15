@@ -7,9 +7,14 @@ import { createPortal } from "react-dom";
 import { FeedVertical, fuenteReto } from "@/components/feed/feed-vertical";
 import { RecuentoVotos } from "@/components/ui/boton-voto";
 import { CajaVideo } from "@/components/ui/caja-video";
+import {
+  conHandleSecundario,
+  HandleUsuario,
+  NombreUsuario,
+  textoNombre,
+} from "@/components/ui/identidad-usuario";
 import { crearControlCapa } from "@/lib/capa-historial";
 import { getJson } from "@/lib/cliente-http";
-import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
 import type { PostFeed } from "@/server/services/feed";
 
 /** Una participación ya lista para pintar: póster firmado en el servidor + datos del autor. */
@@ -24,6 +29,10 @@ export interface ParticipacionUI {
   retoId: string;
   retoAbierto: boolean;
   miVoto: string | null;
+  /** ¿Su autor es VIP? Llega resuelto del servidor en lote (`vipsActivosEntre`), nunca por fila. */
+  autorVip: boolean;
+  /** CLAVE del color de nombre del autor (nunca un hex). Solo pinta si `autorVip`. */
+  colorNombre: string | null;
   /**
    * El MISMO ítem, ya en la forma que pinta el feed. Lo construye el servidor con el mapeador
    * compartido (`lib/post-de-participacion`), igual para la primera página que para las siguientes.
@@ -292,7 +301,7 @@ function Celda({
   /** Abre el FEED DEL RETO por esta participación. La celda no reproduce nada por su cuenta. */
   onAbrir: () => void;
 }) {
-  const autor = nombreMostrado(p.displayName, p.username);
+  const autor = textoNombre(p.displayName, p.username);
   const etiqueta = p.title?.trim() ? `Reproducir «${p.title}»` : `Reproducir el vídeo de ${autor}`;
   const fondo = `url("${p.poster}")`;
 
@@ -360,14 +369,17 @@ function Celda({
       </button>
 
       <div className="mt-2 flex min-w-0 items-baseline gap-1.5">
-        <Link
-          href={`/u/${p.username}`}
-          className="truncate text-sm font-medium text-text hover:underline"
-        >
-          {autor}
+        <Link href={`/u/${p.username}`} className="min-w-0 truncate hover:underline">
+          <NombreUsuario
+            displayName={p.displayName}
+            username={p.username}
+            esVip={p.autorVip}
+            colorNombre={p.colorNombre}
+            clase="truncate text-sm font-medium text-text"
+          />
         </Link>
-        {mostrarHandleSecundario(p.displayName) ? (
-          <span className="truncate text-2xs text-text-dim">@{p.username}</span>
+        {conHandleSecundario(p.displayName) ? (
+          <HandleUsuario username={p.username} clase="truncate text-2xs text-text-dim" />
         ) : null}
       </div>
       {p.title?.trim() ? <p className="truncate text-2xs text-text-dim">{p.title}</p> : null}

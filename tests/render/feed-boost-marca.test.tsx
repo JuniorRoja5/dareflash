@@ -72,8 +72,7 @@ describe("el bloque de autor del feed", () => {
     render(
       <AutorFeed
         username="ana"
-        nombre="Ana"
-        conHandle
+        displayName="Ana"
         puntos={0}
         destacado={destacado}
         claseNombre="text-white"
@@ -96,16 +95,7 @@ describe("el bloque de autor del feed", () => {
   });
 
   it("el handle solo sale cuando hay nombre visible", () => {
-    render(
-      <AutorFeed
-        username="ana"
-        nombre="ana"
-        conHandle={false}
-        destacado
-        claseNombre=""
-        claseHandle=""
-      />,
-    );
+    render(<AutorFeed username="ana" displayName={null} destacado claseNombre="" claseHandle="" />);
     // Sin displayName, el @handle ES el nombre prominente: no se repite debajo.
     expect(screen.getAllByText(/ana/)).toHaveLength(1);
     expect(screen.getByText("@ana")).toBeTruthy();

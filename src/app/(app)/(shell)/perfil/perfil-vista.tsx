@@ -5,7 +5,12 @@ import { ConmutadorTemaServidor } from "@/components/ui/conmutador-tema-servidor
 import { Avatar } from "@/components/ui/avatar";
 import { Boton } from "@/components/ui/boton";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
-import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
+import {
+  conHandleSecundario,
+  HandleUsuario,
+  NombreUsuario,
+  textoNombre,
+} from "@/components/ui/identidad-usuario";
 
 import { CeldaVideo } from "./celda-video";
 import type { EstadoVideo } from "./perfil-logic";
@@ -83,6 +88,8 @@ export function PerfilVista({
   videos,
   racha,
   esPropio,
+  esVip = false,
+  colorNombre,
 }: {
   /** Nombre visible (opcional). Si falta, el `handle` hace de nombre. */
   displayName: string | null;
@@ -102,11 +109,19 @@ export function PerfilVista({
    */
   racha?: number;
   esPropio: boolean;
+  /**
+   * ¿VIP ahora mismo? Aquí SÍ se resuelve de uno en uno, y es correcto: un perfil es UNA persona,
+   * no una lista. La regla de "en lote" existe para las listas, donde preguntar por fila son veinte
+   * consultas; aquí la consulta es una y no hay lote que hacer.
+   */
+  esVip?: boolean;
+  /** CLAVE del color de nombre (nunca un hex). Solo pinta si `esVip`. */
+  colorNombre?: string | null;
 }) {
   // Identidad (modelo TikTok/YouTube): el displayName manda; el @handle va debajo y solo si hay
-  // displayName (si no, el @handle ES el nombre prominente). Fuente única: `nombreMostrado`.
-  const nombre = nombreMostrado(displayName, handle);
-  const conHandle = mostrarHandleSecundario(displayName);
+  // displayName (si no, el @handle ES el nombre prominente). Fuente única: `NombreUsuario`.
+  const nombre = textoNombre(displayName, handle);
+  const conHandle = conHandleSecundario(displayName);
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
       <div className="lg:grid lg:grid-cols-[320px_1fr] lg:gap-8">
@@ -114,12 +129,20 @@ export function PerfilVista({
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <div className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md">
             <div className="flex flex-col items-center text-center">
-              <Avatar nombre={nombre} tamano="xl" imagen={imagen} puntos={puntos} />
+              <Avatar nombre={nombre} tamano="xl" imagen={imagen} puntos={puntos} esVip={esVip} />
               <p className="mt-3 max-w-full truncate text-lg font-semibold text-text">
-                {conHandle ? nombre : `@${nombre}`}
+                <NombreUsuario
+                  displayName={displayName}
+                  username={handle}
+                  prefijo={!conHandle}
+                  esVip={esVip}
+                  colorNombre={colorNombre}
+                />
               </p>
               {conHandle ? (
-                <p className="mt-0.5 max-w-full truncate text-sm text-text-dim">@{handle}</p>
+                <p className="mt-0.5 max-w-full truncate text-sm text-text-dim">
+                  <HandleUsuario username={handle} />
+                </p>
               ) : null}
               <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
                 <InsigniaNivel puntos={puntos} />

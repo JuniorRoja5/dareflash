@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { anilloSePisaConPuesto, nivelPorPuntos } from "@/lib/niveles";
 
 import { Avatar } from "./avatar";
+import { NombreUsuario } from "./identidad-usuario";
 import { tokenPuesto } from "./logic";
 
 /**
@@ -36,6 +37,8 @@ export function FilaPuesto({
   activo = false,
   insignia,
   puntos,
+  esVip = false,
+  colorNombre,
 }: {
   puesto: number;
   username: string;
@@ -49,6 +52,10 @@ export function FilaPuesto({
   insignia?: ReactNode;
   /** Puntos de esa persona: el avatar deriva su anillo de nivel. Ausente = la lista no los conoce. */
   puntos?: number;
+  /** ¿VIP ahora mismo? Llega resuelto del chokepoint, en lote para toda la lista. */
+  esVip?: boolean;
+  /** CLAVE del color de nombre (nunca un hex). Solo pinta si `esVip`. */
+  colorNombre?: string | null;
 }) {
   const esPodio = tokenPuesto(puesto) === "rank";
   // El marcador de puesto del podio va en ORO; fuera del podio no marca nada con color.
@@ -81,8 +88,15 @@ export function FilaPuesto({
         tamano="sm"
         perezosa
         puntos={sePisa ? undefined : puntos}
+        esVip={esVip}
       />
-      <span className="min-w-0 flex-1 truncate font-medium">@{username}</span>
+      <NombreUsuario
+        username={username}
+        prefijo
+        esVip={esVip}
+        colorNombre={colorNombre}
+        clase="min-w-0 flex-1 truncate font-medium"
+      />
       {insignia ? <span className="shrink-0">{insignia}</span> : null}
       {/* la cifra: NEUTRO, jamas --df-money (ni victorias ni puntos son dinero) */}
       <span className="shrink-0 text-sm tabular-nums text-text-dim">

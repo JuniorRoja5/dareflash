@@ -95,6 +95,8 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
       retoId: p.retoId,
       retoAbierto: p.retoAbierto,
       miVoto: p.miVoto,
+      autorVip: p.autorVip,
+      colorNombre: p.colorNombre,
       // La forma que pinta el feed, con el MISMO mapeador que usa el endpoint de paginación: la
       // primera página y las siguientes no pueden salir distintas.
       post: postDeParticipacion(p, contextoReto, urls),

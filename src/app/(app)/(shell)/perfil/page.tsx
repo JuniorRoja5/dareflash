@@ -24,10 +24,14 @@ export default async function PerfilPage() {
   // La racha solo en el perfil PROPIO: no entra en el DTO público (`perfil.ts`), así que mirar el
   // perfil de otro no dice cuántos días seguidos lleva. Es su actividad, no su escaparate.
   const { rachaDe } = await import("@/server/services/racha");
+  // UN perfil es UNA persona: aquí la pregunta de uno es la correcta. El lote (`vipsActivosEntre`)
+  // es para las listas, donde preguntar por fila serían veinte consultas.
+  const { esVipActivoDe } = await import("@/server/services/vip");
 
-  const [perfil, racha] = await Promise.all([
+  const [perfil, racha, esVip] = await Promise.all([
     miPerfil(prisma, user.userId),
     rachaDe(prisma, user.userId),
+    esVipActivoDe(prisma, user.userId),
   ]);
   // Sesión válida pero la fila pudo borrarse/banearse entre validar la cookie y consultar: mismo trato.
   if (!perfil) redirect("/entrar");
@@ -59,6 +63,8 @@ export default async function PerfilPage() {
       videos={videos}
       racha={racha}
       esPropio
+      esVip={esVip}
+      colorNombre={perfil.colorNombre}
     />
   );
 }

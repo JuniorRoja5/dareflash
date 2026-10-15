@@ -5,7 +5,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { TarjetaMetrica } from "@/components/ui/tarjeta-metrica";
 import { POINTS } from "@/config/constants";
-import { nombreMostrado } from "@/lib/identidad";
+import { NombreUsuario } from "@/components/ui/identidad-usuario";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 
 import { HeroInvitacion } from "./hero-invitacion";
@@ -112,11 +112,16 @@ export default async function ReferidosPage({
                     tamano="sm"
                     perezosa
                     puntos={r.puntos}
+                    esVip={r.esVip}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-text">
-                      {nombreMostrado(r.displayName, r.username)}
-                    </span>
+                    <NombreUsuario
+                      displayName={r.displayName}
+                      username={r.username}
+                      esVip={r.esVip}
+                      colorNombre={r.colorNombre}
+                      clase="block truncate text-sm font-medium text-text"
+                    />
                     <span className="block truncate text-2xs text-text-dim">
                       Se unió el{" "}
                       {new Date(r.altaMs).toLocaleDateString("es-ES", { timeZone: "UTC" })}

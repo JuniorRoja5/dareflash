@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 
 import { Avatar, type TamanoAvatar } from "./avatar";
+import { conHandleSecundario, HandleUsuario, NombreUsuario } from "./identidad-usuario";
 
 /**
  * LA MARCA "BOOST" — la misma en todas las superficies donde se resalta a quien pagó.
@@ -57,6 +58,7 @@ export function AvatarDestacado({
   tamano = "sm",
   perezosa = false,
   destacado,
+  esVip = false,
 }: {
   nombre: string;
   imagen?: string | null;
@@ -64,9 +66,18 @@ export function AvatarDestacado({
   tamano?: TamanoAvatar;
   perezosa?: boolean;
   destacado: boolean;
+  /** Pasa de largo hasta `Avatar`, que es quien monta el sello. Aquí no se decide nada. */
+  esVip?: boolean;
 }) {
   const avatar = (
-    <Avatar nombre={nombre} imagen={imagen} puntos={puntos} tamano={tamano} perezosa={perezosa} />
+    <Avatar
+      nombre={nombre}
+      imagen={imagen}
+      puntos={puntos}
+      tamano={tamano}
+      perezosa={perezosa}
+      esVip={esVip}
+    />
   );
   if (!destacado) return avatar;
 
@@ -97,25 +108,33 @@ export function AvatarDestacado({
  */
 export function AutorFeed({
   username,
-  nombre,
-  conHandle,
+  displayName,
   imagen,
   puntos,
   destacado,
+  esVip = false,
+  colorNombre,
   claseNombre,
   claseHandle,
 }: {
   username: string;
-  nombre: string;
-  conHandle: boolean;
+  /**
+   * El nombre SIN resolver, no el ya resuelto: quien decide si se enseña `displayName` o el handle
+   * es `NombreUsuario`, y aquí llegaba masticado. Con el nombre crudo, el feed no puede pintar un
+   * nombre por su cuenta ni saltarse la marca.
+   */
+  displayName?: string | null;
   imagen?: string | null;
   puntos?: number;
   destacado: boolean;
+  esVip?: boolean;
+  colorNombre?: string | null;
   /** Clases del nombre: sobre el vídeo va en blanco; en el panel, en tokens. */
   claseNombre: string;
   claseHandle: string;
   children?: ReactNode;
 }) {
+  const conHandle = conHandleSecundario(displayName);
   return (
     <div className="flex items-center gap-2">
       <AvatarDestacado
@@ -124,13 +143,24 @@ export function AutorFeed({
         puntos={puntos}
         tamano="sm"
         destacado={destacado}
+        esVip={esVip}
       />
       <span className="min-w-0">
         <span className="flex min-w-0 items-center gap-2">
-          <span className={`truncate ${claseNombre}`}>{conHandle ? nombre : `@${nombre}`}</span>
+          {/* Sin `displayName`, el handle ES el nombre: va arriba con arroba y no se repite debajo. */}
+          <NombreUsuario
+            displayName={displayName}
+            username={username}
+            prefijo={!conHandle}
+            esVip={esVip}
+            colorNombre={colorNombre}
+            clase={`truncate ${claseNombre}`}
+          />
           {destacado ? <MarcaBoost /> : null}
         </span>
-        {conHandle ? <span className={`block truncate ${claseHandle}`}>@{username}</span> : null}
+        {conHandle ? (
+          <HandleUsuario username={username} clase={`block truncate ${claseHandle}`} />
+        ) : null}
       </span>
     </div>
   );

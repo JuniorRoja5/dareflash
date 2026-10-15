@@ -40,6 +40,8 @@ export default async function RankingPage() {
       image: f.image,
       victorias: f.victorias,
       puntos: f.puntos,
+      esVip: f.esVip,
+      colorNombre: f.colorNombre,
     })),
     cursorInicial: pagina.cursor,
     // Un top vacío aquí sería una carrera (se retiró la última participación entre las dos consultas):
@@ -56,6 +58,8 @@ export default async function RankingPage() {
               image: t.image,
               votos: t.votos,
               puesto: t.puesto,
+              esVip: t.esVip,
+              colorNombre: t.colorNombre,
             })),
           }
         : null,

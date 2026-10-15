@@ -13,6 +13,10 @@ export type SugerenciaUsuario = {
   image: string | null;
   /** Puntos del usuario: el avatar de la sugerencia pinta su anillo de nivel. */
   puntos: number;
+  /** ¿VIP ahora mismo? Resuelto en el servidor, en lote para toda la página de resultados. */
+  esVip: boolean;
+  /** CLAVE del color de nombre (nunca un hex). Solo pinta si `esVip`. */
+  colorNombre: string | null;
 };
 export type SugerenciaReto = {
   tipo: "reto";
@@ -42,6 +46,8 @@ export function construirSugerencias(
       displayName: x.displayName,
       image: x.image,
       puntos: x.puntos,
+      esVip: x.esVip,
+      colorNombre: x.colorNombre,
     }));
   const r: Sugerencia[] = retos.map((x) => ({
     tipo: "reto",

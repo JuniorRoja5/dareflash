@@ -84,6 +84,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
           retoId: p.retoId,
           retoAbierto: p.retoAbierto,
           miVoto: p.miVoto,
+          autorVip: p.autorVip,
+          colorNombre: p.colorNombre,
           post: postDeParticipacion(p, contexto, urls),
         };
       }),

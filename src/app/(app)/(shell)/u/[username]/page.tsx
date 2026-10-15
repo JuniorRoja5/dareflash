@@ -34,6 +34,11 @@ export default async function PerfilPublicoPage({
   const perfil = await perfilPublicoPorUsername(prisma, username);
   if (!perfil) notFound();
 
+  // La marca VIP, DESPUÉS de saber que el perfil existe: preguntarla antes gastaría una consulta
+  // por cada visita a un handle que no lleva a ningún sitio. Es la de uno porque esto es uno.
+  const { esVipActivoDe } = await import("@/server/services/vip");
+  const esVip = await esVipActivoDe(prisma, perfil.id);
+
   const videos = perfil.videos.map((v) => ({
     id: v.id,
     title: v.title,
@@ -55,6 +60,8 @@ export default async function PerfilPublicoPage({
       totalVideos={perfil.videos.length}
       videos={videos}
       esPropio={false}
+      esVip={esVip}
+      colorNombre={perfil.colorNombre}
     />
   );
 }

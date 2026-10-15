@@ -66,6 +66,9 @@ describe("SELECT_USUARIO_PUBLICO (barrera de columnas)", () => {
     }
     expect(Object.keys(SELECT_USUARIO_PUBLICO).sort()).toEqual([
       "bio",
+      // La CLAVE del color de nombre que eligió (nunca un color, y nunca si es VIP: eso lo
+      // resuelve el chokepoint). Es público porque es exactamente lo que se ve en pantalla.
+      "colorNombre",
       "displayName",
       "id",
       "image",

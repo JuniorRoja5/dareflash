@@ -1,10 +1,10 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 
-import { nombreMostrado } from "@/lib/identidad";
 import { nivelPorPuntos } from "@/lib/niveles";
 
 import { Avatar } from "./avatar";
+import { NombreUsuario } from "./identidad-usuario";
 import { InsigniaNivel } from "./insignia-nivel";
 import { MarcaBoost } from "./marca-boost";
 
@@ -37,6 +37,8 @@ export function TarjetaDestacado({
   puntos,
   posicion,
   tamano = "fila",
+  esVip = false,
+  colorNombre,
 }: {
   username: string;
   displayName: string | null;
@@ -45,6 +47,10 @@ export function TarjetaDestacado({
   /** 1-based. Si no se pasa, no se numera. */
   posicion?: number;
   tamano?: "fila" | "vitrina";
+  /** ¿VIP ahora mismo? Llega resuelto y en lote: la vitrina pinta hasta cuarenta tarjetas. */
+  esVip?: boolean;
+  /** CLAVE del color de nombre (nunca un hex). Solo pinta si `esVip`. */
+  colorNombre?: string | null;
 }) {
   const vitrina = tamano === "vitrina";
   /**
@@ -112,12 +118,15 @@ export function TarjetaDestacado({
           tamano={vitrina ? "xl" : "lg"}
           perezosa
           puntos={puntos}
+          esVip={esVip}
         />
-        <span
-          className={`mt-1 max-w-full truncate font-medium text-text ${vitrina ? "text-base" : "text-sm"}`}
-        >
-          {nombreMostrado(displayName, username)}
-        </span>
+        <NombreUsuario
+          displayName={displayName}
+          username={username}
+          esVip={esVip}
+          colorNombre={colorNombre}
+          clase={`mt-1 max-w-full truncate font-medium text-text ${vitrina ? "text-base" : "text-sm"}`}
+        />
         <InsigniaNivel puntos={puntos} />
       </span>
     </Link>

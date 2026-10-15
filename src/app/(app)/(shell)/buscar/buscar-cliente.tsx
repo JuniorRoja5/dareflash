@@ -7,7 +7,12 @@ import { Avatar } from "@/components/ui/avatar";
 import { PildoraCategoria } from "@/components/ui/pildora";
 import { PildoraFiltro } from "@/components/ui/pildora-filtro";
 import { getJson } from "@/lib/cliente-http";
-import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
+import {
+  conHandleSecundario,
+  HandleUsuario,
+  NombreUsuario,
+  textoNombre,
+} from "@/components/ui/identidad-usuario";
 import { mensajeError, MSG_BUSCAR } from "@/lib/mensajes-error";
 import type { PaginaBusqueda, RetoBusqueda, UsuarioBusqueda } from "@/server/services/buscar";
 
@@ -185,21 +190,26 @@ export function BuscarCliente({
                       className="df-rise flex items-center gap-3 rounded-sm border border-line bg-surface/60 p-3 shadow-[var(--df-shadow-sm)] transition-colors duration-150 ease-mechanical hover:bg-surface"
                     >
                       <Avatar
-                        nombre={nombreMostrado(u.displayName, u.username ?? "")}
+                        nombre={textoNombre(u.displayName, u.username ?? "")}
                         imagen={u.image}
                         tamano="md"
                         puntos={u.puntos}
+                        esVip={u.esVip}
                       />
                       <span className="min-w-0">
-                        <span className="block truncate font-semibold text-text">
-                          {mostrarHandleSecundario(u.displayName)
-                            ? nombreMostrado(u.displayName, u.username ?? "")
-                            : `@${u.username ?? ""}`}
-                        </span>
-                        {mostrarHandleSecundario(u.displayName) ? (
-                          <span className="block truncate text-sm text-text-dim">
-                            @{u.username ?? ""}
-                          </span>
+                        <NombreUsuario
+                          displayName={u.displayName}
+                          username={u.username ?? ""}
+                          prefijo={!conHandleSecundario(u.displayName)}
+                          esVip={u.esVip}
+                          colorNombre={u.colorNombre}
+                          clase="block truncate font-semibold text-text"
+                        />
+                        {conHandleSecundario(u.displayName) ? (
+                          <HandleUsuario
+                            username={u.username ?? ""}
+                            clase="block truncate text-sm text-text-dim"
+                          />
                         ) : null}
                       </span>
                     </Link>

@@ -118,6 +118,8 @@ export default async function DestacadosPage() {
                 imagen={perfil.imagen}
                 puntos={perfil.puntos}
                 tamano="vitrina"
+                esVip={perfil.esVip}
+                colorNombre={perfil.colorNombre}
               />
             ))}
           </div>

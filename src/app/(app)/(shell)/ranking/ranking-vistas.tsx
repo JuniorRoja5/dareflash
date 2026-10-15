@@ -23,6 +23,10 @@ export interface FilaTopReto {
   image: string | null;
   votos: number;
   puesto: number;
+  /** ¿VIP ahora mismo? Resuelto en el servidor, en lote para todo el top. */
+  esVip: boolean;
+  /** CLAVE del color de nombre (nunca un hex). Solo pinta si `esVip`. */
+  colorNombre: string | null;
 }
 
 export interface DatosRanking {
@@ -163,6 +167,8 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
                     activo={fila.userId === datos.yo}
                     insignia={<InsigniaNivel puntos={fila.puntos} />}
                     puntos={fila.puntos}
+                    esVip={fila.esVip}
+                    colorNombre={fila.colorNombre}
                   />
                 ))}
               </div>
@@ -205,6 +211,8 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
                   cifra={f.votos}
                   unidad={f.votos === 1 ? "voto" : "votos"}
                   activo={f.userId === datos.yo}
+                  esVip={f.esVip}
+                  colorNombre={f.colorNombre}
                 />
               ))
             )}

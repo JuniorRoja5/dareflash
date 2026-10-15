@@ -332,6 +332,64 @@ export type EstadoSuscripcion = z.infer<typeof EstadoSuscripcionSchema>;
  */
 export const ESTADOS_SIN_ACCESO_VIP: readonly EstadoSuscripcion[] = ["CORTADA"];
 
+/**
+ * LOS COLORES DE NOMBRE QUE PUEDE ELEGIR UN VIP: la CLAVE que se guarda -> el TOKEN que la pinta.
+ *
+ * Lista CERRADA, y por dos razones distintas:
+ *
+ *  1. DE PRODUCTO: un color libre deja elegir el gris del fondo (nombre invisible) o el rojo de
+ *     alarma (parece un aviso del sistema). El set se elige midiendo contraste en los DOS temas.
+ *  2. DE SEGURIDAD: lo que llega del cliente es una CLAVE de esta lista, no un color. El valor que
+ *     acaba en el CSS sale del catalogo, asi que no hay nada del usuario que pueda entrar en una
+ *     hoja de estilos. El guard de `lib/color-nombre` es la segunda capa, no la unica.
+ *
+ * ┌─ EL VALOR ES UN TOKEN Y NO UN HEX, Y NO ES PREFERENCIA ──────────────────────────────────────┐
+ * │ Un hex aqui seria UN valor para los DOS temas, y un nombre se pinta sobre el fondo DE SU     │
+ * │ tema: el mas claro del set, sobre el blanco del tema claro, no se lee. Cada opcion necesita  │
+ * │ su valor en cada tema, y eso solo lo sabe hacer `globals.css`, que es donde vive la paleta   │
+ * │ y el unico sitio del repositorio donde un color se escribe a mano (ver                        │
+ * │ `tests/marca-hex-duplicados`: "cero hex fuera de los tokens").                                │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * PROVISIONAL: los cinco de la maqueta. PENDIENTE del visto bueno de Sergio — cambiar el SET es
+ * esta lista (y su pareja de valores en los dos bloques de `globals.css`); cambiar un TONO es solo
+ * el CSS, sin tocar nada de aqui ni migrar lo que la gente ya eligio.
+ */
+export const COLORES_NOMBRE_VIP = {
+  verde: "--vip-nombre-verde",
+  lima: "--vip-nombre-lima",
+  oro: "--vip-nombre-oro",
+  diamante: "--vip-nombre-diamante",
+  fuego: "--vip-nombre-fuego",
+} as const satisfies Record<string, string>;
+
+export const ColorNombreSchema = z.enum(
+  Object.keys(COLORES_NOMBRE_VIP) as [
+    keyof typeof COLORES_NOMBRE_VIP,
+    ...(keyof typeof COLORES_NOMBRE_VIP)[],
+  ],
+);
+export type ColorNombre = z.infer<typeof ColorNombreSchema>;
+
+/**
+ * UN NOMBRE DE TOKEN CSS, Y NADA MAS QUE ESO. `--` seguido de minusculas, digitos o guiones, de
+ * principio (`^`) a fin (`$`), sin espacios ni nada detras.
+ *
+ * ┌─ POR QUE ESTE PATRON ES TAN ESTRICTO ────────────────────────────────────────────────────────┐
+ * │ Lo que valida acaba dentro de una declaracion CSS. Si se colara algo como                    │
+ * │ `e8f620;}</style><script>…`, lo que entra en la pagina ya no es un color: es el cierre de la │
+ * │ regla, el cierre de la etiqueta y lo que venga detras. Por eso no vale "quitar los           │
+ * │ caracteres raros" —un filtro de limpieza siempre deja pasar la forma que no se penso—: vale  │
+ * │ ACEPTAR solo la forma completa, y rechazar TODO lo demas. Y `$` y no `\b`: con `\b`,          │
+ * │ "--vip-nombre-oro</style>" casaria.                                                           │
+ * │                                                                                               │
+ * │ VALIDA UN TOKEN Y NO UN HEX porque lo que llega al CSS es un token (ver                      │
+ * │ `COLORES_NOMBRE_VIP`). Y de paso es mas estrecho: un color escrito a mano, aunque fuera un   │
+ * │ hex perfectamente valido, tampoco pasa — porque no es uno de los nuestros.                    │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+export const TOKEN_CSS = /^--[a-z][a-z0-9-]*$/;
+
 /** Copy de la suscripcion. Cero codigos ni jerga de Stripe en pantalla: eso va al log. */
 export const MSG_VIP_PAGO_NO_DISPONIBLE = "Las suscripciones no están disponibles ahora mismo.";
 export const MSG_VIP_SIN_VERIFICAR = "Verifica tu correo para poder suscribirte.";

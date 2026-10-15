@@ -211,8 +211,12 @@ describe("buscarUsuarios", () => {
     expect(items.map((u) => u.username)).toEqual(["publico1"]);
     // `puntos` entra en el DTO publico a proposito: es lo que da el anillo de nivel en los
     // resultados de busqueda, y es un dato PUBLICO (el nivel se ve en el perfil de cualquiera).
+    // `esVip` y `colorNombre` entran por lo mismo: son lo que se VE de alguien, y la marca tiene
+    // que salir también aquí (un VIP no puede aparecer plano justo en la búsqueda).
     expect(Object.keys(items[0]!).sort()).toEqual([
+      "colorNombre",
       "displayName",
+      "esVip",
       "id",
       "image",
       "puntos",

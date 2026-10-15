@@ -93,7 +93,9 @@ describe("GET /api/buscar", () => {
     // `puntos` entra a propósito: es lo que pinta el anillo de nivel en los resultados, y es un dato
     // PÚBLICO (el nivel se ve en el perfil de cualquiera). Lo que sigue fuera es lo privado.
     expect(Object.keys(body.items[0]!).sort()).toEqual([
+      "colorNombre",
       "displayName",
+      "esVip",
       "id",
       "image",
       "puntos",

@@ -38,15 +38,22 @@ export const SELECTOR_CLARO = '[data-theme="light"]';
  */
 const SIN_COMENTARIOS = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
 
-/** Los `--df-*: valor;` de un bloque, por el selector con el que empieza. */
-export function tokensDe(selector: string): Map<string, string> {
+/**
+ * Los `--<prefijo>*: valor;` de un bloque, por el selector con el que empieza.
+ *
+ * El prefijo es un PARÁMETRO desde que hay tokens que no son `--df-*`: los `--vip-*` de la Fase 8
+ * viven en los mismos dos bloques y se miden con las mismas fórmulas, pero no entran en los censos
+ * de la paleta de marca (que enumeran `--df-*` y fallarían al encontrarse unos intrusos). Por
+ * defecto sigue siendo `--df-`, así que ninguna llamada de las que ya había cambia de significado.
+ */
+export function tokensDe(selector: string, prefijo = "--df-"): Map<string, string> {
   const i = SIN_COMENTARIOS.indexOf(selector);
   expect(i, `no está el bloque ${selector}`).toBeGreaterThan(-1);
   const abre = SIN_COMENTARIOS.indexOf("{", i);
   const cierra = SIN_COMENTARIOS.indexOf("\n}", abre);
   const cuerpo = SIN_COMENTARIOS.slice(abre, cierra);
   const tokens = new Map<string, string>();
-  for (const m of cuerpo.matchAll(/(--df-[a-z-]+):\s*([^;]+);/g)) {
+  for (const m of cuerpo.matchAll(new RegExp(`(${prefijo}[a-z-]+):\\s*([^;]+);`, "g"))) {
     tokens.set(m[1]!, m[2]!.trim());
   }
   return tokens;
@@ -54,6 +61,9 @@ export function tokensDe(selector: string): Map<string, string> {
 
 export const OSCURO = tokensDe(SELECTOR_OSCURO);
 export const CLARO = tokensDe(SELECTOR_CLARO);
+
+export const VIP_OSCURO = tokensDe(SELECTOR_OSCURO, "--vip-");
+export const VIP_CLARO = tokensDe(SELECTOR_CLARO, "--vip-");
 
 /**
  * Solo los que son un color sólido: los degradados y las sombras no se miden con contraste. Si falta

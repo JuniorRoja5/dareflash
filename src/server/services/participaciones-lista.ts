@@ -30,6 +30,7 @@ import type { Db } from "@/server/db/types";
 
 import { autoresDestacados } from "./boost-destacados";
 import { misLikes } from "./likes";
+import { vipsActivosEntre } from "./vip";
 
 /**
  * Lo que TODA participación lleva, la vea el público o el panel. Se separa de `ParticipacionVista`
@@ -83,6 +84,14 @@ export interface ParticipacionVista extends ParticipacionBase {
    * Va en el ítem para que el feed de un reto resalte igual que el global.
    */
   autorDestacado: boolean;
+  /**
+   * ¿Su autor es VIP ahora mismo? Sale de `vipsActivosEntre`, el MISMO chokepoint que usa el feed
+   * global, y con la misma mecánica que `autorDestacado`: una consulta por página y pertenencia
+   * O(1), nunca una por participación.
+   */
+  autorVip: boolean;
+  /** CLAVE del color de nombre elegido por el autor (nunca un hex). Solo pinta si `autorVip`. */
+  colorNombre: string | null;
 }
 
 /** Estado de MI participación en el reto (para el dueño): visible / procesando / fallida / retirada. */
@@ -211,7 +220,15 @@ export async function listarParticipacionesVisibles(
             likeCount: true,
           },
         },
-        user: { select: { username: true, displayName: true, image: true, pointsBalance: true } },
+        user: {
+          select: {
+            username: true,
+            displayName: true,
+            image: true,
+            pointsBalance: true,
+            colorNombre: true,
+          },
+        },
       },
     }),
   ]);
@@ -222,17 +239,22 @@ export async function listarParticipacionesVisibles(
   const hayMas = filas.length > limite;
   const visibles = hayMas ? filas.slice(0, limite) : filas;
 
-  // MIS LIKES y LOS AUTORES DESTACADOS de la pagina: UNA consulta cada uno (nunca una por
-  // participacion). Mismo criterio —y el mismo `autoresDestacados`— que el feed global: si cada
-  // pantalla resolviera el Boost por su cuenta, el mismo autor saldria destacado en una y plano en
-  // la otra en cuanto se tocara una de las dos.
-  const [mios, destacados] = await Promise.all([
+  // MIS LIKES, LOS AUTORES DESTACADOS y LOS VIP de la pagina: UNA consulta cada uno (nunca una por
+  // participacion). Mismo criterio —y los mismos `autoresDestacados` / `vipsActivosEntre`— que el
+  // feed global: si cada pantalla resolviera el Boost o el VIP por su cuenta, el mismo autor
+  // saldria destacado en una y plano en la otra en cuanto se tocara una de las dos.
+  const [mios, destacados, vips] = await Promise.all([
     misLikes(
       db,
       opts.userId,
       visibles.map((f) => f.video.id),
     ),
     autoresDestacados(
+      db,
+      visibles.map((f) => f.userId),
+      opts.ahora ?? new Date(),
+    ),
+    vipsActivosEntre(
       db,
       visibles.map((f) => f.userId),
       opts.ahora ?? new Date(),
@@ -259,6 +281,8 @@ export async function listarParticipacionesVisibles(
     esMio: opts.userId ? f.userId === opts.userId : false,
     // Pertenencia al conjunto, no una consulta: O(1) por participacion.
     autorDestacado: destacados.has(f.userId),
+    autorVip: vips.has(f.userId),
+    colorNombre: f.user.colorNombre,
   }));
 
   const ultima = visibles[visibles.length - 1];

@@ -1,4 +1,5 @@
 import { Avatar, type TamanoAvatar } from "@/components/ui/avatar";
+import { NombreUsuario } from "@/components/ui/identidad-usuario";
 import { anilloSePisaConPuesto, nivelPorPuntos } from "@/lib/niveles";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
 
@@ -24,6 +25,17 @@ export interface FilaPodio {
   victorias: number;
   /** Puntos totales: alimentan la insignia de nivel, no la cifra grande. */
   puntos: number;
+  /**
+   * ¿VIP ahora mismo? Llega resuelto del servicio de ranking, en lote para toda la tabla.
+   *
+   * OBLIGATORIO, igual que `image`: las páginas de "Ver más" salen de `/api/ranking`, que devuelve
+   * las filas del MISMO servicio tal cual, así que no hay ninguna que pueda no traerlo. Hacerlo
+   * opcional dejaría que una fuente nueva se olvidara de él y el podio perdiera la marca en
+   * silencio a partir de la segunda página.
+   */
+  esVip: boolean;
+  /** CLAVE del color de nombre (nunca un hex). Solo pinta si `esVip`. */
+  colorNombre: string | null;
 }
 
 /** Token de medalla -> variable CSS. Oro/plata/bronce son EXCLUSIVOS del podio (ver globals.css). */
@@ -111,6 +123,7 @@ function AvatarMedalla({
   color,
   puntos,
   tokenMedalla,
+  esVip = false,
 }: {
   nombre: string;
   imagen: string | null;
@@ -121,6 +134,8 @@ function AvatarMedalla({
   puntos?: number;
   /** Token del color de la MEDALLA, para saber si el anillo de nivel se pisaria con ella. */
   tokenMedalla: string | null;
+  /** Pasa de largo hasta `Avatar`: el sello va en SU esquina, por dentro del aro de medalla. */
+  esVip?: boolean;
 }) {
   const nivel = puntos === undefined ? null : nivelPorPuntos(puntos);
   const sePisa = anilloSePisaConPuesto(nivel, tokenMedalla);
@@ -141,6 +156,7 @@ function AvatarMedalla({
         imagen={imagen}
         tamano={tamano}
         puntos={sePisa ? undefined : puntos}
+        esVip={esVip}
       />
     </span>
   );
@@ -184,13 +200,19 @@ function ColumnaPodio({ fila, puesto }: { fila: FilaPodio; puesto: PuestoPodio }
           color={color}
           puntos={fila.puntos}
           tokenMedalla={tokenMedalla(puesto)}
+          esVip={fila.esVip}
         />
       </span>
       <p
         className="mt-3 max-w-[15ch] truncate font-semibold text-text"
         style={{ fontSize: geo.nombre }}
       >
-        @{fila.username}
+        <NombreUsuario
+          username={fila.username}
+          prefijo
+          esVip={fila.esVip}
+          colorNombre={fila.colorNombre}
+        />
       </p>
       <div className="mt-1">
         <Victorias valor={fila.victorias} tam={geo.pts} />
@@ -261,9 +283,17 @@ function TarjetaMovil({
         color={color}
         puntos={fila.puntos}
         tokenMedalla={tokenMedalla(puesto)}
+        esVip={fila.esVip}
       />
       <div className={`flex flex-col ${destacado ? "min-w-0 items-start" : "items-center"}`}>
-        <p className="max-w-[16ch] truncate font-semibold text-text">@{fila.username}</p>
+        <p className="max-w-[16ch] truncate font-semibold text-text">
+          <NombreUsuario
+            username={fila.username}
+            prefijo
+            esVip={fila.esVip}
+            colorNombre={fila.colorNombre}
+          />
+        </p>
         <div className="mt-0.5">
           <Victorias valor={fila.victorias} tam={destacado ? "20px" : "16px"} />
         </div>

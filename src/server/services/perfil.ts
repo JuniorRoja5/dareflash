@@ -32,7 +32,7 @@ import {
   normalizarNombre,
   normalizarYoutube,
 } from "@/app/(app)/(shell)/perfil/perfil-logic";
-import { esHandleReservado, VideoFailureReasonSchema } from "@/config/constants";
+import { ColorNombreSchema, esHandleReservado, VideoFailureReasonSchema } from "@/config/constants";
 import { type ModerationStatus, Prisma } from "@/generated/prisma/client";
 import { HANDLE_RE } from "@/lib/handle-formato";
 import type { Db } from "@/server/db/types";
@@ -71,6 +71,15 @@ export interface PerfilPublico {
   /** Retos ganados (numero de filas ChallengeResult del usuario). */
   retosGanados: number;
   videos: VideoPublico[];
+  /**
+   * CLAVE del color de nombre elegido (`COLORES_NOMBRE_VIP`), o `null`. Es publica porque es
+   * exactamente eso: una eleccion de presentacion que se ve en pantalla. Y es la CLAVE, no un hex:
+   * el color sale del catalogo del servidor, asi que lo que guarda el usuario nunca llega a ser CSS.
+   *
+   * NO dice si es VIP. Quien lo resuelve es el chokepoint (`esVipActivoDe`), y sin VIP activo esta
+   * clave no pinta nada: una suscripcion caducada deja el nombre en su color de siempre.
+   */
+  colorNombre: string | null;
 }
 
 /**
@@ -88,6 +97,7 @@ export const SELECT_USUARIO_PUBLICO = {
   instagram: true,
   youtube: true,
   pointsBalance: true,
+  colorNombre: true,
 } satisfies Prisma.UserSelect;
 
 const SELECT_VIDEO_PUBLICO = {
@@ -128,6 +138,7 @@ type FilaUsuarioPublico = {
   instagram: string | null;
   youtube: string | null;
   pointsBalance: number;
+  colorNombre: string | null;
 };
 
 /**
@@ -151,6 +162,7 @@ export function aPerfilPublico(
     pointsBalance: fila.pointsBalance,
     retosGanados,
     videos,
+    colorNombre: fila.colorNombre,
   };
 }
 
@@ -293,6 +305,27 @@ export const usernameSchema = z
   )
   .refine((s) => !esHandleReservado(s), "Ese nombre de usuario no está disponible.");
 
+/**
+ * EL COLOR DEL NOMBRE: una CLAVE del catálogo, `null` para volver al de siempre.
+ *
+ * ┌─ POR QUÉ LA PUERTA DEL SERVIDOR ES UNA LISTA CERRADA Y NO UN PATRÓN DE COLOR ────────────────┐
+ * │ Este valor acaba en una declaración CSS. Validarlo "como color" —un regex de hex— ya sería   │
+ * │ estricto, pero seguiría aceptando cualquier hex que alguien escribiera, y el día que el      │
+ * │ patrón se relaje un poco (para admitir `rgba()`, para admitir 8 dígitos) la relajación se    │
+ * │ aplica a un valor que viene de fuera. Con un `enum` de CLAVES no hay nada que relajar: lo    │
+ * │ que entra o es una de las cinco palabras o se rechaza, y el color lo pone el catálogo del    │
+ * │ servidor. El hex de `lib/color-nombre` es la SEGUNDA capa, sobre un valor que ya es nuestro. │
+ * │                                                                                              │
+ * │ `ColorNombreSchema` sale de `COLORES_NOMBRE_VIP`, así que la lista permitida y los colores   │
+ * │ que existen son LITERALMENTE lo mismo: no se pueden desincronizar.                           │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * SE PUEDE GUARDAR SIN SER VIP, y es deliberado: esto es una preferencia, no un permiso. Quien
+ * decide si se PINTA es el chokepoint, en cada render; así una suscripción que caduca apaga el
+ * color sin tener que ir a borrar nada, y al volver se recupera la elección de antes.
+ */
+export const colorNombreSchema = z.union([ColorNombreSchema, z.null()]);
+
 /** Cuerpo aceptado por la actualización de perfil: nombre + (opcionales) username, bio y enlaces. */
 export const actualizarPerfilSchema = z.object({
   displayName: displayNameSchema,
@@ -301,6 +334,7 @@ export const actualizarPerfilSchema = z.object({
   website: websiteSchema.optional(),
   instagram: instagramSchema.optional(),
   youtube: youtubeSchema.optional(),
+  colorNombre: colorNombreSchema.optional(),
 });
 export type ActualizarPerfilInput = z.infer<typeof actualizarPerfilSchema>;
 
@@ -320,6 +354,7 @@ export async function actualizarPerfil(
   if (datos.website !== undefined) data.website = datos.website;
   if (datos.instagram !== undefined) data.instagram = datos.instagram;
   if (datos.youtube !== undefined) data.youtube = datos.youtube;
+  if (datos.colorNombre !== undefined) data.colorNombre = datos.colorNombre;
   // Un `username` duplicado revienta con P2002 (constraint UNIQUE): NO se hace findUnique-luego-update
   // (carrera). La ruta traduce ese P2002 a copy humano (`esViolacionUnicaDeUsername`).
   const actualizado = await db.user.update({
@@ -410,6 +445,8 @@ export interface MiPerfil {
   pointsBalance: number;
   retosGanados: number;
   videos: MiVideo[];
+  /** CLAVE del color de nombre elegido, igual que en el perfil público. Nunca un hex. */
+  colorNombre: string | null;
 }
 
 /**
@@ -449,6 +486,7 @@ export async function miPerfil(db: Db, userId: string): Promise<MiPerfil | null>
     youtube: usuario.youtube,
     pointsBalance: usuario.pointsBalance,
     retosGanados,
+    colorNombre: usuario.colorNombre,
     videos: videos.map((v) => ({
       id: v.id,
       bunnyVideoId: v.bunnyVideoId,

@@ -316,7 +316,15 @@ describe("uno suelto, por su id (el del aviso)", () => {
         id: r.comentario.id,
         texto: "El del aviso",
         creadoMs: expect.any(Number),
-        autor: { username: "comentarista", displayName: null, image: null, pointsBalance: 0 },
+        autor: {
+          username: "comentarista",
+          displayName: null,
+          image: null,
+          pointsBalance: 0,
+          // Sin suscripción: ni marca ni color. La marca la decide el chokepoint, no esta fila.
+          esVip: false,
+          colorNombre: null,
+        },
         esMio: true,
       },
     });

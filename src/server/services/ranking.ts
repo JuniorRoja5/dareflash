@@ -16,6 +16,8 @@ import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { ordenarParaCierre, type ParticipacionCierre } from "@/lib/cierre-reto";
 import { periodoDe, rangoDelPeriodo } from "@/lib/periodo";
 
+import { vipsActivosEntre } from "./vip";
+
 /** El `now` se inyecta en todo para poder probar los bordes de mes sin esperar al día 1. */
 export function periodoActual(now: Date = new Date()): string {
   return periodoDe(now);
@@ -82,6 +84,10 @@ export interface FilaRankingMensual {
   victorias: number;
   /** Puntos totales, para derivar el nivel. NO se guarda ningún nivel: se calcula al pintar. */
   puntos: number;
+  /** ¿VIP ahora mismo? UNA consulta para toda la página (`vipsActivosEntre`), nunca una por fila. */
+  esVip: boolean;
+  /** CLAVE del color de nombre (nunca un hex). Solo pinta si `esVip`. */
+  colorNombre: string | null;
 }
 
 export interface PaginaRanking {
@@ -152,10 +158,22 @@ export async function rankingMensual(
   const hayMas = filas.length > limite;
 
   // Los datos de presentación se traen en UNA consulta para los ids de la página (no una por fila).
-  const usuarios = await db.user.findMany({
-    where: { id: { in: visibles.map((f) => f.userId) } },
-    select: { id: true, username: true, displayName: true, image: true, pointsBalance: true },
-  });
+  // Y la marca VIP, igual: otra consulta para TODA la página, del mismo conjunto de ids.
+  const ids = visibles.map((f) => f.userId);
+  const [usuarios, vips] = await Promise.all([
+    db.user.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        image: true,
+        pointsBalance: true,
+        colorNombre: true,
+      },
+    }),
+    vipsActivosEntre(db, ids, opciones.now),
+  ]);
   const porId = new Map(usuarios.map((u) => [u.id, u]));
 
   const ultima = visibles[visibles.length - 1];
@@ -173,6 +191,9 @@ export async function rankingMensual(
               image: u.image,
               victorias: f.victorias,
               puntos: u.pointsBalance,
+              // Pertenencia al conjunto, no una consulta: O(1) por fila.
+              esVip: vips.has(f.userId),
+              colorNombre: u.colorNombre,
             },
           ]
         : [];
@@ -189,6 +210,10 @@ export interface FilaTopReto {
   image: string | null;
   votos: number;
   puesto: number;
+  /** ¿VIP ahora mismo? UNA consulta para todo el top, nunca una por fila. */
+  esVip: boolean;
+  /** CLAVE del color de nombre (nunca un hex). Solo pinta si `esVip`. */
+  colorNombre: string | null;
 }
 
 /**
@@ -242,6 +267,7 @@ export async function topDelReto(
   db: PrismaClient,
   challengeId: string,
   limite = 20,
+  ahora?: Date,
 ): Promise<FilaTopReto[]> {
   const filas = await db.submission.findMany({
     // MISMA regla de entrada que el cierre: publicada de verdad, vídeo incluido.
@@ -253,9 +279,18 @@ export async function topDelReto(
       createdAt: true,
       // El avatar viene en la MISMA consulta, con el resto del usuario: Prisma resuelve la relación
       // de todas las filas de una vez (un `IN`), no una consulta por participación.
-      user: { select: { username: true, displayName: true, image: true } },
+      user: { select: { username: true, displayName: true, image: true, colorNombre: true } },
     },
   });
+
+  // Los VIP del top, en UNA consulta. Va sobre TODAS las filas y no solo sobre las `limite` que
+  // sobreviven al corte: el conjunto ya está acotado por reto (una participación por persona), así
+  // que son los mismos ids que ya están en memoria y no cambia el coste.
+  const vips = await vipsActivosEntre(
+    db,
+    filas.map((f) => f.userId),
+    ahora,
+  );
 
   const porId = new Map(filas.map((f) => [f.id, f]));
   const ordenables: ParticipacionCierre[] = filas.map((f) => ({
@@ -279,6 +314,8 @@ export async function topDelReto(
               image: f.user.image,
               votos: p.voteCount,
               puesto: i + 1,
+              esVip: vips.has(p.userId),
+              colorNombre: f.user.colorNombre,
             },
           ]
         : [];

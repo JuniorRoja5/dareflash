@@ -29,6 +29,8 @@ import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { Db } from "@/server/db/types";
 
+import { vipsActivosEntre } from "./vip";
+
 export interface PerfilDestacado {
   activacionId: string;
   userId: string;
@@ -48,6 +50,10 @@ export interface PerfilDestacado {
    * convive más de una duración, encadenar dos boosts alarga la presencia y este campo lo dice.
    */
   expiraEnMs: number;
+  /** ¿VIP ahora mismo? UNA consulta para toda la vitrina (hasta cuarenta caras), nunca una por fila. */
+  esVip: boolean;
+  /** CLAVE del color de nombre (nunca un hex). Solo pinta si `esVip`. */
+  colorNombre: string | null;
 }
 
 /** Lo que devuelve el driver: fechas como `Date` y los enteros posiblemente como `bigint`. */
@@ -58,6 +64,7 @@ interface FilaDestacado {
   displayName: string | null;
   imagen: string | null;
   puntos: number | bigint;
+  colorNombre: string | null;
   destacadoDesde: Date;
   expiraEn: Date;
 }
@@ -108,6 +115,7 @@ export async function destacadosVigentes(
       t.displayName,
       t.imagen,
       t.puntos,
+      t.colorNombre,
       t.destacadoDesde,
       t.expiraEn
     FROM (
@@ -118,6 +126,7 @@ export async function destacadosVigentes(
         u.\`displayName\`   AS displayName,
         u.\`image\`         AS imagen,
         u.\`pointsBalance\` AS puntos,
+        u.\`colorNombre\`   AS colorNombre,
         a.\`startsAt\`      AS destacadoDesde,
         -- EL FINAL MÁS LEJANO DE SUS APARICIONES VIGENTES, no el de esta fila: quien encadena dos
         -- boosts alarga su presencia, y el campo dice cuándo deja de estar destacado de verdad.
@@ -138,6 +147,17 @@ export async function destacadosVigentes(
     LIMIT ${limite}
   `);
 
+  // LOS VIP DE LA VITRINA, EN UNA CONSULTA. Va aparte de la `$queryRaw` de arriba a propósito: la
+  // de arriba ya es una ventana con `ROW_NUMBER()` y un `PARTITION BY`, y meterle un LEFT JOIN a
+  // `Subscription` con su condición de fecha mezclaría dos reglas —quién está destacado y quién es
+  // VIP— en una consulta que nadie va a querer leer. La regla del VIP vive en el chokepoint, puro y
+  // probado solo; aquí solo se pregunta por el lote.
+  const vips = await vipsActivosEntre(
+    db,
+    filas.map((f) => f.userId),
+    ahora,
+  );
+
   return filas.map((f) => ({
     activacionId: f.activacionId,
     userId: f.userId,
@@ -147,6 +167,8 @@ export async function destacadosVigentes(
     puntos: Number(f.puntos),
     destacadoDesdeMs: f.destacadoDesde.getTime(),
     expiraEnMs: f.expiraEn.getTime(),
+    esVip: vips.has(f.userId),
+    colorNombre: f.colorNombre,
   }));
 }
 

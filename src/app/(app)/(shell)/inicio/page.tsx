@@ -139,6 +139,8 @@ export default async function InicioPage() {
                     cifra={fila.victorias}
                     unidad={fila.victorias === 1 ? "victoria" : "victorias"}
                     puntos={fila.puntos}
+                    esVip={fila.esVip}
+                    colorNombre={fila.colorNombre}
                   />
                 ))
               )}

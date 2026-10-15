@@ -57,6 +57,12 @@ const EXENTOS: Record<string, { palabras: string[]; porque: string }> = {
   // el tono apenas se mueva entre temas. No es un color que un repintado de marca vaya a cambiar.
   "src/lib/niveles.ts": { palabras: ["verde", "cian"], porque: "las familias de nivel" },
   "src/components/ui/fila-puesto.tsx": { palabras: ["verde", "cian"], porque: "ídem" },
+  // EL CATÁLOGO DE COLORES DE NOMBRE: las claves SON nombres de color porque lo que nombran es un
+  // color que una persona ELIGE ("quiero mi nombre en lima"). Mismo caso que las familias de
+  // nivel, y con la misma defensa: no es pintura de marca que un repintado vaya a virar —el set lo
+  // firma Sergio— y el valor de cada opción vive en `globals.css`, uno por tema. Lo que esta
+  // exención NO abre es escribir un color en la prosa: va por palabra, y la única es "lima".
+  "src/config/constants.ts": { palabras: ["lima"], porque: "el catálogo de colores de nombre VIP" },
   "src/app/(app)/(shell)/ranking/podio-ranking.tsx": {
     palabras: ["verde", "cian"],
     porque: "ídem",

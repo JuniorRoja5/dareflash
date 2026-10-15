@@ -45,6 +45,10 @@ export interface ComentarioVista {
     displayName: string | null;
     image: string | null;
     pointsBalance: number;
+    /** VIP ACTIVO, resuelto por el chokepoint EN LOTE: una consulta por página, nunca una por fila. */
+    esVip: boolean;
+    /** Clave del color elegido. Solo se pinta si además es VIP; lo decide el componente. */
+    colorNombre: string | null;
   };
   /** ¿Lo escribió quien mira? Para ofrecerle borrarlo. `false` sin sesión. */
   esMio: boolean;
@@ -86,6 +90,14 @@ export async function publicarComentario(
   const texto = limpiarComentario(input.texto);
   if (texto === null) return { estado: "rechazado", motivo: "TEXTO_INVALIDO" };
 
+  // LA MARCA VIP SE RESUELVE ANTES, no dentro: la transacción de abajo tiene el vídeo bloqueado y
+  // el veto del deadlock es no meterle ninguna tabla que no tenga que estar. Antes y no después
+  // para que el objeto salga completo de una vez — un `esVip: false` de relleno que luego se
+  // sobreescribe se queda en `false` el día que alguien borre la línea de abajo, y un VIP vería su
+  // propio comentario sin marca hasta recargar, sin que nada falle.
+  const { esVipActivoDe } = await import("./vip");
+  const esVip = await esVipActivoDe(db, input.userId);
+
   // El tipo del callback se anota: al dejar de estar en posición de `return` directo, TypeScript
   // ensancha los literales de `estado` a `string` y la unión deja de encajar.
   const r = await db.$transaction(async (tx): Promise<ResultadoPublicar> => {
@@ -106,7 +118,13 @@ export async function publicarComentario(
 
     const autor = await tx.user.findUniqueOrThrow({
       where: { id: input.userId },
-      select: { username: true, displayName: true, image: true, pointsBalance: true },
+      select: {
+        username: true,
+        displayName: true,
+        image: true,
+        pointsBalance: true,
+        colorNombre: true,
+      },
     });
     const c = await tx.comment.create({
       data: { videoId: input.videoId, userId: input.userId, texto },
@@ -140,7 +158,13 @@ export async function publicarComentario(
 
     return {
       estado: "publicado",
-      comentario: { id: c.id, texto, creadoMs: c.createdAt.getTime(), autor, esMio: true },
+      comentario: {
+        id: c.id,
+        texto,
+        creadoMs: c.createdAt.getTime(),
+        autor: { ...autor, esVip },
+        esMio: true,
+      },
       comentarios: commentCount,
     };
   }, LEDGER_TX_OPTIONS);
@@ -256,17 +280,28 @@ export async function comentarioSuelto(
       createdAt: true,
       videoId: true,
       userId: true,
-      user: { select: { username: true, displayName: true, image: true, pointsBalance: true } },
+      user: {
+        select: {
+          username: true,
+          displayName: true,
+          image: true,
+          pointsBalance: true,
+          colorNombre: true,
+        },
+      },
     },
   });
   if (!f) return null;
+  const { esVipActivoDe } = await import("./vip");
   return {
     videoId: f.videoId,
     comentario: {
       id: f.id,
       texto: f.texto,
       creadoMs: f.createdAt.getTime(),
-      autor: f.user,
+      // Uno solo: aquí `esVipActivoDe` SÍ es lo correcto —es una fila, no una lista—, y pasa por
+      // el mismo chokepoint que el lote.
+      autor: { ...f.user, esVip: await esVipActivoDe(db, f.userId) },
       esMio: opciones.userId ? f.userId === opciones.userId : false,
     },
   };
@@ -323,18 +358,33 @@ export async function listarComentarios(
       texto: true,
       createdAt: true,
       userId: true,
-      user: { select: { username: true, displayName: true, image: true, pointsBalance: true } },
+      user: {
+        select: {
+          username: true,
+          displayName: true,
+          image: true,
+          pointsBalance: true,
+          colorNombre: true,
+        },
+      },
     },
   });
 
   const pagina = filas.slice(0, limite);
   const ultima = pagina[pagina.length - 1];
+  // UNA consulta de VIP para toda la página. Preguntarlo por comentario serían veinte consultas por
+  // render, que es el N+1 que el chokepoint en lote existe para no tener.
+  const { vipsActivosEntre } = await import("./vip");
+  const vips = await vipsActivosEntre(
+    db,
+    pagina.map((f) => f.userId),
+  );
   return {
     items: pagina.map((f) => ({
       id: f.id,
       texto: f.texto,
       creadoMs: f.createdAt.getTime(),
-      autor: f.user,
+      autor: { ...f.user, esVip: vips.has(f.userId) },
       esMio: opciones.userId ? f.userId === opciones.userId : false,
     })),
     nextCursor:

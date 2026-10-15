@@ -155,6 +155,43 @@
   --df-rayos-opacidad: 0.15;
 
   /* ------------------------------------------------------------------------------------------
+     VIP MYTHIC (Fase 8). EL ORO DEL VIP ES UN TOKEN PROPIO, Y NO ES UN CAPRICHO.
+
+     En el brief, el oro (`--df-rank`) es EXCLUSIVO del podio: puesto 1/2/3. Un sello VIP en ese
+     mismo oro se leeria como "va primero en el ranking", que es otra cosa y ademas se puede
+     comprobar. Asi que el VIP tiene su propio dorado, MAS VIVO que el del podio, y las dos cosas
+     se separan ademas por la FORMA: la medalla del podio es redonda y el sello VIP es estrellado
+     con una gema dentro. Color y forma, como con Legend.
+
+     PENDIENTE DE SERGIO: la excepcion a la regla del oro. El token existe para que el dia que se
+     firme (o se cambie de color) sea UNA linea y no una caceria.
+     ------------------------------------------------------------------------------------------ */
+  --vip-gold: #ffd24a;
+  --vip-gold-deep: #8a5a00;
+  /* Los tres del degradado del borde animado (P3) y del aro del avatar. */
+  --vip-a: #2be84b;
+  --vip-b: #e8f620;
+  --vip-c: #ffcf3f;
+
+  /* ------------------------------------------------------------------------------------------
+     LOS COLORES DE NOMBRE QUE PUEDE ELEGIR UN VIP, uno por opcion del catalogo.
+
+     SON TOKENS Y NO LITERALES EN EL CODIGO, y eso no es estilo: un nombre se pinta sobre el fondo
+     DE SU TEMA. El lima de aqui (#e8f620) sobre el blanco del tema claro no se lee —es el mismo
+     fallo que el oro del podio, que en claro hubo que convertir en chip—, asi que cada opcion
+     necesita su valor en cada tema. Con un hex en `constants.ts` solo habria UN valor, y la mitad
+     del catalogo saldria ilegible en uno de los dos temas sin que nada fallara.
+
+     `constants.ts` guarda la CLAVE -> el NOMBRE DEL TOKEN. El valor vive aqui, que es donde vive
+     la paleta, y por eso aqui si se nombran por su color: es la definicion.
+     ------------------------------------------------------------------------------------------ */
+  --vip-nombre-verde: #2be84b;
+  --vip-nombre-lima: #e8f620;
+  --vip-nombre-oro: #ffd24a;
+  --vip-nombre-diamante: #22d3ee;
+  --vip-nombre-fuego: #ff8c42;
+
+  /* ------------------------------------------------------------------------------------------
      CODIGO QR — LOS DOS UNICOS TOKENS QUE VALEN LO MISMO EN LOS DOS TEMAS, y es a proposito.
      Un QR no es interfaz: es una marca que tiene que LEER UNA CAMARA. Los lectores esperan modulos
      OSCUROS sobre fondo CLARO, y bastantes fallan con el patron invertido. Si estas dos tintas
@@ -243,6 +280,30 @@
   /* Sobre blanco el trazo verde solo puede RESTAR luminosidad, asi que necesita mas para leerse.
      Mismo razonamiento que el tinte, y tambien medido a ojo contra la maqueta de referencia. */
   --df-rayos-opacidad: 0.26;
+
+  /* VIP MYTHIC. Mismos trabajos que en oscuro, bajados de luminosidad para leerse sobre blanco: un
+     #ffd24a sobre fondo claro es practicamente invisible. Ver el porque del token propio arriba. */
+  --vip-gold: #9a6b00;
+  --vip-gold-deep: #5c3f00;
+  --vip-a: #15803d;
+  --vip-b: #b8860b;
+  --vip-c: #9a6b00;
+
+  /* LOS COLORES DE NOMBRE, bajados para leerse sobre blanco. MEDIDOS, no elegidos a ojo: un nombre
+     es TEXTO, asi que cada uno pasa de 4,5:1 (AA) contra los TRES fondos claros —tarjeta, pagina y
+     elevado—, y los cinco se separan entre si por dE >= 15 en los dos temas. Los valga todo
+     `tests/paleta-vip` los clava.
+
+     EL ORO DE AQUI NO ES `--vip-gold`, y esa es la unica pareja que se separa entre temas: el oro
+     del SELLO es una FORMA (le basta 3:1) y en claro vale #9a6b00, que como texto se queda en
+     4,33:1 sobre la pagina — por debajo de AA. En oscuro si son el mismo valor, porque alli el oro
+     del sello ya pasa de 12:1 como texto: que un VIP que elige "oro" lleve el oro de su sello es lo
+     que se quiere, y solo se separan donde no queda mas remedio. */
+  --vip-nombre-verde: #0f6b32;
+  --vip-nombre-lima: #55640a;
+  --vip-nombre-oro: #8a5a00;
+  --vip-nombre-diamante: #0b6e84;
+  --vip-nombre-fuego: #a63c00;
 
   /* El QR NO cambia con el tema: ver el porque en el bloque oscuro. Se repiten aqui, y no se
      omiten, para que el test de simetria siga exigiendo que todo token exista en los dos sitios. */
@@ -612,4 +673,31 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * EL NOMBRE DE UN VIP. Su color sale de `--vip-name`, que pone el componente de identidad con una
+ * referencia a uno de los `--vip-nombre-*` de arriba, y SOLO despues de pasar por el guard de
+ * `lib/color-nombre`: a esta variable no llega nunca nada escrito por un usuario.
+ *
+ * CON RESPALDO EN EL ACENTO: un VIP que todavia no ha elegido color no se queda sin marca ni hereda
+ * un valor vacio —que pintaria el nombre de `currentColor` y lo dejaria indistinguible—.
+ *
+ * ┌─ SIN RESPLANDOR, Y SE DECIDIO MIRANDOLO ────────────────────────────────────────────────────┐
+ * │ Llevaba un `text-shadow` de 12 px. Un nombre SIEMPRE va en un hueco acotado —en una fila de │
+ * │ comentario, en una celda de ranking— y por eso siempre lleva `truncate`, que es             │
+ * │ `overflow: hidden`. El overflow RECORTA la sombra: en vez de un halo suave salia un          │
+ * │ RECTANGULO de luz con los bordes cortados a ras del texto. En una captura se ve a la         │
+ * │ primera, y en ningun test: los dos son estilo.                                               │
+ * │                                                                                              │
+ * │ Y no se arregla con padding —movería la maqueta en las nueve superficies— ni quitando el     │
+ * │ truncado, que es obligatorio: un nombre largo no puede empujar una fila. Asi que se quita el │
+ * │ resplandor. La marca ya la dan el COLOR y la GEMA, que es lo que se pidio.                   │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * Aqui no hay nada que se mueva, asi que `prefers-reduced-motion` no tiene nada que apagar. Lo que
+ * si respeta esa regla es todo lo que late o gira (el borde del perfil, P3): la regla global.
+ * --------------------------------------------------------------------------------------------- */
+.df-nombre-vip {
+  color: var(--vip-name, var(--df-action));
 }

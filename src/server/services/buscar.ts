@@ -30,6 +30,8 @@ import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { EstadoCuenta, RolFiltro } from "@/lib/cuentas-listado";
 
+import { vipsActivosEntre } from "./vip";
+
 /** Multiplicador para que la EXACTITUD (rango 0/1/2) domine sobre la relevancia FULLTEXT en `orden`. */
 const RANGO_FACTOR = 1_000_000_000;
 
@@ -48,6 +50,10 @@ export interface UsuarioBusqueda {
   /** Puntos: el avatar de los resultados deriva de ellos su anillo de nivel. Columna del MISMO
    *  SELECT que ya se hacia — no una consulta por fila. */
   puntos: number;
+  /** ¿VIP ahora mismo? UNA consulta para toda la página de resultados, nunca una por fila. */
+  esVip: boolean;
+  /** CLAVE del color de nombre (nunca un hex). Solo pinta si `esVip`. */
+  colorNombre: string | null;
 }
 
 /**
@@ -186,6 +192,8 @@ type FilaUsuario = FilaOrden & {
   displayName: string | null;
   image: string | null;
   pointsBalance: unknown;
+  /** Solo la trae el modo PÚBLICO (ver `columnas`); en el del panel llega `undefined`. */
+  colorNombre?: string | null;
 };
 
 /** Lo que el modo PANEL trae de más: gobierno de la cuenta y sus cifras. Jamás el email. */
@@ -266,10 +274,12 @@ async function filasDeUsuarios<F extends FilaUsuario>(
         ? Prisma.sql`AND bannedAt IS NULL`
         : Prisma.empty;
 
+  // `colorNombre` solo en el modo PÚBLICO: el panel no pinta la marca VIP (su lista es gobierno de
+  // cuentas, no escaparate), así que traer la columna ahí sería pedir un dato que nadie usa.
   const columnas = admin
     ? Prisma.sql`id, username, displayName, image, scoreAutoridad,
         role, bannedAt, createdAt, pointsBalance, victoriasTotales`
-    : Prisma.sql`id, username, displayName, image, scoreAutoridad, pointsBalance`;
+    : Prisma.sql`id, username, displayName, image, scoreAutoridad, pointsBalance, colorNombre`;
 
   // Exactitud: username EXACTO (2) > prefijo en username/displayName (1) > solo por fulltext (0).
   const rango = Prisma.sql`CASE
@@ -319,12 +329,21 @@ export async function buscarUsuarios(
   limite: number = BUSCAR_LIMITE,
 ): Promise<PaginaBusqueda<UsuarioBusqueda>> {
   const filas = await filasDeUsuarios<FilaUsuario>(db, q, cursor, limite, false, {});
+  // LA MARCA VIP, EN UNA CONSULTA PARA TODA LA PÁGINA. Sobre `filas` —que trae una de más para
+  // saber si hay siguiente— y no sobre las recortadas: son como mucho un id de sobra, y ponerla
+  // después de `paginar` obligaría a repetir aquí el recorte que `paginar` ya hace.
+  const vips = await vipsActivosEntre(
+    db,
+    filas.map((f) => f.id),
+  );
   return paginar(filas, limite, (f) => ({
     id: f.id,
     username: f.username,
     displayName: f.displayName,
     image: f.image,
     puntos: Number(f.pointsBalance),
+    esVip: vips.has(f.id),
+    colorNombre: f.colorNombre ?? null,
   }));
 }
 

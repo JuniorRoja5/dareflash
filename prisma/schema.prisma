@@ -170,6 +170,19 @@ model User {
   rachaInicioEn DateTime? @db.Date
   rachaUltimoEn DateTime? @db.Date
 
+  /// --- VIP Mythic (Fase 8) ---
+  /// COLOR DEL NOMBRE elegido por un VIP. Se guarda la CLAVE del catalogo ("oro", "diamante"…), no
+  /// el color: reescribir un tono para que se lea mejor reescribe tambien los nombres ya elegidos,
+  /// en vez de congelarlos. Mismo patron que `Challenge.nivelMinimo`.
+  ///
+  /// Y GUARDAR LA CLAVE ES ADEMAS LA DEFENSA: lo que acaba en una declaracion CSS sale del catalogo
+  /// de `constants`, nunca de esta columna. Aunque alguien escribiera aqui una carga a mano, no
+  /// casaria con ninguna clave y el nombre se pintaria normal (ver `lib/color-nombre`).
+  ///
+  /// NULL = no ha elegido, o no es VIP. El color SOLO se pinta si ademas es VIP ACTIVO, que lo
+  /// decide la suscripcion y no esta columna.
+  colorNombre String? @db.VarChar(16)
+
   // --- Busqueda (A1) ---
   // SCORE DE AUTORIDAD para ORDENAR resultados de busqueda. Cache DENORMALIZADO e INDEXADO que el
   // WORKER recalcula en barridos de baja cadencia (nunca al vuelo; la busqueda solo LEE esta columna).

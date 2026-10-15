@@ -29,6 +29,7 @@ import { categoriaKeyDeVideo } from "./categoria-video";
 // dos nombres casi iguales en el mismo módulo es cómo se llama a la función que no es.
 import { misLikes as misLikes_ } from "./likes";
 import { VIDEO_VISIBLE } from "./video-visible";
+import { vipsActivosEntre } from "./vip";
 
 /** Un post del feed, listo para pintar. `categoria` es el nombre ya resuelto (o null si no participa). */
 export interface PostFeed {
@@ -92,6 +93,23 @@ export interface PostFeed {
    * adelanta. Pagar por aparecer en el espacio destacado no compra sitio en el feed.
    */
   autorDestacado: boolean;
+  /**
+   * ¿Su AUTOR es VIP ahora mismo? Trae el sello en el avatar y el color en el nombre.
+   *
+   * MISMA MECÁNICA QUE `autorDestacado`, y por la misma razón: se resuelve con UNA consulta del
+   * conjunto de autores de la página (`vipsActivosEntre`), no con una por vídeo. En un feed de
+   * veinte vídeos, preguntar fila a fila son veinte consultas por render.
+   *
+   * Y viaja EN EL POST para que la segunda página del scroll infinito —que llega por `/api/feed`—
+   * pinte la marca desde el primer frame igual que la primera.
+   */
+  autorVip: boolean;
+  /**
+   * La CLAVE del color de nombre que eligió su autor (`COLORES_NOMBRE_VIP`), o `null`. Es una clave
+   * y no un color: el hex sale del catálogo del servidor, así que lo que guarda el usuario nunca se
+   * usa como CSS. Solo pinta si `autorVip`.
+   */
+  colorNombre: string | null;
 }
 
 export interface PaginaFeed {
@@ -123,7 +141,15 @@ const SELECT_FEED = {
   category: true,
   commentCount: true,
   likeCount: true,
-  user: { select: { username: true, displayName: true, image: true, pointsBalance: true } },
+  user: {
+    select: {
+      username: true,
+      displayName: true,
+      image: true,
+      pointsBalance: true,
+      colorNombre: true,
+    },
+  },
   submission: {
     select: {
       id: true,
@@ -148,6 +174,8 @@ function aPostFeed(
     misLikes: ReadonlySet<string>;
     /** Autores con aparición destacada vigente. Pertenencia O(1): ver `autoresDestacados`. */
     destacados: ReadonlySet<string>;
+    /** Autores VIP ahora mismo. Mismo trato que `destacados`: un Set del lote, no una consulta. */
+    vips: ReadonlySet<string>;
     ahora: Date;
     userId?: string | null;
   },
@@ -179,6 +207,8 @@ function aPostFeed(
     esMio: ctx.userId ? v.userId === ctx.userId : false,
     // Pertenencia al conjunto, no una consulta: O(1) por vídeo.
     autorDestacado: ctx.destacados.has(v.userId),
+    autorVip: ctx.vips.has(v.userId),
+    colorNombre: v.user.colorNombre,
   };
 }
 
@@ -192,6 +222,14 @@ function aPostFeed(
  */
 const destacadosDe = (db: Db, filas: FilaFeed[], ahora: Date) =>
   autoresDestacados_(
+    db,
+    filas.map((v) => v.userId),
+    ahora,
+  );
+
+/** Los VIP del lote, UNA consulta para toda la página. Mismo patrón, y por el mismo motivo. */
+const vipsDe = (db: Db, filas: FilaFeed[], ahora: Date) =>
+  vipsActivosEntre(
     db,
     filas.map((v) => v.userId),
     ahora,
@@ -237,16 +275,18 @@ export async function videoParaFeed(
   const fila = await db.video.findFirst({ where: { id, ...VIDEO_VISIBLE }, select: SELECT_FEED });
   if (!fila) return null;
   const ahora = opts.ahora ?? new Date();
-  const [misVotos, misLikes, destacados] = await Promise.all([
+  const [misVotos, misLikes, destacados, vips] = await Promise.all([
     misVotosDe(db, [fila], opts.userId),
     misLikes_(db, opts.userId, [fila.id]),
     destacadosDe(db, [fila], ahora),
+    vipsDe(db, [fila], ahora),
   ]);
   return aPostFeed(fila, {
     firmar: opts.firmar,
     misVotos,
     misLikes,
     destacados,
+    vips,
     ahora,
     userId: opts.userId,
   });
@@ -284,9 +324,9 @@ export async function feedPublicado(
   const visibles = hayMas ? filas.slice(0, limite) : filas;
 
   const ahora = opts.ahora ?? new Date();
-  // MI VOTO, MIS LIKES y LOS AUTORES DESTACADOS: UNA consulta cada uno para toda la pagina (nunca
-  // una por video). Van en paralelo: son independientes y nada gana sirviendolas en fila.
-  const [misVotos, misLikes, destacados] = await Promise.all([
+  // MI VOTO, MIS LIKES, LOS AUTORES DESTACADOS y LOS VIP: UNA consulta cada uno para toda la pagina
+  // (nunca una por video). Van en paralelo: son independientes y nada gana sirviendolas en fila.
+  const [misVotos, misLikes, destacados, vips] = await Promise.all([
     misVotosDe(db, visibles, opts.userId),
     misLikes_(
       db,
@@ -294,6 +334,7 @@ export async function feedPublicado(
       visibles.map((v) => v.id),
     ),
     destacadosDe(db, visibles, ahora),
+    vipsDe(db, visibles, ahora),
   ]);
   const items: PostFeed[] = visibles.map((v) =>
     aPostFeed(v, {
@@ -301,6 +342,7 @@ export async function feedPublicado(
       misVotos,
       misLikes,
       destacados,
+      vips,
       ahora,
       userId: opts.userId,
     }),

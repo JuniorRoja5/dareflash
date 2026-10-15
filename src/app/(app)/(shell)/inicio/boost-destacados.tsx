@@ -67,6 +67,8 @@ export function BoostDestacados({ perfiles }: { perfiles: PerfilDestacado[] }) {
               imagen={perfil.imagen}
               puntos={perfil.puntos}
               posicion={i + 1}
+              esVip={perfil.esVip}
+              colorNombre={perfil.colorNombre}
             />
           ))}
         </div>

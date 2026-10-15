@@ -39,6 +39,12 @@ export interface ParticipacionParaFeed {
    * y plano en la otra.
    */
   autorDestacado: boolean;
+  /** ¿Su autor es VIP? Mismo trato que `autorDestacado`: un conjunto por página, no una consulta
+   *  por participación. Y por el mismo motivo viaja en el ítem: el feed de un reto tiene que pintar
+   *  el sello igual que el global. */
+  autorVip: boolean;
+  /** CLAVE del color de nombre elegido (nunca un hex). Solo pinta si `autorVip`. */
+  colorNombre: string | null;
 }
 
 /** Datos del RETO, iguales para toda la lista: se pasan una vez, no por ítem. */
@@ -82,5 +88,7 @@ export function postDeParticipacion(
     miVoto: p.miVoto,
     esMio: p.esMio,
     autorDestacado: p.autorDestacado,
+    autorVip: p.autorVip,
+    colorNombre: p.colorNombre,
   };
 }

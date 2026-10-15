@@ -8,7 +8,12 @@ import { Avatar } from "@/components/ui/avatar";
 import { PildoraCategoria } from "@/components/ui/pildora";
 import { BUSCAR_SUGERENCIAS_LIMITE } from "@/config/constants";
 import { getJson } from "@/lib/cliente-http";
-import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
+import {
+  conHandleSecundario,
+  HandleUsuario,
+  NombreUsuario,
+  textoNombre,
+} from "@/components/ui/identidad-usuario";
 import type { PaginaBusqueda, RetoBusqueda, UsuarioBusqueda } from "@/server/services/buscar";
 
 import { nombreCategoria } from "./retos/retos-datos";
@@ -194,19 +199,26 @@ export function BuscadorBarra() {
               {s.tipo === "usuario" ? (
                 <>
                   <Avatar
-                    nombre={nombreMostrado(s.displayName, s.username)}
+                    nombre={textoNombre(s.displayName, s.username)}
                     imagen={s.image}
                     tamano="sm"
                     puntos={s.puntos}
+                    esVip={s.esVip}
                   />
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-text">
-                      {mostrarHandleSecundario(s.displayName)
-                        ? nombreMostrado(s.displayName, s.username)
-                        : `@${s.username}`}
-                    </span>
-                    {mostrarHandleSecundario(s.displayName) ? (
-                      <span className="block truncate text-xs text-text-dim">@{s.username}</span>
+                    <NombreUsuario
+                      displayName={s.displayName}
+                      username={s.username}
+                      prefijo={!conHandleSecundario(s.displayName)}
+                      esVip={s.esVip}
+                      colorNombre={s.colorNombre}
+                      clase="block truncate text-sm font-semibold text-text"
+                    />
+                    {conHandleSecundario(s.displayName) ? (
+                      <HandleUsuario
+                        username={s.username}
+                        clase="block truncate text-xs text-text-dim"
+                      />
                     ) : null}
                   </span>
                 </>

@@ -52,6 +52,8 @@ const post = (id: string): PostFeed => ({
   miVoto: null,
   esMio: false,
   autorDestacado: false,
+  autorVip: false,
+  colorNombre: null,
 });
 
 /** Las props con las que la página monta el feed (el elemento, sin renderizarlo). */

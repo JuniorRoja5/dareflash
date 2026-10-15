@@ -80,9 +80,41 @@ describe("el panel es oscuro siempre", () => {
 });
 
 describe("una sola verdad", () => {
-  it("solo el layout raíz y el del panel escriben `data-theme`", () => {
+  /**
+   * QUIÉN PUEDE DECLARAR UN TEMA, y por qué cada uno. La lista es CERRADA: un cuarto sitio cae en
+   * rojo y obliga a justificarlo aquí, que es de lo que va este guard.
+   *
+   * La regla no es "solo el layout raíz": es que el único que ELIGE el tema es el raíz (de la
+   * cookie), y que los demás solo pueden declarar el tema que su SUPERFICIE impone, no el que
+   * prefiera nadie. Por eso el panel puede, y por eso puede la capa que va encima del vídeo.
+   */
+  const DECLARAN_TEMA: Record<string, string> = {
+    "app/layout.tsx": "lo ELIGE: lo lee de la cookie y lo sirve en el HTML",
+    "app/panel/layout.tsx": "el panel es oscuro siempre, elija lo que elija el visitante",
+    // La capa de info del feed en móvil va SOBRE el velo negro del vídeo: es una superficie
+    // oscura esté la página en el tema que esté. Sin esto, en tema claro se pintan ahí los
+    // valores pensados para leerse sobre blanco —el nombre de un VIP en su oliva, el anillo de
+    // nivel en su verde oscuro— encima de un fondo negro. El texto ya iba en blanco escrito a
+    // mano, que era esta misma decisión tomada a medias y solo para el texto.
+    "components/feed/feed-vertical.tsx": "la capa sobre el vídeo es oscura en los dos temas",
+  };
+
+  it("solo los sitios de la lista escriben `data-theme`, y cada uno con su porqué", () => {
     const culpables = TODOS.filter((f) => f.codigo.includes("data-theme=")).map((f) => f.rel);
-    expect(culpables.sort()).toEqual(["app/layout.tsx", "app/panel/layout.tsx"]);
+    expect(culpables.sort()).toEqual(Object.keys(DECLARAN_TEMA).sort());
+  });
+
+  it("y ninguno elige un tema que no sea el suyo: solo el raíz lee la preferencia", () => {
+    // Los otros dos declaran una superficie, así que su valor es FIJO. Si alguno empezara a leer
+    // la cookie, habría dos sitios decidiendo el tema del visitante y se pisarían.
+    for (const rel of Object.keys(DECLARAN_TEMA)) {
+      if (rel === "app/layout.tsx") continue;
+      const codigo = leer(rel);
+      expect(codigo, `${rel} elige tema en vez de declarar su superficie`).toMatch(
+        /data-theme="(dark|light)"/,
+      );
+      expect(codigo, `${rel} lee la preferencia del visitante`).not.toContain("temaDesdeCookie");
+    }
   });
 
   it("y solo el conmutador lo ESCRIBE (leerlo puede cualquiera)", () => {
