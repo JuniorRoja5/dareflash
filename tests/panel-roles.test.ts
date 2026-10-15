@@ -55,6 +55,9 @@ describe("rol por ruta (puro)", () => {
     expect(rolDeRuta("/panel/retos")).toBe("ADMIN");
     expect(rolDeRuta("/panel/retos/abc123")).toBe("ADMIN");
     expect(rolDeRuta("/panel")).toBe("ADMIN");
+    // El historial de ajustes es una SUBRUTA del monedero, y hereda su rol sin declararse aparte:
+    // es justo para esto que el guard se deriva de la sección y no se escribe en cada página.
+    expect(rolDeRuta("/panel/monedero/ajustes")).toBe("ADMIN");
   });
 
   it("una ruta que no es de ninguna sección REVIENTA (no se resuelve dejando pasar)", () => {

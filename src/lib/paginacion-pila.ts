@@ -104,8 +104,23 @@ export function anterior(p: Paginacion): Paginacion | null {
  * es la que compartiría. Vivía escrito a mano en cada listado —tres veces la misma cadena de
  * `URLSearchParams`—, y la cuarta copia iba a ser la que se olvidara de omitir la pila vacía.
  */
-export function enlacePaginado(base: string, p: Paginacion): string {
+export function enlacePaginado(
+  base: string,
+  p: Paginacion,
+  /**
+   * Lo que la lista filtra y tiene que SOBREVIVIR al cambio de página (hoy: el estado de la cola de
+   * retiradas). Sin esto, pulsar "Siguiente" en "Pendientes" devolvía la página dos de TODAS, que
+   * es una lista distinta — y nada avisaba. Los valores vacíos se omiten: un `?estado=` suelto
+   * ensucia la URL y la convierte en otra dirección para el mismo sitio.
+   */
+  extra?: Readonly<Record<string, string | null | undefined>>,
+): string {
   const q = new URLSearchParams();
+  // El filtro PRIMERO: así la parte estable de la URL va delante y la posición detrás, que se lee
+  // mejor y mantiene la misma forma entre páginas.
+  for (const [clave, valor] of Object.entries(extra ?? {})) {
+    if (valor) q.set(clave, valor);
+  }
   if (p.cursor) q.set("cursor", p.cursor);
   const pila = escribirPila(p.pila);
   if (pila) q.set("pila", pila);

@@ -847,9 +847,12 @@ model Withdrawal {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Keyset del historial del usuario y de la cola del panel.
+  // Keyset del historial del usuario y de la cola del panel FILTRADA por estado.
   @@index([userId, createdAt, id])
   @@index([status, createdAt, id])
+  /// Y el de la cola SIN filtrar ("Todas"): los dos de arriba empiezan por una columna que ese
+  /// caso no fija, asi que ninguno sirve para recorrer la tabla por fecha.
+  @@index([createdAt, id])
 }
 
 // ============================================================================
@@ -976,6 +979,10 @@ model AuditLog {
 
   @@index([actorId])
   @@index([targetType, targetId])
+  /// Keyset del historial de una ACCION concreta (hoy, los ajustes de saldo del panel). Sin el,
+  /// filtrar por `action` recorre la tabla entera — y esta crece con TODO lo que hace el panel,
+  /// asi que el recorrido empeora cada dia que pasa.
+  @@index([action, createdAt, id])
 }
 
 // ============================================================================

@@ -430,23 +430,28 @@ describe("la traza de cada transición", () => {
 describe("la cola del panel", () => {
   it("descifra el destino: es el único sitio donde el IBAN vuelve a estar en claro", async () => {
     await pedir();
-    const [fila] = await listarRetiradas(prisma);
+    const [fila] = (await listarRetiradas(prisma)).items;
     expect(fila!.destino.iban).toBe(IBAN_OK);
     expect(fila!.destino.titular).toBe("Marta Ruiz");
   });
 
   it("y trae los SIGUIENTES estados, para que la pantalla no ofrezca lo que no existe", async () => {
     const id = await pedir();
-    expect((await listarRetiradas(prisma))[0]!.siguientes).toEqual(["APPROVED", "REJECTED"]);
+    expect((await listarRetiradas(prisma)).items[0]!.siguientes).toEqual(["APPROVED", "REJECTED"]);
 
     await transicionarRetirada(prisma, { retiradaId: id, adminId, hasta: "APPROVED" });
-    expect((await listarRetiradas(prisma))[0]!.siguientes).toEqual(["PROCESSING", "REJECTED"]);
+    expect((await listarRetiradas(prisma)).items[0]!.siguientes).toEqual([
+      "PROCESSING",
+      "REJECTED",
+    ]);
 
     await transicionarRetirada(prisma, { retiradaId: id, adminId, hasta: "PROCESSING" });
-    expect((await listarRetiradas(prisma))[0]!.siguientes).toEqual(["PAID"]);
+    expect((await listarRetiradas(prisma)).items[0]!.siguientes).toEqual(["PAID"]);
 
     await transicionarRetirada(prisma, { retiradaId: id, adminId, hasta: "PAID" });
-    expect((await listarRetiradas(prisma))[0]!.siguientes, "una pagada ofrece algo").toEqual([]);
+    expect((await listarRetiradas(prisma)).items[0]!.siguientes, "una pagada ofrece algo").toEqual(
+      [],
+    );
   });
 
   it("un dato que no se puede descifrar NO tumba la lista", async () => {
@@ -455,7 +460,7 @@ describe("la cola del panel", () => {
     const id = await pedir();
     await prisma.withdrawal.update({ where: { id }, data: { datosPago: "v1:aa:bb:cc" } });
 
-    const [fila] = await listarRetiradas(prisma);
+    const [fila] = (await listarRetiradas(prisma)).items;
     expect(fila!.destino.error).toMatch(/descifrar/i);
     expect(fila!.amountCents, "la fila se perdió entera").toBe(7500);
   });

@@ -2,6 +2,7 @@ import "server-only";
 
 import { MOTIVO_RECHAZO_LIBRE } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { codificarCursorTiempo, decodificarCursorTiempo, dondeDesde } from "@/lib/cursor-tiempo";
 import {
   claveReembolso,
   devuelveDinero,
@@ -182,12 +183,32 @@ export interface RetiradaPanel {
   siguientes: readonly EstadoRetirada[];
 }
 
+export interface PaginaRetiradasPanel {
+  items: RetiradaPanel[];
+  /** Cursor de la página siguiente; `null` = no hay más. */
+  proximoCursor: string | null;
+}
+
+/** Tope duro por página. El panel no elige cuánto se le sirve, y "sin tope" no es una opción. */
+const PANEL_LIMITE = 25;
+
 /**
- * LA COLA DEL PANEL, con los datos de pago DESCIFRADOS.
+ * LA COLA DEL PANEL, con los datos de pago DESCIFRADOS y POR PÁGINAS.
  *
  * Es el único sitio del producto donde un IBAN vuelve a estar en claro, y es a propósito: el admin
  * no puede hacer la transferencia sin verlo. Lo que NO ocurre en ningún punto es que se escriban en
  * un log — ni aquí, ni en el `AuditLog`, ni en el error si el descifrado falla.
+ *
+ * ┌─ ANTES ERA `take: 100`, QUE NO ES PAGINAR: ES UN TOPE CIEGO ──────────────────────────────────┐
+ * │ Con 101 solicitudes, la 101 no existía para el admin y nada lo decía. Ahora es KEYSET, como el │
+ * │ resto de las listas del producto: `(createdAt, id) < (t, i)`. Y keyset y no OFFSET porque esta │
+ * │ lista CAMBIA mientras se lee —entra una solicitud nueva por arriba cada vez que alguien pide   │
+ * │ un cobro—, que es justo cuando un `OFFSET` repite una fila o se salta otra.                    │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * EL FILTRO POR ESTADO NO ES ADORNO: lo que el admin viene a hacer es despachar PENDIENTES, y en una
+ * cola con historia las pendientes acaban debajo de cien pagadas. Filtrada, la consulta además
+ * recorre el índice `[status, createdAt, id]` de una pasada.
  *
  * UN DATO QUE NO SE PUEDE DESCIFRAR NO TUMBA LA LISTA. Puede pasar si el secreto rota mal: se marca
  * la fila y se sigue, porque el admin necesita ver el RESTO de la cola igual. Lo que no se hace es
@@ -195,12 +216,19 @@ export interface RetiradaPanel {
  */
 export async function listarRetiradas(
   db: PrismaClient,
-  opts: { estado?: EstadoRetirada; limite?: number } = {},
-): Promise<RetiradaPanel[]> {
+  opts: { estado?: EstadoRetirada; cursor?: string | null; limite?: number } = {},
+): Promise<PaginaRetiradasPanel> {
+  const limite = Math.min(Math.max(1, Math.floor(opts.limite ?? PANEL_LIMITE)), PANEL_LIMITE);
+  const desde = decodificarCursorTiempo(opts.cursor);
+
   const filas = await db.withdrawal.findMany({
-    where: opts.estado ? { status: opts.estado } : {},
+    where: {
+      ...(opts.estado ? { status: opts.estado } : {}),
+      ...dondeDesde(desde),
+    },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: opts.limite ?? 100,
+    // Una de más: así se sabe si hay página siguiente sin un `count` aparte.
+    take: limite + 1,
     select: {
       id: true,
       userId: true,
@@ -214,13 +242,17 @@ export async function listarRetiradas(
     },
   });
 
+  const hayMas = filas.length > limite;
+  const pagina = hayMas ? filas.slice(0, limite) : filas;
+  const ultima = pagina[pagina.length - 1];
+
   const usuarios = await db.user.findMany({
-    where: { id: { in: filas.map((f) => f.userId) } },
+    where: { id: { in: pagina.map((f) => f.userId) } },
     select: { id: true, username: true, displayName: true },
   });
   const porId = new Map(usuarios.map((u) => [u.id, u]));
 
-  return filas.map((f) => {
+  const items = pagina.map((f) => {
     let destino: Record<string, string>;
     try {
       destino = JSON.parse(descifrarDatoDePago(f.datosPago)) as Record<string, string>;
@@ -244,4 +276,12 @@ export async function listarRetiradas(
       siguientes: siguientesEstados(f.status as EstadoRetirada),
     };
   });
+
+  return {
+    items,
+    proximoCursor:
+      hayMas && ultima
+        ? codificarCursorTiempo({ creadoMs: ultima.createdAt.getTime(), id: ultima.id })
+        : null,
+  };
 }

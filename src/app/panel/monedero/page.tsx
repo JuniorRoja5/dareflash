@@ -1,14 +1,31 @@
 import Link from "next/link";
 
 import { Avatar } from "@/components/ui/avatar";
+import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { importeConMoneda } from "@/lib/dinero";
 import { nombreMostrado } from "@/lib/identidad";
-import { ETIQUETA_ESTADO } from "@/lib/retirada";
+import { enlacePaginado, leerPila, PRIMERA, type Paginacion } from "@/lib/paginacion-pila";
+import { ESTADOS_RETIRADA, ETIQUETA_ESTADO, type EstadoRetirada } from "@/lib/retirada";
 
 import { requireSeccion } from "../panel-guard";
 
 import { AccionesRetirada } from "./acciones-retirada";
 import { AjustarSaldo } from "./ajustar-saldo";
+import { ExportarCsv } from "./exportar-csv";
+
+/**
+ * LOS FILTROS DE LA COLA. "Pendientes" PRIMERO y es el que se usa: es lo que espera una decisión.
+ * No es el de por defecto, sin embargo — al entrar se ven todas, que es lo que había antes y lo que
+ * una persona espera de una lista; el filtro es un atajo, no un escondite.
+ */
+const FILTROS: readonly { etiqueta: string; estado?: EstadoRetirada }[] = [
+  { etiqueta: "Todas" },
+  { etiqueta: "Pendientes", estado: "PENDING" },
+  { etiqueta: "Aceptadas", estado: "APPROVED" },
+  { etiqueta: "En proceso", estado: "PROCESSING" },
+  { etiqueta: "Pagadas", estado: "PAID" },
+  { etiqueta: "Rechazadas", estado: "REJECTED" },
+];
 
 export const metadata = { title: "Monedero y retiradas · Panel" };
 export const dynamic = "force-dynamic";
@@ -68,18 +85,34 @@ export default async function Pagina({
   // estado de cliente que se desincronice, y el enlace a una ficha se puede pegar en un hilo.
   const q = typeof sp["q"] === "string" ? sp["q"].trim().slice(0, 100) : "";
   const u = typeof sp["u"] === "string" ? sp["u"] : null;
+  const aqui: Paginacion = {
+    cursor: typeof sp["cursor"] === "string" ? sp["cursor"].slice(0, 300) : null,
+    pila: leerPila(sp["pila"]),
+  };
+  // EL FILTRO SE VALIDA CONTRA LA MÁQUINA DE ESTADOS, no se pasa a la consulta tal cual: un
+  // `?estado=` inventado devolvería una lista vacía que parecería "no hay nada".
+  const pedido = typeof sp["estado"] === "string" ? sp["estado"] : "";
+  const estado = (ESTADOS_RETIRADA as readonly string[]).includes(pedido)
+    ? (pedido as EstadoRetirada)
+    : null;
 
   const { prisma } = await import("@/server/db/client");
   const { listarRetiradas } = await import("@/server/services/retirada-admin");
   const { fichaMonedero } = await import("@/server/services/monedero-admin");
   const { buscarUsuarios } = await import("@/server/services/buscar");
 
-  const [retiradas, resultados, ficha] = await Promise.all([
-    listarRetiradas(prisma),
+  const [pagina, pendientes, resultados, ficha] = await Promise.all([
+    listarRetiradas(prisma, { ...(estado ? { estado } : {}), cursor: aqui.cursor }),
+    // EL RECUENTO DE PENDIENTES ES SU PROPIA CONSULTA desde que la lista está paginada: contarlas
+    // sobre la página visible daría "3 pendientes" cuando hay treinta, y esa cifra es justo la que
+    // dice si hay trabajo. Un `count` no se puede derivar de una página.
+    prisma.withdrawal.count({ where: { status: "PENDING" } }),
     q.length >= 2 ? buscarUsuarios(prisma, q, null, 10) : Promise.resolve(null),
     u ? fichaMonedero(prisma, u) : Promise.resolve(null),
   ]);
-  const pendientes = retiradas.filter((r) => r.estado === "PENDING").length;
+  const retiradas = pagina.items;
+  /** El filtro viaja con la posición: sin esto, "Siguiente" salta a la lista sin filtrar. */
+  const filtro = { estado: estado ?? undefined, q: q || undefined, u: u ?? undefined };
 
   return (
     <div className="space-y-8">
@@ -93,15 +126,52 @@ export default async function Pagina({
           <span className="text-text">la única que mueve dinero es rechazar</span>, que lo devuelve
           entero.
         </p>
-        {/* La cifra sale del RECUENTO, no de una maqueta: el panel no inventa números. */}
+        {/* La cifra sale de un RECUENTO de verdad, no de la página que se está viendo. */}
         <p className="mt-3 text-sm text-text-dim">
-          {retiradas.length === 0
-            ? "No hay ninguna solicitud todavía."
-            : `${retiradas.length} solicitud${retiradas.length === 1 ? "" : "es"} · ${pendientes} pendiente${pendientes === 1 ? "" : "s"} de revisar`}
+          {pendientes === 0
+            ? "No hay ninguna solicitud pendiente de revisar."
+            : `${pendientes} pendiente${pendientes === 1 ? "" : "s"} de revisar`}
         </p>
       </header>
 
-      {retiradas.length === 0 ? null : (
+      {/* EL FILTRO, ARRIBA: lo que el admin viene a hacer es despachar PENDIENTES, y en una cola
+          con historia acaban debajo de las pagadas. Son enlaces, no estado de cliente: la vista
+          filtrada se puede enlazar y el botón "atrás" funciona. */}
+      <nav aria-label="Filtrar por estado" className="flex flex-wrap gap-2">
+        {FILTROS.map((f) => {
+          const activo = (f.estado ?? null) === estado;
+          return (
+            <Link
+              key={f.etiqueta}
+              // Sin cursor: cambiar de filtro empieza la lista de cero. Conservar la posición de
+              // otra lista llevaría a una página que en esta no existe.
+              href={enlacePaginado("/panel/monedero", PRIMERA, {
+                estado: f.estado,
+                q: q || undefined,
+                u: u ?? undefined,
+              })}
+              aria-current={activo ? "page" : undefined}
+              className={`min-h-[36px] rounded-sm border border-line px-3 py-1.5 text-sm transition-colors hover:bg-raised ${
+                activo ? "bg-raised font-medium text-text" : "text-text-dim"
+              }`}
+            >
+              {f.etiqueta}
+            </Link>
+          );
+        })}
+        <Link
+          href="/panel/monedero/ajustes"
+          className="ml-auto min-h-[36px] rounded-sm border border-line px-3 py-1.5 text-sm text-text-dim transition-colors hover:bg-raised"
+        >
+          Historial de ajustes →
+        </Link>
+      </nav>
+
+      {retiradas.length === 0 ? (
+        <p className="text-sm text-text-dim">
+          {estado ? "No hay ninguna en ese estado." : "No hay ninguna solicitud todavía."}
+        </p>
+      ) : (
         <ul className="divide-y divide-line border-y border-line">
           {retiradas.map((r) => (
             <li key={r.id} className="space-y-3 py-4">
@@ -145,6 +215,15 @@ export default async function Pagina({
           ))}
         </ul>
       )}
+
+      {/* FUERA del `if` de la lista: si una página posterior se queda sin filas —alguien movió algo
+          entre medias—, "Anterior" tiene que seguir ahí o el admin se queda encerrado. */}
+      <PasosKeyset
+        base="/panel/monedero"
+        aqui={aqui}
+        proximoCursor={pagina.proximoCursor}
+        filtro={filtro}
+      />
 
       {/* ┌─ EL AJUSTE MANUAL, ABAJO Y APARTE ──────────────────────────────────────────────────────┐
           │ No es parte de la cola: es una corrección (y la única forma honesta de sembrar saldo    │
@@ -227,6 +306,10 @@ export default async function Pagina({
             />
           </div>
         ) : null}
+      </section>
+
+      <section className="border-t border-line pt-8">
+        <ExportarCsv />
       </section>
     </div>
   );

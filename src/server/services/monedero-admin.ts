@@ -8,6 +8,7 @@ import {
   REF_WALLET_AJUSTE_ADMIN,
 } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { codificarCursorTiempo, decodificarCursorTiempo, dondeDesde } from "@/lib/cursor-tiempo";
 
 import { applyWallet, LedgerError } from "./ledger";
 
@@ -117,7 +118,7 @@ export async function ajustarSaldoMonedero(
         await tx.auditLog.create({
           data: {
             actorId: entrada.adminId,
-            action: "WALLET_ADJUST",
+            action: ACCION_AJUSTE_SALDO,
             targetType: "USER",
             targetId: entrada.userId,
             // EL SALDO DE ANTES Y EL DE DESPUÉS, no solo el delta: es lo que convierte la traza en
@@ -140,6 +141,115 @@ export async function ajustarSaldoMonedero(
     }
     throw e;
   }
+}
+
+/**
+ * LA ACCIÓN del `AuditLog` que escribe un ajuste de saldo. Vive aquí, junto a quien la escribe, y
+ * la lee el historial: dos literales "WALLET_ADJUST" en dos ficheros serían dos verdades, y la que
+ * se quedara atrás dejaría el historial vacío sin que nada fallara.
+ */
+export const ACCION_AJUSTE_SALDO = "WALLET_ADJUST";
+
+/** Un ajuste, como lo cuenta el historial del panel. */
+export interface AjusteDelHistorial {
+  id: string;
+  /** Quién lo hizo. `null` si esa cuenta ya no está. */
+  adminUsername: string | null;
+  /** A quién se le hizo. */
+  usuarioId: string;
+  usuarioUsername: string | null;
+  /** Con signo: positivo acredita, negativo descuenta. */
+  deltaCents: number;
+  /** El saldo antes y después, tal y como se anotó. Es lo que hace auditable la fila. */
+  antesCents: number | null;
+  despuesCents: number | null;
+  /** El motivo que escribió el admin. Esto es la vista del ADMIN: aquí sí se enseña. */
+  nota: string | null;
+  createdAt: Date;
+}
+
+export interface PaginaAjustes {
+  items: AjusteDelHistorial[];
+  proximoCursor: string | null;
+}
+
+const AJUSTES_LIMITE = 25;
+
+/** Lee un número de un `metadata` que es JSON libre: lo que no sea número es `null`, no un 0. */
+function numeroDe(meta: unknown, clave: string): number | null {
+  if (typeof meta !== "object" || meta === null) return null;
+  const v = (meta as Record<string, unknown>)[clave];
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+function textoDe(meta: unknown, clave: string): string | null {
+  if (typeof meta !== "object" || meta === null) return null;
+  const v = (meta as Record<string, unknown>)[clave];
+  return typeof v === "string" && v.length > 0 ? v : null;
+}
+
+/**
+ * EL HISTORIAL DE AJUSTES MANUALES, por páginas.
+ *
+ * ┌─ SALE DEL `AuditLog` Y NO DEL LEDGER, Y ESA ES LA PIEZA ──────────────────────────────────────┐
+ * │ El `WalletLedger` tiene la fila del movimiento, pero NO tiene dónde guardar el motivo —esa es │
+ * │ la razón de que el motivo viva en la auditoría—. Un historial construido sobre el ledger      │
+ * │ enseñaría importes sin ningún porqué, que es justo lo que no sirve para revisar un ajuste.    │
+ * │ La auditoría tiene las dos cosas, y además el saldo de antes y el de después.                  │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * KEYSET sobre `(createdAt, id)`, recorriendo el índice `[action, createdAt, id]`: la tabla de
+ * auditoría crece con TODO lo que hace el panel, así que filtrar por acción sin índice sería un
+ * recorrido completo que empeora cada día.
+ *
+ * LOS DOS `username` SE RESUELVEN EN UNA CONSULTA, no una por fila. Y pueden venir `null`: una
+ * cuenta borrada no borra su rastro en la auditoría —ese es el sentido de una auditoría—, así que
+ * la vista tiene que saber pintar un ajuste cuyo destinatario ya no existe.
+ */
+export async function listarAjustesMonedero(
+  db: PrismaClient,
+  opts: { cursor?: string | null; limite?: number } = {},
+): Promise<PaginaAjustes> {
+  const limite = Math.min(Math.max(1, Math.floor(opts.limite ?? AJUSTES_LIMITE)), AJUSTES_LIMITE);
+  const desde = decodificarCursorTiempo(opts.cursor);
+
+  const filas = await db.auditLog.findMany({
+    where: { action: ACCION_AJUSTE_SALDO, ...dondeDesde(desde) },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limite + 1,
+    select: { id: true, actorId: true, targetId: true, metadata: true, createdAt: true },
+  });
+
+  const hayMas = filas.length > limite;
+  const pagina = hayMas ? filas.slice(0, limite) : filas;
+  const ultima = pagina[pagina.length - 1];
+
+  const ids = [...new Set(pagina.flatMap((f) => [f.actorId, f.targetId].filter(Boolean)))];
+  const usuarios = await db.user.findMany({
+    where: { id: { in: ids as string[] } },
+    select: { id: true, username: true },
+  });
+  const porId = new Map(usuarios.map((u) => [u.id, u.username]));
+
+  return {
+    items: pagina.map((f) => ({
+      id: f.id,
+      adminUsername: f.actorId ? (porId.get(f.actorId) ?? null) : null,
+      usuarioId: f.targetId ?? "",
+      usuarioUsername: f.targetId ? (porId.get(f.targetId) ?? null) : null,
+      // El importe sale del `metadata`, que es JSON libre: si no es un número, es `null` y la vista
+      // lo dice. Un 0 de relleno en una columna de dinero es una cifra inventada.
+      deltaCents: numeroDe(f.metadata, "deltaCents") ?? 0,
+      antesCents: numeroDe(f.metadata, "antes"),
+      despuesCents: numeroDe(f.metadata, "despues"),
+      nota: textoDe(f.metadata, "nota"),
+      createdAt: f.createdAt,
+    })),
+    proximoCursor:
+      hayMas && ultima
+        ? codificarCursorTiempo({ creadoMs: ultima.createdAt.getTime(), id: ultima.id })
+        : null,
+  };
 }
 
 /** La ficha de monedero de un usuario: quién es y cuánto tiene. Para el formulario del ajuste. */

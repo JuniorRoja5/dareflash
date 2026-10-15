@@ -22,12 +22,18 @@ export function PasosKeyset({
   base,
   aqui,
   proximoCursor,
+  filtro,
 }: {
   /** Ruta de la lista, sin query: "/puntos", "/referidos". */
   base: string;
   aqui: Paginacion;
   /** Cursor de la siguiente página, o `null` si esta era la última. */
   proximoCursor: string | null;
+  /**
+   * Lo que la lista está filtrando y tiene que viajar con la posición. Sin esto, "Siguiente" en una
+   * lista filtrada lleva a la página dos de la lista SIN filtrar: otra lista, sin avisar.
+   */
+  filtro?: Readonly<Record<string, string | null | undefined>>;
 }) {
   const atras = anterior(aqui);
   const adelante = proximoCursor ? siguiente(aqui, proximoCursor) : null;
@@ -38,14 +44,14 @@ export function PasosKeyset({
       {/* Los huecos se rellenan con un `span` vacío para que `justify-between` mantenga a
           "Siguiente" a la derecha cuando no hay "Anterior". */}
       {atras ? (
-        <Link href={enlacePaginado(base, atras)} rel="prev" className={PASO}>
+        <Link href={enlacePaginado(base, atras, filtro)} rel="prev" className={PASO}>
           <span aria-hidden="true">←</span> Anterior
         </Link>
       ) : (
         <span />
       )}
       {adelante ? (
-        <Link href={enlacePaginado(base, adelante)} rel="next" className={PASO}>
+        <Link href={enlacePaginado(base, adelante, filtro)} rel="next" className={PASO}>
           Siguiente <span aria-hidden="true">→</span>
         </Link>
       ) : (

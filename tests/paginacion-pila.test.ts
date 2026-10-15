@@ -19,6 +19,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   anterior,
+  enlacePaginado,
   escribirPila,
   leerPila,
   PILA_MAX,
@@ -81,6 +82,36 @@ describe("ida y vuelta", () => {
   it("cada página recuerda por dónde se llegó, en orden", () => {
     const camino = ida(4);
     expect(camino[3]).toEqual({ cursor: cursor(3), pila: [cursor(1), cursor(2)] });
+  });
+});
+
+describe("el enlace de una posición", () => {
+  it("la PRIMERA página es la ruta pelada: dos URLs para el mismo sitio ensucian el historial", () => {
+    expect(enlacePaginado("/panel/monedero", PRIMERA)).toBe("/panel/monedero");
+  });
+
+  it("y lleva cursor y pila cuando los hay", () => {
+    expect(enlacePaginado("/x", { cursor: "c2", pila: ["c1"] })).toBe("/x?cursor=c2&pila=c1");
+  });
+
+  it("EL FILTRO VIAJA CON LA POSICIÓN, que es lo que esto existe para arreglar", () => {
+    // Sin esto, "Siguiente" en la cola filtrada por "Pendientes" llevaba a la página dos de TODAS
+    // —otra lista— y nada lo decía: la página dos existe, tiene filas, y son las equivocadas.
+    expect(
+      enlacePaginado("/panel/monedero", { cursor: "c2", pila: [] }, { estado: "PENDING" }),
+    ).toBe("/panel/monedero?estado=PENDING&cursor=c2");
+  });
+
+  it("un filtro vacío NO ensucia la URL", () => {
+    // `?estado=` suelto convierte la primera página en otra dirección para el mismo sitio.
+    expect(enlacePaginado("/x", PRIMERA, { estado: undefined, q: "", u: null })).toBe("/x");
+  });
+
+  it("y el filtro va DELANTE de la posición: la misma forma en todas las páginas", () => {
+    const uno = enlacePaginado("/x", PRIMERA, { estado: "PAID" });
+    const dos = enlacePaginado("/x", { cursor: "c", pila: [] }, { estado: "PAID" });
+    expect(uno).toBe("/x?estado=PAID");
+    expect(dos.startsWith("/x?estado=PAID")).toBe(true);
   });
 });
 

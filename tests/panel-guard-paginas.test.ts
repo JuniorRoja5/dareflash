@@ -91,6 +91,13 @@ const PAGINAS_ADMIN: {
     args: [{ searchParams: Promise.resolve({}) }],
   },
   {
+    // Subruta del monedero: hereda su sección, y por tanto su rol. Se ejecuta igual que las demás
+    // porque heredar el rol no sirve de nada si la página se olvida de EJECUTAR su guard.
+    ruta: "/panel/monedero/ajustes",
+    cargar: () => import("../src/app/panel/monedero/ajustes/page"),
+    args: [{ searchParams: Promise.resolve({}) }],
+  },
+  {
     // Dejó de ser placeholder en la Fase 6 y pasó a leer `?q=`/`?u=` para buscar a quién ajustar,
     // así que ahora recibe `searchParams` como las otras dos que buscan.
     ruta: "/panel/boost",

@@ -179,16 +179,22 @@ describe("recorrer el histórico entero: ni repetidas ni saltadas", () => {
     // │ Así que lo que se fija es la DECISIÓN, leyéndola: el orden y el cursor comparan la misma  │
     // │ tupla. Es la mitad que no se puede observar; la otra mitad está en el caso de arriba.     │
     // └───────────────────────────────────────────────────────────────────────────────────────────┘
-    const servicio = readFileSync(
-      path.resolve(__dirname, "..", "src", "server", "services", "retirada.ts"),
-      "utf8",
-    ).replace(/^\s*\/\/.*$/gm, "");
-    expect(servicio, "el orden del historial perdió el desempate por id").toMatch(
-      /orderBy: \[\{ createdAt: "desc" \}, \{ id: "desc" \}\]/,
-    );
-    expect(servicio, "el keyset dejó de comparar la tupla completa").toMatch(
-      /createdAt: new Date\(desde\.creadoMs\), id: \{ lt: desde\.id \}/,
-    );
+    const sin = (rel: string[]) =>
+      readFileSync(path.resolve(__dirname, "..", ...rel), "utf8").replace(/^\s*\/\/.*$/gm, "");
+
+    expect(
+      sin(["src", "server", "services", "retirada.ts"]),
+      "el orden del historial perdió el desempate por id",
+    ).toMatch(/orderBy: \[\{ createdAt: "desc" \}, \{ id: "desc" \}\]/);
+
+    // LA OTRA MITAD SE MUDÓ, y este caso se puso rojo al mudarla — que es exactamente lo que tenía
+    // que pasar. El `where` del keyset vive ahora en `lib/cursor-tiempo` (`dondeDesde`), compartido
+    // por las cuatro listas que paginan por `(createdAt, id)`; se comprueba allí, que es donde una
+    // rotura las rompería todas a la vez.
+    expect(
+      sin(["src", "lib", "cursor-tiempo.ts"]),
+      "el keyset dejó de comparar la tupla completa",
+    ).toMatch(/createdAt: new Date\(desde\.creadoMs\), id: \{ lt: desde\.id \}/);
   });
 
   it("un cursor manipulado no revienta: se trata como la primera página", async () => {

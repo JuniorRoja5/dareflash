@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { DEFAULT_CURRENCY } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { codificarCursorTiempo, decodificarCursorTiempo, dondeDesde } from "@/lib/cursor-tiempo";
 import { claveRetirada, evaluarImporte, fraseDeRechazo, type RechazoImporte } from "@/lib/retirada";
 
 import { applyWallet, LedgerError } from "./ledger";
@@ -226,29 +227,6 @@ export interface PaginaRetiradas {
 /** Tope duro por página: el cliente no elige cuánto se le sirve. */
 const LIMITE_MAX = 20;
 
-interface PosicionRetirada {
-  creadoMs: number;
-  id: string;
-}
-
-/**
- * El cursor lleva la TUPLA COMPLETA del orden (instante, id), no solo el id: la referencia es un
- * VALOR de orden, no una fila que tenga que seguir existiendo. Mismo codec que la bandeja de avisos.
- */
-function codificarCursor(p: PosicionRetirada): string {
-  return `${p.creadoMs}.${p.id}`;
-}
-
-/** Cursor inválido o manipulado -> primera página. Nunca una excepción por un query param. */
-function decodificarCursor(raw: string | null | undefined): PosicionRetirada | null {
-  if (!raw) return null;
-  const m = /^(\d{1,15})\.([A-Za-z0-9_-]{1,64})$/.exec(raw);
-  if (!m?.[1] || !m[2]) return null;
-  const creadoMs = Number(m[1]);
-  if (!Number.isSafeInteger(creadoMs)) return null;
-  return { creadoMs, id: m[2] };
-}
-
 /**
  * Una página del historial propio, las más recientes primero.
  *
@@ -310,20 +288,10 @@ export async function misRetiradas(
   opts: { cursor?: string | null; limite?: number } = {},
 ): Promise<PaginaRetiradas> {
   const limite = Math.min(Math.max(1, Math.floor(opts.limite ?? LIMITE_MAX)), LIMITE_MAX);
-  const desde = decodificarCursor(opts.cursor);
+  const desde = decodificarCursorTiempo(opts.cursor);
 
   const filas = await db.withdrawal.findMany({
-    where: {
-      userId,
-      ...(desde
-        ? {
-            OR: [
-              { createdAt: { lt: new Date(desde.creadoMs) } },
-              { createdAt: new Date(desde.creadoMs), id: { lt: desde.id } },
-            ],
-          }
-        : {}),
-    },
+    where: { userId, ...dondeDesde(desde) },
     // DESC en las DOS columnas: una sola pasada del índice hacia atrás.
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     // Una de más: así se sabe si hay página siguiente sin un `count` aparte.
@@ -356,7 +324,7 @@ export async function misRetiradas(
     })),
     nextCursor:
       hayMas && ultima
-        ? codificarCursor({ creadoMs: ultima.createdAt.getTime(), id: ultima.id })
+        ? codificarCursorTiempo({ creadoMs: ultima.createdAt.getTime(), id: ultima.id })
         : null,
   };
 }
