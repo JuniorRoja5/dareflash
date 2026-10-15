@@ -253,7 +253,14 @@ describe("metricasDinero", () => {
     for (const hasta of ["APPROVED", "PROCESSING", "PAID"] as const) {
       await transicionarRetirada(prisma, { retiradaId: c, adminId: admin, hasta });
     }
-    await transicionarRetirada(prisma, { retiradaId: d, adminId: admin, hasta: "REJECTED" });
+    // Rechazar EXIGE un motivo desde que existe la lista cerrada: sin él la transición no pasa y
+    // esta fixture se quedaría con dos pendientes en vez de una.
+    await transicionarRetirada(prisma, {
+      retiradaId: d,
+      adminId: admin,
+      hasta: "REJECTED",
+      motivo: "DATOS_BANCARIOS",
+    });
 
     const m = await metricasDinero(prisma);
     expect(m.retiradasPendientes, "solo la que espera una firma").toBe(1);

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { AJUSTE_NOTA_MAX, MotivoRechazoSchema } from "@/config/constants";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk } from "@/server/http/api";
 
@@ -15,6 +16,10 @@ export const dynamic = "force-dynamic";
 const CuerpoSchema = z.object({
   retiradaId: z.string().min(1).max(191),
   hasta: z.enum(["APPROVED", "PROCESSING", "PAID", "REJECTED"]),
+  // El MOTIVO del rechazo. Opcional en el esquema y OBLIGATORIO en el servicio, a propósito: quien
+  // decide si hace falta es la transición (solo al rechazar), y esa regla vive en un sitio.
+  motivo: MotivoRechazoSchema.optional(),
+  motivoTexto: z.string().trim().max(AJUSTE_NOTA_MAX).optional(),
 });
 
 /** El copy del rechazo. Lo que el admin puede hacer algo con, nunca el código. */
@@ -22,6 +27,9 @@ const MENSAJE: Record<string, string> = {
   NO_EXISTE: "Esa retirada ya no está.",
   TRANSICION_INVALIDA:
     "Esa retirada ya no está en ese estado. Recarga la lista para ver dónde está ahora.",
+  MOTIVO_OBLIGATORIO: "Elige por qué la rechazas: se lo vamos a enseñar a la persona.",
+  TEXTO_OBLIGATORIO: "Has elegido «Otro»: escribe el motivo, que es lo que va a leer.",
+  TEXTO_SOBRA: "Un motivo de rechazo solo tiene sentido al rechazar.",
 };
 
 /**
@@ -59,6 +67,8 @@ export const POST = mutatingRoute(async (req, { prisma }) => {
     retiradaId: cuerpo.data.retiradaId,
     adminId: admin.userId,
     hasta: cuerpo.data.hasta,
+    motivo: cuerpo.data.motivo ?? null,
+    motivoTexto: cuerpo.data.motivoTexto ?? null,
   });
 
   if (!r.ok) {

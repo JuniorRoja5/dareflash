@@ -122,7 +122,7 @@ describe("quién puede mover una retirada", () => {
     const id = await retiradaPendiente();
     H.user.role = "MODERATOR";
 
-    const res = await pedir({ retiradaId: id, hasta: "REJECTED" });
+    const res = await pedir({ retiradaId: id, hasta: "REJECTED", motivo: "DATOS_BANCARIOS" });
 
     expect(res.status).toBe(403);
     expect(
@@ -165,10 +165,28 @@ describe("el cuerpo", () => {
 describe("rechazar desde la ruta devuelve el dinero y lo dice", () => {
   it("responde cuánto volvió al monedero", async () => {
     const id = await retiradaPendiente(6000);
-    const res = await pedir({ retiradaId: id, hasta: "REJECTED" });
+    const res = await pedir({ retiradaId: id, hasta: "REJECTED", motivo: "DATOS_BANCARIOS" });
 
     expect(await res.json()).toEqual({ estado: "REJECTED", devueltoCents: 6000 });
     expect(await saldoDuenyo()).toBe(6000);
+  });
+
+  it("y SIN motivo la ruta no deja: 409 y el dinero donde estaba", async () => {
+    const id = await retiradaPendiente(6000);
+    const res = await pedir({ retiradaId: id, hasta: "REJECTED" });
+
+    // 409 y no 400: el cuerpo era válido —el motivo es opcional en el esquema—; lo que no cuadra
+    // es la operación. Quien decide que hace falta es la transición, no el `zod`.
+    expect(res.status).toBe(409);
+    expect(await saldoDuenyo(), "devolvió el dinero sin razón").toBe(0);
+    expect((await prisma.withdrawal.findUniqueOrThrow({ where: { id } })).status).toBe("PENDING");
+  });
+
+  it("un motivo que no está en la lista no llega al servicio: 400", async () => {
+    const id = await retiradaPendiente(6000);
+    const res = await pedir({ retiradaId: id, hasta: "REJECTED", motivo: "PORQUE_SI" });
+    expect(res.status).toBe(400);
+    expect(await saldoDuenyo()).toBe(0);
   });
 
   it("y la respuesta NO lleva los datos de pago", async () => {

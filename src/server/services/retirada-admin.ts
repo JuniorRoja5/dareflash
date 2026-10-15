@@ -1,11 +1,13 @@
 import "server-only";
 
+import { MOTIVO_RECHAZO_LIBRE } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
 import {
   claveReembolso,
   devuelveDinero,
   siguientesEstados,
   transicionValida,
+  validarMotivoRechazo,
   type EstadoRetirada,
 } from "@/lib/retirada";
 import { descifrarDatoDePago } from "@/server/security/cifrado-pagos";
@@ -30,7 +32,8 @@ import { applyWallet } from "./ledger";
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
 
-export type RechazoTransicion = "NO_EXISTE" | "TRANSICION_INVALIDA";
+export type RechazoTransicion =
+  "NO_EXISTE" | "TRANSICION_INVALIDA" | "MOTIVO_OBLIGATORIO" | "TEXTO_OBLIGATORIO" | "TEXTO_SOBRA";
 
 export interface ResultadoTransicion {
   ok: boolean;
@@ -57,7 +60,15 @@ export interface ResultadoTransicion {
  */
 export async function transicionarRetirada(
   db: PrismaClient,
-  input: { retiradaId: string; adminId: string; hasta: EstadoRetirada },
+  input: {
+    retiradaId: string;
+    adminId: string;
+    hasta: EstadoRetirada;
+    /** Clave de `MotivoRechazoSchema`. OBLIGATORIA al rechazar; prohibida en el resto. */
+    motivo?: string | null;
+    /** Solo con el motivo libre (`OTRO`): lo que el admin escribe. */
+    motivoTexto?: string | null;
+  },
 ): Promise<ResultadoTransicion> {
   const fila = await db.withdrawal.findUnique({
     where: { id: input.retiradaId },
@@ -68,6 +79,19 @@ export async function transicionarRetirada(
   const desde = fila.status as EstadoRetirada;
   if (!transicionValida(desde, input.hasta)) {
     return { ok: false, rechazo: "TRANSICION_INVALIDA", estado: desde, devueltoCents: 0 };
+  }
+
+  // EL MOTIVO SE VALIDA ANTES DE MOVER UN SOLO CÉNTIMO. Si se comprobara después del reembolso, un
+  // "falta el motivo" habría devuelto ya el dinero: un "no se ha podido" que sí hizo algo. Probado
+  // moviéndolo abajo: dos casos en rojo, los dos sobre el saldo.
+  const rechazando = devuelveDinero(input.hasta);
+  if (rechazando) {
+    const v = validarMotivoRechazo(input.motivo, input.motivoTexto);
+    if (!v.ok) return { ok: false, rechazo: v.rechazo, estado: desde, devueltoCents: 0 };
+  } else if (input.motivo) {
+    // Un motivo de rechazo colgando de un "aceptar" sería una razón guardada sobre un cobro que
+    // siguió adelante, y la pantalla de la persona la acabaría enseñando.
+    return { ok: false, rechazo: "TEXTO_SOBRA", estado: desde, devueltoCents: 0 };
   }
 
   let devueltoCents = 0;
@@ -86,14 +110,31 @@ export async function transicionarRetirada(
     if (r.applied) devueltoCents = fila.amountCents;
   }
 
-  // La guarda de la carrera: solo gana quien encuentra la fila TODAVÍA en el estado de partida. Dos
-  // admins pulsando a la vez — uno "aprobar", otro "rechazar" — y solo uno escribe.
+  // ┌─ EL MOTIVO VIAJA EN LA MISMA ESCRITURA QUE EL ESTADO ─────────────────────────────────────┐
+  // │ Así no existe "rechazada sin razón" ni "razón sin rechazo": es un único `UPDATE`. Lo que   │
+  // │ NO se hace es meter esta escritura dentro del `trasAplicar` del reembolso, aunque eso      │
+  // │ parezca más atómico todavía: `trasAplicar` SOLO corre cuando el crédito se aplica, y en un │
+  // │ reintento (el proceso murió entre el reembolso y el estado) la clave de idempotencia hace  │
+  // │ que no se aplique — así que el estado no se escribiría NUNCA y la retirada se quedaría     │
+  // │ colgada con el dinero ya devuelto. Dejándolo fuera, el reintento la termina.               │
+  // └────────────────────────────────────────────────────────────────────────────────────────────┘
+  // Y la guarda de la carrera: solo gana quien encuentra la fila TODAVÍA en el estado de partida.
+  // Dos admins pulsando a la vez — uno "aprobar", otro "rechazar" — y solo uno escribe.
   const movida = await db.withdrawal.updateMany({
     where: { id: fila.id, status: desde },
     data: {
       status: input.hasta,
       procesadaPorId: input.adminId,
       procesadaEn: new Date(),
+      ...(rechazando
+        ? {
+            motivoRechazo: input.motivo,
+            // Solo el motivo libre guarda texto: el resto lo deja en `null` explícitamente, para
+            // que un rechazo que antes fue "OTRO" y ahora es otra cosa no arrastre su frase.
+            motivoRechazoTexto:
+              input.motivo === MOTIVO_RECHAZO_LIBRE ? (input.motivoTexto ?? "").trim() : null,
+          }
+        : {}),
     },
   });
   if (movida.count === 0) {
@@ -115,6 +156,8 @@ export async function transicionarRetirada(
         userId: fila.userId,
         amountCents: fila.amountCents,
         devueltoCents,
+        // El motivo también en la traza: es la decisión que se tomó sobre el dinero de alguien.
+        ...(rechazando ? { motivo: input.motivo, motivoTexto: input.motivoTexto ?? null } : {}),
       },
     },
   });

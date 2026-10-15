@@ -167,8 +167,21 @@ function Fila({ r }: { r: RetiradaPropia }) {
 
         {rechazada ? (
           <p className="mt-3 max-w-prose text-xs leading-relaxed text-text-dim">
-            No hemos podido completar este cobro y el importe volvió entero a tu monedero. Puedes
-            pedirlo otra vez; si no sabes por qué se rechazó, escríbenos.
+            {/* EL PORQUÉ, cuando lo hay. Llega ya traducido del servidor (`fraseDeRechazo`), así
+                que aquí no se interpreta ninguna clave ni se elige frase: lo que viene es lo que
+                se lee. Las rechazadas de antes de que esto existiera no traen motivo, y entonces
+                se dice lo único cierto — volvió el dinero— sin inventar una razón. */}
+            {r.motivoRechazo ? (
+              <>
+                <span className="text-text">{r.motivoRechazo}</span> El importe volvió entero a tu
+                monedero.
+              </>
+            ) : (
+              <>
+                No hemos podido completar este cobro y el importe volvió entero a tu monedero. Si no
+                sabes por qué se rechazó, escríbenos.
+              </>
+            )}
           </p>
         ) : null}
       </div>

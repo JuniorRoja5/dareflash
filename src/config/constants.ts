@@ -102,9 +102,15 @@ export const REDES_CRIPTO = [
   { red: "ERC20", nombre: "Ethereum (ERC-20)", monedas: "USDC · USDT" },
 ] as const;
 
-/** Copy de la retirada. Humano, y sin un solo codigo de error dentro. */
+/**
+ * Copy de la retirada. Humano, y sin un solo codigo de error dentro.
+ *
+ * CON TILDES: esto lo LEE una persona, no es un comentario. Nacieron sin ellas —por el habito de
+ * escribir sin acentos en los comentarios de este fichero— y se colaban asi a la pantalla; el resto
+ * del copy de aqui (`MSG_BOOST_PAGO_NO_DISPONIBLE`) siempre las llevo.
+ */
 export const MSG_RETIRADA_SIN_MINIMO =
-  "Todavia no llegas al minimo para pedir un cobro. Sigue participando: el saldo se acumula.";
+  "Todavía no llegas al mínimo para pedir un cobro. Sigue participando: el saldo se acumula.";
 export const MSG_RETIRADA_SIN_SALDO = "No tienes saldo suficiente para pedir ese importe.";
 export const MSG_RETIRADA_NO_DISPONIBLE =
   "Ahora mismo no podemos aceptar datos de cobro. Vuelve a intentarlo en un rato.";
@@ -141,6 +147,60 @@ export const CONCEPTO_MOVIMIENTO: Record<string, string> = {
 
 /** Lo que se dice de un movimiento cuyo `refType` ya no esta en el catalogo. Honesto, no un hueco. */
 export const CONCEPTO_MOVIMIENTO_OTRO = "Movimiento";
+
+/**
+ * POR QUE SE RECHAZO UN COBRO. Lista CERRADA, y esa es la decision.
+ *
+ * ┌─ POR QUE NO ES TEXTO LIBRE ───────────────────────────────────────────────────────────────────┐
+ * │ Este motivo lo lee la persona a la que le acabas de rechazar su dinero. Un campo libre acaba, │
+ * │ un martes con prisa, en un "datos mal" o un "rechazado" — y eso es lo que lee alguien que      │
+ * │ esperaba 50 $. Una lista cerrada garantiza una frase limpia, clara y consistente, y encima    │
+ * │ dice QUE HACER. El coste es definir la lista; el que gana es quien recibe el mensaje.         │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * SE GUARDA LA CLAVE, NO LA FRASE (mismo patron que `Challenge.nivelMinimo`): reescribir el texto
+ * para que se entienda mejor reescribe tambien los rechazos antiguos, en vez de congelarlos en la
+ * redaccion vieja. Y `OTRO` guarda su texto en SU PROPIA columna, nunca con un prefijo dentro de
+ * esta: un prefijo es una convencion que el dia que alguien no respete deja un garabato de clave
+ * como mensaje.
+ */
+export const MotivoRechazoSchema = z.enum([
+  "RED_INCORRECTA",
+  "DATOS_BANCARIOS",
+  "CUENTA_NO_VERIFICADA",
+  "SOSPECHA_FRAUDE",
+  "OTRO",
+]);
+export type MotivoRechazo = z.infer<typeof MotivoRechazoSchema>;
+
+/** La clave que exige, ademas, un texto escrito a mano. La unica. */
+export const MOTIVO_RECHAZO_LIBRE: MotivoRechazo = "OTRO";
+
+/**
+ * QUE SE LE DICE A LA PERSONA por cada motivo. Dos frases: la razon y, cuando la hay, QUE HACER —
+ * un rechazo que no dice como arreglarlo solo cambia la frustracion de sitio.
+ *
+ * El texto del admin NO entra aqui: estas son las frases de la lista cerrada. `OTRO` tiene la suya
+ * como respaldo, pero cuando hay texto escrito se enseña el texto (ver `fraseDeRechazo`).
+ */
+export const FRASE_RECHAZO: Record<MotivoRechazo, string> = {
+  RED_INCORRECTA:
+    "La dirección que nos diste no es de la red indicada. Revísala y guarda el método otra vez antes de volver a pedirlo.",
+  DATOS_BANCARIOS:
+    "No pudimos completar la transferencia con esos datos bancarios. Comprueba el IBAN y el titular, y guarda el método otra vez.",
+  CUENTA_NO_VERIFICADA:
+    "Necesitamos verificar tu cuenta antes de enviarte dinero. Escríbenos y te decimos qué hace falta.",
+  SOSPECHA_FRAUDE:
+    "Hemos parado este cobro mientras revisamos la actividad de la cuenta. Escríbenos y lo vemos contigo.",
+  OTRO: "No hemos podido completar este cobro.",
+};
+
+/**
+ * Lo que se dice de un rechazo cuya clave ya NO existe en la lista (una renombrada sin migrar, o una
+ * fila de antes de que esto existiera). FAIL-OPEN a proposito: un hueco en la pantalla de alguien
+ * que no cobro es peor que una frase generica, y reventar seria peor todavia.
+ */
+export const FRASE_RECHAZO_DESCONOCIDO = "No hemos podido completar este cobro.";
 
 /**
  * Zona horaria de TODOS los limites temporales del producto. Decidido

@@ -170,18 +170,21 @@ export function MetodosDeCobro({
         {metodos.map((m) => (
           <li
             key={m.id}
-            className="flex items-center gap-3 rounded-sm border border-line bg-surface/60 p-4 shadow-[var(--df-shadow-sm)] backdrop-blur-md"
+            /* `flex-wrap` + un ancho mínimo para el nombre: con "Reemplazar" al lado, en móvil el
+               nombre se partía en tres líneas ("Cripto ·" / "TRON" / "(TRC-20)"). Así, cuando no
+               cabe, son los botones los que bajan a su propia línea. */
+            className="flex flex-wrap items-center gap-3 rounded-sm border border-line bg-surface/60 p-4 shadow-[var(--df-shadow-sm)] backdrop-blur-md"
           >
             {/* El icono lleva el color del SIGNIFICADO del método —banco, cripto—, no un acento:
                 elegir dónde cobrar no es la acción de la pantalla. */}
             <span className="grid size-10 shrink-0 place-items-center rounded-sm bg-raised text-text-dim">
               {m.metodo === "BANK" ? <IconoBanco /> : <IconoCripto />}
             </span>
-            <span className="min-w-0 flex-1">
+            <span className="min-w-[9rem] flex-1">
               <span className="block text-sm font-medium text-text">{nombreDeMetodo(m)}</span>
               <span className="block font-mono text-xs text-text-dim">····{m.pista}</span>
             </span>
-            <span className="flex shrink-0 gap-1">
+            <span className="ml-auto flex shrink-0 gap-1">
               {/* "REEMPLAZAR", NO "EDITAR", y la palabra importa: editar PROMETE que el formulario
                   viene relleno, y no puede venirlo — los datos se guardan cifrados y no vuelven del
                   servidor ni para su dueño. Lo que ocurre de verdad es que se escribe otro y

@@ -34,6 +34,8 @@ let n = 0;
 
 const IBAN_OK = "ES9121000418450200051332";
 const BANCO = { metodo: "BANK", iban: IBAN_OK, titular: "Marta Ruiz" } as const;
+/** Rechazar EXIGE un motivo desde que existe la lista cerrada: la fixture lleva uno de verdad. */
+const MOTIVO = "DATOS_BANCARIOS";
 
 beforeAll(() => {
   prisma = createTestPrisma();
@@ -109,7 +111,14 @@ describe("la máquina de estados", () => {
       await transicionarRetirada(prisma, { retiradaId: id, adminId, hasta });
     }
     for (const hasta of ["APPROVED", "PROCESSING", "PAID", "REJECTED"] as const) {
-      const r = await transicionarRetirada(prisma, { retiradaId: id, adminId, hasta });
+      // Con motivo SOLO al rechazar: en el resto, mandarlo es un rechazo aparte (`TEXTO_SOBRA`), y
+      // lo que este caso mide es que el estado final no se mueve, no esa otra regla.
+      const r = await transicionarRetirada(prisma, {
+        retiradaId: id,
+        adminId,
+        hasta,
+        ...(hasta === "REJECTED" ? { motivo: MOTIVO } : {}),
+      });
       expect(r.ok, `dejó mover una pagada a ${hasta}`).toBe(false);
     }
     expect(await estadoDe(id)).toBe("PAID");
@@ -117,10 +126,20 @@ describe("la máquina de estados", () => {
 
   it("una RECHAZADA es final: y eso es lo que impide devolver el dinero dos veces", async () => {
     const id = await pedir(7500);
-    await transicionarRetirada(prisma, { retiradaId: id, adminId, hasta: "REJECTED" });
+    await transicionarRetirada(prisma, {
+      retiradaId: id,
+      adminId,
+      hasta: "REJECTED",
+      motivo: MOTIVO,
+    });
     const antes = await saldo();
 
-    const otra = await transicionarRetirada(prisma, { retiradaId: id, adminId, hasta: "REJECTED" });
+    const otra = await transicionarRetirada(prisma, {
+      retiradaId: id,
+      adminId,
+      hasta: "REJECTED",
+      motivo: MOTIVO,
+    });
 
     expect(otra.ok).toBe(false);
     expect(await saldo(), "devolvió el dinero dos veces").toBe(antes);
@@ -137,11 +156,21 @@ describe("la máquina de estados", () => {
     // │ otra vez, porque la clave sale de la retirada y ya se usó.                                 │
     // └───────────────────────────────────────────────────────────────────────────────────────────┘
     const id = await pedir(7500);
-    await transicionarRetirada(prisma, { retiradaId: id, adminId, hasta: "REJECTED" });
+    await transicionarRetirada(prisma, {
+      retiradaId: id,
+      adminId,
+      hasta: "REJECTED",
+      motivo: MOTIVO,
+    });
     expect(await saldo()).toBe(7500);
 
     await prisma.withdrawal.update({ where: { id }, data: { status: "PENDING" } });
-    const otra = await transicionarRetirada(prisma, { retiradaId: id, adminId, hasta: "REJECTED" });
+    const otra = await transicionarRetirada(prisma, {
+      retiradaId: id,
+      adminId,
+      hasta: "REJECTED",
+      motivo: MOTIVO,
+    });
 
     expect(otra.ok, "la transición en sí es válida desde PENDING").toBe(true);
     expect(otra.devueltoCents, "volvió a devolver dinero").toBe(0);
@@ -164,7 +193,12 @@ describe("rechazar es lo ÚNICO que mueve dinero", () => {
     const id = await pedir(7500);
     expect(await saldo(), "el dinero no había salido al pedir").toBe(0);
 
-    const r = await transicionarRetirada(prisma, { retiradaId: id, adminId, hasta: "REJECTED" });
+    const r = await transicionarRetirada(prisma, {
+      retiradaId: id,
+      adminId,
+      hasta: "REJECTED",
+      motivo: MOTIVO,
+    });
 
     expect(r.devueltoCents).toBe(7500);
     expect(await saldo()).toBe(7500);
@@ -178,7 +212,12 @@ describe("rechazar es lo ÚNICO que mueve dinero", () => {
   it("rechazar una APROBADA también devuelve", async () => {
     const id = await pedir(6000);
     await transicionarRetirada(prisma, { retiradaId: id, adminId, hasta: "APPROVED" });
-    await transicionarRetirada(prisma, { retiradaId: id, adminId, hasta: "REJECTED" });
+    await transicionarRetirada(prisma, {
+      retiradaId: id,
+      adminId,
+      hasta: "REJECTED",
+      motivo: MOTIVO,
+    });
     expect(await saldo()).toBe(6000);
   });
 
@@ -190,6 +229,155 @@ describe("rechazar es lo ÚNICO que mueve dinero", () => {
       expect(await saldo(), `${hasta} movió el saldo`).toBe(0);
     }
     expect(await prisma.walletLedger.count({ where: { entryType: "CREDIT", userId } })).toBe(1); // solo la semilla
+  });
+});
+
+/**
+ * EL PORQUÉ DEL RECHAZO. Lo lee la persona a la que le acaban de rechazar su dinero, así que es
+ * obligatorio y viaja con el estado. Las reglas de la LISTA (qué claves hay, qué frase dice cada
+ * una, el fail-open) son puras y están en `motivo-rechazo`; aquí se comprueba lo que toca la BD.
+ */
+describe("rechazar exige decir por qué", () => {
+  it("sin motivo no se rechaza, y el dinero NO se mueve", async () => {
+    const id = await pedir(7500);
+
+    const r = await transicionarRetirada(prisma, { retiradaId: id, adminId, hasta: "REJECTED" });
+
+    expect(r.ok).toBe(false);
+    expect(r.rechazo).toBe("MOTIVO_OBLIGATORIO");
+    // Lo que de verdad importa: el "no se ha podido" no hizo nada. Si el motivo se validara DESPUÉS
+    // del reembolso, este caso encontraría 7500 en el monedero y la retirada en PENDING.
+    expect(await saldo(), "devolvió el dinero y luego dijo que no").toBe(0);
+    expect(await estadoDe(id)).toBe("PENDING");
+    expect(await prisma.walletLedger.count({ where: { refType: "WITHDRAWAL_REFUND" } })).toBe(0);
+    expect(await prisma.auditLog.count({ where: { action: "WITHDRAWAL_TRANSITION" } })).toBe(0);
+  });
+
+  it("«Otro» sin texto tampoco, y tampoco mueve nada", async () => {
+    const id = await pedir(7500);
+    const r = await transicionarRetirada(prisma, {
+      retiradaId: id,
+      adminId,
+      hasta: "REJECTED",
+      motivo: "OTRO",
+    });
+    expect(r.rechazo).toBe("TEXTO_OBLIGATORIO");
+    expect(await saldo()).toBe(0);
+    expect(await estadoDe(id)).toBe("PENDING");
+  });
+
+  it("y un motivo colgado de un ACEPTAR se rechaza: no es un rechazo", async () => {
+    // Un motivo de rechazo guardado sobre un cobro que siguió adelante acabaría en la pantalla de
+    // la persona diciéndole por qué le rechazaron algo que no le rechazaron.
+    const id = await pedir();
+    const r = await transicionarRetirada(prisma, {
+      retiradaId: id,
+      adminId,
+      hasta: "APPROVED",
+      motivo: MOTIVO,
+    });
+    expect(r.rechazo).toBe("TEXTO_SOBRA");
+    expect(await estadoDe(id)).toBe("PENDING");
+  });
+
+  it("MOTIVO Y ESTADO SE ESCRIBEN JUNTOS: no hay rechazada sin razón", async () => {
+    const id = await pedir(7500);
+    await transicionarRetirada(prisma, {
+      retiradaId: id,
+      adminId,
+      hasta: "REJECTED",
+      motivo: "RED_INCORRECTA",
+    });
+
+    const fila = await prisma.withdrawal.findUniqueOrThrow({ where: { id } });
+    expect(fila.status).toBe("REJECTED");
+    expect(fila.motivoRechazo, "se rechazó sin guardar el motivo").toBe("RED_INCORRECTA");
+    // Una clave de la lista NO guarda texto: su frase ya está escrita y revisada.
+    expect(fila.motivoRechazoTexto).toBeNull();
+    expect(await saldo(), "el dinero no volvió").toBe(7500);
+  });
+
+  it("y «Otro» guarda su texto en SU columna, no dentro de la clave", async () => {
+    const TEXTO = "El banco nos devolvió la transferencia sin decir por qué";
+    const id = await pedir(6000);
+    await transicionarRetirada(prisma, {
+      retiradaId: id,
+      adminId,
+      hasta: "REJECTED",
+      motivo: "OTRO",
+      motivoTexto: `  ${TEXTO}  `,
+    });
+
+    const fila = await prisma.withdrawal.findUniqueOrThrow({ where: { id } });
+    expect(fila.motivoRechazo).toBe("OTRO");
+    expect(fila.motivoRechazoTexto, "el texto no se guardó limpio").toBe(TEXTO);
+    // Y la clave sigue siendo una clave: ni un prefijo ni el texto metido dentro.
+    expect(fila.motivoRechazo).not.toContain(TEXTO);
+  });
+
+  it("el motivo llega hasta el historial del usuario, ya traducido a su frase", async () => {
+    const { misRetiradas } = await import("../src/server/services/retirada");
+    const { FRASE_RECHAZO } = await import("@/config/constants");
+    const id = await pedir(7500);
+    await transicionarRetirada(prisma, {
+      retiradaId: id,
+      adminId,
+      hasta: "REJECTED",
+      motivo: "RED_INCORRECTA",
+    });
+
+    const mias = await misRetiradas(prisma, userId);
+    expect(mias.items[0]!.motivoRechazo).toBe(FRASE_RECHAZO.RED_INCORRECTA);
+    // La CLAVE no viaja: lo que sale es la frase, resuelta en el servidor.
+    expect(JSON.stringify(mias)).not.toContain("RED_INCORRECTA");
+  });
+
+  it("y una rechazada SIN motivo (de antes de la columna) no inventa ninguno", async () => {
+    const { misRetiradas } = await import("../src/server/services/retirada");
+    const id = await pedir(7500);
+    await transicionarRetirada(prisma, {
+      retiradaId: id,
+      adminId,
+      hasta: "REJECTED",
+      motivo: MOTIVO,
+    });
+    // Como si fuera una fila anterior a la migración.
+    await prisma.withdrawal.update({ where: { id }, data: { motivoRechazo: null } });
+
+    const mias = await misRetiradas(prisma, userId);
+    expect(mias.items[0]!.motivoRechazo).toBeNull();
+  });
+
+  it("una clave que ya no existe cae en la frase genérica, no revienta la lista", async () => {
+    const { misRetiradas } = await import("../src/server/services/retirada");
+    const { FRASE_RECHAZO_DESCONOCIDO } = await import("@/config/constants");
+    const id = await pedir(7500);
+    await transicionarRetirada(prisma, {
+      retiradaId: id,
+      adminId,
+      hasta: "REJECTED",
+      motivo: MOTIVO,
+    });
+    // Un renombrado sin migrar: la fila se queda con una clave que el copy ya no conoce.
+    await prisma.withdrawal.update({ where: { id }, data: { motivoRechazo: "YA_NO_EXISTE" } });
+
+    const mias = await misRetiradas(prisma, userId);
+    expect(mias.items).toHaveLength(1);
+    expect(mias.items[0]!.motivoRechazo).toBe(FRASE_RECHAZO_DESCONOCIDO);
+  });
+
+  it("el motivo también queda en la TRAZA: es la decisión que se tomó sobre su dinero", async () => {
+    const id = await pedir(7500);
+    await transicionarRetirada(prisma, {
+      retiradaId: id,
+      adminId,
+      hasta: "REJECTED",
+      motivo: "SOSPECHA_FRAUDE",
+    });
+    const linea = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "WITHDRAWAL_TRANSITION", targetId: id },
+    });
+    expect(linea.metadata).toMatchObject({ hasta: "REJECTED", motivo: "SOSPECHA_FRAUDE" });
   });
 });
 

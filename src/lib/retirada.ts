@@ -1,9 +1,16 @@
 import {
+  AJUSTE_NOTA_MAX,
+  AJUSTE_NOTA_MIN,
+  FRASE_RECHAZO,
+  FRASE_RECHAZO_DESCONOCIDO,
   MetodoRetiradaSchema,
+  MOTIVO_RECHAZO_LIBRE,
+  MotivoRechazoSchema,
   RedCriptoSchema,
   REDES_CRIPTO,
   RETIRADA_MINIMA_CENTS,
   type MetodoRetirada,
+  type MotivoRechazo,
   type RedCripto,
 } from "@/config/constants";
 
@@ -264,6 +271,61 @@ export function pasosDe(
   }));
   const ultimo = CAMINO_RETIRADA.length - 1;
   return { pasos, progreso: ultimo === 0 ? 100 : Math.round((i / ultimo) * 100) };
+}
+
+// ---------------------------------------------------------------------------
+// POR QUÉ SE RECHAZÓ
+// ---------------------------------------------------------------------------
+
+export type RechazoMotivo = "MOTIVO_OBLIGATORIO" | "TEXTO_OBLIGATORIO" | "TEXTO_SOBRA";
+
+/**
+ * ¿Es válido el motivo con el que se va a rechazar un cobro?
+ *
+ * LAS TRES REGLAS, y las tres existen por lo mismo —que la persona reciba una frase que signifique
+ * algo—: el motivo es OBLIGATORIO (sin él volvemos al "porque sí"), `OTRO` EXIGE su texto (si no,
+ * "Otro" a secas no dice nada), y una clave de la lista NO admite texto (si lo admitiera, el mismo
+ * motivo se contaría de dos maneras y la frase buena dejaría de ser la que se enseña).
+ */
+export function validarMotivoRechazo(
+  motivo: string | null | undefined,
+  texto: string | null | undefined,
+): { ok: true } | { ok: false; rechazo: RechazoMotivo } {
+  if (!MotivoRechazoSchema.safeParse(motivo).success) {
+    return { ok: false, rechazo: "MOTIVO_OBLIGATORIO" };
+  }
+  const limpio = (texto ?? "").trim();
+  if (motivo === MOTIVO_RECHAZO_LIBRE) {
+    return limpio.length >= AJUSTE_NOTA_MIN && limpio.length <= AJUSTE_NOTA_MAX
+      ? { ok: true }
+      : { ok: false, rechazo: "TEXTO_OBLIGATORIO" };
+  }
+  return limpio.length === 0 ? { ok: true } : { ok: false, rechazo: "TEXTO_SOBRA" };
+}
+
+/**
+ * LA FRASE QUE LEE LA PERSONA. La pone el copy, no la fila: la fila guarda la CLAVE, así que
+ * reescribir el texto reescribe también los rechazos antiguos en vez de congelarlos.
+ *
+ * FAIL-OPEN, y es deliberado (mismo criterio que `nivelDeClave`): una clave que ya no existe —una
+ * renombrada sin migrar, una fila de antes de que esto existiera— cae en una frase genérica honesta
+ * en lugar de dejar un hueco o reventar la pantalla de alguien que no ha cobrado. Lo que impide que
+ * se llegue a eso es el guard que exige que toda clave elegible tenga su frase; esto es la red de
+ * abajo, no el permiso.
+ */
+export function fraseDeRechazo(
+  motivo: string | null | undefined,
+  texto?: string | null,
+): string | null {
+  if (!motivo) return null;
+  // El texto solo manda cuando el motivo ES el libre: si una clave de la lista trajera texto (una
+  // fila vieja, un arreglo a mano), se enseña su frase, que es la que está revisada.
+  if (motivo === MOTIVO_RECHAZO_LIBRE) {
+    const limpio = (texto ?? "").trim();
+    if (limpio.length > 0) return limpio;
+  }
+  const frase = FRASE_RECHAZO[motivo as MotivoRechazo];
+  return frase ?? FRASE_RECHAZO_DESCONOCIDO;
 }
 
 /**

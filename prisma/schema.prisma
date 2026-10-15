@@ -823,8 +823,29 @@ model Withdrawal {
   idempotencyKey String    @unique
   procesadaPorId String?
   procesadaEn    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+
+  /// POR QUE SE RECHAZO, en CLAVE y no en frase (union `MotivoRechazoSchema` en constants).
+  ///
+  /// Se guarda la clave por lo mismo que `Challenge.nivelMinimo` guarda "pro" y no 500 puntos:
+  /// el dia que la frase se reescriba para que se entienda mejor, los rechazos ANTIGUOS se
+  /// reescriben con ella en vez de quedarse congelados en la redaccion vieja. La traduccion vive
+  /// en `FRASE_RECHAZO`.
+  ///
+  /// NULL = sin backfill, y su ausencia YA significa lo correcto: las rechazadas de antes de esta
+  /// columna no tienen motivo porque nadie lo escribio, y la vista cae en una frase generica
+  /// honesta. Lo que NO puede pasar es que un rechazo NUEVO la deje vacia, y de eso se encarga la
+  /// validacion de la transicion, no la base de datos (una columna obligatoria aqui habria
+  /// exigido inventar un motivo para las filas viejas).
+  motivoRechazo String? @db.VarChar(32)
+
+  /// El texto del motivo "OTRO", en SU PROPIA columna y no con un prefijo dentro de la anterior.
+  /// Un prefijo es una convencion que, el dia que alguien no respete, deja un garabato de clave
+  /// como mensaje para la persona. Aqui o esta vacia o es texto escrito por una persona, y la
+  /// validacion exige que SOLO se rellene cuando la clave es `OTRO`.
+  motivoRechazoTexto String? @db.VarChar(500)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Keyset del historial del usuario y de la cola del panel.
   @@index([userId, createdAt, id])
