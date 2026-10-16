@@ -45,6 +45,8 @@ const VARIABLES_DE_LA_APP = [
   "BUNNY_CDN_HOSTNAME",
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",
+  // Uno por endpoint: en Stripe cada webhook tiene su propio secreto de firma.
+  "STRIPE_WEBHOOK_SECRET_VIP",
   "EMAIL_FROM",
   "SMTP_HOST",
   "SMTP_PORT",

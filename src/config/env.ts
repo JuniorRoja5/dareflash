@@ -118,7 +118,22 @@ const serverSchema = z.object({
    */
   BUNNY_TOKEN_AUTH_KEY: z.string().min(1),
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
+  /**
+   * UN SECRETO DE FIRMA POR ENDPOINT, Y NO ES UNA DUPLICACIÓN NUESTRA: en Stripe cada endpoint de
+   * webhook se da de alta por separado y cada uno tiene SU PROPIO secreto. `STRIPE_WEBHOOK_SECRET`
+   * es el de `/api/boost/webhook`; `STRIPE_WEBHOOK_SECRET_VIP`, el de `/api/vip/webhook`.
+   *
+   * Pasó en producción: la ruta de VIP verificaba con el secreto de Boost, así que TODA entrega de
+   * Stripe fallaba la firma —400— y quien pagaba la suscripción no se volvía VIP. No rompía nada
+   * visible: el cobro se hace, la página responde, y lo único que falta es la fila. Por eso hay
+   * ahora un diente que firma con el secreto del OTRO y exige el rechazo: con un solo secreto
+   * compartido, ese caso pasaría en verde con el fallo puesto.
+   *
+   * Las dos OPCIONALES, como el resto de Stripe: el build corre sin variables. Sin su secreto, la
+   * ruta responde 503 y no verifica nada — nunca acepta un evento sin firmar.
+   */
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
+  STRIPE_WEBHOOK_SECRET_VIP: z.string().min(1).optional(),
   /**
    * Secreto del que sale la clave con la que se cifran los DATOS DE PAGO de una retirada (IBAN,
    * dirección de cripto). Ver `server/security/cifrado-pagos`.

@@ -17,6 +17,9 @@
  * La firma se construye DE VERDAD con el SDK (`generateTestHeaderString`): un doble de la
  * verificación dejaría sin probar lo único que protege esta ruta.
  */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import Stripe from "stripe";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -24,9 +27,20 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
+/**
+ * DOS SECRETOS DISTINTOS EN LA FIXTURE, y es lo que hace que el diente muerda: en Stripe cada
+ * endpoint de webhook tiene el suyo. Con el mismo valor en los dos, el caso de "firmado con el
+ * secreto del otro" pasaría en verde aunque la ruta volviera a usar el de Boost — que es
+ * exactamente el fallo que llegó a producción.
+ */
 const SECRETO_WEBHOOK = "whsec_TEST_FIXTURE_vip_webhook";
+const SECRETO_DE_BOOST = "whsec_TEST_FIXTURE_boost_webhook";
 
-const H = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient }));
+const H = vi.hoisted(() => ({
+  prisma: null as unknown as PrismaClient,
+  /** `undefined` simula el raíl inerte: el secreto de VIP sin poner en el entorno. */
+  secretoVip: "whsec_TEST_FIXTURE_vip_webhook" as string | undefined,
+}));
 vi.mock("@/server/db/client", () => ({
   get prisma() {
     return H.prisma;
@@ -37,7 +51,10 @@ vi.mock("@/config/env", () => ({
     AUTH_SECRET: "TEST-FIXTURE-auth-secret-vip",
     APP_URL: "https://x.test",
     STRIPE_SECRET_KEY: "sk_test_FIXTURE",
-    STRIPE_WEBHOOK_SECRET: "whsec_TEST_FIXTURE_vip_webhook",
+    STRIPE_WEBHOOK_SECRET: "whsec_TEST_FIXTURE_boost_webhook",
+    get STRIPE_WEBHOOK_SECRET_VIP() {
+      return H.secretoVip;
+    },
   },
 }));
 
@@ -59,6 +76,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await resetDb(prisma);
   userId = await crearUsuario(prisma, { username: "la_suscrita" });
+  H.secretoVip = SECRETO_WEBHOOK;
 });
 
 /** El cuerpo de un evento de suscripción, con la forma que manda Stripe de verdad. */
@@ -147,6 +165,52 @@ describe("la firma es lo único que protege esta ruta", () => {
     const res = await webhook(peticion(cuerpoEvento(), null));
     expect(res.status).toBe(400);
     expect(await suscripcion()).toBeNull();
+  });
+
+  /**
+   * EL FALLO QUE LLEGÓ A PRODUCCIÓN, convertido en caso.
+   *
+   * `/api/vip/webhook` y `/api/boost/webhook` son dos endpoints distintos dados de alta por
+   * separado en Stripe, y cada uno firma con SU secreto. La ruta de VIP verificaba con el de
+   * Boost: toda entrega fallaba la firma, se respondía 400 y quien pagaba la suscripción no se
+   * volvía VIP. No rompía nada visible —el cobro se hace y la página responde—, solo faltaba la
+   * fila, que es justo lo que no se nota mirando.
+   */
+  it("un evento firmado con el secreto de BOOST lo RECHAZA la ruta de VIP", async () => {
+    // Si los dos secretos fueran el mismo, este caso pasaría en verde con el fallo puesto.
+    expect(SECRETO_DE_BOOST, "la fixture usa el mismo secreto en los dos").not.toBe(
+      SECRETO_WEBHOOK,
+    );
+    const cuerpo = cuerpoEvento();
+    const firmaDeBoost = Stripe.webhooks.generateTestHeaderString({
+      payload: cuerpo,
+      secret: SECRETO_DE_BOOST,
+    });
+
+    const res = await webhook(peticion(cuerpo, firmaDeBoost));
+
+    expect(res.status).toBe(400);
+    expect(await suscripcion(), "una firma ajena activó el VIP").toBeNull();
+  });
+
+  it("y sin SU secreto en el entorno, 503: inerte, nunca acepta sin verificar", async () => {
+    // El raíl inerte es un estado real (fue el de toda la fase). Lo que no puede pasar es que sin
+    // secreto se dé por buena una entrega: se responde 503 para que Stripe reintente cuando esté.
+    H.secretoVip = undefined;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const res = await webhook(peticion(cuerpoEvento()));
+
+    expect(res.status).toBe(503);
+    expect((await res.json()).error.code).toBe("PAGO_NO_CONFIGURADO");
+    expect(await suscripcion()).toBeNull();
+
+    // Y EL LOG NOMBRA LA VARIABLE QUE FALTA, no la del vecino: con el nombre clavado dentro de
+    // `eventoVerificado` este 503 habría mandado a mirar `STRIPE_WEBHOOK_SECRET`, que está puesta.
+    // Un error que señala al sitio equivocado cuesta más que no tenerlo.
+    const dicho = log.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(dicho).toContain("STRIPE_WEBHOOK_SECRET_VIP");
+    log.mockRestore();
   });
 
   it("el cuerpo se verifica TAL CUAL llegó: reserializarlo invalida la firma", async () => {
@@ -246,5 +310,56 @@ describe("lo que se ignora, con 200", () => {
     const res = await webhook(peticion(cuerpoEvento({ finEnLaSuscripcion: true })));
     expect(await res.json()).toEqual({ ignorado: "sin_periodo" });
     expect(await prisma.subscription.count()).toBe(0);
+  });
+});
+
+/**
+ * CADA WEBHOOK CON SU SECRETO — estructural, porque el caso de arriba no cubre el camino por el
+ * que esto se rompió: nadie cambió la ruta de VIP, es que NACIÓ copiada de la de Boost con su
+ * secreto dentro. El siguiente webhook se escribirá igual, copiando uno de los dos.
+ */
+describe("cada endpoint verifica con SU secreto, no con el del vecino", () => {
+  const RAIZ = process.cwd();
+  const ruta = (...p: string[]) =>
+    readFileSync(join(RAIZ, "src", "app", "api", ...p, "webhook", "route.ts"), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+
+  it("la de VIP usa STRIPE_WEBHOOK_SECRET_VIP, y NO el de Boost", () => {
+    const vip = ruta("vip");
+    expect(vip).toContain("env.STRIPE_WEBHOOK_SECRET_VIP");
+    // El `(?!_)` no es un detalle: `STRIPE_WEBHOOK_SECRET_VIP` EMPIEZA por el nombre del de Boost,
+    // así que sin el límite esta comprobación sería imposible de cumplir y la de abajo, inútil.
+    expect(vip, "la ruta de VIP volvió al secreto de Boost").not.toMatch(
+      /env\.STRIPE_WEBHOOK_SECRET(?!_)/,
+    );
+  });
+
+  it("la de Boost sigue con el suyo, intacta", () => {
+    const boost = ruta("boost");
+    expect(boost).toMatch(/env\.STRIPE_WEBHOOK_SECRET(?!_)/);
+    expect(boost, "la ruta de Boost se llevó el secreto del VIP").not.toContain(
+      "STRIPE_WEBHOOK_SECRET_VIP",
+    );
+  });
+
+  it("y los dos existen en el esquema de `env`, los dos opcionales", () => {
+    // Opcionales porque el build corre sin variables; obligarlas tumbaría el despliegue. Lo que no
+    // es opcional es el comportamiento sin ellas, y eso lo fija el caso del 503.
+    const env = readFileSync(join(RAIZ, "src", "config", "env.ts"), "utf8").replace(
+      /\/\*[\s\S]*?\*\//g,
+      "",
+    );
+    for (const v of ["STRIPE_WEBHOOK_SECRET", "STRIPE_WEBHOOK_SECRET_VIP"]) {
+      expect(env, `${v} no está en el esquema`).toMatch(
+        new RegExp(`${v}: z\\.string\\(\\)\\.min\\(1\\)\\.optional\\(\\)`),
+      );
+    }
+    // Y el script del build sin variables las aparta las dos: la lista tiene que reflejar el
+    // esquema, o en CI el build vería una variable que en Docker no está.
+    const script = readFileSync(join(RAIZ, "scripts", "check-build-sin-env.mjs"), "utf8");
+    for (const v of ["STRIPE_WEBHOOK_SECRET", "STRIPE_WEBHOOK_SECRET_VIP"]) {
+      expect(script, `${v} no se aparta en el build sin variables`).toContain(`"${v}"`);
+    }
   });
 });

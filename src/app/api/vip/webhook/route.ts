@@ -47,11 +47,16 @@ export async function POST(req: Request) {
   let evento: Stripe.Event;
   try {
     const stripe = clienteStripe(env.STRIPE_SECRET_KEY);
+    // SU PROPIO SECRETO, no el de Boost. En Stripe cada endpoint se da de alta por separado y cada
+    // uno firma con el suyo; con el de Boost aquí, TODA entrega fallaba la firma y quien pagaba la
+    // suscripción no se volvía VIP (pasó en producción). El nombre viaja para que el 503 de "falta
+    // configuración" diga cuál de los dos falta, y no mande a mirar el que sí está puesto.
     evento = eventoVerificado(
       stripe,
       cuerpo,
       req.headers.get("stripe-signature"),
-      env.STRIPE_WEBHOOK_SECRET,
+      env.STRIPE_WEBHOOK_SECRET_VIP,
+      "STRIPE_WEBHOOK_SECRET_VIP",
     );
   } catch (e) {
     if (e instanceof PagosNoDisponibles) {

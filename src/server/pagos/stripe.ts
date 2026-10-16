@@ -41,14 +41,24 @@ export function clienteStripe(secretKey: string | undefined): Stripe {
  *
  * ESTA ES LA ÚNICA AUTENTICACIÓN DEL WEBHOOK. No hay sesión, ni Origin, ni CSRF: lo llama Stripe,
  * no un navegador. Si esto se salta, cualquiera puede regalarse boosts con un `curl`.
+ *
+ * ┌─ EL SECRETO LLEGA POR PARÁMETRO, Y SU NOMBRE TAMBIÉN ───────────────────────────────────────┐
+ * │ Hay UNO POR ENDPOINT: cada webhook se da de alta aparte en Stripe y cada uno firma con el   │
+ * │ suyo. Esta función no puede elegirlo —no sabe quién la llama—, así que lo recibe; y recibe  │
+ * │ además CÓMO SE LLAMA, porque si falta, el log de "falta configuración" tiene que nombrar la │
+ * │ variable que de verdad falta. Con el nombre clavado aquí, al añadir el segundo secreto el   │
+ * │ error habría mandado a mirar el de Boost, que estaba perfectamente puesto.                   │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────┘
  */
 export function eventoVerificado(
   stripe: Stripe,
   cuerpoCrudo: string,
   firma: string | null,
   secretoWebhook: string | undefined,
+  /** Nombre de la variable de entorno, SOLO para el mensaje de error. */
+  nombreSecreto = "STRIPE_WEBHOOK_SECRET",
 ): Stripe.Event {
-  if (!secretoWebhook) throw new PagosNoDisponibles("STRIPE_WEBHOOK_SECRET");
+  if (!secretoWebhook) throw new PagosNoDisponibles(nombreSecreto);
   // Sin cabecera de firma se lanza un Error normal y no el del SDK: quien llama trata TODO lo que
   // no sea falta de configuración como firma inválida, así que construir el error tipado de Stripe
   // solo ataría este fichero a la forma de su constructor, que cambia entre versiones mayores.

@@ -28,6 +28,8 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
 const SECRETO_WEBHOOK = "whsec_TEST_FIXTURE_boost_webhook";
+/** El del OTRO endpoint. En Stripe cada webhook se da de alta aparte y firma con el suyo. */
+const SECRETO_DE_VIP = "whsec_TEST_FIXTURE_vip_webhook";
 
 const H = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient }));
 vi.mock("@/server/db/client", () => ({
@@ -41,6 +43,7 @@ vi.mock("@/config/env", () => ({
     APP_URL: "https://x.test",
     STRIPE_SECRET_KEY: "sk_test_FIXTURE",
     STRIPE_WEBHOOK_SECRET: "whsec_TEST_FIXTURE_boost_webhook",
+    STRIPE_WEBHOOK_SECRET_VIP: "whsec_TEST_FIXTURE_vip_webhook",
   },
 }));
 
@@ -129,6 +132,23 @@ describe("la firma es la puerta", () => {
 
   it("SIN cabecera de firma, tampoco", async () => {
     const res = await webhook(peticion(cuerpoEvento({}), null));
+    expect(res.status).toBe(400);
+    expect(await saldo()).toBe(0);
+  });
+
+  it("una firma del OTRO ENDPOINT tampoco: cada webhook tiene su secreto", async () => {
+    // El gemelo del caso de `vip-webhook`. Allí el fallo llegó a producción —la ruta de VIP
+    // verificaba con ESTE secreto y ninguna entrega pasaba—; aquí se fija el lado de Boost para
+    // que el arreglo no se haga al revés el día que alguien "unifique" los dos.
+    expect(SECRETO_DE_VIP, "la fixture usa el mismo secreto en los dos").not.toBe(SECRETO_WEBHOOK);
+    const cuerpo = cuerpoEvento({});
+    const firmaDeVip = Stripe.webhooks.generateTestHeaderString({
+      payload: cuerpo,
+      secret: SECRETO_DE_VIP,
+    });
+
+    const res = await webhook(peticion(cuerpo, firmaDeVip));
+
     expect(res.status).toBe(400);
     expect(await saldo()).toBe(0);
   });
