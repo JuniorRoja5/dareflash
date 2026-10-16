@@ -14,4 +14,5 @@ export const ETIQUETA_TIPO: Record<TipoNotificacion, string> = {
   ANUNCIO: "Anuncio",
   COMENTARIO: "Comentario recibido",
   CONTENIDO_AUTO_OCULTO: "Contenido ocultado por denuncias",
+  TOQUE: "Toque de un VIP",
 };

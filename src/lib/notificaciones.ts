@@ -94,6 +94,15 @@ export const AvisoSchema = z.discriminatedUnion("tipo", [
     datos: z.object({ autor: z.string().min(1).max(64), reto: RetoFoto.nullable() }).strict(),
   }),
   z.object({
+    tipo: z.literal("TOQUE"),
+    // Apunta a la PERSONA que lo manda, no a un objeto: no hay nada de por medio.
+    refType: z.literal("USER"),
+    refId: Id,
+    // El handle de quien toca, igual que en COMENTARIO: una FOTO del hecho, no una unión al leer.
+    // Es un identificador, no texto libre, así que no hay nada que escapar ni que caduque feo.
+    datos: z.object({ autor: z.string().min(1).max(64) }).strict(),
+  }),
+  z.object({
     tipo: z.literal("CONTENIDO_AUTO_OCULTO"),
     // El ÚNICO aviso con dos refType posibles, porque el umbral esconde las dos cosas. Sigue
     // siendo la mitad de la clave de unicidad, así que un vídeo y un comentario con el mismo id
@@ -206,6 +215,40 @@ export function avisoComentario(input: {
  * Notification hace que el moderador no reciba un segundo aviso idéntico. Es lo correcto — el
  * trabajo pendiente ya está en la cola, y repetir el aviso no añade nada que mirar.
  */
+/**
+ * ALGUIEN TE HA DADO UN TOQUE. La clave lleva el EMISOR y el DÍA, y las dos partes hacen falta.
+ *
+ * ┌─ POR QUÉ EL DÍA VA DENTRO DE LA CLAVE ──────────────────────────────────────────────────────┐
+ * │ Un toque no cuelga de ningún objeto: no hay un vídeo, ni un voto, ni un reto que lo haga     │
+ * │ único. Si la clave fuera solo el emisor, A podría tocar a B UNA VEZ EN LA VIDA y nunca más.  │
+ * │ Si no llevara emisor, el primer toque del día bloquearía los de todos los demás.             │
+ * │                                                                                              │
+ * │ Con (emisor, día) el invariante que sale es exactamente el que se quiere: **A puede tocar a  │
+ * │ B como mucho una vez al día**. Y no lo garantiza un `if` que alguien pueda saltarse —ni una  │
+ * │ lectura previa, que sería una carrera—: lo garantiza el UNIQUE de la tabla. Dos peticiones a │
+ * │ la vez y la segunda no escribe.                                                              │
+ * │                                                                                              │
+ * │ EL DÍA ES UTC (`RESET_TIMEZONE`), el mismo corte que el límite de Boost y que la racha.      │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * El emisor va en la clave para deduplicar Y en `datos` para pintarse. Son dos usos distintos: si
+ * se pintara leyéndolo de la clave, cambiar el formato de la clave cambiaría el texto.
+ */
+export function avisoToque(input: {
+  emisorId: string;
+  /** Handle de quien da el toque. */
+  autor: string;
+  /** El día en `AAAA-MM-DD` UTC (`claveDia`). Lo pasa quien emite, para poder fijarlo en un test. */
+  dia: string;
+}): Aviso {
+  return {
+    tipo: "TOQUE",
+    refType: "USER",
+    refId: `${input.emisorId}:${input.dia}`,
+    datos: { autor: input.autor },
+  };
+}
+
 export function avisoContenidoAutoOculto(input: {
   targetType: "VIDEO" | "COMMENT";
   targetId: string;
@@ -327,6 +370,16 @@ export function textoAviso(
       // bandeja, donde se lee entero; no hay (ni se promete) una pantalla propia del anuncio.
       return { es: texto, en: texto, href: "/notificaciones" };
     }
+    case "TOQUE":
+      // LLEVA AL PERFIL DE QUIEN TOCA, que es lo único que hay que mirar: un toque no tiene
+      // contenido detrás. El handle sale de `datos` y no de la clave, aunque la clave también lo
+      // lleve: son dos usos distintos (pintar y deduplicar) y atarlos haría que cambiar el formato
+      // de uno cambiara el otro.
+      return {
+        es: `@${a.datos.autor} te ha dado un toque.`,
+        en: `@${a.datos.autor} gave you a nudge.`,
+        href: `/u/${a.datos.autor}`,
+      };
     case "COMENTARIO": {
       // Sin el texto del comentario (ver el esquema). Lleva AL COMENTARIO: el feed abre por ese vídeo y
       // ancla el comentario. El vídeo no viaja en la fila del aviso —se une por refId al leer, como el

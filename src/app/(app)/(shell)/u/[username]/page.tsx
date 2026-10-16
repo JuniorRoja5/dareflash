@@ -37,7 +37,15 @@ export default async function PerfilPublicoPage({
   // La marca VIP, DESPUÉS de saber que el perfil existe: preguntarla antes gastaría una consulta
   // por cada visita a un handle que no lleva a ningún sitio. Es la de uno porque esto es uno.
   const { esVipActivoDe } = await import("@/server/services/vip");
+  const { getCurrentUser } = await import("@/server/auth/current-user");
   const esVip = await esVipActivoDe(prisma, perfil.id);
+
+  // Y SI QUIEN MIRA ES VIP, que es OTRA pregunta: la de arriba habla del dueño del perfil (su
+  // sello y su color), esta de si el visitante puede dar un toque. Solo se consulta habiendo
+  // sesión y si el perfil no es el suyo — un invitado no tiene de dónde ser VIP, y a uno mismo no
+  // se toca. El botón que esto enciende es comodidad; quien decide es el servidor.
+  const yo = await getCurrentUser();
+  const puedeTocar = yo && yo.userId !== perfil.id ? await esVipActivoDe(prisma, yo.userId) : false;
 
   const videos = perfil.videos.map((v) => ({
     id: v.id,
@@ -62,6 +70,8 @@ export default async function PerfilPublicoPage({
       esPropio={false}
       esVip={esVip}
       colorNombre={perfil.colorNombre}
+      puedeTocar={puedeTocar}
+      userId={perfil.id}
     />
   );
 }

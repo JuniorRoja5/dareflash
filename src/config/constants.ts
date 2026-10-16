@@ -409,6 +409,27 @@ export const MSG_VIP_SIN_VERIFICAR = "Verifica tu correo para poder suscribirte.
 export const MSG_VIP_YA_ACTIVO = "Ya tienes VIP Mythic activo.";
 
 /**
+ * TOQUES AL DIA POR PERSONA (Fase 8 · P4). Es el tope del EMISOR, y es la segunda capa del
+ * anti-acoso: la primera es la clave unica del aviso, que ya impide tocar DOS VECES A LA MISMA
+ * PERSONA el mismo dia. Esta acota la otra forma de abusar —tocar a trescientas personas
+ * distintas—, que la clave no ve porque cada pareja es un hecho distinto.
+ *
+ * 20 es un numero de partida: holgado para quien usa la funcion como se espera (saludar a unos
+ * cuantos perfiles) y estrecho para quien la quiera usar como megafono. Lo afina Sergio, y es
+ * esta linea.
+ */
+export const TOQUE_MAX_DIA = 20;
+
+/** Copy del toque. Ninguno de estos casos es un error del sistema: son respuestas. */
+export const MSG_TOQUE_SOLO_VIP = "Dar un toque es de VIP Mythic. Hazte VIP para usarlo.";
+export const MSG_TOQUE_SIN_VERIFICAR = "Verifica tu correo para poder dar un toque.";
+export const MSG_TOQUE_A_TI_MISMO = "No puedes darte un toque a ti mismo.";
+export const MSG_TOQUE_REPETIDO = "Ya le has dado un toque hoy.";
+/** Mismo criterio que el limite de Boost: la hora de verdad, no un "vuelve mañana" que miente. */
+export const MSG_TOQUE_LIMITE_DIARIO = `Ya has dado ${TOQUE_MAX_DIA} toques hoy. El contador se reinicia a medianoche UTC.`;
+export const MSG_TOQUE_ENVIADO = "Toque enviado.";
+
+/**
  * Tope de UN ajuste de creditos de boost, en cualquier sentido.
  *
  * NO ES UNA REGLA DE PRODUCTO, ES UN FRENO AL DEDO, igual que `AJUSTE_DELTA_MAX` en los puntos: un
@@ -1160,6 +1181,15 @@ export const RATE_LIMITS = {
   // Comentar (y borrar los propios, mismo cubo):texto público, así que el tope frena el spam sin
   // estorbar a quien conversa. 30 en 15 min es uno cada 30 s sostenido.
   COMENTAR_PER_USER: { limit: 30, windowMs: 15 * 60 * 1000 }, // 30 / 15 min por usuario
+  // DAR UN TOQUE. La ventana es de 24 h y no de 15 min, y eso lo hace distinto de todos los de
+  // arriba: aqui el cubo NO es "que nadie martillee el endpoint" —para eso sobraria 60/15min—,
+  // es el TOPE DE PRODUCTO contra el acoso, el que impide usar la funcion como megafono hacia
+  // trescientas personas. Por eso su numero sale de `TOQUE_MAX_DIA`, que es donde se afina, y no
+  // de aqui: el limite es una decision de producto que resulta que se aplica con esta herramienta.
+  //
+  // La OTRA capa —no tocar dos veces a la MISMA persona el mismo dia— no es este cubo: es la clave
+  // unica del aviso, y tiene que serlo, porque un cubo por emisor no sabe a quien esta tocando.
+  TOQUE_PER_USER: { limit: TOQUE_MAX_DIA, windowMs: 24 * 60 * 60 * 1000 },
   // Denunciar: no frena el abuso —eso lo hace el UNIQUE por denunciante y objeto—, sino que nadie
   // recorra el feed denunciándolo entero. Holgado: denunciar de verdad varias cosas seguidas es
   // legítimo y no puede costarle un rechazo a quien está limpiando su feed.
@@ -1233,6 +1263,10 @@ export const TipoNotificacionSchema = z.enum([
   // unico aviso que va en esta direccion —el resto son "te ha pasado esto a ti"— y por eso lleva
   // su propio tipo en vez de colarse como un ANUNCIO: un anuncio lo escribe una persona.
   "CONTENIDO_AUTO_OCULTO",
+  // Alguien VIP te ha dado un toque (Fase 8 · P4). Es el unico aviso que nace de que otra persona
+  // decida mandartelo, sin nada de por medio —ni un video, ni un voto, ni un reto—, y por eso su
+  // clave lleva el DIA dentro: ver `avisoToque`.
+  "TOQUE",
 ]);
 export type TipoNotificacion = z.infer<typeof TipoNotificacionSchema>;
 
@@ -1244,6 +1278,8 @@ export const RefNotificacionSchema = z.enum([
   "NIVEL",
   "ANUNCIO",
   "COMMENT",
+  // El toque no apunta a ningun objeto: apunta a QUIEN lo manda (mas el dia, ver `avisoToque`).
+  "USER",
 ]);
 export type RefNotificacion = z.infer<typeof RefNotificacionSchema>;
 

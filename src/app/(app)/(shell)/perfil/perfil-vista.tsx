@@ -4,6 +4,7 @@ import { BadgeAvisos } from "@/app/(app)/avisos-contexto";
 import { ConmutadorTemaServidor } from "@/components/ui/conmutador-tema-servidor";
 import { Avatar } from "@/components/ui/avatar";
 import { Boton } from "@/components/ui/boton";
+import { DarToque } from "@/components/ui/dar-toque";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
 import {
   conHandleSecundario,
@@ -158,6 +159,8 @@ export function PerfilVista({
   esPropio,
   esVip = false,
   colorNombre,
+  puedeTocar = false,
+  userId,
 }: {
   /** Nombre visible (opcional). Si falta, el `handle` hace de nombre. */
   displayName: string | null;
@@ -185,6 +188,16 @@ export function PerfilVista({
   esVip?: boolean;
   /** CLAVE del color de nombre (nunca un hex). Solo pinta si `esVip`. */
   colorNombre?: string | null;
+  /**
+   * ¿Puede QUIEN MIRA darle un toque a esta persona? Es otra pregunta que `esVip`, que habla del
+   * DUEÑO del perfil: aquí lo que importa es si el visitante es VIP. Sin esto, un VIP viendo el
+   * perfil de un no-VIP no vería el botón y un no-VIP viendo el de un VIP sí — justo al revés.
+   *
+   * Y es solo para ENSEÑAR el botón: quien decide es el servidor (ver `DarToque`).
+   */
+  puedeTocar?: boolean;
+  /** Id del dueño del perfil, para el toque. Solo viaja cuando hay botón que montar. */
+  userId?: string;
 }) {
   // Identidad (modelo TikTok/YouTube): el displayName manda; el @handle va debajo y solo si hay
   // displayName (si no, el @handle ES el nombre prominente). Fuente única: `NombreUsuario`.
@@ -285,6 +298,13 @@ export function PerfilVista({
                 por eso van en `<span>` y no en botones. Un chip que parece pulsable y no lo es es
                 la misma trampa que un botón mudo, y el perfil ya tuvo uno. */}
             {esVip ? <PerksVip /> : null}
+
+            {/* DAR UN TOQUE: en el perfil de OTRA persona y solo si quien mira es VIP. Nunca en el
+                propio —no tiene sentido y el servidor lo rechaza igual— y nunca sin `userId`, que
+                es lo que hace imposible montar el botón sin saber a quién toca. */}
+            {!esPropio && puedeTocar && userId ? (
+              <DarToque userId={userId} className="mt-6" />
+            ) : null}
 
             {/* Boost = acción de pago = ÚNICO acento: solo en el perfil PROPIO.
                 LLEVA A /boosts, y antes no llevaba a ninguna parte: era un `<Boton>` sin `href` ni

@@ -193,10 +193,40 @@ describe("el movimiento: por tokens y apagable", () => {
 });
 
 describe("lo que NO entra en esta pieza", () => {
-  it("no hay botón 'Dar un toque' en ninguna parte del código", () => {
-    // La maqueta lo trae; el toque es una pieza posterior, y un botón que no hace nada es UI
-    // muerta. `perfil-sin-botones-muertos` vigila los que SÍ existen; esto, que este no aparezca.
-    const conToque = TODOS.filter((x) => /[Dd]ar un toque/.test(x.codigo)).map((x) => x.f);
-    expect(conToque).toEqual([]);
+  /**
+   * ESTE CASO CAMBIÓ DE FORMA EN P4, y no se borró.
+   *
+   * En P3 decía "no hay ningún 'Dar un toque' en el código": el botón estaba en la maqueta, la
+   * pieza que lo hacía funcionar no existía todavía, y un botón que no hace nada es UI muerta. En
+   * P4 el toque existe de verdad, así que esa frase ya no es la decisión — pero la decisión que
+   * había DEBAJO sigue siendo la misma: **ese botón no puede existir sin su endpoint**.
+   *
+   * Reescrito así, el día que alguien borre la ruta y deje el botón, cae aquí. Borrarlo habría
+   * perdido eso.
+   */
+  it("el botón del toque va cableado a su endpoint: no es UI muerta", () => {
+    const conToque = TODOS.filter((x) => /[Dd]ar un toque/.test(x.codigo))
+      .map((x) => x.f)
+      .sort();
+    expect(conToque, "el texto del botón se escribió en un sitio nuevo").toEqual(
+      // Dos, y cada uno con su trabajo: la PIEZA (su etiqueta) y el catálogo de copy (los
+      // mensajes que manda el servidor). Un tercero sería el botón escrito a mano otra vez.
+      ["components/ui/dar-toque.tsx", "config/constants.ts"].sort(),
+    );
+    const boton = sinComentarios(leer("components/ui/dar-toque.tsx"));
+    expect(boton, "el botón no llama a ninguna ruta").toContain('"/api/toques"');
+    // Y con CSRF, como toda mutación: `route-csrf` vigila la ruta; esto, al que la llama.
+    expect(boton).toContain("postJsonCsrf");
+    expect(
+      TODOS.some((x) => x.f === "app/api/toques/route.ts"),
+      "el botón llama a una ruta que no existe",
+    ).toBe(true);
+  });
+
+  it("y el perfil solo lo monta en el de OTRA persona, con su id", () => {
+    // Sin `userId` no hay a quién tocar, y en el propio no tiene sentido (el servidor lo rechaza
+    // igual). Las tres condiciones van juntas a propósito: cada una sola deja pasar un caso raro.
+    const perfil = sinComentarios(leer(PERFIL));
+    expect(perfil).toMatch(/!esPropio && puedeTocar && userId \?/);
   });
 });

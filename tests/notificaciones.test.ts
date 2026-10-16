@@ -22,6 +22,7 @@ import {
   avisoContenidoAutoOculto,
   avisoGanasteReto,
   avisoSubisteNivel,
+  avisoToque,
   avisoTop20,
   avisoVideoFallido,
   avisoVideoListo,
@@ -67,6 +68,9 @@ const UNO_DE_CADA: Aviso[] = [
   avisoComentario({ commentId: "c1", autor: "comentarista", reto: RETO }),
   // El unico que va AL EQUIPO y no al usuario: lo emite el umbral de denuncias.
   avisoContenidoAutoOculto({ targetType: "VIDEO", targetId: "v7" }),
+  // El toque de un VIP. Su clave lleva el DIA dentro, que es lo que hace que A toque a B una vez
+  // al dia en vez de una vez en la vida (ver `avisoToque`).
+  avisoToque({ emisorId: "u9", autor: "la_vip", dia: "2026-10-16" }),
 ];
 /** El texto de los anuncios vive en `Announcement`: se une por refId al pintar. */
 const TEXTOS_ANUNCIO = new Map([["a1", "Mantenimiento programado el sábado por la mañana."]]);
@@ -158,6 +162,9 @@ describe("la unión de tipos", () => {
         "VIDEO_LISTO",
         "VOTO_RECIBIDO",
         "CONTENIDO_AUTO_OCULTO",
+        // El toque de un VIP (Fase 8 · P4): el único aviso que nace de que otra persona decida
+        // mandártelo, sin un vídeo, un voto ni un reto de por medio.
+        "TOQUE",
       ].sort(),
     );
     const inventado = { tipo: "COMENTARIO_RECIBIDO", refType: "ANUNCIO", refId: "x", datos: {} };
