@@ -22,6 +22,7 @@ import {
   RETO_CIERRE_CADENCIA_MS,
   RECON_HUERFANOS_CADENCIA_MS,
   RECON_PUBLICADOS_CADENCIA_MS,
+  VIP_BOOST_SEMANAL_CADENCIA_MS,
   VOTO_IPHASH_RETENCION_MS,
 } from "@/config/constants";
 import { Prisma } from "@/generated/prisma/client";
@@ -566,6 +567,7 @@ export async function bucleWorker(
   // Arranca en 0 igual que los demas: la primera vuelta del worker recoge lo que quedara vencido
   // mientras estaba parado, sin esperar una cadencia entera.
   let proximoCierres = 0;
+  let proximoVipBoost = 0;
   // Ultima marca de wake HONRADA (event-kick). Comparacion por igualdad de STRING, NUNCA contra el
   // reloj: no depende de sincronia web/worker. En reinicio arranca null -> la primera marca existente
   // fuerza UN barrido (recoge PENDING previos).
@@ -761,6 +763,24 @@ export async function bucleWorker(
         o.log?.(`[worker] retos: barrido de cierre fallo (${sanearError(e)}); reintento luego.`);
       }
       proximoCierres = t.getTime() + RETO_CIERRE_CADENCIA_MS;
+    }
+
+    // EL REGALO SEMANAL DEL VIP. Esto NO reparte: solo intenta ARRANCAR el reparto de la semana en
+    // curso, y la clave de idempotencia del job decide si hacía falta. El reparto de verdad lo
+    // hacen los tramos, que van por la cola como cualquier otro trabajo.
+    //
+    // No hay cron ni calendario a propósito: si el worker estuvo apagado el lunes, el primer
+    // barrido al volver arranca la semana igual y nadie pierde su boost. Y dos workers a la vez
+    // no arrancan dos repartos, porque la clave lleva la semana.
+    if (t.getTime() >= proximoVipBoost) {
+      try {
+        const { arrancarRepartoSemanal } = await import("@/server/services/vip-boost-semanal");
+        const { semana, arrancado } = await arrancarRepartoSemanal(db, t);
+        if (arrancado) o.log?.(`[worker] vip-boost: arrancado el reparto de ${semana}`);
+      } catch (e) {
+        o.log?.(`[worker] vip-boost: no se pudo arrancar (${sanearError(e)}); reintento luego.`);
+      }
+      proximoVipBoost = t.getTime() + VIP_BOOST_SEMANAL_CADENCIA_MS;
     }
 
     if (o.parar()) break;

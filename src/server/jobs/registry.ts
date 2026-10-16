@@ -21,6 +21,7 @@ import type { EmailAdapter, EmailMessage } from "@/server/email/adapter";
 import { encolarTramo, repartirAnuncio } from "@/server/services/anuncios";
 import type { ClienteBunny, ConfigBunny } from "@/server/services/bunny";
 import { repartirAvisoAutoOculto } from "@/server/services/ocultado-automatico";
+import { encolarTramoSemanal, repartirBoostSemanal } from "@/server/services/vip-boost-semanal";
 
 export type PoliticaReaper = "FAIL" | "REQUEUE";
 
@@ -30,6 +31,12 @@ const BunnyDeletePayloadSchema = z.object({ bunnyVideoId: z.string().min(1) });
 /** Payload del job FANOUT_ANUNCIO: el anuncio y, en las continuaciones, el cursor del tramo. */
 const FanoutPayloadSchema = z.object({
   announcementId: z.string().min(1),
+  desde: z.string().min(1).optional(),
+});
+
+/** Payload del regalo semanal: la SEMANA ISO y, en las continuaciones, el cursor del tramo. */
+const VipBoostPayloadSchema = z.object({
+  semana: z.string().min(1),
   desde: z.string().min(1).optional(),
 });
 
@@ -132,6 +139,31 @@ export function construirRegistro(deps: DepsRegistro): Registro {
               ...(p.data.desde ? { desde: p.data.desde } : {}),
             }
           : null;
+      },
+    },
+
+    /**
+     * EL REGALO SEMANAL DEL VIP: un TRAMO de los VIP activos, +1 boost a cada uno. REQUEUE, por lo
+     * mismo que el fan-out del anuncio y con más razón: la idempotencia no es "no duplica por
+     * suerte", es la `idempotencyKey` por (persona, semana) en el ledger. Reintentar un tramo que
+     * ya acreditó a medias no da un segundo boost a nadie; NO reintentarlo sí dejaría gente sin su
+     * beneficio, que es el fallo que importa.
+     *
+     * Si queda audiencia, encola la continuación con su cursor — y esa también tiene su clave, así
+     * que re-ejecutar este tramo no encola dos.
+     */
+    VIP_BOOST_SEMANAL: {
+      reaper: "REQUEUE",
+      async handler(job) {
+        const { semana, desde } = VipBoostPayloadSchema.parse(job.payload);
+        const tramo = await repartirBoostSemanal(deps.db, { semana, desde: desde ?? null });
+        if (tramo.siguiente) await encolarTramoSemanal(deps.db, semana, tramo.siguiente);
+      },
+      // Si acaba en FAILED, conserva QUÉ semana y QUÉ tramo quedó sin repartir. Ni un id de
+      // persona: el cursor es un `User.id`, que es interno, pero el resumen se queda en la semana.
+      resumenFallo(job) {
+        const p = VipBoostPayloadSchema.safeParse(job.payload);
+        return p.success ? { semana: p.data.semana, continuacion: Boolean(p.data.desde) } : null;
       },
     },
 

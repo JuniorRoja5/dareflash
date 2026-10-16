@@ -420,6 +420,27 @@ export const MSG_VIP_YA_ACTIVO = "Ya tienes VIP Mythic activo.";
  */
 export const TOQUE_MAX_DIA = 20;
 
+/**
+ * EL REGALO SEMANAL DEL VIP (Fase 8 · P5): cuantos boosts recibe cada semana.
+ *
+ * Es el beneficio #2 del maestro y NO es un detalle suelto: es el mecanismo que sustituye al
+ * "auto-destacar" que se descarto —destacar sigue siendo algo que se gasta, no un privilegio
+ * permanente—, asi que cambiar este numero cambia esa decision de producto.
+ */
+export const VIP_BOOST_SEMANAL = 1;
+
+/** Razon y referencia del movimiento de ledger del regalo semanal. Coincide con `BoostReasonSchema`. */
+export const RAZON_BOOST_VIP_SEMANAL = "VIP_WEEKLY";
+export const REF_BOOST_VIP = "VIP_SUBSCRIPTION";
+
+/**
+ * Cada cuanto MIRA el worker si toca repartir el regalo semanal. No es "cada cuanto se reparte"
+ * —eso lo decide la SEMANA ISO, y la clave de idempotencia lo garantiza—: es cada cuanto se
+ * comprueba. Una hora basta de sobra para un reparto semanal, y hace que un worker que estuvo
+ * caido el lunes reparta solo al volver, sin que nadie pierda su boost.
+ */
+export const VIP_BOOST_SEMANAL_CADENCIA_MS = 60 * 60 * 1000;
+
 /** Copy del toque. Ninguno de estos casos es un error del sistema: son respuestas. */
 export const MSG_TOQUE_SOLO_VIP = "Dar un toque es de VIP Mythic. Hazte VIP para usarlo.";
 export const MSG_TOQUE_SIN_VERIFICAR = "Verifica tu correo para poder dar un toque.";
