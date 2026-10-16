@@ -81,6 +81,71 @@ function GemaVip({ clase }: { clase?: string }) {
   );
 }
 
+/**
+ * EL ID DEL DEGRADADO DEL EMBLEMA GRANDE. Fijo y declarado aquí a propósito: es la pieza de la que
+ * hay UNA en la página, así que el id puede ser una constante y el guard estructural puede
+ * comprobar que sigue habiendo una sola.
+ *
+ * No se genera con `useId()` —que daría uno distinto por instancia— porque eso obligaría a marcar
+ * este módulo como `"use client"`, y entonces TODA la identidad (que la monta media app desde el
+ * servidor) se iría al bundle del cliente. El precio de la unicidad sería mucho mayor que el
+ * problema que resuelve.
+ */
+export const ID_DEGRADADO_EMBLEMA = "df-vip-oro";
+
+/**
+ * EL EMBLEMA GRANDE DEL PERFIL VIP (76 px) — el único sitio donde la marca lleva DEGRADADO.
+ *
+ * ┌─ POR QUÉ AQUÍ SÍ Y EN EL SELLO COMPACTO NO ─────────────────────────────────────────────────┐
+ * │ Un `<linearGradient>` se referencia por `id`, y un id se repite tantas veces como se monte   │
+ * │ el componente. El sello compacto sale VEINTE veces en un feed: veinte ids iguales es HTML    │
+ * │ inválido, y hay navegadores que pintan todos con el primero. Este sale UNA vez, en una sola  │
+ * │ pantalla, así que el id es único por construcción.                                            │
+ * │                                                                                               │
+ * │ Y a 76 px el degradado sí se ve: es lo que convierte la estrella plana en metal. A 18 px no   │
+ * │ se veía, que es la otra mitad de por qué el compacto no lo lleva.                             │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * MISMA SILUETA que el sello compacto —estrella de doce puntas con la gema hexagonal dentro—: es
+ * la misma marca en grande, no otra pieza.
+ */
+export function EmblemaVipGrande({ clase }: { clase?: string }) {
+  return (
+    <svg data-emblema-vip viewBox="0 0 48 48" className={clase} aria-hidden fill="none">
+      <defs>
+        <linearGradient id={ID_DEGRADADO_EMBLEMA} x1="0" y1="0" x2="0" y2="1">
+          {/* Los tres por token, reflejo incluido: en claro el reflejo tiene que ser otro (un
+              casi-blanco sobre el disco crema del tema claro no se ve y el emblema se queda
+              plano), y un literal aquí dentro solo podría tener un valor. */}
+          <stop offset="0" stopColor="var(--vip-gold-light)" />
+          <stop offset="0.45" stopColor="var(--vip-gold)" />
+          <stop offset="1" stopColor="var(--vip-gold-deep)" />
+        </linearGradient>
+      </defs>
+      <path
+        fill={`url(#${ID_DEGRADADO_EMBLEMA})`}
+        d="M24 1l4.6 4.3 6.2-1.4-.3 6.4 5.9 2.6-3.6 5.3 3.6 5.3-5.9 2.6.3 6.4-6.2-1.4L24 41l-4.6-4.3-6.2 1.4.3-6.4-5.9-2.6 3.6-5.3-3.6-5.3 5.9-2.6-.3-6.4 6.2 1.4z"
+      />
+      {/* El disco interior lleva SU token y no `--df-surface`: aquí el fondo es el de la tarjeta
+          VIP, que en claro es blanco y necesita un tinte para no leerse como un agujero. */}
+      <circle cx="24" cy="24" r="12.5" fill="var(--vip-seal-bg)" />
+      <circle
+        cx="24"
+        cy="24"
+        r="12.5"
+        fill="none"
+        stroke={`url(#${ID_DEGRADADO_EMBLEMA})`}
+        strokeWidth="1.3"
+      />
+      <path
+        d="M24 13.5l8.5 4.9v9.8L24 33.1l-8.5-4.9v-9.8z"
+        fill={`url(#${ID_DEGRADADO_EMBLEMA})`}
+      />
+      <path d="M24 13.5l8.5 4.9L24 23.3l-8.5-4.9z" fill="var(--vip-gold-deep)" opacity="0.45" />
+    </svg>
+  );
+}
+
 /** El sello en la esquina de un avatar. Lo exporta para que `Avatar` lo monte sin duplicar el SVG. */
 export function SelloVipEsquina({ clase }: { clase?: string }) {
   return <SelloVip clase={clase} />;

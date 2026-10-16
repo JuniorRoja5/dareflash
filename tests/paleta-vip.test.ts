@@ -116,6 +116,81 @@ describe("el sello y la gema se VEN: 3:1, que es el listón de una forma", () =>
   }
 });
 
+describe("NINGÚN color del VIP es el oro del podio", () => {
+  /**
+   * EL CASO QUE FALTABA, y faltaba porque el anterior miraba solo `--vip-gold`.
+   *
+   * `--vip-b` —el paso intermedio del degradado de la tarjeta— valía `#b8860b` en claro, que es
+   * BYTE A BYTE `--df-rank` de ese tema: el oro con el que se marca el puesto 1/2/3. Nadie lo
+   * montaba todavía (el degradado es de P3), así que no se veía en ninguna pantalla; en cuanto el
+   * borde VIP se montó, el oro del podio pasó a estar dentro de él.
+   *
+   * Por eso ahora se miden TODOS los tokens de color de la familia y no uno elegido a mano: un
+   * guard que enumera se queda corto exactamente en el que todavía no existía.
+   */
+  const SOLIDOS = (tema: Map<string, string>): [string, string][] =>
+    [...tema.entries()]
+      .filter(([, v]) => /^#[0-9a-f]{6}$/i.test(v))
+      .map(([k, v]) => [k, v] as [string, string]);
+
+  for (const tema of TEMAS) {
+    it(`en ${tema.nombre}, ningún \`--vip-*\` cae encima de \`--df-rank\``, () => {
+      const rank = hex(tema.df, "--df-rank");
+      expect(rank, "no está --df-rank").not.toBe("");
+      const encima = SOLIDOS(tema.vip)
+        .map(([k, v]) => [k, deltaE(v, rank)] as const)
+        .filter(([, d]) => d < 5)
+        .map(([k, d]) => `${k}: ΔE ${d.toFixed(1)}`);
+      expect(encima, "un color del VIP es el oro del PODIO: dos significados, un valor").toEqual(
+        [],
+      );
+    });
+  }
+
+  it("se midieron de verdad: hay varios tokens sólidos en la familia", () => {
+    // Si el lector dejara de encontrarlos, el caso de arriba pasaría sin comparar nada.
+    expect(SOLIDOS(VIP_OSCURO).length).toBeGreaterThanOrEqual(8);
+    expect(SOLIDOS(VIP_CLARO).length).toBeGreaterThanOrEqual(8);
+  });
+});
+
+describe("el texto de la tarjeta VIP se lee SOBRE SU PROPIO fondo", () => {
+  /**
+   * La tarjeta VIP no usa `--df-surface`: tiene su `--vip-card-bg`. O sea que todas las medidas de
+   * contraste que hace el resto de la paleta —que comparan contra los tres fondos de siempre— no
+   * dicen nada de esta tarjeta. Un fondo nuevo necesita sus propias medidas, y esto es lo que
+   * habría pillado un `--vip-card-bg` elegido a ojo que dejara el texto secundario por debajo.
+   */
+  for (const tema of TEMAS) {
+    const fondo = () => {
+      const v = tema.vip.get("--vip-card-bg") ?? "";
+      expect(v, `no está --vip-card-bg en ${tema.nombre}`).toMatch(/^#[0-9a-f]{6}$/i);
+      return v;
+    };
+
+    it(`${tema.nombre}: el texto principal y el secundario`, () => {
+      expect(contraste(hex(tema.df, "--df-text"), fondo())).toBeGreaterThanOrEqual(7);
+      expect(contraste(hex(tema.df, "--df-text-dim"), fondo())).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it(`${tema.nombre}: los cuatro colores de nombre, encima de la tarjeta`, () => {
+      // El nombre de un VIP se pinta sobre ESTA tarjeta, no sobre la normal.
+      for (const token of Object.values(COLORES_NOMBRE_VIP)) {
+        const color = tema.vip.get(token) ?? "";
+        expect(
+          contraste(color, fondo()),
+          `${token} sobre la tarjeta VIP (${tema.nombre})`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
+    it(`${tema.nombre}: la palabra MYTHIC`, () => {
+      // Va en `--vip-gold` y es TEXTO, así que el listón es el del texto y no el de una forma.
+      expect(contraste(tema.vip.get("--vip-gold") ?? "", fondo())).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+});
+
 describe("el oro del VIP NO es el oro del podio", () => {
   // `--df-rank` marca el puesto 1/2/3 y se puede comprobar; el sello VIP se compra. Si fueran el
   // mismo tono, el sello diría "va primero en el ranking", que es otra cosa — y la forma sola

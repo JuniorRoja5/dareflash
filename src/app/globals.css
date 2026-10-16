@@ -168,10 +168,33 @@
      ------------------------------------------------------------------------------------------ */
   --vip-gold: #ffd24a;
   --vip-gold-deep: #8a5a00;
-  /* Los tres del degradado del borde animado (P3) y del aro del avatar. */
+  /* Los tres del degradado del borde animado y del aro del avatar: verde -> lima -> oro. */
   --vip-a: #2be84b;
   --vip-b: #e8f620;
   --vip-c: #ffcf3f;
+  /* Fuerza del bloom que desborda la tarjeta VIP. Sobre negro puede permitirse mas: la luz suma. */
+  --vip-bloom: 0.55;
+  /* Fondo de la tarjeta VIP y del disco interior del sello. Un pelo mas oscuro que --df-surface
+     para que el borde de luz tenga contra que leerse; el sello comparte valor para que su hueco
+     parezca recortado en la tarjeta y no pegado encima. */
+  --vip-card-bg: #0c120d;
+  --vip-seal-bg: #0c120d;
+  /* EL REFLEJO del emblema grande: el punto donde la luz pega en el metal, arriba del degradado.
+     Es un token y no un literal dentro del SVG por lo de siempre —cero hex fuera de la paleta— y
+     porque en claro tiene que ser OTRO: un reflejo casi blanco sobre el disco crema del tema claro
+     no se ve, y el emblema pierde el volumen que el degradado existe para dar. */
+  --vip-gold-light: #fff0b0;
+  /* MOVIMIENTO DE LA TARJETA VIP. Valen lo mismo en los dos temas y eso es lo correcto: una
+     duracion no depende del fondo. Se repiten en el bloque claro, como `--df-dur-fast`, para que
+     el guard de simetria siga exigiendo que todo token exista en los dos sitios.
+       - GIRO del borde y del aro. Lento: es una firma, no un reclamo, y hay DOS capas girando a la
+         vez (el borde y su bloom) que tienen que ir sincronizadas o se ve un desfase.
+       - BARRIDO diagonal. Mas largo que el giro porque pasa UNA vez por ciclo: se quiere que se
+         note de refilon, no que barra sin parar.
+       - FLOTE del emblema grande del perfil. */
+  --vip-dur-giro: 6000ms;
+  --vip-dur-barrido: 7000ms;
+  --vip-dur-flote: 5000ms;
 
   /* ------------------------------------------------------------------------------------------
      LOS COLORES DE NOMBRE QUE PUEDE ELEGIR UN VIP, uno por opcion del catalogo.
@@ -290,8 +313,29 @@
   --vip-gold: #9a6b00;
   --vip-gold-deep: #5c3f00;
   --vip-a: #15803d;
-  --vip-b: #b8860b;
+  /* EL PASO LIMA, Y AQUI VA SU PORQUE: estaba en #b8860b, que es BYTE A BYTE el `--df-rank` de
+     este tema. O sea que el degradado de la tarjeta VIP llevaba dentro el oro del PODIO, el color
+     con el que se marca el puesto 1/2/3 — dos significados en un valor, que es justo lo que la
+     paleta no admite. Ademas no era ni lima: era dorado, asi que el degradado perdia su paso
+     intermedio y pasaba de verde a oro con una escala de oro en medio.
+     MEDIDO: dE 23,5 contra `--df-rank` claro (en oscuro esa misma distancia es 18,1, asi que aqui
+     queda incluso mas separado), y mantiene el orden de separaciones de los tres pasos. */
+  --vip-b: #647a00;
   --vip-c: #9a6b00;
+  /* Sobre blanco el bloom solo puede ENSUCIAR, no iluminar: la mitad que en oscuro. Mismo
+     razonamiento que `--df-halo-fuerza`. */
+  --vip-bloom: 0.32;
+  /* En claro la tarjeta es la tarjeta de siempre; lo que la marca es el borde, no el fondo. El
+     hueco del sello si se tinta: un disco blanco dentro de un sello dorado se lee como un agujero. */
+  --vip-card-bg: #ffffff;
+  --vip-seal-bg: #fff7e0;
+  /* El reflejo, subido de saturacion y bajado de luz: sobre el disco crema de este tema hace falta
+     un oro claro de verdad, no un blanco amarillento que se funde con el fondo. */
+  --vip-gold-light: #d9a319;
+  /* Las duraciones, repetidas a proposito: no dependen del tema. Ver el bloque oscuro. */
+  --vip-dur-giro: 6000ms;
+  --vip-dur-barrido: 7000ms;
+  --vip-dur-flote: 5000ms;
 
   /* LOS COLORES DE NOMBRE, bajados para leerse sobre blanco. MEDIDOS, no elegidos a ojo: un nombre
      es TEXTO, asi que cada uno pasa de 4,5:1 (AA) contra los TRES fondos claros —tarjeta, pagina y
@@ -701,4 +745,220 @@
  * --------------------------------------------------------------------------------------------- */
 .df-nombre-vip {
   color: var(--vip-name, var(--df-action));
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * LA TARJETA DE IDENTIDAD DE UN PERFIL VIP (Fase 8 · P3). Borde de luz que gira, bloom que lo
+ * desborda y un barrido diagonal. SOLO la monta un perfil de VIP ACTIVO: quien no lo es recibe la
+ * tarjeta de siempre, sin un envoltorio de mas (ver `perfil-vista`).
+ *
+ * ┌─ GIRA LA CAPA, NO EL ANGULO DEL DEGRADADO ──────────────────────────────────────────────────┐
+ * │ La forma corta de esto es animar el angulo del conico con una custom property registrada    │
+ * │ (`@property --giro: <angle>`). Funciona, y es lo que trae la maqueta — pero cada fotograma   │
+ * │ cambia el `background`, asi que el navegador RE-RASTERIZA el degradado sesenta veces por     │
+ * │ segundo, y el bloom ademas con un desenfoque de 26 px encima. Es justo lo que prohibe el     │
+ * │ guard de `glow-por-tema`: un bucle solo puede animar `opacity` o `transform`, que son las    │
+ * │ dos cosas que resuelve el compositor sin repintar.                                           │
+ * │                                                                                              │
+ * │ Asi que lo que gira es la CAPA: un cuadrado con el conico pintado UNA vez al que se le aplica│
+ * │ `transform: rotate()`. Mismo resultado a la vista y sin repintado. El precio es un nodo mas  │
+ * │ (`df-vip-borde`), porque el cuadrado hay que recortarlo a la tarjeta y el bloom tiene que    │
+ * │ quedar FUERA de ese recorte para poder desbordar.                                             │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ POR QUE LOS CUADRADOS SON TAN GRANDES ─────────────────────────────────────────────────────┐
+ * │ Una caja rectangular girando deja las esquinas sin cubrir la mitad del giro. Para que el     │
+ * │ borde no parpadee, la capa tiene que ser un CUADRADO de lado mayor que la diagonal de la     │
+ * │ tarjeta: `height: 200%` + `aspect-ratio: 1`. Vale porque esta tarjeta es una COLUMNA (mas    │
+ * │ alta que ancha) en todas las anchuras; apaisada, 2x el alto ya no cubriria la diagonal.      │
+ * │ No cuesta memoria: el recorte del padre limita lo que se rasteriza de verdad.                 │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * NINGUNA REGLA DE AQUI LLEVA `!important`, y es deliberado: la regla global de
+ * `prefers-reduced-motion` de arriba apaga animaciones con `!important` sobre `*`, `*::before` y
+ * `*::after`. Un `animation: … !important` aqui le ganaria y la tarjeta seguiria girando para
+ * quien ha pedido que no se mueva nada.
+ * --------------------------------------------------------------------------------------------- */
+@keyframes df-vip-giro {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* El barrido se para casi todo el ciclo (0%..70%) y cruza en el tramo final: una pasada cada siete
+   segundos. Barriendo sin parar seria un reclamo, y esto es una firma.
+   Se mueve con `translateX` y no con `left` por lo mismo que el giro: `left` repinta. El recorrido
+   es 327% de su propio ancho, que es el 180% del ancho de la tarjeta.
+
+   ┌─ Y SE APAGA CON `opacity`, QUE NO ES ADORNO ───────────────────────────────────────────────┐
+   │ `skewX(-18deg)` sobre una banda tan alta como la tarjeta la desplaza en horizontal hasta    │
+   │ `tan(18°) × alto/2`. En el perfil propio, que pasa de 2000 px en movil, eso son mas de 300  │
+   │ px: la mitad de arriba de la banda se mete DENTRO de la tarjeta aunque su caja este fuera.  │
+   │ Resultado: la franja asomaba por la izquierda durante el 70% del ciclo en el que deberia    │
+   │ estar escondida, y con `prefers-reduced-motion` se quedaba ahi CONGELADA — peor que no      │
+   │ tenerla. Se vio en una captura con la preferencia puesta.                                   │
+   │                                                                                             │
+   │ Sacarla del todo exigiria un reposo calculado a partir del ALTO, y en CSS no hay forma de   │
+   │ meter el alto del padre en una medida horizontal. Con `opacity` el reposo es invisible      │
+   │ siempre, mida lo que mida la tarjeta — y `opacity` es de las dos que el compositor resuelve │
+   │ sin repintar, asi que no cuesta nada.                                                       │
+   └─────────────────────────────────────────────────────────────────────────────────────────────┘ */
+@keyframes df-vip-barrido {
+  0%,
+  70% {
+    transform: translateX(0) skewX(-18deg);
+    opacity: 0;
+  }
+  76%,
+  82% {
+    opacity: 1;
+  }
+  88%,
+  100% {
+    transform: translateX(327%) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
+@keyframes df-vip-flote {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* EL MARCO: solo aporta el borde y el bloom. El contenido va en `.df-vip-tarjeta`. */
+/* `isolation: isolate` NO es decorativo: el bloom y el aro se pintan con `z-index: -1`, y un
+   `z-index` negativo va a la capa negativa de su CONTEXTO DE APILADO, no "justo detrás del
+   hermano". Sin un contexto propio, esa capa es la del primer ancestro que lo cree —el `aside`
+   pegajoso en escritorio, y en móvil cualquier cosa hasta la raíz—, así que el fondo OPACO de
+   la tarjeta se pintaba por encima y el aro del avatar desaparecía entero. Aislando aquí, la
+   capa negativa es de esta caja: el bloom sale por fuera y el aro se ve. */
+.df-vip-marco {
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--radius-sm, 12px);
+}
+
+/* EL BLOOM: la luz que desborda la tarjeta. Vive en el marco —que NO recorta— para poder salirse;
+   el borde vive dentro, donde si se recorta.
+   ┌─ Y ES EL UNICO QUE NO GIRA ────────────────────────────────────────────────────────────────┐
+   │ Girar obliga a que la capa sea un CUADRADO mayor que la diagonal: si no, las esquinas se    │
+   │ descubren a media vuelta. Y un cuadrado de ese tamano, desenfocado, deja de ser el halo de  │
+   │ una tarjeta — se come la pantalla entera de verde. Se vio a la primera en una captura, y no │
+   │ lo habria visto ningun test.                                                                │
+   │                                                                                             │
+   │ La silueta del bloom TIENE que ser la de la tarjeta, asi que la caja va a `inset: -14px` y  │
+   │ se queda quieta. A 26 px de desenfoque, que gire o no es invisible: lo que se lee es una    │
+   │ mancha de luz con los tres colores, no de donde viene cada uno.                             │
+   └─────────────────────────────────────────────────────────────────────────────────────────────┘ */
+.df-vip-marco::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: calc(var(--radius-sm, 12px) + 14px);
+  z-index: -1;
+  background: conic-gradient(var(--vip-a), var(--vip-b), var(--vip-c), var(--vip-b), var(--vip-a));
+  filter: blur(26px);
+  opacity: var(--vip-bloom);
+  pointer-events: none;
+}
+
+/* EL BORDE: la caja que RECORTA. El conico gira dentro y la tarjeta opaca tapa el centro, asi que
+   lo unico que queda a la vista son los 2 px del canto. Sin mascaras: un `mask-composite` haria lo
+   mismo, pero sobre una capa que gira obliga a recomponer la mascara en cada fotograma. */
+.df-vip-borde {
+  position: relative;
+  overflow: hidden;
+  border-radius: inherit;
+  padding: 2px;
+}
+
+.df-vip-borde::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  height: 200%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(var(--vip-a), var(--vip-b), var(--vip-c), var(--vip-b), var(--vip-a));
+  animation: df-vip-giro var(--vip-dur-giro) linear infinite;
+}
+
+/* `position: relative` la pone por ENCIMA del conico: los dos son hermanos en la capa de los
+   posicionados y gana el ultimo del DOM. Sin esto, el degradado taparia la tarjeta entera. */
+.df-vip-tarjeta {
+  position: relative;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--vip-card-bg);
+}
+
+/* EL BARRIDO, en el tono del oro VIP. `overflow: hidden` del padre lo recorta a la tarjeta. */
+.df-vip-tarjeta::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 55%;
+  height: 100%;
+  pointer-events: none;
+  /* 90deg, y la diagonal la pone el `skewX` de abajo. La maqueta inclinaba TAMBIEN el degradado
+     (100deg) y aqui no vale: con 100deg las lineas del degradado van tumbadas, asi que a lo largo
+     de una tarjeta alta —la del perfil propio pasa de 900 px— el degradado se desplaza mas que el
+     propio ancho de la banda y se sale por el canto antes de haberse apagado. Lo que se veia no
+     era un brillo: era una cuna con un corte recto. Con 90deg la banda se apaga por los dos lados
+     a cualquier altura, y la inclinacion sigue estando. */
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--vip-gold) 26%, transparent),
+    transparent
+  );
+  transform: translateX(0) skewX(-18deg);
+  /* EL REPOSO ES INVISIBLE. Importa mas de lo que parece: `prefers-reduced-motion` apaga la
+     animacion y el elemento se queda en SU ESTADO BASE, que es este. Con `opacity: 1` aqui, quien
+     pide que nada se mueva veria la franja clavada encima de la tarjeta para siempre. */
+  opacity: 0;
+  animation: df-vip-barrido var(--vip-dur-barrido) ease-in-out infinite;
+}
+
+/* EL EMBLEMA GRANDE flota y lleva su propio resplandor. `drop-shadow` y no `box-shadow`: el
+   emblema es un SVG con forma de estrella, y una sombra de caja le dibujaria un rectangulo. */
+.df-vip-emblema {
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--vip-gold) 55%, transparent));
+  animation: df-vip-flote var(--vip-dur-flote) ease-in-out infinite;
+}
+
+/* EL ARO del avatar: el mismo degradado girando, desenfocado y por detras. El envoltorio tiene que
+   ser `relative` para que el aro se posicione contra el, y `inline-flex` para que no se estire. */
+.df-vip-aro {
+  position: relative;
+  display: inline-flex;
+  /* Por lo mismo que el marco: sin contexto propio, el aro cae en la capa negativa de un ancestro
+     y el fondo de la tarjeta lo tapa del todo. Ver el porqué largo arriba. */
+  isolation: isolate;
+}
+
+.df-vip-aro::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  /* Aqui el cuadrado sale redondo igual: el avatar es un circulo, asi que basta con cubrirlo con
+     holgura para el desenfoque. */
+  height: calc(100% + 12px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  z-index: -1;
+  background: conic-gradient(var(--vip-a), var(--vip-b), var(--vip-c), var(--vip-a));
+  filter: blur(6px);
+  opacity: 0.85;
+  animation: df-vip-giro var(--vip-dur-giro) linear infinite;
+  pointer-events: none;
 }

@@ -7,6 +7,7 @@ import { Boton } from "@/components/ui/boton";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
 import {
   conHandleSecundario,
+  EmblemaVipGrande,
   HandleUsuario,
   NombreUsuario,
   textoNombre,
@@ -64,6 +65,73 @@ function Estadistica({ valor, etiqueta }: { valor: number; etiqueta: string }) {
       </p>
       <p className="mt-0.5 text-2xs tracking-widest text-text-dim uppercase">{etiqueta}</p>
     </div>
+  );
+}
+
+/**
+ * LA TARJETA DE IDENTIDAD, con o sin el tratamiento VIP.
+ *
+ * ┌─ UN NO-VIP RECIBE EXACTAMENTE EL MISMO NODO DE SIEMPRE ─────────────────────────────────────┐
+ * │ No un envoltorio transparente, no un `div` de más con las clases vacías: el MISMO `div` con │
+ * │ las MISMAS clases que antes de la Fase 8. Esa es la disciplina que ya se siguió con el      │
+ * │ nombre y con el avatar en P2, y vale por lo mismo: la inmensa mayoría de la gente no es     │
+ * │ VIP, y un nodo de más en su tarjeta es una maqueta que se mueve para todos ellos a cambio   │
+ * │ de nada.                                                                                     │
+ * │                                                                                              │
+ * │ Y es lo que hace comprobable el candado: el guard compara el render de un no-VIP contra la  │
+ * │ forma de siempre, y cualquier filtración del tratamiento sale en rojo.                      │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * TRES CAPAS, y cada una hace una cosa que las otras no pueden:
+ *   - `df-vip-marco` NO recorta, y por eso es quien puede llevar el bloom que desborda;
+ *   - `df-vip-borde` SÍ recorta, y por eso es quien puede llevar el cuadrado de luz que gira —al
+ *     recortarlo, lo único que queda a la vista son sus 2 px de canto;
+ *   - `df-vip-tarjeta` pone el fondo opaco (que tapa el centro del cuadrado) y recorta el barrido.
+ * Son tres porque recortar y desbordar son incompatibles en la misma caja.
+ */
+function TarjetaIdentidad({ esVip, children }: { esVip: boolean; children: ReactNode }) {
+  if (!esVip) {
+    return (
+      <div className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md">
+        {children}
+      </div>
+    );
+  }
+  return (
+    <div className="df-vip-marco df-rise shadow-[var(--df-shadow-md)]">
+      <div className="df-vip-borde">
+        <div className="df-vip-tarjeta p-6">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * LO QUE TRAE EL PLAN, como etiquetas. No son controles y no pretenden serlo: describen qué
+ * incluye Mythic, igual que la letra pequeña de un plan.
+ *
+ * ESTÁN ESCRITAS AQUÍ Y NO EN `constants` a propósito: no son una configuración del producto —no
+ * hay nada que leer ni comparar contra ellas—, son el copy de esta tarjeta. El día que un perk
+ * tenga una CIFRA que dependa de verdad del plan (cuántos Boosts, por ejemplo), esa cifra sí sale
+ * de la constante y entra aquí por parámetro; hoy el "×1" es copy, no un dato.
+ */
+function PerksVip() {
+  return (
+    <ul data-vip-perks className="mt-4 flex flex-wrap justify-center gap-2">
+      {[
+        { texto: "Boost semanal", cifra: "×1" },
+        { texto: "Acceso anticipado", cifra: null },
+        { texto: "Perfil animado", cifra: null },
+      ].map((p) => (
+        <li
+          key={p.texto}
+          className="inline-flex items-center gap-1.5 rounded-full border border-action/40 bg-action/8 px-2.5 py-1 text-2xs font-semibold text-text"
+        >
+          {p.texto}
+          {p.cifra ? <b className="font-bold tabular-nums text-money">{p.cifra}</b> : null}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -127,9 +195,32 @@ export function PerfilVista({
       <div className="lg:grid lg:grid-cols-[320px_1fr] lg:gap-8">
         {/* IDENTIDAD (aside) */}
         <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md">
+          <TarjetaIdentidad esVip={esVip}>
             <div className="flex flex-col items-center text-center">
-              <Avatar nombre={nombre} tamano="xl" imagen={imagen} puntos={puntos} esVip={esVip} />
+              {/* EL EMBLEMA Y LA PALABRA, solo para un VIP: es la cabecera de la tarjeta completa.
+                  Van DENTRO del bloque centrado para que caigan en el mismo eje que la cara y el
+                  nombre; separarlos los descuadraba medio pixel en escritorio. */}
+              {esVip ? (
+                <>
+                  <EmblemaVipGrande clase="df-vip-emblema h-[76px] w-[76px]" />
+                  <p
+                    data-vip-palabra
+                    className="mt-1 text-2xs font-black tracking-[0.22em] text-[var(--vip-gold)] uppercase"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    Mythic
+                  </p>
+                </>
+              ) : null}
+              {/* El AVATAR del VIP lleva además el aro de luz. El envoltorio solo existe para un
+                  VIP: sin él, el avatar de todos los demás se pinta exactamente como siempre. */}
+              {esVip ? (
+                <span className="df-vip-aro mt-3.5">
+                  <Avatar nombre={nombre} tamano="xl" imagen={imagen} puntos={puntos} esVip />
+                </span>
+              ) : (
+                <Avatar nombre={nombre} tamano="xl" imagen={imagen} puntos={puntos} />
+              )}
               <p className="mt-3 max-w-full truncate text-lg font-semibold text-text">
                 <NombreUsuario
                   displayName={displayName}
@@ -190,6 +281,11 @@ export function PerfilVista({
               <Estadistica valor={totalVideos} etiqueta="Vídeos" />
             </div>
 
+            {/* LO QUE INCLUYE EL PLAN. Son ETIQUETAS, no controles: dicen qué trae ser Mythic, y
+                por eso van en `<span>` y no en botones. Un chip que parece pulsable y no lo es es
+                la misma trampa que un botón mudo, y el perfil ya tuvo uno. */}
+            {esVip ? <PerksVip /> : null}
+
             {/* Boost = acción de pago = ÚNICO acento: solo en el perfil PROPIO.
                 LLEVA A /boosts, y antes no llevaba a ninguna parte: era un `<Boton>` sin `href` ni
                 `onClick`, o sea el mismo botón mudo que el corazón de adorno del feed y el de
@@ -246,7 +342,7 @@ export function PerfilVista({
                 <CerrarSesion className="mt-3" />
               </>
             ) : null}
-          </div>
+          </TarjetaIdentidad>
         </aside>
 
         {/* VIDEOS (columna principal): rejilla multicolumna 9:16 con el póster real. */}
