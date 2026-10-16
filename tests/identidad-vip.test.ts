@@ -159,7 +159,30 @@ describe("la puerta del color: solo pasa un token nuestro, entero", () => {
   });
 
   it("y el estilo lo pone como VARIABLE, nunca como `color:` suelto", () => {
-    expect(estiloNombreVip("oro")).toEqual({ "--vip-name": "var(--vip-nombre-oro)" });
+    expect(estiloNombreVip("verde")).toEqual({ "--vip-name": "var(--vip-nombre-verde)" });
+  });
+
+  /**
+   * UNA CLAVE RETIRADA SE TRATA COMO "SIN COLOR" — y este caso es lo que permite encoger el
+   * catálogo sin migrar la columna de nadie.
+   *
+   * "oro" estuvo en el set y salió: en el tema oscuro el nombre dorado queda a dE 6,4 de
+   * `--df-rank`, así que en el podio se leía como el oro del PUESTO. Quien lo tuviera guardado no
+   * puede romper nada: ni una excepción, ni un `var(--vip-nombre-oro)` apuntando a un token que ya
+   * no existe (que dejaría el nombre en `currentColor`, indistinguible, sin que fallara nada).
+   */
+  it("una clave RETIRADA del catálogo se pinta como un nombre normal", () => {
+    expect(colorDeNombre("oro")).toBeNull();
+    expect(estiloNombreVip("oro")).toBeUndefined();
+    // Y el token tampoco sigue por ahí: un valor huérfano en el CSS es el otro medio arreglo.
+    expect(Object.values(COLORES_NOMBRE_VIP)).not.toContain("--vip-nombre-oro");
+  });
+
+  it("el dorado NO es un color de nombre, pero SÍ sigue siendo el del sello", () => {
+    // La decisión es "el oro no colorea texto", no "fuera el oro": el sello y la gema se separan
+    // del podio por FORMA —estrella con gema contra medalla redonda—, así que ahí no chocan.
+    expect(Object.keys(COLORES_NOMBRE_VIP)).not.toContain("oro");
+    expect(leer("components/ui/identidad-usuario.tsx")).toContain("var(--vip-gold)");
   });
 
   /**
@@ -172,19 +195,19 @@ describe("la puerta del color: solo pasa un token nuestro, entero", () => {
     "#e8f620;}</style><script>alert(1)</script>",
     "E8F620;}</STYLE><SCRIPT>ALERT(1)</SCRIPT>",
     "#E8F620;}</STYLE><SCRIPT>ALERT(1)</SCRIPT>",
-    "--vip-nombre-oro;}</style>",
-    "--vip-nombre-oro)</style>",
+    "--vip-nombre-verde;}</style>",
+    "--vip-nombre-verde)</style>",
     "red;}body{display:none",
-    "var(--vip-nombre-oro)",
+    "var(--vip-nombre-verde)",
     "expression(alert(1))",
     "url(javascript:alert(1))",
     "#fff",
     "#FFFFFF",
     "#e8f620",
-    "oro ",
-    " oro",
-    "ORO",
-    "Oro",
+    "verde ",
+    " verde",
+    "VERDE",
+    "Verde",
     "",
     "undefined",
     "__proto__",
@@ -208,12 +231,12 @@ describe("la puerta del color: solo pasa un token nuestro, entero", () => {
   });
 
   it("el patrón está anclado por los DOS extremos", () => {
-    // Con `\b` en vez de `$`, "--vip-nombre-oro</style>" casaría y la carga entraría entera.
+    // Con `\b` en vez de `$`, "--vip-nombre-verde</style>" casaría y la carga entraría entera.
     expect(TOKEN_CSS.source.startsWith("^")).toBe(true);
     expect(TOKEN_CSS.source.endsWith("$")).toBe(true);
-    expect(TOKEN_CSS.test("--vip-nombre-oro</style>")).toBe(false);
-    expect(TOKEN_CSS.test(" --vip-nombre-oro")).toBe(false);
-    expect(TOKEN_CSS.test("--vip-nombre-oro ")).toBe(false);
+    expect(TOKEN_CSS.test("--vip-nombre-verde</style>")).toBe(false);
+    expect(TOKEN_CSS.test(" --vip-nombre-verde")).toBe(false);
+    expect(TOKEN_CSS.test("--vip-nombre-verde ")).toBe(false);
   });
 
   it("el catálogo no contiene NADA que no sea un token: la 1ª capa tampoco cede", () => {
@@ -239,16 +262,19 @@ describe("la puerta del color: solo pasa un token nuestro, entero", () => {
         await vi.importActual<typeof import("../src/config/constants")>("@/config/constants");
       return {
         ...real,
+        // SE ENVENENA UNA CLAVE VIVA, y eso no es un detalle: con una clave que ya no existe en
+        // el catálogo, quien la rechazaría sería el `enum` —antes de llegar al guard del token—,
+        // y este caso pasaría en verde sin haber ejercitado la segunda capa ni una vez.
         COLORES_NOMBRE_VIP: {
           ...real.COLORES_NOMBRE_VIP,
-          oro: "--vip-nombre-oro;}</style><script>alert(1)</script>",
+          lima: "--vip-nombre-lima;}</style><script>alert(1)</script>",
         },
       };
     });
     try {
       const envenenado = await import("../src/lib/color-nombre");
-      expect(envenenado.colorDeNombre("oro")).toBeNull();
-      expect(envenenado.estiloNombreVip("oro")).toBeUndefined();
+      expect(envenenado.colorDeNombre("lima")).toBeNull();
+      expect(envenenado.estiloNombreVip("lima")).toBeUndefined();
       // Las demás claves siguen funcionando: el guard para LO MALO, no la función entera.
       expect(envenenado.colorDeNombre("verde")).toBe("var(--vip-nombre-verde)");
     } finally {
@@ -286,10 +312,12 @@ describe("la puerta del SERVIDOR: lo que se guarda es una clave, no un color", (
       "#E8F620",
       "e8f620;}</style><script>alert(1)</script>",
       "#e8f620;}</style>",
-      "var(--vip-nombre-oro)",
-      "--vip-nombre-oro",
-      "ORO",
-      "oro ",
+      "var(--vip-nombre-verde)",
+      "--vip-nombre-verde",
+      "VERDE",
+      "verde ",
+      // Las retiradas entran por aquí igual que cualquier palabra que no esté en la lista.
+      "oro",
       "rojo",
       "",
       0,
@@ -309,6 +337,7 @@ describe("la puerta del SERVIDOR: lo que se guarda es una clave, no un color", (
     for (const clave of Object.keys(COLORES_NOMBRE_VIP)) {
       expect(colorDeNombre(clave)).not.toBeNull();
     }
-    expect(Object.keys(COLORES_NOMBRE_VIP)).toHaveLength(5);
+    // Cuatro: verde, lima, diamante y fuego. El dorado salió por chocar con el oro del podio.
+    expect(Object.keys(COLORES_NOMBRE_VIP).sort()).toEqual(["diamante", "fuego", "lima", "verde"]);
   });
 });

@@ -171,9 +171,13 @@ model User {
   rachaUltimoEn DateTime? @db.Date
 
   /// --- VIP Mythic (Fase 8) ---
-  /// COLOR DEL NOMBRE elegido por un VIP. Se guarda la CLAVE del catalogo ("oro", "diamante"…), no
-  /// el color: reescribir un tono para que se lea mejor reescribe tambien los nombres ya elegidos,
-  /// en vez de congelarlos. Mismo patron que `Challenge.nivelMinimo`.
+  /// COLOR DEL NOMBRE elegido por un VIP. Se guarda la CLAVE del catalogo ("verde", "diamante"…),
+  /// no el color: reescribir un tono para que se lea mejor reescribe tambien los nombres ya
+  /// elegidos, en vez de congelarlos. Mismo patron que `Challenge.nivelMinimo`.
+  ///
+  /// Y POR ESO RETIRAR UNA OPCION NO NECESITA MIGRACION: una clave que ya no esta en el catalogo
+  /// no casa, `colorDeNombre` devuelve null y ese nombre se pinta normal. Paso al quitar el
+  /// dorado del set.
   ///
   /// Y GUARDAR LA CLAVE ES ADEMAS LA DEFENSA: lo que acaba en una declaracion CSS sale del catalogo
   /// de `constants`, nunca de esta columna. Aunque alguien escribiera aqui una carga a mano, no

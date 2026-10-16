@@ -4,8 +4,8 @@ import { COLORES_NOMBRE_VIP, ColorNombreSchema, TOKEN_CSS } from "@/config/const
  * EL COLOR DEL NOMBRE DE UN VIP — y la puerta que impide que un valor del usuario entre en el CSS.
  *
  * ┌─ POR QUÉ ESTO EXISTE AUNQUE EL COLOR SALGA DE UNA LISTA CERRADA ─────────────────────────────┐
- * │ Lo que el cliente manda es una CLAVE ("oro"), no un color, así que en teoría nada suyo llega │
- * │ nunca a una hoja de estilos. Esta función es la SEGUNDA capa, y existe porque la primera se  │
+ * │ Lo que el cliente manda es una CLAVE ("verde"), no un color, así que en teoría nada suyo    │
+ * │ llega nunca a una hoja de estilos. Es la SEGUNDA capa, y existe porque la primera se         │
  * │ puede perder sin que nada falle: basta con que algún día alguien añada "color personalizado" │
  * │ y escriba `style={{ "--vip-name": loQueMandó }}`. Ahí, un valor como                          │
  * │ `e8f620;}</style><script>…` deja de ser un color y pasa a ser el cierre de la regla, el de   │
@@ -20,9 +20,14 @@ import { COLORES_NOMBRE_VIP, ColorNombreSchema, TOKEN_CSS } from "@/config/const
  */
 
 /**
- * La clave elegida -> la referencia CSS que la pinta (`var(--vip-nombre-oro)`). `null` si la clave
- * no es una de las nuestras, y `null` quiere decir "píntalo como un nombre normal", nunca "pon lo
- * que venga".
+ * La clave elegida -> la referencia CSS que la pinta (`var(--vip-nombre-verde)`). `null` si la
+ * clave no es una de las nuestras, y `null` quiere decir "píntalo como un nombre normal", nunca
+ * "pon lo que venga".
+ *
+ * ESO CUBRE TAMBIÉN LAS CLAVES RETIRADAS, que es lo que hace que el catálogo se pueda encoger sin
+ * migrar nada: el día que una opción sale del set (pasó con el dorado), quien la tuviera guardada
+ * deja de casar y su nombre vuelve a pintarse normal. Ni un crash, ni un color colgado de un token
+ * que ya no existe.
  *
  * Devuelve un `var(…)` y no un color porque el VALOR depende del tema: una misma opción del
  * catálogo es un tono vivo sobre negro y uno bastante más apagado sobre blanco, y quien sabe eso es

@@ -47,8 +47,10 @@ describe("los tokens VIP existen en los DOS temas", () => {
   it("se leyeron de verdad (si no, lo de abajo no mide nada)", () => {
     // Sin esto, un cambio de formato en el CSS dejaría los mapas vacíos y TODO lo de abajo pasaría
     // en verde sin comparar un solo color. Es el fallo clásico de un guard que lee ficheros.
-    expect(VIP_OSCURO.size).toBeGreaterThanOrEqual(10);
-    expect(VIP_CLARO.size).toBeGreaterThanOrEqual(10);
+    //
+    // NUEVE: los dos del oro del sello, los tres del degradado y los CUATRO colores de nombre.
+    expect(VIP_OSCURO.size).toBeGreaterThanOrEqual(9);
+    expect(VIP_CLARO.size).toBeGreaterThanOrEqual(9);
   });
 
   it("ningún token vive en un tema y falta en el otro", () => {

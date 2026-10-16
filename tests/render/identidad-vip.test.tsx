@@ -46,13 +46,13 @@ describe("NombreUsuario", () => {
   });
 
   it("un VIP lleva gema y el color en una VARIABLE, no en un `color:` suelto", () => {
-    render(<NombreUsuario username="ana" prefijo esVip colorNombre="oro" />);
+    render(<NombreUsuario username="ana" prefijo esVip colorNombre="lima" />);
     expect(gema()).not.toBeNull();
     const pintado = nombreVip()!;
     expect(pintado.textContent).toBe("@ana");
     // El valor es una referencia a un token: así cada tema pone el suyo. Un hex aquí solo se vería
     // bien en uno de los dos.
-    expect(pintado.getAttribute("style")).toContain("--vip-name: var(--vip-nombre-oro)");
+    expect(pintado.getAttribute("style")).toContain("--vip-name: var(--vip-nombre-lima)");
   });
 
   it("un VIP SIN color elegido: marca sí, color no (se queda con el de respaldo del CSS)", () => {
@@ -61,6 +61,17 @@ describe("NombreUsuario", () => {
     // Sin `--vip-name`, `.df-nombre-vip` cae en el acento del sistema. Lo que NO puede es traer una
     // variable vacía o con basura.
     expect(nombreVip()!.getAttribute("style")).toBeNull();
+  });
+
+  it("una clave RETIRADA del catálogo: marca sí, color no", () => {
+    // "oro" estuvo en el set y salió (chocaba con el oro del podio). Quien lo tuviera guardado
+    // sigue siendo VIP y conserva su sello y su gema; lo único que pierde es el color, que vuelve
+    // al de respaldo. Ni un `var(--vip-nombre-oro)` apuntando a un token que ya no existe —eso
+    // dejaría el nombre en `currentColor`, indistinguible, sin que fallara nada.
+    render(<NombreUsuario username="ana" prefijo esVip colorNombre="oro" />);
+    expect(gema()).not.toBeNull();
+    expect(nombreVip()!.getAttribute("style")).toBeNull();
+    expect(document.body.innerHTML).not.toContain("--vip-nombre-oro");
   });
 
   it("una clave inventada NO pinta nada: ni color, ni variable", () => {
@@ -73,7 +84,7 @@ describe("NombreUsuario", () => {
   it("el color NO se filtra a quien no es VIP, aunque traiga una clave guardada", () => {
     // Pasa de verdad: quien se suscribe, elige color y deja de pagar conserva su `colorNombre`.
     // La elección se guarda; lo que caduca es el derecho a verla pintada.
-    render(<NombreUsuario username="ana" prefijo esVip={false} colorNombre="oro" />);
+    render(<NombreUsuario username="ana" prefijo esVip={false} colorNombre="lima" />);
     expect(nombreVip()).toBeNull();
     expect(gema()).toBeNull();
     expect(document.body.innerHTML).not.toContain("--vip-name");
@@ -194,7 +205,7 @@ describe("la marca llega hasta las superficies (no se queda en la primitiva)", (
 
 describe("la marca no se anima: el feed es lo más caro que hay", () => {
   it("ni el sello, ni la gema, ni el nombre", () => {
-    render(<NombreUsuario username="ana" prefijo esVip colorNombre="oro" />);
+    render(<NombreUsuario username="ana" prefijo esVip colorNombre="lima" />);
     render(<Avatar nombre="ana" esVip />);
     for (const el of [sello()!, gema()!, nombreVip()!]) {
       expect(el.className.baseVal ?? el.className).not.toMatch(

@@ -282,13 +282,28 @@ describe("los comentarios: la lista también en lote, y el suelto de uno en uno"
 describe("el color viaja con la fila, y es la CLAVE", () => {
   it("el feed trae la clave elegida, no un color", async () => {
     const quien = await crearUsuario(prisma, { username: "con_color" });
+    await prisma.user.update({ where: { id: quien }, data: { colorNombre: "diamante" } });
+    await suscribir(quien, { vigente: true });
+    await publicar(quien, 1);
+
+    const { items } = await feedPublicado(prisma, { firmar, ahora: AHORA });
+    expect(items[0]!.colorNombre).toBe("diamante");
+    expect(items[0]!.colorNombre).not.toMatch(/^#/);
+  });
+
+  it("una clave RETIRADA viaja igual, y es el componente quien no la pinta", async () => {
+    // La columna es texto libre a ojos de la BD, así que puede traer una clave de un set anterior
+    // —"oro" salió del catálogo— o cualquier cosa escrita a mano. El servicio NO la limpia: la
+    // limpieza en el servicio sería una segunda verdad sobre qué colores existen, y la verdad
+    // vive en el catálogo. Quien la descarta es `colorDeNombre`, al pintar.
+    const quien = await crearUsuario(prisma, { username: "clave_retirada" });
     await prisma.user.update({ where: { id: quien }, data: { colorNombre: "oro" } });
     await suscribir(quien, { vigente: true });
     await publicar(quien, 1);
 
     const { items } = await feedPublicado(prisma, { firmar, ahora: AHORA });
+    expect(items[0]!.autorVip).toBe(true);
     expect(items[0]!.colorNombre).toBe("oro");
-    expect(items[0]!.colorNombre).not.toMatch(/^#/);
   });
 
   it("y viaja aunque la suscripción esté vencida: lo que caduca es verla, no la elección", async () => {

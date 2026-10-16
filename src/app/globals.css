@@ -184,10 +184,14 @@
 
      `constants.ts` guarda la CLAVE -> el NOMBRE DEL TOKEN. El valor vive aqui, que es donde vive
      la paleta, y por eso aqui si se nombran por su color: es la definicion.
+
+     NO HAY UN DORADO AQUI, y es una decision medida: un nombre dorado queda a dE 6,4 de
+     `--df-rank` en este tema, o sea que en el podio se lee como el oro del PUESTO. El oro del VIP
+     vive en `--vip-gold` (el sello y la gema), que se separa del podio por FORMA. Ver el porque
+     largo en `COLORES_NOMBRE_VIP`.
      ------------------------------------------------------------------------------------------ */
   --vip-nombre-verde: #2be84b;
   --vip-nombre-lima: #e8f620;
-  --vip-nombre-oro: #ffd24a;
   --vip-nombre-diamante: #22d3ee;
   --vip-nombre-fuego: #ff8c42;
 
@@ -291,17 +295,14 @@
 
   /* LOS COLORES DE NOMBRE, bajados para leerse sobre blanco. MEDIDOS, no elegidos a ojo: un nombre
      es TEXTO, asi que cada uno pasa de 4,5:1 (AA) contra los TRES fondos claros —tarjeta, pagina y
-     elevado—, y los cinco se separan entre si por dE >= 15 en los dos temas. Los valga todo
-     `tests/paleta-vip` los clava.
+     elevado—, y los cuatro se separan entre si por dE >= 15 en los dos temas. `tests/paleta-vip`
+     los clava.
 
-     EL ORO DE AQUI NO ES `--vip-gold`, y esa es la unica pareja que se separa entre temas: el oro
-     del SELLO es una FORMA (le basta 3:1) y en claro vale #9a6b00, que como texto se queda en
-     4,33:1 sobre la pagina — por debajo de AA. En oscuro si son el mismo valor, porque alli el oro
-     del sello ya pasa de 12:1 como texto: que un VIP que elige "oro" lleve el oro de su sello es lo
-     que se quiere, y solo se separan donde no queda mas remedio. */
+     TAMPOCO HAY DORADO AQUI. En claro el nombre dorado si se separaba del oro del podio (dE 17,6),
+     pero el catalogo es UNO para los dos temas: una opcion que solo funciona en claro no es una
+     opcion. Se decide por el tema donde falla, que es el oscuro. Ver `COLORES_NOMBRE_VIP`. */
   --vip-nombre-verde: #0f6b32;
   --vip-nombre-lima: #55640a;
-  --vip-nombre-oro: #8a5a00;
   --vip-nombre-diamante: #0b6e84;
   --vip-nombre-fuego: #a63c00;
 

@@ -351,14 +351,27 @@ export const ESTADOS_SIN_ACCESO_VIP: readonly EstadoSuscripcion[] = ["CORTADA"];
  * │ `tests/marca-hex-duplicados`: "cero hex fuera de los tokens").                                │
  * └──────────────────────────────────────────────────────────────────────────────────────────────┘
  *
- * PROVISIONAL: los cinco de la maqueta. PENDIENTE del visto bueno de Sergio — cambiar el SET es
- * esta lista (y su pareja de valores en los dos bloques de `globals.css`); cambiar un TONO es solo
- * el CSS, sin tocar nada de aqui ni migrar lo que la gente ya eligio.
+ * ┌─ SON CUATRO Y NO CINCO: EL DORADO NO ES COLOR DE NOMBRE ────────────────────────────────────┐
+ * │ La maqueta traia un quinto, dorado. Se midio sobre la pantalla y en el tema OSCURO —el       │
+ * │ principal— el nombre dorado queda a dE 6,4 de `--df-rank`: en el podio se lee como el oro   │
+ * │ del PUESTO, justo al lado del "1" y de la medalla. Un color que el usuario elige no puede   │
+ * │ parecer una posicion que se gana.                                                            │
+ * │                                                                                              │
+ * │ El oro VIP no desaparece: sigue en el SELLO y en la GEMA (`--vip-gold`), que no chocan con   │
+ * │ el podio porque se separan por FORMA —estrella con gema contra medalla redonda—. Lo que sale │
+ * │ es el oro como color de TEXTO, que es donde solo podia separarse por color y no podia.       │
+ * │                                                                                              │
+ * │ Una clave retirada se trata como "sin color": `colorDeNombre` devuelve `null` y el nombre se │
+ * │ pinta normal. Quien tuviera "oro" guardado no rompe nada ni necesita migracion.              │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * PROVISIONAL: PENDIENTE del visto bueno de Sergio — cambiar el SET es esta lista (y su pareja de
+ * valores en los dos bloques de `globals.css`); cambiar un TONO es solo el CSS, sin tocar nada de
+ * aqui ni migrar lo que la gente ya eligio.
  */
 export const COLORES_NOMBRE_VIP = {
   verde: "--vip-nombre-verde",
   lima: "--vip-nombre-lima",
-  oro: "--vip-nombre-oro",
   diamante: "--vip-nombre-diamante",
   fuego: "--vip-nombre-fuego",
 } as const satisfies Record<string, string>;
