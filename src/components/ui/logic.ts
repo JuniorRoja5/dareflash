@@ -108,10 +108,46 @@ export const NAV_DESTINOS = [
   { clave: "perfil", nombre: "Perfil", href: "/perfil" },
   { clave: "puntos", nombre: "Puntos", href: "/puntos" },
   { clave: "referidos", nombre: "Referidos", href: "/referidos" },
+  /**
+   * LA PUERTA AL VIP. `acento: "vip"` NO es decoración: es lo que le da el ORO.
+   *
+   * ┌─ POR QUÉ ORO Y NO EL VERDE DE ACCIÓN ────────────────────────────────────────────────────┐
+   * │ `--df-action` está reservado a UNA acción por pantalla, y esa acción es siempre "Subir    │
+   * │ vídeo" (el CTA de la barra superior). Un segundo verde en la lateral competiría con él en │
+   * │ todas las pantallas a la vez, que es justo lo que esa regla existe para evitar. El oro no │
+   * │ compite: dice "premium", que es otra cosa.                                                 │
+   * │                                                                                            │
+   * │ Y va en el DATO y no en un `if` por clave dentro del componente: así el día que haya otro │
+   * │ destino premium no hay que tocar la nav.                                                   │
+   * └────────────────────────────────────────────────────────────────────────────────────────────┘
+   *
+   * SE LE ENSEÑA A TODO EL MUNDO, VIP incluido: quien ya lo es entra igual a /vip, que es donde
+   * ve su estado y puede darse de baja. Esconderlo a los VIP dejaría la baja sin puerta.
+   */
+  { clave: "vip", nombre: "Hazte VIP Mythic", href: "/vip", acento: "vip" },
 ] as const;
 
 export type NavDestino = (typeof NAV_DESTINOS)[number];
 export type DestinoClave = NavDestino["clave"];
+
+/**
+ * EL ORO DE LA PUERTA VIP, EN UN SOLO SITIO.
+ *
+ * Lo montan DOS componentes distintos: la barra lateral de escritorio y el menú "Más" de móvil.
+ * Escrito en cada uno, el día que el oro cambie —o que se decida que la puerta va en otro color—
+ * quedaría una de las dos en el valor viejo, y sería la de móvil: es la que menos se mira. Aquí
+ * es una edición y las dos cambian a la vez.
+ *
+ * SON TOKENS, nunca un hex: el oro vale distinto en cada tema (`--vip-gold` en `globals.css`), y un
+ * hex aquí se vería bien en uno de los dos. Y NO es `--df-action`: ese verde está reservado a UNA
+ * acción por pantalla —"Subir vídeo"—, y un segundo verde en la barra competiría con él en TODAS
+ * las pantallas a la vez. El porqué largo, en `NAV_DESTINOS`.
+ */
+export const ACENTO_VIP = {
+  color: "var(--vip-gold)",
+  borderColor: "color-mix(in srgb, var(--vip-gold) 40%, transparent)",
+  backgroundColor: "color-mix(in srgb, var(--vip-gold) 9%, transparent)",
+} as const;
 
 /** Subconjuntos ORDENADOS por contexto (claves de NAV_DESTINOS). */
 export const NAV_ESCRITORIO = [
@@ -123,6 +159,11 @@ export const NAV_ESCRITORIO = [
   "perfil",
   "puntos",
   "referidos",
+  // EL ÚLTIMO, y separado del resto al pintarlo: no es un sitio al que se va a menudo, es la
+  // puerta a la suscripción. Al estar aquí entra SOLO en el menú "Más" de móvil, porque esa lista
+  // se deriva de esta (ver `NAV_MOVIL_MAS`): si se escribiera a mano, el VIP no tendría puerta en
+  // móvil y nadie se enteraría, que es exactamente el fallo que esa derivación existe para evitar.
+  "vip",
 ] as const;
 // EL MONEDERO NO ESTÁ EN ESTA LISTA, y es una decisión. Estuvo un rato como destino propio y era un
 // sitio equivocado: la barra es para las cosas que se hacen a menudo —mirar el feed, ver los retos—,

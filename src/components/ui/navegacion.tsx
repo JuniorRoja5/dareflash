@@ -5,7 +5,7 @@ import { NOTIF_NO_LEIDAS_TOPE } from "@/config/constants";
 import { ctaPrincipal } from "@/lib/cta-principal";
 import { textoBadge } from "@/lib/notificaciones";
 
-import { destinosDe, NAV_ESCRITORIO, NAV_MOVIL } from "./logic";
+import { ACENTO_VIP, destinosDe, NAV_ESCRITORIO, NAV_MOVIL } from "./logic";
 import { Logo } from "./logo";
 import { MenuMasMovil } from "./menu-mas-movil";
 
@@ -75,6 +75,17 @@ const ICONO: Record<string, ReactNode> = {
       <circle cx="9" cy="8" r="3.2" />
       <path d="M3.5 19.5a5.5 5.5 0 0 1 11 0" />
       <path d="M17 7.5v5M19.5 10h-5" />
+    </>,
+  ),
+  // VIP — una gema tallada: corona plana arriba, faldón en punta y la línea del ancho. Es la
+  // novena figura de la barra y la prueba sigue siendo la misma: a 20 px no se puede confundir con
+  // ninguna de las otras ocho. Con la estrella de Boost —la única parecida de lejos— se separa por
+  // silueta: la estrella es picuda por los cuatro lados y la gema es un trapecio con punta abajo.
+  // `currentColor` como todas: así hereda el oro de la fila sin que el color se escriba dos veces.
+  vip: svg(
+    <>
+      <path d="M7.5 4.5h9l3 5-7.5 10-7.5-10z" />
+      <path d="M4.5 9.5h15" />
     </>,
   ),
 };
@@ -183,21 +194,44 @@ export function NavegacionLateral({ activo }: { activo?: string }) {
           marca grafica y la palabra juntas. El literal "DAREFLASH" vive SOLO en `logo.tsx`: escribirlo
           aqui otra vez volveria a crear dos marcas que pueden discrepar. */}
       <Logo className="mb-4 px-2 pt-2" />
-      {destinosDe(NAV_ESCRITORIO).map((d) => (
-        <Link
-          key={d.clave}
-          href={d.href}
-          aria-current={activo === d.clave ? "page" : undefined}
-          className={`flex min-h-[44px] items-center gap-3 rounded-sm px-3 text-sm transition-colors duration-150 ease-mechanical ${
-            activo === d.clave
-              ? "bg-raised font-medium text-text"
-              : "text-text-dim hover:bg-raised hover:text-text"
-          }`}
-        >
-          {ICONO[d.clave]}
-          <span>{d.nombre}</span>
-        </Link>
-      ))}
+      {destinosDe(NAV_ESCRITORIO).map((d) => {
+        // EL ORO SALE DEL DATO, no de un `if` por clave: ver `NAV_DESTINOS`. Y el valor sale de
+        // `ACENTO_VIP`, que es el MISMO que usa el menú "Más" de móvil: escrito aquí a mano, la
+        // puerta de móvil se quedaría en el color viejo el día que esto cambie.
+        const esVip = "acento" in d && d.acento === "vip";
+        if (esVip) {
+          return (
+            <Link
+              key={d.clave}
+              href={d.href}
+              data-nav-vip
+              aria-current={activo === d.clave ? "page" : undefined}
+              // El margen de arriba lo separa del resto: no es un destino de uso diario, es una
+              // puerta de compra, y pegada a "Referidos" se lee como una sección más.
+              className="mt-3 flex min-h-[44px] items-center gap-3 rounded-sm border px-3 text-sm font-semibold transition-colors duration-150 ease-mechanical"
+              style={ACENTO_VIP}
+            >
+              {ICONO[d.clave]}
+              <span>{d.nombre}</span>
+            </Link>
+          );
+        }
+        return (
+          <Link
+            key={d.clave}
+            href={d.href}
+            aria-current={activo === d.clave ? "page" : undefined}
+            className={`flex min-h-[44px] items-center gap-3 rounded-sm px-3 text-sm transition-colors duration-150 ease-mechanical ${
+              activo === d.clave
+                ? "bg-raised font-medium text-text"
+                : "text-text-dim hover:bg-raised hover:text-text"
+            }`}
+          >
+            {ICONO[d.clave]}
+            <span>{d.nombre}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }

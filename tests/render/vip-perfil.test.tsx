@@ -120,7 +120,10 @@ describe("un perfil VIP monta el tratamiento completo", () => {
     const lista = perks(c)!;
     expect(lista.tagName).toBe("UL");
     const textos = [...lista.querySelectorAll("li")].map((li) => li.textContent);
-    expect(textos).toEqual(["Boost semanal×1", "Acceso anticipado", "Perfil animado"]);
+    // "Acceso anticipado" se fue en P6: era el único de los tres que no apuntaba a nada
+    // construido, y una promesa en el perfil de quien ya paga no es menos promesa que una en la
+    // página de venta. Lo sustituye el toque, que existe desde P4.
+    expect(textos).toEqual(["Boost semanal×1", "Toque a otros perfiles", "Perfil animado"]);
     // Ni un botón ni un enlace: describen el plan, no hacen nada.
     expect(lista.querySelector("button, a, input")).toBeNull();
   });
@@ -168,16 +171,51 @@ describe("el hero: uno, y la misma pieza que la compacta", () => {
   });
 });
 
-describe("cero UI muerta: el toque es una pieza posterior", () => {
-  it("no hay ningún 'Dar un toque' en el perfil, ni VIP ni normal", () => {
+/**
+ * ESTE BLOQUE CAMBIÓ DE FORMA DOS VECES, Y NO SE BORRÓ.
+ *
+ * En P3 decía "no hay ningún 'Dar un toque' en el perfil": la pieza no existía y un botón que no
+ * hace nada es UI muerta. En P4 el toque se construyó, con su gate. Y en P6 los chips del plan
+ * pasaron a NOMBRARLO ("Toque a otros perfiles"), así que medir el TEXTO de la pantalla dejó de
+ * servir — habría que haber elegido entre quitar el chip o quitar el guard.
+ *
+ * Lo que vale debajo, y es lo que mide ahora: **no hay ningún CONTROL del toque donde no se puede
+ * dar**, y el chip que lo nombra NO es un control. Un botón mudo sigue cayendo en rojo; un chip
+ * que se convierta en botón, también.
+ */
+describe("cero UI muerta: el control del toque solo donde se puede dar", () => {
+  /** Los controles (no el texto) cuyo nombre habla del toque. */
+  const controlesDeToque = (c: HTMLElement) =>
+    [...c.querySelectorAll("button, a, input, [role='button']")].filter((n) =>
+      /toque/i.test(n.textContent ?? ""),
+    );
+
+  it("sin `puedeTocar` no hay NINGÚN control, ni en el propio ni en el de otra persona", () => {
     for (const props of [
       { ...base, esPropio: true, esVip: true },
       { ...base, esPropio: false, esVip: true },
       { ...base, esPropio: true },
     ]) {
       const { container, unmount } = render(<PerfilVista {...props} />);
-      expect(container.textContent, "un botón que no hace nada").not.toMatch(/toque/i);
+      expect(controlesDeToque(container), "un botón que no hace nada").toEqual([]);
       unmount();
     }
+  });
+
+  it("el chip que lo nombra describe el plan: no es pulsable", () => {
+    const c = pintar({ ...base, esPropio: false, esVip: true });
+    const chip = [...perks(c)!.querySelectorAll("li")].find((li) =>
+      /toque/i.test(li.textContent ?? ""),
+    );
+    expect(chip, "el chip del toque ya no está en los perks").toBeTruthy();
+    expect(chip!.querySelector("button, a, input")).toBeNull();
+  });
+
+  it("y con `puedeTocar` el control SÍ sale, pero solo en el perfil de OTRA persona", () => {
+    const otra = pintar({ ...base, esPropio: false, esVip: true, puedeTocar: true, userId: "u1" });
+    expect(controlesDeToque(otra).length, "el botón no sale donde sí se puede tocar").toBe(1);
+
+    const propio = pintar({ ...base, esPropio: true, esVip: true, puedeTocar: true, userId: "u1" });
+    expect(controlesDeToque(propio), "se puede dar un toque a uno mismo").toEqual([]);
   });
 });

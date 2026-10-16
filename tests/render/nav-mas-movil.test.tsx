@@ -89,7 +89,7 @@ describe("lo que lleva dentro", () => {
     expect(filas().map((a) => a.textContent)).toEqual(esperados.map((d) => d.nombre));
   });
 
-  it("y hoy eso es Inicio, Ranking, Boost, Puntos y Referidos", () => {
+  it("y hoy eso es Inicio, Ranking, Boost, Puntos, Referidos y la puerta al VIP", () => {
     montar();
     fireEvent.click(boton());
     expect(filas().map((a) => a.textContent)).toEqual([
@@ -98,6 +98,7 @@ describe("lo que lleva dentro", () => {
       "Boost",
       "Puntos",
       "Referidos",
+      "Hazte VIP Mythic",
     ]);
   });
 

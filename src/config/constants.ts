@@ -407,6 +407,37 @@ export const TOKEN_CSS = /^--[a-z][a-z0-9-]*$/;
 export const MSG_VIP_PAGO_NO_DISPONIBLE = "Las suscripciones no están disponibles ahora mismo.";
 export const MSG_VIP_SIN_VERIFICAR = "Verifica tu correo para poder suscribirte.";
 export const MSG_VIP_YA_ACTIVO = "Ya tienes VIP Mythic activo.";
+export const MSG_VIP_NO_ERES = "No tienes ninguna suscripción activa que cancelar.";
+export const MSG_VIP_CANCELADA_OK =
+  "Hemos pedido la baja. Sigues siendo VIP hasta que acabe el periodo que ya pagaste.";
+export const MSG_VIP_YA_CANCELADA = "Tu suscripción ya estaba cancelada.";
+
+/**
+ * LO QUE INCLUYE EL PLAN, para la pagina /vip.
+ *
+ * ┌─ SOLO LO QUE EXISTE, Y NI SIQUIERA COMO "PROXIMAMENTE" ─────────────────────────────────────┐
+ * │ Esta lista es una PROMESA a quien va a pagar diez dolares al mes. Un "mensajes ilimitados"  │
+ * │ o un "sin anuncios" que todavia no existen no son una proyeccion optimista: son algo que la │
+ * │ persona cree estar comprando y no recibe. Y ponerlos con una etiqueta de "pronto" es peor,  │
+ * │ porque convierte la lista de beneficios en una lista de intenciones.                        │
+ * │                                                                                              │
+ * │ Cada linea de aqui apunta a algo que YA esta construido y desplegado, y la pieza que lo     │
+ * │ construyo va anotada al lado. Cuando exista uno nuevo, se añade aqui y sale en la pagina.   │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+export const BENEFICIOS_VIP: readonly string[] = [
+  // P5: el reparto semanal. El "valor 5$" del documento maestro NO se escribe: es copy de venta
+  // y aqui pondria un importe al lado de algo que no mueve dinero.
+  "1 Boost gratis por semana",
+  // P2: el color del nombre, del catalogo cerrado.
+  "Nombre destacado con el color que elijas",
+  // P2: la marca en las nueve superficies.
+  "Insignia Mythic en tu perfil, el feed y los comentarios",
+  // P3: borde animado, bloom y barrido.
+  "Perfil animado con borde neón",
+  // P4: dar un toque.
+  "Puedes dar un toque a otros perfiles",
+];
 
 /**
  * TOQUES AL DIA POR PERSONA (Fase 8 · P4). Es el tope del EMISOR, y es la segunda capa del

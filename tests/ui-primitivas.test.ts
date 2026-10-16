@@ -98,7 +98,7 @@ describe("boton: mapa variante -> tokens", () => {
 });
 
 describe("navegacion: catalogo canonico de destinos", () => {
-  it("nueve destinos, orden y claves exactos (reordenar o perder uno cae en rojo)", () => {
+  it("diez destinos, orden y claves exactos (reordenar o perder uno cae en rojo)", () => {
     expect(NAV_DESTINOS.map((d) => d.clave)).toEqual([
       "inicio",
       "feed",
@@ -109,6 +109,8 @@ describe("navegacion: catalogo canonico de destinos", () => {
       "perfil",
       "puntos",
       "referidos",
+      // La puerta al VIP, la última: no es un sitio al que se va a menudo, es una compra.
+      "vip",
     ]);
   });
 
@@ -127,6 +129,9 @@ describe("navegacion: catalogo canonico de destinos", () => {
       "Perfil",
       "Puntos",
       "Referidos",
+      // Imperativo y con el nombre del plan: "VIP" a secas no dice que se pueda comprar, y quien
+      // ya lo es entra por la misma puerta (es donde ve su estado y puede darse de baja).
+      "Hazte VIP Mythic",
     ]);
     expect(NAV_DESTINOS.map((d) => d.href)).toEqual([
       "/inicio",
@@ -138,6 +143,7 @@ describe("navegacion: catalogo canonico de destinos", () => {
       "/perfil",
       "/puntos",
       "/referidos",
+      "/vip",
     ]);
   });
 
@@ -163,6 +169,10 @@ describe("navegacion: subsets divergentes movil/escritorio (con dientes)", () =>
       "perfil",
       "puntos",
       "referidos",
+      // Y AL FINAL, SEPARADA: la puerta de compra. Va la última porque no es un destino de uso
+      // diario, y está en ESTA lista porque el menú de móvil se deriva de ella: escrita a mano
+      // allí, el VIP se habría quedado sin puerta en móvil (ver `nav-movil-cobertura`).
+      "vip",
     ]);
     expect(NAV_ESCRITORIO).not.toContain("crear");
   });

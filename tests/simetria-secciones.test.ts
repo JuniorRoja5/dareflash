@@ -35,6 +35,10 @@ const HEROES = [
   { seccion: "puntos", fichero: "hero-nivel.tsx" },
   { seccion: "referidos", fichero: "hero-invitacion.tsx" },
   { seccion: "boosts", fichero: "hero-boosts.tsx" },
+  // /vip ENTRÓ AQUÍ EL DÍA QUE NACIÓ, por lo mismo que /boosts. Y tiene su propia tentación: es la
+  // pantalla del producto premium, así que es la primera candidata a estrenar un cuerpo propio
+  // "porque es especial". Lo especial es el ORO (el halo, el filete, el emblema), no el cuerpo.
+  { seccion: "vip", fichero: "hero-vip.tsx" },
 ] as const;
 
 describe.each(HEROES)("el hero de /$seccion tiene cuerpo", ({ seccion, fichero }) => {
@@ -74,6 +78,7 @@ describe("las listas de las tres van sobrias, y todas igual", () => {
     { que: "a quién has invitado", src: leer(...SHELL, "referidos", "page.tsx") },
     { que: "historial de boosts", src: leer(...SHELL, "boosts", "historial-boosts.tsx") },
     { que: "cómo funciona un boost", src: leer(...SHELL, "boosts", "como-funciona.tsx") },
+    { que: "lo que incluye el VIP", src: leer(...SHELL, "vip", "beneficios-vip.tsx") },
   ];
 
   it.each(LISTAS)("$que usa el mismo idioma de tarjeta", ({ src }) => {

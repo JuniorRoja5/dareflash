@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
-import { destinosDe, NAV_MOVIL_MAS, type DestinoClave } from "./logic";
+import { ACENTO_VIP, destinosDe, NAV_MOVIL_MAS, type DestinoClave } from "./logic";
 
 /**
  * EL MENÚ "MÁS" DE LA BARRA DE MÓVIL — la puerta a lo que no cabe en la barra.
@@ -85,25 +85,40 @@ export function MenuMasMovil({
         <ul
           id={idMenu}
           aria-label={etiqueta}
-          className="absolute right-1 bottom-full mb-1 min-w-44 overflow-hidden rounded-sm border border-line bg-surface shadow-[var(--df-shadow-md)]"
+          /* `min-w-52` y no 44: con 44 el destino más largo del catálogo ("Hazte VIP Mythic") se
+             partía en dos renglones y la fila dejaba de leerse como las demás. El ancho lo marca el
+             nombre más largo, no el más corto, y 208 px siguen cabiendo de sobra en 390. */
+          className="absolute right-1 bottom-full mb-1 min-w-52 overflow-hidden rounded-sm border border-line bg-surface shadow-[var(--df-shadow-md)]"
         >
-          {destinos.map((d) => (
-            <li key={d.clave}>
-              <Link
-                href={d.href}
-                aria-current={activo === d.clave ? "page" : undefined}
-                onClick={cerrar}
-                className={`flex min-h-[44px] items-center gap-3 px-4 text-sm transition-colors duration-[var(--df-dur-fast)] ease-mechanical ${
-                  activo === d.clave
-                    ? "bg-raised font-medium text-text"
-                    : "text-text-dim hover:bg-raised hover:text-text"
-                }`}
-              >
-                {icono[d.clave]}
-                <span>{d.nombre}</span>
-              </Link>
-            </li>
-          ))}
+          {destinos.map((d) => {
+            /* EL ORO DE LA PUERTA VIP TAMBIÉN AQUÍ, y del MISMO sitio que la barra lateral
+               (`ACENTO_VIP`). En móvil esta es la ÚNICA puerta al VIP, así que dejarla en el gris
+               de los demás destinos la escondería justo donde no hay barra lateral que la enseñe.
+               Sale del dato (`acento`), como en la lateral: el día que haya otro destino premium
+               no hay que volver a tocar este componente. */
+            const esVip = "acento" in d && d.acento === "vip";
+            return (
+              <li key={d.clave}>
+                <Link
+                  href={d.href}
+                  aria-current={activo === d.clave ? "page" : undefined}
+                  onClick={cerrar}
+                  data-nav-vip={esVip ? "" : undefined}
+                  style={esVip ? ACENTO_VIP : undefined}
+                  className={`flex min-h-[44px] items-center gap-3 px-4 text-sm transition-colors duration-[var(--df-dur-fast)] ease-mechanical ${
+                    esVip
+                      ? "font-semibold"
+                      : activo === d.clave
+                        ? "bg-raised font-medium text-text"
+                        : "text-text-dim hover:bg-raised hover:text-text"
+                  }`}
+                >
+                  {icono[d.clave]}
+                  <span>{d.nombre}</span>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       ) : null}
 

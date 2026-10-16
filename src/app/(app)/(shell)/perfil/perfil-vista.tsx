@@ -115,13 +115,25 @@ function TarjetaIdentidad({ esVip, children }: { esVip: boolean; children: React
  * hay nada que leer ni comparar contra ellas—, son el copy de esta tarjeta. El día que un perk
  * tenga una CIFRA que dependa de verdad del plan (cuántos Boosts, por ejemplo), esa cifra sí sale
  * de la constante y entra aquí por parámetro; hoy el "×1" es copy, no un dato.
+ *
+ * ┌─ "ACCESO ANTICIPADO" SE FUE, Y NO ERA UN CAMBIO DE COPY ────────────────────────────────────┐
+ * │ Era el único de los tres que no apuntaba a nada construido: no hay acceso anticipado a nada. │
+ * │ Al escribir la lista de /vip —que SOLO puede nombrar lo que existe (ver `BENEFICIOS_VIP`)—   │
+ * │ quedó en evidencia que este chip prometía por su cuenta justo lo que allí se había dejado    │
+ * │ fuera. Una promesa en el perfil de quien ya paga no es menos promesa que una en la página de │
+ * │ venta. Lo sustituye el toque, que sí existe (Fase 8 · P4).                                    │
+ * │                                                                                               │
+ * │ Y SE LLAMA "Toque a otros perfiles", NO "Dar un toque": ese es el texto del BOTÓN, que puede  │
+ * │ aparecer dos centímetros más abajo. Un chip con la misma etiqueta que un botón, al lado del   │
+ * │ botón, es la trampa que esta tarjeta ya tuvo una vez — algo que parece pulsable y no lo es.   │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────┘
  */
 function PerksVip() {
   return (
     <ul data-vip-perks className="mt-4 flex flex-wrap justify-center gap-2">
       {[
         { texto: "Boost semanal", cifra: "×1" },
-        { texto: "Acceso anticipado", cifra: null },
+        { texto: "Toque a otros perfiles", cifra: null },
         { texto: "Perfil animado", cifra: null },
       ].map((p) => (
         <li

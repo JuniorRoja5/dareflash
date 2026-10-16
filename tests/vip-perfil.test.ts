@@ -40,6 +40,7 @@ const TODOS = ficheros(SRC)
 
 const PERFIL = "app/(app)/(shell)/perfil/perfil-vista.tsx";
 const IDENTIDAD = "components/ui/identidad-usuario.tsx";
+const HERO_VIP = "app/(app)/(shell)/vip/hero-vip.tsx";
 
 describe("el emblema grande: uno, y solo donde toca", () => {
   it("se recorrió `src` de verdad (si no, lo de abajo no busca nada)", () => {
@@ -53,16 +54,28 @@ describe("el emblema grande: uno, y solo donde toca", () => {
     expect(definen).toEqual([IDENTIDAD]);
   });
 
-  it("y lo MONTA una sola pantalla: el perfil", () => {
-    // La marca compacta va en todas; el hero, en una. Dos heroes en la misma página serían dos
-    // veces la misma declaración de "soy VIP" en un sitio donde ya está dicha.
-    const montan = TODOS.filter((x) => x.codigo.includes("<EmblemaVipGrande")).map((x) => x.f);
-    expect(montan).toEqual([PERFIL]);
+  /**
+   * ESTE CASO SE ABRIÓ EN P6, Y LO ABRIÓ ÉL MISMO: al construir /vip, el hero de esa pantalla
+   * montó el emblema y esto se puso rojo. Lo que importaba debajo no era "una sola pantalla", era
+   * **UNO POR PÁGINA**: dos píldoras doradas idénticas en la misma pantalla son dos veces la misma
+   * declaración. Y lo cazó de verdad — la primera versión de /vip lo ponía también en la tarjeta de
+   * "eres Mythic", o sea dos en la misma página, y de ahí se quitó.
+   *
+   * La lista sigue siendo CERRADA: un tercer sitio cae en rojo y hay que venir aquí a decidirlo.
+   */
+  it("lo MONTAN dos pantallas, y ni una más", () => {
+    const montan = TODOS.filter((x) => x.codigo.includes("<EmblemaVipGrande"))
+      .map((x) => x.f)
+      .sort();
+    // El perfil (quién lo tiene) y el hero de /vip (qué se compra). Son los dos únicos sitios
+    // donde la marca en grande dice algo que no está dicho al lado.
+    expect(montan).toEqual([HERO_VIP, PERFIL].sort());
   });
 
-  it("una sola vez dentro de esa pantalla", () => {
-    const perfil = sinComentarios(leer(PERFIL));
-    expect([...perfil.matchAll(/<EmblemaVipGrande/g)]).toHaveLength(1);
+  it("y una sola vez dentro de cada una", () => {
+    for (const f of [PERFIL, HERO_VIP]) {
+      expect([...sinComentarios(leer(f)).matchAll(/<EmblemaVipGrande/g)], f).toHaveLength(1);
+    }
   });
 
   /**
@@ -126,11 +139,25 @@ describe("el tratamiento solo se monta detrás del gate de VIP", () => {
     }
   });
 
-  it("y ninguna OTRA pantalla monta las clases de la tarjeta VIP", () => {
+  it("y ninguna OTRA pantalla monta las CAPAS de la tarjeta VIP", () => {
+    // Las cuatro capas que forman la tarjeta de identidad (bloom, borde que gira, fondo, aro del
+    // avatar) siguen siendo EXCLUSIVAS del perfil. El resplandor del emblema se mira aparte, en el
+    // caso siguiente: no es una capa de la tarjeta, es la firma de la pieza que la lleva.
     const fuera = TODOS.filter((x) => x.f !== PERFIL)
-      .filter((x) => /df-vip-(marco|borde|tarjeta|aro|emblema)/.test(x.codigo))
+      .filter((x) => /df-vip-(marco|borde|tarjeta|aro)/.test(x.codigo))
       .map((x) => x.f);
     expect(fuera).toEqual([]);
+  });
+
+  it("y el resplandor del emblema solo está donde hay un emblema", () => {
+    // `df-vip-emblema` es el flote + el `drop-shadow` de la píldora grande. Vale en las dos
+    // pantallas que la montan y en ninguna otra: pegada a cualquier otra cosa, es un resplandor
+    // dorado sobre algo que no es la marca. Y la lista es la MISMA de arriba: si se pone en una
+    // tercera pantalla, caen los dos casos.
+    const con = TODOS.filter((x) => /df-vip-emblema/.test(x.codigo))
+      .map((x) => x.f)
+      .sort();
+    expect(con).toEqual([HERO_VIP, PERFIL].sort());
   });
 });
 
