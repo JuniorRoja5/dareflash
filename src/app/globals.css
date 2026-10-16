@@ -167,23 +167,24 @@
      firme (o se cambie de color) sea UNA linea y no una caceria.
      ------------------------------------------------------------------------------------------ */
   --vip-gold: #ffd24a;
-  --vip-gold-deep: #8a5a00;
   /* Los tres del degradado del borde animado y del aro del avatar: verde -> lima -> oro. */
   --vip-a: #2be84b;
   --vip-b: #e8f620;
   --vip-c: #ffcf3f;
   /* Fuerza del bloom que desborda la tarjeta VIP. Sobre negro puede permitirse mas: la luz suma. */
   --vip-bloom: 0.55;
-  /* Fondo de la tarjeta VIP y del disco interior del sello. Un pelo mas oscuro que --df-surface
-     para que el borde de luz tenga contra que leerse; el sello comparte valor para que su hueco
-     parezca recortado en la tarjeta y no pegado encima. */
+  /* Fondo de la tarjeta VIP. Un pelo mas oscuro que --df-surface para que el borde de luz tenga
+     contra que leerse. */
   --vip-card-bg: #0c120d;
-  --vip-seal-bg: #0c120d;
-  /* EL REFLEJO del emblema grande: el punto donde la luz pega en el metal, arriba del degradado.
-     Es un token y no un literal dentro del SVG por lo de siempre —cero hex fuera de la paleta— y
-     porque en claro tiene que ser OTRO: un reflejo casi blanco sobre el disco crema del tema claro
-     no se ve, y el emblema pierde el volumen que el degradado existe para dar. */
-  --vip-gold-light: #fff0b0;
+  /* ------------------------------------------------------------------------------------------
+     LA TINTA DE LAS LETRAS "VIP" dentro de la pildora dorada.
+
+     CAMBIA CON EL TEMA Y ESO ES LO QUE LA HACE LEGIBLE, no una preferencia: aqui el oro es VIVO
+     (#ffd24a) y una tinta oscura da 12,89:1; en claro el oro va APAGADO para leerse sobre blanco
+     (#9a6b00) y esa misma tinta oscura se queda en 3,96:1 —por debajo de AA—, asi que alli la
+     tinta es blanca (4,69:1). Un solo valor para los dos temas deja la marca ilegible en uno.
+     ------------------------------------------------------------------------------------------ */
+  --vip-tinta: #1a1200;
   /* MOVIMIENTO DE LA TARJETA VIP. Valen lo mismo en los dos temas y eso es lo correcto: una
      duracion no depende del fondo. Se repiten en el bloque claro, como `--df-dur-fast`, para que
      el guard de simetria siga exigiendo que todo token exista en los dos sitios.
@@ -311,7 +312,6 @@
   /* VIP MYTHIC. Mismos trabajos que en oscuro, bajados de luminosidad para leerse sobre blanco: un
      #ffd24a sobre fondo claro es practicamente invisible. Ver el porque del token propio arriba. */
   --vip-gold: #9a6b00;
-  --vip-gold-deep: #5c3f00;
   --vip-a: #15803d;
   /* EL PASO LIMA, Y AQUI VA SU PORQUE: estaba en #b8860b, que es BYTE A BYTE el `--df-rank` de
      este tema. O sea que el degradado de la tarjeta VIP llevaba dentro el oro del PODIO, el color
@@ -325,13 +325,11 @@
   /* Sobre blanco el bloom solo puede ENSUCIAR, no iluminar: la mitad que en oscuro. Mismo
      razonamiento que `--df-halo-fuerza`. */
   --vip-bloom: 0.32;
-  /* En claro la tarjeta es la tarjeta de siempre; lo que la marca es el borde, no el fondo. El
-     hueco del sello si se tinta: un disco blanco dentro de un sello dorado se lee como un agujero. */
+  /* En claro la tarjeta es la tarjeta de siempre; lo que la marca es el borde, no el fondo. */
   --vip-card-bg: #ffffff;
-  --vip-seal-bg: #fff7e0;
-  /* El reflejo, subido de saturacion y bajado de luz: sobre el disco crema de este tema hace falta
-     un oro claro de verdad, no un blanco amarillento que se funde con el fondo. */
-  --vip-gold-light: #d9a319;
+  /* BLANCA, no oscura: ver el porque medido en el bloque oscuro. Sobre el oro apagado de este
+     tema la tinta oscura no llega a AA y la blanca si. */
+  --vip-tinta: #ffffff;
   /* Las duraciones, repetidas a proposito: no dependen del tema. Ver el bloque oscuro. */
   --vip-dur-giro: 6000ms;
   --vip-dur-barrido: 7000ms;

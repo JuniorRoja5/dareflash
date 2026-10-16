@@ -24,131 +24,89 @@ import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
  * decidiendo quién es VIP, que es exactamente lo que el chokepoint existe para evitar.
  */
 
-/** El dorado del sello sale del token; el `currentColor` deja que el tamaño lo ponga quien lo usa. */
-function SelloVip({ clase }: { clase?: string }) {
-  return (
-    <svg
-      data-sello-vip
-      viewBox="0 0 48 48"
-      className={clase}
-      aria-hidden
-      /* SIN DEGRADADO, y es deliberado: un `<linearGradient>` necesita un `id` único, y este sello
-         sale veinte veces en un feed —veinte ids iguales en la página, que es HTML inválido y en
-         algunos navegadores pinta todos con el primero—. A 18 px el degradado no se ve; dos tonos
-         planos sí dan el relieve. El grande (P3, 76 px) sale una vez y ahí sí puede llevarlo. */
-      fill="none"
-    >
-      {/* La estrella de doce puntas: la FORMA es lo que separa esto de la medalla REDONDA del
-          podio. Color y forma, como con el aro doble de Legend. */}
-      <path
-        fill="var(--vip-gold)"
-        d="M24 1l4.6 4.3 6.2-1.4-.3 6.4 5.9 2.6-3.6 5.3 3.6 5.3-5.9 2.6.3 6.4-6.2-1.4L24 41l-4.6-4.3-6.2 1.4.3-6.4-5.9-2.6 3.6-5.3-3.6-5.3 5.9-2.6-.3-6.4 6.2 1.4z"
-      />
-      <circle cx="24" cy="24" r="12.5" fill="var(--df-surface)" />
-      <circle cx="24" cy="24" r="12.5" fill="none" stroke="var(--vip-gold)" strokeWidth="1.3" />
-      {/* LA MISMA GEMA QUE VA JUNTO AL NOMBRE, aquí dentro: maciza y con su faceta superior. Que
-          las dos piezas de la marca compartan silueta es lo que hace que se lean como una sola
-          cosa —el sello en la cara, la gema en el nombre— y no como dos adornos dorados. */}
-      <path d="M24 13.5l8.5 4.9v9.8L24 33.1l-8.5-4.9v-9.8z" fill="var(--vip-gold)" />
-      <path d="M24 13.5l8.5 4.9L24 23.3l-8.5-4.9z" fill="var(--vip-gold-deep)" opacity="0.45" />
-    </svg>
-  );
-}
-
 /**
- * LA GEMA QUE VA JUNTO AL NOMBRE — el hexágono del sello, a solas y a escala de texto.
+ * LA MARCA MYTHIC: las letras "VIP" en una píldora dorada. UNA pieza para los tres tamaños.
  *
- * ┌─ POR QUÉ ES MACIZA Y NO UN CONTORNO CON ALGO DENTRO ─────────────────────────────────────────┐
- * │ La primera versión era un hexágono perfilado con una gemita dentro, y mirándola al tamaño    │
- * │ real —14 px, al lado de un nombre— no se leía como una gema: se leía como un PUNTO. A ese    │
- * │ tamaño el contorno fino se come la silueta y el detalle de dentro desaparece. Maciza, con    │
- * │ UNA sola faceta de corte, la forma se reconoce.                                              │
- * └──────────────────────────────────────────────────────────────────────────────────────────────┘
- *
- * ES UN HEXÁGONO Y NO UN DIAMANTE A PROPÓSITO: el diamante ya es el emblema del nivel ELITE, y va
- * en la esquina del MISMO avatar. Dos diamantes a dos centímetros diciendo cosas distintas —cuánto
- * has jugado y si pagas— no se separan ni por el color. El hexágono es el corazón del sello, así
- * que la gema del nombre y el sello del avatar se leen como la misma marca.
- */
-function GemaVip({ clase }: { clase?: string }) {
-  return (
-    <svg data-gema-vip viewBox="0 0 24 26" className={clase} aria-hidden fill="none">
-      <path d="M12 1 22 6.75v12.5L12 25 2 19.25V6.75Z" fill="var(--vip-gold)" />
-      {/* La faceta: el tercio superior en el tono profundo. Da volumen sin degradado —y sin `id`,
-          que es lo que no puede repetirse veinte veces en un feed—. */}
-      <path d="M12 1 22 6.75 12 12.5 2 6.75Z" fill="var(--vip-gold-deep)" opacity="0.45" />
-    </svg>
-  );
-}
-
-/**
- * EL ID DEL DEGRADADO DEL EMBLEMA GRANDE. Fijo y declarado aquí a propósito: es la pieza de la que
- * hay UNA en la página, así que el id puede ser una constante y el guard estructural puede
- * comprobar que sigue habiendo una sola.
- *
- * No se genera con `useId()` —que daría uno distinto por instancia— porque eso obligaría a marcar
- * este módulo como `"use client"`, y entonces TODA la identidad (que la monta media app desde el
- * servidor) se iría al bundle del cliente. El precio de la unicidad sería mucho mayor que el
- * problema que resuelve.
- */
-export const ID_DEGRADADO_EMBLEMA = "df-vip-oro";
-
-/**
- * EL EMBLEMA GRANDE DEL PERFIL VIP (76 px) — el único sitio donde la marca lleva DEGRADADO.
- *
- * ┌─ POR QUÉ AQUÍ SÍ Y EN EL SELLO COMPACTO NO ─────────────────────────────────────────────────┐
- * │ Un `<linearGradient>` se referencia por `id`, y un id se repite tantas veces como se monte   │
- * │ el componente. El sello compacto sale VEINTE veces en un feed: veinte ids iguales es HTML    │
- * │ inválido, y hay navegadores que pintan todos con el primero. Este sale UNA vez, en una sola  │
- * │ pantalla, así que el id es único por construcción.                                            │
+ * ┌─ POR QUÉ LETRAS Y NO UNA FIGURA ────────────────────────────────────────────────────────────┐
+ * │ Antes era una estrella con una gema dentro. Una figura a 14 px tiene que pelear por decir    │
+ * │ QUÉ es —y la primera versión de la gema se leía como un punto—, mientras que tres letras se  │
+ * │ leen o no se leen, sin ambigüedad. A los tamaños a los que esto vive (14 px junto a un        │
+ * │ nombre, 18 px en la esquina de un avatar) eso lo decide todo.                                 │
  * │                                                                                               │
- * │ Y a 76 px el degradado sí se ve: es lo que convierte la estrella plana en metal. A 18 px no   │
- * │ se veía, que es la otra mitad de por qué el compacto no lo lleva.                             │
+ * │ Y de paso desaparece el problema que arrastraba la figura: nada de `<linearGradient>` con su  │
+ * │ `id` repetido veinte veces en un feed, ni paths que había que mantener en dos sitios.         │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
- * MISMA SILUETA que el sello compacto —estrella de doce puntas con la gema hexagonal dentro—: es
- * la misma marca en grande, no otra pieza.
+ * ┌─ PÍLDORA DORADA CON TINTA OSCURA, NO LETRAS DORADAS SUELTAS ────────────────────────────────┐
+ * │ Es lo que trae la maqueta y además es lo que se lee. Unas letras doradas finas sobre el      │
+ * │ fondo claro del tema claro se quedan en 4,69:1 en el mejor caso y desaparecen a 14 px; la     │
+ * │ píldora sólida siempre contrasta con su fondo (12,8:1 en oscuro, 4,7:1 en claro) y el texto   │
+ * │ contrasta con la píldora.                                                                     │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ LA TINTA CAMBIA CON EL TEMA, Y ESO NO ES UN CAPRICHO ──────────────────────────────────────┐
+ * │ En oscuro el oro es VIVO y la tinta tiene que ser oscura: 12,89:1. En claro el oro va        │
+ * │ APAGADO —bajado para leerse sobre blanco— y esa misma tinta oscura se queda en 3,96:1, por   │
+ * │ debajo de AA. Allí la tinta tiene que ser blanca: 4,69:1. Un solo valor para los dos temas   │
+ * │ deja la marca ilegible en uno de ellos, así que la tinta es un TOKEN (los valores, en        │
+ * │ `globals.css`, que es donde vive la paleta; aquí solo el porqué).                            │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
-export function EmblemaVipGrande({ clase }: { clase?: string }) {
+const TAMANO_MARCA = {
+  /** Junto al nombre, a escala de texto. */
+  compacta: "px-1 py-px text-[9px] rounded-[4px]",
+  /** En la esquina de un avatar: un punto más de aire para despegarse de la foto. */
+  esquina: "px-[5px] py-[2px] text-[10px] rounded-[5px]",
+  /**
+   * El hero del perfil VIP. El RADIO es proporcional a la altura, como en los dos de arriba
+   * (~0,35 del alto): con el mismo radio absoluto que la píldora pequeña, a este tamaño la pieza
+   * deja de leerse como una insignia y se lee como un BLOQUE amarillo. Se vio en una captura.
+   */
+  grande: "px-3 py-1.5 text-[22px] rounded-xl",
+} as const;
+
+export type TamanoMarcaVip = keyof typeof TAMANO_MARCA;
+
+export function MarcaVip({
+  tamano = "compacta",
+  clase = "",
+}: {
+  tamano?: TamanoMarcaVip;
+  clase?: string;
+}) {
   return (
-    <svg data-emblema-vip viewBox="0 0 48 48" className={clase} aria-hidden fill="none">
-      <defs>
-        <linearGradient id={ID_DEGRADADO_EMBLEMA} x1="0" y1="0" x2="0" y2="1">
-          {/* Los tres por token, reflejo incluido: en claro el reflejo tiene que ser otro (un
-              casi-blanco sobre el disco crema del tema claro no se ve y el emblema se queda
-              plano), y un literal aquí dentro solo podría tener un valor. */}
-          <stop offset="0" stopColor="var(--vip-gold-light)" />
-          <stop offset="0.45" stopColor="var(--vip-gold)" />
-          <stop offset="1" stopColor="var(--vip-gold-deep)" />
-        </linearGradient>
-      </defs>
-      <path
-        fill={`url(#${ID_DEGRADADO_EMBLEMA})`}
-        d="M24 1l4.6 4.3 6.2-1.4-.3 6.4 5.9 2.6-3.6 5.3 3.6 5.3-5.9 2.6.3 6.4-6.2-1.4L24 41l-4.6-4.3-6.2 1.4.3-6.4-5.9-2.6 3.6-5.3-3.6-5.3 5.9-2.6-.3-6.4 6.2 1.4z"
-      />
-      {/* El disco interior lleva SU token y no `--df-surface`: aquí el fondo es el de la tarjeta
-          VIP, que en claro es blanco y necesita un tinte para no leerse como un agujero. */}
-      <circle cx="24" cy="24" r="12.5" fill="var(--vip-seal-bg)" />
-      <circle
-        cx="24"
-        cy="24"
-        r="12.5"
-        fill="none"
-        stroke={`url(#${ID_DEGRADADO_EMBLEMA})`}
-        strokeWidth="1.3"
-      />
-      <path
-        d="M24 13.5l8.5 4.9v9.8L24 33.1l-8.5-4.9v-9.8z"
-        fill={`url(#${ID_DEGRADADO_EMBLEMA})`}
-      />
-      <path d="M24 13.5l8.5 4.9L24 23.3l-8.5-4.9z" fill="var(--vip-gold-deep)" opacity="0.45" />
-    </svg>
+    <span
+      data-marca-vip={tamano}
+      // `aria-hidden` NO: a diferencia de una figura decorativa, esto DICE algo que no está dicho
+      // en ninguna otra parte del renglón —que esta persona es VIP—, y un lector de pantalla que
+      // se lo salte deja a su usuario sin el dato. Con `title` + `aria-label` se anuncia una vez.
+      aria-label="VIP Mythic"
+      title="VIP Mythic"
+      role="img"
+      className={`inline-flex shrink-0 items-center justify-center bg-[var(--vip-gold)] font-black tracking-[0.04em] text-[var(--vip-tinta)] tabular-nums ${TAMANO_MARCA[tamano]} ${clase}`}
+      style={{ fontFamily: "var(--font-display)", lineHeight: 1 }}
+    >
+      VIP
+    </span>
   );
 }
 
-/** El sello en la esquina de un avatar. Lo exporta para que `Avatar` lo monte sin duplicar el SVG. */
-export function SelloVipEsquina({ clase }: { clase?: string }) {
-  return <SelloVip clase={clase} />;
+/**
+ * EL EMBLEMA GRANDE DEL PERFIL VIP. La MISMA marca, en grande: no es otra pieza, y por eso no
+ * tiene un dibujo propio que mantener aparte.
+ *
+ * SIN DEGRADADO, y aquí sí se midió antes de decidir: con la píldora en degradado, la tinta no
+ * puede leerse en los dos extremos a la vez —la oscura cae a 3,13:1 en el extremo profundo del
+ * oro de oscuro, y la blanca a 2,28:1 en el extremo claro del de claro—. Un degradado que obliga
+ * a elegir en qué mitad de la pieza se lee el texto no es un degradado: es un defecto.
+ */
+export function EmblemaVipGrande({ clase = "" }: { clase?: string }) {
+  return <MarcaVip tamano="grande" clase={clase} />;
+}
+
+/** La marca en la esquina de un avatar. La monta `Avatar`, que es su única puerta. */
+export function MarcaVipEsquina({ clase }: { clase?: string }) {
+  return <MarcaVip tamano="esquina" clase={clase} />;
 }
 
 export interface IdentidadVip {
@@ -206,7 +164,7 @@ export function NombreUsuario({
       <span className="df-nombre-vip truncate" style={estilo}>
         {texto}
       </span>
-      <GemaVip clase="h-[0.95em] w-[0.88em] shrink-0" />
+      <MarcaVip />
     </span>
   );
 }

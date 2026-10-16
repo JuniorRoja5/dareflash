@@ -54,8 +54,8 @@ describe("el emblema grande: uno, y solo donde toca", () => {
   });
 
   it("y lo MONTA una sola pantalla: el perfil", () => {
-    // Un segundo sitio significaría dos `linearGradient` con el mismo id en la misma página el día
-    // que las dos coincidan. El emblema compacto (sin degradado) es el que puede ir en todas.
+    // La marca compacta va en todas; el hero, en una. Dos heroes en la misma página serían dos
+    // veces la misma declaración de "soy VIP" en un sitio donde ya está dicha.
     const montan = TODOS.filter((x) => x.codigo.includes("<EmblemaVipGrande")).map((x) => x.f);
     expect(montan).toEqual([PERFIL]);
   });
@@ -65,28 +65,45 @@ describe("el emblema grande: uno, y solo donde toca", () => {
     expect([...perfil.matchAll(/<EmblemaVipGrande/g)]).toHaveLength(1);
   });
 
-  it("el id del degradado es UNA constante, no un literal repetido", () => {
-    // Escrito a mano en los cuatro `url(#…)`, cambiarlo en tres de ellos deja el cuarto apuntando
-    // a un degradado que no existe: ese trozo del emblema se pinta negro y no falla nada.
+  /**
+   * ESTOS DOS CASOS CAMBIARON DE FORMA CON EL LETTERMARK, y no se borraron.
+   *
+   * Decían: "el id del degradado es una constante" y "los compactos no llevan degradado, porque
+   * un `<linearGradient>` repite su `id` veinte veces en un feed". Desde que la marca son LETRAS
+   * en una píldora, no hay SVG, no hay `id` y ese fallo concreto ya no se puede cometer.
+   *
+   * Lo que SÍ sigue valiendo es la decisión de debajo —**la marca es UNA pieza, no tres dibujos
+   * que mantener sincronizados**— y eso es lo que fijan ahora. Un dibujo propio por tamaño es
+   * exactamente cómo el sello y la gema acabaron divergiendo antes.
+   */
+  it("la marca es UNA pieza: los tres tamaños salen del mismo componente", () => {
     const identidad = sinComentarios(leer(IDENTIDAD));
-    expect(identidad).toContain("export const ID_DEGRADADO_EMBLEMA");
-    expect(identidad, "hay un id escrito a mano").not.toMatch(/id="df-vip/);
-    expect(identidad, "hay un `url(#…)` escrito a mano").not.toMatch(/url\(#[a-z]/);
+    expect(identidad).toContain("export function MarcaVip");
+
+    // El hero y el de la esquina son envoltorios de la misma pieza, no dibujos aparte. Se mira
+    // el CUERPO de cada función, acotado por su cierre: con una ventana de N caracteres, el
+    // `<MarcaVip` de la función SIGUIENTE entraba en el rango y el caso pasaba en verde aunque el
+    // hero se hubiera reescrito con su propio `<span>`. Lo descubrió el diente.
+    for (const nombre of ["EmblemaVipGrande", "MarcaVipEsquina"]) {
+      const cuerpo =
+        new RegExp(`export function ${nombre}\\([\\s\\S]*?\\n\\}`).exec(identidad)?.[0] ?? "";
+      expect(cuerpo.length, `no encuentro ${nombre}`).toBeGreaterThan(40);
+      expect(cuerpo, `${nombre} dejó de reusar la marca y tiene dibujo propio`).toContain(
+        "<MarcaVip",
+      );
+    }
+    // Y los tamaños son UNA tabla, no clases sueltas repartidas por el fichero.
+    expect(identidad).toContain("const TAMANO_MARCA");
   });
 
-  it("y los compactos SIGUEN sin degradado: salen veinte veces en un feed", () => {
+  it("y no queda ni un SVG con `id` en la identidad: el problema del feed desapareció", () => {
+    // Un `<linearGradient id>` dentro de una pieza que sale veinte veces en un feed son veinte
+    // ids iguales (HTML inválido, y hay navegadores que pintan todos con el primero). Con letras
+    // no hay id que repetir; este caso fija que no vuelva a entrar uno por la puerta de atrás.
     const identidad = sinComentarios(leer(IDENTIDAD));
-    const sello = /function SelloVip\(\{[\s\S]*?\n\}/.exec(identidad)?.[0] ?? "";
-    const gema = /function GemaVip\(\{[\s\S]*?\n\}/.exec(identidad)?.[0] ?? "";
-    expect(sello.length, "no encuentro SelloVip").toBeGreaterThan(100);
-    expect(gema.length, "no encuentro GemaVip").toBeGreaterThan(100);
-    for (const [nombre, src] of [
-      ["SelloVip", sello],
-      ["GemaVip", gema],
-    ] as const) {
-      expect(src, `${nombre} usa un degradado`).not.toContain("Gradient");
-      expect(src, `${nombre} referencia un id`).not.toContain("url(#");
-    }
+    expect(identidad, "volvió un degradado con id").not.toContain("Gradient");
+    expect(identidad, "volvió un `url(#…)`").not.toContain("url(#");
+    expect(identidad, "volvió un `id=` en la identidad").not.toMatch(/\sid=/);
   });
 });
 

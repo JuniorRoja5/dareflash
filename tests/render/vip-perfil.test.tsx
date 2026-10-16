@@ -25,7 +25,6 @@ vi.mock("@/components/ui/conmutador-tema-servidor", () => ({
 }));
 
 import { PerfilVista } from "@/app/(app)/(shell)/perfil/perfil-vista";
-import { ID_DEGRADADO_EMBLEMA } from "@/components/ui/identidad-usuario";
 
 afterEach(cleanup);
 
@@ -53,7 +52,7 @@ function pintar(props: Parameters<typeof PerfilVista>[0]): HTMLElement {
 }
 
 const marco = (c: HTMLElement) => c.querySelector(".df-vip-marco");
-const emblemas = (c: HTMLElement) => c.querySelectorAll("[data-emblema-vip]");
+const emblemas = (c: HTMLElement) => c.querySelectorAll('[data-marca-vip="grande"]');
 const perks = (c: HTMLElement) => c.querySelector("[data-vip-perks]");
 const aro = (c: HTMLElement) => c.querySelector(".df-vip-aro");
 const palabra = (c: HTMLElement) => c.querySelector("[data-vip-palabra]");
@@ -130,30 +129,39 @@ describe("un perfil VIP monta el tratamiento completo", () => {
     const c = pintar(vip);
     const nombre = c.querySelector(".df-nombre-vip")!;
     expect(nombre.getAttribute("style")).toContain("var(--vip-nombre-diamante)");
-    // El sello compacto del avatar es el de P2 y sigue ahí: el grande no lo sustituye.
-    expect(c.querySelector("[data-sello-vip]")).not.toBeNull();
+    // La marca compacta del avatar es la de P2 y sigue ahí: el hero no la sustituye.
+    expect(c.querySelector('[data-marca-vip="esquina"]')).not.toBeNull();
   });
 });
 
-describe("el degradado del emblema: un id, una instancia", () => {
-  it("el `linearGradient` aparece UNA sola vez en la página", () => {
-    // Dos ids iguales es HTML inválido, y hay navegadores que pintan todos con el primero: el
-    // segundo emblema saldría con el degradado del primero aunque se le cambiara.
+/**
+ * ESTE BLOQUE CAMBIÓ DE FORMA CON EL LETTERMARK.
+ *
+ * Decía "el `linearGradient` aparece una sola vez": con letras no hay SVG ni `id`, así que ese
+ * fallo concreto desapareció en vez de seguir vigilado. Lo que sí sigue siendo cierto —y es lo
+ * que importaba debajo— es que **el hero es UNO y es la MISMA pieza que la compacta**: tres
+ * dibujos distintos para la misma marca es como el sello y la gema acabaron divergiendo.
+ */
+describe("el hero: uno, y la misma pieza que la compacta", () => {
+  it("hay exactamente UN emblema grande en la página", () => {
     const c = pintar({ ...base, esPropio: true, esVip: true });
-    expect(c.querySelectorAll(`#${ID_DEGRADADO_EMBLEMA}`)).toHaveLength(1);
-    expect(c.querySelectorAll("linearGradient")).toHaveLength(1);
+    expect(c.querySelectorAll('[data-marca-vip="grande"]')).toHaveLength(1);
   });
 
-  it("y si alguien montara DOS emblemas, el id se duplicaría (por eso hay uno)", () => {
-    // El caso que justifica el de arriba, montado a mano: así el guard no es una afirmación sin
-    // contraejemplo. Esto NO es lo que hace el perfil — es la demostración de por qué solo monta uno.
-    const dos = render(
-      <>
-        <PerfilVista {...base} esPropio={false} esVip />
-        <PerfilVista {...base} esPropio={false} esVip />
-      </>,
-    ).container;
-    expect(dos.querySelectorAll(`#${ID_DEGRADADO_EMBLEMA}`).length).toBeGreaterThan(1);
+  it("y es la misma marca: dice 'VIP' en los tres tamaños", () => {
+    const c = pintar({ ...base, esPropio: true, esVip: true });
+    const marcas = [...c.querySelectorAll("[data-marca-vip]")];
+    expect(marcas.length, "faltan marcas en el perfil VIP").toBeGreaterThanOrEqual(3);
+    for (const m of marcas) expect(m.textContent).toBe("VIP");
+    // Los tres tamaños del perfil: el hero, la esquina del avatar y la de junto al nombre.
+    expect(new Set(marcas.map((m) => m.getAttribute("data-marca-vip")))).toEqual(
+      new Set(["grande", "esquina", "compacta"]),
+    );
+  });
+
+  it("y NO hay ni un SVG con id en el perfil VIP: el choque de ids ya no existe", () => {
+    const c = pintar({ ...base, esPropio: true, esVip: true });
+    expect(c.querySelectorAll("linearGradient")).toHaveLength(0);
   });
 });
 

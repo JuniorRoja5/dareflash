@@ -103,7 +103,48 @@ describe("las cinco opciones se distinguen entre sí", () => {
   }
 });
 
-describe("el sello y la gema se VEN: 3:1, que es el listón de una forma", () => {
+describe("las letras 'VIP' se LEEN dentro de su píldora, en los dos temas", () => {
+  /**
+   * LA MEDIDA QUE OBLIGÓ A QUE LA TINTA SEA UN TOKEN.
+   *
+   * La marca es una píldora de `--vip-gold` con "VIP" dentro, y el oro NO vale lo mismo en los
+   * dos temas: en oscuro es vivo (#ffd24a) y en claro va apagado para leerse sobre blanco
+   * (#9a6b00). Con una tinta oscura única, en claro las letras se quedan en 3,96:1 —por debajo de
+   * AA— y la insignia se convierte en una mancha. Por eso `--vip-tinta` cambia con el tema.
+   *
+   * Son LETRAS, así que el listón es el del texto (4,5), no el de una forma (3).
+   */
+  for (const tema of TEMAS) {
+    it(`${tema.nombre}: la tinta contra el oro de la píldora`, () => {
+      const oro = tema.vip.get("--vip-gold") ?? "";
+      const tinta = tema.vip.get("--vip-tinta") ?? "";
+      expect(oro, `no está --vip-gold en ${tema.nombre}`).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(tinta, `no está --vip-tinta en ${tema.nombre}`).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(contraste(tinta, oro), "las letras no se leen dentro de la píldora").toBeGreaterThan(
+        4.5,
+      );
+    });
+
+    it(`${tema.nombre}: y la píldora se ve sobre los fondos donde cae`, () => {
+      // Si la píldora no contrasta con su fondo, da igual lo legible que sea el texto de dentro:
+      // la insignia entera desaparece. Cae sobre la tarjeta, la página y el elevado.
+      const oro = tema.vip.get("--vip-gold") ?? "";
+      for (const [donde, fondo] of Object.entries(fondos(tema.df))) {
+        expect(contraste(oro, fondo), `la píldora sobre ${donde} (${tema.nombre})`).toBeGreaterThan(
+          3,
+        );
+      }
+    });
+  }
+
+  it("y la tinta NO vale lo mismo en los dos temas: ese es el punto", () => {
+    // Si alguien unifica los dos valores, uno de los dos temas pierde la legibilidad medida
+    // arriba — pero el caso de arriba seguiría pasando en el tema afortunado. Esto lo clava.
+    expect(VIP_OSCURO.get("--vip-tinta")).not.toBe(VIP_CLARO.get("--vip-tinta"));
+  });
+});
+
+describe("el oro de la marca se VE: 3:1, que es el listón de una forma", () => {
   for (const tema of TEMAS) {
     for (const token of ["--vip-gold", "--vip-a", "--vip-b", "--vip-c"]) {
       it(`${token} en ${tema.nombre}`, () => {

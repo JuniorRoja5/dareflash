@@ -121,13 +121,16 @@ describe("el candado: nadie pinta un nombre fuera del componente compartido", ()
     expect(feed).not.toMatch(/nombre=\{/);
   });
 
-  it("el sello solo entra en un avatar por la puerta de `esVip`", () => {
-    // `Avatar` es el único que monta `SelloVipEsquina`, y lo monta detrás de la comprobación. Si
-    // alguien lo montara suelto en otro sitio, el sello podría acabar sobre quien no paga.
-    const montan = SUPERFICIES.filter((x) => x.codigo.includes("<SelloVipEsquina")).map((x) => x.f);
+  it("la marca solo entra en un avatar por la puerta de `esVip`", () => {
+    // `Avatar` es el único que monta `MarcaVipEsquina`, y la monta detrás de la comprobación. Si
+    // alguien la montara suelta en otro sitio, podría acabar sobre quien no paga.
+    //
+    // El nombre cambió (era `SelloVipEsquina`, cuando la marca era una figura) pero el invariante
+    // es el mismo y por eso este caso se reescribió en vez de borrarse.
+    const montan = SUPERFICIES.filter((x) => x.codigo.includes("<MarcaVipEsquina")).map((x) => x.f);
     expect(montan).toEqual(["components/ui/avatar.tsx"]);
     expect(sinComentarios(leer("components/ui/avatar.tsx"))).toMatch(
-      /esVip \?\s*\(?\s*<SelloVipEsquina/,
+      /esVip \?\s*\(?\s*<MarcaVipEsquina/,
     );
   });
 });
@@ -145,7 +148,7 @@ describe("el panel queda fuera a propósito, y se puede comprobar", () => {
   it("y no monta la marca: el gobierno de cuentas no es un escaparate", () => {
     const conMarca = ficheros(path.join(SRC, "app", "panel"))
       .map((f) => ({ f: path.relative(SRC, f), c: readFileSync(f, "utf8") }))
-      .filter((x) => x.c.includes("<NombreUsuario") || x.c.includes("<SelloVipEsquina"))
+      .filter((x) => x.c.includes("<NombreUsuario") || x.c.includes("<MarcaVipEsquina"))
       .map((x) => x.f);
     expect(conMarca).toEqual([]);
   });

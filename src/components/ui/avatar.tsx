@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { EmblemaDeNivel } from "@/components/ui/emblema-nivel";
-import { SelloVipEsquina } from "@/components/ui/identidad-usuario";
+import { MarcaVipEsquina } from "@/components/ui/identidad-usuario";
 import { nivelPorPuntos } from "@/lib/niveles";
 
 /**
@@ -18,20 +18,24 @@ const EMBLEMA: Record<string, string> = {
 };
 
 /**
- * EL SELLO VIP, EN LA ESQUINA DE ARRIBA — y no en la de abajo, donde lo pone la maqueta.
+ * LA MARCA VIP, EN LA ESQUINA DE ARRIBA — y no en la de abajo, donde la pone la maqueta.
  *
  * ┌─ POR QUÉ SE MUEVE DE ESQUINA ────────────────────────────────────────────────────────────────┐
- * │ La maqueta pone el sello abajo a la derecha, que es donde este avatar lleva YA el emblema de │
+ * │ La maqueta la pone abajo a la derecha, que es donde este avatar lleva YA el emblema de       │
  * │ NIVEL. Dejarlos en el mismo sitio obliga a elegir: o se tapan, o el VIP pierde su nivel. Las │
  * │ dos cosas son información distinta —cuánto ha jugado y si paga— y las dos estaban decididas  │
  * │ antes. Arriba hay sitio libre y no se pisa nada.                                              │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * AQUÍ SOLO VA LA POSICIÓN, no el tamaño: desde que la marca son LETRAS, su caja la decide su
+ * propio texto —una píldora es más ancha que alta— y fijarle un cuadrado desde fuera la
+ * deformaría. Antes eran `h-4 w-4` porque el sello era un SVG cuadrado.
  */
 const SELLO: Record<string, string> = {
-  sm: "h-4 w-4 -right-1 -top-1",
-  md: "h-[18px] w-[18px] -right-1 -top-1",
-  lg: "h-6 w-6 -right-1.5 -top-1.5",
-  xl: "h-7 w-7 -right-1.5 -top-1.5",
+  sm: "-right-1.5 -top-1.5",
+  md: "-right-1.5 -top-1.5",
+  lg: "-right-2 -top-2",
+  xl: "-right-2 -top-2",
 };
 
 /**
@@ -160,9 +164,9 @@ export function Avatar({
   return (
     <span className="relative inline-flex">
       {circulo}
-      {/* EL SELLO SOLO SI ES VIP. Esta es la única puerta por la que el sello entra en un avatar:
-          no hay otra forma de pintarlo, así que no puede acabar en quien no paga. */}
-      {esVip ? <SelloVipEsquina clase={`pointer-events-none absolute ${SELLO[tamano]}`} /> : null}
+      {/* LA MARCA SOLO SI ES VIP. Esta es la única puerta por la que entra en un avatar: no hay
+          otra forma de pintarla, así que no puede acabar en quien no paga. */}
+      {esVip ? <MarcaVipEsquina clase={`pointer-events-none absolute ${SELLO[tamano]}`} /> : null}
       {/* El anillo dice el nivel de lejos; el glifo lo dice DE CERCA y sin depender del color, que es
           lo que necesita quien no distingue bien los tonos. Los dos salen del mismo `nivel`.
           `EmblemaDeNivel` lleva su propio `aria-label`: en el feed o en un comentario es lo ÚNICO que

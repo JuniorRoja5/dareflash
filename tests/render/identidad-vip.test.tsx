@@ -26,8 +26,11 @@ import { TarjetaDestacado } from "@/components/ui/tarjeta-destacado";
 
 afterEach(cleanup);
 
-const sello = (): Element | null => document.querySelector("[data-sello-vip]");
-const gema = (): Element | null => document.querySelector("[data-gema-vip]");
+// La marca ES UNA desde que son letras: el mismo componente en tres tamaños. Antes eran dos
+// dibujos distintos (`data-sello-vip` en el avatar, `data-gema-vip` junto al nombre) y por eso
+// había dos lectores; ahora se distinguen por su tamaño, que es lo único que cambia.
+const sello = (): Element | null => document.querySelector('[data-marca-vip="esquina"]');
+const gema = (): Element | null => document.querySelector('[data-marca-vip="compacta"]');
 const nombreVip = (): Element | null => document.querySelector(".df-nombre-vip");
 
 describe("NombreUsuario", () => {
@@ -128,7 +131,6 @@ describe("el sello en el avatar", () => {
     // Las dos cosas son información distinta —cuánto ha jugado y si paga— y las dos tienen que
     // verse a la vez. En la misma esquina, una tapa a la otra.
     render(<Avatar nombre="ana" puntos={50_000} esVip />);
-    // Las clases de posición van en el propio `<svg>`: `Avatar` se las pasa como `clase`.
     const clasesSello = sello()!.getAttribute("class") ?? "";
     expect(clasesSello).toContain("-top-");
     expect(clasesSello).not.toContain("-bottom-");
@@ -137,11 +139,31 @@ describe("el sello en el avatar", () => {
     expect(emblema?.getAttribute("class") ?? "", "el emblema de nivel subió").toContain("-bottom-");
   });
 
+  it("Avatar pone la POSICIÓN y la marca pone su tamaño", () => {
+    // Desde que son letras, la caja la decide el texto: una píldora es más ancha que alta, y un
+    // `h-4 w-4` impuesto desde fuera la aplastaría. Pasó con el emblema grande del perfil, que
+    // con su caja cuadrada heredada salía como un bloque vertical.
+    render(<Avatar nombre="ana" esVip />);
+    const clases = sello()!.getAttribute("class") ?? "";
+    expect(clases, "Avatar le vuelve a imponer una caja cuadrada").not.toMatch(/\bh-\d|\bw-\d/);
+  });
+
   it("y el dorado sale del token propio del VIP, no del oro del podio", () => {
     render(<Avatar nombre="ana" esVip />);
-    const svg = sello()!.outerHTML;
-    expect(svg).toContain("var(--vip-gold)");
-    expect(svg, "el sello usa el oro del PODIO").not.toContain("--df-rank");
+    const marca = sello()!.outerHTML;
+    expect(marca).toContain("var(--vip-gold)");
+    expect(marca, "la marca usa el oro del PODIO").not.toContain("--df-rank");
+    // Y la tinta por token: en claro tiene que ser otra o las letras no se leen.
+    expect(marca).toContain("var(--vip-tinta)");
+  });
+
+  it("la marca DICE 'VIP', y lo dice también para un lector de pantalla", () => {
+    // Una figura decorativa puede ir `aria-hidden`; esto no, porque es el único sitio del renglón
+    // donde está dicho que esta persona es VIP. Quien no ve la pantalla se quedaría sin el dato.
+    render(<Avatar nombre="ana" esVip />);
+    expect(sello()!.textContent).toBe("VIP");
+    expect(sello()!.getAttribute("aria-label")).toBe("VIP Mythic");
+    expect(sello()!.getAttribute("aria-hidden")).toBeNull();
   });
 });
 

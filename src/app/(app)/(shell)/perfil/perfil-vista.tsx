@@ -215,7 +215,10 @@ export function PerfilVista({
                   nombre; separarlos los descuadraba medio pixel en escritorio. */}
               {esVip ? (
                 <>
-                  <EmblemaVipGrande clase="df-vip-emblema h-[76px] w-[76px]" />
+                  {/* SIN caja impuesta desde aquí: desde que la marca son LETRAS, su tamaño lo
+                      da su propio texto. Con el `h-[76px] w-[76px]` que llevaba cuando era un
+                      SVG cuadrado, la píldora se estiraba a un bloque vertical. */}
+                  <EmblemaVipGrande clase="df-vip-emblema" />
                   <p
                     data-vip-palabra
                     className="mt-1 text-2xs font-black tracking-[0.22em] text-[var(--vip-gold)] uppercase"
