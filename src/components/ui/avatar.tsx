@@ -3,7 +3,6 @@
 import { useState } from "react";
 
 import { EmblemaDeNivel } from "@/components/ui/emblema-nivel";
-import { MarcaVipEsquina } from "@/components/ui/identidad-usuario";
 import { nivelPorPuntos } from "@/lib/niveles";
 
 /**
@@ -18,25 +17,18 @@ const EMBLEMA: Record<string, string> = {
 };
 
 /**
- * LA MARCA VIP, EN LA ESQUINA DE ARRIBA — y no en la de abajo, donde la pone la maqueta.
- *
- * ┌─ POR QUÉ SE MUEVE DE ESQUINA ────────────────────────────────────────────────────────────────┐
- * │ La maqueta la pone abajo a la derecha, que es donde este avatar lleva YA el emblema de       │
- * │ NIVEL. Dejarlos en el mismo sitio obliga a elegir: o se tapan, o el VIP pierde su nivel. Las │
- * │ dos cosas son información distinta —cuánto ha jugado y si paga— y las dos estaban decididas  │
- * │ antes. Arriba hay sitio libre y no se pisa nada.                                              │
+ * ┌─ EL AVATAR NO LLEVA LA MARCA VIP, Y ANTES SÍ ────────────────────────────────────────────────┐
+ * │ Llevó una píldora "VIP" superpuesta en la esquina de arriba (abajo no cabía: ahí va el       │
+ * │ emblema de NIVEL). Se quitó al ver una fila de verdad: el nombre que va dos centímetros a la │
+ * │ derecha ya lleva su marca, así que el renglón decía "VIP" dos veces — y la del avatar es la  │
+ * │ que menos se lee de las dos, porque es la que compite por el sitio con el nivel.             │
+ * │                                                                                               │
+ * │ O sea que este componente NO recibe `esVip`: no es que lo ignore, es que no puede saberlo, y  │
+ * │ por tanto no hay forma de que alguien crea que pasándoselo sale una marca. Quien dice que una │
+ * │ persona es VIP es `NombreUsuario` (y el emblema del hero, en el perfil). El avatar sigue      │
+ * │ diciendo lo suyo: el NIVEL, con su anillo y su glifo.                                         │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
- *
- * AQUÍ SOLO VA LA POSICIÓN, no el tamaño: desde que la marca son LETRAS, su caja la decide su
- * propio texto —una píldora es más ancha que alta— y fijarle un cuadrado desde fuera la
- * deformaría. Antes eran `h-4 w-4` porque el sello era un SVG cuadrado.
  */
-const SELLO: Record<string, string> = {
-  sm: "-right-1.5 -top-1.5",
-  md: "-right-1.5 -top-1.5",
-  lg: "-right-2 -top-2",
-  xl: "-right-2 -top-2",
-};
 
 /**
  * GROSOR DEL ANILLO por tamaño de avatar, en píxeles.
@@ -94,7 +86,6 @@ export function Avatar({
   imagen,
   perezosa = false,
   puntos,
-  esVip = false,
 }: {
   nombre: string;
   tamano?: TamanoAvatar;
@@ -110,11 +101,6 @@ export function Avatar({
    * no es "no lo sé": es Rookie. Ausente significa "esta superficie no lo sabe", que es la verdad.
    */
   puntos?: number;
-  /**
-   * ¿Es VIP activo? Lo resuelve el chokepoint de la Fase 8 y llega YA decidido: este componente no
-   * consulta nada —en una lista serían veinte consultas— ni interpreta un estado.
-   */
-  esVip?: boolean;
 }) {
   const [falla, setFalla] = useState(false);
   const inicial = (nombre.trim().charAt(0) || "?").toUpperCase();
@@ -157,26 +143,21 @@ export function Avatar({
       </span>
     );
 
-  // Sin emblema NI sello —sin puntos o Rookie, y no VIP— se devuelve EL MISMO nodo de siempre: ni
-  // un envoltorio de más. Así esto no puede mover una sola maqueta de las que ya existen.
-  if (!conEmblema && !esVip) return circulo;
+  // Sin emblema —sin puntos, o Rookie— se devuelve EL MISMO nodo de siempre: ni un envoltorio de
+  // más. Así esto no puede mover una sola maqueta de las que ya existen.
+  if (!conEmblema) return circulo;
 
   return (
     <span className="relative inline-flex">
       {circulo}
-      {/* LA MARCA SOLO SI ES VIP. Esta es la única puerta por la que entra en un avatar: no hay
-          otra forma de pintarla, así que no puede acabar en quien no paga. */}
-      {esVip ? <MarcaVipEsquina clase={`pointer-events-none absolute ${SELLO[tamano]}`} /> : null}
       {/* El anillo dice el nivel de lejos; el glifo lo dice DE CERCA y sin depender del color, que es
           lo que necesita quien no distingue bien los tonos. Los dos salen del mismo `nivel`.
           `EmblemaDeNivel` lleva su propio `aria-label`: en el feed o en un comentario es lo ÚNICO que
           comunica el nivel, así que sin eso ahí no existiría para un lector de pantalla. */}
-      {conEmblema ? (
-        <EmblemaDeNivel
-          nivel={conEmblema}
-          clase={`pointer-events-none absolute ${EMBLEMA[tamano]}`}
-        />
-      ) : null}
+      <EmblemaDeNivel
+        nivel={conEmblema}
+        clase={`pointer-events-none absolute ${EMBLEMA[tamano]}`}
+      />
     </span>
   );
 }

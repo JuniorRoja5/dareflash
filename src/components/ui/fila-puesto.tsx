@@ -88,7 +88,6 @@ export function FilaPuesto({
         tamano="sm"
         perezosa
         puntos={sePisa ? undefined : puntos}
-        esVip={esVip}
       />
       <NombreUsuario
         username={username}

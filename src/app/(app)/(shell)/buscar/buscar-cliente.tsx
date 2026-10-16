@@ -194,7 +194,6 @@ export function BuscarCliente({
                         imagen={u.image}
                         tamano="md"
                         puntos={u.puntos}
-                        esVip={u.esVip}
                       />
                       <span className="min-w-0">
                         <NombreUsuario

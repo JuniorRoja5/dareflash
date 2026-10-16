@@ -228,7 +228,6 @@ export function ComentariosVideo({
                   tamano="sm"
                   perezosa
                   puntos={c.autor.pointsBalance}
-                  esVip={c.autor.esVip}
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm">

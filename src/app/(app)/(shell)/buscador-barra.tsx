@@ -203,7 +203,6 @@ export function BuscadorBarra() {
                     imagen={s.image}
                     tamano="sm"
                     puntos={s.puntos}
-                    esVip={s.esVip}
                   />
                   <span className="min-w-0">
                     <NombreUsuario

@@ -51,12 +51,27 @@ import { mostrarHandleSecundario, nombreMostrado } from "@/lib/identidad";
  * │ deja la marca ilegible en uno de ellos, así que la tinta es un TOKEN (los valores, en        │
  * │ `globals.css`, que es donde vive la paleta; aquí solo el porqué).                            │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ UNA "VIP" POR IDENTIDAD: DOS TAMAÑOS, NO TRES ─────────────────────────────────────────────┐
+ * │ Hubo un tercero, `esquina`, que iba superpuesto en la esquina del avatar. Con la figura       │
+ * │ anterior —una estrella con una gema dentro— sumaba: era un adorno que decía "premium" sin     │
+ * │ competir con nada. Con LETRAS no suma, resta: en una fila de feed, de comentarios, de ranking │
+ * │ o de participaciones salía "VIP" en el avatar y "VIP" otra vez pegado al nombre, a dos        │
+ * │ centímetros. La misma palabra dos veces no informa el doble; y en el avatar, además, le       │
+ * │ disputaba el sitio al emblema de NIVEL, que sí dice algo que no está dicho en ningún otro     │
+ * │ lugar del renglón.                                                                            │
+ * │                                                                                               │
+ * │ Así que la marca de las filas es `compacta`, SIEMPRE junto al nombre —el mismo criterio que    │
+ * │ ya seguía `MarcaBoost`, y por el mismo motivo escrito en su docblock— y en el perfil la marca │
+ * │ es el EMBLEMA del hero. Antes de quitarla se hizo el CENSO: todas las superficies que pasaban │
+ * │ `esVip` a un avatar pintan al lado el nombre con su marca, así que no queda ni una donde el   │
+ * │ dato se pierda. `tests/render/identidad-vip` lo fija midiendo UNA marca por fila, no "que     │
+ * │ haya marca" — que es lo que dejaba pasar la duplicada.                                        │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────┘
  */
 const TAMANO_MARCA = {
-  /** Junto al nombre, a escala de texto. */
+  /** Junto al nombre, a escala de texto. Es la marca de TODAS las filas (ver abajo). */
   compacta: "px-1 py-px text-[9px] rounded-[4px]",
-  /** En la esquina de un avatar: un punto más de aire para despegarse de la foto. */
-  esquina: "px-[5px] py-[2px] text-[10px] rounded-[5px]",
   /**
    * El hero del perfil VIP. El RADIO es proporcional a la altura, como en los dos de arriba
    * (~0,35 del alto): con el mismo radio absoluto que la píldora pequeña, a este tamaño la pieza
@@ -102,11 +117,6 @@ export function MarcaVip({
  */
 export function EmblemaVipGrande({ clase = "" }: { clase?: string }) {
   return <MarcaVip tamano="grande" clase={clase} />;
-}
-
-/** La marca en la esquina de un avatar. La monta `Avatar`, que es su única puerta. */
-export function MarcaVipEsquina({ clase }: { clase?: string }) {
-  return <MarcaVip tamano="esquina" clase={clase} />;
 }
 
 export interface IdentidadVip {

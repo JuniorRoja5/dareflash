@@ -121,17 +121,32 @@ describe("el candado: nadie pinta un nombre fuera del componente compartido", ()
     expect(feed).not.toMatch(/nombre=\{/);
   });
 
-  it("la marca solo entra en un avatar por la puerta de `esVip`", () => {
-    // `Avatar` es el único que monta `MarcaVipEsquina`, y la monta detrás de la comprobación. Si
-    // alguien la montara suelta en otro sitio, podría acabar sobre quien no paga.
-    //
-    // El nombre cambió (era `SelloVipEsquina`, cuando la marca era una figura) pero el invariante
-    // es el mismo y por eso este caso se reescribió en vez de borrarse.
-    const montan = SUPERFICIES.filter((x) => x.codigo.includes("<MarcaVipEsquina")).map((x) => x.f);
-    expect(montan).toEqual(["components/ui/avatar.tsx"]);
-    expect(sinComentarios(leer("components/ui/avatar.tsx"))).toMatch(
-      /esVip \?\s*\(?\s*<MarcaVipEsquina/,
-    );
+  /**
+   * ESTE CASO CAMBIÓ DE FORMA CON LA MARCA DUPLICADA, y es la tercera vez que se reescribe en vez
+   * de borrarse.
+   *
+   * Decía: "la marca solo entra en un avatar por la puerta de `esVip`" —`Avatar` era el único que
+   * montaba `MarcaVipEsquina`, detrás de su comprobación—. Pero la marca del avatar SOBRABA: en una
+   * fila salía "VIP" en el avatar y "VIP" otra vez junto al nombre, a dos centímetros. Se quitó.
+   *
+   * Lo que queda debajo es más fuerte, no más débil: el avatar NO PUEDE pintar la marca, porque no
+   * recibe `esVip` ni importa la pieza. Un sitio menos por el que podría llegarle a quien no paga.
+   */
+  it("el AVATAR no pinta la marca: no la importa y no sabe quién es VIP", () => {
+    const avatar = sinComentarios(leer("components/ui/avatar.tsx"));
+    expect(avatar, "el avatar volvió a montar la marca").not.toContain("MarcaVip");
+    expect(avatar, "el avatar volvió a recibir `esVip`").not.toMatch(/\besVip\b/);
+  });
+
+  it("y ninguna superficie monta `MarcaVip` a mano", () => {
+    // `SUPERFICIES` es todo `app` + `components` MENOS el propio módulo, así que lo correcto aquí
+    // es la lista vacía: la pieza solo la montan `NombreUsuario` y el hero del perfil, los dos
+    // dentro del módulo. Montada a mano en una superficie, podría acabar sobre quien no paga sin
+    // pasar por el candado — y, además, es como vuelve la marca duplicada.
+    const montan = SUPERFICIES.filter((x) => /<MarcaVip[\s/>]/.test(x.codigo)).map((x) => x.f);
+    expect(montan).toEqual([]);
+    // Y el control de que el detector encuentra algo cuando lo hay: en el módulo SÍ está.
+    expect(sinComentarios(leer(MODULO))).toMatch(/<MarcaVip[\s/>]/);
   });
 });
 
@@ -148,7 +163,7 @@ describe("el panel queda fuera a propósito, y se puede comprobar", () => {
   it("y no monta la marca: el gobierno de cuentas no es un escaparate", () => {
     const conMarca = ficheros(path.join(SRC, "app", "panel"))
       .map((f) => ({ f: path.relative(SRC, f), c: readFileSync(f, "utf8") }))
-      .filter((x) => x.c.includes("<NombreUsuario") || x.c.includes("<MarcaVipEsquina"))
+      .filter((x) => x.c.includes("<NombreUsuario") || x.c.includes("<MarcaVip"))
       .map((x) => x.f);
     expect(conMarca).toEqual([]);
   });

@@ -66,34 +66,35 @@ describe("el emblema grande: uno, y solo donde toca", () => {
   });
 
   /**
-   * ESTOS DOS CASOS CAMBIARON DE FORMA CON EL LETTERMARK, y no se borraron.
+   * ESTE CASO CAMBIÓ DE FORMA DOS VECES, y no se borró.
    *
-   * Decían: "el id del degradado es una constante" y "los compactos no llevan degradado, porque
-   * un `<linearGradient>` repite su `id` veinte veces en un feed". Desde que la marca son LETRAS
-   * en una píldora, no hay SVG, no hay `id` y ese fallo concreto ya no se puede cometer.
+   * Decía "el id del degradado es una constante" y "los compactos no llevan degradado, porque un
+   * `<linearGradient>` repite su `id` veinte veces en un feed". Con LETRAS no hay SVG, no hay `id`
+   * y ese fallo concreto desapareció, así que pasó a fijar lo de debajo: **la marca es UNA pieza,
+   * no varios dibujos que mantener sincronizados** — que es exactamente cómo el sello y la gema
+   * acabaron divergiendo.
    *
-   * Lo que SÍ sigue valiendo es la decisión de debajo —**la marca es UNA pieza, no tres dibujos
-   * que mantener sincronizados**— y eso es lo que fijan ahora. Un dibujo propio por tamaño es
-   * exactamente cómo el sello y la gema acabaron divergiendo antes.
+   * Y luego los tamaños pasaron de tres a DOS: la marca de la esquina del avatar se quitó porque
+   * duplicaba la de junto al nombre en todas las filas. El caso sigue midiendo lo mismo sobre lo
+   * que queda.
    */
-  it("la marca es UNA pieza: los tres tamaños salen del mismo componente", () => {
+  it("la marca es UNA pieza: los dos tamaños salen del mismo componente", () => {
     const identidad = sinComentarios(leer(IDENTIDAD));
     expect(identidad).toContain("export function MarcaVip");
 
-    // El hero y el de la esquina son envoltorios de la misma pieza, no dibujos aparte. Se mira
-    // el CUERPO de cada función, acotado por su cierre: con una ventana de N caracteres, el
-    // `<MarcaVip` de la función SIGUIENTE entraba en el rango y el caso pasaba en verde aunque el
-    // hero se hubiera reescrito con su propio `<span>`. Lo descubrió el diente.
-    for (const nombre of ["EmblemaVipGrande", "MarcaVipEsquina"]) {
-      const cuerpo =
-        new RegExp(`export function ${nombre}\\([\\s\\S]*?\\n\\}`).exec(identidad)?.[0] ?? "";
-      expect(cuerpo.length, `no encuentro ${nombre}`).toBeGreaterThan(40);
-      expect(cuerpo, `${nombre} dejó de reusar la marca y tiene dibujo propio`).toContain(
-        "<MarcaVip",
-      );
-    }
-    // Y los tamaños son UNA tabla, no clases sueltas repartidas por el fichero.
-    expect(identidad).toContain("const TAMANO_MARCA");
+    // El hero es un envoltorio de la misma pieza, no un dibujo aparte. Se mira el CUERPO de la
+    // función, acotado por su cierre: con una ventana de N caracteres, el `<MarcaVip` de la
+    // función SIGUIENTE entraba en el rango y el caso pasaba en verde aunque el hero se hubiera
+    // reescrito con su propio `<span>`. Lo descubrió el diente.
+    const cuerpo = /export function EmblemaVipGrande\([\s\S]*?\n\}/.exec(identidad)?.[0] ?? "";
+    expect(cuerpo.length, "no encuentro EmblemaVipGrande").toBeGreaterThan(40);
+    expect(cuerpo, "el hero dejó de reusar la marca y tiene dibujo propio").toContain("<MarcaVip");
+
+    // Y los tamaños son UNA tabla, no clases sueltas repartidas por el fichero. Dos: la de las
+    // filas y la del hero. Un tercero vuelve a abrir la puerta a la marca duplicada.
+    const tabla = /const TAMANO_MARCA = \{[\s\S]*?\n\} as const;/.exec(identidad)?.[0] ?? "";
+    expect(tabla.length, "no encuentro la tabla de tamaños").toBeGreaterThan(40);
+    expect([...tabla.matchAll(/^ {2}(\w+):/gm)].map((m) => m[1])).toEqual(["compacta", "grande"]);
   });
 
   it("y no queda ni un SVG con `id` en la identidad: el problema del feed desapareció", () => {

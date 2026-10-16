@@ -58,7 +58,6 @@ export function AvatarDestacado({
   tamano = "sm",
   perezosa = false,
   destacado,
-  esVip = false,
 }: {
   nombre: string;
   imagen?: string | null;
@@ -66,18 +65,11 @@ export function AvatarDestacado({
   tamano?: TamanoAvatar;
   perezosa?: boolean;
   destacado: boolean;
-  /** Pasa de largo hasta `Avatar`, que es quien monta el sello. Aquí no se decide nada. */
-  esVip?: boolean;
 }) {
+  // SIN `esVip`: el avatar ya no lleva la marca VIP (ver su docblock). La llevaba, y en una fila
+  // salía dos veces, porque el nombre de al lado también la lleva.
   const avatar = (
-    <Avatar
-      nombre={nombre}
-      imagen={imagen}
-      puntos={puntos}
-      tamano={tamano}
-      perezosa={perezosa}
-      esVip={esVip}
-    />
+    <Avatar nombre={nombre} imagen={imagen} puntos={puntos} tamano={tamano} perezosa={perezosa} />
   );
   if (!destacado) return avatar;
 
@@ -143,7 +135,6 @@ export function AutorFeed({
         puntos={puntos}
         tamano="sm"
         destacado={destacado}
-        esVip={esVip}
       />
       <span className="min-w-0">
         <span className="flex min-w-0 items-center gap-2">

@@ -129,8 +129,10 @@ describe("un perfil VIP monta el tratamiento completo", () => {
     const c = pintar(vip);
     const nombre = c.querySelector(".df-nombre-vip")!;
     expect(nombre.getAttribute("style")).toContain("var(--vip-nombre-diamante)");
-    // La marca compacta del avatar es la de P2 y sigue ahí: el hero no la sustituye.
-    expect(c.querySelector('[data-marca-vip="esquina"]')).not.toBeNull();
+    // La marca de junto al nombre es la de P2 y sigue ahí: el hero no la sustituye.
+    expect(c.querySelector('[data-marca-vip="compacta"]')).not.toBeNull();
+    // Y el avatar ya NO lleva la suya: eran dos "VIP" a dos centímetros.
+    expect(c.querySelector('[data-marca-vip="esquina"]')).toBeNull();
   });
 });
 
@@ -148,14 +150,15 @@ describe("el hero: uno, y la misma pieza que la compacta", () => {
     expect(c.querySelectorAll('[data-marca-vip="grande"]')).toHaveLength(1);
   });
 
-  it("y es la misma marca: dice 'VIP' en los tres tamaños", () => {
+  it("y es la misma marca: dice 'VIP' en los dos tamaños", () => {
     const c = pintar({ ...base, esPropio: true, esVip: true });
     const marcas = [...c.querySelectorAll("[data-marca-vip]")];
-    expect(marcas.length, "faltan marcas en el perfil VIP").toBeGreaterThanOrEqual(3);
+    expect(marcas.length, "faltan marcas en el perfil VIP").toBe(2);
     for (const m of marcas) expect(m.textContent).toBe("VIP");
-    // Los tres tamaños del perfil: el hero, la esquina del avatar y la de junto al nombre.
+    // DOS, no tres: el hero y la de junto al nombre. La del avatar se quitó —en una fila salía
+    // "VIP" dos veces en el mismo renglón— y el perfil heredó la misma decisión.
     expect(new Set(marcas.map((m) => m.getAttribute("data-marca-vip")))).toEqual(
-      new Set(["grande", "esquina", "compacta"]),
+      new Set(["grande", "compacta"]),
     );
   });
 

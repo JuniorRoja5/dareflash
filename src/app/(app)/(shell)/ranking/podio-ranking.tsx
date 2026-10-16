@@ -123,7 +123,6 @@ function AvatarMedalla({
   color,
   puntos,
   tokenMedalla,
-  esVip = false,
 }: {
   nombre: string;
   imagen: string | null;
@@ -134,8 +133,6 @@ function AvatarMedalla({
   puntos?: number;
   /** Token del color de la MEDALLA, para saber si el anillo de nivel se pisaria con ella. */
   tokenMedalla: string | null;
-  /** Pasa de largo hasta `Avatar`: el sello va en SU esquina, por dentro del aro de medalla. */
-  esVip?: boolean;
 }) {
   const nivel = puntos === undefined ? null : nivelPorPuntos(puntos);
   const sePisa = anilloSePisaConPuesto(nivel, tokenMedalla);
@@ -156,7 +153,6 @@ function AvatarMedalla({
         imagen={imagen}
         tamano={tamano}
         puntos={sePisa ? undefined : puntos}
-        esVip={esVip}
       />
     </span>
   );
@@ -200,7 +196,6 @@ function ColumnaPodio({ fila, puesto }: { fila: FilaPodio; puesto: PuestoPodio }
           color={color}
           puntos={fila.puntos}
           tokenMedalla={tokenMedalla(puesto)}
-          esVip={fila.esVip}
         />
       </span>
       <p
@@ -283,7 +278,6 @@ function TarjetaMovil({
         color={color}
         puntos={fila.puntos}
         tokenMedalla={tokenMedalla(puesto)}
-        esVip={fila.esVip}
       />
       <div className={`flex flex-col ${destacado ? "min-w-0 items-start" : "items-center"}`}>
         <p className="max-w-[16ch] truncate font-semibold text-text">

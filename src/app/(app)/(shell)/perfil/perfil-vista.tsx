@@ -232,7 +232,7 @@ export function PerfilVista({
                   VIP: sin él, el avatar de todos los demás se pinta exactamente como siempre. */}
               {esVip ? (
                 <span className="df-vip-aro mt-3.5">
-                  <Avatar nombre={nombre} tamano="xl" imagen={imagen} puntos={puntos} esVip />
+                  <Avatar nombre={nombre} tamano="xl" imagen={imagen} puntos={puntos} />
                 </span>
               ) : (
                 <Avatar nombre={nombre} tamano="xl" imagen={imagen} puntos={puntos} />

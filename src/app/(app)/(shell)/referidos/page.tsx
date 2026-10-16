@@ -112,7 +112,6 @@ export default async function ReferidosPage({
                     tamano="sm"
                     perezosa
                     puntos={r.puntos}
-                    esVip={r.esVip}
                   />
                   <span className="min-w-0 flex-1">
                     <NombreUsuario

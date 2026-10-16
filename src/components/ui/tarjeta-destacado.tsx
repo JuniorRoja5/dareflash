@@ -118,7 +118,6 @@ export function TarjetaDestacado({
           tamano={vitrina ? "xl" : "lg"}
           perezosa
           puntos={puntos}
-          esVip={esVip}
         />
         <NombreUsuario
           displayName={displayName}
