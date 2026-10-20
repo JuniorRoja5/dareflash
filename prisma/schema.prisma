@@ -476,6 +476,35 @@ model Challenge {
   /// suscripcion), nunca una columna en `User`: un booleano guardado no caduca y una fecha si.
   soloVip Boolean @default(false)
 
+  /// RETO PATROCINADO POR UNA MARCA (Fase 9 · P1). Un reto patrocinado es un Challenge con estos
+  /// campos: participacion, votacion, cierre y ganador son EXACTAMENTE los de siempre.
+  ///
+  /// EL DINERO NO CAMBIA DE MANOS AQUI. El sponsor paga POR FUERA (no hay Stripe para esto) y el
+  /// ganador cobra el premio INTEGRO por el rail de siempre. La comision es un trato con la MARCA,
+  /// no un descuento al ganador: nunca se resta de `prizeAmountCents` ni aparece en nada que vea un
+  /// usuario. Vive en el panel de admin, que es donde se cuadra lo que hay que facturar.
+  esPatrocinado Boolean @default(false)
+
+  /// Nombre de la marca, tal y como se enseña ("Patrocinado por X"). Texto libre: es un nombre
+  /// comercial, no una clave; no hay catalogo de marcas porque no hay portal de empresa.
+  sponsorNombre String?
+
+  /// Logo de la marca: NOMBRE DE FICHERO, como `coverImage`, servido por Caddy desde el mismo
+  /// volumen de portadas. No es una URL externa a proposito: una imagen alojada en el servidor de
+  /// la marca puede cambiar, caerse o convertirse en otra cosa en un reto que ya se publico.
+  sponsorLogo String?
+  /// COMISION DE LA MARCA EN PUNTOS BASICOS (2500 = 25%), ENTERA y GUARDADA POR RETO.
+  ///
+  /// POR RETO Y NO EN UNA CONSTANTE GLOBAL: el porcentaje es parte del trato que se cerro con esa
+  /// marca ese mes. Con una constante, cambiar la tarifa reescribiria el historico —un reto cerrado
+  /// hace medio año pasaria a "haber cobrado" otra cosa— y la contabilidad dejaria de cuadrar con
+  /// las facturas que ya se emitieron.
+  ///
+  /// EN BPS Y NO EN PORCENTAJE: 25,5% no cabe en un entero de porcentaje y un decimal en dinero es
+  /// justo lo que este esquema evita en todas partes. El importe se calcula en centimos enteros
+  /// (ver `lib/comision`), nunca con float.
+  comisionBps Int @default(2500)
+
   /// MINIMO de participaciones que CUENTAN (invariante 3: Submission PUBLISHED **y** Video PUBLISHED)
   /// para que se declare ganador. NULL = el reto no exige minimo, que es el caso de todos los retos
   /// existentes -> la migracion NO necesita backfill: la ausencia YA significa lo correcto. Si al

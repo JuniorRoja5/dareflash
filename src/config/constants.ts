@@ -1151,6 +1151,27 @@ export const CTA_RETO_SOLO_VIP = "Hazte VIP para participar";
 /** La chapa de la tarjeta de un reto exclusivo. Va al lado de la marca "VIP", que ya dice el plan. */
 export const ETIQUETA_RETO_SOLO_VIP = "EXCLUSIVO";
 
+// ============================================================================
+// RETOS PATROCINADOS (Fase 9 · P1)
+// ============================================================================
+
+/**
+ * COMISION POR DEFECTO que se le factura a una marca, en puntos basicos (2500 = 25%).
+ *
+ * ES SOLO EL VALOR INICIAL DEL FORMULARIO. El porcentaje que cuenta es el GUARDADO EN EL RETO
+ * (`Challenge.comisionBps`): es parte del trato que se cerro con esa marca ese mes. Cambiar esta
+ * constante cambia lo que propone el formulario de un reto NUEVO y no toca ni un reto existente —
+ * si lo tocara, un reto cerrado hace meses pasaria a "haber cobrado" otra cosa que la factura ya
+ * emitida. Hay diente que lo fija.
+ */
+export const COMISION_SPONSOR_BPS_DEFECTO = 2500;
+
+/** Lo que se lee en la tarjeta y en la ficha de un reto patrocinado, delante del nombre de la marca. */
+export const ETIQUETA_PATROCINADO = "Patrocinado por";
+
+/** Nombre de marca: es un nombre comercial escrito a mano, no una clave. Tope sobrio. */
+export const SPONSOR_NOMBRE_MAX = 60;
+
 export const VIDEO_FONDO_HOME = "https://dareflash-assets.b-cdn.net/fondo-home.mp4";
 
 /**
