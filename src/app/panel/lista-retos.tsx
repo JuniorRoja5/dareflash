@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { MarcaVip } from "@/components/ui/identidad-usuario";
 import { CATEGORIES } from "@/config/constants";
 import { postJsonCsrf } from "@/lib/cliente-http";
 import { centimosAImporte } from "@/lib/dinero";
@@ -242,8 +243,13 @@ export function ListaRetos({
             <tr key={r.id} className="align-middle transition-colors hover:bg-raised/40">
               <td className="max-w-[28ch] px-4 py-3">
                 <p className="truncate font-medium text-text">{r.title}</p>
-                <p className="mt-0.5 font-mono text-2xs tracking-wider text-text-dim">
+                <p className="mt-0.5 flex items-center gap-2 font-mono text-2xs tracking-wider text-text-dim">
                   {r.publicCode}
+                  {/* LA MARCA DE EXCLUSIVO TAMBIÉN AQUÍ: el admin tiene que poder VER de un vistazo
+                      cuáles lo son. Sin esto, la única forma de saberlo sería abrir la edición de
+                      cada uno — y un reto exclusivo por error es un reto en el que casi nadie
+                      puede participar. Es la MISMA pieza que pinta la tarjeta pública. */}
+                  {r.soloVip ? <MarcaVip /> : null}
                 </p>
               </td>
               <td className="px-4 py-3 whitespace-nowrap text-text-dim">

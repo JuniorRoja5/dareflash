@@ -30,6 +30,12 @@ export interface RetoPublicoVista {
   deadlineMs: number;
   /** URL pública de la portada (Caddy) o null (placeholder). */
   coverImage: string | null;
+  /**
+   * RETO EXCLUSIVO DE VIP MYTHIC. Va en la TARJETA (no solo en el detalle) porque es lo que la
+   * distingue en el listado: marco dorado y chapa. Y se expone a TODO EL MUNDO a propósito —el
+   * exclusivo se ve, no se esconde— igual que `nivelMinimo`: lo que se bloquea es participar.
+   */
+  soloVip: boolean;
 }
 
 /** Detalle del reto (además de la tarjeta): id (para participar), descripción, reglas, ganadores... */
@@ -58,6 +64,7 @@ const SELECT_VISTA = {
   prizeAmountCents: true,
   deadline: true,
   coverImage: true,
+  soloVip: true,
 } as const;
 
 type FilaVista = {
@@ -68,6 +75,7 @@ type FilaVista = {
   prizeAmountCents: number;
   deadline: Date;
   coverImage: string | null;
+  soloVip: boolean;
 };
 
 function aVista(f: FilaVista): RetoPublicoVista {
@@ -79,8 +87,18 @@ function aVista(f: FilaVista): RetoPublicoVista {
     premioCents: f.prizeAmountCents,
     deadlineMs: f.deadline.getTime(),
     coverImage: f.coverImage,
+    soloVip: f.soloVip,
   };
 }
+
+/**
+ * NINGUNA DE ESTAS CONSULTAS FILTRA POR `soloVip`, Y ES LA DECISIÓN DE LA PIEZA.
+ *
+ * Un reto exclusivo SE VE para todo el mundo —con su marco dorado, que es medio gancho— y lo único
+ * que se bloquea es PARTICIPAR, exactamente como `nivelMinimo`. Esconderlo a quien no es VIP
+ * convertiría la función en invisible justo para el público al que quiere convencer, y además
+ * dejaría un reto con premio del que nadie sabría nada. `tests/retos-vip` lo fija.
+ */
 
 /** ACTIVOS: PUBLISHED con cierre futuro, orden por cierre ASC (el que cierra antes, primero). */
 export async function listarRetosPublicos(

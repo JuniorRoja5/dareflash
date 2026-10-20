@@ -21,39 +21,62 @@ export type ModoParticipacion = "primera" | "reemplazo" | "bloqueada";
  *
  *  - `MODERACION`: un admin retiró la participación. Es definitivo.
  *  - `NIVEL`: el reto pide un nivel que el usuario todavía no alcanza. Se arregla jugando.
+ *  - `SOLO_VIP`: el reto es exclusivo de VIP Mythic. Se arregla suscribiéndose.
  */
-export type MotivoBloqueo = "MODERACION" | "NIVEL";
+export type MotivoBloqueo = "MODERACION" | "NIVEL" | "SOLO_VIP";
 
 export type ResultadoIniciar =
   | { modo: "primera" | "reemplazo"; videoId: string; submissionId: string }
   | { modo: "bloqueada"; motivo: MotivoBloqueo };
 
 /**
- * LA PUERTA DE NIVEL, en UN solo sitio y leyendo ella misma lo que necesita.
+ * LAS PUERTAS DEL RETO, en UN solo sitio y leyendo ellas mismas lo que necesitan.
  *
  * Que no reciba los datos de quien llama es deliberado. `puedeParticipar` e `iniciarParticipacion`
  * tienen que comprobar EXACTAMENTE lo mismo —ya se separaron una vez, y el síntoma fue un objeto
  * huérfano en Bunny por cada rechazo— y la forma barata de garantizarlo es que las dos llamen aquí en
  * vez de que cada una reúna sus datos.
  *
- * Son dos lecturas por clave primaria. El nivel se deriva del `pointsBalance` de la FILA, nunca de
- * nada que venga del cliente.
+ * ┌─ SON DOS PUERTAS Y SE COMPONEN: NIVEL **Y** VIP ────────────────────────────────────────────┐
+ * │ El nivel se gana jugando (sale de los puntos) y el VIP se paga (sale de una suscripción que  │
+ * │ caduca): son ejes ortogonales, así que un reto puede pedir los dos y entonces se exigen los  │
+ * │ dos. Por eso esto devuelve el MOTIVO y no un booleano — quien rechaza tiene que poder decir  │
+ * │ cuál de las dos cosas falta.                                                                  │
+ * │                                                                                               │
+ * │ EL NIVEL SE MIRA PRIMERO, y no es indiferente: a quien le faltan las DOS cosas se le dice la  │
+ * │ que NO cuesta dinero. Al revés, le pediríamos que pagara una suscripción para encontrarse,    │
+ * │ nada más pagar, con una segunda pared que ya estaba ahí.                                      │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * SER VIP LO DECIDE EL CHOKEPOINT (`esVipActivoDe` -> `esVipActivo`), nunca una columna: lo que hay
+ * guardado es hasta cuándo está pagado, y quien compara esa fecha con el reloj es una sola función.
+ * Un `esVip` booleano en `User` se quedaría pegado y regalaría retos exclusivos para siempre.
  */
-async function bloqueadoPorNivel(
+async function motivoDeBloqueoDelReto(
   db: Db,
   entrada: { challengeId: string; userId: string },
-): Promise<boolean> {
+): Promise<MotivoBloqueo | null> {
   const [reto, usuario] = await Promise.all([
     db.challenge.findUnique({
       where: { id: entrada.challengeId },
-      select: { nivelMinimo: true },
+      select: { nivelMinimo: true, soloVip: true },
     }),
     db.user.findUnique({ where: { id: entrada.userId }, select: { pointsBalance: true } }),
   ]);
-  // Si falta cualquiera de los dos, la puerta de nivel NO bloquea: el reto inexistente ya lo rechaza
-  // quien llama, y vetar por un dato que no se pudo leer sería inventarse un motivo.
-  if (!reto || !usuario) return false;
-  return !puedeParticiparPorNivel(usuario.pointsBalance, reto.nivelMinimo);
+  // Si falta cualquiera de los dos, NO se bloquea: el reto inexistente ya lo rechaza quien llama, y
+  // vetar por un dato que no se pudo leer sería inventarse un motivo.
+  if (!reto || !usuario) return null;
+
+  if (!puedeParticiparPorNivel(usuario.pointsBalance, reto.nivelMinimo)) return "NIVEL";
+
+  if (reto.soloVip) {
+    // Import dinámico y SOLO si el reto es exclusivo: la inmensa mayoría no lo son, y así esto no
+    // añade una consulta a la suscripción en cada subida del producto entero.
+    const { esVipActivoDe } = await import("./vip");
+    if (!(await esVipActivoDe(db, entrada.userId))) return "SOLO_VIP";
+  }
+
+  return null;
 }
 
 /**
@@ -103,11 +126,11 @@ export async function iniciarParticipacion(
   if (existente?.retiradaMotivo === "MODERACION")
     return { modo: "bloqueada", motivo: "MODERACION" };
 
-  // NIVEL: la autoridad está AQUÍ, dentro de la transacción, no en la guarda barata de fuera. El
-  // cliente puede no pintar el candado, o pintarlo y que alguien llame al endpoint igual.
-  if (await bloqueadoPorNivel(tx, { challengeId, userId })) {
-    return { modo: "bloqueada", motivo: "NIVEL" };
-  }
+  // NIVEL y SOLO VIP: la autoridad está AQUÍ, dentro de la transacción, no en la guarda barata de
+  // fuera. El cliente puede no pintar el candado, o pintarlo y que alguien llame al endpoint igual
+  // —y en un reto exclusivo eso es exactamente lo que alguien intentará—.
+  const motivoReto = await motivoDeBloqueoDelReto(tx, { challengeId, userId });
+  if (motivoReto) return { modo: "bloqueada", motivo: motivoReto };
 
   if (!existente) return crearPrimera();
 
@@ -166,7 +189,8 @@ export async function puedeParticipar(
   // Por eso ya no mira el estado del vídeo, y por eso la puerta de nivel la resuelven las dos con la
   // misma función en vez de cada una por su cuenta.
   if (existente?.retiradaMotivo === "MODERACION") return { puede: false, motivo: "MODERACION" };
-  if (await bloqueadoPorNivel(db, entrada)) return { puede: false, motivo: "NIVEL" };
+  const motivoReto = await motivoDeBloqueoDelReto(db, entrada);
+  if (motivoReto) return { puede: false, motivo: motivoReto };
   return { puede: true };
 }
 

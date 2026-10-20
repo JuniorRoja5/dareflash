@@ -25,6 +25,7 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     CONFIRM_WAKE_KEY,
     CATEGORIES,
     MSG_PARTICIPACION_BLOQUEADA: MSG_BLOQUEADA,
+    MSG_RETO_SOLO_VIP,
   } = await import("@/config/constants");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { crearObjetoVideo, credencialSubidaTus, clienteBunnyReal } =
@@ -39,10 +40,15 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
    * la transaccion, que es la autoridad. Dos textos distintos para el mismo motivo serian dos
    * explicaciones distintas del mismo no.
    */
-  const rechazo = (motivo: MotivoBloqueo, nivelMinimo: string) =>
-    motivo === "NIVEL"
-      ? apiError("NIVEL_INSUFICIENTE", mensajeNivelInsuficiente(nivelMinimo), 409)
-      : apiError("PARTICIPACION_BLOQUEADA", MSG_BLOQUEADA, 409);
+  const rechazo = (motivo: MotivoBloqueo, nivelMinimo: string) => {
+    if (motivo === "NIVEL") {
+      return apiError("NIVEL_INSUFICIENTE", mensajeNivelInsuficiente(nivelMinimo), 409);
+    }
+    // El reto es de VIP Mythic. Copy humano: el codigo va al cuerpo para el cliente, pero lo que se
+    // lee en pantalla no puede ser "SOLO_VIP".
+    if (motivo === "SOLO_VIP") return apiError("SOLO_VIP", MSG_RETO_SOLO_VIP, 409);
+    return apiError("PARTICIPACION_BLOQUEADA", MSG_BLOQUEADA, 409);
+  };
 
   // Titulo OPCIONAL (metadato del objeto en Bunny; el titulo definitivo se fija al publicar). `challengeId`
   // OPCIONAL: si viene, es una PARTICIPACION en ese reto (crea/actualiza Submission); si no, subida libre.

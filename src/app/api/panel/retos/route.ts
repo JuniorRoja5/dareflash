@@ -1,5 +1,6 @@
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
+import { camposDelFormulario } from "@/server/http/form";
 
 export const dynamic = "force-dynamic";
 
@@ -45,20 +46,7 @@ export const POST = mutatingRoute(async (req, { env, prisma }) => {
   } catch {
     return apiError("BAD_REQUEST", "No hemos podido leer los datos. Inténtalo de nuevo.", 400);
   }
-  const campo = (k: string): string | undefined => {
-    const v = form.get(k);
-    return typeof v === "string" ? v : undefined;
-  };
-  const parsed = crearRetoSchema(new Date()).safeParse({
-    title: campo("title"),
-    description: campo("description"),
-    category: campo("category"),
-    rules: campo("rules"),
-    prizeAmountCents: campo("prizeAmountCents"),
-    startsAt: campo("startsAt"),
-    deadline: campo("deadline"),
-    winnersCount: campo("winnersCount"),
-  });
+  const parsed = crearRetoSchema(new Date()).safeParse(camposDelFormulario(form));
   if (!parsed.success) {
     return apiError(
       "VALIDATION",

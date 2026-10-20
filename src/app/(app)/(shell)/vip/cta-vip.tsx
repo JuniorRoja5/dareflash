@@ -2,23 +2,19 @@
 
 import { useCallback, useState } from "react";
 
+import { RELLENO_VIP } from "@/components/ui/logic";
 import { MSG_VIP_PAGO_NO_DISPONIBLE } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 
 /**
- * EL COLOR DEL CTA, EN UNA LÍNEA Y EN UN SOLO SITIO.
+ * EL COLOR DEL CTA SALE DE `RELLENO_VIP`, que es de donde sale también el del reto exclusivo.
  *
- * Va en ORO porque es la señal de marca del VIP, y porque `--df-action` está reservado a UNA acción
- * por pantalla —"Subir vídeo", el botón de la barra superior—. Pero la decisión está ABIERTA
- * (Sergio): pasarlo al verde de acción es cambiar esta línea por
- * `{ fondo: "var(--df-action)", tinta: "var(--df-void)" }` y nada más. Por eso el par viaja junto:
- * el relleno y su TINTA se eligen a la vez o el texto se queda ilegible sobre el fondo nuevo.
- *
- * LA TINTA ES UN TOKEN Y NO UN COLOR FIJO: sobre el oro de oscuro hace falta tinta oscura (12,89:1)
- * y sobre el oro de claro hace falta blanca (4,69:1) — el mismo valor en los dos temas deja el botón
- * por debajo de AA en uno de ellos. Medido en `MarcaVip`, que usa este mismo par.
+ * Estuvo aquí, en un `TONO_CTA` local, y se movió al nacer el SEGUNDO botón dorado (el de un reto
+ * exclusivo, Fase 8 · P7): dos copias del mismo par es cómo una de las dos se queda en el valor
+ * viejo el día que la decisión cambie —y está abierta, Sergio puede preferir el verde de acción—.
+ * Va en ORO porque es la señal de marca del VIP y porque `--df-action` está reservado a UNA acción
+ * por pantalla ("Subir vídeo", el botón de la barra superior).
  */
-const TONO_CTA = { fondo: "var(--vip-gold)", tinta: "var(--vip-tinta)" } as const;
 
 /**
  * HAZTE VIP — el botón que abre el pago de la suscripción.
@@ -86,9 +82,8 @@ export function CtaVip({
         aria-describedby={puedeSuscribirse ? undefined : "vip-bloqueo"}
         className="inline-flex min-h-[52px] items-center justify-center rounded-sm px-7 text-base font-semibold transition-[filter] duration-150 ease-mechanical hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:brightness-100"
         style={{
-          backgroundColor: TONO_CTA.fondo,
-          color: TONO_CTA.tinta,
-          boxShadow: `0 0 30px -8px color-mix(in srgb, ${TONO_CTA.fondo} 45%, transparent)`,
+          ...RELLENO_VIP,
+          boxShadow: `0 0 30px -8px color-mix(in srgb, ${RELLENO_VIP.backgroundColor} 45%, transparent)`,
         }}
       >
         {abriendo ? "Abriendo el pago…" : "Hazte VIP Mythic"}

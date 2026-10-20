@@ -75,6 +75,21 @@ export function crearRetoSchema(now: Date) {
        * llamada que no lo mande, no restringe nada por accidente.
        */
       nivelMinimo: z.enum(NIVEL_KEYS).default(NIVEL_MINIMO_ABIERTO),
+      /**
+       * ¿RETO EXCLUSIVO PARA VIP MYTHIC? Ausente = `false` = reto normal: un formulario que no mande
+       * el campo no puede convertir un reto abierto en exclusivo por accidente.
+       *
+       * LLEGA COMO TEXTO, no como booleano: el formulario del panel va en `multipart/form-data` y
+       * ahí todo es string. `z.coerce.boolean()` NO vale —`Boolean("false")` es `true`, así que un
+       * "false" explícito activaría el candado—, por eso se compara contra la lista de formas que
+       * de verdad significan sí (la de una casilla HTML incluida: `on`).
+       */
+      soloVip: z
+        .union([z.boolean(), z.string()])
+        .default(false)
+        .transform((v) =>
+          typeof v === "boolean" ? v : ["1", "true", "on", "si", "sí"].includes(v.toLowerCase()),
+        ),
     })
     .refine((d) => d.startsAt < d.deadline, {
       message: "El cierre debe ser posterior a la apertura.",
@@ -121,6 +136,7 @@ export async function crearRetoAdmin(
         deadline: datos.deadline,
         winnersCount: datos.winnersCount,
         nivelMinimo: datos.nivelMinimo,
+        soloVip: datos.soloVip,
         createdById: adminId,
       },
       select: { id: true, publicCode: true, slug: true, status: true },
@@ -163,6 +179,7 @@ export async function editarRetoAdmin(
       deadline: datos.deadline,
       winnersCount: datos.winnersCount,
       nivelMinimo: datos.nivelMinimo,
+      soloVip: datos.soloVip,
       // publicCode, status y coverImage AUSENTES a propósito (invariantes de la edición).
     },
   });
@@ -205,6 +222,8 @@ export interface RetoAdminFila {
   winnersCount: number;
   /** Clave del nivel minimo para participar (`rookie` = todos). Ver `lib/nivel-reto`. */
   nivelMinimo: string;
+  /** Reto EXCLUSIVO de VIP Mythic: se ve igual, pero solo participa quien tenga la suscripcion. */
+  soloVip: boolean;
   coverImage: string | null;
   publicCode: string;
   /** Gracia de borrado en curso (ms) o null. El panel pinta la cuenta atras y ofrece restaurar. */
@@ -230,6 +249,7 @@ const SELECT_RETO_ADMIN = {
   deadline: true,
   winnersCount: true,
   nivelMinimo: true,
+  soloVip: true,
   coverImage: true,
   publicCode: true,
   eliminacionProgramadaEn: true,

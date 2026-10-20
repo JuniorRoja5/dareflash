@@ -3,6 +3,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { Marcador } from "@/components/ui/marcador";
 import { PildoraCategoria } from "@/components/ui/pildora";
 
+import { ChapaExclusivo } from "../chapa-exclusivo";
 import { nombreCategoria } from "../retos-datos";
 import { BotonParticipar } from "./participar";
 import { ParticipacionesReto, type ParticipacionUI } from "./participaciones-reto";
@@ -80,6 +81,15 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
       ? mensajeNivelInsuficiente(reto.nivelMinimo)
       : null;
 
+  // EL OTRO CANDADO: reto exclusivo de VIP Mythic. Quién es VIP lo dice el CHOKEPOINT, aquí y en el
+  // servidor que rechaza la subida — nunca una columna ni un flag de sesión.
+  //
+  // SOLO SI HAY SESIÓN, igual que el de nivel: al invitado no se le pinta candado (primero entra, y
+  // entonces se sabe si es VIP); si no, le estaríamos pidiendo que pague antes de tener cuenta.
+  const { esVipActivoDe } = await import("@/server/services/vip");
+  const vetoVip =
+    reto.soloVip && usuario !== null && !(await esVipActivoDe(prisma, usuario.userId));
+
   // Firma el póster de cada participación (el player firma su propia URL vía el endpoint firmado).
   const contextoReto = { titulo: reto.titulo, categoria: nombreCategoria(reto.categoria) };
   const participacionesUI: ParticipacionUI[] = pagina.items.map((p) => {
@@ -122,7 +132,14 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
             />
           ) : null}
           <div className="p-4 lg:p-6">
-            <PildoraCategoria>{nombreCategoria(reto.categoria)}</PildoraCategoria>
+            <div className="flex flex-wrap items-center gap-2">
+              <PildoraCategoria>{nombreCategoria(reto.categoria)}</PildoraCategoria>
+              {/* LA CHAPA TAMBIÉN AQUÍ. Se llega a esta ficha desde una tarjeta con marco dorado:
+                  sin nada que lo recuerde, el detalle parecería otro reto. No lleva el marco —el
+                  oro envolviendo la columna entera competiría con la portada y con el marcador—,
+                  solo la etiqueta que dice qué es. */}
+              {reto.soloVip ? <ChapaExclusivo /> : null}
+            </div>
             <h1
               className="mt-2 text-xl leading-tight text-text lg:mt-3 lg:text-2xl"
               style={{
@@ -181,6 +198,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
                 activo={activo}
                 yaParticipa={mi?.estado === "publicada"}
                 avisoNivel={avisoNivel}
+                vetoVip={vetoVip}
               />
               {miEstado ? (
                 <p

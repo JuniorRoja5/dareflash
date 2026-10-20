@@ -235,29 +235,46 @@ describe("las puertas de pago son LAS MISMAS que las de /boosts", () => {
   });
 });
 
-describe("el oro del CTA está en UN solo sitio", () => {
+/**
+ * ESTE BLOQUE SE MUDÓ CON LA DECISIÓN, en P7.
+ *
+ * El par oro/tinta vivía en un `TONO_CTA` local de esta pantalla, y mientras hubo UN botón dorado
+ * en el producto estaba bien. Al nacer el segundo —el CTA de un reto exclusivo— dos copias del
+ * mismo par pasaron a ser la forma garantizada de que una se quede en el valor viejo el día que
+ * Sergio decida el verde. El par vive ahora en `RELLENO_VIP` (`components/ui/logic`), al lado de
+ * `ACENTO_VIP`, y lo que se vigila es más fuerte: que NINGUNO de los dos botones escriba el oro.
+ */
+describe("el oro de los CTA del VIP está en UN solo sitio", () => {
   const cta = leer("cta-vip.tsx");
+  const logic = leerRuta("src", "components", "ui", "logic.ts");
+  const ctaReto = leerRuta(...SHELL, "retos", "[codigo]", "participar.tsx");
 
-  it("el tono es una línea, con el relleno y su tinta juntos", () => {
+  it("el par vive en `RELLENO_VIP`, con el relleno y su tinta juntos", () => {
     // Juntos porque se eligen juntos: cambiar el relleno sin la tinta deja el texto ilegible
     // sobre el fondo nuevo.
-    expect(cta).toMatch(/const TONO_CTA = \{[^}]*fondo: "var\(--vip-gold\)"[^}]*\}/);
-    expect(cta).toMatch(/const TONO_CTA = \{[^}]*tinta: "var\(--vip-tinta\)"[^}]*\}/);
+    expect(logic).toMatch(/const RELLENO_VIP = \{[\s\S]*?backgroundColor: "var\(--vip-gold\)"/);
+    expect(logic).toMatch(/const RELLENO_VIP = \{[\s\S]*?color: "var\(--vip-tinta\)"/);
   });
 
-  it("y el token no se repite: cambiarlo es cambiar esa línea", () => {
-    expect((cta.match(/--vip-gold/g) ?? []).length, "el oro está escrito más de una vez").toBe(1);
-    expect((cta.match(/--vip-tinta/g) ?? []).length, "la tinta está escrita más de una vez").toBe(
-      1,
-    );
-    // Y el resto del botón lee del tono, no del token.
-    expect(cta).toMatch(/backgroundColor: TONO_CTA\.fondo/);
-    expect(cta).toMatch(/color: TONO_CTA\.tinta/);
+  it("y NINGUNO de los dos botones escribe el oro a mano", () => {
+    for (const [nombre, src] of [
+      ["el CTA de /vip", cta],
+      ["el CTA del reto exclusivo", ctaReto],
+    ] as const) {
+      expect(src, `${nombre} no usa el par compartido`).toContain("RELLENO_VIP");
+      expect((src.match(/--vip-gold/g) ?? []).length, `${nombre} escribe el oro`).toBe(0);
+      expect((src.match(/--vip-tinta/g) ?? []).length, `${nombre} escribe la tinta`).toBe(0);
+    }
   });
 
   it("NUNCA el verde de acción: ese está reservado a «Subir vídeo»", () => {
     expect(cta, "el CTA del VIP se ha puesto en --df-action").not.toMatch(/--df-action/);
     expect(cta, "el CTA usa la variante principal del sistema").not.toMatch(/variante="principal"/);
+    // El del reto exclusivo tampoco puede llevar relleno de acción: `variante="fantasma"` + el par
+    // dorado. Con "principal" saldría con `bg-action` debajo del oro.
+    expect(ctaReto, "el CTA del reto usa la variante principal").not.toMatch(
+      /variante="principal"[\s\S]{0,200}RELLENO_VIP/,
+    );
   });
 });
 

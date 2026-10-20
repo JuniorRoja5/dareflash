@@ -109,6 +109,39 @@ describe("POST /api/panel/retos (crear, multipart)", () => {
     expect(mocks.challengeUpdate).not.toHaveBeenCalled(); // sin portada -> coverImage queda null
   });
 
+  /**
+   * EL CAMPO QUE SE PERDÍA POR EL CAMINO.
+   *
+   * La ruta construía el objeto del schema campo a campo y `nivelMinimo` nunca se añadió a esa
+   * lista: el formulario lo mandaba, el schema lo aceptaba con su default y TODOS los retos se
+   * creaban como `rookie` —sin restricción— eligiera lo que eligiera el admin. No fallaba nada: el
+   * default es un valor válido. Los tests del servicio tampoco lo veían, porque llaman al servicio
+   * con el objeto YA parseado; solo se ve mirando lo que la RUTA le pasa.
+   *
+   * Por eso este caso comprueba el VIAJE COMPLETO de las dos puertas del reto, no solo la nueva.
+   */
+  it("las dos puertas del reto VIAJAN del formulario al servicio: nivel y solo-VIP", async () => {
+    mocks.getCurrentUser.mockResolvedValue(ADMIN);
+
+    const res = await crear(ADMIN, campos({ nivelMinimo: "pro", soloVip: "1" }));
+
+    expect(res.status).toBe(200);
+    const datos = mocks.crearRetoAdmin.mock.calls[0]![2] as Record<string, unknown>;
+    expect(datos.nivelMinimo, "el nivel elegido no llega al servicio").toBe("pro");
+    expect(datos.soloVip, "el exclusivo no llega al servicio").toBe(true);
+  });
+
+  it("y un `soloVip` en texto que significa NO, significa no", async () => {
+    // El formulario manda "0" para desmarcar: con `z.coerce.boolean()` eso sería `true` —
+    // `Boolean("0")` es true— y desmarcar la casilla dejaría el reto exclusivo igualmente.
+    mocks.getCurrentUser.mockResolvedValue(ADMIN);
+
+    await crear(ADMIN, campos({ soloVip: "0" }));
+
+    const datos = mocks.crearRetoAdmin.mock.calls[0]![2] as Record<string, unknown>;
+    expect(datos.soloVip).toBe(false);
+  });
+
   it("ADMIN con portada -> la sanea, la escribe como {publicCode}.webp y apunta coverImage", async () => {
     mocks.getCurrentUser.mockResolvedValue(ADMIN);
     const png = await sharp({

@@ -1138,6 +1138,19 @@ export const MSG_VOTO_SIN_VER = "Reproduce este vídeo para poder votarlo.";
 export const MSG_PARTICIPACION_BLOQUEADA =
   "Un moderador retiro tu participacion en este reto, asi que no puedes volver a participar.";
 
+/**
+ * Copy del reto EXCLUSIVO para quien no es VIP (Fase 8 · P7). Dice QUE PASA y QUE FALTA, en humano:
+ * el `409 SOLO_VIP` es para el log, no para la pantalla. Y no promete nada mas —ni descuentos ni
+ * "proximamente"—: lo unico cierto es que este reto es de Mythic.
+ */
+export const MSG_RETO_SOLO_VIP = "Este reto es exclusivo de VIP Mythic.";
+
+/** El CTA del reto exclusivo cuando quien mira no es VIP. Lleva a /vip, que es donde se arregla. */
+export const CTA_RETO_SOLO_VIP = "Hazte VIP para participar";
+
+/** La chapa de la tarjeta de un reto exclusivo. Va al lado de la marca "VIP", que ya dice el plan. */
+export const ETIQUETA_RETO_SOLO_VIP = "EXCLUSIVO";
+
 export const VIDEO_FONDO_HOME = "https://dareflash-assets.b-cdn.net/fondo-home.mp4";
 
 /**

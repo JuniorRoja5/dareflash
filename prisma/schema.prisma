@@ -458,6 +458,24 @@ model Challenge {
   /// que es exactamente lo que eran.
   nivelMinimo String @default("rookie")
 
+  /// RETO EXCLUSIVO PARA VIP MYTHIC: solo participa quien tenga la suscripcion activa.
+  ///
+  /// FLAG PROPIO, NO UN VALOR DE `nivelMinimo`, y no es una cuestion de gusto: el nivel se gana
+  /// JUGANDO (sale de los puntos) y el VIP se PAGA (sale de una suscripcion que caduca). Meterlo en
+  /// la escalera de niveles haria que "VIP" tuviera un `tier` y, con la regla de "alcanza o supera",
+  /// un Legend entraria en un reto VIP sin pagar — o un VIP quedaria por encima de Legend sin jugar.
+  /// Son dos ejes ORTOGONALES y por eso se COMPONEN: un reto puede ser de nivel Pro Y solo-VIP, y
+  /// entonces se exigen los dos.
+  ///
+  /// NO ESCONDE EL RETO. Igual que `nivelMinimo`, se ve en el listado para todo el mundo —con su
+  /// marco dorado, que es parte del gancho— y lo que se bloquea es PARTICIPAR. Ninguna consulta
+  /// publica filtra por esta columna; si alguna lo hiciera, el reto exclusivo dejaria de vender.
+  ///
+  /// DEFAULT `false` = reto normal, asi que la migracion no necesita backfill: lo que habia ya era
+  /// eso. Y quien decide si alguien es VIP es SIEMPRE el chokepoint (`esVipActivo` sobre la
+  /// suscripcion), nunca una columna en `User`: un booleano guardado no caduca y una fecha si.
+  soloVip Boolean @default(false)
+
   /// MINIMO de participaciones que CUENTAN (invariante 3: Submission PUBLISHED **y** Video PUBLISHED)
   /// para que se declare ganador. NULL = el reto no exige minimo, que es el caso de todos los retos
   /// existentes -> la migracion NO necesita backfill: la ausencia YA significa lo correcto. Si al

@@ -149,6 +149,24 @@ export const ACENTO_VIP = {
   backgroundColor: "color-mix(in srgb, var(--vip-gold) 9%, transparent)",
 } as const;
 
+/**
+ * EL BOTÓN DORADO DEL VIP — relleno y tinta, en UNA línea y en UN solo sitio.
+ *
+ * Lo llevan los DOS sitios donde se invita a suscribirse: el CTA de `/vip` y el de un reto
+ * exclusivo. Escrito en cada uno, el día que la decisión cambie —está abierta: Sergio puede
+ * preferir el verde de acción— uno de los dos se queda en oro y nadie lo ve hasta que alguien abre
+ * un reto exclusivo. Pasarlo al verde es cambiar esta línea por
+ * `{ backgroundColor: "var(--df-action)", color: "var(--df-void)" }`.
+ *
+ * EL PAR VIAJA JUNTO porque se elige junto: el relleno sin su TINTA deja el texto ilegible sobre el
+ * fondo nuevo. En oscuro el oro es vivo y la tinta oscura da 12,89:1; en claro el oro va apagado y
+ * la tinta es blanca (4,69:1). Medido en `MarcaVip`, que usa este mismo par.
+ */
+export const RELLENO_VIP = {
+  backgroundColor: "var(--vip-gold)",
+  color: "var(--vip-tinta)",
+} as const;
+
 /** Subconjuntos ORDENADOS por contexto (claves de NAV_DESTINOS). */
 export const NAV_ESCRITORIO = [
   "inicio",

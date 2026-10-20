@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Boton } from "@/components/ui/boton";
+import { RELLENO_VIP } from "@/components/ui/logic";
+import { CTA_RETO_SOLO_VIP, MSG_RETO_SOLO_VIP } from "@/config/constants";
 import { ModalSubida } from "@/app/(app)/(shell)/crear/modal-subida";
 
 import { enlaceEntrarParaParticipar } from "../participar-logica";
@@ -23,6 +25,7 @@ export function BotonParticipar({
   activo,
   yaParticipa = false,
   avisoNivel = null,
+  vetoVip = false,
 }: {
   challengeId: string;
   publicCode: string;
@@ -37,6 +40,11 @@ export function BotonParticipar({
    * quién puede: aquí solo se pinta. La autoridad es el endpoint, que vuelve a comprobarlo.
    */
   avisoNivel?: string | null;
+  /**
+   * El reto es EXCLUSIVO de VIP Mythic y quien mira no lo es. Lo resuelve el servidor por el
+   * chokepoint (`esVipActivo`); aquí llega decidido, como el de nivel.
+   */
+  vetoVip?: boolean;
 }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
@@ -52,6 +60,10 @@ export function BotonParticipar({
   // CANDADO POR NIVEL. El reto se ve entero —no se esconde a nadie—, pero el CTA dice por qué no se
   // puede y qué falta. Deshabilitado y con el motivo al lado: un botón que se pulsa y devuelve un
   // error del servidor es peor que uno que explica.
+  //
+  // VA ANTES QUE EL DEL VIP A PROPÓSITO, y el orden es el mismo que aplica el servidor: a quien le
+  // faltan las DOS cosas se le dice la que no cuesta dinero. Al revés, le venderíamos una
+  // suscripción para que se encontrara, nada más pagarla, con una pared que ya estaba ahí.
   if (avisoNivel) {
     return (
       <>
@@ -60,6 +72,22 @@ export function BotonParticipar({
         </Boton>
         <p role="status" className="mt-2 text-sm text-text-dim">
           {avisoNivel}
+        </p>
+      </>
+    );
+  }
+
+  // RETO EXCLUSIVO Y QUIEN MIRA NO ES VIP. Aquí el CTA NO se deshabilita: hay algo que hacer, y es
+  // ir a /vip. Un botón muerto diría "no puedes" y se callaría lo único útil. En ORO y no en
+  // `--df-action`, como toda puerta al VIP (ver `ACENTO_VIP`).
+  if (vetoVip) {
+    return (
+      <>
+        <Boton href="/vip" variante="fantasma" className="w-full py-3.5" style={RELLENO_VIP}>
+          {CTA_RETO_SOLO_VIP}
+        </Boton>
+        <p role="status" className="mt-2 text-sm text-text-dim">
+          {MSG_RETO_SOLO_VIP}
         </p>
       </>
     );

@@ -1,0 +1,11 @@
+-- RETO EXCLUSIVO DE VIP MYTHIC (Fase 8 · P7).
+--
+-- ADITIVA Y SIN BACKFILL, y esta vez la ausencia de backfill no es un descuido: `false` es
+-- exactamente lo que los retos existentes YA eran (abiertos a todo el mundo), asi que el DEFAULT
+-- escribe la verdad en todas las filas. Es el mismo caso que `nivelMinimo DEFAULT 'rookie'`.
+--
+-- NO SE INDEXA, y es deliberado: ninguna consulta publica filtra por esta columna. Un reto
+-- exclusivo SE VE para todos (solo se bloquea participar), asi que no hay ningun `WHERE soloVip`
+-- que acelerar. El dia que lo hubiera, habria que preguntarse antes por que se esta escondiendo.
+-- AlterTable
+ALTER TABLE `Challenge` ADD COLUMN `soloVip` BOOLEAN NOT NULL DEFAULT false;

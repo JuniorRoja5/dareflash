@@ -960,3 +960,89 @@
   animation: df-vip-giro var(--vip-dur-giro) linear infinite;
   pointer-events: none;
 }
+
+/* ------------------------------------------------------------------------------------------------
+ * EL MARCO DORADO DE UN RETO EXCLUSIVO (Fase 8 · P7). Mismo lenguaje que la tarjeta de identidad de
+ * un perfil VIP —borde de luz que gira sobre fondo opaco, con un bloom detras— pero clases PROPIAS,
+ * y no por gusto:
+ *
+ * ┌─ LA DIFERENCIA ES LA GEOMETRIA, Y ES LA QUE OBLIGA A SEPARARLAS ────────────────────────────┐
+ * │ `.df-vip-borde::before` gira un CUADRADO dimensionado desde el ALTO (`height: 200%`), porque │
+ * │ la tarjeta del perfil es una COLUMNA (mas alta que ancha) en todas las anchuras. La tarjeta  │
+ * │ de un reto es lo contrario en escritorio: una BANDA apaisada (la portada al 44% y el cuerpo  │
+ * │ al lado). Con el cuadrado del perfil, las esquinas se quedarian descubiertas media vuelta de │
+ * │ cada giro — que es justo el defecto que ese comentario describe.                             │
+ * │                                                                                               │
+ * │ Aqui el cuadrado se dimensiona desde el ANCHO (`width: 200%`), que cubre la diagonal mientras │
+ * │ la tarjeta no sea mas de 1,73 veces mas ALTA que ancha (2w >= sqrt(w^2+h^2) <=> h <= raiz3·w).│
+ * │ Lo que garantiza ese margen no es la suerte: la portada tiene proporcion FIJA (4/3 en movil,  │
+ * │ 16/9 en lg) y el titulo esta recortado a DOS lineas, asi que en movil la tarjeta ronda 1,1·w  │
+ * │ y en escritorio 0,3·w. Si alguien le quita el `line-clamp-2` al titulo o mete un bloque alto  │
+ * │ en el cuerpo, hay que volver aqui. `tests/retos-vip` deja escrita esa dependencia.            │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * NINGUNA REGLA LLEVA `!important`, por lo mismo que las del perfil: la regla global de
+ * `prefers-reduced-motion` apaga las animaciones con `!important` sobre `*`, y ganarle dejaria el
+ * marco girando para quien ha pedido que no se mueva nada.
+ * --------------------------------------------------------------------------------------------- */
+.df-reto-exclusivo {
+  position: relative;
+  /* El bloom se pinta con `z-index: -1`, que va a la capa negativa de su CONTEXTO DE APILADO: sin
+     uno propio, se iria al del ancestro y el fondo de la rejilla se lo comeria. Misma leccion que
+     el aro del avatar. */
+  isolation: isolate;
+  border-radius: var(--radius-sm, 12px);
+}
+
+/* EL BLOOM: la luz que desborda la tarjeta. Vive en el marco —que NO recorta— y NO gira, por lo
+   mismo que el del perfil: girar obliga a un cuadrado mayor que la diagonal, y un cuadrado asi,
+   desenfocado, deja de ser el halo de una tarjeta y se come la rejilla. Mas contenido que el del
+   perfil (menos inset, menos desenfoque): aqui puede haber varias tarjetas en pantalla. */
+.df-reto-exclusivo::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: calc(var(--radius-sm, 12px) + 8px);
+  z-index: -1;
+  background: conic-gradient(var(--vip-gold), var(--vip-c), var(--vip-gold));
+  filter: blur(18px);
+  opacity: var(--vip-bloom);
+  pointer-events: none;
+}
+
+/* EL BORDE: la caja que RECORTA. El conico gira dentro y la cara opaca tapa el centro, asi que a la
+   vista solo quedan los 2 px del canto. */
+.df-reto-exclusivo-borde {
+  position: relative;
+  overflow: hidden;
+  border-radius: inherit;
+  padding: 2px;
+}
+
+.df-reto-exclusivo-borde::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  /* DESDE EL ANCHO, no desde el alto: ver el porque arriba. */
+  width: 200%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(
+    var(--vip-gold),
+    var(--vip-c),
+    var(--vip-gold),
+    var(--vip-c),
+    var(--vip-gold)
+  );
+  animation: df-vip-giro var(--vip-dur-giro) linear infinite;
+}
+
+/* LA CARA de la tarjeta: opaca a proposito. Con la superficie translucida de las tarjetas normales
+   (`bg-surface/60`) el conico se veria POR DEBAJO del contenido, no solo en el canto. */
+.df-reto-exclusivo-cara {
+  position: relative;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--vip-card-bg);
+}

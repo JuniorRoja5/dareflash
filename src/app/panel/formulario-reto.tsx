@@ -64,6 +64,7 @@ export function FormularioReto({
   const [cierre, setCierre] = useState(reto ? aInputLocal(reto.deadline) : "");
   const [ganadores, setGanadores] = useState(reto ? String(reto.winnersCount) : "1");
   const [nivelMinimo, setNivelMinimo] = useState(reto?.nivelMinimo ?? NIVEL_MINIMO_ABIERTO);
+  const [soloVip, setSoloVip] = useState(reto?.soloVip ?? false);
   const [portada, setPortada] = useState<File | null>(null);
   // Previa: object URL de un fichero recién elegido, o la portada ACTUAL (URL de Caddy) al editar.
   const [previa, setPrevia] = useState<string | null>(reto?.coverImage ?? null);
@@ -150,6 +151,10 @@ export function FormularioReto({
       cuerpo.set("deadline", deadline);
       cuerpo.set("winnersCount", ganadores);
       cuerpo.set("nivelMinimo", nivelMinimo);
+      // SIEMPRE, también cuando es `false`: una casilla HTML sin marcar no manda nada, y entonces
+      // "quitar el exclusivo" al editar no llegaría al servidor — el reto se quedaría exclusivo
+      // para siempre. Se manda el valor explícito y el schema lo entiende (ver `crearRetoSchema`).
+      cuerpo.set("soloVip", soloVip ? "1" : "0");
       if (portada) cuerpo.set("portada", portada); // al editar sin fichero nuevo, se conserva la actual
 
       const url = esEdicion ? `/api/panel/retos/${reto.id}/editar` : "/api/panel/retos";
@@ -278,6 +283,29 @@ export function FormularioReto({
           </select>
           <p className="mt-1.5 text-2xs text-text-dim">
             Es un mínimo, no un nivel exacto: en un reto de Pro también entran Elite y Legend.
+          </p>
+        </div>
+
+        {/* SOLO VIP — al lado del nivel porque son las dos puertas del reto, y SE COMPONEN: un reto
+            puede pedir nivel Pro Y ser exclusivo, y entonces hacen falta las dos cosas. Son ejes
+            distintos (el nivel se juega, el VIP se paga), por eso son dos controles y no una
+            opción más del desplegable de nivel. */}
+        <div>
+          <span className="mb-1.5 block text-sm font-medium text-text">¿Reto exclusivo?</span>
+          <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-sm border border-line bg-surface px-3.5">
+            <input
+              type="checkbox"
+              name="soloVip"
+              checked={soloVip}
+              onChange={(e) => setSoloVip(e.target.checked)}
+              disabled={ocupado}
+              className="h-4 w-4 shrink-0 accent-[var(--vip-gold)]"
+            />
+            <span className="text-base text-text">Solo VIP Mythic</span>
+          </label>
+          <p className="mt-1.5 text-2xs text-text-dim">
+            El reto se ve igual para todo el mundo —con su marco dorado—, pero solo pueden
+            participar los suscriptores.
           </p>
         </div>
 

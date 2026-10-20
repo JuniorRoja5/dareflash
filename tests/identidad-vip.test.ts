@@ -138,15 +138,41 @@ describe("el candado: nadie pinta un nombre fuera del componente compartido", ()
     expect(avatar, "el avatar volvió a recibir `esVip`").not.toMatch(/\besVip\b/);
   });
 
-  it("y ninguna superficie monta `MarcaVip` a mano", () => {
-    // `SUPERFICIES` es todo `app` + `components` MENOS el propio módulo, así que lo correcto aquí
-    // es la lista vacía: la pieza solo la montan `NombreUsuario` y el hero del perfil, los dos
-    // dentro del módulo. Montada a mano en una superficie, podría acabar sobre quien no paga sin
-    // pasar por el candado — y, además, es como vuelve la marca duplicada.
-    const montan = SUPERFICIES.filter((x) => /<MarcaVip[\s/>]/.test(x.codigo)).map((x) => x.f);
-    expect(montan).toEqual([]);
+  /**
+   * ESTE CASO SE ABRIÓ EN P7, y la distinción que lo abre es la que importa.
+   *
+   * Decía: NINGUNA superficie monta `MarcaVip` a mano. La razón era que la marca dice "esta PERSONA
+   * es VIP", y dicha a mano podría acabar sobre quien no paga sin pasar por el candado de
+   * `NombreUsuario`. Con los retos exclusivos hay un uso que NO es ese: la chapa de un reto dice
+   * "este RETO es de Mythic" — habla del reto, no de nadie—, y el panel la pinta para que el admin
+   * vea cuáles lo son.
+   *
+   * Así que la regla se parte en dos, y la segunda mitad es la que de verdad protegía:
+   *   - la lista de sitios que la montan fuera del módulo es CERRADA (abajo, uno a uno);
+   *   - y NINGUNO de ellos pinta PERSONAS: una superficie que monte `<NombreUsuario` no puede
+   *     además montar la marca a mano, porque ahí sí volvería a significar "esta persona paga".
+   */
+  /** Fuera del módulo y fuera del panel (que `SUPERFICIES` no recorre: tiene su bloque abajo). */
+  const MONTAN_LA_MARCA = [
+    // La chapa del reto exclusivo. Habla del RETO. La montan la tarjeta del listado y la ficha.
+    "app/(app)/(shell)/retos/chapa-exclusivo.tsx",
+  ];
+
+  it("fuera del módulo, la marca solo se monta en los sitios declarados", () => {
+    const montan = SUPERFICIES.filter((x) => /<MarcaVip[\s/>]/.test(x.codigo))
+      .map((x) => x.f)
+      .sort();
+    expect(montan).toEqual([...MONTAN_LA_MARCA].sort());
     // Y el control de que el detector encuentra algo cuando lo hay: en el módulo SÍ está.
     expect(sinComentarios(leer(MODULO))).toMatch(/<MarcaVip[\s/>]/);
+  });
+
+  it("y ninguno de esos sitios pinta PERSONAS: ahí la marca volvería a significar otra cosa", () => {
+    for (const f of [...MONTAN_LA_MARCA, "app/panel/lista-retos.tsx"]) {
+      const src = sinComentarios(leer(f));
+      expect(src, `${f} monta la marca Y pinta nombres`).not.toContain("<NombreUsuario");
+      expect(src, `${f} monta la marca Y pinta avatares`).not.toContain("<Avatar");
+    }
   });
 });
 
@@ -160,12 +186,22 @@ describe("el panel queda fuera a propósito, y se puede comprobar", () => {
     expect(delPanel.length).toBeGreaterThan(0);
   });
 
-  it("y no monta la marca: el gobierno de cuentas no es un escaparate", () => {
+  it("y no marca a las PERSONAS: el gobierno de cuentas no es un escaparate", () => {
+    // Lo que no puede pasar en el panel es que una CUENTA salga dorada: quien modera no debería
+    // ver primero que alguien paga. Marcar un RETO como exclusivo es otra cosa —es un dato del
+    // reto, y el admin lo necesita—, así que `lista-retos` está exenta y enumerada arriba.
     const conMarca = ficheros(path.join(SRC, "app", "panel"))
-      .map((f) => ({ f: path.relative(SRC, f), c: readFileSync(f, "utf8") }))
+      .map((f) => ({
+        f: path.relative(SRC, f).split(path.sep).join("/"),
+        c: readFileSync(f, "utf8"),
+      }))
       .filter((x) => x.c.includes("<NombreUsuario") || x.c.includes("<MarcaVip"))
       .map((x) => x.f);
-    expect(conMarca).toEqual([]);
+    expect(conMarca).toEqual(["app/panel/lista-retos.tsx"]);
+    // Y esa exención sigue siendo lo que dice ser: pinta la marca y NO pinta nombres.
+    const lista = sinComentarios(leer("app/panel/lista-retos.tsx"));
+    expect(lista).toContain("<MarcaVip");
+    expect(lista, "el panel de retos empezó a pintar identidades").not.toContain("<NombreUsuario");
   });
 });
 
