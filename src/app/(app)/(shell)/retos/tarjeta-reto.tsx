@@ -6,6 +6,7 @@ import { PildoraCategoria } from "@/components/ui/pildora";
 import type { RetoPublicoVista } from "@/server/services/retos-publico";
 
 import { ChapaExclusivo } from "./chapa-exclusivo";
+import { MarcaSponsor } from "./marca-sponsor";
 import { nombreCategoria } from "./retos-datos";
 
 /** Triangulo de "play" del placeholder de la miniatura (SVG inline; nada de emojis como iconos). */
@@ -79,17 +80,28 @@ export function TarjetaReto({ reto }: { reto: RetoPublicoVista }) {
           <PildoraCategoria>{nombreCategoria(reto.categoria)}</PildoraCategoria>
           {reto.soloVip ? <ChapaExclusivo compacta /> : null}
         </span>
-        {/* MARCADOR — firma, superpuesto abajo (siempre visible). Halo de dinero. */}
-        <span
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 block border-t border-line bg-void/70 px-2.5 py-2"
-          style={{ filter: "var(--df-glow-dinero)" }}
-        >
-          <Marcador
-            cents={reto.premioCents}
-            deadlineMs={reto.deadlineMs}
-            tamano="lista"
-            apilarEnMovil
-          />
+        {/* MARCADOR — firma, superpuesto abajo (siempre visible). Halo de dinero.
+            EL PATROCINIO VA DENTRO DE ESTA BARRA, encima del premio, y no flotando a una altura
+            fija: con `bottom-11` se montaba sobre el canto de la barra en cuanto el marcador
+            APILA (móvil, dos columnas) y le partía el filete. Se vio en una captura. Dentro, la
+            barra crece con su contenido y solaparse deja de ser posible a cualquier altura.
+            Y va pegado al premio porque es lo que dice la marca: quién paga esto. */}
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 z-10 block border-t border-line bg-void/70 px-2.5 py-2">
+          {reto.sponsor ? (
+            <span className="mb-1.5 flex min-w-0">
+              <MarcaSponsor sponsor={reto.sponsor} compacta />
+            </span>
+          ) : null}
+          {/* EL GLOW, SOLO SOBRE EL DINERO: es `--df-glow-dinero`, y aplicado a la barra entera
+              teñiría también el logo de la marca. */}
+          <span className="block" style={{ filter: "var(--df-glow-dinero)" }}>
+            <Marcador
+              cents={reto.premioCents}
+              deadlineMs={reto.deadlineMs}
+              tamano="lista"
+              apilarEnMovil
+            />
+          </span>
         </span>
       </Link>
 

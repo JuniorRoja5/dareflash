@@ -4,6 +4,7 @@ import { Marcador } from "@/components/ui/marcador";
 import { PildoraCategoria } from "@/components/ui/pildora";
 
 import { ChapaExclusivo } from "../chapa-exclusivo";
+import { MarcaSponsor } from "../marca-sponsor";
 import { nombreCategoria } from "../retos-datos";
 import { BotonParticipar } from "./participar";
 import { ParticipacionesReto, type ParticipacionUI } from "./participaciones-reto";
@@ -139,6 +140,9 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
                   oro envolviendo la columna entera competiría con la portada y con el marcador—,
                   solo la etiqueta que dice qué es. */}
               {reto.soloVip ? <ChapaExclusivo /> : null}
+              {/* Y la marca, entera: aquí hay sitio para "Patrocinado por X" con todas las letras,
+                  que es donde la transparencia tiene que leerse sin esfuerzo. */}
+              {reto.sponsor ? <MarcaSponsor sponsor={reto.sponsor} /> : null}
             </div>
             <h1
               className="mt-2 text-xl leading-tight text-text lg:mt-3 lg:text-2xl"

@@ -36,6 +36,22 @@ export interface RetoPublicoVista {
    * exclusivo se ve, no se esconde— igual que `nivelMinimo`: lo que se bloquea es participar.
    */
   soloVip: boolean;
+  /**
+   * LA MARCA QUE PATROCINA, resuelta. Nombre y logo van JUNTOS porque se pintan juntos, y porque
+   * sin nombre no hay patrocinio que enseñar (el admin no puede guardar uno sin marca).
+   *
+   * `null` = reto normal: así la tarjeta no mira tres campos y decide, o hay sponsor o no lo hay.
+   * LA COMISIÓN NO ESTÁ AQUÍ, y es deliberado: es un trato con la marca y no sale de un DTO
+   * público ni en un reto cerrado. Un usuario no tiene por qué saber cuánto se factura por él.
+   */
+  sponsor: SponsorVista | null;
+}
+
+/** Lo que se enseña de una marca: su nombre y, si lo hay, su logo. Ni un dato de dinero. */
+export interface SponsorVista {
+  nombre: string;
+  /** URL pública del logo (Caddy) o `null`: una marca puede no tener logo y se pinta su nombre. */
+  logo: string | null;
 }
 
 /** Detalle del reto (además de la tarjeta): id (para participar), descripción, reglas, ganadores... */
@@ -65,6 +81,11 @@ const SELECT_VISTA = {
   deadline: true,
   coverImage: true,
   soloVip: true,
+  esPatrocinado: true,
+  sponsorNombre: true,
+  sponsorLogo: true,
+  // `comisionBps` NO se selecciona: lo que no se trae no se puede filtrar por descuido en un DTO.
+  // Es la misma puerta de fuera que usa el historial de boosts con la nota del admin.
 } as const;
 
 type FilaVista = {
@@ -76,6 +97,9 @@ type FilaVista = {
   deadline: Date;
   coverImage: string | null;
   soloVip: boolean;
+  esPatrocinado: boolean;
+  sponsorNombre: string | null;
+  sponsorLogo: string | null;
 };
 
 function aVista(f: FilaVista): RetoPublicoVista {
@@ -88,6 +112,11 @@ function aVista(f: FilaVista): RetoPublicoVista {
     deadlineMs: f.deadline.getTime(),
     coverImage: f.coverImage,
     soloVip: f.soloVip,
+    // LAS DOS CONDICIONES, y no solo el flag: un reto marcado como patrocinado al que le falte el
+    // nombre (una fila vieja, un arreglo a mano en la base de datos) pintaría "Patrocinado por" y
+    // un hueco. Sin nombre, no hay sponsor que enseñar.
+    sponsor:
+      f.esPatrocinado && f.sponsorNombre ? { nombre: f.sponsorNombre, logo: f.sponsorLogo } : null,
   };
 }
 
