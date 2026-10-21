@@ -87,6 +87,18 @@ const Notificaciones: Icono = (p) => (
   </Svg>
 );
 
+/**
+ * PATROCINIOS — un apretón de manos reducido a dos trazos: el trato con la marca. No es ni la
+ * cartera (eso es el monedero, dinero NUESTRO) ni el rayo de Boost; a 20 px tiene que distinguirse
+ * de las dos, que es la única prueba que importa en una barra lateral.
+ */
+const Patrocinios: Icono = (p) => (
+  <Svg {...p}>
+    <path d="M3 9.5h3.5L10 7l3 2 4.5-2.5H21" />
+    <path d="M3 9.5v5h3l3.5 3 2-1.8 2 1.8 2-1.8 1.5 1.3V14.5h3v-5" />
+  </Svg>
+);
+
 /** Icono por `href` de sección. Fuente única para la barra lateral. */
 export const ICONO_SECCION: Record<string, Icono> = {
   "/panel": Resumen,
@@ -95,6 +107,7 @@ export const ICONO_SECCION: Record<string, Icono> = {
   "/panel/usuarios": Usuarios,
   "/panel/monedero": Monedero,
   "/panel/boost": Boost,
+  "/panel/patrocinios": Patrocinios,
   "/panel/ranking": Ranking,
   "/panel/notificaciones": Notificaciones,
 };

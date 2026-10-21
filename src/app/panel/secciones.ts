@@ -72,6 +72,16 @@ export const SECCIONES_PANEL: SeccionPanel[] = [
     rol: "ADMIN",
   },
   {
+    href: "/panel/patrocinios",
+    label: "Patrocinios",
+    descripcion:
+      "Qué retos paga cada marca, cuánto se le factura por ellos y el histórico de ganadores.",
+    fase: null,
+    // ADMIN sin discusión: aquí están las condiciones comerciales con las marcas. Un moderador no
+    // tiene por qué ver cuánto cobra el negocio por un reto.
+    rol: "ADMIN",
+  },
+  {
     href: "/panel/ranking",
     label: "DareUp y ranking",
     descripcion:
