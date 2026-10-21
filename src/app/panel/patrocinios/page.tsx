@@ -33,11 +33,11 @@ function cuando(ms: number): string {
  * │ mano reto a reto. Ni un botón que escriba nada.                                                │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
- * ┌─ Y NO HAY UN TOTAL GENERAL, QUE ES UNA DECISIÓN ─────────────────────────────────────────────┐
- * │ La tabla está paginada por keyset, así que un "total" calculado sobre la página visible diría │
- * │ 3.000 € donde hay 30.000 — y esa es justo la cifra que alguien copiaría a una factura. Sumar  │
- * │ TODO exigiría una consulta aparte con la comisión calculada fila a fila en SQL (el % es de    │
- * │ cada reto, no una constante). Mientras eso no exista, la suma la da el CSV, que sale entero.  │
+ * ┌─ EL TOTAL ES DE TODO, Y POR ESO ESTÁ ARRIBA ────────────────────────────────────────────────┐
+ * │ La tabla pagina por keyset, así que un total calculado sobre la página visible diría 3.000   │
+ * │ donde hay 30.000 — y esa es justo la cifra que alguien copiaría a una factura. Por eso sale  │
+ * │ de un AGREGADO en la base (`totalesPatrocinios`) sobre el mismo filtro que la tabla, y por   │
+ * │ eso la pantalla dice en palabras que es de todos los retos y no de los de esta página.       │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
  * LA COMISIÓN SE CALCULA con `lib/comision`, la misma función que el formulario usa al pactarla:
@@ -57,8 +57,13 @@ export default async function Pagina({
   };
 
   const { prisma } = await import("@/server/db/client");
-  const { listarPatrocinios } = await import("@/server/services/patrocinios");
-  const pagina = await listarPatrocinios(prisma, { cursor: aqui.cursor });
+  const { listarPatrocinios, totalesPatrocinios } = await import("@/server/services/patrocinios");
+  // EL TOTAL VA EN SU PROPIA CONSULTA, agregada en la base: sumar la página visible daría una
+  // cifra plausible y falsa. Las dos salen a la vez, así que no añade una ida y vuelta.
+  const [pagina, totales] = await Promise.all([
+    listarPatrocinios(prisma, { cursor: aqui.cursor }),
+    totalesPatrocinios(prisma),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -72,6 +77,55 @@ export default async function Pagina({
           como en cualquier otro reto; la comisión se cobra aparte y no sale de aquí.
         </p>
       </header>
+
+      {/* EL TOTAL DE TODO, y lo dice: la tabla de abajo está paginada, así que la pregunta
+          "¿cuánto hay que facturar?" no se puede contestar mirándola. Sale de un agregado en la
+          base sobre el MISMO filtro que la tabla, no de sumar lo que se ve. */}
+      <section
+        aria-labelledby="totales"
+        data-totales-patrocinios
+        className="rounded-sm border border-line bg-surface/60 p-5"
+      >
+        <h2 id="totales" className="text-sm font-semibold tracking-widest text-text-dim uppercase">
+          Total de todos los retos patrocinados
+        </h2>
+        {totales.monedas > 1 ? (
+          /* SE CALLA EL TOTAL A PROPÓSITO. Sumar céntimos de dos monedas no falla: da un número
+             que parece dinero y no lo es. Antes que inventarse un cambio, se dice qué pasa y se
+             manda a la tabla, que lleva la moneda en cada fila. */
+          <p data-totales-sin-sumar className="mt-4 max-w-prose text-sm text-text">
+            Hay retos patrocinados en {totales.monedas} monedas distintas, así que no hay un total:
+            sumar céntimos de monedas distintas da una cifra que no es dinero. Cada fila de la tabla
+            lleva la suya.
+          </p>
+        ) : (
+          <dl className="mt-4 grid gap-4 sm:grid-cols-3">
+            {[
+              { etiqueta: "Premios", valor: totales.premiosCents, fuerte: false },
+              { etiqueta: "Comisión DareFlash", valor: totales.comisionCents, fuerte: false },
+              { etiqueta: "Total a cobrar", valor: totales.totalCents, fuerte: true },
+            ].map((t) => (
+              <div key={t.etiqueta}>
+                <dt className="text-2xs tracking-widest text-text-dim uppercase">{t.etiqueta}</dt>
+                <dd
+                  className={`mt-1 tabular-nums text-money ${t.fuerte ? "text-2xl font-semibold" : "text-xl"}`}
+                >
+                  {centimosAImporte(t.valor)}
+                  {/* LA MONEDA, PEGADA A LA CIFRA. Sin ella, el número de arriba vale para
+                      cualquiera: la tabla la lleva fila a fila y el total no puede ser menos. */}
+                  {totales.moneda ? (
+                    <span className="ml-1 text-sm font-normal text-text-dim">{totales.moneda}</span>
+                  ) : null}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        <p className="mt-3 text-2xs text-text-dim">
+          {totales.retos === 1 ? "1 reto patrocinado" : `${totales.retos} retos patrocinados`} en
+          total, no solo los de esta página. Cada comisión va con el porcentaje de su reto.
+        </p>
+      </section>
 
       <section aria-labelledby="tabla" className="space-y-3">
         <h2 id="tabla" className="text-sm font-semibold tracking-widest text-text-dim uppercase">

@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { PrismaClient } from "@/generated/prisma/client";
+import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { comisionCents, totalSponsorCents } from "@/lib/comision";
 import { csvDocumento } from "@/lib/csv";
 import { codificarCursorTiempo, decodificarCursorTiempo, dondeDesde } from "@/lib/cursor-tiempo";
@@ -24,6 +24,20 @@ import { centimosAImporte } from "@/lib/dinero";
 
 /** Tope de la página del panel. Igual de sobrio que el de las otras colas del panel. */
 const PANEL_LIMITE = 25;
+
+/**
+ * QUÉ CUENTA COMO PATROCINIO, en UN solo sitio.
+ *
+ * Lo usan la tabla, el CSV y el TOTAL. Que el total y la tabla cuenten cosas distintas es
+ * exactamente el fallo que un total general puede tener y nadie ve: la cifra es plausible, está
+ * ahí arriba, y alguien la copia a una factura.
+ *
+ * Va en dos formas porque hay dos motores: el `where` de Prisma para las consultas normales y el
+ * fragmento SQL para el agregado (que no puede pasar por Prisma; ver `totalesPatrocinios`). Están
+ * pegados a propósito, y `tests/patrocinios` comprueba que cuentan LAS MISMAS filas.
+ */
+const FILTRO = { esPatrocinado: true } as const;
+const FILTRO_SQL = Prisma.sql`\`esPatrocinado\` = TRUE`;
 
 /** Tope de la exportación. Alto y explícito: lo que importa es que exista y que se diga. */
 export const EXPORT_PATROCINIOS_TOPE = 5000;
@@ -121,7 +135,7 @@ export async function listarPatrocinios(
   const desde = decodificarCursorTiempo(opts.cursor);
 
   const filas = await db.challenge.findMany({
-    where: { esPatrocinado: true, ...dondeDesde(desde) },
+    where: { ...FILTRO, ...dondeDesde(desde) },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     // Una de más: así se sabe si hay siguiente sin un `count` aparte.
     take: limite + 1,
@@ -141,6 +155,93 @@ export async function listarPatrocinios(
   };
 }
 
+export interface TotalesPatrocinios {
+  /** Cuántos retos patrocinados hay EN TOTAL (no en la página). */
+  retos: number;
+  /** Suma de los premios, en céntimos. Es lo que las marcas ponen para los ganadores. */
+  premiosCents: number;
+  /** Suma de las comisiones, en céntimos. Cada una con el % de SU reto. */
+  comisionCents: number;
+  /** Premios + comisión: lo que hay que facturar en total. */
+  totalCents: number;
+  /**
+   * LA MONEDA DE LA SUMA, y si la suma SE PUEDE HACER.
+   *
+   * Hoy todo el producto cobra en una sola moneda (`DEFAULT_CURRENCY`, que es lo que escribe la
+   * creación de retos), así que `monedas` es 1 y `moneda` es esa. Pero sumar céntimos de dos
+   * monedas no falla: da un número que PARECE dinero y no lo es — la misma trampa por la que el
+   * cierre se niega a acreditar un premio congelado en otra moneda. Con más de una, la pantalla
+   * tiene que callarse el total en vez de inventarse un cambio.
+   */
+  moneda: string | null;
+  monedas: number;
+}
+
+/**
+ * EL TOTAL DE TODO, NO EL DE LA PÁGINA.
+ *
+ * ┌─ POR QUÉ ESTO ES SQL Y NO UN `reduce` ──────────────────────────────────────────────────────┐
+ * │ La tabla pagina por keyset, así que sumar lo que se ve daría 3.000 donde hay 30.000 — y esa  │
+ * │ es justo la cifra que alguien copia a una factura. Cargar TODAS las filas para sumarlas en   │
+ * │ memoria funciona hoy (hay decenas) y deja de funcionar sin avisar: el día que haya decenas   │
+ * │ de miles, esta pantalla se traería la tabla entera en cada visita. Se agrega en la base.      │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ `DIV` Y NO `/`: EL MISMO FLOOR QUE `lib/comision` ─────────────────────────────────────────┐
+ * │ `prizeAmountCents * comisionBps / 10000` en SQL da un DECIMAL con parte fraccionaria, y la   │
+ * │ suma de cien fracciones redondeadas al final NO es la suma de cien importes redondeados uno  │
+ * │ a uno: el total se separaría de lo que suman las facturas, por unos céntimos, sin que nada   │
+ * │ falle. `DIV` es división entera y trunca hacia abajo, que es exactamente lo que hace         │
+ * │ `Math.floor` sobre números no negativos — y los `GREATEST(…, 0)` reproducen el mismo recorte │
+ * │ de negativos que hace `comisionCents`, para que una fila tocada a mano no separe los dos     │
+ * │ caminos. `tests/patrocinios` RECONCILIA los dos: si alguien cambia el redondeo en            │
+ * │ `lib/comision`, ese test cae hasta que el SQL vuelva a coincidir.                            │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * MULTIPLICAR PRIMERO Y DIVIDIR DESPUÉS, igual que en TypeScript: `*` y `DIV` tienen la misma
+ * precedencia y se evalúan de izquierda a derecha, así que `a * b DIV 10000` es `(a*b) DIV 10000`.
+ */
+export async function totalesPatrocinios(db: PrismaClient): Promise<TotalesPatrocinios> {
+  const filas = await db.$queryRaw<
+    {
+      retos: bigint | number;
+      premios: bigint | number | null;
+      comision: bigint | number | null;
+      moneda: string | null;
+      monedas: bigint | number;
+    }[]
+  >(Prisma.sql`
+    SELECT
+      COUNT(*) AS retos,
+      COALESCE(SUM(\`prizeAmountCents\`), 0) AS premios,
+      COALESCE(
+        SUM(GREATEST(\`prizeAmountCents\`, 0) * GREATEST(\`comisionBps\`, 0) DIV 10000),
+        0
+      ) AS comision,
+      MIN(\`prizeCurrency\`) AS moneda,
+      COUNT(DISTINCT \`prizeCurrency\`) AS monedas
+    FROM \`Challenge\`
+    WHERE ${FILTRO_SQL}
+  `);
+
+  // `COUNT`/`SUM` vuelven como BigInt o string según el driver: se normalizan aquí y no en la
+  // vista, que no tiene por qué saberlo.
+  const f = filas[0];
+  const premiosCents = Number(f?.premios ?? 0);
+  const comisionCents = Number(f?.comision ?? 0);
+  const monedas = Number(f?.monedas ?? 0);
+  return {
+    retos: Number(f?.retos ?? 0),
+    premiosCents,
+    comisionCents,
+    totalCents: premiosCents + comisionCents,
+    // `MIN` sobre una columna de texto es solo "una cualquiera, de forma determinista": con una
+    // sola moneda ES la moneda, y con varias el número de al lado ya dice que la suma no vale.
+    moneda: monedas === 1 ? (f?.moneda ?? null) : null,
+    monedas,
+  };
+}
+
 export interface Exportacion {
   csv: string;
   filas: number;
@@ -156,7 +257,7 @@ export interface Exportacion {
  */
 export async function exportarPatrocinios(db: PrismaClient): Promise<Exportacion> {
   const crudas = await db.challenge.findMany({
-    where: { esPatrocinado: true },
+    where: FILTRO,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: EXPORT_PATROCINIOS_TOPE + 1,
     select: SELECT,
