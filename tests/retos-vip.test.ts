@@ -21,6 +21,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import { COMISION_SPONSOR_BPS_DEFECTO } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { iniciarParticipacion, puedeParticipar } from "../src/server/services/participacion";
 import {
@@ -302,6 +303,11 @@ describe("el admin lo guarda de verdad: crear y editar", () => {
     winnersCount: 1,
     nivelMinimo: "pro" as const,
     soloVip: true,
+    // Los de patrocinio los añadió la Fase 9; aquí van en su valor neutro: lo que se mide en este
+    // bloque es el exclusivo, y un reto puede ser exclusivo sin marca detrás.
+    esPatrocinado: false,
+    sponsorNombre: null,
+    comisionBps: COMISION_SPONSOR_BPS_DEFECTO,
     ...over,
   });
 

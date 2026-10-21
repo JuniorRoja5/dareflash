@@ -53,6 +53,26 @@ export function totalSponsorCents(premioCents: number, comisionBps: number): num
 }
 
 /**
+ * EL PORCENTAJE QUE TECLEA EL ADMIN -> BPS ENTEROS. `null` si no es un porcentaje válido (0..100).
+ *
+ * Existe para que el redondeo ocurra UNA VEZ, en el formulario, y lo que viaje al servidor sea ya
+ * el entero que se guarda. Si el formulario mandara "25.5" y el servidor hiciera la conversión,
+ * habría dos sitios decidiendo cuántos bps es un porcentaje — y el día que uno trunque y el otro
+ * redondee, la comisión guardada no sería la que el admin vio en pantalla.
+ *
+ * Acepta coma decimal: el teclado numérico de un móvil español escribe "25,5".
+ */
+export function porcentajeABps(texto: string): number | null {
+  const limpio = texto.trim().replace(",", ".");
+  if (limpio === "" || !/^\d+(\.\d+)?$/.test(limpio)) return null;
+  const pct = Number(limpio);
+  if (!Number.isFinite(pct) || pct < 0 || pct > 100) return null;
+  // `Math.round` y no `floor`: aquí no se está cobrando nada todavía, se está traduciendo lo que
+  // alguien escribió. "33.333" son 3333 bps, que es el bps más cercano a lo que quiso decir.
+  return Math.round(pct * 100);
+}
+
+/**
  * Los bps como porcentaje legible ("25", "25.5"). Solo para PINTAR: no se vuelve a calcular dinero
  * a partir de esto —ahí es donde entraría el float que el resto del fichero evita—.
  */

@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
-import { CATEGORIES } from "@/config/constants";
+import { CATEGORIES, COMISION_SPONSOR_BPS_DEFECTO, SPONSOR_NOMBRE_MAX } from "@/config/constants";
 import { mensajeDe, obtenerCsrfToken } from "@/lib/cliente-http";
+import { bpsAPorcentaje, comisionCents, porcentajeABps, totalSponsorCents } from "@/lib/comision";
 import { centimosAImporte, importeACentimos } from "@/lib/dinero";
 import { NIVEL_MINIMO_ABIERTO } from "@/lib/nivel-reto";
 import { NIVELES } from "@/lib/niveles";
@@ -65,6 +66,15 @@ export function FormularioReto({
   const [ganadores, setGanadores] = useState(reto ? String(reto.winnersCount) : "1");
   const [nivelMinimo, setNivelMinimo] = useState(reto?.nivelMinimo ?? NIVEL_MINIMO_ABIERTO);
   const [soloVip, setSoloVip] = useState(reto?.soloVip ?? false);
+  const [esPatrocinado, setEsPatrocinado] = useState(reto?.esPatrocinado ?? false);
+  const [sponsorNombre, setSponsorNombre] = useState(reto?.sponsorNombre ?? "");
+  // El % se edita en PORCENTAJE (lo que una persona negocia) y viaja en BPS (lo que se guarda).
+  const [comisionPct, setComisionPct] = useState(
+    bpsAPorcentaje(reto?.comisionBps ?? COMISION_SPONSOR_BPS_DEFECTO),
+  );
+  const [logo, setLogo] = useState<File | null>(null);
+  const [previaLogo, setPreviaLogo] = useState<string | null>(reto?.sponsorLogo ?? null);
+  const logoUrlRef = useRef<string | null>(null);
   const [portada, setPortada] = useState<File | null>(null);
   // Previa: object URL de un fichero recién elegido, o la portada ACTUAL (URL de Caddy) al editar.
   const [previa, setPrevia] = useState<string | null>(reto?.coverImage ?? null);
@@ -76,9 +86,25 @@ export function FormularioReto({
 
   const ocupado = estado === "enviando";
 
+  /**
+   * LO QUE SE LE VA A FACTURAR A LA MARCA, calculado con la MISMA función que la contabilidad del
+   * panel. Si esta pantalla hiciera su propia cuenta, el admin pactaría una cifra y luego se
+   * facturaría otra. Con un premio o un porcentaje a medio escribir no se inventa nada: se calla.
+   */
+  const resumenComision = (() => {
+    const centimos = importeACentimos(premio);
+    const bps = porcentajeABps(comisionPct);
+    if (centimos === null || bps === null) return "Escribe el premio y el % para ver el total.";
+    return (
+      `Premio ${centimosAImporte(centimos)} + comisión ${centimosAImporte(comisionCents(centimos, bps))}` +
+      ` = ${centimosAImporte(totalSponsorCents(centimos, bps))} a cobrar a la marca.`
+    );
+  })();
+
   useEffect(() => {
     return () => {
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+      if (logoUrlRef.current) URL.revokeObjectURL(logoUrlRef.current);
     };
   }, []);
 
@@ -101,6 +127,25 @@ export function FormularioReto({
     setPortada(f);
   }
 
+  /** El LOGO pasa por las MISMAS comprobaciones de UX que la portada: tipo y tamaño. */
+  function onElegirLogo(e: React.ChangeEvent<HTMLInputElement>): void {
+    setError(undefined);
+    const f = e.target.files?.[0] ?? null;
+    if (f && !AVATAR_TIPOS.includes(f.type as (typeof AVATAR_TIPOS)[number])) {
+      setError("El logo debe ser una imagen JPG, PNG o WebP.");
+      return;
+    }
+    if (f && avatarExcedeTope(f.size)) {
+      setError("El logo es demasiado grande. Prueba con una imagen más ligera.");
+      return;
+    }
+    if (logoUrlRef.current) URL.revokeObjectURL(logoUrlRef.current);
+    const url = f ? URL.createObjectURL(f) : null;
+    logoUrlRef.current = url;
+    setPreviaLogo(url ?? reto?.sponsorLogo ?? null);
+    setLogo(f);
+  }
+
   function reiniciarCrear(): void {
     setTitulo("");
     setDescripcion("");
@@ -113,6 +158,13 @@ export function FormularioReto({
     objectUrlRef.current = null;
     setPrevia(null);
     setPortada(null);
+    setEsPatrocinado(false);
+    setSponsorNombre("");
+    setComisionPct(bpsAPorcentaje(COMISION_SPONSOR_BPS_DEFECTO));
+    if (logoUrlRef.current) URL.revokeObjectURL(logoUrlRef.current);
+    logoUrlRef.current = null;
+    setPreviaLogo(null);
+    setLogo(null);
   }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>): Promise<void> {
@@ -138,6 +190,19 @@ export function FormularioReto({
       setError("Indica la fecha de apertura y la de cierre.");
       return;
     }
+    // LA MARCA ES OBLIGATORIA SI EL RETO ES PATROCINADO. El servidor lo vuelve a comprobar (es la
+    // autoridad); aquí se dice antes para no mandar un formulario que va a volver con un 400.
+    if (esPatrocinado && sponsorNombre.trim().length === 0) {
+      setError("Escribe el nombre de la marca que patrocina el reto.");
+      return;
+    }
+    // El porcentaje se teclea como "25" o "25.5" y se guarda en PUNTOS BÁSICOS, enteros: el
+    // redondeo se hace AQUÍ, una vez, y lo que viaja ya es el número que se guarda.
+    const bps = porcentajeABps(comisionPct);
+    if (esPatrocinado && bps === null) {
+      setError("La comisión no es válida. Usa un porcentaje como 25 o 25.5 (entre 0 y 100).");
+      return;
+    }
 
     setEstado("enviando");
     try {
@@ -155,6 +220,11 @@ export function FormularioReto({
       // "quitar el exclusivo" al editar no llegaría al servidor — el reto se quedaría exclusivo
       // para siempre. Se manda el valor explícito y el schema lo entiende (ver `crearRetoSchema`).
       cuerpo.set("soloVip", soloVip ? "1" : "0");
+      // Igual que `soloVip`: SIEMPRE, también en "0", o desmarcar no llegaría al servidor.
+      cuerpo.set("esPatrocinado", esPatrocinado ? "1" : "0");
+      cuerpo.set("sponsorNombre", sponsorNombre);
+      cuerpo.set("comisionBps", String(bps ?? COMISION_SPONSOR_BPS_DEFECTO));
+      if (logo) cuerpo.set("sponsorLogo", logo);
       if (portada) cuerpo.set("portada", portada); // al editar sin fichero nuevo, se conserva la actual
 
       const url = esEdicion ? `/api/panel/retos/${reto.id}/editar` : "/api/panel/retos";
@@ -318,6 +388,87 @@ export function FormularioReto({
           onChange={(e) => setPremio(e.target.value)}
           disabled={ocupado}
         />
+
+        {/* PATROCINIO. La casilla DESCUBRE los campos de la marca en vez de tenerlos siempre
+            visibles: un reto patrocinado es la excepción, y tres campos vacíos en todos los demás
+            son tres sitios donde escribir algo por error. Lo que no se ve, no se manda (el
+            servidor ignora la marca si el reto no es patrocinado). */}
+        <div className="lg:col-span-2">
+          <span className="mb-1.5 block text-sm font-medium text-text">¿Reto patrocinado?</span>
+          <label className="flex min-h-[44px] cursor-pointer items-center gap-3 rounded-sm border border-line bg-surface px-3.5">
+            <input
+              type="checkbox"
+              name="esPatrocinado"
+              checked={esPatrocinado}
+              onChange={(e) => setEsPatrocinado(e.target.checked)}
+              disabled={ocupado}
+              className="h-4 w-4 shrink-0 accent-[var(--df-action)]"
+            />
+            <span className="text-base text-text">Lo paga una marca</span>
+          </label>
+          <p className="mt-1.5 text-2xs text-text-dim">
+            El ganador cobra el premio íntegro, como en cualquier reto. La comisión se le factura a
+            la marca aparte y solo se ve en el panel.
+          </p>
+        </div>
+
+        {esPatrocinado ? (
+          <>
+            <Campo
+              id="reto-sponsor"
+              label="Marca"
+              placeholder="Nombre comercial"
+              value={sponsorNombre}
+              onChange={(e) => setSponsorNombre(e.target.value)}
+              disabled={ocupado}
+              maxLength={SPONSOR_NOMBRE_MAX}
+            />
+
+            <div>
+              <Campo
+                id="reto-comision"
+                label="Comisión (%)"
+                inputMode="decimal"
+                placeholder="25"
+                value={comisionPct}
+                onChange={(e) => setComisionPct(e.target.value)}
+                disabled={ocupado}
+              />
+              {/* EL CÁLCULO, A LA VISTA Y EN VIVO: cobrar tiene que ser leer una cifra, y la
+                  primera vez que se lee es aquí, al pactarla. Sale de la MISMA función que la
+                  contabilidad, así que no puede discrepar con lo que luego se facture. */}
+              <p className="mt-1.5 text-2xs text-text-dim">{resumenComision}</p>
+            </div>
+
+            {/* LOGO opcional: la marca puede no tener uno a mano, y el nombre ya la identifica. */}
+            <div className="lg:col-span-2">
+              <label className="mb-1.5 block text-sm font-medium text-text">
+                Logo de la marca <span className="text-text-dim">(opcional)</span>
+              </label>
+              <div className="flex items-center gap-4">
+                <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-sm border border-line bg-raised">
+                  {previaLogo ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- previa local u objeto de Caddy
+                    <img
+                      src={previaLogo}
+                      alt="Vista previa del logo"
+                      className="h-full w-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-2xs text-text-dim">Sin logo</span>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept={AVATAR_TIPOS.join(",")}
+                  onChange={onElegirLogo}
+                  disabled={ocupado}
+                  className="block w-full text-sm text-text-dim file:mr-3 file:min-h-[44px] file:cursor-pointer file:rounded-sm file:border file:border-line file:bg-surface file:px-4 file:text-sm file:font-medium file:text-text"
+                />
+              </div>
+            </div>
+          </>
+        ) : null}
 
         {/* PORTADA opcional. Al editar, la previa arranca con la portada actual. */}
         <div className="lg:col-span-2">

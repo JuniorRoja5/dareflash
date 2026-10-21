@@ -57,12 +57,15 @@ function campos(over: Record<string, string> = {}) {
 function reqCrear(
   data: Record<string, string>,
   session: { sessionId: string },
-  opts: { origin?: string; csrf?: string | null; portada?: Buffer } = {},
+  opts: { origin?: string; csrf?: string | null; portada?: Buffer; logo?: Buffer } = {},
 ): Request {
   const fd = new FormData();
   for (const [k, v] of Object.entries(data)) fd.set(k, v);
   if (opts.portada) {
     fd.set("portada", new File([new Uint8Array(opts.portada)], "p.png", { type: "image/png" }));
+  }
+  if (opts.logo) {
+    fd.set("sponsorLogo", new File([new Uint8Array(opts.logo)], "l.png", { type: "image/png" }));
   }
   const headers: Record<string, string> = { Origin: opts.origin ?? APP_URL };
   if (opts.csrf !== null)
@@ -129,6 +132,55 @@ describe("POST /api/panel/retos (crear, multipart)", () => {
     const datos = mocks.crearRetoAdmin.mock.calls[0]![2] as Record<string, unknown>;
     expect(datos.nivelMinimo, "el nivel elegido no llega al servicio").toBe("pro");
     expect(datos.soloVip, "el exclusivo no llega al servicio").toBe(true);
+  });
+
+  it("y los campos del PATROCINIO viajan igual: marca, logo y porcentaje", async () => {
+    // Misma propiedad, el campo nuevo de la Fase 9: lo que el formulario manda tiene que llegar al
+    // servicio. Y el LOGO es un fichero, así que se comprueba que se escribe con su nombre propio
+    // —no sobre la portada—.
+    mocks.getCurrentUser.mockResolvedValue(ADMIN);
+    const png = await sharp({
+      create: { width: 120, height: 120, channels: 3, background: { r: 200, g: 30, b: 30 } },
+    })
+      .png()
+      .toBuffer();
+
+    const res = await crear(
+      ADMIN,
+      campos({ esPatrocinado: "1", sponsorNombre: "Marca S.A.", comisionBps: "3000" }),
+      { logo: png },
+    );
+
+    expect(res.status).toBe(200);
+    const datos = mocks.crearRetoAdmin.mock.calls[0]![2] as Record<string, unknown>;
+    expect(datos.esPatrocinado).toBe(true);
+    expect(datos.sponsorNombre).toBe("Marca S.A.");
+    expect(datos.comisionBps).toBe(3000);
+    // El logo va a SU fichero, con el publicCode delante: la portada no se toca.
+    expect(readdirSync(PORTADAS_DIR)).toContain("abcd2345-sponsor.webp");
+    const apuntado = mocks.challengeUpdate.mock.calls
+      .map((c) => (c[0] as { data: Record<string, string> }).data)
+      .find((d) => "sponsorLogo" in d);
+    expect(apuntado?.sponsorLogo).toMatch(/^\/portadas\/abcd2345-sponsor\.webp\?v=\d+$/);
+  });
+
+  it("y el logo de un reto que NO es patrocinado no se guarda", async () => {
+    // Un fichero suelto en un reto normal es basura en el volumen y una marca que nadie pidió.
+    // Se mira lo que se APUNTA en la fila y no el directorio: el temporal lo comparten todos los
+    // casos, así que un fichero de otro test haría fallar esto sin que el código hiciera nada mal.
+    mocks.getCurrentUser.mockResolvedValue(ADMIN);
+    const png = await sharp({
+      create: { width: 80, height: 80, channels: 3, background: { r: 1, g: 2, b: 3 } },
+    })
+      .png()
+      .toBuffer();
+
+    await crear(ADMIN, campos(), { logo: png });
+
+    const apuntados = mocks.challengeUpdate.mock.calls.map(
+      (c) => (c[0] as { data: Record<string, unknown> }).data,
+    );
+    expect(apuntados.some((d) => "sponsorLogo" in d)).toBe(false);
   });
 
   it("y un `soloVip` en texto que significa NO, significa no", async () => {

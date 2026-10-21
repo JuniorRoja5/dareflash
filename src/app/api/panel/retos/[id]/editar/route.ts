@@ -1,6 +1,7 @@
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { camposDelFormulario } from "@/server/http/form";
+import { guardarImagenDeReto, imagenDelFormulario } from "@/server/http/imagen-subida";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +21,9 @@ export const POST = mutatingRoute(
   async (req, { env, prisma }, ctx: { params: Promise<{ id: string }> }) => {
     const { requireRole } = await import("@/server/auth/rbac");
     const { crearRetoSchema, editarRetoAdmin } = await import("@/server/services/retos-admin");
-    const { procesarImagen, ImagenInvalidaError } = await import("@/server/services/imagen");
-    const { RATE_LIMITS, PORTADA_MAX_BYTES, PORTADA_MAX_LADO } = await import("@/config/constants");
+    const { RATE_LIMITS, PORTADA_MAX_BYTES, PORTADA_MAX_LADO, SPONSOR_LOGO_MAX_LADO } =
+      await import("@/config/constants");
     const { rateLimit } = await import("@/server/security/rate-limit");
-    const { sanearError } = await import("@/server/observability/sanitize-error");
 
     let admin;
     try {
@@ -67,30 +67,19 @@ export const POST = mutatingRoute(
       return apiError("NOT_FOUND", "Ese reto no existe.", 404);
     }
 
-    // Portada OPCIONAL: si viene una NUEVA, se SANEA antes de tocar la BD (si falla, no se edita nada).
-    let portada: Buffer | null = null;
-    const ficheroPortada = form.get("portada");
-    if (ficheroPortada instanceof File && ficheroPortada.size > 0) {
-      const bytes = new Uint8Array(await ficheroPortada.arrayBuffer());
-      try {
-        portada = (
-          await procesarImagen(bytes, {
-            maxBytes: PORTADA_MAX_BYTES,
-            modo: { tipo: "contener", maxLado: PORTADA_MAX_LADO },
-          })
-        ).buffer;
-      } catch (e) {
-        if (e instanceof ImagenInvalidaError) {
-          return apiError(`PORTADA_${e.motivo}`, e.message, e.motivo === "TAMANO" ? 413 : 400);
-        }
-        console.error("[panel/retos/editar] fallo procesando la portada:", sanearError(e));
-        return apiError(
-          "PORTADA_ERROR",
-          "No hemos podido procesar la portada. Prueba con otra.",
-          400,
-        );
-      }
-    }
+    // IMÁGENES OPCIONALES: si viene una NUEVA se SANEA antes de tocar la BD (si falla, no se edita
+    // nada). Sin fichero se conserva la que hubiera, que es lo que espera quien solo cambia el
+    // título. El logo solo se mira si el reto queda patrocinado.
+    const limites = { maxBytes: PORTADA_MAX_BYTES, maxLado: PORTADA_MAX_LADO };
+    const portada = await imagenDelFormulario(form, "portada", "PORTADA", limites);
+    if (portada.tipo === "error") return apiError(portada.code, portada.mensaje, portada.status);
+    const logo = parsed.data.esPatrocinado
+      ? await imagenDelFormulario(form, "sponsorLogo", "LOGO", {
+          maxBytes: PORTADA_MAX_BYTES,
+          maxLado: SPONSOR_LOGO_MAX_LADO,
+        })
+      : ({ tipo: "ausente" } as const);
+    if (logo.tipo === "error") return apiError(logo.code, logo.mensaje, logo.status);
 
     // Actualiza los campos (publicCode y status quedan intactos por diseño de editarRetoAdmin).
     const reto = await editarRetoAdmin(prisma, id, existente.publicCode, parsed.data);
@@ -102,27 +91,26 @@ export const POST = mutatingRoute(
     // Si hay portada nueva, SOBRESCRIBE {publicCode}.webp y apunta coverImage con nuevo ?v=. Un fallo de
     // disco NO aborta la edición (los campos ya se guardaron) pero se AVISA, no se traga en silencio.
     let portadaGuardada = true;
-    if (portada) {
-      try {
-        const { writeFile, mkdir } = await import("node:fs/promises");
-        const { join } = await import("node:path");
-        await mkdir(env.PORTADAS_DIR, { recursive: true });
-        const nombre = `${reto.publicCode}.webp`; // publicCode base32: sin traversal
-        await writeFile(join(env.PORTADAS_DIR, nombre), portada);
-        const coverImage = `/portadas/${nombre}?v=${Date.now()}`;
-        await prisma.challenge.update({ where: { id: reto.id }, data: { coverImage } });
-      } catch (e) {
-        portadaGuardada = false;
-        const err = e as { code?: unknown; errno?: unknown; syscall?: unknown };
-        const code = typeof err.code === "string" ? err.code : "?";
-        const errno = typeof err.errno === "number" ? err.errno : "?";
-        const syscall = typeof err.syscall === "string" ? err.syscall : "?";
-        console.error(
-          `[panel/retos/editar] NO se pudo guardar la portada del reto ${reto.publicCode} ` +
-            `(code=${code} errno=${errno} syscall=${syscall}; EACCES => revisar permisos de PORTADAS_DIR):`,
-          sanearError(e),
-        );
-      }
+    if (portada.tipo === "ok") {
+      portadaGuardada = await guardarImagenDeReto({
+        dir: env.PORTADAS_DIR,
+        nombre: `${reto.publicCode}.webp`, // publicCode base32: sin traversal
+        buffer: portada.buffer,
+        apuntar: (coverImage) =>
+          prisma.challenge.update({ where: { id: reto.id }, data: { coverImage } }),
+      });
+    }
+
+    // El LOGO, igual: sobrescribe `{publicCode}-sponsor.webp` con un `?v=` nuevo para romper caché.
+    // `editarRetoAdmin` ya puso `sponsorLogo` a null si el reto dejó de ser patrocinado.
+    if (logo.tipo === "ok") {
+      await guardarImagenDeReto({
+        dir: env.PORTADAS_DIR,
+        nombre: `${reto.publicCode}-sponsor.webp`,
+        buffer: logo.buffer,
+        apuntar: (sponsorLogo) =>
+          prisma.challenge.update({ where: { id: reto.id }, data: { sponsorLogo } }),
+      });
     }
 
     return apiOk({

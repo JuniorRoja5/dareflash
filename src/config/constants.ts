@@ -1172,6 +1172,14 @@ export const ETIQUETA_PATROCINADO = "Patrocinado por";
 /** Nombre de marca: es un nombre comercial escrito a mano, no una clave. Tope sobrio. */
 export const SPONSOR_NOMBRE_MAX = 60;
 
+/**
+ * Lado maximo del LOGO de la marca, en px. Mas pequeño que una portada a proposito: el logo se
+ * pinta a ~24 px en una tarjeta y a ~40 en la ficha, asi que 512 ya es el doble de lo que hace
+ * falta en una pantalla de retina. El tope de BYTES es el mismo de la portada (el pipeline es el
+ * mismo y el limite de bytes protege la MEMORIA al decodificar, que no depende de para que sea).
+ */
+export const SPONSOR_LOGO_MAX_LADO = 512;
+
 export const VIDEO_FONDO_HOME = "https://dareflash-assets.b-cdn.net/fondo-home.mp4";
 
 /**

@@ -186,7 +186,8 @@ describe("el CTA del exclusivo lleva a /vip, en humano", () => {
   it("y el veto lo resuelve el CHOKEPOINT en el servidor, no la vista", () => {
     const detalle = leer(...DETALLE);
     expect(detalle).toContain("esVipActivoDe");
-    expect(detalle).toMatch(/const vetoVip = reto\.soloVip && usuario !== null/);
+    // Sin pegarse al formato: prettier parte la línea en cuanto crece.
+    expect(detalle).toMatch(/const vetoVip =\s*reto\.soloVip && usuario !== null/);
     // La vista no decide por su cuenta: no hay una segunda lectura del estado de la suscripción.
     expect(detalle, "la vista mira el estado a mano").not.toMatch(/estado === "ACTIVA"/);
   });

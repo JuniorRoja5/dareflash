@@ -13,7 +13,14 @@ export { type EstadoRetoAdmin, estadoRetoAdmin } from "@/lib/estado-reto";
 
 import { z } from "zod";
 
-import { CATEGORIES, type CategoryKey, DEFAULT_CURRENCY } from "@/config/constants";
+import {
+  CATEGORIES,
+  type CategoryKey,
+  COMISION_SPONSOR_BPS_DEFECTO,
+  DEFAULT_CURRENCY,
+  SPONSOR_NOMBRE_MAX,
+} from "@/config/constants";
+import { BPS } from "@/lib/comision";
 import type { Db } from "@/server/db/types";
 import { NIVEL_MINIMO_ABIERTO } from "@/lib/nivel-reto";
 import { NIVELES, type ClaveNivel } from "@/lib/niveles";
@@ -27,6 +34,26 @@ const CATEGORY_KEYS = CATEGORIES.map((c) => c.key) as [CategoryKey, ...CategoryK
 /** Claves de los niveles, como tupla para `z.enum`. Fuente unica: NIVELES (`lib/niveles`). */
 const NIVEL_KEYS = NIVELES.map((n) => n.clave) as [ClaveNivel, ...ClaveNivel[]];
 
+/**
+ * UNA CASILLA DE UN FORMULARIO MULTIPART, leída como booleano.
+ *
+ * `z.coerce.boolean()` NO vale: `Boolean("false")` y `Boolean("0")` son `true`, así que desmarcar
+ * la casilla no desmarcaría nada —el formulario manda "0"—. Se comparan las formas que de verdad
+ * significan sí, la de una casilla HTML incluida (`on`). Ausente = `false`: una llamada que no
+ * mande el campo no puede activar un candado por accidente.
+ *
+ * Compartido por las DOS casillas del reto (exclusivo y patrocinado) desde que son dos: escrita en
+ * cada una, la segunda copia es la que se queda sin arreglar el día que aparezca otra forma.
+ */
+function booleanDeFormulario() {
+  return z
+    .union([z.boolean(), z.string()])
+    .default(false)
+    .transform((v) =>
+      typeof v === "boolean" ? v : ["1", "true", "on", "si", "sí"].includes(v.toLowerCase()),
+    );
+}
+
 const TITULO_MIN = 3;
 const TITULO_MAX = 120;
 const DESCRIPCION_MAX = 2000;
@@ -39,66 +66,101 @@ const REGLAS_MAX = 4000;
  * `status` NO viene del cuerpo: la creación es SIEMPRE DRAFT (publicar es una acción aparte).
  */
 export function crearRetoSchema(now: Date) {
-  return z
-    .object({
-      title: z
-        .string()
-        .trim()
-        .min(TITULO_MIN, `El título debe tener al menos ${TITULO_MIN} caracteres.`)
-        .max(TITULO_MAX, `El título no puede pasar de ${TITULO_MAX} caracteres.`),
-      description: z
-        .string()
-        .trim()
-        .max(DESCRIPCION_MAX, "La descripción es demasiado larga.")
-        .optional()
-        .transform((s) => (s ? s : null)),
-      category: z.enum(CATEGORY_KEYS, { message: "Elige una categoría de la lista." }),
-      rules: z
-        .string()
-        .trim()
-        .max(REGLAS_MAX, "Las reglas son demasiado largas.")
-        .optional()
-        .transform((s) => (s ? s : null)),
-      prizeAmountCents: z.coerce
-        .number({ message: "El premio debe ser un número." })
-        .int("El premio debe ser un número entero de céntimos.")
-        .min(0, "El premio no puede ser negativo."),
-      startsAt: z.coerce.date({ message: "La fecha de apertura no es válida." }),
-      deadline: z.coerce.date({ message: "La fecha de cierre no es válida." }),
-      winnersCount: z.coerce
-        .number({ message: "El número de ganadores debe ser un número." })
-        .int("El número de ganadores debe ser entero.")
-        .min(1, "Debe haber al menos 1 ganador."),
+  return (
+    z
+      .object({
+        title: z
+          .string()
+          .trim()
+          .min(TITULO_MIN, `El título debe tener al menos ${TITULO_MIN} caracteres.`)
+          .max(TITULO_MAX, `El título no puede pasar de ${TITULO_MAX} caracteres.`),
+        description: z
+          .string()
+          .trim()
+          .max(DESCRIPCION_MAX, "La descripción es demasiado larga.")
+          .optional()
+          .transform((s) => (s ? s : null)),
+        category: z.enum(CATEGORY_KEYS, { message: "Elige una categoría de la lista." }),
+        rules: z
+          .string()
+          .trim()
+          .max(REGLAS_MAX, "Las reglas son demasiado largas.")
+          .optional()
+          .transform((s) => (s ? s : null)),
+        prizeAmountCents: z.coerce
+          .number({ message: "El premio debe ser un número." })
+          .int("El premio debe ser un número entero de céntimos.")
+          .min(0, "El premio no puede ser negativo."),
+        startsAt: z.coerce.date({ message: "La fecha de apertura no es válida." }),
+        deadline: z.coerce.date({ message: "La fecha de cierre no es válida." }),
+        winnersCount: z.coerce
+          .number({ message: "El número de ganadores debe ser un número." })
+          .int("El número de ganadores debe ser entero.")
+          .min(1, "Debe haber al menos 1 ganador."),
+        /**
+         * QUIÉN puede participar. Se guarda la CLAVE del nivel, no un número de puntos (ver el
+         * comentario de la columna). Ausente = `rookie` = TODOS: así un formulario antiguo, o una
+         * llamada que no lo mande, no restringe nada por accidente.
+         */
+        nivelMinimo: z.enum(NIVEL_KEYS).default(NIVEL_MINIMO_ABIERTO),
+        /**
+         * ¿RETO EXCLUSIVO PARA VIP MYTHIC? Ausente = `false` = reto normal: un formulario que no mande
+         * el campo no puede convertir un reto abierto en exclusivo por accidente.
+         *
+         * LLEGA COMO TEXTO, no como booleano: el formulario del panel va en `multipart/form-data` y
+         * ahí todo es string. `z.coerce.boolean()` NO vale —`Boolean("false")` es `true`, así que un
+         * "false" explícito activaría el candado—, por eso se compara contra la lista de formas que
+         * de verdad significan sí (la de una casilla HTML incluida: `on`).
+         */
+        soloVip: booleanDeFormulario(),
+        /**
+         * ¿RETO PATROCINADO POR UNA MARCA? Mismo tratamiento que `soloVip`: ausente = `false`.
+         */
+        esPatrocinado: booleanDeFormulario(),
+        sponsorNombre: z
+          .string()
+          .trim()
+          .max(
+            SPONSOR_NOMBRE_MAX,
+            `El nombre de la marca no puede pasar de ${SPONSOR_NOMBRE_MAX} caracteres.`,
+          )
+          .optional()
+          .transform((s) => (s ? s : null)),
+        /**
+         * LA COMISIÓN DE ESA MARCA, en puntos básicos y GUARDADA EN EL RETO.
+         *
+         * Entre 0 y 10000: un 0 es legítimo (un reto de favor, o uno en el que la marca solo pone el
+         * premio) y 10000 es el tope duro — por encima del 100% se estaría facturando más que el
+         * premio entero, que no es una tarifa sino un error de tecleo.
+         *
+         * El DEFAULT es el del producto, y es solo lo que propone un reto nuevo: lo que cuenta es el
+         * valor que acaba en la fila (ver el comentario de la columna).
+         */
+        comisionBps: z.coerce
+          .number({ message: "La comisión debe ser un número." })
+          .int("La comisión debe ser un número entero de puntos básicos.")
+          .min(0, "La comisión no puede ser negativa.")
+          .max(BPS, "La comisión no puede pasar del 100%.")
+          .default(COMISION_SPONSOR_BPS_DEFECTO),
+      })
       /**
-       * QUIÉN puede participar. Se guarda la CLAVE del nivel, no un número de puntos (ver el
-       * comentario de la columna). Ausente = `rookie` = TODOS: así un formulario antiguo, o una
-       * llamada que no lo mande, no restringe nada por accidente.
+       * UN RETO PATROCINADO SIN MARCA NO ES UN RETO PATROCINADO. Sin esto, marcar la casilla y no
+       * escribir el nombre dejaría una tarjeta con "Patrocinado por" y un hueco, y una línea en la
+       * contabilidad que no se sabe a quién facturar.
        */
-      nivelMinimo: z.enum(NIVEL_KEYS).default(NIVEL_MINIMO_ABIERTO),
-      /**
-       * ¿RETO EXCLUSIVO PARA VIP MYTHIC? Ausente = `false` = reto normal: un formulario que no mande
-       * el campo no puede convertir un reto abierto en exclusivo por accidente.
-       *
-       * LLEGA COMO TEXTO, no como booleano: el formulario del panel va en `multipart/form-data` y
-       * ahí todo es string. `z.coerce.boolean()` NO vale —`Boolean("false")` es `true`, así que un
-       * "false" explícito activaría el candado—, por eso se compara contra la lista de formas que
-       * de verdad significan sí (la de una casilla HTML incluida: `on`).
-       */
-      soloVip: z
-        .union([z.boolean(), z.string()])
-        .default(false)
-        .transform((v) =>
-          typeof v === "boolean" ? v : ["1", "true", "on", "si", "sí"].includes(v.toLowerCase()),
-        ),
-    })
-    .refine((d) => d.startsAt < d.deadline, {
-      message: "El cierre debe ser posterior a la apertura.",
-      path: ["deadline"],
-    })
-    .refine((d) => d.deadline > now, {
-      message: "El cierre debe estar en el futuro.",
-      path: ["deadline"],
-    });
+      .refine((d) => !d.esPatrocinado || (d.sponsorNombre?.length ?? 0) > 0, {
+        message: "Un reto patrocinado necesita el nombre de la marca.",
+        path: ["sponsorNombre"],
+      })
+      .refine((d) => d.startsAt < d.deadline, {
+        message: "El cierre debe ser posterior a la apertura.",
+        path: ["deadline"],
+      })
+      .refine((d) => d.deadline > now, {
+        message: "El cierre debe estar en el futuro.",
+        path: ["deadline"],
+      })
+  );
 }
 
 export type CrearRetoInput = z.output<ReturnType<typeof crearRetoSchema>>;
@@ -137,6 +199,13 @@ export async function crearRetoAdmin(
         winnersCount: datos.winnersCount,
         nivelMinimo: datos.nivelMinimo,
         soloVip: datos.soloVip,
+        // LOS CAMPOS DE LA MARCA SOLO SI ES PATROCINADO. Desmarcar la casilla y dejar el nombre
+        // escrito en el formulario no puede guardar media marca: lo que no es patrocinado no tiene
+        // sponsor, y así la fila nunca contradice al flag. El LOGO lo escribe la ruta después (es
+        // un fichero, como la portada).
+        esPatrocinado: datos.esPatrocinado,
+        sponsorNombre: datos.esPatrocinado ? datos.sponsorNombre : null,
+        comisionBps: datos.comisionBps,
         createdById: adminId,
       },
       select: { id: true, publicCode: true, slug: true, status: true },
@@ -180,6 +249,13 @@ export async function editarRetoAdmin(
       winnersCount: datos.winnersCount,
       nivelMinimo: datos.nivelMinimo,
       soloVip: datos.soloVip,
+      esPatrocinado: datos.esPatrocinado,
+      sponsorNombre: datos.esPatrocinado ? datos.sponsorNombre : null,
+      comisionBps: datos.comisionBps,
+      // QUITAR EL PATROCINIO LIMPIA LA MARCA pero NO borra el logo del disco: el fichero se queda
+      // huérfano en el volumen, como pasa con una portada reemplazada. Es la misma decisión de
+      // siempre —no destruir ficheros desde una edición— y `sponsorLogo` se pone a null abajo.
+      ...(datos.esPatrocinado ? {} : { sponsorLogo: null }),
       // publicCode, status y coverImage AUSENTES a propósito (invariantes de la edición).
     },
   });
@@ -224,6 +300,12 @@ export interface RetoAdminFila {
   nivelMinimo: string;
   /** Reto EXCLUSIVO de VIP Mythic: se ve igual, pero solo participa quien tenga la suscripcion. */
   soloVip: boolean;
+  /** Reto PATROCINADO por una marca (Fase 9). Los tres campos de abajo solo significan algo si es cierto. */
+  esPatrocinado: boolean;
+  sponsorNombre: string | null;
+  sponsorLogo: string | null;
+  /** Comision pactada con esa marca, en puntos basicos. Se guarda por reto (ver la columna). */
+  comisionBps: number;
   coverImage: string | null;
   publicCode: string;
   /** Gracia de borrado en curso (ms) o null. El panel pinta la cuenta atras y ofrece restaurar. */
@@ -250,6 +332,10 @@ const SELECT_RETO_ADMIN = {
   winnersCount: true,
   nivelMinimo: true,
   soloVip: true,
+  esPatrocinado: true,
+  sponsorNombre: true,
+  sponsorLogo: true,
+  comisionBps: true,
   coverImage: true,
   publicCode: true,
   eliminacionProgramadaEn: true,
