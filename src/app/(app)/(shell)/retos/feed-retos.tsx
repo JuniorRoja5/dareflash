@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { PildoraFiltro } from "@/components/ui/pildora-filtro";
+import { getJson } from "@/lib/cliente-http";
 import type { RetoPublicoVista } from "@/server/services/retos-publico";
 
 import { CATEGORIAS, CATEGORIA_TODOS, filtrarRetos } from "./retos-datos";
@@ -12,20 +13,59 @@ import { TarjetaReto } from "./tarjeta-reto";
  * FEED de retos (cliente) con datos REALES. Pestaña ACTIVOS (con filtro por categoría) | CERRADOS.
  * El filtrado por categoría es presentacional y usa la función PURA `filtrarRetos`. Cada tarjeta lleva
  * su propia cuenta atrás (MarcadorReto difiere el plazo al montaje). Cerrados: vacío hasta que los haya.
+ *
+ * ┌─ CERRADOS SE PAGINA; ACTIVOS NO ────────────────────────────────────────────────────────────┐
+ * │ Son dos listas con naturalezas distintas. ACTIVOS está acotada por su ventana (un reto sale  │
+ * │ de ella al cerrar) y el filtro por categoría trabaja sobre lo que ya está en memoria, que es │
+ * │ lo que lo hace instantáneo. CERRADOS no se vacía nunca: antes se traían los 100 últimos y el │
+ * │ resto del histórico no existía para el público. Ahora va por keyset, con "Ver más" contra    │
+ * │ `/api/retos/cerrados` — la primera página la sirve el servidor, igual que el feed.            │
+ * │                                                                                               │
+ * │ El filtro por categoría NO se ofrece en Cerrados (no lo ofrecía antes): filtrar en cliente    │
+ * │ sobre una lista paginada enseñaría "no hay nada de esta categoría" cuando lo que pasa es que │
+ * │ todavía no se ha cargado.                                                                     │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
 export function FeedRetos({
   activos,
   cerrados,
+  cerradosCursor = null,
   categoriaInicial = null,
 }: {
   activos: RetoPublicoVista[];
   cerrados: RetoPublicoVista[];
+  /** Cursor de la segunda página de cerrados, o `null` si no hay más. */
+  cerradosCursor?: string | null;
   categoriaInicial?: string | null;
 }) {
   const [pestana, setPestana] = useState<"activos" | "cerrados">("activos");
   const [categoria, setCategoria] = useState<string>(categoriaInicial ?? CATEGORIA_TODOS);
+  const [masCerrados, setMasCerrados] = useState<RetoPublicoVista[]>([]);
+  const [cursor, setCursor] = useState<string | null>(cerradosCursor);
+  const [cargando, setCargando] = useState(false);
 
-  const visibles = pestana === "activos" ? filtrarRetos(activos, categoria) : cerrados;
+  const todosCerrados = [...cerrados, ...masCerrados];
+  const visibles = pestana === "activos" ? filtrarRetos(activos, categoria) : todosCerrados;
+
+  async function verMas(): Promise<void> {
+    if (!cursor || cargando) return;
+    setCargando(true);
+    try {
+      const r = await getJson<{ items?: RetoPublicoVista[]; nextCursor?: string | null }>(
+        `/api/retos/cerrados?cursor=${encodeURIComponent(cursor)}`,
+      );
+      if (r.ok && r.data.items) {
+        setMasCerrados((previos) => [...previos, ...(r.data.items ?? [])]);
+        // EL CURSOR SE PISA SIEMPRE, incluso con `undefined`: dejarlo como estaba volvería a pedir
+        // la MISMA página al siguiente clic, y la lista se duplicaría sola.
+        setCursor(r.data.nextCursor ?? null);
+      }
+    } catch {
+      // Sin ruido: el botón sigue ahí y se puede reintentar.
+    } finally {
+      setCargando(false);
+    }
+  }
 
   return (
     <>
@@ -81,6 +121,19 @@ export function FeedRetos({
           ))}
         </ul>
       )}
+
+      {/* FUERA del `if` de la lista: si la primera página de cerrados viniera vacía pero quedaran
+          más, el botón tiene que seguir ahí. Solo en Cerrados, que es la pestaña paginada. */}
+      {pestana === "cerrados" && cursor ? (
+        <button
+          type="button"
+          onClick={() => void verMas()}
+          disabled={cargando}
+          className="mt-4 w-full rounded-sm border border-line py-2 text-sm text-text-dim transition-colors hover:bg-raised hover:text-text disabled:opacity-40"
+        >
+          {cargando ? "Cargando…" : "Ver más retos cerrados"}
+        </button>
+      ) : null}
     </>
   );
 }

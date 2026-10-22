@@ -59,8 +59,10 @@ export default async function PerfilPage() {
       youtube={perfil.youtube}
       puntos={perfil.pointsBalance}
       retosGanados={perfil.retosGanados}
-      totalVideos={perfil.videos.length}
+      totalVideos={perfil.totalVideos}
       videos={videos}
+      videosCursor={perfil.videosCursor}
+      videosUrl="/api/perfil/videos"
       racha={racha}
       esPropio
       esVip={esVip}

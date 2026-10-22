@@ -65,8 +65,10 @@ export default async function PerfilPublicoPage({
       youtube={perfil.youtube}
       puntos={perfil.pointsBalance}
       retosGanados={perfil.retosGanados}
-      totalVideos={perfil.videos.length}
+      totalVideos={perfil.totalVideos}
       videos={videos}
+      videosCursor={perfil.videosCursor}
+      videosUrl={`/api/perfiles/${encodeURIComponent(perfil.username)}/videos`}
       esPropio={false}
       esVip={esVip}
       colorNombre={perfil.colorNombre}

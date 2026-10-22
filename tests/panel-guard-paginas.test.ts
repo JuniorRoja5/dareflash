@@ -67,7 +67,19 @@ const PAGINAS_ADMIN: {
   /** Tupla (no array suelto): así se puede expandir en la llamada sin perder el tipo. */
   args: [] | [unknown];
 }[] = [
-  { ruta: "/panel/retos", cargar: () => import("../src/app/panel/retos/page"), args: [] },
+  {
+    // Desde que la lista pagina por keyset recibe `searchParams` (la posición vive en la URL).
+    ruta: "/panel/retos",
+    cargar: () => import("../src/app/panel/retos/page"),
+    args: [{ searchParams: Promise.resolve({}) }],
+  },
+  {
+    // Faltaba desde que nació la sección (Fase 9 · P1): una página de ADMIN que este guard no
+    // ejecutaba. Que el resto estuvieran cubiertas no la cubría a ella.
+    ruta: "/panel/patrocinios",
+    cargar: () => import("../src/app/panel/patrocinios/page"),
+    args: [{ searchParams: Promise.resolve({}) }],
+  },
   {
     ruta: "/panel/retos/[id]",
     cargar: () => import("../src/app/panel/retos/[id]/page"),

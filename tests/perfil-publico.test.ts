@@ -341,3 +341,141 @@ describe("mis vídeos con estado vs perfil público (DIENTES anti-fuga)", () => 
     expect(await miPerfil(prisma, baneado.id)).toBeNull();
   });
 });
+
+/**
+ * LA REJILLA DEL PERFIL ESTÁ PAGINADA, y antes no tenía ni `take`.
+ *
+ * ┌─ POR QUÉ IMPORTA ───────────────────────────────────────────────────────────────────────────┐
+ * │ Se traían TODOS los vídeos de la cuenta en cada visita: una consulta que crece sin techo y   │
+ * │ un payload entero viajando al navegador. Para quien sube a diario eso no falla, solo se pone │
+ * │ cada vez más lento — y cuando duele, duele en producción.                                     │
+ * │                                                                                               │
+ * │ Y LA CIFRA DE LA CABECERA SE CUENTA APARTE. Salía de `videos.length`, que era verdad mientras │
+ * │ la rejilla trajera todo; con la rejilla paginada diría "18 vídeos" para alguien que tiene     │
+ * │ trescientos. Es el fallo silencioso que acompaña siempre a paginar una lista que se contaba   │
+ * │ a sí misma.                                                                                    │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+describe("la rejilla del perfil", () => {
+  /** n vídeos PUBLISHED de un usuario, uno por minuto. Devuelve los ids del más viejo al más nuevo. */
+  async function conVideos(
+    username: string,
+    n: number,
+  ): Promise<{ userId: string; ids: string[] }> {
+    const u = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username },
+      select: { id: true },
+    });
+    const ids: string[] = [];
+    for (let i = 0; i < n; i += 1) {
+      const id = await crearVideo(u.id, "PUBLISHED", `${username}-${i}`, `V${i}`);
+      await prisma.video.update({
+        where: { id },
+        data: { createdAt: new Date(Date.UTC(2026, 0, 1, 0, i)) },
+      });
+      ids.push(id);
+    }
+    return { userId: u.id, ids };
+  }
+
+  it("trae UNA página y el total CONTADO, no la longitud de la página", async () => {
+    const { userId } = await conVideos("rejilla1", 5);
+
+    const perfil = (await perfilPublicoPorId(prisma, userId))!;
+    const { videosPublicosDe } = await import("../src/server/services/perfil");
+    const pagina = await videosPublicosDe(prisma, userId, { limite: 2 });
+
+    expect(pagina.items).toHaveLength(2);
+    expect(pagina.nextCursor).not.toBeNull();
+    // El perfil trae su primera página (el tope por defecto cabe de sobra con 5) y el total REAL.
+    expect(perfil.totalVideos, "el total sale de la página, no de la base").toBe(5);
+  });
+
+  it("el total NO es la longitud de la página cuando hay más de una", async () => {
+    const { userId } = await conVideos("rejilla2", 3);
+    const { videosPublicosDe } = await import("../src/server/services/perfil");
+
+    const pagina = await videosPublicosDe(prisma, userId, { limite: 1 });
+    const total = await prisma.video.count({ where: { userId, status: "PUBLISHED" } });
+
+    expect(pagina.items).toHaveLength(1);
+    expect(total).toBe(3);
+  });
+
+  it("se recorre entera sin saltarse ni repetir, y aguanta que se retire uno en medio", async () => {
+    const { userId, ids } = await conVideos("rejilla3", 5);
+    const { videosPublicosDe } = await import("../src/server/services/perfil");
+
+    const p1 = await videosPublicosDe(prisma, userId, { limite: 2 });
+    expect(p1.items.map((v) => v.id)).toEqual([ids[4], ids[3]]);
+
+    // El dueño borra el vídeo del CURSOR entre una página y la siguiente.
+    await prisma.video.update({ where: { id: ids[3]! }, data: { status: "REMOVED" } });
+
+    const p2 = await videosPublicosDe(prisma, userId, { cursor: p1.nextCursor, limite: 2 });
+    expect(
+      p2.items.map((v) => v.id),
+      "la página 2 se ha descolocado",
+    ).toEqual([ids[2], ids[1]]);
+
+    const p3 = await videosPublicosDe(prisma, userId, { cursor: p2.nextCursor, limite: 2 });
+    expect(p3.items.map((v) => v.id)).toEqual([ids[0]]);
+    expect(p3.nextCursor).toBeNull();
+  });
+
+  it("MI rejilla pagina igual, y sigue trayendo los no publicados (que son míos)", async () => {
+    const u = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "rejillamia" },
+      select: { id: true },
+    });
+    const publicado = await crearVideo(u.id, "PUBLISHED", "mio-pub", "Publicado");
+    const procesando = await crearVideo(u.id, "PENDING", "mio-pend", "En proceso");
+    await prisma.video.update({
+      where: { id: publicado },
+      data: { createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0)) },
+    });
+    await prisma.video.update({
+      where: { id: procesando },
+      data: { createdAt: new Date(Date.UTC(2026, 0, 1, 0, 1)) },
+    });
+
+    const { misVideosPaginados } = await import("../src/server/services/perfil");
+    const p1 = await misVideosPaginados(prisma, u.id, { limite: 1 });
+    const p2 = await misVideosPaginados(prisma, u.id, { cursor: p1.nextCursor, limite: 1 });
+
+    expect(p1.items.map((v) => v.estado)).toEqual(["procesando"]);
+    expect(p2.items.map((v) => v.estado)).toEqual(["publicado"]);
+    expect(p2.nextCursor).toBeNull();
+  });
+
+  it("y la rejilla PÚBLICA sigue sin enseñar los no publicados, ni paginando", async () => {
+    // La barrera de siempre, ahora también en la página 2: son dos `where` distintos a propósito
+    // (`dondeVideosPublicos` y `dondeMisVideos`), no uno con una bandera que alguien pase mal.
+    const u = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "rejillaotra" },
+      select: { id: true },
+    });
+    for (let i = 0; i < 3; i += 1) {
+      const id = await crearVideo(u.id, "PUBLISHED", `otra-pub-${i}`, `P${i}`);
+      await prisma.video.update({
+        where: { id },
+        data: { createdAt: new Date(Date.UTC(2026, 0, 1, 0, i * 2)) },
+      });
+    }
+    // Uno FALLIDO justo entre medias, donde caería el corte de la primera página.
+    const fallido = await crearVideo(u.id, "FAILED", "otra-fail", "Fallido", "TRANSCODE_ERROR");
+    await prisma.video.update({
+      where: { id: fallido },
+      data: { createdAt: new Date(Date.UTC(2026, 0, 1, 0, 3)) },
+    });
+
+    const { videosPublicosDe } = await import("../src/server/services/perfil");
+    const p1 = await videosPublicosDe(prisma, u.id, { limite: 2 });
+    const p2 = await videosPublicosDe(prisma, u.id, { cursor: p1.nextCursor, limite: 2 });
+    const vistos = [...p1.items, ...p2.items];
+
+    expect(vistos.map((v) => v.id)).not.toContain(fallido);
+    expect(vistos).toHaveLength(3);
+    expect(JSON.stringify(vistos)).not.toContain("TRANSCODE_ERROR");
+  });
+});

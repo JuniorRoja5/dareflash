@@ -5,11 +5,17 @@ import { apiError, apiOk, depsRuta } from "@/server/http/api";
 export const dynamic = "force-dynamic";
 
 /**
- * Parámetros de paginación. `cursor` = id del último video de la página anterior; `limit` opcional
- * (la consulta lo acota a [1, FEED_LIMITE_MAX], aquí solo se rechaza lo absurdo).
+ * Parámetros de paginación. `cursor` = la tupla `(createdAt, id)` de la última fila de la página
+ * anterior, codificada por `lib/cursor-tiempo` (`<ms>.<id>`); `limit` opcional (la consulta lo acota
+ * a [1, FEED_LIMITE_MAX], aquí solo se rechaza lo absurdo).
+ *
+ * El tope de longitud da para la tupla ENTERA (hasta 15 dígitos + punto + 64 de id, que es lo que
+ * acepta el decodificador): con el 64 de cuando el cursor era solo un id, un cursor legítimo se
+ * habría rechazado con 400 y el scroll infinito se habría parado en seco. Un cursor más largo que
+ * esto no es un cursor, y uno manipulado vuelve a la primera página en vez de reventar.
  */
 const QuerySchema = z.object({
-  cursor: z.string().min(1).max(64).optional(),
+  cursor: z.string().min(1).max(80).optional(),
   limit: z.coerce.number().int().min(1).max(50).optional(),
 });
 

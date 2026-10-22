@@ -3,11 +3,21 @@
  * PAGINACION POR CURSOR (keyset), y devuelve ya lo que la vista necesita: autor, caption, votos reales
  * y las URLs de reproduccion FIRMADAS.
  *
- * PAGINACION (esquema, documentado): cursor = `id` del ultimo video devuelto. Orden estable por
- * `[createdAt desc, id desc]` (el `id` desempata: cuid monotono, evita saltarse/duplicar filas cuando
- * dos videos comparten `createdAt`). Se piden `limit+1` filas: si vienen mas del limite, hay pagina
- * siguiente y `nextCursor` es el id de la ultima fila visible; si no, `nextCursor = null`. La primera
- * pagina la sirve el Server Component; las siguientes, el endpoint publico `/api/feed?cursor=...`.
+ * ┌─ PAGINACION: KEYSET POR VALORES, NO POR FILA ────────────────────────────────────────────────┐
+ * │ El cursor es la TUPLA `(createdAt, id)` de la ultima fila servida (`lib/cursor-tiempo`, el     │
+ * │ mismo codec que el resto de listas), y la pagina siguiente se pide con un `where`:             │
+ * │ `createdAt < c.createdAt OR (createdAt = c.createdAt AND id < c.id)`.                          │
+ * │                                                                                                │
+ * │ ANTES ERA el `cursor` de Prisma con `skip: 1`, que se ANCLA A LA FILA: Prisma la busca para    │
+ * │ saber desde donde seguir. Si ese video se borra o se retira entre la pagina 1 y la 2 —y en un  │
+ * │ feed con moderacion eso pasa—, el ancla no existe y la consulta se descoloca. Un valor de      │
+ * │ orden no necesita que su fila siga viva.                                                       │
+ * │                                                                                                │
+ * │ El `id` desempata (cuid monotono): sin el, dos videos del mismo milisegundo se repiten o se    │
+ * │ saltan al cruzar la frontera de pagina. Se piden `limit+1` filas para saber si hay siguiente   │
+ * │ sin un COUNT aparte. La primera pagina la sirve el Server Component; las siguientes, el        │
+ * │ endpoint publico `/api/feed?cursor=...`.                                                       │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
  * CONTENIDO PUBLICO: solo `status = PUBLISHED` y de usuarios ni borrados ni baneados. El voto/reto
  * salen de la Submission del video SOLO si ella misma esta PUBLISHED (regla del modelo: entre
@@ -20,6 +30,11 @@ import "server-only";
 
 import { Prisma } from "@/generated/prisma/client";
 import { nombreCategoria } from "@/lib/categorias";
+import {
+  codificarCursorTiempo,
+  conKeysetTiempo,
+  decodificarCursorTiempo,
+} from "@/lib/cursor-tiempo";
 import { retoEstaAbierto } from "@/lib/reto-ventana";
 import type { Db } from "@/server/db/types";
 
@@ -114,7 +129,11 @@ export interface PostFeed {
 
 export interface PaginaFeed {
   items: PostFeed[];
-  /** Cursor para la SIGUIENTE pagina (id del ultimo video). `null` = no hay mas. */
+  /**
+   * Cursor para la SIGUIENTE pagina: la TUPLA `(createdAt, id)` de la ultima fila servida, no su id.
+   * `null` = no hay mas. Es opaco para quien lo recibe —el cliente solo lo devuelve tal cual—, pero
+   * el formato importa aqui: un cursor de id solo se ancla a una fila que puede desaparecer.
+   */
   nextCursor: string | null;
 }
 
@@ -135,6 +154,9 @@ const SELECT_FEED = {
   id: true,
   // El dueño, para resolver `esMio` sin una segunda consulta.
   userId: true,
+  // La MITAD DEL CURSOR. Sin ella la página siguiente tendría que pedir la fila otra vez para saber
+  // su fecha, que es justo el anclaje a una fila del que esta lista se acaba de quitar.
+  createdAt: true,
   bunnyVideoId: true,
   thumbnailFileName: true,
   title: true,
@@ -310,14 +332,20 @@ export async function feedPublicado(
     FEED_LIMITE_MAX,
   );
 
+  const desde = decodificarCursorTiempo(opts.cursor);
+
   const filas = await db.video.findMany({
     // Que se ve lo decide `VIDEO_VISIBLE` (sin reemplazos en vuelo, sin autores borrados o baneados,
     // sin retos borrados, subidas libres solo con categoria): la MISMA regla que los comentarios.
-    where: VIDEO_VISIBLE,
+    //
+    // CON `AND`, NO CON SPREAD: `VIDEO_VISIBLE` tiene su propio `OR` en la raiz (participacion de
+    // reto vivo O subida libre con categoria) y el del keyset es otro. Fundirlos con `...` deja
+    // solo uno —el ultimo— y la pagina 2 del feed empezaria a servir video retirado o de cuenta
+    // baneada. No falla: devuelve filas de mas.
+    where: conKeysetTiempo(VIDEO_VISIBLE, desde),
     select: SELECT_FEED,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limite + 1,
-    ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
   });
 
   const hayMas = filas.length > limite;
@@ -348,8 +376,12 @@ export async function feedPublicado(
     }),
   );
 
+  const ultima = visibles[visibles.length - 1];
   return {
     items,
-    nextCursor: hayMas ? (visibles[visibles.length - 1]?.id ?? null) : null,
+    nextCursor:
+      hayMas && ultima
+        ? codificarCursorTiempo({ creadoMs: ultima.createdAt.getTime(), id: ultima.id })
+        : null,
   };
 }

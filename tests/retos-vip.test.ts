@@ -274,7 +274,7 @@ describe("un reto exclusivo SE VE, como el de nivel mínimo", () => {
 
     const cerrados = await listarRetosCerrados(prisma, AHORA);
 
-    expect(cerrados.map((r) => r.soloVip)).toEqual([true]);
+    expect(cerrados.items.map((r) => r.soloVip)).toEqual([true]);
   });
 
   it("y su detalle se resuelve igual, con el flag en el DTO", async () => {

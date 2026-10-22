@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import type { RetoAdminFila } from "@/server/services/retos-admin";
@@ -15,7 +15,17 @@ import { ListaRetos } from "./lista-retos";
  * server component (datos reales) y la edición se cierra. La `key` del formulario fuerza un remontaje
  * limpio al cambiar de reto (el estado inicial se toma de props una sola vez).
  */
-export function RetosPanel({ retos }: { retos: RetoAdminFila[] }) {
+export function RetosPanel({
+  retos,
+  paginacion,
+}: {
+  retos: RetoAdminFila[];
+  /**
+   * Los pasos Anterior/Siguiente, montados por el servidor (la posición vive en la URL). Llegan como
+   * nodo en vez de resolverse aquí porque esto es cliente y no tiene los `searchParams`.
+   */
+  paginacion?: ReactNode;
+}) {
   const router = useRouter();
   const [editando, setEditando] = useState<RetoAdminFila | null>(null);
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -50,6 +60,9 @@ export function RetosPanel({ retos }: { retos: RetoAdminFila[] }) {
           Retos existentes
         </h2>
         <ListaRetos retos={retos} onEditar={editar} onCambio={() => router.refresh()} />
+        {/* FUERA del `if` de la lista (`ListaRetos` pinta su propio vacío): si una página posterior
+            se queda sin filas, "Anterior" tiene que seguir ahí o el admin se queda encerrado. */}
+        {paginacion}
       </section>
     </div>
   );

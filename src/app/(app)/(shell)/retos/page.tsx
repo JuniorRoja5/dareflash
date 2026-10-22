@@ -21,6 +21,8 @@ export default async function RetosPage({
   const { listarRetosPublicos, listarRetosCerrados } =
     await import("@/server/services/retos-publico");
   const ahora = new Date();
+  // CERRADOS va PAGINADO (keyset): es la única de las dos que crece para siempre, y antes se
+  // cortaba en los 100 más recientes sin decir nada. Activos está acotada por su ventana.
   const [activos, cerrados] = await Promise.all([
     listarRetosPublicos(prisma, ahora),
     listarRetosCerrados(prisma, ahora),
@@ -37,7 +39,12 @@ export default async function RetosPage({
       >
         Retos activos
       </h1>
-      <FeedRetos activos={activos} cerrados={cerrados} categoriaInicial={categoriaInicial} />
+      <FeedRetos
+        activos={activos}
+        cerrados={cerrados.items}
+        cerradosCursor={cerrados.nextCursor}
+        categoriaInicial={categoriaInicial}
+      />
     </div>
   );
 }

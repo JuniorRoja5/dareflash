@@ -14,8 +14,8 @@ import {
   textoNombre,
 } from "@/components/ui/identidad-usuario";
 
-import { CeldaVideo } from "./celda-video";
 import type { EstadoVideo } from "./perfil-logic";
+import { RejillaVideos } from "./rejilla-videos";
 
 import { CerrarSesion } from "../cerrar-sesion";
 
@@ -167,6 +167,8 @@ export function PerfilVista({
   retosGanados,
   totalVideos,
   videos,
+  videosCursor = null,
+  videosUrl,
   racha,
   esPropio,
   esVip = false,
@@ -184,8 +186,14 @@ export function PerfilVista({
   youtube: string | null;
   puntos: number;
   retosGanados: number;
+  /** CUÁNTOS HAY, contados en la base. NO es `videos.length`: la rejilla viene paginada. */
   totalVideos: number;
+  /** La PRIMERA página de la rejilla. */
   videos: VideoCelda[];
+  /** Cursor de la segunda página, o `null` si no hay más. */
+  videosCursor?: string | null;
+  /** Endpoint que sirve las páginas siguientes de ESTA rejilla (propia o pública: no son la misma). */
+  videosUrl: string;
   /**
    * Días activos seguidos. SOLO llega en el perfil PROPIO: no está en el DTO público, así que
    * mirar el perfil de otro no dice cuántos días seguidos lleva. Es su actividad, no su escaparate.
@@ -385,21 +393,15 @@ export function PerfilVista({
           <h2 className="mb-4 text-lg font-semibold text-text">
             {esPropio ? "Mis vídeos" : "Vídeos"}
           </h2>
-          {videos.length === 0 ? (
-            <p className="rounded-sm border border-line bg-surface/40 p-8 text-center text-sm text-text-dim">
-              {esPropio
-                ? "Todavía no has publicado ningún vídeo. Cuando publiques uno, aparecerá aquí."
-                : "Este perfil aún no tiene vídeos publicados."}
-            </p>
-          ) : (
-            <div className="grid grid-cols-3 items-start gap-x-1.5 gap-y-3 sm:grid-cols-4 lg:grid-cols-5">
-              {videos.map((v) => (
-                // Publicado -> tap abre el modal; en proceso/fallido -> icono + estado. En el perfil
-                // PROPIO cada celda lleva su acción de borrar (con confirmación).
-                <CeldaVideo key={v.id} video={v} esPropio={esPropio} />
-              ))}
-            </div>
-          )}
+          {/* La rejilla PAGINA (keyset): el perfil ya no se trae todos los vídeos de la cuenta.
+              La primera página la pinta el servidor; las siguientes las pide `RejillaVideos` al
+              endpoint que le pasan — el propio y el público son dos, y no se mezclan. */}
+          <RejillaVideos
+            inicial={videos}
+            cursorInicial={videosCursor}
+            url={videosUrl}
+            esPropio={esPropio}
+          />
         </section>
       </div>
     </div>

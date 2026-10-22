@@ -21,6 +21,11 @@ import {
   SPONSOR_NOMBRE_MAX,
 } from "@/config/constants";
 import { BPS } from "@/lib/comision";
+import {
+  codificarCursorTiempo,
+  conKeysetTiempo,
+  decodificarCursorTiempo,
+} from "@/lib/cursor-tiempo";
 import type { Db } from "@/server/db/types";
 import { NIVEL_MINIMO_ABIERTO } from "@/lib/nivel-reto";
 import { NIVELES, type ClaveNivel } from "@/lib/niveles";
@@ -348,10 +353,15 @@ type FilaCruda = { [K in keyof typeof SELECT_RETO_ADMIN]: unknown } & {
   prizeAmountCents: number | bigint;
   eliminacionProgramadaEn: Date | null;
   deletedAt: Date | null;
+  /** Solo lo trae la LISTA, y solo para construir el cursor: ver `listarRetosAdmin`. */
+  createdAt?: Date;
 };
 
 function aFila(f: FilaCruda): RetoAdminFila {
   const { eliminacionProgramadaEn, deletedAt, prizeAmountCents, ...resto } = f;
+  // `createdAt` SE QUEDA FUERA aunque la lista lo pida: es la mitad del cursor, no un campo del
+  // DTO. Sin quitarlo, el `...resto` de abajo lo llevaría al cliente como un `Date`.
+  delete (resto as { createdAt?: Date }).createdAt;
   return {
     ...(resto as unknown as Omit<RetoAdminFila, "prizeAmountCents" | "eliminaEnMs" | "borradoMs">),
     prizeAmountCents: Number(prizeAmountCents),
@@ -370,13 +380,58 @@ export async function retoAdminPorId(db: Db, id: string): Promise<RetoAdminFila 
   return f ? aFila(f) : null;
 }
 
-/** Lista los retos para el panel (más nuevos primero), con su estado y los campos para editar. */
-export async function listarRetosAdmin(db: Db): Promise<RetoAdminFila[]> {
+/** Tope de la página del panel. El mismo que el resto de colas del admin. */
+export const RETOS_ADMIN_LIMITE = 25;
+
+export interface PaginaRetosAdmin {
+  filas: RetoAdminFila[];
+  /** Cursor de la página siguiente, o `null` si no hay más. Keyset, nunca OFFSET. */
+  proximoCursor: string | null;
+}
+
+/**
+ * Lista los retos para el panel (más nuevos primero), con su estado y los campos para editar.
+ *
+ * ┌─ PAGINADA, Y ESTO NO ES COSMÉTICO ──────────────────────────────────────────────────────────┐
+ * │ Antes traía LA TABLA ENTERA sin `take`: todos los retos que se hayan creado nunca, borrados  │
+ * │ incluidos (que siguen aquí a propósito, como registro). Con una docena no se nota; con mil,  │
+ * │ el panel se trae mil filas con su descripción y sus reglas en cada carga. Una lista que      │
+ * │ crece con el uso y no está acotada no falla: se degrada, y el día que duele ya es tarde.     │
+ * │                                                                                               │
+ * │ KEYSET por `(createdAt, id)`, nunca OFFSET —la regla del repositorio— y con el desempate por │
+ * │ id, que antes tampoco estaba: dos retos creados en el mismo milisegundo (una siembra, un     │
+ * │ script) bailaban de sitio entre dos cargas de la misma página.                               │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+export async function listarRetosAdmin(
+  db: Db,
+  opts: { cursor?: string | null; limite?: number } = {},
+): Promise<PaginaRetosAdmin> {
+  const limite = Math.min(
+    Math.max(1, Math.floor(opts.limite ?? RETOS_ADMIN_LIMITE)),
+    RETOS_ADMIN_LIMITE,
+  );
+  const desde = decodificarCursorTiempo(opts.cursor);
+
   const filas = await db.challenge.findMany({
-    orderBy: [{ createdAt: "desc" }],
-    select: SELECT_RETO_ADMIN,
+    where: conKeysetTiempo({}, desde),
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    // Una de más: así se sabe si hay siguiente sin un `count` aparte.
+    take: limite + 1,
+    select: { ...SELECT_RETO_ADMIN, createdAt: true },
   });
-  return filas.map(aFila);
+
+  const hayMas = filas.length > limite;
+  const pagina = hayMas ? filas.slice(0, limite) : filas;
+  const ultima = pagina.at(-1);
+
+  return {
+    filas: pagina.map(aFila),
+    proximoCursor:
+      hayMas && ultima
+        ? codificarCursorTiempo({ creadoMs: ultima.createdAt.getTime(), id: ultima.id })
+        : null,
+  };
 }
 
 /**

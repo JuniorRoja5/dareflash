@@ -22,6 +22,15 @@ export interface PosicionTiempo {
   id: string;
 }
 
+/**
+ * La forma del `where` del keyset. Se nombra —en vez de devolver `object`— para poder METERLA EN UN
+ * `AND` con tipos: hay listas cuyo propio filtro ya trae un `OR` en la raíz, y ahí fundir con spread
+ * se come uno de los dos. Ver `dondeDesde`.
+ */
+export interface DondeDesdeTiempo {
+  OR?: [{ createdAt: { lt: Date } }, { createdAt: Date; id: { lt: string } }];
+}
+
 export function codificarCursorTiempo(p: PosicionTiempo): string {
   return `${p.creadoMs}.${p.id}`;
 }
@@ -42,8 +51,14 @@ export function decodificarCursorTiempo(raw: string | null | undefined): Posicio
  * Es el trozo que más se copia mal —se escribe el `lt` de la fecha y se olvida la rama del
  * desempate, y entonces dos filas del mismo milisegundo se repiten entre páginas—, así que también
  * vive aquí.
+ *
+ * ┌─ CUIDADO AL FUNDIRLO: `...dondeDesde(…)` SOLO VALE SI EL FILTRO NO TIENE `OR` ───────────────┐
+ * │ Lo que devuelve es un `OR` en la raíz. Si el `where` de la lista ya trae el suyo —la regla de │
+ * │ visibilidad del feed, por ejemplo— el spread se come uno de los dos SIN AVISAR, y entonces la │
+ * │ página 2 deja de filtrar lo que filtraba la 1. Para ese caso está `conKeysetTiempo`.          │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
-export function dondeDesde(desde: PosicionTiempo | null): object {
+export function dondeDesde(desde: PosicionTiempo | null): DondeDesdeTiempo {
   if (!desde) return {};
   return {
     OR: [
@@ -51,4 +66,20 @@ export function dondeDesde(desde: PosicionTiempo | null): object {
       { createdAt: new Date(desde.creadoMs), id: { lt: desde.id } },
     ],
   };
+}
+
+/**
+ * EL FILTRO DE LA LISTA **Y** EL DEL KEYSET, sin que uno se coma al otro.
+ *
+ * Los mete en un `AND`, que es la única forma de componer dos condiciones cuando las dos pueden
+ * traer un `OR`. Es lo que hay que usar siempre que el `where` de la lista no sea una conjunción
+ * plana de igualdades — y, por si acaso, también cuando lo es: cuesta lo mismo y no hay que volver
+ * a mirarlo cada vez que alguien añada una condición al filtro.
+ */
+export function conKeysetTiempo<T extends object>(filtro: T, desde: PosicionTiempo | null): T {
+  if (!desde) return filtro;
+  // El `as T` es el precio de ser genérico: `{ AND: [...] }` es un `where` válido en cualquier
+  // modelo de Prisma, pero el tipo de `T` no lo sabe. Queda ENCERRADO aquí, en una línea, en vez
+  // de repetido en cada lista.
+  return { AND: [filtro, dondeDesde(desde)] } as unknown as T;
 }

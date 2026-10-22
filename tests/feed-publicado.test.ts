@@ -300,6 +300,141 @@ describe("feedPublicado", () => {
 });
 
 /**
+ * EL KEYSET DEL FEED ES POR VALORES, NO POR FILA.
+ *
+ * ┌─ QUÉ SE ARREGLÓ AQUÍ ───────────────────────────────────────────────────────────────────────┐
+ * │ El feed documentaba keyset pero IMPLEMENTABA el `cursor` de Prisma con `skip: 1`, que se      │
+ * │ ancla a la fila del cursor: Prisma la busca en la tabla para saber desde dónde seguir. En un  │
+ * │ feed con moderación esa fila desaparece —se retira el vídeo, se banea al autor, el umbral de  │
+ * │ denuncias lo esconde— entre que se sirve una página y se pide la siguiente. Sin ancla, la     │
+ * │ consulta se descoloca.                                                                         │
+ * │                                                                                                │
+ * │ Un VALOR de orden no necesita que su fila siga viva, y eso es todo lo que cambia.              │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * Los tres de abajo son los que caen si alguien vuelve al cursor de Prisma, se deja el desempate
+ * por id, o funde el keyset con `...` sobre un filtro que ya tiene su propio `OR`.
+ */
+describe("el keyset del feed aguanta que la lista se mueva", () => {
+  /** N vídeos visibles de un mismo autor, uno por minuto, del más viejo al más nuevo. */
+  async function nVideos(n: number, prefijo: string): Promise<string[]> {
+    const u = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: `k-${prefijo}` },
+      select: { id: true },
+    });
+    const ids: string[] = [];
+    for (let i = 0; i < n; i += 1) {
+      ids.push(
+        await crearVideo({
+          userId: u.id,
+          status: "PUBLISHED",
+          bunny: `${prefijo}-${i}`,
+          title: `V${i}`,
+          createdAt: new Date(Date.UTC(2026, 0, 1, 0, i)),
+          category: "fitness",
+        }),
+      );
+    }
+    return ids;
+  }
+
+  it("BORRAR la fila del cursor entre dos páginas no salta ni duplica nada", async () => {
+    // [v4 v3 v2 v1 v0] por orden de feed. Página 1 = [v4, v3] y el cursor apunta a v3.
+    const [v0, v1, v2, v3, v4] = await nVideos(5, "bor");
+
+    const p1 = await feedPublicado(prisma, { firmar: firmarFake, limit: 2 });
+    expect(p1.items.map((i) => i.id)).toEqual([v4, v3]);
+    expect(p1.nextCursor).not.toBeNull();
+
+    // Y AHORA DESAPARECE LA FILA DEL CURSOR. A mano, no por una ruta: lo que se prueba es la
+    // consulta, y el borrado duro es el caso extremo del que se retira o se banea.
+    await prisma.video.delete({ where: { id: v3! } });
+
+    const p2 = await feedPublicado(prisma, { firmar: firmarFake, limit: 2, cursor: p1.nextCursor });
+
+    // Con el cursor de Prisma anclado a v3, esto no se sostiene: el ancla ya no existe.
+    expect(
+      p2.items.map((i) => i.id),
+      "la página 2 se ha descolocado al borrar su ancla",
+    ).toEqual([v2, v1]);
+    const p3 = await feedPublicado(prisma, { firmar: firmarFake, limit: 2, cursor: p2.nextCursor });
+    expect(p3.items.map((i) => i.id)).toEqual([v0]);
+
+    // Y el recorrido completo: cada superviviente UNA vez, ninguno dos.
+    const todos = [...p1.items, ...p2.items, ...p3.items].map((i) => i.id);
+    expect(todos).toEqual([v4, v3, v2, v1, v0]);
+    expect(new Set(todos).size).toBe(todos.length);
+  });
+
+  it("dos vídeos del MISMO instante no se saltan ni se duplican al cruzar la frontera", async () => {
+    const u = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "k-empate" },
+      select: { id: true },
+    });
+    // EL MISMO `createdAt` AL MILISEGUNDO en los tres: sin el desempate por id, el `lt` de la fecha
+    // sola se deja fuera a los empatados (o los repite, según por dónde caiga el corte).
+    const mismoInstante = new Date(Date.UTC(2026, 2, 1, 12, 0, 0, 0));
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      ids.push(
+        await crearVideo({
+          userId: u.id,
+          status: "PUBLISHED",
+          bunny: `emp-${i}`,
+          title: `E${i}`,
+          createdAt: mismoInstante,
+          category: "fitness",
+        }),
+      );
+    }
+
+    const p1 = await feedPublicado(prisma, { firmar: firmarFake, limit: 2 });
+    const p2 = await feedPublicado(prisma, { firmar: firmarFake, limit: 2, cursor: p1.nextCursor });
+
+    const vistos = [...p1.items, ...p2.items].map((i) => i.id);
+    expect(vistos, "un empate de fecha se ha saltado o duplicado una fila").toHaveLength(3);
+    expect(new Set(vistos)).toEqual(new Set(ids));
+    expect(p2.nextCursor).toBeNull();
+  });
+
+  it("la página 2 filtra LO MISMO que la 1: el keyset no se come la regla de visibilidad", async () => {
+    // `VIDEO_VISIBLE` lleva su PROPIO `OR` en la raíz (participación de reto vivo O subida libre
+    // CON categoría). El keyset es otro `OR`. Fundirlos con `...` deja solo el último, y entonces
+    // la página 2 —y solo la 2— empieza a servir lo que la 1 escondía. No falla: devuelve de más.
+    const u = await prisma.user.create({
+      data: { referralCode: generarCodigoReferido(), username: "k-visi" },
+      select: { id: true },
+    });
+    const crear = (i: number, categoria: string | null) =>
+      crearVideo({
+        userId: u.id,
+        status: "PUBLISHED",
+        bunny: `vis-${i}`,
+        title: `V${i}`,
+        createdAt: new Date(Date.UTC(2026, 3, 1, 0, i)),
+        category: categoria,
+      });
+
+    const v0 = await crear(0, "fitness");
+    // SUELTO SIN CATEGORÍA: invisible, y colocado justo detrás del corte de la primera página.
+    const invisible = await crear(1, null);
+    const v2 = await crear(2, "fitness");
+    const v3 = await crear(3, "fitness");
+
+    const p1 = await feedPublicado(prisma, { firmar: firmarFake, limit: 2 });
+    expect(p1.items.map((i) => i.id)).toEqual([v3, v2]);
+
+    const p2 = await feedPublicado(prisma, { firmar: firmarFake, limit: 2, cursor: p1.nextCursor });
+
+    expect(
+      p2.items.map((i) => i.id),
+      "la página 2 ha dejado de aplicar VIDEO_VISIBLE",
+    ).toEqual([v0]);
+    expect(p2.items.some((i) => i.id === invisible)).toBe(false);
+  });
+});
+
+/**
  * ESTADO DE VOTO EN EL PAYLOAD (Pieza 3B). El botón tiene que pintar bien EN LA CARGA, y para eso el
  * feed debe traer: a qué reto pertenece, si admite votos AHORA, y dónde tiene el usuario su voto.
  * Sin esto haría falta una ida y vuelta por cada vídeo del feed.

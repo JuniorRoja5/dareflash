@@ -34,6 +34,11 @@ import {
 } from "@/app/(app)/(shell)/perfil/perfil-logic";
 import { ColorNombreSchema, esHandleReservado, VideoFailureReasonSchema } from "@/config/constants";
 import { type ModerationStatus, Prisma } from "@/generated/prisma/client";
+import {
+  codificarCursorTiempo,
+  conKeysetTiempo,
+  decodificarCursorTiempo,
+} from "@/lib/cursor-tiempo";
 import { HANDLE_RE } from "@/lib/handle-formato";
 import type { Db } from "@/server/db/types";
 
@@ -70,7 +75,16 @@ export interface PerfilPublico {
   pointsBalance: number;
   /** Retos ganados (numero de filas ChallengeResult del usuario). */
   retosGanados: number;
+  /** La PRIMERA pagina de la rejilla, no todos. Ver `PERFIL_VIDEOS_LIMITE`. */
   videos: VideoPublico[];
+  /**
+   * CUANTOS HAY EN TOTAL, contados en la base. Antes la cifra de la cabecera salia de
+   * `videos.length`, que valia mientras la rejilla trajera la tabla entera; con la rejilla paginada
+   * eso diria "12 videos" para alguien que tiene trescientos.
+   */
+  totalVideos: number;
+  /** Cursor de la pagina siguiente de la rejilla, o `null` si no hay mas. */
+  videosCursor: string | null;
   /**
    * CLAVE del color de nombre elegido (`COLORES_NOMBRE_VIP`), o `null`. Es publica porque es
    * exactamente eso: una eleccion de presentacion que se ve en pantalla. Y es la CLAVE, no un hex:
@@ -149,6 +163,7 @@ export function aPerfilPublico(
   fila: FilaUsuarioPublico,
   retosGanados: number,
   videos: VideoPublico[],
+  rejilla: { total: number; cursor: string | null } = { total: videos.length, cursor: null },
 ): PerfilPublico {
   return {
     id: fila.id,
@@ -162,7 +177,68 @@ export function aPerfilPublico(
     pointsBalance: fila.pointsBalance,
     retosGanados,
     videos,
+    totalVideos: rejilla.total,
+    videosCursor: rejilla.cursor,
     colorNombre: fila.colorNombre,
+  };
+}
+
+/**
+ * CUANTOS VIDEOS CABEN EN UNA PAGINA DE LA REJILLA.
+ *
+ * La rejilla es de 3 columnas en movil y hasta 5 en escritorio: 18 son seis filas de movil y no
+ * deja un hueco raro en ninguno de los dos.
+ */
+export const PERFIL_VIDEOS_LIMITE = 18;
+
+/** El `where` de MI rejilla / la publica, en un sitio: lo usan la pagina y su endpoint de paginacion. */
+export const dondeVideosPublicos = (userId: string): Prisma.VideoWhereInput => ({
+  // `reemplazaSubmissionId: null` excluye un reemplazo en vuelo (aun PUBLISHED no es una pieza propia
+  // de la rejilla; tras el swap pasa a ser la participacion y el viejo queda REMOVED).
+  userId,
+  status: "PUBLISHED",
+  reemplazaSubmissionId: null,
+});
+
+/**
+ * UNA PAGINA de la rejilla publica de alguien, por keyset. La usan el perfil (primera pagina) y
+ * `/api/perfiles/[username]/videos` (las siguientes), que es lo que impide que las dos divergan.
+ *
+ * ┌─ POR QUE ESTO ESTA PAGINADO ────────────────────────────────────────────────────────────────┐
+ * │ Antes se traian TODOS los videos publicados de la cuenta, sin `take`: el perfil de alguien   │
+ * │ que sube a diario se convierte en una consulta que crece sin techo y en un payload que viaja │
+ * │ entero al navegador en cada visita. Nada falla; solo se pone cada vez mas lento.             │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+export async function videosPublicosDe(
+  db: Db,
+  userId: string,
+  opts: { cursor?: string | null; limite?: number } = {},
+): Promise<{ items: VideoPublico[]; nextCursor: string | null }> {
+  const limite = Math.min(
+    Math.max(1, Math.floor(opts.limite ?? PERFIL_VIDEOS_LIMITE)),
+    PERFIL_VIDEOS_LIMITE,
+  );
+  const desde = decodificarCursorTiempo(opts.cursor);
+
+  const filas = await db.video.findMany({
+    where: conKeysetTiempo(dondeVideosPublicos(userId), desde),
+    select: { ...SELECT_VIDEO_PUBLICO, createdAt: true },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    // Una de mas: asi se sabe si hay siguiente sin un `count` aparte.
+    take: limite + 1,
+  });
+
+  const hayMas = filas.length > limite;
+  const pagina = hayMas ? filas.slice(0, limite) : filas;
+  const ultima = pagina.at(-1);
+
+  return {
+    items: pagina.map(aVideoPublico),
+    nextCursor:
+      hayMas && ultima
+        ? codificarCursorTiempo({ creadoMs: ultima.createdAt.getTime(), id: ultima.id })
+        : null,
   };
 }
 
@@ -175,19 +251,18 @@ async function cargarPerfil(db: Db, where: Prisma.UserWhereInput): Promise<Perfi
   });
   if (!usuario) return null;
 
-  const [videos, retosGanados] = await Promise.all([
-    db.video.findMany({
-      // `reemplazaSubmissionId: null` excluye un reemplazo en vuelo (aun PUBLISHED no es una pieza propia
-      // de la rejilla; tras el swap pasa a ser la participacion y el viejo queda REMOVED).
-      where: { userId: usuario.id, status: "PUBLISHED", reemplazaSubmissionId: null },
-      select: SELECT_VIDEO_PUBLICO,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    }),
+  const [rejilla, totalVideos, retosGanados] = await Promise.all([
+    videosPublicosDe(db, usuario.id),
+    // EL TOTAL SE CUENTA, no se deduce de la pagina: la cifra de la cabecera es de TODOS.
+    db.video.count({ where: dondeVideosPublicos(usuario.id) }),
     // ChallengeResult no tiene FK a User (sobrevive a la anonimizacion): se cuenta por userId.
     db.challengeResult.count({ where: { userId: usuario.id } }),
   ]);
 
-  return aPerfilPublico(usuario, retosGanados, videos.map(aVideoPublico));
+  return aPerfilPublico(usuario, retosGanados, rejilla.items, {
+    total: totalVideos,
+    cursor: rejilla.nextCursor,
+  });
 }
 
 /**
@@ -444,9 +519,85 @@ export interface MiPerfil {
   youtube: string | null;
   pointsBalance: number;
   retosGanados: number;
+  /** La PRIMERA pagina de la rejilla, no todos. Ver `PERFIL_VIDEOS_LIMITE`. */
   videos: MiVideo[];
+  /** Cuantos hay en total (contados en la base), para la cifra de la cabecera. */
+  totalVideos: number;
+  /** Cursor de la pagina siguiente de la rejilla, o `null` si no hay mas. */
+  videosCursor: string | null;
   /** CLAVE del color de nombre elegido, igual que en el perfil público. Nunca un hex. */
   colorNombre: string | null;
+}
+
+/**
+ * El `where` de MI rejilla, en un sitio.
+ *
+ * ES DISTINTO DEL PUBLICO A PROPOSITO: aqui entran PENDING y FAILED, que son MIOS y nadie mas ve.
+ * Por eso vive aparte de `dondeVideosPublicos` y no como un parametro del mismo: un `incluirNoPublicados`
+ * que alguien pase mal es exactamente como se enseñan los videos fallidos de otra persona.
+ */
+export const dondeMisVideos = (userId: string): Prisma.VideoWhereInput => ({
+  // Excluye reemplazos en vuelo (misma razon que el camino publico): no son piezas propias de la
+  // rejilla; tras el swap el nuevo pasa a ser la participacion y el viejo queda REMOVED.
+  userId,
+  status: { in: [...ESTADOS_MIS_VIDEOS] },
+  reemplazaSubmissionId: null,
+});
+
+/** Fila cruda de MI rejilla -> DTO. Compartido por la primera pagina y por el endpoint que pagina. */
+function aMiVideo(v: {
+  id: string;
+  bunnyVideoId: string;
+  thumbnailFileName: string | null;
+  title: string | null;
+  status: ModerationStatus;
+  failureReason: string | null;
+  category: string | null;
+  submission: { status: string; challenge: { category: string } } | null;
+}): MiVideo {
+  return {
+    id: v.id,
+    bunnyVideoId: v.bunnyVideoId,
+    thumbnailFileName: v.thumbnailFileName,
+    title: v.title,
+    estado: estadoDeVideo(v.status, v.failureReason),
+    categoria: categoriaKeyDeVideo({ submission: v.submission, category: v.category }),
+  };
+}
+
+/**
+ * UNA PAGINA de MI rejilla, por keyset. Misma mecanica que `videosPublicosDe` y por la misma razon;
+ * lo unico que cambia es que aqui entran los no publicados, que son mios.
+ */
+export async function misVideosPaginados(
+  db: Db,
+  userId: string,
+  opts: { cursor?: string | null; limite?: number } = {},
+): Promise<{ items: MiVideo[]; nextCursor: string | null }> {
+  const limite = Math.min(
+    Math.max(1, Math.floor(opts.limite ?? PERFIL_VIDEOS_LIMITE)),
+    PERFIL_VIDEOS_LIMITE,
+  );
+  const desde = decodificarCursorTiempo(opts.cursor);
+
+  const filas = await db.video.findMany({
+    where: conKeysetTiempo(dondeMisVideos(userId), desde),
+    select: { ...SELECT_MI_VIDEO, createdAt: true },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: limite + 1,
+  });
+
+  const hayMas = filas.length > limite;
+  const pagina = hayMas ? filas.slice(0, limite) : filas;
+  const ultima = pagina.at(-1);
+
+  return {
+    items: pagina.map(aMiVideo),
+    nextCursor:
+      hayMas && ultima
+        ? codificarCursorTiempo({ creadoMs: ultima.createdAt.getTime(), id: ultima.id })
+        : null,
+  };
 }
 
 /**
@@ -460,22 +611,15 @@ export async function miPerfil(db: Db, userId: string): Promise<MiPerfil | null>
   });
   if (!usuario) return null;
 
-  const [videos, retosGanados] = await Promise.all([
-    db.video.findMany({
-      // Excluye reemplazos en vuelo (misma razon que el camino publico): no son piezas propias de la
-      // rejilla; tras el swap el nuevo pasa a ser la participacion y el viejo queda REMOVED.
-      where: {
-        userId: usuario.id,
-        status: { in: [...ESTADOS_MIS_VIDEOS] },
-        reemplazaSubmissionId: null,
-      },
-      select: SELECT_MI_VIDEO,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    }),
+  const [rejilla, totalVideos, retosGanados] = await Promise.all([
+    misVideosPaginados(db, usuario.id),
+    db.video.count({ where: dondeMisVideos(usuario.id) }),
     db.challengeResult.count({ where: { userId: usuario.id } }),
   ]);
 
   return {
+    totalVideos,
+    videosCursor: rejilla.nextCursor,
     id: usuario.id,
     username: usuario.username,
     displayName: usuario.displayName,
@@ -487,13 +631,6 @@ export async function miPerfil(db: Db, userId: string): Promise<MiPerfil | null>
     pointsBalance: usuario.pointsBalance,
     retosGanados,
     colorNombre: usuario.colorNombre,
-    videos: videos.map((v) => ({
-      id: v.id,
-      bunnyVideoId: v.bunnyVideoId,
-      thumbnailFileName: v.thumbnailFileName,
-      title: v.title,
-      estado: estadoDeVideo(v.status, v.failureReason),
-      categoria: categoriaKeyDeVideo({ submission: v.submission, category: v.category }),
-    })),
+    videos: rejilla.items,
   };
 }

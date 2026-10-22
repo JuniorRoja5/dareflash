@@ -122,6 +122,9 @@ export async function repartirAvisoAutoOculto(
   db: Db,
   objeto: ObjetoDenunciado,
 ): Promise<{ avisados: number }> {
+  // SIN TOPE Y SIN PAGINAR, a propósito: esto no es una lista de datos, es el EQUIPO —las cuentas
+  // con rol de moderación—, y no crece con el uso del producto sino con las contrataciones. Ponerle
+  // un `take` dejaría a alguien del equipo sin avisar, que es justo lo contrario de lo que hace.
   const equipo = await db.user.findMany({
     where: { role: { in: ["ADMIN", "MODERATOR"] }, deletedAt: null, bannedAt: null },
     select: { id: true },

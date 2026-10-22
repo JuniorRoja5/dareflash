@@ -127,7 +127,7 @@ describe("borrado con gracia de 7 días", () => {
     const r = await crearReto();
     await borrarReto(prisma, r.id);
 
-    const filas = await listarRetosAdmin(prisma);
+    const { filas } = await listarRetosAdmin(prisma);
     expect(filas[0]?.id).toBe(r.id);
     expect(filas[0]?.eliminaEnMs).not.toBeNull();
     expect(filas[0]?.borradoMs).toBeNull();
@@ -180,7 +180,7 @@ describe("el barrido consuma los borrados vencidos", () => {
 
     expect(await consumarBorradosVencidos(prisma)).toEqual({ borrados: 1 });
 
-    const filas = await listarRetosAdmin(prisma);
+    const { filas } = await listarRetosAdmin(prisma);
     expect(filas.find((f) => f.id === vencido.id)?.borradoMs).not.toBeNull();
     expect(filas.find((f) => f.id === enGracia.id)?.borradoMs).toBeNull();
   });

@@ -288,6 +288,10 @@ async function acreditarPremiosDelCierre(
 /**
  * Lee las participaciones que CUENTAN y decide. La regla de entrada vive entera en este `where`, en un
  * solo sitio: Submission publicada Y su Video publicado.
+ *
+ * SIN TOPE Y SIN PAGINAR, y no puede ser de otra forma: para saber QUIÉN gana hay que mirarlas todas
+ * —un top parcial no sabe si la fila 301 tiene más votos que la 300—. Está acotada por el reto (una
+ * participación por persona y reto) y corre en un job, no en una petición.
  */
 async function participacionesQueCuentan(
   db: PrismaClient,
@@ -526,6 +530,11 @@ export async function empatePendienteDe(
 /**
  * Los retos que están esperando a que el admin rompa un empate, con el reparto pendiente ya analizado.
  * Es lo que alimenta la bandeja del panel: exactamente los `EMPATE_PENDIENTE`, no todos los cerrados.
+ *
+ * SIN PAGINAR: es una BANDEJA DE TRABAJO, no un histórico. Un reto sale de ella en cuanto el admin
+ * decide, así que su tamaño es "lo que queda por resolver" y no crece con el uso —si creciera, el
+ * problema no sería la consulta—. Además analiza cada fila una a una, y con cien ya estaría mal por
+ * otro motivo.
  */
 export async function listarEmpatesPendientes(db: PrismaClient): Promise<EmpatePendiente[]> {
   const retos = await db.challenge.findMany({
