@@ -28,7 +28,11 @@ import {
 } from "@/config/constants";
 import { env } from "@/config/env";
 import { prisma } from "@/server/db/client";
-import { getEmailAdapter } from "@/server/email/adapter";
+import {
+  getEmailAdapter,
+  mensajeSmtpIncompleto,
+  variablesSmtpQueFaltan,
+} from "@/server/email/adapter";
 import { construirRegistro } from "@/server/jobs/registry";
 import { bucleWorker, contarFallidos } from "@/server/jobs/worker";
 import { clienteBunnyReal } from "@/server/services/bunny";
@@ -50,6 +54,19 @@ async function main(): Promise<void> {
     throw new Error(
       `EMAIL_FROM (${env.EMAIL_FROM}) debe coincidir con SMTP_USER (${env.SMTP_USER}).`,
     );
+  }
+
+  // ┌─ Y SI FALTA ALGUNA VARIABLE DE SMTP, SE DICE AQUI, UNA VEZ Y CON SU NOMBRE ───────────────┐
+  // │ Sin esto, el worker arranca tan contento y el fallo aparece correo a correo durante dias, │
+  // │ en lineas de job fallido que nadie relaciona con una variable.                             │
+  // │                                                                                            │
+  // │ NO MATA EL PROCESO, y eso es deliberado: el worker tambien cierra retos, paga premios y    │
+  // │ reconcilia video. Tumbarlo entero por una variable de correo cambiaria un problema de      │
+  // │ entregabilidad por uno de dinero. Se grita, no se muere.                                   │
+  // └────────────────────────────────────────────────────────────────────────────────────────────┘
+  if (env.NODE_ENV !== "development") {
+    const faltan = variablesSmtpQueFaltan(env);
+    if (faltan.length > 0) console.error(`[worker] ${mensajeSmtpIncompleto(faltan)}`);
   }
 
   const emailAdapter = await getEmailAdapter();

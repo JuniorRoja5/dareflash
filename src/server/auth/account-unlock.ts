@@ -17,16 +17,21 @@ import { enqueueEmail } from "@/server/email/send";
 import { rateLimit } from "@/server/security/rate-limit";
 
 /*
- * LIMITACION CONOCIDA (anotada a proposito, NO se arregla ahora):
- * El enlace de desbloqueo caduca en 2 h (LOGIN_UNLOCK_TTL_MS) y la cadencia es 1 correo/hora. Eso
- * garantiza que SIEMPRE haya un enlace valido esperando... SOLO hasta que el usuario lo USA: el
- * token es de UN SOLO USO. Escenario: el dueño se desbloquea a las 10:05 (gasta el enlace), el
- * atacante re-bloquea a las 10:20, y no hay correo nuevo hasta las 11:00 -> ~40 min fuera. Lo
- * salva que al entrar a las 10:05 obtiene una sesion de 30 dias y no necesita volver a iniciarla;
- * la ventana mala es estrecha y rara.
- * La solucion seria que el token de desbloqueo valga VARIAS veces durante sus 2 h (solo libera un
- * freno, no da acceso: no cuesta seguridad), pero obliga a romper el "un solo uso" del servicio
- * generico de tokens. NO se hace ahora; si se retoma, hay que separar ese caso del generico.
+ * LA VENTANA DE ~40 MIN, CERRADA (mantenimiento · Pieza C).
+ *
+ * Era esto: el enlace caduca en 2 h (LOGIN_UNLOCK_TTL_MS) y la cadencia es 1 correo/hora, asi que
+ * SIEMPRE habia un enlace valido esperando... hasta que el usuario lo USABA, porque el token es de
+ * un solo uso. El dueño se desbloqueaba a las 10:05 (gastando el enlace), el atacante re-bloqueaba
+ * a las 10:20 y no habia correo nuevo hasta las 11:00: ~40 min sin salida.
+ *
+ * EL ARREGLO NO FUE HACER EL TOKEN REUTILIZABLE —eso obligaba a romper el "un solo uso" del
+ * servicio generico de tokens, que protege otras cosas—, sino RESETEAR EL CUBO `unlock:acct` al
+ * consumir el desbloqueo (ver `/api/auth/unlock`). Asi el siguiente bloqueo manda un correo nuevo
+ * en el acto y la salida nunca se cierra.
+ *
+ * Y NO ABRE UN BOMBARDEO: cada reseteo cuesta una accion del DUEÑO (abrir su correo y pulsar), asi
+ * que el atacante no puede provocar mas de un correo por cada desbloqueo legitimo. El tope por IP
+ * (`unlock:ip`) sigue siendo el que frena el barrido hacia muchas cuentas.
  */
 
 /**

@@ -45,8 +45,30 @@ export async function POST(req: Request) {
   // Libera SOLO el cubo de CUENTA de esa direccion. JAMAS el cubo por IP (login:ip): es el guardian
   // de CPU y no debe poder liberarse desde un correo. Si se pudiera, un atacante provocaria su
   // propio correo de desbloqueo y se saltaria el freno de CPU. (Ver account-unlock.ts / hallazgo 1.)
-  const acctKey = `login:acct:${rateLimitKey(env.AUTH_SECRET, r.identifier)}`;
-  await resetRateLimit(prisma, acctKey);
+  const hash = rateLimitKey(env.AUTH_SECRET, r.identifier);
+  await resetRateLimit(prisma, `login:acct:${hash}`);
+
+  // ┌─ Y TAMBIEN EL CUBO DEL CORREO DE DESBLOQUEO. Esta es la pieza que faltaba ────────────────┐
+  // │ El `login:acct` ya se limpiaba, asi que los intentos viejos del atacante no re-bloqueaban  │
+  // │ al instante: necesita gastar la tanda entera otra vez. Lo que dejaba la salida inservible  │
+  // │ era OTRA cosa — el cubo `unlock:acct` es de 1 correo/hora y NO se tocaba. Entonces:        │
+  // │                                                                                             │
+  // │   10:05 el dueño abre el enlace y entra (token gastado, de un solo uso)                     │
+  // │   10:20 el atacante vuelve a bloquear la cuenta                                             │
+  // │   10:20 el sistema quiere avisar... y el cubo horario dice que ya se mando uno              │
+  // │   -> ~40 min sin enlace y sin forma de salir                                                │
+  // │                                                                                             │
+  // │ Reseteandolo aqui, el siguiente bloqueo manda correo NUEVO en el acto: siempre hay una      │
+  // │ salida abierta. El desbloqueo legitimo deja la cuenta de verdad usable, no en teoria.       │
+  // │                                                                                             │
+  // │ NO ABRE UN BOMBARDEO DE BUZON, que es para lo que existe ese cubo: cada reseteo cuesta UN   │
+  // │ desbloqueo del DUEÑO (hay que abrir su correo y pulsar el boton), asi que el atacante no    │
+  // │ puede provocar mas de un correo por accion de la victima — y ese correo es exactamente el   │
+  // │ aviso de que la estan atacando. El tope por IP (`unlock:ip`) sigue intacto y es el que      │
+  // │ frena el barrido hacia muchas cuentas a la vez.                                             │
+  // └────────────────────────────────────────────────────────────────────────────────────────────┘
+  await resetRateLimit(prisma, `unlock:acct:${hash}`);
+
   return apiOk({
     ok: true,
     message: "Cuenta reactivada. Ya puedes intentar iniciar sesion de nuevo.",
