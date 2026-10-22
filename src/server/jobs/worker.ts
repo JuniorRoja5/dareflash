@@ -18,6 +18,7 @@ import {
   RATE_LIMIT_PURGE_RETENER_MS,
   RECALCULO_SCORES_CADENCIA_MS,
   RECON_CADENCIA_MS,
+  RECON_CONTADORES_CADENCIA_MS,
   RETO_BORRADO_CADENCIA_MS,
   RETO_CIERRE_CADENCIA_MS,
   RECON_HUERFANOS_CADENCIA_MS,
@@ -32,6 +33,7 @@ import type { EmailAdapter, EmailMessage } from "@/server/email/adapter";
 import { sanearError } from "@/server/observability/sanitize-error";
 import { claimJobs } from "@/server/services/jobs";
 import { purgarIpHashDeVotos } from "@/server/services/votes";
+import type { ResultadoContadores } from "@/server/services/reconciliacion-contadores";
 import type { ResultadoHuerfanos } from "@/server/services/reconciliacion-huerfanos";
 import type { ResultadoPublicados } from "@/server/services/reconciliacion-publicados";
 import type { ResultadoRecalculo } from "@/server/services/recalculo-scores";
@@ -541,6 +543,13 @@ export interface OpcionesBucle {
    */
   recalcularScores?: (now: Date) => Promise<ResultadoRecalculo>;
   scoresCadaMs?: number;
+  /**
+   * RECONCILIACION de los contadores desnormalizados (voteCount / commentCount / likeCount) contra
+   * sus tablas fuente. Barrido LOCAL (sin red), cursor rotatorio, idempotente. Sin el, no se
+   * reconcilian (p. ej. en tests que no lo usan).
+   */
+  reconciliarContadores?: (now: Date) => Promise<ResultadoContadores>;
+  contadoresCadaMs?: number;
 }
 
 /**
@@ -563,6 +572,7 @@ export async function bucleWorker(
   let proximoHuerfanos = 0;
   let proximoPublicados = 0;
   let proximoScores = 0;
+  let proximoContadores = 0;
   let proximoBorrados = 0;
   // Arranca en 0 igual que los demas: la primera vuelta del worker recoge lo que quedara vencido
   // mientras estaba parado, sin esperar una cadencia entera.
@@ -734,6 +744,29 @@ export async function bucleWorker(
         o.log?.(`[worker] scores: barrido fallo (${sanearError(e)}); reintento luego.`);
       }
       proximoScores = t.getTime() + cada;
+    }
+
+    // CONTADORES DESNORMALIZADOS (voteCount / commentCount / likeCount) contra sus tablas fuente.
+    // Barrido LOCAL: ni una llamada de red, solo transacciones cortas contra indices. Escribe el
+    // recuento ABSOLUTO, asi que es idempotente y dos pasadas seguidas no corrigen nada la segunda.
+    // Se LOGuea solo cuando hay algo que corregir: un barrido limpio no tiene nada que contar, y
+    // una linea por hora diciendo "0" es ruido que acaba tapando la que si importa.
+    if (o.reconciliarContadores && t.getTime() >= proximoContadores) {
+      const cada = o.contadoresCadaMs ?? RECON_CONTADORES_CADENCIA_MS;
+      try {
+        const r = await o.reconciliarContadores(t);
+        const total = r.corregidos.likeCount + r.corregidos.commentCount + r.corregidos.voteCount;
+        if (total > 0) {
+          o.log?.(
+            `[worker] contadores: corregidos likeCount=${r.corregidos.likeCount} ` +
+              `commentCount=${r.corregidos.commentCount} voteCount=${r.corregidos.voteCount} ` +
+              `(revisados ${r.videosRevisados} vídeos / ${r.submissionsRevisadas} participaciones)`,
+          );
+        }
+      } catch (e) {
+        o.log?.(`[worker] contadores: barrido fallo (${sanearError(e)}); reintento luego.`);
+      }
+      proximoContadores = t.getTime() + cada;
     }
 
     // RETOS BORRADOS cuya gracia vencio. Consumar el borrado es la unica pieza que convierte un

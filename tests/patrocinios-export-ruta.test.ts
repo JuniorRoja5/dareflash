@@ -70,15 +70,22 @@ beforeEach(async () => {
   H.user.role = "ADMIN";
 });
 
-const pedir = (cuerpo: unknown): Promise<Response> =>
-  exportar(
+/**
+ * El rango es OBLIGATORIO desde la pieza de mantenimiento. Los casos que no van de rangos usan
+ * "último mes" (la fixture se crea ahora, así que entra); el bloque del rango pasa el suyo.
+ */
+const pedir = (cuerpo: unknown): Promise<Response> => {
+  const body =
+    cuerpo && typeof cuerpo === "object" ? { preset: "mes", ...(cuerpo as object) } : cuerpo;
+  return exportar(
     new Request("http://test/api/panel/patrocinios/export", {
       method: "POST",
       headers: { "content-type": "application/json", origin: "http://test" },
-      body: JSON.stringify(cuerpo),
+      body: JSON.stringify(body),
     }),
     undefined,
   );
+};
 
 async function unRetoPatrocinado(): Promise<void> {
   await prisma.challenge.create({

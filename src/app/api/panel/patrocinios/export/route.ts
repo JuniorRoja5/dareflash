@@ -6,7 +6,15 @@ import { apiError } from "@/server/http/api";
 
 export const dynamic = "force-dynamic";
 
-const CuerpoSchema = z.object({ tipo: z.enum(["patrocinios", "ganadores"]) });
+import { PRESETS_EXPORT } from "@/lib/rango-export";
+
+/** `desde`/`hasta` solo cuentan con `preset: "custom"`. Igual que en el export del monedero. */
+const CuerpoSchema = z.object({
+  tipo: z.enum(["patrocinios", "ganadores"]),
+  preset: z.enum(PRESETS_EXPORT),
+  desde: z.string().max(10).optional(),
+  hasta: z.string().max(10).optional(),
+});
 
 /**
  * POST /api/panel/patrocinios/export — descarga el CSV de patrocinios o el de ganadores.
@@ -43,17 +51,36 @@ export const POST = mutatingRoute(async (req, { prisma }) => {
   const cuerpo = CuerpoSchema.safeParse(await req.json().catch(() => null));
   if (!cuerpo.success) return apiError("INVALID_BODY", "Qué exportación no está claro.", 400);
 
-  const { tipo } = cuerpo.data;
-  const r =
-    tipo === "patrocinios" ? await exportarPatrocinios(prisma) : await exportarGanadores(prisma);
+  const { tipo, preset } = cuerpo.data;
+  const { motivoLegible, resolverRango } = await import("@/lib/rango-export");
+  const resuelto = resolverRango(
+    { preset, desde: cuerpo.data.desde ?? null, hasta: cuerpo.data.hasta ?? null },
+    new Date(),
+  );
+  if (!resuelto.ok) return apiError("RANGO_INVALIDO", motivoLegible(resuelto.motivo), 400);
+  const { rango } = resuelto;
 
+  const r =
+    tipo === "patrocinios"
+      ? await exportarPatrocinios(prisma, rango)
+      : await exportarGanadores(prisma, rango);
+
+  // El RANGO entra en la traza: sin él, dos exportaciones de 40 filas pueden ser dos trimestres
+  // distintos y la auditoría no sabe cuál se llevó cada uno.
   await prisma.auditLog.create({
     data: {
       actorId: admin.userId,
       action: "SPONSOR_EXPORT",
       targetType: "EXPORT",
       targetId: tipo,
-      metadata: { tipo, filas: r.filas, truncada: r.truncada },
+      metadata: {
+        tipo,
+        filas: r.filas,
+        truncada: r.truncada,
+        preset,
+        desde: rango.desde.toISOString(),
+        hasta: rango.hasta.toISOString(),
+      },
     },
   });
 

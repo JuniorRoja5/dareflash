@@ -6,7 +6,19 @@ import { apiError } from "@/server/http/api";
 
 export const dynamic = "force-dynamic";
 
-const CuerpoSchema = z.object({ tipo: z.enum(["retiradas", "ajustes"]) });
+import { PRESETS_EXPORT } from "@/lib/rango-export";
+
+/**
+ * `desde`/`hasta` solo significan algo con `preset: "custom"`; con un preset la ventana es relativa
+ * a AHORA y se calcula en el servidor. Que el cliente no pueda mandar un rango arbitrario disfrazado
+ * de preset es parte del punto: el preset es una promesa de la pantalla, no un parámetro.
+ */
+const CuerpoSchema = z.object({
+  tipo: z.enum(["retiradas", "ajustes"]),
+  preset: z.enum(PRESETS_EXPORT),
+  desde: z.string().max(10).optional(),
+  hasta: z.string().max(10).optional(),
+});
 
 /**
  * POST /api/panel/monedero/export — descarga el CSV de retiradas o de ajustes.
@@ -43,18 +55,41 @@ export const POST = mutatingRoute(async (req, { prisma }) => {
   const cuerpo = CuerpoSchema.safeParse(await req.json().catch(() => null));
   if (!cuerpo.success) return apiError("INVALID_BODY", "Qué exportación no está claro.", 400);
 
-  const { tipo } = cuerpo.data;
-  const r = tipo === "retiradas" ? await exportarRetiradas(prisma) : await exportarAjustes(prisma);
+  const { tipo, preset } = cuerpo.data;
+  const { motivoLegible, resolverRango } = await import("@/lib/rango-export");
+  const resuelto = resolverRango(
+    { preset, desde: cuerpo.data.desde ?? null, hasta: cuerpo.data.hasta ?? null },
+    new Date(),
+  );
+  // SE RECHAZA ANTES DE LEER NADA: un rango imposible no debe llegar a abrir la tabla de
+  // retiradas, y mucho menos a descifrar un IBAN.
+  if (!resuelto.ok) return apiError("RANGO_INVALIDO", motivoLegible(resuelto.motivo), 400);
+  const { rango } = resuelto;
+
+  const r =
+    tipo === "retiradas"
+      ? await exportarRetiradas(prisma, rango)
+      : await exportarAjustes(prisma, rango);
 
   // LA TRAZA, ANTES DE ENTREGAR. Qué, cuántas filas y si se truncó: sin el recuento, la línea dice
   // "exportó algo" y no sirve para saber qué salió. Los DATOS no entran aquí, obviamente.
+  //
+  // Y EL RANGO, que ahora es parte de "qué salió": sin él, dos líneas idénticas de 40 filas pueden
+  // ser dos meses distintos y la auditoría no distingue cuál se llevó cada uno.
   await prisma.auditLog.create({
     data: {
       actorId: admin.userId,
       action: "WALLET_EXPORT",
       targetType: "EXPORT",
       targetId: tipo,
-      metadata: { tipo, filas: r.filas, truncada: r.truncada },
+      metadata: {
+        tipo,
+        filas: r.filas,
+        truncada: r.truncada,
+        preset,
+        desde: rango.desde.toISOString(),
+        hasta: rango.hasta.toISOString(),
+      },
     },
   });
 

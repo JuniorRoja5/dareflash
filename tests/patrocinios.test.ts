@@ -41,6 +41,14 @@ let n = 0;
 
 const DIA = 86_400_000;
 
+/**
+ * "Todo", para los casos que NO están probando el rango: el filtro por fechas es de la pieza de
+ * mantenimiento y estos casos existían antes. Escrito como un rango de verdad y no como un
+ * `undefined` opcional: que el parámetro sea OBLIGATORIO es parte del arreglo — un export al que
+ * se le puede olvidar el rango vuelve a bajarlo todo sin que nada falle.
+ */
+const TODO = { desde: new Date(0), hasta: new Date("2100-01-01T00:00:00Z") };
+
 beforeAll(() => {
   prisma = createTestPrisma();
 });
@@ -167,7 +175,7 @@ describe("la lista de patrocinios", () => {
     const antes = await prisma.challenge.findUniqueOrThrow({ where: { id: reto } });
 
     await listarPatrocinios(prisma);
-    await exportarPatrocinios(prisma);
+    await exportarPatrocinios(prisma, TODO);
 
     const despues = await prisma.challenge.findUniqueOrThrow({ where: { id: reto } });
     expect(despues.updatedAt.getTime()).toBe(antes.updatedAt.getTime());
@@ -396,7 +404,7 @@ describe("el CSV de patrocinios", () => {
   it("lleva la cabecera, el total y el % como número", async () => {
     await crearReto({ premio: 100_000, patrocinado: true, marca: "Nexus", bps: 2550 });
 
-    const r = await exportarPatrocinios(prisma);
+    const r = await exportarPatrocinios(prisma, TODO);
 
     expect(r.filas).toBe(1);
     expect(r.truncada).toBe(false);
@@ -412,7 +420,7 @@ describe("el CSV de patrocinios", () => {
   it("y escapa una marca con coma y comilla", async () => {
     // Los dos caracteres que parten un CSV mal escapado, en un campo que escribe una persona.
     await crearReto({ premio: 1000, patrocinado: true, marca: 'Ruiz, S.L. "la buena"' });
-    const r = await exportarPatrocinios(prisma);
+    const r = await exportarPatrocinios(prisma, TODO);
     expect(r.csv).toContain('"Ruiz, S.L. ""la buena"""');
   });
 });
@@ -425,7 +433,7 @@ describe("el CSV de ganadores", () => {
     // La marca renegocia el premio DESPUÉS del cierre: lo que se pagó ya está decidido.
     await prisma.challenge.update({ where: { id: reto }, data: { prizeAmountCents: 99_999 } });
 
-    const r = await exportarGanadores(prisma);
+    const r = await exportarGanadores(prisma, TODO);
 
     expect(r.filas).toBe(1);
     const fila = r.csv.split("\r\n")[1]!;
@@ -450,7 +458,7 @@ describe("el CSV de ganadores", () => {
     await prisma.user.update({ where: { id: ganador }, data: { pointsBalance: 100_000 } });
     await cerrarRetoVencido(prisma, reto);
 
-    const r = await exportarGanadores(prisma);
+    const r = await exportarGanadores(prisma, TODO);
     const cabecera = r.csv.split("\r\n")[0]!;
     const fila = r.csv.split("\r\n")[1]!;
 
@@ -471,7 +479,7 @@ describe("el CSV de ganadores", () => {
     await participar(reto, 2);
     await cerrarRetoVencido(prisma, reto);
 
-    const fila = (await exportarGanadores(prisma)).csv.split("\r\n")[1]!;
+    const fila = (await exportarGanadores(prisma, TODO)).csv.split("\r\n")[1]!;
     const columnas = fila.split(",");
     // ...,patrocinado,sponsor,comision,solo_vip,nivel_minimo
     expect(columnas.at(-5)).toBe("no"); // patrocinado

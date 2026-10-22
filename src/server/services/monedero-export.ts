@@ -4,6 +4,7 @@ import { FRASE_RECHAZO, type MotivoRechazo } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { csvDocumento } from "@/lib/csv";
 import { centimosAImporte } from "@/lib/dinero";
+import type { RangoExport } from "@/lib/rango-export";
 import { descifrarDatoDePago } from "@/server/security/cifrado-pagos";
 
 import { ACCION_AJUSTE_SALDO } from "./monedero-admin";
@@ -28,10 +29,27 @@ import { ACCION_AJUSTE_SALDO } from "./monedero-admin";
  * SIN PAGINAR, a diferencia de las vistas: una exportación partida en páginas no cuadra nada. Lleva
  * TOPE, que es otra cosa — un número alto y explícito, para que el día que se alcance se sepa (la
  * ruta lo dice en la respuesta) en vez de truncar en silencio.
+ *
+ * ┌─ Y LLEVA RANGO DE FECHAS, QUE LO ELIGE QUIEN EXPORTA ───────────────────────────────────────┐
+ * │ El rango se aplica EN EL `where`, no recortando después: recortar después ya ha leído las    │
+ * │ filas —y aquí leer significa DESCIFRAR IBANes— y además habría gastado el tope en filas que  │
+ * │ se iban a tirar. Sacar un año de datos de pago para cuadrar un mes es exactamente lo que un  │
+ * │ export auditado no debe obligar a hacer: cuanto menos sale, menos hay que custodiar.          │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
 
 /** Tope de filas por exportación. Alto a propósito; lo que importa es que exista y se diga. */
 export const EXPORT_TOPE = 5000;
+
+/**
+ * El filtro por fecha, en UN sitio para los dos CSV de este fichero.
+ *
+ * `createdAt` y no otra columna: es la fecha que el CSV pinta y por la que ordena, así que es la
+ * única por la que filtrar no sorprende a nadie. Semiabierto `[desde, hasta)`, como el rango.
+ */
+const enRango = (rango: RangoExport) => ({
+  createdAt: { gte: rango.desde, lt: rango.hasta },
+});
 
 export interface Exportacion {
   csv: string;
@@ -58,8 +76,12 @@ function destinoLegible(datosPago: string): string {
  * CSV DE RETIRADAS. El importe va en unidades (no en céntimos) porque esto lo abre una hoja de
  * cálculo y se va a sumar; los céntimos crudos obligarían a dividir a mano cada columna.
  */
-export async function exportarRetiradas(db: PrismaClient): Promise<Exportacion> {
+export async function exportarRetiradas(
+  db: PrismaClient,
+  rango: RangoExport,
+): Promise<Exportacion> {
   const filas = await db.withdrawal.findMany({
+    where: enRango(rango),
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: EXPORT_TOPE + 1,
     select: {
@@ -123,9 +145,9 @@ export async function exportarRetiradas(db: PrismaClient): Promise<Exportacion> 
 }
 
 /** CSV DE AJUSTES MANUALES. Sale del `AuditLog`, que es donde vive el motivo. */
-export async function exportarAjustes(db: PrismaClient): Promise<Exportacion> {
+export async function exportarAjustes(db: PrismaClient, rango: RangoExport): Promise<Exportacion> {
   const filas = await db.auditLog.findMany({
-    where: { action: ACCION_AJUSTE_SALDO },
+    where: { action: ACCION_AJUSTE_SALDO, ...enRango(rango) },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: EXPORT_TOPE + 1,
     select: { id: true, actorId: true, targetId: true, metadata: true, createdAt: true },

@@ -18,6 +18,7 @@ import {
   RECON_HUERFANOS_GRACIA_MS,
   RECON_HUERFANOS_PAGINA,
   RECALCULO_SCORES_LOTE,
+  RECON_CONTADORES_LOTE_POR_CICLO,
   RECON_PUBLICADOS_LOTE_POR_CICLO,
   RECON_PUBLICADOS_TOPE_FILAS,
   RECON_PUBLICADOS_TOPE_PCT,
@@ -31,6 +32,7 @@ import { getEmailAdapter } from "@/server/email/adapter";
 import { construirRegistro } from "@/server/jobs/registry";
 import { bucleWorker, contarFallidos } from "@/server/jobs/worker";
 import { clienteBunnyReal } from "@/server/services/bunny";
+import { reconciliarContadores } from "@/server/services/reconciliacion-contadores";
 import { limpiarHuerfanosBunny } from "@/server/services/reconciliacion-huerfanos";
 import { reconciliarPublicadosDesaparecidos } from "@/server/services/reconciliacion-publicados";
 import { recalcularScoresAutoridad } from "@/server/services/recalculo-scores";
@@ -178,6 +180,13 @@ async function main(): Promise<void> {
       recalcularScoresAutoridad(prisma, {
         now,
         lote: RECALCULO_SCORES_LOTE,
+        log: (m) => console.log(m),
+      }),
+    // Contadores desnormalizados (voteCount / commentCount / likeCount) contra sus tablas fuente.
+    // Barrido LOCAL (sin red), cursor rotatorio, idempotente: escribe el recuento, no una diferencia.
+    reconciliarContadores: () =>
+      reconciliarContadores(prisma, {
+        lotePorCiclo: RECON_CONTADORES_LOTE_POR_CICLO,
         log: (m) => console.log(m),
       }),
     log: (m) => console.log(m),

@@ -588,6 +588,19 @@ export const RECON_PUBLICADOS_TOPE_FILAS = 50; // nunca degradar mas de 50 filas
 export const RECON_PUBLICADOS_TOPE_PCT = 0.2; // ni mas del 20% de las sondeadas (lo que sea MENOR)
 
 /**
+ * RECONCILIACION DE CONTADORES (`Submission.voteCount`, `Video.commentCount`, `Video.likeCount`).
+ * Recuenta cada cache desde su tabla fuente y escribe el valor ABSOLUTO cuando no cuadra. Mismo
+ * patron incremental que las reconciliaciones de Bunny: cursor rotatorio en SystemState, lote fijo
+ * por ciclo, round-robin de cobertura completa.
+ *
+ * CADENCIA MAS ALTA QUE LAS DE BUNNY (1 h, no 6) porque aqui NO hay llamada de red por fila: es una
+ * transaccion corta contra indices locales. Y el LOTE es mas pequeño (200, no 500) porque cada fila
+ * abre su propia transaccion con un `FOR UPDATE`: lo que se acota no es la red, son los cerrojos.
+ */
+export const RECON_CONTADORES_CADENCIA_MS = 60 * 60 * 1000; // 1 h
+export const RECON_CONTADORES_LOTE_POR_CICLO = 200; // filas por tabla y barrido
+
+/**
  * BUSQUEDA (Fase 1). `BUSCAR_LIMITE`: filas por pagina (keyset). `BUSCAR_MIN_FULLTEXT`: longitud minima
  * para usar FULLTEXT (el token minimo de InnoDB es 3; por debajo, usuarios caen a prefijo indexado y
  * los retos a vacio). El RECALCULO del scoreAutoridad lo hace el WORKER en un barrido de BAJA cadencia

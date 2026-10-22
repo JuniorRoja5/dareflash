@@ -3,6 +3,9 @@
 import { useState } from "react";
 
 import { obtenerCsrfToken } from "@/lib/cliente-http";
+import { ETIQUETA_PRESET, type PresetExport } from "@/lib/rango-export";
+
+import { SelectorRango } from "../selector-rango";
 
 type Tipo = "patrocinios" | "ganadores";
 
@@ -21,6 +24,9 @@ type Tipo = "patrocinios" | "ganadores";
 export function ExportarContabilidad() {
   const [ocupado, setOcupado] = useState<Tipo | null>(null);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
+  const [preset, setPreset] = useState<PresetExport>("mes");
+  const [desde, setDesde] = useState("");
+  const [hasta, setHasta] = useState("");
 
   async function descargar(tipo: Tipo) {
     setOcupado(tipo);
@@ -32,10 +38,20 @@ export function ExportarContabilidad() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
-        body: JSON.stringify({ tipo }),
+        // El preset viaja por su NOMBRE: las fechas las calcula el servidor. Y `desde`/`hasta`
+        // solo se mandan cuando significan algo.
+        body: JSON.stringify(
+          preset === "custom" ? { tipo, preset, desde, hasta } : { tipo, preset },
+        ),
       });
       if (!res.ok) {
-        setAviso({ tipo: "error", texto: "No se ha podido exportar." });
+        // EL MOTIVO DEL SERVIDOR, cuando lo hay: un rango al revés tiene que decir que está al
+        // revés, no "no se ha podido exportar" — si no, el admin prueba lo mismo otra vez.
+        const motivo = await res
+          .json()
+          .then((j: { error?: { message?: string } }) => j.error?.message)
+          .catch(() => undefined);
+        setAviso({ tipo: "error", texto: motivo ?? "No se ha podido exportar." });
         return;
       }
       const filas = res.headers.get("X-Filas") ?? "?";
@@ -50,11 +66,14 @@ export function ExportarContabilidad() {
       a.download = nombre;
       a.click();
 
+      // EL PERIODO VA EN EL AVISO: "descargadas 0 filas" sin él parece un fallo, y casi siempre
+      // es que el rango elegido no tiene nada.
+      const periodo = ETIQUETA_PRESET[preset].toLowerCase();
       setAviso({
         tipo: "ok",
         texto: truncada
-          ? `Descargadas ${filas} filas, que es el tope: hay más sin exportar.`
-          : `Descargadas ${filas} filas.`,
+          ? `Descargadas ${filas} filas (${periodo}), que es el tope: hay más sin exportar.`
+          : `Descargadas ${filas} filas (${periodo}).`,
       });
     } catch {
       setAviso({ tipo: "error", texto: "No hemos podido conectar. Inténtalo otra vez." });
@@ -70,11 +89,21 @@ export function ExportarContabilidad() {
         Exportar a CSV
       </h2>
       <p className="mt-2 max-w-prose text-sm text-text-dim">
-        Las dos salen completas (sin paginar) y con el total ya calculado, para cuadrar fuera. Cada
-        descarga queda registrada con tu nombre.
+        Salen sin paginar y con el total ya calculado, para cuadrar fuera. Elige el periodo: solo se
+        exporta lo que cae dentro. Cada descarga queda registrada con tu nombre y su rango.
       </p>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <SelectorRango
+        preset={preset}
+        desde={desde}
+        hasta={hasta}
+        onPreset={setPreset}
+        onDesde={setDesde}
+        onHasta={setHasta}
+        deshabilitado={ocupado !== null}
+      />
+
+      <div className="mt-4 flex flex-wrap gap-2">
         {(
           [
             ["patrocinios", "Patrocinios (a facturar)"],

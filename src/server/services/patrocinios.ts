@@ -5,6 +5,7 @@ import { comisionCents, totalSponsorCents } from "@/lib/comision";
 import { csvDocumento } from "@/lib/csv";
 import { codificarCursorTiempo, decodificarCursorTiempo, dondeDesde } from "@/lib/cursor-tiempo";
 import { centimosAImporte } from "@/lib/dinero";
+import type { RangoExport } from "@/lib/rango-export";
 
 /**
  * LA CONTABILIDAD DE LOS PATROCINIOS — para que cobrar sea LEER UNA CIFRA.
@@ -250,14 +251,30 @@ export interface Exportacion {
 }
 
 /**
+ * El filtro por fecha de los dos CSV de este fichero. `createdAt` es la columna por la que ya se
+ * ordenan, así que filtrar por ella no sorprende. Semiabierto `[desde, hasta)`, como el rango.
+ */
+const enRango = (rango: RangoExport) => ({
+  createdAt: { gte: rango.desde, lt: rango.hasta },
+});
+
+/**
  * CSV DE PATROCINIOS — lo que hay que facturar, reto a reto.
  *
  * SIN PAGINAR (una exportación partida en páginas no cuadra nada) pero CON TOPE, y el tope se dice.
  * Los importes van en unidades y no en céntimos: esto lo abre una hoja de cálculo y se va a sumar.
+ *
+ * EL RANGO LO ELIGE QUIEN EXPORTA y se aplica en el `where`. OJO con una cosa: el TOTAL de la
+ * pantalla sigue siendo el de TODOS los patrocinados (lo dice en palabras), así que un CSV de un
+ * mes no tiene por qué sumar lo que pone arriba. Son dos preguntas distintas y las dos están
+ * etiquetadas.
  */
-export async function exportarPatrocinios(db: PrismaClient): Promise<Exportacion> {
+export async function exportarPatrocinios(
+  db: PrismaClient,
+  rango: RangoExport,
+): Promise<Exportacion> {
   const crudas = await db.challenge.findMany({
-    where: FILTRO,
+    where: { ...FILTRO, ...enRango(rango) },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: EXPORT_PATROCINIOS_TOPE + 1,
     select: SELECT,
@@ -317,8 +334,14 @@ export async function exportarPatrocinios(db: PrismaClient): Promise<Exportacion
  *
  * La comisión solo se rellena si el reto era patrocinado: una celda con 0 en los demás se sumaría.
  */
-export async function exportarGanadores(db: PrismaClient): Promise<Exportacion> {
+export async function exportarGanadores(
+  db: PrismaClient,
+  rango: RangoExport,
+): Promise<Exportacion> {
   const crudas = await db.challengeResult.findMany({
+    // El `createdAt` del RESULTADO, que es cuando se premió — no el del reto. Es la fecha que el
+    // CSV pinta en su primera columna, y por la que alguien busca "lo que se pagó en marzo".
+    where: enRango(rango),
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: EXPORT_PATROCINIOS_TOPE + 1,
     select: {
