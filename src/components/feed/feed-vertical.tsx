@@ -6,6 +6,7 @@ import { BotonCompartir } from "@/components/ui/boton-compartir";
 import { BotonLike } from "@/components/ui/boton-like";
 import { BotonVoto } from "@/components/ui/boton-voto";
 import { Denunciar } from "@/components/ui/denunciar";
+import { claseHaloVip } from "@/components/ui/halo-vip";
 import { AutorFeed } from "@/components/ui/marca-boost";
 import { PildoraCategoria } from "@/components/ui/pildora";
 import { ReproductorHls } from "@/components/ui/reproductor-hls";
@@ -159,8 +160,22 @@ function PostInicio({
       ref={alRef}
       className="relative flex h-[100svh] snap-start items-center justify-center lg:gap-5"
     >
-      {/* VIDEO real (HLS firmado). En desktop, tira 9:16 centrada con filete; en movil, a sangre. */}
-      <div className="relative h-full w-full overflow-hidden bg-raised lg:h-[calc(100svh-2rem)] lg:aspect-[9/16] lg:w-auto lg:rounded-sm lg:border lg:border-line">
+      {/* VIDEO real (HLS firmado). En desktop, tira 9:16 centrada con filete; en movil, a sangre.
+
+          EL HALO DORADO DEL VIP va EN ESTE MARCO, que es "la tarjeta" del feed: en escritorio es
+          literalmente una tarjeta 9:16 con su filete, y ahi el halo se lee igual que en la maqueta.
+          En MOVIL el video va a sangre y no hay borde que tenir, asi que el halo se aplica solo
+          desde `lg`: pintar un aro dorado alrededor de la pantalla entera mientras se desliza no
+          es una marca de identidad, es una notificacion — y encima taparia el video, que es lo que
+          manda aqui. En movil al VIP ya lo marcan el nombre en oro y la pildora, que van sobre el
+          propio video.
+
+          CSS ESTATICO y cero JS por tarjeta: ver `.df-vip-halo` y `claseHaloVip`. */}
+      <div
+        className={`relative h-full w-full overflow-hidden bg-raised lg:h-[calc(100svh-2rem)] lg:aspect-[9/16] lg:w-auto lg:rounded-sm lg:border lg:border-line ${
+          post.autorVip ? `${claseHaloVip(post.autorVip)} df-vip-halo-solo-marco` : ""
+        }`}
+      >
         <div className="absolute inset-0">
           {/* Mute EFECTIVO GLOBAL: lo calcula el feed (preferencia + permiso del navegador); el player
               solo lo aplica. El tap-pausa y la barra de progreso viven dentro del player.

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { anilloSePisaConPuesto, nivelPorPuntos } from "@/lib/niveles";
 
 import { Avatar } from "./avatar";
+import { claseHaloVip } from "./halo-vip";
 import { NombreUsuario } from "./identidad-usuario";
 import { tokenPuesto } from "./logic";
 
@@ -63,7 +64,13 @@ export function FilaPuesto({
   const sePisa = anilloSePisaConPuesto(nivelFila, esPodio ? "--df-rank" : null);
   return (
     <div
-      className={`flex items-center gap-3 border-b border-line py-2.5 last:border-b-0 ${activo ? "bg-raised" : ""}`}
+      /* EL HALO DORADO DEL VIP: en la FILA, no en el avatar (que ya lleva el aro de nivel y, si
+         tiene Boost, el verde por fuera). Es CSS estático y solo lo monta un VIP activo — la
+         condición vive en `claseHaloVip`, no escrita aquí. Cosmético: no cambia el orden ni la
+         cifra, que son lo que decide el puesto.
+         `pl-2` solo cuando hay halo: la barra de la izquierda necesita ese hueco, y sin VIP la
+         fila se queda EXACTAMENTE donde estaba. */
+      className={`flex items-center gap-3 border-b border-line py-2.5 last:border-b-0 ${activo ? "bg-raised" : ""} ${esVip ? `${claseHaloVip(esVip, "fila")} rounded-xs pl-2` : ""}`}
     >
       {/* El podio se marca con el ORO. En claro el oro metálico no se lee como texto pequeño, así que
           `df-puesto-podio` lo convierte en chip (número oscuro SOBRE el oro): el mismo significado,

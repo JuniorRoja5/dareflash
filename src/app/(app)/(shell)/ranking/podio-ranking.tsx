@@ -38,6 +38,20 @@ export interface FilaPodio {
   colorNombre: string | null;
 }
 
+/**
+ * EL PODIO NO LLEVA EL HALO DORADO DEL VIP, Y ES UNA DECISIÓN, NO UN OLVIDO.
+ *
+ * Aquí el oro YA significa algo: `--df-rank` marca el puesto 1 (y plata y bronce el 2 y el 3).
+ * Poner `--vip-gold` alrededor de un pedestal sería dejar dos dorados pegados con dos significados
+ * distintos — exactamente la colisión que el producto ya evita en el aro del avatar, donde
+ * `anilloSePisaConPuesto` retira el anillo de Legend justo por esto.
+ *
+ * Un VIP en el podio no se queda sin marca: sigue llevando su nombre en oro y su píldora "VIP",
+ * que es la marca de identidad de siempre. Lo que no lleva es una SEGUNDA capa de oro encima del
+ * oro del puesto. El halo entra en las filas de debajo (`FilaPuesto`), que es donde el oro está
+ * libre. `tests/vip-halo-tokens` lo fija para que no se "arregle" por simetría.
+ */
+
 /** Token de medalla -> variable CSS. Oro/plata/bronce son EXCLUSIVOS del podio (ver globals.css). */
 const MEDALLA_VAR: Record<Medalla, string> = {
   rank: "var(--df-rank)",

@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { nivelPorPuntos } from "@/lib/niveles";
 
 import { Avatar } from "./avatar";
+import { claseHaloVip } from "./halo-vip";
 import { NombreUsuario } from "./identidad-usuario";
 import { InsigniaNivel } from "./insignia-nivel";
 import { MarcaBoost } from "./marca-boost";
@@ -82,9 +83,15 @@ export function TarjetaDestacado({
       /* `overflow-hidden` es obligatorio con el halo: al respirar escala un 6% y sin recorte se
          saldría por las esquinas redondeadas (un rectángulo de luz por fuera del filete, y solo en
          algunos navegadores). Es la misma razón por la que lo llevan los heroes. */
-      className={`relative flex flex-col items-center gap-2 overflow-hidden rounded-sm border border-line bg-surface/60 text-center shadow-[var(--df-shadow-sm)] backdrop-blur-md transition-[transform,box-shadow] duration-[var(--df-dur-fast)] ease-mechanical hover:-translate-y-0.5 hover:shadow-[var(--df-glow-hover)] ${
-        vitrina ? "p-6" : "p-4"
-      }`}
+      /* EL HALO DORADO DEL VIP, en la tarjeta. Convive con el halo de NIVEL de dentro sin pisarlo:
+         aquel es una luz radial DENTRO de la tarjeta (dice de qué nivel es) y este es el filete y
+         el aro del BORDE (dice que es VIP). Dos capas distintas en dos sitios distintos.
+         `claseHaloVip` es quien decide: aquí no se escribe la condición.
+         `hover:shadow-*` pisaría el `box-shadow` del halo al pasar por encima, así que en una
+         tarjeta VIP no se aplica: el realce de "esto se pulsa" lo sigue dando el `-translate-y`. */
+      className={`relative flex flex-col items-center gap-2 overflow-hidden rounded-sm border border-line bg-surface/60 text-center shadow-[var(--df-shadow-sm)] backdrop-blur-md transition-[transform,box-shadow] duration-[var(--df-dur-fast)] ease-mechanical hover:-translate-y-0.5 ${
+        esVip ? claseHaloVip(esVip) : "hover:shadow-[var(--df-glow-hover)]"
+      } ${vitrina ? "p-6" : "p-4"}`}
     >
       {/* LA FIRMA VIVA. El halo lo pinta `.df-halo` (estático) y `.df-respira` solo lo hace latir,
           animando opacidad y transform — nunca `box-shadow` ni `filter`, que repintan en cada

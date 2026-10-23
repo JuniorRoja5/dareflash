@@ -167,6 +167,10 @@
      firme (o se cambie de color) sea UNA linea y no una caceria.
      ------------------------------------------------------------------------------------------ */
   --vip-gold: #ffd24a;
+  /* CUANTO PESA EL HALO DORADO DE LAS LISTAS, en UN numero (ver `.df-vip-halo`). Es el mando para
+     subirlo o bajarlo entero: todos los porcentajes del halo se multiplican por el. 1 = la maqueta
+     aprobada. Va por TEMA porque sobre blanco el oro no es luz, es sombra (ver la version clara). */
+  --vip-halo-fuerza: 1;
   /* Los tres del degradado del borde animado y del aro del avatar: verde -> lima -> oro. */
   --vip-a: #2be84b;
   --vip-b: #e8f620;
@@ -312,6 +316,10 @@
   /* VIP MYTHIC. Mismos trabajos que en oscuro, bajados de luminosidad para leerse sobre blanco: un
      #ffd24a sobre fondo claro es practicamente invisible. Ver el porque del token propio arriba. */
   --vip-gold: #9a6b00;
+  /* EL HALO, MAS FLOJO EN CLARO. Sobre blanco el oro apagado de este tema no se lee como LUZ sino
+     como una sombra marron: al 100% el filete y el tinte ensucian la tarjeta en vez de marcarla.
+     Mismo razonamiento (y mismo oficio) que `--df-halo-fuerza` y `--vip-bloom`. */
+  --vip-halo-fuerza: 0.7;
   --vip-a: #15803d;
   /* EL PASO LIMA, Y AQUI VA SU PORQUE: estaba en #b8860b, que es BYTE A BYTE el `--df-rank` de
      este tema. O sea que el degradado de la tarjeta VIP llevaba dentro el oro del PODIO, el color
@@ -743,6 +751,107 @@
  * --------------------------------------------------------------------------------------------- */
 .df-nombre-vip {
   color: var(--vip-name, var(--df-action));
+}
+
+/* ------------------------------------------------------------------------------------------------
+ * EL HALO DORADO DEL VIP EN LAS LISTAS (VIP cosmetico). Lo que hace que un VIP se vea de un vistazo
+ * en el feed, en inicio/destacados y en el ranking, SIN entrar a su perfil.
+ *
+ * ┌─ VA EN LA TARJETA/FILA, NO EN EL AVATAR ───────────────────────────────────────────────────┐
+ * │ El avatar ya esta ocupado con DOS aros que significan cosas distintas: el de NIVEL por       │
+ * │ dentro (`Avatar`) y el de BOOST por fuera (`AvatarDestacado`). Un tercer aro dorado ahi seria │
+ * │ ilegible — tres anillos concentricos de tres colores no se leen como tres datos, se leen      │
+ * │ como un borron. En el borde de la tarjeta el oro tiene sitio propio y no pelea con nada.      │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ ES ESTATICO, Y EN EL FEED ESO NO ES NEGOCIABLE ───────────────────────────────────────────┐
+ * │ Mismo principio que `MarcaBoost`: el feed es lo mas caro de la app y lo que manda ahi es el  │
+ * │ video. Esto es `border-color` + `box-shadow` + un degradado de fondo, los tres resueltos una  │
+ * │ vez al pintar. Ni una animacion, ni un nodo extra, ni una linea de JS por tarjeta — asi que   │
+ * │ `prefers-reduced-motion` no tiene nada que apagar aqui, que es la mejor forma de respetarlo.  │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ LA INTENSIDAD, EN UN SOLO NUMERO ─────────────────────────────────────────────────────────┐
+ * │ Todos los porcentajes se multiplican por `--vip-halo-fuerza`, asi que subirlo o bajarlo es    │
+ * │ UNA linea por tema en vez de cazar cuatro valores repartidos. Las proporciones entre ellos    │
+ * │ —filete mas fuerte que aro, aro mas que tinte— son la maqueta aprobada y se mantienen solas.  │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * `--vip-gold` Y NUNCA OTRO: `--df-action` es de BOOST (quien paga por alcance) y `--df-rank` es del
+ * PODIO (puesto 1/2/3). Pintar el VIP con cualquiera de los dos seria decir que va primero o que
+ * compro alcance, y las dos cosas son comprobables y falsas. `tests/vip-halo-listas` lo vigila.
+ * --------------------------------------------------------------------------------------------- */
+.df-vip-halo {
+  /* El filete: el borde propio de la tarjeta, tenido de oro. No se anade un borde, se tine el que
+     ya hay — uno nuevo moveria la maqueta un pixel solo para los VIP. */
+  border-color: color-mix(
+    in srgb,
+    var(--vip-gold) calc(42% * var(--vip-halo-fuerza)),
+    var(--df-line)
+  );
+  /* El tinte: un lavado de oro que entra por la izquierda y se apaga antes de la mitad. Va en
+     `background-image`, asi que NO pisa el `background-color` que traiga la tarjeta. */
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--vip-gold) calc(9% * var(--vip-halo-fuerza)), transparent),
+    transparent 42%
+  );
+  /* El glow: un aro fino pegado al filete y una luz difusa por debajo. */
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--vip-gold) calc(22% * var(--vip-halo-fuerza)), transparent),
+    0 10px 30px -14px
+      color-mix(in srgb, var(--vip-gold) calc(45% * var(--vip-halo-fuerza)), transparent);
+}
+
+/**
+ * LA VARIANTE DE FILA (ranking). Una fila del ranking no es una tarjeta: no tiene borde alrededor
+ * ni esquinas, solo una linea de separacion abajo. Tenirle "el borde" seria tenir esa raya.
+ *
+ * Asi que el oro entra por donde sí tiene sitio: una BARRA a la izquierda —el mismo recurso que la
+ * maqueta— mas el mismo lavado de fondo. El resultado se lee igual de un vistazo en una lista
+ * vertical, que es de lo que iba esto, sin inventarle un marco a una fila que no lo tiene.
+ */
+.df-vip-halo-fila {
+  position: relative;
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--vip-gold) calc(10% * var(--vip-halo-fuerza)), transparent),
+    transparent 46%
+  );
+}
+/**
+ * EL MARCO DEL FEED SOLO ES UNA TARJETA A PARTIR DE `lg`.
+ *
+ * En escritorio el video va en una tira 9:16 centrada CON filete, y ahi el halo se lee igual que en
+ * la maqueta. En movil va a sangre: no hay borde que tenir, el degradado queda tapado por el propio
+ * video y el aro caeria fuera de la pantalla. Y aunque se viera, un cerco dorado alrededor de la
+ * pantalla entera mientras se desliza no es una marca de identidad: es una notificacion, y ademas
+ * le quita sitio al video, que es lo que manda en esta pantalla. Alli al VIP ya lo marcan el nombre
+ * en oro y la pildora, encima del propio video.
+ *
+ * SE APAGA CON EL MISMO MANDO (`--vip-halo-fuerza: 0`) en vez de con otra regla que anule las tres
+ * declaraciones: a fuerza cero el filete vuelve a ser `--df-line` exacto y las dos sombras quedan
+ * transparentes, asi que no se mueve ni un pixel de la maqueta de movil.
+ */
+@media (max-width: 63.999rem) {
+  .df-vip-halo-solo-marco {
+    --vip-halo-fuerza: 0;
+  }
+}
+
+.df-vip-halo-fila::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  /* No de borde a borde: separada arriba y abajo se lee como una MARCA de esa fila; a ras, como si
+     fuera parte de la linea divisoria de la lista. */
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--vip-gold);
+  opacity: var(--vip-halo-fuerza);
+  pointer-events: none;
 }
 
 /* ------------------------------------------------------------------------------------------------
