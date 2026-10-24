@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { MarcaVip } from "@/components/ui/identidad-usuario";
 import { CATEGORIES } from "@/config/constants";
-import { postJsonCsrf } from "@/lib/cliente-http";
+import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { centimosAImporte } from "@/lib/dinero";
 import { type EstadoRetoAdmin, estadoRetoAdmin } from "@/lib/estado-reto";
 import type { RetoAdminFila } from "@/server/services/retos-admin";
@@ -195,6 +195,57 @@ function Restaurar({ id, onHecho }: { id: string; onHecho: () => void }) {
 }
 
 /**
+ * REABRIR: devolver a la vida un reto que cerró SIN otorgar nada — el que se publicó con la fecha
+ * de cierre ya pasada. Quien decide si se puede es el SERVIDOR (`reabrirReto`); aquí se ofrece y se
+ * enseña su respuesta.
+ *
+ * ┌─ EL MOTIVO DEL SERVIDOR SE PINTA TAL CUAL ─────────────────────────────────────────────────┐
+ * │ Los cuatro rechazos dicen cosas distintas y cada uno pide una acción distinta: corrige las  │
+ * │ fechas, resuelve el empate, o crea un reto nuevo porque este ya tiene ganador. Un "No se     │
+ * │ pudo" genérico —lo que hacen los otros botones de esta tabla, donde solo hay un motivo       │
+ * │ posible— dejaría al admin probando otra vez lo mismo.                                        │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+function Reabrir({ id, onHecho }: { id: string; onHecho: () => void }) {
+  const [fase, setFase] = useState<"idle" | "enviando">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <span className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        disabled={fase === "enviando"}
+        onClick={() => {
+          setFase("enviando");
+          setError(null);
+          void postJsonCsrf(`/api/panel/retos/${id}/reabrir`, {})
+            .then((r) => {
+              if (r.ok) {
+                onHecho();
+                return;
+              }
+              setError(mensajeDe(r));
+              setFase("idle");
+            })
+            .catch(() => {
+              setError("No hemos podido conectar. Inténtalo otra vez.");
+              setFase("idle");
+            });
+        }}
+        className="min-h-[36px] rounded-sm border border-line px-3 text-sm font-medium text-text transition-colors duration-150 ease-mechanical hover:bg-raised disabled:opacity-40"
+      >
+        {fase === "enviando" ? "Reabriendo…" : "Reabrir"}
+      </button>
+      {error ? (
+        <span role="alert" className="max-w-[28ch] text-right text-2xs text-alarm">
+          {error}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/**
  * Lista de retos del panel como TABLA a ancho completo (pensada para muchos retos, no filas estrechas):
  * columnas Reto, Categoría, Premio (en --df-money), Cierre, Estado y Acciones (Editar siempre; Publicar en los
  * borradores). En pantallas estrechas la tabla scrollea en su propio contenedor (`overflow-x-auto`), sin
@@ -294,6 +345,16 @@ export function ListaRetos({
                   <BotonEditar onEditar={() => onEditar(r)} />
                   {r.status === "DRAFT" && r.eliminaEnMs === null && r.borradoMs === null ? (
                     <Publicar id={r.id} />
+                  ) : null}
+                  {/* REABRIR, solo donde puede servir de algo: un reto CERRADO que no está en
+                      camino de borrarse. Que de verdad se pueda lo decide el servidor —aquí no se
+                      sabe si tiene ganador, y preguntarlo sería una consulta por fila—, así que el
+                      botón se ofrece y el motivo del rechazo se pinta debajo si lo hay.
+                      El estado "empate-pendiente" NO entra: ese se resuelve desde su ficha. */}
+                  {estadoRetoAdmin(fila(r)) === "cerrado" &&
+                  r.eliminaEnMs === null &&
+                  r.borradoMs === null ? (
+                    <Reabrir id={r.id} onHecho={onCambio} />
                   ) : null}
                   {/* Un reto EN GRACIA se puede recuperar; uno ya borrado, no: el admin tuvo su plazo
                       y deshacerlo sería otra decisión, con otras consecuencias. */}

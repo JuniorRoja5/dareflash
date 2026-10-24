@@ -516,6 +516,92 @@ export async function borrarReto(
  * RESTAURAR un reto que estaba en su gracia de borrado. Solo mientras la gracia corre: una vez
  * consumada (`deletedAt`), el admin ya tuvo sus 7 días y deshacerlo sería otra decisión.
  */
+export type ResultadoReabrir =
+  | { estado: "reabierto" }
+  | {
+      estado: "rechazado";
+      motivo:
+        /** No está cerrado: no hay nada que reabrir. */
+        | "NO_CERRADO"
+        /** Cerró CON ganador: hay resultados, premio congelado y puntos dados. Irreversible. */
+        | "CON_RESULTADOS"
+        /** Espera decisión del admin sobre un empate: tiene su propio flujo. */
+        | "EMPATE_PENDIENTE"
+        /** El cierre sigue en el pasado: reabrirlo lo volvería a cerrar en el siguiente barrido. */
+        | "CIERRE_PASADO";
+    };
+
+/**
+ * REABRE un reto que cerró POR ERROR DE FECHAS. La salida del callejón sin salida.
+ *
+ * ┌─ POR QUÉ EXISTE ───────────────────────────────────────────────────────────────────────────┐
+ * │ El cierre está diseñado como irreversible, y para un reto con ganador DEBE serlo: el cierre │
+ * │ escribe `ChallengeResult` con el premio CONGELADO, recuenta las victorias y da los puntos    │
+ * │ del top-20, todo en la misma transacción. Reabrir eso sería corromper la contabilidad.       │
+ * │                                                                                               │
+ * │ Pero hay un cierre que no otorgó NADA: el del reto que se publicó con el plazo ya vencido    │
+ * │ (o que no alcanzó el mínimo). Ese no tiene resultados, ni premio, ni puntos, ni victorias:    │
+ * │ solo cuatro columnas puestas. Hasta ahora quedaba muerto para siempre y había que borrarlo y │
+ * │ rehacerlo entero, y el único camino para llegar ahí era un error de un minuto con la hora.   │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ EL CANDADO VA EN EL `where`, NO EN UN `if` ───────────────────────────────────────────────┐
+ * │ `closedAt: { not: null }` y los dos motivos van dentro del `updateMany`, así que la decisión │
+ * │ y la escritura ocurren en la MISMA sentencia: entre comprobar y escribir no cabe un barrido  │
+ * │ que cierre el reto, ni un segundo clic. Lo único que se mira fuera es si hay resultados —eso │
+ * │ está en otra tabla y no se puede poner en este `where`—, y para eso sirve el orden: se        │
+ * │ cuentan ANTES, y si aparecieran después el reto quedaría reabierto sin sus resultados...      │
+ * │ salvo que eso no puede pasar, porque los resultados SOLO los crea el cierre y este reto ya    │
+ * │ está cerrado (`closedAt` no nulo es la guarda de idempotencia del propio cierre).             │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * ┌─ NO SE MIRA `premiadosEn`, Y ESO ES DELIBERADO ────────────────────────────────────────────┐
+ * │ Parece la columna obvia para "¿se repartió algo?" y NO sirve para esto: `proyectarCierre` la │
+ * │ escribe también cuando no había nada que repartir (cero premios y cero puntos son cero       │
+ * │ fallos), así que un cierre vacío —justo el que queremos poder reabrir— la tiene puesta. El    │
+ * │ hecho que de verdad distingue es si existe algún `ChallengeResult`.                           │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * SE EXIGE UN CIERRE FUTURO porque si no la acción es un espejismo: el barrido volvería a cerrarlo
+ * en el siguiente tick y el admin pensaría que no funciona. Así el camino queda claro —edita las
+ * fechas (la edición ya obliga a un cierre futuro) y entonces reabre—.
+ */
+export async function reabrirReto(
+  db: Db,
+  id: string,
+  ahora: Date = new Date(),
+): Promise<ResultadoReabrir> {
+  const reto = await db.challenge.findUnique({
+    where: { id },
+    select: { closedAt: true, motivoCierre: true, deadline: true },
+  });
+  if (!reto || reto.closedAt === null) return { estado: "rechazado", motivo: "NO_CERRADO" };
+  if (reto.motivoCierre === "EMPATE_PENDIENTE") {
+    return { estado: "rechazado", motivo: "EMPATE_PENDIENTE" };
+  }
+  if (reto.deadline <= ahora) return { estado: "rechazado", motivo: "CIERRE_PASADO" };
+
+  const resultados = await db.challengeResult.count({ where: { challengeId: id } });
+  if (resultados > 0) return { estado: "rechazado", motivo: "CON_RESULTADOS" };
+
+  const r = await db.challenge.updateMany({
+    where: {
+      id,
+      // LA CONDICIÓN ENTERA, otra vez y en la sentencia que escribe: si entre la lectura de arriba
+      // y esta línea algo cambió, aquí se afectan 0 filas y no se reabre nada a medias.
+      closedAt: { not: null },
+      motivoCierre: { not: "EMPATE_PENDIENTE" },
+      deadline: { gt: ahora },
+      deletedAt: null,
+      eliminacionProgramadaEn: null,
+    },
+    // Las CUATRO columnas del cierre, juntas: dejar una puesta sería un reto medio cerrado, que es
+    // peor que uno cerrado. `premiadosEn` también, o el barrido no volvería a premiarlo nunca.
+    data: { status: "PUBLISHED", closedAt: null, motivoCierre: null, premiadosEn: null },
+  });
+  return r.count === 1 ? { estado: "reabierto" } : { estado: "rechazado", motivo: "NO_CERRADO" };
+}
+
 export async function restaurarReto(db: Db, id: string): Promise<{ restaurado: boolean }> {
   const r = await db.challenge.updateMany({
     where: { id, deletedAt: null, eliminacionProgramadaEn: { not: null } },
