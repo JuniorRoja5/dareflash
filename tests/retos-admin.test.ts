@@ -116,21 +116,88 @@ describe("crearRetoAdmin + publicarReto (BD)", () => {
     const antes = await buscarRetos(prisma, "salto", null);
     expect(antes.items.map((r) => r.id)).not.toContain(reto.id);
 
-    // Publicar: DRAFT -> PUBLISHED.
-    expect(await publicarReto(prisma, reto.id)).toEqual({ publicado: true });
+    // Publicar: DRAFT -> PUBLISHED. SE LE PASA `NOW`, el mismo instante con el que se validó la
+    // creación: la fixture cierra el 28/08/2026, así que contra el reloj REAL el candado nuevo la
+    // rechazaría —con razón— y el caso dejaría de probar lo que dice probar.
+    expect(await publicarReto(prisma, reto.id, NOW)).toEqual({ estado: "publicado" });
 
     const despues = await buscarRetos(prisma, "salto", null);
     expect(despues.items.map((r) => r.id)).toContain(reto.id);
 
     // Idempotente: volver a publicar no cambia nada.
-    expect(await publicarReto(prisma, reto.id)).toEqual({ publicado: false });
+    expect(await publicarReto(prisma, reto.id, NOW)).toEqual({ estado: "sin_cambios" });
+  });
+
+  /**
+   * EL CANDADO QUE FALTABA: no se publica un reto cuyo cierre ya pasó.
+   *
+   * ┌─ POR QUÉ ES CARO SIN ESTO ──────────────────────────────────────────────────────────────┐
+   * │ Crear valida que el cierre esté en el futuro, pero esa comprobación es de un INSTANTE y   │
+   * │ caduca: el borrador se queda ahí, pasa el rato, se publica, y el barrido de cierre lo     │
+   * │ cierra en el siguiente tick. Y eso no tiene vuelta atrás editando (ver `editarRetoAdmin`: │
+   * │ no toca `status`), así que el reto queda muerto y hay que rehacerlo entero.                │
+   * └───────────────────────────────────────────────────────────────────────────────────────────┘
+   *
+   * Para romperlo: quitar la comprobación de `deadline` en `publicarReto` (rojo en el primero).
+   */
+  it("NO publica un reto cuyo cierre ya pasó, y lo dice", async () => {
+    const admin = await crearUsuario(prisma, { username: "adminvenc" });
+    const reto = await crearRetoValido(admin);
+    // El cierre se mueve al pasado POR DETRÁS, que es lo que hace el reloj mientras el borrador
+    // espera: el schema no deja crearlo así, pero sí llegar a estarlo.
+    await prisma.challenge.update({
+      where: { id: reto.id },
+      data: { deadline: new Date(NOW.getTime() - 60_000) },
+    });
+
+    expect(await publicarReto(prisma, reto.id, NOW)).toEqual({
+      estado: "rechazado",
+      motivo: "CIERRE_PASADO",
+    });
+
+    // Y NO lo ha tocado: sigue siendo un borrador que se puede arreglar editando las fechas.
+    const fila = await prisma.challenge.findUniqueOrThrow({ where: { id: reto.id } });
+    expect(fila.status, "lo publicó igual").toBe("DRAFT");
+  });
+
+  it("y el candado mira el CIERRE, no la apertura: una apertura pasada publica bien", async () => {
+    // Publicar un reto cuya apertura ya pasó es legítimo —abre al instante—, y es el caso normal
+    // de "publícalo ya". Si el candado mirara `startsAt`, bloquearía el uso más común.
+    const admin = await crearUsuario(prisma, { username: "adminabre" });
+    const reto = await crearRetoValido(admin);
+    await prisma.challenge.update({
+      where: { id: reto.id },
+      data: { startsAt: new Date(NOW.getTime() - 86_400_000) },
+    });
+
+    expect(await publicarReto(prisma, reto.id, NOW)).toEqual({ estado: "publicado" });
+  });
+
+  it("un reto YA publicado con el cierre pasado no se rechaza: no hay nada que publicar", async () => {
+    // El rechazo es para la TRANSICIÓN, no un juicio sobre el reto. Si ya está publicado (y el
+    // barrido lo habrá cerrado), un segundo clic en Publicar es un no-op, no un error que
+    // confunda al admin con un mensaje sobre fechas.
+    const admin = await crearUsuario(prisma, { username: "adminpub" });
+    const reto = await crearRetoValido(admin);
+    await publicarReto(prisma, reto.id, NOW);
+    await prisma.challenge.update({
+      where: { id: reto.id },
+      data: { deadline: new Date(NOW.getTime() - 60_000) },
+    });
+
+    expect(await publicarReto(prisma, reto.id, NOW)).toEqual({ estado: "sin_cambios" });
+  });
+
+  it("un id inexistente es `sin_cambios`, no un rechazo por fechas", async () => {
+    expect(await publicarReto(prisma, "no-existe")).toEqual({ estado: "sin_cambios" });
   });
 
   it("DIENTES editar: cambia título -> regenera slug, MANTIENE publicCode y status; conserva coverImage", async () => {
     const admin = await crearUsuario(prisma, { username: "admined" });
     const reto = await crearRetoValido(admin);
     // Publica (status PUBLISHED) y pon una portada, para probar que NINGUNO cambia al editar.
-    await publicarReto(prisma, reto.id);
+    // Con `NOW`, igual que arriba: la fixture cierra en agosto de 2026.
+    await publicarReto(prisma, reto.id, NOW);
     await prisma.challenge.update({
       where: { id: reto.id },
       data: { coverImage: "/portadas/x.webp?v=1" },

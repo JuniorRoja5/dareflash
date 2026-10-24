@@ -97,7 +97,7 @@ beforeEach(() => {
     slug: "x",
     status: "DRAFT",
   });
-  mocks.publicarReto.mockResolvedValue({ publicado: true });
+  mocks.publicarReto.mockResolvedValue({ estado: "publicado" });
 });
 
 afterAll(() => rmSync(PORTADAS_DIR, { recursive: true, force: true }));
@@ -265,5 +265,21 @@ describe("POST /api/panel/retos/[id]/publicar", () => {
     const res = await publicar(USER, "r-42");
     expect(res.status).toBe(403);
     expect(mocks.publicarReto).not.toHaveBeenCalled();
+  });
+
+  it("cierre ya pasado -> 409 con copy humano, no un 200 silencioso", async () => {
+    // La regla vive en el servicio; aquí se fija su TRADUCCIÓN. Un `ok: true` con `publicado:
+    // false` —que es lo que devolvería si nadie mirara el rechazo— le diría al admin que no pasó
+    // nada, cuando lo que pasa es que tiene que corregir una fecha.
+    mocks.getCurrentUser.mockResolvedValue(ADMIN);
+    mocks.publicarReto.mockResolvedValue({ estado: "rechazado", motivo: "CIERRE_PASADO" });
+
+    const res = await publicar(ADMIN, "r-42");
+
+    // 409 y no 400: el cuerpo no tiene nada malo, es el ESTADO del reto el que no lo admite.
+    expect(res.status).toBe(409);
+    const cuerpo = (await res.json()) as { error?: { code?: string; message?: string } };
+    expect(cuerpo.error?.code).toBe("CIERRE_PASADO");
+    expect(cuerpo.error?.message, "el mensaje no dice qué arreglar").toMatch(/cierre/i);
   });
 });

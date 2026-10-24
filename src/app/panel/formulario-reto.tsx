@@ -190,6 +190,27 @@ export function FormularioReto({
       setError("Indica la fecha de apertura y la de cierre.");
       return;
     }
+    /*
+     * LAS MISMAS DOS REGLAS QUE EL SERVIDOR, AQUÍ TAMBIÉN. No eran ninguna: el submit solo miraba
+     * que las fechas se pudieran parsear, y el `refine` de Zod era lo único que paraba un cierre
+     * en el pasado. Funcionaba —el servidor es la autoridad y lo sigue siendo— pero el admin se
+     * enteraba después de rellenar el formulario entero, y con un mensaje de API.
+     *
+     * Y el cierre pasado es el error CARO de esta pantalla: publicado, el reto nace muerto y ya no
+     * se reabre editando. Decirlo antes de enviar cuesta cuatro líneas.
+     *
+     * Se comparan los INSTANTES ya convertidos a UTC, no las cadenas del input: dos `datetime-local`
+     * se pueden comparar como texto porque el formato ordena, pero contra "ahora" no — y esa es
+     * justo la comparación que importa.
+     */
+    if (new Date(startsAt) >= new Date(deadline)) {
+      setError("El cierre debe ser posterior a la apertura.");
+      return;
+    }
+    if (new Date(deadline) <= new Date()) {
+      setError("El cierre debe estar en el futuro: corrige la fecha o la hora de cierre.");
+      return;
+    }
     // LA MARCA ES OBLIGATORIA SI EL RETO ES PATROCINADO. El servidor lo vuelve a comprobar (es la
     // autoridad); aquí se dice antes para no mandar un formulario que va a volver con un 400.
     if (esPatrocinado && sponsorNombre.trim().length === 0) {
@@ -534,6 +555,13 @@ export function FormularioReto({
           onChange={(e) => setApertura(e.target.value)}
           disabled={ocupado}
         />
+        {/* `min` = la APERTURA: el calendario ya no deja elegir un cierre anterior a su propio
+            inicio. Sale del estado del formulario, no del reloj, y por eso no hay mismatch de
+            hidratación que gestionar.
+            NO lleva `min` de "ahora" a propósito: eso sí dependería del reloj —un valor distinto
+            en el servidor y en el navegador— y el cierre en el pasado ya lo paran tres sitios
+            (el submit de aquí, el `refine` de Zod y el candado de publicar), cada uno con su
+            mensaje. Un cuarto, a cambio de un efecto, no compraba nada. */}
         <Campo
           id="reto-cierre"
           label="Cierre"
@@ -541,6 +569,7 @@ export function FormularioReto({
           value={cierre}
           onChange={(e) => setCierre(e.target.value)}
           disabled={ocupado}
+          {...(apertura ? { min: apertura } : {})}
         />
 
         <Campo

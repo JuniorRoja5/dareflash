@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { CATEGORIES } from "@/config/constants";
 import { centimosAImporte } from "@/lib/dinero";
 
+import { FechaLocal } from "../../fecha-local";
 import { ColaModeracion } from "../../moderacion/cola";
 import { requireSeccion } from "../../panel-guard";
 import { TarjetaMetrica } from "../../tarjetas";
@@ -25,11 +26,6 @@ const ESTILO_TITULO = {
   fontFamily: "var(--font-display)",
   fontVariationSettings: '"wght" 720, "wdth" 112',
 } as const;
-
-/** Fecha en UTC (el proyecto trabaja en UTC de punta a punta; ver RESET_TIMEZONE). */
-function fecha(d: Date): string {
-  return d.toLocaleString("es-ES", { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" });
-}
 
 /**
  * GESTIÓN DE UN RETO en el panel: `/panel/retos/[id]`. Aquí el admin MODERA (retirar participaciones)
@@ -162,11 +158,14 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
           <Dato etiqueta="Código público">
             <span className="font-mono tracking-wider">{reto.publicCode}</span>
           </Dato>
+          {/* EN HORA LOCAL, no en UTC como el resto de fechas del panel: estas dos las TECLEA el
+              admin en un `datetime-local`, así que tienen que volver en la misma zona o no puede
+              confirmar lo que puso. El porqué largo, en `FechaLocal`. */}
           <Dato etiqueta="Apertura">
-            <span className="tabular-nums">{fecha(reto.startsAt)}</span>
+            <FechaLocal fecha={reto.startsAt} />
           </Dato>
           <Dato etiqueta="Cierre">
-            <span className="tabular-nums">{fecha(reto.deadline)}</span>
+            <FechaLocal fecha={reto.deadline} />
           </Dato>
         </dl>
 

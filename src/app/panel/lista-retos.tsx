@@ -11,6 +11,8 @@ import { centimosAImporte } from "@/lib/dinero";
 import { type EstadoRetoAdmin, estadoRetoAdmin } from "@/lib/estado-reto";
 import type { RetoAdminFila } from "@/server/services/retos-admin";
 
+import { FechaLocal } from "./fecha-local";
+
 const NOMBRE_CATEGORIA = new Map<string, string>(
   CATEGORIES.map((c) => [c.key, `${c.emoji} ${c.es}`]),
 );
@@ -233,6 +235,10 @@ export function ListaRetos({
             <th className="px-4 py-3 font-semibold">Reto</th>
             <th className="px-4 py-3 font-semibold">Categoría</th>
             <th className="px-4 py-3 text-right font-semibold">Premio</th>
+            {/* LA APERTURA TAMBIÉN, y con su hora: era el dato que el admin tecleaba y que luego
+                no podía ver en ninguna parte de la lista. Un reto que abre mañana y uno que abrió
+                ayer se veían exactamente igual. */}
+            <th className="px-4 py-3 font-semibold">Apertura</th>
             <th className="px-4 py-3 font-semibold">Cierre</th>
             <th className="px-4 py-3 font-semibold">Estado</th>
             <th className="px-4 py-3 text-right font-semibold">Acciones</th>
@@ -258,8 +264,14 @@ export function ListaRetos({
               <td className="px-4 py-3 text-right font-semibold whitespace-nowrap tabular-nums text-money">
                 {centimosAImporte(r.prizeAmountCents)} {r.prizeCurrency}
               </td>
-              <td className="px-4 py-3 whitespace-nowrap text-text-dim tabular-nums">
-                {r.deadline.toLocaleDateString("es-ES", { timeZone: "UTC" })}
+              {/* EN HORA LOCAL, la misma en la que el formulario las captura (ver `FechaLocal`).
+                  La etiqueta "· tu hora" va una sola vez, en el cierre: repetirla en las dos
+                  columnas de cada fila es ruido, y están pegadas. */}
+              <td className="px-4 py-3 text-text-dim">
+                <FechaLocal fecha={r.startsAt} etiqueta={false} />
+              </td>
+              <td className="px-4 py-3 text-text-dim">
+                <FechaLocal fecha={r.deadline} />
               </td>
               <td className="px-4 py-3">
                 <PildoraEstado estado={estadoRetoAdmin(fila(r))} />

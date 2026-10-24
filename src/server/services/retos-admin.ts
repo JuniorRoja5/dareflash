@@ -272,16 +272,58 @@ export async function editarRetoAdmin(
   return fila;
 }
 
+export type ResultadoPublicar =
+  /** Cambió de DRAFT a PUBLISHED. */
+  | { estado: "publicado" }
+  /** Ya estaba publicado, o no existe. No es un error: el doble clic acaba aquí. */
+  | { estado: "sin_cambios" }
+  /** El cierre ya pasó: publicarlo sería crear un reto muerto. Ver abajo. */
+  | { estado: "rechazado"; motivo: "CIERRE_PASADO" };
+
 /**
  * Publica un reto: DRAFT -> PUBLISHED. IDEMPOTENTE y seguro: `updateMany` con `status: "DRAFT"` en el
- * WHERE -> si ya estaba PUBLISHED (o no existe) afecta a 0 filas, sin error. Devuelve si cambió algo.
+ * WHERE -> si ya estaba PUBLISHED (o no existe) afecta a 0 filas, sin error.
+ *
+ * ┌─ NO SE PUBLICA UN RETO CUYO CIERRE YA PASÓ, Y ESTE ES EL CANDADO QUE FALTABA ──────────────┐
+ * │ Crear VALIDA que el cierre esté en el futuro, pero esa comprobación es de un INSTANTE y     │
+ * │ caduca: el reto se queda en borrador, pasa el rato —o el admin calculó mal la hora— y al    │
+ * │ publicarlo nadie volvía a mirar el reloj. El reto nacía vencido y el barrido de cierre lo   │
+ * │ cerraba en el siguiente tick, escribiéndole `closedAt`, `status = CLOSED` y `motivoCierre`.  │
+ * │                                                                                               │
+ * │ Y eso no tenía vuelta atrás: editar las fechas NO reabre (ver `editarRetoAdmin`), así que el │
+ * │ reto quedaba muerto y había que borrarlo y rehacerlo. Un fallo de un minuto que costaba      │
+ * │ rellenar el formulario entero otra vez.                                                       │
+ * │                                                                                               │
+ * │ SE COMPRUEBA AQUÍ Y NO EN LA RUTA porque esto es la regla, no la presentación: cualquier     │
+ * │ camino que publique —hoy uno, mañana el que sea— tiene que pasar por el mismo sitio.          │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * NO COMPRUEBA LA APERTURA a propósito: publicar un reto cuya apertura ya pasó es legítimo —abre al
+ * instante— y es el caso normal de "publícalo ya". Lo que no puede estar en el pasado es el CIERRE.
  */
-export async function publicarReto(db: Db, id: string): Promise<{ publicado: boolean }> {
+export async function publicarReto(
+  db: Db,
+  id: string,
+  ahora: Date = new Date(),
+): Promise<ResultadoPublicar> {
+  // Se lee ANTES de escribir: hay que saber el deadline para decidir. No abre una carrera que
+  // importe —el peor caso es publicar un reto que vence en el mismo milisegundo, y de ese ya se
+  // encarga el barrido— y evita un `updateMany` con la condición de fecha dentro, que no podría
+  // distinguir "ya estaba publicado" de "lo rechacé por la fecha".
+  const reto = await db.challenge.findUnique({
+    where: { id },
+    select: { status: true, deadline: true },
+  });
+  if (!reto) return { estado: "sin_cambios" };
+  if (reto.status === "DRAFT" && reto.deadline <= ahora) {
+    return { estado: "rechazado", motivo: "CIERRE_PASADO" };
+  }
+
   const res = await db.challenge.updateMany({
     where: { id, status: "DRAFT" },
     data: { status: "PUBLISHED" },
   });
-  return { publicado: res.count > 0 };
+  return res.count > 0 ? { estado: "publicado" } : { estado: "sin_cambios" };
 }
 
 /**
