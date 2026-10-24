@@ -2,7 +2,7 @@
 
 import { type CSSProperties, useEffect, useState } from "react";
 
-import { formatearCuentaAtras, tokenCuentaAtras } from "./logic";
+import { type CuentaHacia, formatearCuentaAtras, tokenCuentaAtras } from "./logic";
 
 const TAMANO_PX = { lista: 14, tarjeta: 22, heroe: 40 } as const;
 export type TamanoCuenta = keyof typeof TAMANO_PX;
@@ -23,10 +23,16 @@ const PLACEHOLDER = "··:··:··";
 export function CuentaAtras({
   deadlineMs,
   tamano = "tarjeta",
+  hacia = "cierre",
   className = "",
 }: {
   deadlineMs: number | null;
   tamano?: TamanoCuenta;
+  /**
+   * HACIA QUÉ cuenta. Con `"apertura"` nunca pasa a la alarma: ese rojo dice "se te acaba el
+   * tiempo", y a un reto que todavía no ha abierto no se le puede apremiar. Ver `tokenCuentaAtras`.
+   */
+  hacia?: CuentaHacia;
   className?: string;
 }) {
   const [ms, setMs] = useState<number | null>(null);
@@ -41,7 +47,7 @@ export function CuentaAtras({
 
   // Placeholder (aun sin plazo) en NEUTRO: no debe insinuar la semantica "tiempo" antes de haber
   // datos. En cuanto el efecto calcula el restante, el token pasa a time/alarm (con transicion).
-  const token = ms === null ? "text-dim" : tokenCuentaAtras(ms);
+  const token = ms === null ? "text-dim" : tokenCuentaAtras(ms, hacia);
   const estilo: CSSProperties = {
     fontFamily: "var(--font-display)",
     fontVariationSettings: '"wght" 640, "wdth" 112',

@@ -18,13 +18,16 @@ export default async function RetosPage({
   const categoriaInicial = categoriaValida((await searchParams).categoria);
 
   const { prisma } = await import("@/server/db/client");
-  const { listarRetosPublicos, listarRetosCerrados } =
+  const { listarRetosPublicos, listarRetosProximos, listarRetosCerrados } =
     await import("@/server/services/retos-publico");
   const ahora = new Date();
-  // CERRADOS va PAGINADO (keyset): es la única de las dos que crece para siempre, y antes se
-  // cortaba en los 100 más recientes sin decir nada. Activos está acotada por su ventana.
-  const [activos, cerrados] = await Promise.all([
+  // TRES listas, no dos: los retos que aún no han abierto salían mezclados con los activos, así
+  // que la pestaña decía que se podía entrar en retos que no habían empezado.
+  // CERRADOS va PAGINADO (keyset): es la única que crece para siempre. Activos y Próximamente
+  // están acotadas por su ventana — un reto sale de las dos solo, con el reloj.
+  const [activos, proximos, cerrados] = await Promise.all([
     listarRetosPublicos(prisma, ahora),
+    listarRetosProximos(prisma, ahora),
     listarRetosCerrados(prisma, ahora),
   ]);
 
@@ -41,6 +44,7 @@ export default async function RetosPage({
       </h1>
       <FeedRetos
         activos={activos}
+        proximos={proximos}
         cerrados={cerrados.items}
         cerradosCursor={cerrados.nextCursor}
         categoriaInicial={categoriaInicial}

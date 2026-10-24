@@ -1164,6 +1164,20 @@ export const CTA_RETO_SOLO_VIP = "Hazte VIP para participar";
 /** La chapa de la tarjeta de un reto exclusivo. Va al lado de la marca "VIP", que ya dice el plan. */
 export const ETIQUETA_RETO_SOLO_VIP = "EXCLUSIVO";
 
+/**
+ * UN RETO QUE TODAVIA NO HA ABIERTO (`startsAt` futuro). La chapa de su tarjeta y el titulo de su
+ * seccion en /retos.
+ *
+ * "PROXIMAMENTE" y no "PROGRAMADO": lo segundo es la palabra del PANEL (`estadoRetoAdmin`), que
+ * describe una decision del admin. Al publico no le interesa que alguien lo programara, sino que
+ * todavia no puede entrar — y "proximamente" ademas promete, que es lo que se quiere en un
+ * producto de concurso.
+ */
+export const ETIQUETA_RETO_PROXIMAMENTE = "PRÓXIMAMENTE";
+
+/** El CTA del detalle de un reto que aun no ha abierto: dice por que no se puede, no "cerrado". */
+export const CTA_RETO_PROXIMAMENTE = "Aún no ha abierto";
+
 // ============================================================================
 // RETOS PATROCINADOS (Fase 9 · P1)
 // ============================================================================

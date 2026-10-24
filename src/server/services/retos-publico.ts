@@ -34,6 +34,14 @@ export interface RetoPublicoVista {
   premioCents: number;
   /** Cierre ABSOLUTO en ms (deadline.getTime()); el cliente pinta la cuenta atrás. */
   deadlineMs: number;
+  /**
+   * APERTURA absoluta en ms. Estaba SOLO en el detalle y ahora también en la tarjeta: sin ella, la
+   * tarjeta no puede saber si el reto ya empezó, así que contaba atrás hacia el CIERRE de un reto
+   * que aún no había abierto — un número que se lee como "te queda esto para participar" cuando lo
+   * cierto era lo contrario. Es la misma regla que el servidor aplica al aceptar un voto
+   * (`lib/reto-ventana`), y la tarjeta ya no puede decidirla sin el dato.
+   */
+  startsAtMs: number;
   /** URL pública de la portada (Caddy) o null (placeholder). */
   coverImage: string | null;
   /**
@@ -69,10 +77,9 @@ export interface RetoPublicoDetalle extends RetoPublicoVista {
   winnersCount: number;
   prizeCurrency: string;
   status: string;
-  /** APERTURA absoluta en ms. Va SOLO en el detalle (la tarjeta no la necesita): hace falta para
-   *  decidir si el reto esta abierto con la MISMA regla que el servidor (`lib/reto-ventana`) — un
-   *  reto PUBLISHED pero aun sin empezar no admite votos, y sin este dato la vista no lo sabia. */
-  startsAtMs: number;
+  /* `startsAtMs` ya viene de `RetoPublicoVista`: estaba declarado AQUI porque al principio solo lo
+     necesitaba el detalle (para decidir si admite votos con la MISMA regla que el servidor). Ahora
+     tambien lo necesita la tarjeta, para no contar atras hacia el cierre de un reto sin abrir. */
   /** Clave del nivel MINIMO para participar (`rookie` = todos). Ver `lib/nivel-reto`. La vista lo
    *  usa para pintar el candado con la MISMA regla que aplica el servidor al rechazar. */
   nivelMinimo: string;
@@ -84,6 +91,7 @@ const SELECT_VISTA = {
   title: true,
   category: true,
   prizeAmountCents: true,
+  startsAt: true,
   deadline: true,
   coverImage: true,
   soloVip: true,
@@ -100,6 +108,7 @@ type FilaVista = {
   title: string;
   category: string;
   prizeAmountCents: number;
+  startsAt: Date;
   deadline: Date;
   coverImage: string | null;
   soloVip: boolean;
@@ -116,6 +125,7 @@ function aVista(f: FilaVista): RetoPublicoVista {
     categoria: f.category,
     premioCents: f.prizeAmountCents,
     deadlineMs: f.deadline.getTime(),
+    startsAtMs: f.startsAt.getTime(),
     coverImage: f.coverImage,
     soloVip: f.soloVip,
     // LAS DOS CONDICIONES, y no solo el flag: un reto marcado como patrocinado al que le falte el
@@ -136,13 +146,22 @@ function aVista(f: FilaVista): RetoPublicoVista {
  */
 
 /**
- * ACTIVOS: PUBLISHED con cierre futuro, orden por cierre ASC (el que cierra antes, primero).
+ * ACTIVOS: PUBLISHED, YA ABIERTO y con cierre futuro. Orden por cierre ASC (el que cierra antes,
+ * primero).
  *
- * SIN PAGINAR, Y A PROPÓSITO: la lista está acotada por una VENTANA (`deadline > ahora`), así que no
- * crece con el uso —cada reto sale solo de ella al cerrar— sino con cuántos tenga el admin abiertos
- * a la vez, que es una decisión suya y del orden de la decena. El `limite` es el techo duro por si
- * esa suposición deja de ser cierta. La que sí crece para siempre es la de CERRADOS, aquí debajo, y
- * esa va por keyset.
+ * ┌─ `startsAt <= ahora` NO ESTABA, Y ESE ERA EL FALLO ────────────────────────────────────────┐
+ * │ La consulta solo miraba el cierre, así que los retos que AÚN NO HABÍAN ABIERTO salían        │
+ * │ mezclados entre los activos, ordenados por su cierre y contando atrás hacia él. Para quien   │
+ * │ miraba eran retos en los que podía entrar ya — y al entrar, el detalle le decía "Reto         │
+ * │ cerrado". La condición es la MISMA que aplica el servidor al aceptar un voto                 │
+ * │ (`retoEstaAbierto`): si la lista de "activos" no la usara, prometería lo que la API rechaza. │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * SIN PAGINAR, Y A PROPÓSITO: la lista está acotada por una VENTANA (abierto y sin cerrar), así que
+ * no crece con el uso —cada reto sale solo de ella al cerrar— sino con cuántos tenga el admin
+ * abiertos a la vez, que es una decisión suya y del orden de la decena. El `limite` es el techo duro
+ * por si esa suposición deja de ser cierta. La que sí crece para siempre es la de CERRADOS, más
+ * abajo, y esa va por keyset.
  */
 export async function listarRetosPublicos(
   db: Db,
@@ -150,8 +169,47 @@ export async function listarRetosPublicos(
   limite = 100,
 ): Promise<RetoPublicoVista[]> {
   const filas = await db.challenge.findMany({
-    where: { ...NO_BORRADO, status: "PUBLISHED", deadline: { gt: ahora } },
+    where: {
+      ...NO_BORRADO,
+      status: "PUBLISHED",
+      startsAt: { lte: ahora },
+      deadline: { gt: ahora },
+    },
     orderBy: [{ deadline: "asc" }, { id: "asc" }],
+    take: limite,
+    select: SELECT_VISTA,
+  });
+  return filas.map(aVista);
+}
+
+/**
+ * PRÓXIMAMENTE: PUBLISHED cuya apertura todavía no ha llegado. Orden por APERTURA ASC — el que abre
+ * antes va primero, que es la única pregunta que tiene esta lista.
+ *
+ * ┌─ SE ENSEÑAN, NO SE ESCONDEN ───────────────────────────────────────────────────────────────┐
+ * │ Un reto que abre mañana con premio es gancho: la anticipación es parte del producto. Lo que  │
+ * │ no puede es estar MEZCLADO con los abiertos, porque entonces la lista miente sobre en cuáles │
+ * │ se puede entrar. Sección propia, con su chapa y su cuenta atrás a la apertura.               │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * Acotada por la misma clase de ventana que los activos, y por eso tampoco pagina: un reto sale de
+ * aquí solo, en cuanto abre.
+ */
+export async function listarRetosProximos(
+  db: Db,
+  ahora: Date,
+  limite = 100,
+): Promise<RetoPublicoVista[]> {
+  const filas = await db.challenge.findMany({
+    // El `deadline > ahora` TAMBIÉN aquí: un reto con la apertura por delante y el cierre ya
+    // pasado es una fila incoherente (el schema no deja crearla), y en la duda no se promete.
+    where: {
+      ...NO_BORRADO,
+      status: "PUBLISHED",
+      startsAt: { gt: ahora },
+      deadline: { gt: ahora },
+    },
+    orderBy: [{ startsAt: "asc" }, { id: "asc" }],
     take: limite,
     select: SELECT_VISTA,
   });

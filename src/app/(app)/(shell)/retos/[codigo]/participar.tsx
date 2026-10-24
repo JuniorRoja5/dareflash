@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { Boton } from "@/components/ui/boton";
 import { RELLENO_VIP } from "@/components/ui/logic";
-import { CTA_RETO_SOLO_VIP, MSG_RETO_SOLO_VIP } from "@/config/constants";
+import { CTA_RETO_PROXIMAMENTE, CTA_RETO_SOLO_VIP, MSG_RETO_SOLO_VIP } from "@/config/constants";
+import type { FaseReto } from "@/lib/reto-ventana";
 import { ModalSubida } from "@/app/(app)/(shell)/crear/modal-subida";
 
 import { enlaceEntrarParaParticipar } from "../participar-logica";
@@ -23,6 +24,7 @@ export function BotonParticipar({
   slug,
   autenticado,
   activo,
+  fase = "cerrado",
   yaParticipa = false,
   avisoNivel = null,
   vetoVip = false,
@@ -32,6 +34,12 @@ export function BotonParticipar({
   slug: string;
   autenticado: boolean;
   activo: boolean;
+  /**
+   * POR QUÉ no está activo. `activo` es un sí/no y el "no" tapaba dos cosas muy distintas: un reto
+   * que ya cerró y uno que TODAVÍA NO HA ABIERTO. A los dos se les decía "Reto cerrado", que para
+   * el segundo es sencillamente falso — y en el botón que existe para que la gente participe.
+   */
+  fase?: FaseReto;
   /** Si el usuario ya tiene una participación publicada, el CTA pasa a "Reemplazar" (conecta con 2b). */
   yaParticipa?: boolean;
   /**
@@ -52,7 +60,7 @@ export function BotonParticipar({
   if (!activo) {
     return (
       <Boton variante="principal" disabled className="w-full py-3.5">
-        Reto cerrado
+        {fase === "proximamente" ? CTA_RETO_PROXIMAMENTE : "Reto cerrado"}
       </Boton>
     );
   }

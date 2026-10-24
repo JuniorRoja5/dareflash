@@ -19,8 +19,25 @@ export function esCuentaAtrasCritica(msRestantes: number): boolean {
 /**
  * Token de color de la cuenta atras. SOLO "time" o "alarm": el tiempo NUNCA es money/rank/action/ok.
  * "alarm" en zona critica (<24 h), "time" en el resto. En el limite EXACTO de 24 h todavia es time.
+ *
+ * ┌─ `cuenta: "apertura"` NUNCA SE PONE EN ALARMA, Y ESO ES LA REGLA, NO UNA EXCEPCION ────────┐
+ * │ La alarma significa "se te acaba el tiempo": es un reto abierto al que le quedan horas para │
+ * │ CERRAR, y lo que le pide a quien mira es que participe YA. Un reto que abre dentro de tres  │
+ * │ horas dice lo contrario —espera, que todavia no puedes— asi que pintarlo en rojo seria       │
+ * │ apremiar por algo que no se puede hacer. Lo que toca ahi es anticipacion, no urgencia.       │
+ * │                                                                                               │
+ * │ Va por PARAMETRO y no por un token aparte porque la decision es de SEMANTICA (a que apunta   │
+ * │ la cuenta), no de color: quien la monta ya sabe si cuenta hacia la apertura o hacia el        │
+ * │ cierre, y ese es el unico dato que hace falta.                                                │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
-export function tokenCuentaAtras(msRestantes: number): "time" | "alarm" {
+export type CuentaHacia = "cierre" | "apertura";
+
+export function tokenCuentaAtras(
+  msRestantes: number,
+  hacia: CuentaHacia = "cierre",
+): "time" | "alarm" {
+  if (hacia === "apertura") return "time";
   return esCuentaAtrasCritica(msRestantes) ? "alarm" : "time";
 }
 

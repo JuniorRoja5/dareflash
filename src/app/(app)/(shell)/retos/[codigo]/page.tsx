@@ -48,15 +48,19 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
   const reto = r.reto;
 
   const usuario = await getCurrentUser();
-  const { retoEstaAbierto } = await import("@/lib/reto-ventana");
+  const { instanteDeCuenta, retoEstaAbierto } = await import("@/lib/reto-ventana");
   // Reto abierto: la MISMA regla que aplica el servidor al votar (`lib/reto-ventana`). Antes aquí se
   // miraba solo el cierre, así que un reto publicado pero aún sin empezar se pintaba abierto y el voto
   // se rechazaba con RETO_CERRADO.
   const ahora = new Date();
-  const activo = retoEstaAbierto(
-    { status: reto.status, startsAt: reto.startsAtMs, deadline: reto.deadlineMs },
-    ahora,
-  );
+  const ventana = { status: reto.status, startsAt: reto.startsAtMs, deadline: reto.deadlineMs };
+  const activo = retoEstaAbierto(ventana, ahora);
+  /**
+   * LA FASE, que son TRES y no dos. "No abierto" se repartía entre un reto que ya cerró y uno que
+   * todavía no empieza, y el detalle los trataba igual: a los dos les decía "Reto cerrado" y a los
+   * dos les contaba atrás hacia el cierre. Para el que no ha empezado, las dos cosas son falsas.
+   */
+  const cuenta = instanteDeCuenta(ventana, ahora);
 
   const [pagina, mi, puntosMios] = await Promise.all([
     // `miVoto` viene YA en cada ítem (una sola consulta dentro del servicio): el botón de voto nace
@@ -154,11 +158,15 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
               {reto.titulo}
             </h1>
 
-            {/* Marcador: premio (en --df-money) + cuenta atrás al cierre. Unidad indivisible. */}
+            {/* Marcador: premio (en --df-money) + cuenta atrás. Unidad indivisible.
+                APUNTA A LA APERTURA mientras el reto no ha empezado: contar hacia el cierre de algo
+                que aún no se puede hacer es decirle a la gente que se le acaba un tiempo que no ha
+                empezado a correr. Cerrado ya, no hay nada que contar y el plazo queda vacío. */}
             <div className="mt-4 lg:mt-5">
               <Marcador
                 cents={reto.premioCents}
-                deadlineMs={reto.deadlineMs}
+                deadlineMs={cuenta.objetivoMs}
+                hacia={cuenta.fase === "proximamente" ? "apertura" : "cierre"}
                 tamano="tarjeta"
                 apilarEnMovil
               />
@@ -200,6 +208,9 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
                 slug={reto.slug}
                 autenticado={usuario !== null}
                 activo={activo}
+                /* POR QUÉ no está activo: un reto que aún no ha abierto NO está "cerrado", y el
+                   botón lo decía igual. La fase sale de la misma regla que `activo`. */
+                fase={cuenta.fase}
                 yaParticipa={mi?.estado === "publicada"}
                 avisoNivel={avisoNivel}
                 vetoVip={vetoVip}

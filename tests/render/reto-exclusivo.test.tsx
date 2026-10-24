@@ -31,6 +31,10 @@ const BASE: RetoPublicoVista = {
   titulo: "Reto de prueba",
   categoria: "fitness",
   premioCents: 50_000,
+  // ABIERTO: apertura en el pasado y cierre en el futuro. Es lo que estos casos dan por hecho —
+  // hablan del marco y de la chapa, no de la ventana— y desde que la tarjeta distingue la fase,
+  // dejarlo sin decir la pintaría como "próximamente" y añadiría una chapa que nadie espera.
+  startsAtMs: Date.now() - 86_400_000,
   deadlineMs: Date.now() + 86_400_000,
   coverImage: null,
   soloVip: false,

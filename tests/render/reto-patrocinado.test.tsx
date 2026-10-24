@@ -31,6 +31,9 @@ const BASE: RetoPublicoVista = {
   titulo: "Reto de prueba",
   categoria: "fitness",
   premioCents: 100_000,
+  // ABIERTO (apertura pasada, cierre futuro): estos casos hablan de la marca del patrocinio, no
+  // de la ventana. Sin la apertura, la tarjeta lo pintaría como "próximamente".
+  startsAtMs: Date.now() - 86_400_000,
   deadlineMs: Date.now() + 86_400_000,
   coverImage: null,
   soloVip: false,

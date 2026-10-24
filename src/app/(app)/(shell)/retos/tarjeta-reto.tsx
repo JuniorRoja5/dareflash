@@ -3,9 +3,11 @@ import Link from "next/link";
 import { Boton } from "@/components/ui/boton";
 import { Marcador } from "@/components/ui/marcador";
 import { PildoraCategoria } from "@/components/ui/pildora";
+import { instanteDeCuenta } from "@/lib/reto-ventana";
 import type { RetoPublicoVista } from "@/server/services/retos-publico";
 
 import { ChapaExclusivo } from "./chapa-exclusivo";
+import { ChapaProximamente } from "./chapa-proximamente";
 import { MarcaSponsor } from "./marca-sponsor";
 import { nombreCategoria } from "./retos-datos";
 
@@ -47,6 +49,20 @@ const CLASES_HOVER =
  */
 export function TarjetaReto({ reto }: { reto: RetoPublicoVista }) {
   const href = `/retos/${reto.publicCode}-${reto.slug}`;
+  /**
+   * LA FASE Y A QUÉ INSTANTE SE CUENTA, con la MISMA regla que el servidor (`lib/reto-ventana`).
+   * Se resuelve aquí —en el servidor, como ya hace el detalle— y lo que viaja es un instante
+   * absoluto: la cuenta atrás sigue siendo pura y sin `Date.now()` en el render del cliente.
+   *
+   * `status: "PUBLISHED"` a mano porque la tarjeta solo existe para retos publicados: las dos
+   * consultas que la alimentan ya filtran por eso, y el DTO público no lleva el `status` (ni debe:
+   * un borrador no se enseña).
+   */
+  const cuenta = instanteDeCuenta({
+    status: "PUBLISHED",
+    startsAt: reto.startsAtMs,
+    deadline: reto.deadlineMs,
+  });
 
   const contenido = (
     <>
@@ -78,7 +94,12 @@ export function TarjetaReto({ reto }: { reto: RetoPublicoVista }) {
             dos, o la segunda baja de línea. */}
         <span className="pointer-events-none absolute inset-x-2.5 top-2.5 z-10 flex flex-wrap items-start justify-between gap-1.5">
           <PildoraCategoria>{nombreCategoria(reto.categoria)}</PildoraCategoria>
-          {reto.soloVip ? <ChapaExclusivo compacta /> : null}
+          {/* Las chapas van en la MISMA fila flexible, así que un reto exclusivo Y próximo enseña
+              las dos sin que se monten: o caben, o la segunda baja de línea. */}
+          <span className="flex flex-wrap items-start justify-end gap-1.5">
+            {cuenta.fase === "proximamente" ? <ChapaProximamente /> : null}
+            {reto.soloVip ? <ChapaExclusivo compacta /> : null}
+          </span>
         </span>
         {/* MARCADOR — firma, superpuesto abajo (siempre visible). Halo de dinero.
             EL PATROCINIO VA DENTRO DE ESTA BARRA, encima del premio, y no flotando a una altura
@@ -95,9 +116,14 @@ export function TarjetaReto({ reto }: { reto: RetoPublicoVista }) {
           {/* EL GLOW, SOLO SOBRE EL DINERO: es `--df-glow-dinero`, y aplicado a la barra entera
               teñiría también el logo de la marca. */}
           <span className="block" style={{ filter: "var(--df-glow-dinero)" }}>
+            {/* HACIA LA APERTURA SI AÚN NO HA EMPEZADO. Antes contaba SIEMPRE al cierre, así que
+                un reto que abre mañana enseñaba su plazo de cierre junto al premio y se leía como
+                "te queda esto para participar" — justo lo contrario de lo que pasaba. La fase y el
+                instante los decide `instanteDeCuenta`, la misma regla que usa el servidor. */}
             <Marcador
               cents={reto.premioCents}
-              deadlineMs={reto.deadlineMs}
+              deadlineMs={cuenta.objetivoMs}
+              hacia={cuenta.fase === "proximamente" ? "apertura" : "cierre"}
               tamano="lista"
               apilarEnMovil
             />

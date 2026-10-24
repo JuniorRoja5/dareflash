@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { PildoraFiltro } from "@/components/ui/pildora-filtro";
+import { ETIQUETA_RETO_PROXIMAMENTE } from "@/config/constants";
 import { getJson } from "@/lib/cliente-http";
 import type { RetoPublicoVista } from "@/server/services/retos-publico";
 
@@ -28,24 +29,32 @@ import { TarjetaReto } from "./tarjeta-reto";
  */
 export function FeedRetos({
   activos,
+  proximos = [],
   cerrados,
   cerradosCursor = null,
   categoriaInicial = null,
 }: {
   activos: RetoPublicoVista[];
+  /** Los que aún no han abierto (`startsAt` futuro). Sección propia, nunca mezclados con Activos. */
+  proximos?: RetoPublicoVista[];
   cerrados: RetoPublicoVista[];
   /** Cursor de la segunda página de cerrados, o `null` si no hay más. */
   cerradosCursor?: string | null;
   categoriaInicial?: string | null;
 }) {
-  const [pestana, setPestana] = useState<"activos" | "cerrados">("activos");
+  const [pestana, setPestana] = useState<"activos" | "proximos" | "cerrados">("activos");
   const [categoria, setCategoria] = useState<string>(categoriaInicial ?? CATEGORIA_TODOS);
   const [masCerrados, setMasCerrados] = useState<RetoPublicoVista[]>([]);
   const [cursor, setCursor] = useState<string | null>(cerradosCursor);
   const [cargando, setCargando] = useState(false);
 
   const todosCerrados = [...cerrados, ...masCerrados];
-  const visibles = pestana === "activos" ? filtrarRetos(activos, categoria) : todosCerrados;
+  const visibles =
+    pestana === "activos"
+      ? filtrarRetos(activos, categoria)
+      : pestana === "proximos"
+        ? proximos
+        : todosCerrados;
 
   async function verMas(): Promise<void> {
     if (!cursor || cargando) return;
@@ -69,11 +78,20 @@ export function FeedRetos({
 
   return (
     <>
-      {/* Pestañas Activos | Cerrados. */}
-      <div role="tablist" aria-label="Estado de los retos" className="mb-4 flex gap-2">
+      {/* Pestañas Activos | Próximamente | Cerrados. La de en medio SOLO aparece si hay alguno:
+          una pestaña vacía permanente enseña un "no hay nada" cada vez que alguien la pulsa, y
+          hay semanas enteras sin ningún reto programado. */}
+      <div role="tablist" aria-label="Estado de los retos" className="mb-4 flex flex-wrap gap-2">
         <PildoraFiltro activo={pestana === "activos"} onClick={() => setPestana("activos")}>
           Activos
         </PildoraFiltro>
+        {proximos.length > 0 ? (
+          <PildoraFiltro activo={pestana === "proximos"} onClick={() => setPestana("proximos")}>
+            {ETIQUETA_RETO_PROXIMAMENTE.charAt(0) +
+              ETIQUETA_RETO_PROXIMAMENTE.slice(1).toLowerCase()}{" "}
+            ({proximos.length})
+          </PildoraFiltro>
+        ) : null}
         <PildoraFiltro activo={pestana === "cerrados"} onClick={() => setPestana("cerrados")}>
           Cerrados
         </PildoraFiltro>
@@ -109,7 +127,9 @@ export function FeedRetos({
           <p className="font-medium text-text">
             {pestana === "activos"
               ? "Todavía no hay retos activos en esta categoría."
-              : "Aún no hay retos cerrados."}
+              : pestana === "proximos"
+                ? "No hay ningún reto programado ahora mismo."
+                : "Aún no hay retos cerrados."}
           </p>
         </div>
       ) : (
