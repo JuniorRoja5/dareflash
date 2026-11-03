@@ -24,7 +24,12 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: mocks.refresh }
 import { ActivarBoost } from "@/app/(app)/(shell)/boosts/activar-boost";
 import { HeroBoosts } from "@/app/(app)/(shell)/boosts/hero-boosts";
 import { PaquetesBoost } from "@/app/(app)/(shell)/boosts/paquetes-boost";
-import { BOOST_DAILY_LIMIT, BOOST_DURACION_MIN } from "@/config/constants";
+import {
+  BOOST_DAILY_LIMIT,
+  BOOST_DURACION_MIN,
+  BOOST_MAX_SIMULTANEOS,
+  TITULO_BOOST_AGOTADO,
+} from "@/config/constants";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
 
 const ok = (data: unknown, status = 200) => ({ ok: status < 400, status, code: "", data });
@@ -106,13 +111,18 @@ describe("el cupo lleno se ve ANTES de pulsar", () => {
     montar({ cupo: { lleno: true, minutosParaHueco: 7 } });
 
     expect((boton() as HTMLButtonElement).disabled).toBe(true);
-    expect(document.body.textContent).toMatch(/agotado/i);
+    expect(document.body.textContent).toContain(TITULO_BOOST_AGOTADO);
     expect(document.body.textContent, "no dice en cuántos minutos").toContain("7");
   });
 
-  it("y deja claro que no se ha gastado nada", () => {
+  it("y deja claro que el Boost sigue ahí", () => {
     montar({ cupo: { lleno: true, minutosParaHueco: 3 } });
-    expect(document.body.textContent).toMatch(/no se te ha gastado/i);
+    expect(document.body.textContent).toMatch(/sigue guardado/i);
+  });
+
+  it("sin enseñar el máximo ni explicar el cupo: eso es cosa nuestra", () => {
+    montar({ cupo: { lleno: true, minutosParaHueco: 3 } });
+    expect(document.body.textContent).not.toContain(String(BOOST_MAX_SIMULTANEOS));
   });
 
   it("pulsarlo con el cupo lleno no llama a nada", async () => {
@@ -122,8 +132,9 @@ describe("el cupo lleno se ve ANTES de pulsar", () => {
   });
 
   it("el cupo manda sobre el límite del día: si no hay sitio, da igual cuántas te queden", () => {
-    montar({ cupo: { lleno: true, minutosParaHueco: 4 }, usadasHoy: 0 });
-    expect(document.body.textContent).toMatch(/agotado/i);
+    montar({ cupo: { lleno: true, minutosParaHueco: 4 }, usadasHoy: BOOST_DAILY_LIMIT });
+    expect(document.body.textContent).toContain(TITULO_BOOST_AGOTADO);
+    expect(document.body.textContent, "gana el aviso del día").not.toMatch(/veces hoy/);
   });
 });
 

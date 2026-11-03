@@ -28,6 +28,7 @@ import {
   BOOST_DURACION_MIN,
   BOOST_MAX_SIMULTANEOS,
   msgBoostAgotado,
+  TITULO_BOOST_AGOTADO,
 } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import {
@@ -144,9 +145,18 @@ describe("los minutos que se le dicen a la persona", () => {
     expect(minutosParaHueco(ahora - 5_000, ahora)).toBe(1);
   });
 
-  it("el copy lleva el número dentro", () => {
+  it("el copy lleva el número dentro y dice que el Boost no se ha gastado", () => {
     expect(msgBoostAgotado(7)).toContain("7");
-    expect(msgBoostAgotado(7)).toMatch(/agotado/i);
+    // Lo que de verdad calma a quien se encuentra el cupo lleno: su crédito sigue ahí.
+    expect(msgBoostAgotado(7)).toMatch(/sigue guardado/i);
+  });
+
+  it("y en pantalla no sale el máximo ni por qué existe", () => {
+    // El porqué del cupo es información nuestra, no de quien quiere destacarse ahora. Vive en los
+    // comentarios del código; que se cuele en el copy es el fallo que este caso vigila.
+    const copy = `${TITULO_BOOST_AGOTADO} ${msgBoostAgotado(7)}`;
+    expect(copy).not.toContain(String(BOOST_MAX_SIMULTANEOS));
+    expect(copy).not.toMatch(/máximo|carril|portada/i);
   });
 });
 

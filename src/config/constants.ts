@@ -293,11 +293,17 @@ export const BOOST_CARRILES = BOOST_MAX_SIMULTANEOS / BOOST_DESTACADOS_PORTADA;
 export const BOOST_MIN_PORTADA = BOOST_DURACION_MIN / BOOST_CARRILES;
 
 /**
- * Copy del cupo lleno. `minutos` son los que faltan para que caduque la aparición MÁS ANTIGUA, que
- * es cuando se libera el primer hueco: decir "vuelve más tarde" sin un número deja a la persona
- * recargando a ciegas.
+ * Copy del cupo lleno, en dos piezas porque son dos cosas distintas: el titular dice QUÉ pasa y el
+ * texto dice QUÉ HACER. `minutos` son los que faltan para que se libere el primer hueco; sin un
+ * número, "vuelve más tarde" deja a la persona recargando a ciegas.
+ *
+ * NO SALE EL 60 NI LA EXPLICACIÓN DEL MÁXIMO. Para quien quiere destacarse ahora, el porqué del
+ * cupo es información nuestra, no suya: lo que necesita es cuándo volver y que su Boost sigue ahí.
+ * El razonamiento vive en los comentarios del código y en `BoostPlaza`, que es donde sirve.
  */
-export const msgBoostAgotado = (minutos: number) => `Agotado. Vuelve en ${minutos} min.`;
+export const TITULO_BOOST_AGOTADO = "Ahora mismo está todo lleno";
+export const msgBoostAgotado = (minutos: number) =>
+  `Vuelve en ${minutos} min y habrá hueco para ti. Tu Boost sigue guardado.`;
 
 /**
  * Lo que recibe quien activa, para la pantalla.
@@ -308,7 +314,7 @@ export const msgBoostAgotado = (minutos: number) => `Agotado. Vuelve en ${minuto
  * MINUTOS DE PORTADA sí salen de aquí, porque son una cifra que solo conoce esta configuración.
  */
 export const msgBoostQueRecibes = (duracion: string) =>
-  `Gasta 1 Boost y tu perfil sale ${duracion} en Perfiles Boost, con al menos ${BOOST_MIN_PORTADA} minutos en portada.`;
+  `Tu perfil destaca durante ${duracion}: siempre en Perfiles Boost y por turnos en la portada, al menos ${BOOST_MIN_PORTADA} minutos.`;
 
 /**
  * PAQUETES DE BOOST a la venta. FUENTE UNICA: de aqui salen el precio Y los creditos, tanto al

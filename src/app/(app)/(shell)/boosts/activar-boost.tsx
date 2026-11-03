@@ -9,8 +9,7 @@ import {
   msgBoostQueRecibes,
   BOOST_DAILY_LIMIT,
   BOOST_DURACION_MIN,
-  BOOST_MAX_SIMULTANEOS,
-  BOOST_MIN_PORTADA,
+  TITULO_BOOST_AGOTADO,
 } from "@/config/constants";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
@@ -127,11 +126,14 @@ export function ActivarBoost({
 
       {/* EL CUPO MANDA SOBRE LOS DEMÁS AVISOS: si no hay sitio, da igual cuántas te queden hoy. */}
       {cupo.lleno ? (
-        <p id="boost-cupo" className="mt-2.5 text-2xs text-text-dim">
-          {msgBoostAgotado(cupo.minutosParaHueco ?? 1)} Hay {BOOST_MAX_SIMULTANEOS} perfiles
-          destacados a la vez, que es el máximo para que a cada uno le toquen sus{" "}
-          {BOOST_MIN_PORTADA} minutos en portada. No se te ha gastado ningún Boost.
-        </p>
+        <div id="boost-cupo" className="mt-2.5">
+          {/* El titular dice QUÉ pasa y el texto QUÉ hacer. No sale el máximo ni por qué existe:
+              para quien quiere destacarse ahora eso es información nuestra, no suya. */}
+          <p className="text-xs font-semibold text-text">{TITULO_BOOST_AGOTADO}</p>
+          <p className="mt-1 text-2xs text-text-dim">
+            {msgBoostAgotado(cupo.minutosParaHueco ?? 1)}
+          </p>
+        </div>
       ) : limiteGastado ? (
         <p id="boost-limite" className="mt-2.5 text-2xs text-text-dim">
           {/* La cifra sale de la constante, como en todas partes. */}

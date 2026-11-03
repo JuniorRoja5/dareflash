@@ -1,3 +1,23 @@
+-- ============================================================================================
+-- PRECONDICION DEL DESPLIEGUE: CERO BOOSTS VIGENTES AL MIGRAR
+-- ============================================================================================
+-- Esta migracion NO reparte las apariciones que ya estuvieran vigentes: les pone `carril = 0` por
+-- el DEFAULT y no les da plaza en `BoostPlaza`. Las consecuencias, mientras les quede hora de vida:
+--
+--   - todas en el carril 0: saldrian en portada solo cuando abra ese carril, y como mucho cinco
+--     de ellas (hay cinco plazas por carril), asi que alguna podria no salir en lo que le queda;
+--   - sin plaza ocupada: el cupo las cuenta como si no existieran, y durante esa hora podria haber
+--     mas de `BOOST_MAX_SIMULTANEOS` destacados a la vez.
+--
+-- Ninguna de las dos corrompe nada y las dos se curan solas en una hora, pero hay que mirarlo
+-- ANTES de migrar, no despues:
+--
+--   SELECT COUNT(*) FROM BoostActivation WHERE expiresAt > NOW();   -- tiene que dar 0
+--
+-- Si diera > 0, lo barato es esperar a que caduquen (maximo una hora) y migrar entonces.
+-- Comprobado el 2026-11-03: en produccion hay 0.
+-- ============================================================================================
+
 -- AlterTable
 ALTER TABLE `BoostActivation` ADD COLUMN `carril` INTEGER NOT NULL DEFAULT 0;
 

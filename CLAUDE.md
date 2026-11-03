@@ -136,6 +136,33 @@ recontado** dentro de la misma transacción que crea los resultados, nunca con `
 re-ejecutar un cierre converge. Un cache nuevo de este tipo se rellena **en su migración** —uno que
 arranca a cero miente sin que nada falle—.
 
+### Concurrencia: el error 1020 no se silencia, se reintenta
+
+MariaDB 11.6 estrenó **`innodb_snapshot_isolation`** y en la **11.8** —la de producción— viene
+**activado**. Con él, una transacción en `REPEATABLE READ` que intenta escribir una fila cambiada
+**después de su instantánea** ya no lee en silencio una versión vieja: falla con el **error 1020**
+("Record has changed since last read") y te dice que reintentes. Es una mejora —antes esa misma
+situación era una anomalía silenciosa de las que se descubren con el saldo descuadrado— pero
+cambia el contrato: **cualquier escritura concurrente puede devolver 1020**, y la respuesta correcta
+es **reintentar la transacción**, nunca tragarse el error ni envolverlo en un mensaje genérico.
+
+Reintentar solo es seguro si la operación es **idempotente** (clave de idempotencia, como todo lo que
+toca un ledger) y si la transacción fallida **se deshizo entera**. El ejemplo cableado está en
+[activarBoost](src/server/services/boost-activacion.ts): bucle acotado, espera creciente de unos
+milisegundos y, si se agotan los intentos, el error **sube** —un fallo que se traga es peor que uno
+que se ve—.
+
+Dos trampas relacionadas, las dos descubiertas construyendo el cupo de Boost y las dos capaces de
+pasar una revisión de código:
+
+- **Un `SELECT` normal dentro de la transacción devuelve la instantánea**, no el presente. Serializar
+  con un cerrojo y después CONTAR con un `findMany` no sirve: la instantánea se fijó antes de esperar
+  al cerrojo, así que al entrar lees el mundo de antes de esperar. Un `UPDATE` sí lee la última
+  versión confirmada, y por eso un cupo se **ocupa** (`UPDATE … LIMIT 1`, filas afectadas = 0 es el
+  lleno) en vez de comprobarse.
+- **Una lectura bloqueante de un rango tampoco salva**: si esas filas cambiaron tras la instantánea,
+  devuelve 1020 en vez de esperar.
+
 ### Vídeo
 
 El vídeo vive **entero en Bunny.net**, nunca en nuestro servidor: subida por TUS con credencial
