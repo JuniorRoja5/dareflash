@@ -22,25 +22,32 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const SHELL = join(process.cwd(), "src", "app", "(app)", "(shell)");
+/**
+ * La raíz es `(app)`, NO `(shell)`: `/feed` cuelga del armazón pero vive FUERA del shell —eso es lo
+ * que lo deja ser inmersivo— y por tanto el `loading.tsx` de reserva del shell NO le llega. Con la
+ * raíz puesta en `(shell)` esta lista no habría podido ni nombrarlo, que es como se quedó fuera la
+ * pantalla de más tráfico de la app.
+ */
+const APP = join(process.cwd(), "src", "app", "(app)");
 
 /** Las rutas que se decidió cubrir con su propio esqueleto, más el de reserva del grupo. */
 const CUBIERTAS: ReadonlyArray<{ nombre: string; ruta: readonly string[] }> = [
-  { nombre: "el shell (reserva de las demás secciones)", ruta: ["loading.tsx"] },
-  { nombre: "/inicio", ruta: ["inicio", "loading.tsx"] },
-  { nombre: "/retos", ruta: ["retos", "loading.tsx"] },
-  { nombre: "/retos/[codigo]", ruta: ["retos", "[codigo]", "loading.tsx"] },
-  { nombre: "/destacados", ruta: ["destacados", "loading.tsx"] },
-  { nombre: "/boosts", ruta: ["boosts", "loading.tsx"] },
-  { nombre: "/perfil", ruta: ["perfil", "loading.tsx"] },
-  { nombre: "/u/[username]", ruta: ["u", "[username]", "loading.tsx"] },
+  { nombre: "el shell (reserva de las demás secciones)", ruta: ["(shell)", "loading.tsx"] },
+  { nombre: "/feed (fuera del shell: no le llega el de reserva)", ruta: ["feed", "loading.tsx"] },
+  { nombre: "/inicio", ruta: ["(shell)", "inicio", "loading.tsx"] },
+  { nombre: "/retos", ruta: ["(shell)", "retos", "loading.tsx"] },
+  { nombre: "/retos/[codigo]", ruta: ["(shell)", "retos", "[codigo]", "loading.tsx"] },
+  { nombre: "/destacados", ruta: ["(shell)", "destacados", "loading.tsx"] },
+  { nombre: "/boosts", ruta: ["(shell)", "boosts", "loading.tsx"] },
+  { nombre: "/perfil", ruta: ["(shell)", "perfil", "loading.tsx"] },
+  { nombre: "/u/[username]", ruta: ["(shell)", "u", "[username]", "loading.tsx"] },
 ];
 
 describe("cada pantalla cubierta tiene su esqueleto", () => {
   it.each(CUBIERTAS.map((c) => [c.nombre, c.ruta] as const))(
     "falta el loading.tsx de %s",
     (nombre, ruta) => {
-      const f = join(SHELL, ...ruta);
+      const f = join(APP, ...ruta);
       expect(existsSync(f), `no existe ${ruta.join("/")} (pantalla: ${nombre})`).toBe(true);
       // Y que no sea un fichero vacío que cumpla la letra sin hacer nada.
       expect(readFileSync(f, "utf8")).toMatch(/export default function/);
@@ -52,13 +59,13 @@ describe("cada pantalla cubierta tiene su esqueleto", () => {
     // fichero seguiría pasando pero el anuncio para lectores de pantalla se podría haber quedado
     // fuera. La primitiva es lo que garantiza el `role="status"` en todas.
     for (const { nombre, ruta } of CUBIERTAS) {
-      const fuente = readFileSync(join(SHELL, ...ruta), "utf8");
+      const fuente = readFileSync(join(APP, ...ruta), "utf8");
       expect(fuente, `${nombre} no usa la primitiva`).toMatch(/PantallaCargando|Esqueleto\w*/);
     }
   });
 
   it("el detector funciona: una ruta inventada NO existe", () => {
     // Sin esto, un `existsSync` mal usado (o una RAIZ equivocada) dejaría todo en verde.
-    expect(existsSync(join(SHELL, "no-existe-esta-seccion", "loading.tsx"))).toBe(false);
+    expect(existsSync(join(APP, "no-existe-esta-seccion", "loading.tsx"))).toBe(false);
   });
 });

@@ -37,9 +37,11 @@ import CargandoPerfil from "@/app/(app)/(shell)/perfil/loading";
 import CargandoReto from "@/app/(app)/(shell)/retos/[codigo]/loading";
 import CargandoRetos from "@/app/(app)/(shell)/retos/loading";
 import CargandoPerfilPublico from "@/app/(app)/(shell)/u/[username]/loading";
+import CargandoFeed from "@/app/(app)/feed/loading";
 
-const SHELL = join(process.cwd(), "src", "app", "(app)", "(shell)");
-const leer = (...p: string[]) => readFileSync(join(SHELL, ...p), "utf8");
+/** Raíz en `(app)` y no en `(shell)`: `/feed` vive fuera del shell (ver su `loading.tsx`). */
+const APP = join(process.cwd(), "src", "app", "(app)");
+const leer = (...p: string[]) => readFileSync(join(APP, ...p), "utf8");
 
 /** El anuncio es lo ÚNICO que se lee en voz alta, y lo único que debe tener texto. */
 const ANUNCIO = "Cargando…";
@@ -50,48 +52,32 @@ const ANUNCIO = "Cargando…";
  * los pinta (`PerfilVista`) porque las DOS rutas comparten maqueta.
  */
 const PANTALLAS = [
-  { nombre: "shell (reserva)", Comp: CargandoShell, ruta: ["loading.tsx"], contenedor: null },
-  {
-    nombre: "/inicio",
-    Comp: CargandoInicio,
-    ruta: ["inicio", "loading.tsx"],
-    contenedor: ["inicio", "page.tsx"],
-  },
-  {
-    nombre: "/retos",
-    Comp: CargandoRetos,
-    ruta: ["retos", "loading.tsx"],
-    contenedor: ["retos", "page.tsx"],
-  },
+  { nombre: "shell (reserva)", Comp: CargandoShell, contenedor: null },
+  // `/feed` NO tiene contenedor que contrastar: va a sangre, sin el `mx-auto max-w-…` del shell.
+  // Lo que sí se le exige —y es lo que importa— es que no invente datos y que se anuncie una vez.
+  { nombre: "/feed", Comp: CargandoFeed, contenedor: null },
+  { nombre: "/inicio", Comp: CargandoInicio, contenedor: ["(shell)", "inicio", "page.tsx"] },
+  { nombre: "/retos", Comp: CargandoRetos, contenedor: ["(shell)", "retos", "page.tsx"] },
   {
     nombre: "/retos/[codigo]",
     Comp: CargandoReto,
-    ruta: ["retos", "[codigo]", "loading.tsx"],
-    contenedor: ["retos", "[codigo]", "page.tsx"],
+    contenedor: ["(shell)", "retos", "[codigo]", "page.tsx"],
   },
   {
     nombre: "/destacados",
     Comp: CargandoDestacados,
-    ruta: ["destacados", "loading.tsx"],
-    contenedor: ["destacados", "page.tsx"],
+    contenedor: ["(shell)", "destacados", "page.tsx"],
   },
-  {
-    nombre: "/boosts",
-    Comp: CargandoBoosts,
-    ruta: ["boosts", "loading.tsx"],
-    contenedor: ["boosts", "page.tsx"],
-  },
+  { nombre: "/boosts", Comp: CargandoBoosts, contenedor: ["(shell)", "boosts", "page.tsx"] },
   {
     nombre: "/perfil",
     Comp: CargandoPerfil,
-    ruta: ["perfil", "loading.tsx"],
-    contenedor: ["perfil", "perfil-vista.tsx"],
+    contenedor: ["(shell)", "perfil", "perfil-vista.tsx"],
   },
   {
     nombre: "/u/[username]",
     Comp: CargandoPerfilPublico,
-    ruta: ["u", "[username]", "loading.tsx"],
-    contenedor: ["perfil", "perfil-vista.tsx"],
+    contenedor: ["(shell)", "perfil", "perfil-vista.tsx"],
   },
 ] as const;
 
@@ -160,9 +146,9 @@ describe("y ocupan el sitio de su página (contra el salto)", () => {
   it("el detector funciona: lee anchos DISTINTOS en páginas distintas", () => {
     // Sin esto, un `contenedorDe` que devolviera siempre lo mismo dejaría los casos de arriba en
     // verde aunque todos los esqueletos tuvieran el ancho equivocado.
-    expect(contenedorDe(leer("retos", "page.tsx")).ancho).toBe("max-w-7xl");
-    expect(contenedorDe(leer("boosts", "page.tsx")).ancho).toBe("max-w-5xl");
-    expect(contenedorDe(leer("retos", "[codigo]", "page.tsx")).aire).toBe("py-5");
-    expect(contenedorDe(leer("retos", "page.tsx")).aire).toBe("py-8");
+    expect(contenedorDe(leer("(shell)", "retos", "page.tsx")).ancho).toBe("max-w-7xl");
+    expect(contenedorDe(leer("(shell)", "boosts", "page.tsx")).ancho).toBe("max-w-5xl");
+    expect(contenedorDe(leer("(shell)", "retos", "[codigo]", "page.tsx")).aire).toBe("py-5");
+    expect(contenedorDe(leer("(shell)", "retos", "page.tsx")).aire).toBe("py-8");
   });
 });

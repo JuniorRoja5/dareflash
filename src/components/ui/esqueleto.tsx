@@ -27,9 +27,49 @@
  */
 import type { ReactNode } from "react";
 
-/** Un bloque de relleno. `className` lleva el tamaño, que lo decide quien lo coloca. */
-export function Esqueleto({ className = "" }: { className?: string }) {
-  return <div aria-hidden className={`animate-pulse rounded-xs bg-raised ${className}`} />;
+/**
+ * Los dos tonos de relleno, y por qué hacen falta DOS.
+ *
+ * La escala del tema es `void` (fondo de página) < `surface` < `raised`. Un bloque suelto va en
+ * `raised`, que es el que se despega del fondo. Pero cuando un bloque se pinta ENCIMA de otro —el
+ * raíl de acciones del feed sobre el vídeo— los dos en `raised` son el MISMO color y lo de arriba
+ * desaparece: la captura del feed a 390 px salía como un rectángulo liso, sin raíl y sin pie.
+ * Entonces el de abajo baja a `surface` y el de arriba se queda en `raised`, que es un escalón por
+ * encima. No es una excepción: es la misma escala, usada en dos niveles.
+ */
+type Tono = "raised" | "surface" | "sobreVideo";
+const FONDO: Record<Tono, string> = {
+  raised: "bg-raised",
+  surface: "bg-surface",
+  /**
+   * ENCIMA DE UN VÍDEO no vale ningún tono de la escala de superficies: con `raised` sobre
+   * `surface` la captura a 390 px no enseñaba ni el raíl ni el avatar —diez puntos de diferencia
+   * por canal no son un contraste, son una suposición—. Lo que se pinta sobre el vídeo tiene que ir
+   * en el color del CONTENIDO, que es lo que hace el feed de verdad con sus iconos y su texto.
+   *
+   * Es `text` y no un blanco literal porque la paleta de `@theme` NO declara `white`: `bg-white/15`
+   * se escribía en el HTML y Tailwind no generaba la regla, así que el bloque quedaba sin fondo y
+   * la pantalla salía lisa. Comprobado en el CSS compilado, no supuesto.
+   */
+  sobreVideo: "bg-text/15",
+};
+
+/**
+ * Un bloque de relleno. `className` lleva el tamaño y, si hace falta, OTRO radio.
+ *
+ * El `rounded-xs` base solo se pone si quien lo coloca no ha pedido uno: con los dos en la lista,
+ * cuál gana lo decide el orden del CSS generado y no el de las clases, y ganaba `rounded-xs` — los
+ * avatares del feed salían CUADRADOS en la captura. Esto lo vuelve explícito.
+ */
+export function Esqueleto({
+  className = "",
+  tono = "raised",
+}: {
+  className?: string;
+  tono?: Tono;
+}) {
+  const radio = /(^|\s)rounded-/.test(className) ? "" : "rounded-xs";
+  return <div aria-hidden className={`animate-pulse ${radio} ${FONDO[tono]} ${className}`} />;
 }
 
 /**
