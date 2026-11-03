@@ -4,7 +4,14 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
-import { BOOST_DAILY_LIMIT, BOOST_DURACION_MIN } from "@/config/constants";
+import {
+  msgBoostAgotado,
+  msgBoostQueRecibes,
+  BOOST_DAILY_LIMIT,
+  BOOST_DURACION_MIN,
+  BOOST_MAX_SIMULTANEOS,
+  BOOST_MIN_PORTADA,
+} from "@/config/constants";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 
@@ -35,11 +42,22 @@ export function ActivarBoost({
   saldo,
   usadasHoy,
   vigenteHastaMs,
+  cupo,
 }: {
   saldo: number;
   usadasHoy: number;
   /** `null` si no hay ninguna aparición mía vigente ahora mismo. */
   vigenteHastaMs: number | null;
+  /**
+   * El estado del cupo GLOBAL, leído en el servidor al pintar.
+   *
+   * Se enseña ANTES de pulsar porque enterarse de que está lleno DESPUÉS de haber pulsado es la
+   * peor versión: la persona cree que ha gastado un Boost (no lo ha gastado) y no sabe cuándo
+   * volver. El botón deshabilitado con el minutaje dice las dos cosas sin que nadie arriesgue nada.
+   *
+   * No autoriza: quien decide es `activarBoost` con su cerrojo. Esto solo pinta.
+   */
+  cupo: { lleno: boolean; minutosParaHueco: number | null };
 }) {
   const router = useRouter();
   const [token, setToken] = useState(() => crypto.randomUUID());
@@ -48,7 +66,7 @@ export function ActivarBoost({
 
   const sinSaldo = saldo <= 0;
   const limiteGastado = usadasHoy >= BOOST_DAILY_LIMIT;
-  const puedeActivar = !sinSaldo && !limiteGastado;
+  const puedeActivar = !sinSaldo && !limiteGastado && !cupo.lleno;
 
   const activar = useCallback(async () => {
     setEnviando(true);
@@ -107,7 +125,14 @@ export function ActivarBoost({
         {enviando ? "Destacando…" : "Destacar mi perfil ahora"}
       </Boton>
 
-      {limiteGastado ? (
+      {/* EL CUPO MANDA SOBRE LOS DEMÁS AVISOS: si no hay sitio, da igual cuántas te queden hoy. */}
+      {cupo.lleno ? (
+        <p id="boost-cupo" className="mt-2.5 text-2xs text-text-dim">
+          {msgBoostAgotado(cupo.minutosParaHueco ?? 1)} Hay {BOOST_MAX_SIMULTANEOS} perfiles
+          destacados a la vez, que es el máximo para que a cada uno le toquen sus{" "}
+          {BOOST_MIN_PORTADA} minutos en portada. No se te ha gastado ningún Boost.
+        </p>
+      ) : limiteGastado ? (
         <p id="boost-limite" className="mt-2.5 text-2xs text-text-dim">
           {/* La cifra sale de la constante, como en todas partes. */}
           Ya has destacado tu perfil {BOOST_DAILY_LIMIT} veces hoy. El contador se reinicia a
@@ -119,9 +144,11 @@ export function ActivarBoost({
           puesto y alargas tu presencia. Sigues ocupando un solo sitio.
         </p>
       ) : (
+        // QUÉ RECIBES, con las dos cifras: la hora en la sección y los minutos en portada. Las dos
+        // salen de `constants`, nunca escritas aquí — prometer en la pantalla una cifra distinta de
+        // la que aplica el servicio es el fallo que esas constantes existen para no poder cometer.
         <p className="mt-2.5 text-2xs text-text-dim">
-          Gasta 1 Boost y tu perfil sale en el espacio destacado{" "}
-          {duracionBoostHumana(BOOST_DURACION_MIN)}.
+          {msgBoostQueRecibes(duracionBoostHumana(BOOST_DURACION_MIN))}
         </p>
       )}
 

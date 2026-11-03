@@ -17,7 +17,9 @@ const H = vi.hoisted(() => ({ perfiles: [] as unknown[] }));
 
 vi.mock("@/server/db/client", () => ({ prisma: {} }));
 vi.mock("@/server/services/boost-destacados", () => ({
-  destacadosVigentes: async () => H.perfiles,
+  // La página pide una PÁGINA (keyset), no la lista entera. `paginaDestacados` envuelve a
+  // `destacadosVigentes`, así que lo que estos casos miran —qué se pinta— no cambia.
+  paginaDestacados: async () => ({ items: H.perfiles, nextCursor: null }),
 }));
 vi.mock("next/link", async () => {
   const { createElement } = await import("react");
@@ -42,7 +44,9 @@ const perfil = (n: number, extra: Partial<PerfilDestacado> = {}): PerfilDestacad
 
 async function pintar(perfiles: PerfilDestacado[]) {
   H.perfiles = perfiles;
-  render(await DestacadosPage());
+  // La página pagina por keyset, así que recibe `searchParams` como todas las paginadas. Sin
+  // cursor = primera página, que es lo que estos casos miran.
+  render(await DestacadosPage({ searchParams: Promise.resolve({}) }));
 }
 
 const tarjetas = () => [...document.querySelectorAll("[data-destacado]")];

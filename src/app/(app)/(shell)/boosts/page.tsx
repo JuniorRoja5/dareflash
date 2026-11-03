@@ -62,9 +62,11 @@ export default async function BoostsPage({
   const { prisma } = await import("@/server/db/client");
   const { env } = await import("@/config/env");
   const { boostsComprados, miHistorialBoosts } = await import("@/server/services/boost-historial");
-  const { miEstadoBoost } = await import("@/server/services/boost-activacion");
+  // El cupo GLOBAL se lee aquí para poder enseñar «Agotado» ANTES de que nadie pulse. No autoriza
+  // nada: la decisión la toma `activarBoost` con su cerrojo.
+  const { estadoCupo, miEstadoBoost } = await import("@/server/services/boost-activacion");
 
-  const [yo, pagina, comprados, estado] = await Promise.all([
+  const [yo, pagina, comprados, estado, cupo] = await Promise.all([
     prisma.user.findUnique({
       where: { id: sesion.userId },
       select: { boostBalance: true },
@@ -72,6 +74,7 @@ export default async function BoostsPage({
     miHistorialBoosts(prisma, sesion.userId, { cursor: aqui.cursor }),
     boostsComprados(prisma, sesion.userId),
     miEstadoBoost(prisma, sesion.userId),
+    estadoCupo(prisma),
   ]);
 
   const saldo = yo?.boostBalance ?? 0;
@@ -109,6 +112,7 @@ export default async function BoostsPage({
         saldo={saldo}
         usadasHoy={estado.usadasHoy}
         vigenteHastaMs={estado.vigenteHastaMs}
+        cupo={{ lleno: cupo.lleno, minutosParaHueco: cupo.minutosParaHueco }}
       />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">

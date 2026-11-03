@@ -35,8 +35,13 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+/** Por defecto hay sitio en el escaparate: el cupo lleno es un caso, no el estado normal. */
+const CUPO_LIBRE = { lleno: false, minutosParaHueco: null };
+
 const montar = (props: Partial<Parameters<typeof ActivarBoost>[0]> = {}) =>
-  render(<ActivarBoost saldo={3} usadasHoy={0} vigenteHastaMs={null} {...props} />);
+  render(
+    <ActivarBoost saldo={3} usadasHoy={0} vigenteHastaMs={null} cupo={CUPO_LIBRE} {...props} />,
+  );
 
 const boton = () => screen.getByRole("button", { name: /Destacar|Destacando/ });
 
@@ -91,6 +96,34 @@ describe("el token es por INTENCIÓN, no por envío", () => {
 
     expect(mocks.post.mock.calls[0]?.[0]).toBe("/api/boost/activar");
     expect(Object.keys(mocks.post.mock.calls[0]?.[1] as object)).toEqual(["token"]);
+  });
+});
+
+describe("el cupo lleno se ve ANTES de pulsar", () => {
+  it("con el escaparate lleno el botón no se puede pulsar, y dice cuándo volver", () => {
+    // Enterarse DESPUÉS de pulsar es la peor versión: la persona cree que ha gastado un Boost
+    // (no lo ha gastado) y no sabe cuándo volver.
+    montar({ cupo: { lleno: true, minutosParaHueco: 7 } });
+
+    expect((boton() as HTMLButtonElement).disabled).toBe(true);
+    expect(document.body.textContent).toMatch(/agotado/i);
+    expect(document.body.textContent, "no dice en cuántos minutos").toContain("7");
+  });
+
+  it("y deja claro que no se ha gastado nada", () => {
+    montar({ cupo: { lleno: true, minutosParaHueco: 3 } });
+    expect(document.body.textContent).toMatch(/no se te ha gastado/i);
+  });
+
+  it("pulsarlo con el cupo lleno no llama a nada", async () => {
+    montar({ cupo: { lleno: true, minutosParaHueco: 3 } });
+    fireEvent.click(boton());
+    expect(mocks.post).not.toHaveBeenCalled();
+  });
+
+  it("el cupo manda sobre el límite del día: si no hay sitio, da igual cuántas te queden", () => {
+    montar({ cupo: { lleno: true, minutosParaHueco: 4 }, usadasHoy: 0 });
+    expect(document.body.textContent).toMatch(/agotado/i);
   });
 });
 
@@ -199,7 +232,7 @@ describe("un solo magenta en la pantalla, y el que toca", () => {
   const pantalla = (saldo: number) =>
     render(
       <>
-        <HeroBoosts saldo={saldo} usadasHoy={0} vigenteHastaMs={null} />
+        <HeroBoosts saldo={saldo} usadasHoy={0} vigenteHastaMs={null} cupo={CUPO_LIBRE} />
         <PaquetesBoost puedeComprar cedeElAcento={saldo > 0} />
       </>,
     );

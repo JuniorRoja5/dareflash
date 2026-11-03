@@ -24,9 +24,16 @@
  */
 import "server-only";
 
-import { BOOST_DESTACADOS_PORTADA, BOOST_DESTACADOS_TOPE } from "@/config/constants";
+import {
+  BOOST_CARRILES,
+  BOOST_DESTACADOS_PORTADA,
+  BOOST_DESTACADOS_TOPE,
+  BOOST_ROTACION_SEG,
+} from "@/config/constants";
 import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
+import { indiceVentana, portadaDeVentana } from "@/lib/boost-rotacion";
+import { codificarCursorTiempo, decodificarCursorTiempo } from "@/lib/cursor-tiempo";
 import type { Db } from "@/server/db/types";
 
 import { vipsActivosEntre } from "./vip";
@@ -52,6 +59,11 @@ export interface PerfilDestacado {
   expiraEnMs: number;
   /** ¿VIP ahora mismo? UNA consulta para toda la vitrina (hasta cuarenta caras), nunca una por fila. */
   esVip: boolean;
+  /**
+   * El carril de la rotación de esta aparición. Lo usa `portadaDestacados` para elegir quién sale
+   * en la ventana actual; la sección completa lo ignora (ahí salen todos).
+   */
+  carril: number;
   /** CLAVE del color de nombre (nunca un hex). Solo pinta si `esVip`. */
   colorNombre: string | null;
 }
@@ -67,6 +79,7 @@ interface FilaDestacado {
   colorNombre: string | null;
   destacadoDesde: Date;
   expiraEn: Date;
+  carril: number;
 }
 
 /**
@@ -99,13 +112,23 @@ interface FilaDestacado {
  */
 export async function destacadosVigentes(
   db: PrismaClient,
-  opciones: { ahora?: Date; limite?: number } = {},
+  opciones: { ahora?: Date; limite?: number; cursor?: string | null } = {},
 ): Promise<PerfilDestacado[]> {
   const ahora = opciones.ahora ?? new Date();
   const limite = Math.min(
     Math.max(opciones.limite ?? BOOST_DESTACADOS_PORTADA, 1),
     BOOST_DESTACADOS_TOPE,
   );
+
+  // KEYSET, NUNCA OFFSET (regla del repo). El corte va por el MISMO par que ordena
+  // —`destacadoDesde` y, para desempatar, `activacionId`—, y fuera de la subconsulta: metido dentro
+  // cortaría ANTES del `ROW_NUMBER()`, así que a quien encadena dos boosts se le elegiría como
+  // "su" aparición una que no es la más reciente, y saldría dos veces al pasar de página.
+  const desde = decodificarCursorTiempo(opciones.cursor ?? null);
+  const corte = desde
+    ? Prisma.sql`AND (t.destacadoDesde < ${new Date(desde.creadoMs)}
+        OR (t.destacadoDesde = ${new Date(desde.creadoMs)} AND t.activacionId < ${desde.id}))`
+    : Prisma.empty;
 
   const filas = await db.$queryRaw<FilaDestacado[]>(Prisma.sql`
     SELECT
@@ -117,7 +140,8 @@ export async function destacadosVigentes(
       t.puntos,
       t.colorNombre,
       t.destacadoDesde,
-      t.expiraEn
+      t.expiraEn,
+      t.carril
     FROM (
       SELECT
         a.\`id\`            AS activacionId,
@@ -128,6 +152,7 @@ export async function destacadosVigentes(
         u.\`pointsBalance\` AS puntos,
         u.\`colorNombre\`   AS colorNombre,
         a.\`startsAt\`      AS destacadoDesde,
+        a.\`carril\`        AS carril,
         -- EL FINAL MÁS LEJANO DE SUS APARICIONES VIGENTES, no el de esta fila: quien encadena dos
         -- boosts alarga su presencia, y el campo dice cuándo deja de estar destacado de verdad.
         MAX(a.\`expiresAt\`) OVER (PARTITION BY a.\`userId\`) AS expiraEn,
@@ -143,6 +168,7 @@ export async function destacadosVigentes(
         AND u.\`bannedAt\` IS NULL
     ) t
     WHERE t.rn = 1
+    ${corte}
     ORDER BY t.destacadoDesde DESC, t.activacionId DESC
     LIMIT ${limite}
   `);
@@ -169,7 +195,88 @@ export async function destacadosVigentes(
     expiraEnMs: f.expiraEn.getTime(),
     esVip: vips.has(f.userId),
     colorNombre: f.colorNombre,
+    carril: Number(f.carril),
   }));
+}
+
+/**
+ * LOS CINCO DE LA PORTADA EN ESTA VENTANA. Es la lista que ve quien entra en `/inicio`.
+ *
+ * ┌─ POR QUÉ NO ES "LOS 5 MÁS RECIENTES" ──────────────────────────────────────────────────────────┐
+ * │ Lo era, y con más de 5 vigentes se comportaba como una PILA: la portada la ocupaban siempre    │
+ * │ las últimas activaciones, así que quien compraba al principio de una hora con tráfico era      │
+ * │ desplazado a los pocos minutos y NO volvía — cada compra nueva lo empujaba más abajo. Pagaba   │
+ * │ lo mismo que los demás y podía quedarse con un minuto de portada, o con ninguno.               │
+ * │                                                                                                 │
+ * │ Ahora rota por carriles, y la rotación cumple una promesa medible: al menos                    │
+ * │ `BOOST_MIN_PORTADA` minutos dentro de su hora, lleguen las activaciones como lleguen. La        │
+ * │ demostración —y por qué sale exacta— está en `lib/boost-rotacion`.                              │
+ * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * SE LEEN TODOS LOS VIGENTES Y SE ELIGE EN MEMORIA, y no con un `WHERE carril = …` en SQL, por dos
+ * razones: son como mucho `BOOST_MAX_SIMULTANEOS` filas (60) porque el cupo lo garantiza, así que
+ * leerlas cuesta lo mismo; y el relleno con los carriles siguientes —lo que evita una portada medio
+ * vacía cuando hay pocos— no se escribe en una cláusula `WHERE` sin perder la claridad de la regla.
+ *
+ * MISMA VENTANA, MISMA PORTADA: la selección depende del índice de ventana, no del instante. Dos
+ * visitantes del mismo minuto ven lo mismo, y por eso esto se puede cachear con una clave por
+ * ventana.
+ */
+export async function portadaDestacados(
+  db: PrismaClient,
+  opciones: { ahora?: Date } = {},
+): Promise<PerfilDestacado[]> {
+  const ahora = opciones.ahora ?? new Date();
+  // El tope: con el cupo puesto nunca habrá más, y pedir el tope en vez de 5 es lo que permite
+  // rotar (con 5 no se podría elegir entre quiénes).
+  const vigentes = await destacadosVigentes(db, { ahora, limite: BOOST_DESTACADOS_TOPE });
+
+  const elegidos = portadaDeVentana(
+    vigentes.map((v) => ({ id: v.activacionId, userId: v.userId, carril: v.carril })),
+    indiceVentana(ahora.getTime(), BOOST_ROTACION_SEG),
+    { carriles: BOOST_CARRILES, huecos: BOOST_DESTACADOS_PORTADA },
+  );
+
+  const porId = new Map(vigentes.map((v) => [v.activacionId, v]));
+  return elegidos.map((e) => porId.get(e.id)!);
+}
+
+/** Una página de la vitrina completa, por keyset. */
+export interface PaginaDestacados {
+  items: PerfilDestacado[];
+  nextCursor: string | null;
+}
+
+/**
+ * UNA PÁGINA de `/destacados`, por keyset.
+ *
+ * Con el cupo de `BOOST_MAX_SIMULTANEOS` caben todos por debajo del tope, así que hoy la segunda
+ * página casi nunca existe. Se pagina igual, y no por ceremonia: el día que el máximo suba, una
+ * lista sin paginar es una consulta que crece sin que nadie lo decida — y añadir paginación
+ * después obliga a tocar la pantalla con tráfico encima. Keyset, nunca `OFFSET`.
+ */
+export async function paginaDestacados(
+  db: PrismaClient,
+  opciones: { ahora?: Date; cursor?: string | null; porPagina?: number } = {},
+): Promise<PaginaDestacados> {
+  const porPagina = Math.min(Math.max(opciones.porPagina ?? 24, 1), BOOST_DESTACADOS_TOPE - 1);
+  // Una de más: así se sabe si hay siguiente sin un `count` aparte.
+  const filas = await destacadosVigentes(db, {
+    ahora: opciones.ahora,
+    cursor: opciones.cursor,
+    limite: porPagina + 1,
+  });
+
+  const hayMas = filas.length > porPagina;
+  const items = hayMas ? filas.slice(0, porPagina) : filas;
+  const ultima = items.at(-1);
+  return {
+    items,
+    nextCursor:
+      hayMas && ultima
+        ? codificarCursorTiempo({ creadoMs: ultima.destacadoDesdeMs, id: ultima.activacionId })
+        : null,
+  };
 }
 
 /**

@@ -17,7 +17,6 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { BOOST_DESTACADOS_TOPE } from "../src/config/constants";
 import {
   destinoActivo,
   destinosDe,
@@ -118,16 +117,19 @@ describe("en escritorio sí, en móvil NO", () => {
 describe("la página reusa la consulta compartida", () => {
   const page = leer(...PAGINA);
 
-  it("llama a `destacadosVigentes`, no a un SELECT propio", () => {
-    expect(page).toContain("destacadosVigentes");
+  it("llama al servicio compartido, no a un SELECT propio", () => {
+    // Antes pedía `destacadosVigentes` con un límite alto; ahora pide una PÁGINA
+    // (`paginaDestacados`), que es un envoltorio keyset sobre esa misma consulta. Lo que este caso
+    // protege no es el nombre, es que la pantalla no escriba su propio SQL: una copia saldría
+    // verde el primer día y divergiría en el primer arreglo (el dedup, los filtros de vigencia).
+    expect(page).toMatch(/paginaDestacados|destacadosVigentes/);
     expect(page, "hay SQL escrito en la página").not.toMatch(/\$queryRaw|SELECT /i);
   });
 
-  it("con el tope compartido, no con un número escrito a mano", () => {
-    expect(page).toContain("BOOST_DESTACADOS_TOPE");
-    expect(page, "el tope está escrito a mano").not.toMatch(
-      new RegExp(`limite:\\s*${BOOST_DESTACADOS_TOPE}`),
-    );
+  it("y el tamaño de página no es un número suelto en la pantalla", () => {
+    // El tope y el tamaño de página los decide el servicio. Un número aquí sería un segundo
+    // catálogo: la pantalla pidiendo una cosa y el servicio aplicando otra.
+    expect(page, "hay un límite escrito a mano").not.toMatch(/limite:\s*\d+|porPagina:\s*\d+/);
   });
 
   it("y el tope lo aplica también el servicio: un solo número", () => {

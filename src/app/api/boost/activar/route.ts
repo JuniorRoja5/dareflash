@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  msgBoostAgotado,
   MSG_BOOST_ACTIVAR_SIN_VERIFICAR,
   MSG_BOOST_LIMITE_DIARIO,
   MSG_BOOST_SIN_SALDO,
@@ -54,6 +55,16 @@ export const POST = mutatingRoute(async (req, { prisma }) => {
   if (r.estado === "sin-saldo") return apiOk({ estado: r.estado, mensaje: MSG_BOOST_SIN_SALDO });
   if (r.estado === "limite") {
     return apiOk({ estado: r.estado, mensaje: MSG_BOOST_LIMITE_DIARIO });
+  }
+  // AGOTADO sale por `apiOk` y no por `apiError`, como los otros dos rechazos esperables: no ha
+  // fallado nada, es el producto diciendo que ahora mismo no hay sitio. Y lo importante para quien
+  // lo recibe: NO se le ha gastado el crédito (la transacción entera se deshizo).
+  if (r.estado === "agotado") {
+    return apiOk({
+      estado: r.estado,
+      mensaje: msgBoostAgotado(r.minutosParaHueco),
+      minutosParaHueco: r.minutosParaHueco,
+    });
   }
   if (r.estado === "repetida") return apiOk({ estado: r.estado });
 

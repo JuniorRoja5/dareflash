@@ -37,6 +37,10 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+// Ni `BOOST_MAX_SIMULTANEOS` ni `BOOST_CARRILES` se importan aquí, y eso es la pieza: el máximo no
+// se comprueba contra una constante, lo imponen las filas de `BoostPlaza`; y el carril no se
+// calcula, lo trae la plaza que se ocupó. Las dos cifras viven en `constants` para la pantalla y
+// para los tests, no para esta decisión.
 import {
   BOOST_DAILY_LIMIT,
   BOOST_DURACION_MIN,
@@ -44,6 +48,7 @@ import {
   REF_BOOST_ACTIVACION,
 } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
+import type { Db } from "@/server/db/types";
 // EL DÍA UTC VIENE DE `lib/racha`, que ya lo define para la racha. Una segunda función `diaUTC` es
 // como se acaba teniendo dos definiciones de "hoy" que discrepan en el borde del día.
 import { diaUTC } from "@/lib/racha";
@@ -68,7 +73,12 @@ export type ResultadoActivacion =
   /** No hay crédito. No es un error: es el caso que lleva a comprar. */
   | { estado: "sin-saldo" }
   /** Ya se usaron las del día (UTC). Tampoco es un error. */
-  | { estado: "limite"; limite: number };
+  | { estado: "limite"; limite: number }
+  /**
+   * El cupo global está lleno. NO se debitó nada: el crédito sigue en la cuenta.
+   * `minutosParaHueco` son los que faltan para que caduque la aparición más antigua.
+   */
+  | { estado: "agotado"; maximo: number; minutosParaHueco: number };
 
 /**
  * Sentinela PRIVADA. Solo existe para abortar la transacción desde dentro de `trasAplicar` cuando el
@@ -79,6 +89,115 @@ class LimiteDiarioAlcanzado extends Error {
     super("LIMITE_DIARIO");
     this.name = "LimiteDiarioAlcanzado";
   }
+}
+
+/**
+ * Sentinela PRIVADA del cupo global lleno. Lanzar es lo que deshace la transacción entera, y por
+ * eso el crédito NO se gasta: el débito ya está escrito cuando corre `trasAplicar`, así que la
+ * única forma de no cobrarle a quien no va a salir es tirar de aquí. Lleva los minutos que faltan
+ * porque el copy los necesita y este es el único sitio donde se saben.
+ */
+class CupoLleno extends Error {
+  constructor() {
+    super("CUPO_LLENO");
+    this.name = "CupoLleno";
+  }
+}
+
+/**
+ * ¿Es el rechazo de MariaDB por conflicto de instantánea (error 1020)?
+ *
+ * ┌─ QUÉ ES ESTO Y POR QUÉ HAY QUE REINTENTAR ─────────────────────────────────────────────────────┐
+ * │ MariaDB 11.6 estrenó `innodb_snapshot_isolation`, y en 11.8 —la versión de producción— viene   │
+ * │ ACTIVADO. Con él, una transacción en REPEATABLE READ que intenta escribir una fila que ha      │
+ * │ cambiado DESPUÉS de su instantánea ya no lee en silencio una versión vieja: falla con el 1020  │
+ * │ y te dice que reintentes. Es una mejora —antes esa misma situación era una anomalía silenciosa │
+ * │ de las que se descubren con el saldo descuadrado—, pero obliga a que quien escriba bajo        │
+ * │ concurrencia sepa reintentar.                                                                   │
+ * │                                                                                                 │
+ * │ Aquí pasa en cuanto dos personas destacan a la vez: las dos van a por la misma plaza libre.    │
+ * │ Reintentar es SEGURO porque la activación es idempotente por `token`: la transacción fallida   │
+ * │ se deshizo entera (ni ledger ni aparición), y el reintento vuelve con la misma clave.          │
+ * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+function esConflictoDeInstantanea(e: unknown): boolean {
+  const texto = e instanceof Error ? `${e.message}` : String(e);
+  return texto.includes("Record has changed since last read") || texto.includes("Code: `1020`");
+}
+
+/**
+ * Cuántas veces se reintenta ante un 1020 antes de rendirse.
+ *
+ * Con el cupo lleno de 60 y una avalancha, cada reintento ve una plaza menos; el número tiene que
+ * dar para atravesar un empujón razonable sin convertirse en una espera eterna si algo va mal de
+ * verdad. Si se agotan, el error sube: un fallo que se traga es peor que uno que se ve.
+ */
+const REINTENTOS_INSTANTANEA = 12;
+
+/**
+ * Minutos que faltan para que se libere el primer hueco, hacia ARRIBA y mínimo 1.
+ *
+ * Redondear hacia abajo diría "vuelve en 0 min" cuando aún faltan 40 segundos, y quien vuelve y se
+ * lo encuentra lleno otra vez deja de creerse el número. Es puro para poder atarlo con un test.
+ */
+export function minutosParaHueco(expiraMasAntiguoMs: number, ahoraMs: number): number {
+  return Math.max(1, Math.ceil((expiraMasAntiguoMs - ahoraMs) / 60_000));
+}
+
+/**
+ * El carril MENOS cargado de los vigentes. Con el cupo de `BOOST_MAX_SIMULTANEOS` puesto, esto es
+ * lo que garantiza que ningún carril pase de `BOOST_DESTACADOS_PORTADA` apariciones — y de ahí sale
+ * la promesa de los minutos en portada (ver `lib/boost-rotacion`).
+ *
+ * Empates: gana el carril de índice más bajo. Da igual cuál, pero tiene que ser DETERMINISTA, o dos
+ * ejecuciones del mismo escenario repartirían distinto y la simulación no probaría nada.
+ */
+/** Lo que `/boosts` necesita saber del cupo ANTES de que nadie pulse nada. */
+export interface EstadoCupo {
+  vigentes: number;
+  maximo: number;
+  lleno: boolean;
+  /** Solo cuando está lleno: minutos hasta el primer hueco. */
+  minutosParaHueco: number | null;
+}
+
+/**
+ * ¿Hay sitio ahora mismo?
+ *
+ * SE LEE SIN CERROJO, y es correcto: esto solo pinta el estado de la pantalla. La decisión de
+ * verdad la toma `activarBoost` dentro de su transacción, con el cerrojo puesto. Si entre esta
+ * lectura y el clic se ocupa el último hueco, el rechazo llega igual y sin cobrar — la pantalla se
+ * habrá quedado un segundo desactualizada, que es el precio correcto por no serializar cada visita
+ * a `/boosts` contra las activaciones.
+ *
+ * Lo que NO se hace es al revés: dejar que la pantalla decida. Un botón habilitado no autoriza
+ * nada.
+ */
+export async function estadoCupo(db: Db, ahora: Date = new Date()): Promise<EstadoCupo> {
+  // Se miran las PLAZAS, no las apariciones: son la misma verdad (una plaza ocupada es una
+  // aparición vigente) y así la pantalla cuenta exactamente lo mismo que decide el UPDATE que las
+  // reclama. Contar apariciones aquí sería una segunda forma de saber lo mismo, y las dos se
+  // separan en cuanto una cambie.
+  const [libres, total] = await Promise.all([
+    db.boostPlaza.count({ where: { libreDesde: { lte: ahora } } }),
+    db.boostPlaza.count(),
+  ]);
+  if (libres > 0) {
+    return { vigentes: total - libres, maximo: total, lleno: false, minutosParaHueco: null };
+  }
+  const siguiente = await db.boostPlaza.findFirst({
+    orderBy: { libreDesde: "asc" },
+    select: { libreDesde: true },
+  });
+  return {
+    vigentes: total,
+    maximo: total,
+    lleno: true,
+    minutosParaHueco: minutosParaHueco(
+      siguiente?.libreDesde.getTime() ?? ahora.getTime(),
+      ahora.getTime(),
+    ),
+  };
 }
 
 /**
@@ -113,10 +232,31 @@ export interface EntradaActivacion {
 /**
  * Gasta un boost y crea la aparición destacada. Idempotente por `token`.
  *
- * No lanza por los casos esperables —sin saldo, límite del día, intención repetida—: los devuelve.
- * Sí lanza si el usuario no existe o si la base de datos falla, que no son casos de uso.
+ * No lanza por los casos esperables —sin saldo, límite del día, intención repetida, cupo lleno—:
+ * los devuelve. Sí lanza si el usuario no existe o si la base de datos falla de verdad.
+ *
+ * REINTENTA ante el 1020 de MariaDB (conflicto de instantánea). Ver `esConflictoDeInstantanea`:
+ * es seguro porque la operación es idempotente por `token` y la transacción fallida se deshace
+ * entera.
  */
 export async function activarBoost(
+  db: PrismaClient,
+  entrada: EntradaActivacion,
+  seams?: LedgerTestSeams,
+): Promise<ResultadoActivacion> {
+  for (let intento = 0; ; intento += 1) {
+    try {
+      return await intentarActivar(db, entrada, seams);
+    } catch (e) {
+      if (!esConflictoDeInstantanea(e) || intento >= REINTENTOS_INSTANTANEA) throw e;
+      // Espera MUY corta y creciente: lo que hace falta es que los contendientes no vuelvan todos
+      // en el mismo instante, no frenar a nadie.
+      await new Promise((r) => setTimeout(r, 5 * (intento + 1)));
+    }
+  }
+}
+
+async function intentarActivar(
   db: PrismaClient,
   entrada: EntradaActivacion,
   seams?: LedgerTestSeams,
@@ -159,8 +299,51 @@ export async function activarBoost(
           });
           if (yaHoy >= BOOST_DAILY_LIMIT) throw new LimiteDiarioAlcanzado();
 
+          // ┌─ EL CUPO SE OCUPA, NO SE COMPRUEBA ─────────────────────────────────────────────────┐
+          // │ Un UPDATE que reclama UNA plaza libre. Si no quedaba ninguna, afecta a 0 filas y    │
+          // │ eso ES el "lleno": no hay nada que contar, y no puede haber 61 destacados porque no │
+          // │ hay 61 plazas.                                                                       │
+          // │                                                                                      │
+          // │ POR QUÉ UN UPDATE Y NO UN CONTEO (costó dos intentos descubrirlo):                   │
+          // │  - Con un cerrojo de una fila + `COUNT`, las 61 simultáneas entraban las 61. El      │
+          // │    nivel por defecto es REPEATABLE READ: la lectura normal devuelve el SNAPSHOT de   │
+          // │    la transacción, fijado ANTES de esperar al cerrojo. Esperabas tu turno y al       │
+          // │    entrar veías el mundo de antes de esperar.                                        │
+          // │  - Con una lectura BLOQUEANTE del rango, MariaDB responde error 1020 ("record has    │
+          // │    changed since last read") en cuanto esas filas cambiaron tras el snapshot.        │
+          // │  - Un UPDATE no tiene ese problema: para escribir, InnoDB lee SIEMPRE la última      │
+          // │    versión confirmada. Por eso esto es exacto SIN cerrojo propio.                    │
+          // │                                                                                      │
+          // │ `ORDER BY posicion, carril`: se llena una plaza de cada carril antes de repetir      │
+          // │ carril. Eso reparte la gente entre los doce carriles, que es lo que mantiene la      │
+          // │ portada llena cuando hay pocos (ver `lib/boost-rotacion`).                           │
+          // └──────────────────────────────────────────────────────────────────────────────────────┘
+          const ocupadas = await tx.$executeRaw`
+            UPDATE \`BoostPlaza\`
+               SET \`libreDesde\` = ${expiresAt}, \`activacionId\` = ${activacionId}
+             WHERE \`libreDesde\` <= ${ahora}
+             ORDER BY \`posicion\`, \`carril\`
+             LIMIT 1`;
+
+          // LLENO. Los minutos que faltan NO se calculan aquí: una lectura normal dentro de esta
+          // transacción devuelve la instantánea de antes de que nadie ocupara nada —vería las
+          // plazas libres y diría "vuelve en 1 min"—. Se miran FUERA, tras el rollback.
+          if (ocupadas === 0) throw new CupoLleno();
+
+          // Qué plaza tocó: de ahí sale el carril de esta aparición, y ya no cambia.
+          const plaza = await tx.boostPlaza.findFirstOrThrow({
+            where: { activacionId },
+            select: { carril: true },
+          });
+
           await tx.boostActivation.create({
-            data: { id: activacionId, userId: entrada.userId, startsAt: ahora, expiresAt },
+            data: {
+              id: activacionId,
+              userId: entrada.userId,
+              startsAt: ahora,
+              expiresAt,
+              carril: plaza.carril,
+            },
           });
           usadasHoy = yaHoy + 1;
         },
@@ -180,6 +363,16 @@ export async function activarBoost(
       : { estado: "repetida" };
   } catch (e) {
     if (e instanceof LimiteDiarioAlcanzado) return { estado: "limite", limite: BOOST_DAILY_LIMIT };
+    if (e instanceof CupoLleno) {
+      // Ya FUERA de la transacción abortada, así que esta lectura ve el mundo real y el minutaje
+      // es el de verdad. Dentro habría devuelto la instantánea de antes de esperar.
+      const cupo = await estadoCupo(db, ahora);
+      return {
+        estado: "agotado",
+        maximo: cupo.maximo,
+        minutosParaHueco: cupo.minutosParaHueco ?? 1,
+      };
+    }
     if (e instanceof LedgerError && e.code === "INSUFFICIENT_BALANCE") {
       return { estado: "sin-saldo" };
     }

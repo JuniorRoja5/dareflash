@@ -25,11 +25,16 @@ function modelosDelEsquema(): string[] {
 }
 
 /**
- * Modelos que NO viven en la base de datos de la app y por tanto no se limpian. Vacío hoy: se deja
- * declarado para que una futura excepción tenga que escribirse y justificarse aquí, en vez de
- * colarse aflojando el test.
+ * Modelos que NO se BORRAN entre tests, con su motivo. La lista existe para que una excepción
+ * tenga que escribirse y justificarse aquí, en vez de colarse aflojando el test.
+ *
+ * `BoostPlaza`: sus filas SON el cupo global de Boosts (ver el modelo). Las crea su migración y
+ * borrarlas dejaría el producto sin sitios donde destacar a nadie — toda activación saldría
+ * "agotado" y el fallo aparecería en tests que no tienen nada que ver. Lo que sí hace falta entre
+ * casos es LIBERARLAS, y eso lo hace `resetDb`; el caso de abajo lo comprueba, para que esta
+ * excepción no se convierta en un agujero de aislamiento.
  */
-const SIN_LIMPIAR = new Set<string>([]);
+const SIN_LIMPIAR = new Set<string>(["BoostPlaza"]);
 
 describe("el aislamiento entre tests no depende de que nadie se olvide", () => {
   it("todo modelo del esquema se borra en `resetDb`", () => {
@@ -49,5 +54,16 @@ describe("el aislamiento entre tests no depende de que nadie se olvide", () => {
 
   it("sin repetidos (un borrado duplicado es ruido que esconde el orden real)", () => {
     expect(new Set(DELETE_ORDER).size).toBe(DELETE_ORDER.length);
+  });
+
+  it("lo que NO se borra, se limpia de otra manera: `resetDb` libera las plazas", () => {
+    // La excepción de `BoostPlaza` solo vale si el aislamiento se consigue igual. Si alguien quita
+    // de `resetDb` el UPDATE que las libera, el cupo del caso anterior se filtra al siguiente y
+    // este caso lo dice — en vez de que aparezcan "agotado" en tests de otra cosa.
+    const fuente = readFileSync(path.resolve(__dirname, "helpers", "db.ts"), "utf8");
+    for (const m of SIN_LIMPIAR) {
+      expect(fuente, `nada limpia ${m} en resetDb`).toContain(m);
+    }
+    expect(fuente, "las plazas ya no se liberan").toMatch(/UPDATE `BoostPlaza` SET `libreDesde`/);
   });
 });

@@ -1,9 +1,11 @@
 import Link from "next/link";
 
 import { Boton } from "@/components/ui/boton";
+import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { TarjetaDestacado } from "@/components/ui/tarjeta-destacado";
-import { BOOST_DESTACADOS_TOPE, BOOST_DURACION_MIN } from "@/config/constants";
+import { BOOST_DURACION_MIN } from "@/config/constants";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
+import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 
 import { FondoRayos } from "./fondo-rayos";
 import { FondoRescoldo } from "./fondo-rescoldo";
@@ -29,20 +31,33 @@ export const dynamic = "force-dynamic";
  * │ Una copia habría salido verde el primer día y habría divergido en el primer arreglo.          │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
- * SIN PAGINACIÓN, Y CON TOPE. Hoy no puede haber tantos a la vez —una aparición dura lo que dura y
- * cada persona ocupa una plaza—, así que caben de sobra en una pantalla. El día que `BOOST_DESTACADOS_TOPE`
- * se quede corto, lo que toca es keyset (como el resto del producto), no subir el número.
+ * PAGINADA POR KEYSET. Con el cupo de `BOOST_MAX_SIMULTANEOS` caben todos por debajo del tope, así
+ * que hoy la segunda página casi nunca existe — y aun así se pagina, porque una lista sin paginar
+ * es una consulta que crece cuando alguien sube el máximo, y entonces hay que tocar esta pantalla
+ * con tráfico encima. La pila de cursores viaja en la URL (`lib/paginacion-pila`), así que volver
+ * atrás cuesta lo mismo que ir.
  *
  * SIN NUMERAR. En la fila de cinco de la portada la posición dice algo; aquí, numerar hasta el
  * cuarenta sugeriría un ranking que no existe: el orden es cronológico, no de mérito.
  *
  * VACÍO HONESTO: si no hay nadie destacado se dice y se invita. Cero relleno.
  */
-export default async function DestacadosPage() {
-  const { prisma } = await import("@/server/db/client");
-  const { destacadosVigentes } = await import("@/server/services/boost-destacados");
+export default async function DestacadosPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const aqui: Paginacion = {
+    cursor: typeof sp["cursor"] === "string" ? sp["cursor"].slice(0, 300) : null,
+    pila: leerPila(sp["pila"]),
+  };
 
-  const perfiles = await destacadosVigentes(prisma, { limite: BOOST_DESTACADOS_TOPE });
+  const { prisma } = await import("@/server/db/client");
+  const { paginaDestacados } = await import("@/server/services/boost-destacados");
+
+  const pagina = await paginaDestacados(prisma, { cursor: aqui.cursor });
+  const perfiles = pagina.items;
 
   return (
     <>
@@ -123,6 +138,12 @@ export default async function DestacadosPage() {
               />
             ))}
           </div>
+        )}
+
+        {/* Los pasos solo cuando hay por dónde seguir: con el cupo actual casi nunca hay segunda
+            página, y unos botones muertos debajo de la rejilla sugieren que falta algo. */}
+        {(pagina.nextCursor !== null || aqui.cursor !== null) && (
+          <PasosKeyset base="/destacados" aqui={aqui} proximoCursor={pagina.nextCursor} />
         )}
 
         <p className="mt-10 text-2xs text-text-dim">

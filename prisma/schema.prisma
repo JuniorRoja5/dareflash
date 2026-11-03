@@ -994,12 +994,66 @@ model BoostLedger {
 ///   4. inserta esta BoostActivation.
 /// El bloqueo de la fila del User serializa a los concurrentes y el limite se vuelve
 /// real. (Implementacion en la Fase 6.)
+/// LAS PLAZAS DEL ESCAPARATE. Hay EXACTAMENTE `BOOST_MAX_SIMULTANEOS` filas y las crea su
+/// migracion: el cupo no se comprueba, se OCUPA. No puede haber 61 destacados porque no hay 61
+/// sitios donde ponerlos.
+///
+/// ┌─ POR QUE NO VALIA CONTAR ────────────────────────────────────────────────────────────────────┐
+/// │ El primer intento fue un cerrojo de una fila + `COUNT`. Serializaba bien, y aun asi las 61   │
+/// │ activaciones simultaneas entraban las 61. El motivo es REPEATABLE READ: una lectura normal   │
+/// │ devuelve el SNAPSHOT de la transaccion, fijado ANTES de esperar al cerrojo, asi que la       │
+/// │ segunda transaccion esperaba su turno y al entrar veia el mundo de antes de esperar. Y una   │
+/// │ lectura BLOQUEANTE sobre el rango tampoco: MariaDB la rechaza con el error 1020 ("record has │
+/// │ changed since last read") en cuanto las filas cambiaron tras el snapshot.                     │
+/// │                                                                                               │
+/// │ Un UPDATE no tiene ese problema: para escribir, InnoDB lee SIEMPRE la ultima version          │
+/// │ confirmada, no el snapshot. Por eso ocupar una plaza con un UPDATE es exacto sin cerrojo      │
+/// │ propio, y `filas afectadas = 0` significa lleno — sin contar nada.                            │
+/// └───────────────────────────────────────────────────────────────────────────────────────────────┘
+///
+/// Y de paso resuelve el CARRIL: la plaza ya lo trae. Se ocupan en orden `posicion, carril`, o sea
+/// una por carril antes de repetir carril, que es lo que mantiene la portada llena cuando hay poca
+/// gente (ver `lib/boost-rotacion`).
+model BoostPlaza {
+  /// `carril-posicion`, estable y legible en un volcado.
+  id String @id
+
+  /// 0 … `BOOST_CARRILES`-1. El carril que hereda la aparicion que ocupe esta plaza.
+  carril Int
+
+  /// 0 … `BOOST_DESTACADOS_PORTADA`-1. Que hueco del carril es. Solo decide el ORDEN de ocupacion.
+  posicion Int
+
+  /// DESDE CUANDO ESTA LIBRE. Es el `expiresAt` de la aparicion que la ocupa, escrito en la MISMA
+  /// transaccion, asi que no puede quedarse desfasado: no hay un segundo paso que pueda fallar.
+  /// Una plaza con `libreDesde <= ahora` esta libre, sin job ni barrido — el estado se calcula.
+  libreDesde DateTime @default(now())
+
+  /// Quien la ocupa, para poder liberarla cuando el panel retira a alguien del escaparate.
+  activacionId String?
+
+  @@unique([carril, posicion])
+  /// El orden en que se buscan plazas libres.
+  @@index([libreDesde, posicion, carril])
+}
+
 model BoostActivation {
   id        String   @id @default(cuid())
   userId    String
   startsAt  DateTime
   expiresAt DateTime
   createdAt DateTime @default(now())
+
+  /// EL CARRIL DE LA ROTACION (0…`BOOST_CARRILES`-1), fijo desde que se activa.
+  ///
+  /// La portada abre cada ventana por el carril `ventana mod CARRILES` y rellena con los
+  /// siguientes hasta los 5 huecos. Que el carril NO cambie es lo que hace que la cuenta salga:
+  /// en 60 ventanas (una hora) el carril de uno abre exactamente 5 veces, empiece cuando empiece.
+  /// Se asigna al carril MENOS cargado, que junto con el cupo de 60 garantiza que ninguno pase de
+  /// 5 — ver el docblock de `lib/boost-rotacion`, que lleva la demostracion entera.
+  ///
+  /// Default 0 para que las filas que ya existian al migrar sean validas; caducan en una hora.
+  carril Int @default(0)
 
   /// QUIEN ESTA DESTACADO AHORA MISMO. Empieza por `expiresAt` porque es la UNICA columna que
   /// filtran las dos consultas que lo preguntan (`destacadosVigentes` en la portada y la lista del

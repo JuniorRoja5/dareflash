@@ -42,10 +42,13 @@ export function HeroBoosts({
   saldo,
   usadasHoy,
   vigenteHastaMs,
+  cupo,
 }: {
   saldo: number;
   usadasHoy: number;
   vigenteHastaMs: number | null;
+  /** Estado del cupo GLOBAL. Lo pinta `ActivarBoost`; ver su docblock. */
+  cupo: { lleno: boolean; minutosParaHueco: number | null };
 }) {
   return (
     <section
@@ -95,7 +98,12 @@ export function HeroBoosts({
             ) : null}
           </p>
 
-          <ActivarBoost saldo={saldo} usadasHoy={usadasHoy} vigenteHastaMs={vigenteHastaMs} />
+          <ActivarBoost
+            saldo={saldo}
+            usadasHoy={usadasHoy}
+            vigenteHastaMs={vigenteHastaMs}
+            cupo={cupo}
+          />
         </div>
 
         {/* MAQUETA DEL ESPACIO DESTACADO. `aria-hidden`: lo que dice ya está dicho en el párrafo de

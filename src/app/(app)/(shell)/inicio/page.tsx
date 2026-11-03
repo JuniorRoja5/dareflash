@@ -33,11 +33,14 @@ export default async function InicioPage() {
   const { rankingMensual } = await import("@/server/services/ranking");
   // DESTACADOS REALES: `BoostActivation` vigentes, del último en activar al primero. Antes esta fila
   // la pintaba `PERFILES_BOOST`, cinco usuarios inventados, en producción.
-  const { destacadosVigentes } = await import("@/server/services/boost-destacados");
+  // LA PORTADA ROTA: `portadaDestacados` elige los 5 de ESTA ventana de reloj, no los 5 más
+  // recientes. Ver su docblock — con más de 5 vigentes, "los más recientes" era una pila que
+  // desplazaba para siempre a quien había comprado antes.
+  const { portadaDestacados } = await import("@/server/services/boost-destacados");
 
   const [{ filas: topRanking }, destacados] = await Promise.all([
     rankingMensual(prisma, { limite: 5 }),
-    destacadosVigentes(prisma),
+    portadaDestacados(prisma),
   ]);
 
   // CTA del hero POR ROL, de la misma fuente que el de la barra: "Crear reto" es del admin; el resto

@@ -188,8 +188,11 @@ export async function fichaBoost(db: PrismaClient, userId: string): Promise<Fich
  * terminado. La condición del `WHERE` es la misma que define "vigente", así que lo que se expira es
  * exactamente lo que se estaba viendo.
  *
- * ES UNA SOLA SENTENCIA, y por eso no hay transacción: no hay dos cosas que coordinar. Envolverla
- * sugeriría que sí, y la siguiente persona buscaría el segundo paso.
+ * SON DOS SENTENCIAS Y VAN JUNTAS: expirar las apariciones y LIBERAR SUS PLAZAS. El cupo global no
+ * cuenta apariciones, ocupa plazas (ver el modelo `BoostPlaza`), así que retirar a alguien sin
+ * soltar su plaza dejaría el hueco cerrado hasta la hora en que habría caducado solo — el
+ * escaparate con un sitio menos y nadie dentro. Por eso hay transacción: aquí sí hay dos cosas que
+ * coordinar, y a medias quedan peor que sin hacer.
  *
  * NO TOCA `boostBalance` NI DEVUELVE EL BOOST. Retirar es una acción de moderación: cortar por abuso
  * no regala crédito. Si algún día hay que devolverlo, es un movimiento `REFUND` aparte y explícito,
@@ -203,11 +206,25 @@ export async function retirarDelEscaparate(
   userId: string,
   ahora: Date = new Date(),
 ): Promise<{ expiradas: number }> {
-  const expiradas = await db.boostActivation.updateMany({
-    where: { userId, expiresAt: { gt: ahora } },
-    data: { expiresAt: ahora },
+  return db.$transaction(async (tx) => {
+    const suyas = await tx.boostActivation.findMany({
+      where: { userId, expiresAt: { gt: ahora } },
+      select: { id: true },
+    });
+    if (suyas.length === 0) return { expiradas: 0 };
+
+    const expiradas = await tx.boostActivation.updateMany({
+      where: { id: { in: suyas.map((a) => a.id) } },
+      data: { expiresAt: ahora },
+    });
+    // La plaza queda libre AL MOMENTO, que es lo que pedía el encargo: el siguiente que active
+    // entra sin esperar a que caduque nada.
+    await tx.boostPlaza.updateMany({
+      where: { activacionId: { in: suyas.map((a) => a.id) } },
+      data: { libreDesde: ahora, activacionId: null },
+    });
+    return { expiradas: expiradas.count };
   });
-  return { expiradas: expiradas.count };
 }
 
 // ============================================================================

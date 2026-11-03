@@ -88,6 +88,11 @@ export const DELETE_ORDER = [
   "WalletLedger",
   "BoostLedger",
   "BoostActivation",
+  // OJO: `BoostPlaza` NO entra en esta lista, y no es un olvido. Sus 60 filas SON el cupo global y
+  // las crea su migración: borrarlas dejaría el escaparate sin sitios y toda activación saldría
+  // "agotado". Lo que sí hay que hacer entre casos es LIBERARLAS, y de eso se encarga `resetDb`
+  // justo después de vaciar las tablas (sin eso, el caso que llena el cupo deja el siguiente sin
+  // plazas y los fallos aparecen en el test de al lado).
   "Report",
   "AuditLog",
   "RateLimit",
@@ -121,6 +126,12 @@ export async function resetDb(prisma: PrismaClient): Promise<void> {
   for (const table of DELETE_ORDER) {
     await prisma.$executeRawUnsafe(`DELETE FROM \`${table}\``);
   }
+  // LAS PLAZAS DEL ESCAPARATE SE LIBERAN, NO SE BORRAN: son el cupo global (ver `BoostPlaza`), así
+  // que borrarlas dejaría el producto sin sitios donde destacar a nadie. La época = libre desde
+  // siempre, que es como las deja su migración.
+  await prisma.$executeRawUnsafe(
+    "UPDATE `BoostPlaza` SET `libreDesde` = '1970-01-01 00:00:00.000', `activacionId` = NULL",
+  );
 }
 
 /** Crea un usuario minimo valido y devuelve su id. `username` es NOT NULL: se auto-genera uno unico

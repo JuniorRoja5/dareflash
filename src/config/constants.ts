@@ -253,6 +253,64 @@ export const BOOST_DESTACADOS_PORTADA = 5;
 export const BOOST_DESTACADOS_TOPE = 100;
 
 /**
+ * CUÁNTAS APARICIONES PUEDE HABER VIGENTES A LA VEZ, en todo el producto. Decisión de Sergio
+ * (3-nov-2026) sobre la medición del banco de carga.
+ *
+ * NO ES UN LÍMITE DEL SERVIDOR: a 1.000 vigentes la máquina rinde igual que a 10 (la consulta de
+ * destacados cuesta ~3 ms por cada mil, y el techo de la vCPU —unas 50 peticiones por segundo— no
+ * se mueve con el número de Boosts). Es un límite de lo que se puede PROMETER: con 5 huecos en
+ * portada, por encima de 60 ya no caben 5 minutos para cada uno.
+ */
+export const BOOST_MAX_SIMULTANEOS = 60;
+
+/**
+ * CADA CUÁNTO CAMBIA LA PORTADA, en segundos. La ventana es de reloj (desde la época), no desde el
+ * arranque del proceso: dentro de la misma ventana, todos los visitantes ven lo mismo, lo responda
+ * el servidor que lo responda y se haya reiniciado o no. Eso es lo que la hace cacheable por
+ * ventana.
+ */
+export const BOOST_ROTACION_SEG = 60;
+
+/**
+ * LOS CARRILES DE LA ROTACIÓN, y por qué este número NO se elige: se deduce.
+ *
+ * Cada aparición entra en un carril y la ventana `w` abre por el carril `w mod CARRILES`. Para que
+ * los 60 huecos-minuto de una hora (12 carriles × 5 huecos) alcancen justo para el máximo, los
+ * carriles tienen que ser `MAX / HUECOS`. Cambiar el máximo recalcula los carriles y, con ellos,
+ * los minutos prometidos — las tres cifras se mueven juntas o la promesa deja de ser cierta.
+ * `tests/boost-rotacion` exige que la división sea exacta.
+ */
+export const BOOST_CARRILES = BOOST_MAX_SIMULTANEOS / BOOST_DESTACADOS_PORTADA;
+
+/**
+ * LOS MINUTOS DE PORTADA QUE SE PROMETEN por activación. También deducido: en una hora hay
+ * `BOOST_DURACION_MIN` minutos y el carril de cada uno abre una vez cada `BOOST_CARRILES`.
+ *
+ * Es el número que va en el copy de `/boosts`. Sale de aquí y no se escribe a mano en la pantalla,
+ * por lo mismo que la duración: prometer una cifra distinta de la que se aplica es el fallo que
+ * esta constante existe para no poder cometer.
+ */
+export const BOOST_MIN_PORTADA = BOOST_DURACION_MIN / BOOST_CARRILES;
+
+/**
+ * Copy del cupo lleno. `minutos` son los que faltan para que caduque la aparición MÁS ANTIGUA, que
+ * es cuando se libera el primer hueco: decir "vuelve más tarde" sin un número deja a la persona
+ * recargando a ciegas.
+ */
+export const msgBoostAgotado = (minutos: number) => `Agotado. Vuelve en ${minutos} min.`;
+
+/**
+ * Lo que recibe quien activa, para la pantalla.
+ *
+ * La DURACIÓN entra ya humanizada (`duracionBoostHumana`, que dice "1 hora" y no "60 minutos")
+ * en vez de componerla aquí: ese humanizador vive en `lib` y es el que usan las demás pantallas,
+ * y tener dos formas de escribir la misma duración es como acaban diciendo cosas distintas. Los
+ * MINUTOS DE PORTADA sí salen de aquí, porque son una cifra que solo conoce esta configuración.
+ */
+export const msgBoostQueRecibes = (duracion: string) =>
+  `Gasta 1 Boost y tu perfil sale ${duracion} en Perfiles Boost, con al menos ${BOOST_MIN_PORTADA} minutos en portada.`;
+
+/**
  * PAQUETES DE BOOST a la venta. FUENTE UNICA: de aqui salen el precio Y los creditos, tanto al
  * abrir el pago como al acreditarlo cuando Stripe confirma.
  *
