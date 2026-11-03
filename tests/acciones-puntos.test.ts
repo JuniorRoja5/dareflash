@@ -51,7 +51,16 @@ describe("el estado de cada acción sale del código, no de una lista a mano", (
   it("hay tabla que comprobar", () => {
     expect(ACCIONES_PUNTOS.length).toBeGreaterThanOrEqual(5);
     expect(ACCIONES_PUNTOS.some((a) => a.activa)).toBe(true);
-    expect(ACCIONES_PUNTOS.some((a) => !a.activa)).toBe(true);
+    // AQUÍ HABÍA UN `some((a) => !a.activa)` y se quitó a conciencia, no por conveniencia: exigía
+    // que el catálogo tuviera SIEMPRE alguna fila "próximamente", y eso no es un invariante del
+    // producto — era la FORMA que el catálogo tenía el día que se escribió. Al retirar las dos
+    // acciones que no se van a hacer, todas las filas pasaron a estar activas y la aserción pedía
+    // inventar una fila futura para seguir verde: un test obligando a mentir en la pantalla.
+    //
+    // Lo que de verdad vigila este fichero son los DOS contrastes contra el código (abajo), y el
+    // de "ninguna próximamente se está pagando ya" vuelve a morder en cuanto alguien añada una
+    // fila con `activa: false`. Que hoy no haya ninguna lo fija `tests/puntos-valores.test.ts`,
+    // que es donde vive la decisión de Sergio con sus cifras escritas.
   });
 
   it("toda acción ACTIVA se otorga de verdad en algún servicio", () => {

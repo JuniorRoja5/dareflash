@@ -294,7 +294,9 @@ describe("historialPuntos", () => {
     await applyPoints(prisma, {
       userId: usuario,
       delta: 3,
-      reason: "VIDEO_100_EXTERNAL_VIEWS",
+      // La razón es incidental: lo que se prueba es el refType. Se usa una que EXISTE y que además
+      // habla de un vídeo, para que el comentario de abajo siga teniendo sentido.
+      reason: "VIDEO_50_LIKES",
       // Un tipo que hoy no escribe el ledger de puntos, o uno que se añada mañana sin tocar esto.
       refType: "VIDEO",
       refId: "cmvideo000inventado",

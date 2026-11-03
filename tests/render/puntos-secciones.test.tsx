@@ -199,6 +199,17 @@ describe.each(TEMAS)("tema %s", (tema) => {
       }
     });
 
+    it("HOY son 7 filas y NINGUNA dice «Próximamente» (la decisión de Sergio, en la pantalla)", () => {
+      // Con cifra ESCRITA, porque el caso de abajo —que deriva la cuenta de la config— se quedó
+      // HUECO al retirar las dos acciones futuras: recorre una lista vacía y pasa sin comprobar
+      // nada. Se conserva porque vuelve a morder en cuanto exista otra fila por llegar; mientras
+      // no exista, lo que vigila la pantalla es este caso.
+      const c = render(<TablaPuntos />).container;
+      expect(c.querySelectorAll('[data-estado="activa"]')).toHaveLength(7);
+      expect(c.querySelectorAll('[data-estado="proximamente"]')).toHaveLength(0);
+      expect(c.textContent).not.toContain("Próximamente");
+    });
+
     it("una fila que aún no paga NO ofrece nada: sin CTA y con su estado dicho", () => {
       const c = render(<TablaPuntos />).container;
       const proximas = [...c.querySelectorAll<HTMLElement>('[data-estado="proximamente"]')];

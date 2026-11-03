@@ -124,7 +124,15 @@ describe("retos ganados en el perfil", () => {
 
     // Si alguien introdujera una segunda tabla de umbrales, este aserto dejaría de cuadrar en cuanto
     // las dos se separasen. La fuente es una: `nivelPorPuntos`.
-    expect(nivelPorPuntos(perfil?.pointsBalance ?? 0).clave).toBe("rookie");
+    //
+    // DECÍA `rookie` Y AHORA DICE `challenger`, y el cambio es información de producto, no un ajuste
+    // de fixture: con los importes firmados por Sergio, UN reto ganado paga 300 + 100 = 400 puntos y
+    // ya cruza el umbral de 100. Antes pagaba 40 y te dejaba en Rookie. Los umbrales
+    // (0/100/500/2000/10000) NO se han tocado; lo que subió son los importes. Se escribe la banda, no
+    // el número, para que mover un importe o un umbral de forma que cambie el nivel de una victoria
+    // se vea aquí en rojo en vez de pasar en silencio.
+    expect(nivelPorPuntos(perfil?.pointsBalance ?? 0).clave).toBe("challenger");
+    expect(nivelPorPuntos(POINTS.WIN_CHALLENGE + POINTS.TOP20).clave).toBe("challenger");
     expect(nivelPorPuntos(0).clave).toBe("rookie");
     expect(nivelPorPuntos(100).clave).toBe("challenger");
   });

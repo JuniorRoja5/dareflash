@@ -704,17 +704,20 @@ export type Locale = (typeof LAUNCH_LOCALES)[number];
  * DOS veces por invitacion —el que invita y el invitado—, asi que el coste real por alta es 20.
  */
 export const POINTS = {
-  WIN_CHALLENGE: 30,
-  INVITE_FRIEND: 10,
-  REGISTER_FROM_VIDEO_LINK: 10,
-  TOP20: 10,
-  VIDEO_100_EXTERNAL_VIEWS: 10,
+  WIN_CHALLENGE: 300,
+  /**
+   * Lo cobran LAS DOS filas de referidos —quien invita y quien se registra con la invitacion—, a
+   * proposito: el valor de la invitacion es el mismo por los dos lados. Un segundo importe para la
+   * mitad de abajo seria otro numero que mantener sin que nadie haya pedido que difieran.
+   */
+  INVITE_FRIEND: 50,
+  TOP20: 100,
   /** Cada vez que se completa un HITO de VIDEOS_POR_HITO videos PUBLICADOS (acumulado de por vida). */
-  VIDEOS_PUBLICADOS_HITO: 5,
-  /** Racha de 7 dias seguidos. Del maestro; TODAVIA no la otorga nadie (ver `ACCIONES_PUNTOS`). */
-  RACHA_7_DIAS: 10,
-  /** 50 likes en un video. Del maestro; TODAVIA no la otorga nadie. */
-  VIDEO_50_LIKES: 1,
+  VIDEOS_PUBLICADOS_HITO: 100,
+  /** Racha de 7 dias seguidos. La otorga `racha.ts`. */
+  RACHA_7_DIAS: 50,
+  /** 50 likes en un video. Lo otorga `likes.ts`. */
+  VIDEO_50_LIKES: 10,
 } as const;
 
 /**
@@ -796,9 +799,15 @@ export const RAZON_REGISTRO_CON_REFERIDO = "REGISTERED_WITH_REFERRAL";
  * codigo: si una razon se otorga en `server/services` y aqui figura como proxima —o al reves— se
  * pone rojo. La config manda sobre la pantalla; el codigo manda sobre la config.
  *
- * ESTAN TODAS LAS DEL MAESTRO, tambien las que aun no se otorgan: la tabla es el mapa completo de a
- * donde va el producto, no solo de lo que hay hoy. Lo que la hace honesta no es esconder lo que
- * falta, es MARCARLO — y que ese marcado lo vigile un test contra el codigo.
+ * HOY NO HAY NINGUNA FILA "PROXIMAMENTE", y es una decision, no un descuido: las dos que quedaban
+ * (registro desde un video y 100 vistas externas) se RETIRARON porque no se van a hacer. Enseñar
+ * indefinidamente lo que no va a llegar no es un mapa, es una promesa caducada — y el aviso de que
+ * un "proximamente" sobrevive a su fase ya nos costo una revision.
+ *
+ * EL MECANISMO SE QUEDA (`activa`, `fase`, `nota`, y su rama en `tabla-puntos.tsx`) porque la
+ * siguiente accion que se decida vuelve a necesitarlo: se añade su fila con `activa: false` y la
+ * pantalla la pinta atenuada sin tocar el componente. Lo que NO se queda es una fila inventada para
+ * mantener el mecanismo "en uso".
  *
  * Los importes salen SIEMPRE de `POINTS`: un numero escrito aqui a mano seria un segundo catalogo.
  */
@@ -847,19 +856,6 @@ export const ACCIONES_PUNTOS: readonly AccionPuntos[] = [
     etiqueta: "Registrarte con la invitación de alguien",
     puntos: POINTS.INVITE_FRIEND,
     activa: true,
-  },
-  {
-    razon: "REGISTER_FROM_VIDEO_LINK",
-    etiqueta: "Que alguien se registre desde tu vídeo",
-    puntos: POINTS.REGISTER_FROM_VIDEO_LINK,
-    activa: false,
-  },
-  {
-    razon: "VIDEO_100_EXTERNAL_VIEWS",
-    etiqueta: "100 visitas externas a un vídeo",
-    puntos: POINTS.VIDEO_100_EXTERNAL_VIEWS,
-    activa: false,
-    nota: "Depende de una verificación de origen que todavía no tenemos.",
   },
   {
     razon: RAZON_RACHA,
