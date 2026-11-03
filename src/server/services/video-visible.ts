@@ -1,4 +1,5 @@
 import type { Prisma } from "@/generated/prisma/client";
+import type { Db } from "@/server/db/types";
 
 /**
  * QUÉ VÍDEO SE VE EN PÚBLICO. La regla del feed, escrita UNA vez para todo lo que cuelga de un vídeo
@@ -29,3 +30,28 @@ export const VIDEO_VISIBLE: Prisma.VideoWhereInput = {
     { submission: null, category: { not: null } },
   ],
 };
+
+/** Lo mínimo para firmar una reproducción. `thumbnailFileName` es OBLIGATORIO en el select de
+ *  cualquier cosa que firme un póster (si no, Bunny devuelve su frame automático). */
+const SELECT_REPRODUCCION = {
+  bunnyVideoId: true,
+  thumbnailFileName: true,
+  status: true,
+} satisfies Prisma.VideoSelect;
+
+export type VideoReproducible = Prisma.VideoGetPayload<{ select: typeof SELECT_REPRODUCCION }>;
+
+/**
+ * LA FILA QUE SE PUEDE REPRODUCIR, o `null`. Vive aquí, pegada a la regla, PORQUE la ruta de
+ * reproducción se saltó la regla justo por estar lejos de ella: filtraba `status === "PUBLISHED"` a
+ * mano y devolvía una URL firmada de vídeos que la moderación había escondido. Con la consulta aquí,
+ * "qué se ve" y "qué se puede reproducir" no pueden volver a separarse sin tocar este fichero.
+ *
+ * Recibe el `Db` por parámetro (sin `env`, sin singleton): se prueba contra la base, que es la única
+ * forma de que el test muerda el filtro de verdad en vez de una copia escrita en el propio test.
+ */
+export function videoReproducible(db: Db, id: string): Promise<VideoReproducible | null> {
+  // `findFirst` y no `findUnique`: el id es único, pero el filtro lleva relaciones y un OR, y
+  // `findUnique` solo admite campos de la clave.
+  return db.video.findFirst({ where: { id, ...VIDEO_VISIBLE }, select: SELECT_REPRODUCCION });
+}

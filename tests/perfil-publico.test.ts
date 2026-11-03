@@ -45,6 +45,14 @@ const CAMPOS_PRIVADOS = [
   "passwordHash",
 ] as const;
 
+/**
+ * Un vídeo LIBRE (sin participación) del usuario.
+ *
+ * La `category` NO es decorado: en una subida libre es OBLIGATORIA (`upload-credential` rechaza la
+ * petición sin ella), y la rejilla pública compone `VIDEO_VISIBLE`, que exige reto vivo O categoría.
+ * Un fixture sin categoría fabrica una fila que la API no deja crear, y luego hace fallar a la
+ * rejilla por un motivo que en producción no existe.
+ */
 async function crearVideo(
   userId: string,
   status: ModerationStatus,
@@ -53,7 +61,14 @@ async function crearVideo(
   failureReason?: string,
 ): Promise<string> {
   const v = await prisma.video.create({
-    data: { userId, status, bunnyVideoId: bunny, title, failureReason: failureReason ?? null },
+    data: {
+      userId,
+      status,
+      bunnyVideoId: bunny,
+      title,
+      category: "fitness",
+      failureReason: failureReason ?? null,
+    },
     select: { id: true },
   });
   return v.id;

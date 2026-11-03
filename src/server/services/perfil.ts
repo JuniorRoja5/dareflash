@@ -43,6 +43,7 @@ import { HANDLE_RE } from "@/lib/handle-formato";
 import type { Db } from "@/server/db/types";
 
 import { categoriaKeyDeVideo } from "./categoria-video";
+import { VIDEO_VISIBLE } from "./video-visible";
 
 // ============================================================================
 // A) CONSULTAS PÚBLICAS (Rama 3)
@@ -191,13 +192,37 @@ export function aPerfilPublico(
  */
 export const PERFIL_VIDEOS_LIMITE = 18;
 
-/** El `where` de MI rejilla / la publica, en un sitio: lo usan la pagina y su endpoint de paginacion. */
+/**
+ * El `where` de la rejilla PUBLICA, en un sitio: lo usan la pagina y su endpoint de paginacion.
+ *
+ * ┌─ ES `VIDEO_VISIBLE` + EL AUTOR, Y NO UNA LISTA PROPIA ─────────────────────────────────────────┐
+ * │ Antes esto enumeraba sus condiciones a mano (`status` + `reemplazaSubmissionId`) y le faltaba   │
+ * │ justo la que esconde: un vídeo auto-oculto por el umbral de denuncias SEGUIA LISTANDOSE en el   │
+ * │ perfil publico de su autor. Peor que el agujero de la reproduccion firmada, porque aqui no hay  │
+ * │ que conocer ningun id: basta abrir el perfil. La moderacion creia haber escondido algo que       │
+ * │ seguia a la vista, y ningun test lo veia porque el feed —el unico sitio comprobado— si filtraba. │
+ * │                                                                                                  │
+ * │ Se COMPONE la constante en vez de volver a escribir sus clausulas: es exactamente el fallo del   │
+ * │ que avisa su docblock ("el que se quedara fuera seria un agujero"). `VIDEO_VISIBLE` ya trae      │
+ * │ `status: PUBLISHED` y `reemplazaSubmissionId: null`, asi que no se pierde nada de lo que habia.  │
+ * │                                                                                                  │
+ * │ Lo que AÑADE, y por que ninguna quita contenido legitimo:                                        │
+ * │  - `ocultoAutoEn: null`       -> el agujero que se cierra.                                       │
+ * │  - autor ni borrado ni baneado-> el perfil ya lo exigia arriba (`cargarPerfil`); esto lo repite   │
+ * │                                  en la consulta para que el endpoint de paginacion no dependa de  │
+ * │                                  que la pagina lo haya comprobado antes.                          │
+ * │  - el OR reto-vivo / libre-con-categoria -> la categoria es OBLIGATORIA en la subida libre       │
+ * │                                  (`upload-credential`), asi que un libre sin categoria no es un   │
+ * │                                  estado alcanzable por la API: no hay nada legitimo que excluir.  │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * OJO al componerlo con el keyset: `VIDEO_VISIBLE` trae un `OR`, asi que hay que usar
+ * `conKeysetTiempo` (que mete los dos en un `AND`) y NUNCA esparcir `dondeDesde`, que lo pisaria y
+ * dejaria el filtro sin la mitad que esconde.
+ */
 export const dondeVideosPublicos = (userId: string): Prisma.VideoWhereInput => ({
-  // `reemplazaSubmissionId: null` excluye un reemplazo en vuelo (aun PUBLISHED no es una pieza propia
-  // de la rejilla; tras el swap pasa a ser la participacion y el viejo queda REMOVED).
+  ...VIDEO_VISIBLE,
   userId,
-  status: "PUBLISHED",
-  reemplazaSubmissionId: null,
 });
 
 /**

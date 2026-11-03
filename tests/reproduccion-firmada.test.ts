@@ -4,8 +4,20 @@
  * El vector de firma es fijo (regresión del algoritmo); la firma real contra Bunny la verifica Junior
  * reproduciendo una URL.
  *
- * CONTRATO del endpoint (Rama 3): es PÚBLICO. Un INVITADO puede reproducir un video PUBLISHED (el feed
- * es público). Ya NO exige sesión; lo que se conserva es el guardarrail de ESTADO (no-PUBLISHED -> 404).
+ * CONTRATO del endpoint (Rama 3): es PÚBLICO. Un INVITADO puede reproducir un video visible (el feed
+ * es público). Ya NO exige sesión.
+ *
+ * ┌─ LO QUE ESTE FICHERO NO PUEDE PROBAR, Y POR QUÉ IMPORTA DECIRLO ───────────────────────────────┐
+ * │ Aquí la BD es un MOCK: el doble devuelve la fila que se le pide, así que el `where` de la       │
+ * │ consulta NUNCA se ejecuta. Esa es la razón por la que un agujero real sobrevivió a esta suite   │
+ * │ en verde: el endpoint filtraba solo por `status` y dejaba reproducir vídeos que la moderación    │
+ * │ había escondido, y estos casos seguían pasando porque el mock nunca aplicó ningún filtro.       │
+ * │                                                                                                 │
+ * │ Lo que SÍ se fija aquí: que el endpoint no exige sesión, que una fila ausente o no publicada da │
+ * │ 404 sin URL, y el vector de firma. QUIÉN entra en la consulta se prueba contra la BASE en       │
+ * │ `tests/ocultado-umbral.test.ts` ("desaparece de verdad"), que es el único sitio donde un filtro │
+ * │ se puede comprobar de verdad. Si se añade un caso de visibilidad, va allí, no aquí.             │
+ * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,8 +27,10 @@ import { firmarUrlHls, reproduccionFirmada } from "../src/server/services/bunny"
 // La ruta consume estos módulos por import DINÁMICO en tiempo de llamada; vitest iza los vi.mock por
 // encima de los imports, así que las llamadas a GET() ven los dobles. Ya NO se mockea la sesión: el
 // endpoint no la consulta (es público).
-const mocks = vi.hoisted(() => ({ findUnique: vi.fn() }));
-vi.mock("@/server/db/client", () => ({ prisma: { video: { findUnique: mocks.findUnique } } }));
+// `findFirst` (no `findUnique`): la selección la hace `videoReproducible`, que compone el filtro de
+// visibilidad —con relaciones y un OR— y por eso no cabe en `findUnique`.
+const mocks = vi.hoisted(() => ({ findFirst: vi.fn() }));
+vi.mock("@/server/db/client", () => ({ prisma: { video: { findFirst: mocks.findFirst } } }));
 vi.mock("@/config/env", () => ({
   env: { BUNNY_CDN_HOSTNAME: "cdn.test.b-cdn.net", BUNNY_TOKEN_AUTH_KEY: "clave-test-xyz" },
 }));
@@ -81,18 +95,18 @@ describe("GET /api/videos/[id]/reproduccion", () => {
   const ctx = { params: Promise.resolve({ id: "vid1" }) };
 
   beforeEach(() => {
-    mocks.findUnique.mockReset();
+    mocks.findFirst.mockReset();
   });
 
   it("INVITADO (sin sesión) + PUBLISHED -> 200: el endpoint NO exige sesión (contrato nuevo)", async () => {
     // DIENTES: si se reintrodujera el gate de sesión, un invitado recibiría 401 y esto caería en rojo.
-    mocks.findUnique.mockResolvedValue({ bunnyVideoId: "g", status: "PUBLISHED" });
+    mocks.findFirst.mockResolvedValue({ bunnyVideoId: "g", status: "PUBLISHED" });
     const res = await GET(req(), ctx);
     expect(res.status).toBe(200);
   });
 
   it("INVITADO + PENDING -> 404 SIN URL (guardarrail de estado intacto para invitados)", async () => {
-    mocks.findUnique.mockResolvedValue({ bunnyVideoId: "g", status: "PENDING" });
+    mocks.findFirst.mockResolvedValue({ bunnyVideoId: "g", status: "PENDING" });
     const res = await GET(req(), ctx);
     expect(res.status).toBe(404);
     expect(JSON.stringify(await res.json())).not.toContain("playlist.m3u8");
@@ -100,16 +114,16 @@ describe("GET /api/videos/[id]/reproduccion", () => {
 
   it("Video no-PUBLISHED (cada estado) y sin fila -> 404 SIN URL, aun sin sesión", async () => {
     for (const status of ["PENDING", "FAILED", "REJECTED", "REMOVED"]) {
-      mocks.findUnique.mockResolvedValue({ bunnyVideoId: "g", status });
+      mocks.findFirst.mockResolvedValue({ bunnyVideoId: "g", status });
       const res = await GET(req(), ctx);
       expect(res.status).toBe(404);
     }
-    mocks.findUnique.mockResolvedValue(null);
+    mocks.findFirst.mockResolvedValue(null);
     expect((await GET(req(), ctx)).status).toBe(404);
   });
 
   it("Video PUBLISHED -> 200 con {src, poster} firmadas", async () => {
-    mocks.findUnique.mockResolvedValue({ bunnyVideoId: "g", status: "PUBLISHED" });
+    mocks.findFirst.mockResolvedValue({ bunnyVideoId: "g", status: "PUBLISHED" });
     const res = await GET(req(), ctx);
     expect(res.status).toBe(200);
     const body = (await res.json()) as { src: string; poster: string };

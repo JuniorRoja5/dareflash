@@ -9,7 +9,10 @@
  *    des-oculte solo — levantarlo es exclusivamente del moderador.
  *  - NO TOCA RESULTADOS: ocultar un vídeo con participación no escribe `Submission` ni
  *    `ChallengeResult`. Es el veto del deadlock, y además la fuente única de la re-participación.
- *  - DESAPARECE DE VERDAD: ni feed, ni lista de comentarios, ni se puede volver a denunciar.
+ *  - DESAPARECE DE VERDAD: ni feed, ni REJILLA PÚBLICA del autor, ni URL de REPRODUCCIÓN firmada,
+ *    ni lista de comentarios, ni se puede volver a denunciar. Las dos del medio faltaban y el
+ *    bloque estaba verde igual: un auto-oculto se seguía listando en el perfil y se seguía
+ *    reproduciendo con solo conocer su id (que reparte el feed).
  *  - IDEMPOTENCIA: la cuarta denuncia no vuelve a ocultar, ni re-audita, ni re-encola el aviso.
  *  - ATÓMICO: denuncia y ocultado van juntos; si el ocultado reventara, no quedaría una denuncia
  *    suelta contando para un umbral que no se aplicó.
@@ -25,12 +28,14 @@ import { listarColaModeracion } from "../src/server/services/cola-moderacion";
 import { denunciar } from "../src/server/services/denuncias";
 import { feedPublicado, type Firmante } from "../src/server/services/feed";
 import { descartarDenuncias, retirarPorModeracion } from "../src/server/services/moderar";
+import { videosPublicosDe } from "../src/server/services/perfil";
 import { generarPublicCode } from "../src/server/services/reto-codigo";
 import {
   ACCION_AUTO_OCULTO,
   repartirAvisoAutoOculto,
   TIPO_JOB_AVISO_AUTO_OCULTO,
 } from "../src/server/services/ocultado-automatico";
+import { videoReproducible } from "../src/server/services/video-visible";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
@@ -163,6 +168,44 @@ describe("desaparece de verdad", () => {
 
     const [r] = await denuncian("VIDEO", videoId, 1);
     expect(r).toEqual({ estado: "rechazada", motivo: "NO_DISPONIBLE" });
+  });
+
+  // ┌─ LAS DOS SUPERFICIES QUE ESTE BLOQUE NO MIRABA ────────────────────────────────────────────┐
+  // │ Este `describe` se llamaba "desaparece de verdad" y comprobaba el feed y los comentarios,   │
+  // │ así que estaba verde mientras un vídeo auto-oculto SEGUÍA listándose en el perfil público   │
+  // │ de su autor y SEGUÍA devolviendo una URL de reproducción firmada. Medido en ejecución, no   │
+  // │ deducido. Los dos casos van aquí, en el bloque que afirma la propiedad, y no en un fichero  │
+  // │ aparte: lo que falló es precisamente que "desaparece" se comprobaba a medias.               │
+  // └─────────────────────────────────────────────────────────────────────────────────────────────┘
+  it("tampoco sale en la REJILLA PÚBLICA de su autor (ahí no hace falta saber ningún id)", async () => {
+    const videoId = await crearVideo();
+    const otroId = await crearVideo();
+    await denuncian("VIDEO", videoId, DENUNCIAS_PARA_OCULTAR);
+
+    const { items } = await videosPublicosDe(prisma, autor);
+
+    expect(items.map((v) => v.id)).toContain(otroId);
+    expect(items.map((v) => v.id)).not.toContain(videoId);
+  });
+
+  it("y NO se puede reproducir: sin fila, no hay URL firmada que entregar", async () => {
+    const videoId = await crearVideo();
+    await denuncian("VIDEO", videoId, DENUNCIAS_PARA_OCULTAR);
+
+    expect(await videoReproducible(prisma, videoId)).toBeNull();
+    // Y el control, o esto no probaría nada: uno visible SÍ se reproduce.
+    const visibleId = await crearVideo();
+    expect(await videoReproducible(prisma, visibleId)).not.toBeNull();
+  });
+
+  it("un autor BANEADO se lleva sus vídeos de las dos superficies", async () => {
+    // El baneo no toca las filas de Video: si la consulta no mira al autor, su contenido sigue
+    // reproduciéndose después de echarlo.
+    const videoId = await crearVideo();
+    await prisma.user.update({ where: { id: autor }, data: { bannedAt: new Date() } });
+
+    expect(await videoReproducible(prisma, videoId)).toBeNull();
+    expect((await videosPublicosDe(prisma, autor)).items).toEqual([]);
   });
 });
 
