@@ -1001,8 +1001,23 @@ model BoostActivation {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  @@index([startsAt, expiresAt]) // destacados vigentes ahora mismo
-  @@index([userId, startsAt]) // limite de 3/dia por usuario
+  /// QUIEN ESTA DESTACADO AHORA MISMO. Empieza por `expiresAt` porque es la UNICA columna que
+  /// filtran las dos consultas que lo preguntan (`destacadosVigentes` en la portada y la lista del
+  /// panel): las dos hacen `WHERE expiresAt > ahora` y NINGUNA menciona `startsAt` en el WHERE.
+  ///
+  /// ANTES el indice era [startsAt, expiresAt] y su primera columna no se usaba, asi que MariaDB no
+  /// lo podia usar para el rango y recorria la tabla ENTERA — que guarda todo el historial de
+  /// activaciones caducadas y crece para siempre. EXPLAIN en produccion (3-nov, 11 filas):
+  /// `type=index, possible_keys=NULL`. Medido en local con historial sembrado, el coste es lineal:
+  /// 20.000 filas -> 4,8 ms; 200.000 -> 23,7 ms, con 100 vigentes en los dos casos. Es decir, la
+  /// portada se encarecia con cada boost vendido aunque hubiera los mismos destacados.
+  ///
+  /// `userId` y `startsAt` van detras para que el indice CUBRA la consulta: la ventana reparte por
+  /// `userId` y ordena por `startsAt DESC, id DESC` (el `id` entra solo, es la clave primaria).
+  @@index([expiresAt, userId, startsAt])
+  /// Limite de 3/dia por usuario, y tambien las consultas por persona (mis boosts, retirar, y el
+  /// `userId IN (...)` de los autores destacados): todas lideran por `userId`.
+  @@index([userId, startsAt])
 }
 
 // ============================================================================
