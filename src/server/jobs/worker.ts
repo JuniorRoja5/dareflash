@@ -38,8 +38,9 @@ import type { ResultadoContadores } from "@/server/services/reconciliacion-conta
 import type { ResultadoHuerfanos } from "@/server/services/reconciliacion-huerfanos";
 import type { ResultadoPublicados } from "@/server/services/reconciliacion-publicados";
 import type { ResultadoRecalculo } from "@/server/services/recalculo-scores";
-import { leerEstado } from "@/server/services/system-state";
+import { escribirEstado, leerEstado } from "@/server/services/system-state";
 
+import { analizarTablasDelFeed, diaYHoraEnMadrid, tocaAnalizar } from "./analizar-tablas";
 import { avisarSiCargaAlta, VigilanteCapacidad } from "./aviso-capacidad";
 import { avisarConHisteresis } from "./aviso-histeresis";
 import { cadenciaConfirmMs, type ResultadoConfirm } from "@/server/services/video-confirmacion";
@@ -65,6 +66,8 @@ const PURGA_LOTE = 1000;
 const PURGA_MAX_TANDAS = 1000;
 /** Clave en SystemState de la histeresis del aviso de FAILED (ver `avisarSiFallidos`). */
 const CLAVE_AVISO_FAILED = "aviso:job_failed";
+/** Ultimo DIA (Europe/Madrid) en que se recalcularon las estadisticas del feed. */
+const CLAVE_ANALYZE = "analyze:feed";
 // (Los estados "armado"/"disparado" y su logica viven en `./aviso-histeresis`, compartidos con el
 // aviso de capacidad.)
 
@@ -486,6 +489,11 @@ export interface OpcionesBucle {
    * tests que no lo ejercitan no pagan por el, igual que con `confirmar`.
    */
   vigilanteCapacidad?: VigilanteCapacidad;
+  /**
+   * `false` apaga el recalculo nocturno de estadisticas. Solo para tests: un `ANALYZE` en medio de
+   * una suite con cuatro workers sobre la misma BD es ruido que nadie pidio.
+   */
+  analizarTablas?: boolean;
   /** Adaptador de correo para el aviso DIRECTO (sin cola). Sin el, no se comprueba el aviso. */
   emailAdapter?: EmailAdapter;
   /** Destinatario del aviso. Sin el, el aviso se registra en el log en vez de enviarse. */
@@ -641,6 +649,20 @@ export async function bucleWorker(
         log: o.log,
       });
       ultimoAviso = t.getTime();
+    }
+
+    // ESTADISTICAS DEL FEED, de madrugada. El plan barato del feed depende de ellas y caducan
+    // segun crecen los datos (ver `analizar-tablas`). El dia hecho vive en SystemState: comparar
+    // el DIA y no un intervalo evita que tres despliegues en una jornada disparen tres escaneos.
+    if (o.analizarTablas !== false && tocaAnalizar(t, await leerEstado(db, CLAVE_ANALYZE))) {
+      try {
+        await analizarTablasDelFeed(db, o.log);
+        await escribirEstado(db, CLAVE_ANALYZE, diaYHoraEnMadrid(t).dia);
+      } catch (e) {
+        // Que falle el ANALYZE no puede tumbar el bucle: el feed seguira yendo lento, que es malo,
+        // pero un worker caido para la cola entera es peor. Se reintenta al dia siguiente.
+        o.log?.(`[worker] fallo el ANALYZE de las tablas del feed: ${sanearError(e)}`);
+      }
     }
 
     // MUESTREO DE CPU, en su propia cadencia (30 s). Va fuera del `if` del aviso porque son dos

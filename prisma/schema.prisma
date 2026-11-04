@@ -398,6 +398,26 @@ model Video {
   @@index([status])
   // El worker completa reemplazos abandonados: busca PUBLISHED con este puntero seteado.
   @@index([reemplazaSubmissionId])
+
+  /// EL CAMINO ORDENADO DEL FEED. Las tres primeras columnas son los filtros ESCALARES de
+  /// `VIDEO_VISIBLE` y las dos ultimas, su orden (`createdAt DESC, id DESC`). Asi MariaDB puede
+  /// recorrer el indice EN ORDEN, descartar por el camino y parar al juntar las once filas de la
+  /// pagina, en vez de materializar todo y ordenarlo.
+  ///
+  /// OJO: ESTE INDICE SOLO NO SIRVE DE NADA, y es el dato que mas cuesta creer. Medido sobre
+  /// 6.000 videos y 2.000 usuarios:
+  ///
+  ///   hoy, sin el                      34,2 ms   arranca por User, filesort
+  ///   SOLO con este indice             34,2 ms   arranca por User, filesort  <- el optimizador lo IGNORA
+  ///   solo con estadisticas            10,9 ms   arranca por Video, filesort
+  ///   con el indice + estadisticas      1,1 ms   arranca por Video, sin filesort
+  ///
+  /// El motivo es que `User_deletedAt_idx` cubre el 99 % de la tabla —casi nadie esta borrado— y
+  /// sin estadisticas el optimizador lo lee como un rango estrecho y entra por ahi. Por eso este
+  /// indice viene acompanado de `ANALYZE ... PERSISTENT`, en su migracion y en un job del worker:
+  /// quitar cualquiera de las dos piezas devuelve la consulta a los 34 ms. `tests/feed-plan` lo
+  /// vigila preguntandole el plan a MariaDB.
+  @@index([status, ocultoAutoEn, reemplazaSubmissionId, createdAt, id])
 }
 
 /// Un reto. Pieza central del producto: tiene PREMIO. Lo sensible al tiempo se
