@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { msgSocioFundador } from "@/config/constants";
+import { paisesParaElegir } from "@/lib/paises";
 
 import { FormularioAlta } from "./formulario-alta";
 
@@ -31,7 +32,10 @@ export default async function PaginaAltaEmpresa() {
         Las revisamos a mano, una por una. Cuéntanos quién eres y te escribimos en cuanto esté.
       </p>
       <p className="mt-2 max-w-prose text-sm text-text">{msgSocioFundador()}</p>
-      <FormularioAlta />
+      {/* LA LISTA DE PAÍSES SE CALCULA AQUÍ, UNA VEZ. Si la calculara también el cliente, el ICU de
+          Node y el de Chrome ordenarían distinto y React abortaría la hidratación (pasó: «Hungría»
+          donde el navegador esperaba «Hong Kong»). Ver el docblock del formulario. */}
+      <FormularioAlta paises={paisesParaElegir("es")} />
     </div>
   );
 }

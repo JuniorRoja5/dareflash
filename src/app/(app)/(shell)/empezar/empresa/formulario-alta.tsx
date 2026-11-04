@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
@@ -24,7 +24,7 @@ import {
   type TipoNegocio,
 } from "@/config/constants";
 import { mensajeDe, postJson } from "@/lib/cliente-http";
-import { paisesParaElegir } from "@/lib/paises";
+import type { PaisParaElegir } from "@/lib/paises";
 
 const CONTROL =
   "min-h-[44px] w-full rounded-sm border border-line bg-surface px-3.5 text-base text-text focus:bg-raised focus:border-text";
@@ -43,12 +43,15 @@ const SECCION = "text-2xs font-semibold tracking-widest text-text-dim uppercase"
  * registro de participante, primero se verifica el correo. Por eso el final no es una navegación,
  * es una pantalla que explica qué pasa ahora.
  *
- * LOS PAÍSES no son una lista escrita a mano: son los códigos ISO y los nombres los pone la
- * plataforma en el idioma de quien mira (ver `lib/paises`).
+ * ┌─ LOS PAÍSES LLEGAN HECHOS, DESDE EL SERVIDOR, Y NO ES UN CAPRICHO ─────────────────────────────┐
+ * │ La lista sale de `Intl.DisplayNames` + `localeCompare`, y el ICU de Node NO ordena igual que   │
+ * │ el de Chrome: con la lista calculada aquí, el servidor pintaba «Hungría» donde el navegador    │
+ * │ esperaba «Hong Kong» y React abortaba la hidratación de la página entera (visto en el dev, no  │
+ * │ deducido). Calculándola en UN solo sitio —el Server Component que monta esto— no hay dos       │
+ * │ verdades que comparar. Hay test de que este fichero no vuelve a calcularla.                     │
+ * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
  */
-export function FormularioAlta() {
-  const paises = useMemo(() => paisesParaElegir("es"), []);
-
+export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [acepta, setAcepta] = useState(false);

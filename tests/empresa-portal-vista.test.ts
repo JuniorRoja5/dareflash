@@ -137,4 +137,12 @@ describe("el formulario del alta", () => {
     expect(fuente()).not.toMatch(/navegarDuro\(/);
     expect(fuente()).not.toMatch(/router\.push\(/);
   });
+
+  it("NO calcula la lista de países: se la dan hecha desde el servidor", () => {
+    // El ICU de Node no ordena igual que el de Chrome. Con la lista calculada en el cliente, el
+    // servidor pintaba «Hungría» donde el navegador esperaba «Hong Kong» y React abortaba la
+    // hidratación de la página entera. Se vio mirando el dev, no deduciéndolo; que no vuelva.
+    expect(fuente()).not.toMatch(/paisesParaElegir\(/);
+    expect(leer("src/app/(app)/(shell)/empezar/empresa/page.tsx")).toMatch(/paisesParaElegir\(/);
+  });
 });
