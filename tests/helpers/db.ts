@@ -93,6 +93,10 @@ export const DELETE_ORDER = [
   // "agotado". Lo que sí hay que hacer entre casos es LIBERARLAS, y de eso se encarga `resetDb`
   // justo después de vaciar las tablas (sin eso, el caso que llena el cupo deja el siguiente sin
   // plazas y los fallos aparecen en el test de al lado).
+  // La empresa del portal: tiene FK al `User` (Restrict), así que va antes que él. Y además, una
+  // que sobreviva al reset deja a un usuario nuevo con empresa sin que su caso la haya creado — y
+  // como `ownerUserId` es UNIQUE, el siguiente registro fallaría por un duplicado que nadie pidió.
+  "Empresa",
   "Report",
   "AuditLog",
   "RateLimit",

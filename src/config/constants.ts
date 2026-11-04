@@ -1787,3 +1787,205 @@ export const VerificationPurposeSchema = z.enum([
   "EMAIL_CHANGE",
 ]);
 export type VerificationPurpose = z.infer<typeof VerificationPurposeSchema>;
+
+// ============================================================================
+// PORTAL DE EMPRESA (Fase 9 · P1)
+// ============================================================================
+
+/**
+ * QUIEN FIRMA la cuenta. No cambia permisos —los permisos son del `User` que la posee—: cambia el
+ * formulario y, el dia que exista la factura, a nombre de quien se emite.
+ */
+export const TipoCuentaEmpresaSchema = z.enum(["EMPRESA", "MARCA_PERSONAL"]);
+export type TipoCuentaEmpresa = z.infer<typeof TipoCuentaEmpresaSchema>;
+
+/**
+ * QUE CLASE DE NEGOCIO es, y con ello QUE PUEDE COMPRAR (ver `ALCANCES_POR_NEGOCIO` y
+ * `lib/empresa`). Un negocio FISICO es el unico que compra el espacio LOCAL; una marca personal o un
+ * producto digital no tienen "una ciudad", asi que solo pueden comprar Pais o Global.
+ */
+export const TipoNegocioSchema = z.enum(["FISICO", "ONLINE", "MARCA_O_DIGITAL"]);
+export type TipoNegocio = z.infer<typeof TipoNegocioSchema>;
+
+/**
+ * ESTADO de la cuenta de empresa. Aqui el estado SI manda (es la decision de una persona, no el
+ * vencimiento de un reloj como en `Subscription`). SUSPENDIDA la escribira la moderacion posterior
+ * (P8): esta en la union porque el catalogo de estados se decidio entero, no porque P1 la use.
+ */
+export const EstadoEmpresaSchema = z.enum(["PENDIENTE", "VERIFICADA", "RECHAZADA", "SUSPENDIDA"]);
+export type EstadoEmpresa = z.infer<typeof EstadoEmpresaSchema>;
+
+/** Los cuatro alcances que se podran comprar (los consume P6; la REGLA de quien puede, ya en P1). */
+export const AlcancePublicidadSchema = z.enum(["CIUDAD", "ESTADO", "PAIS", "GLOBAL"]);
+export type AlcancePublicidad = z.infer<typeof AlcancePublicidadSchema>;
+
+/**
+ * LOS DOS ESPACIOS del feed, nombrados por lo que significan y no por su numero: "Espacio 2" en un
+ * `if` no se lee. Cada hueco del feed alterna espacio, asi que cada uno se lleva la mitad del
+ * inventario sea cual sea la demanda del otro — que es lo unico que hace que "dos espacios
+ * separados" signifique algo.
+ */
+export const EspacioPublicidadSchema = z.enum(["LOCAL", "GLOBAL"]);
+export type EspacioPublicidad = z.infer<typeof EspacioPublicidadSchema>;
+
+/**
+ * QUE ALCANCES PUEDE COMPRAR CADA TIPO DE NEGOCIO. Es un CATALOGO de producto (de ahi que viva
+ * aqui); la funcion que lo aplica es `alcancesPermitidos` en `lib/empresa`, pura y con test.
+ *
+ * Consecuencia que conviene ver ahora y no en produccion: solo el negocio FISICO compra el espacio
+ * LOCAL. Con el inventario actual, ese espacio lo va a cubrir el anuncio de la casa una buena
+ * temporada, y eso no es un fallo del reparto: es el inventario que hay.
+ */
+export const ALCANCES_POR_NEGOCIO: Record<TipoNegocio, readonly AlcancePublicidad[]> = {
+  FISICO: ["CIUDAD", "ESTADO"],
+  ONLINE: ["PAIS", "GLOBAL"],
+  MARCA_O_DIGITAL: ["PAIS", "GLOBAL"],
+};
+
+/**
+ * POR QUE se rechaza una empresa. Lista CERRADA porque ESTE motivo SI se le enseña al dueño: un
+ * rechazo sin motivo genera un correo de soporte por cada caso. Lo que no viaja nunca es la NOTA
+ * interna (ver `Empresa.notaInterna`), que es para el equipo.
+ */
+export const MotivoRechazoEmpresaSchema = z.enum([
+  "DATOS_INSUFICIENTES",
+  "WEB_NO_VALIDA",
+  "ACTIVIDAD_NO_PERMITIDA",
+  "SOSPECHA_FRAUDE",
+  "DUPLICADA",
+]);
+export type MotivoRechazoEmpresa = z.infer<typeof MotivoRechazoEmpresaSchema>;
+
+/** El copy del motivo, en humano y en segunda persona: es lo que lee quien se ha registrado. */
+export const MSG_MOTIVO_RECHAZO_EMPRESA: Record<MotivoRechazoEmpresa, string> = {
+  DATOS_INSUFICIENTES: "Nos faltan datos para comprobar que el negocio existe.",
+  WEB_NO_VALIDA: "No hemos podido comprobar la web que nos has dado.",
+  ACTIVIDAD_NO_PERMITIDA: "Esta actividad no encaja con lo que podemos publicar.",
+  SOSPECHA_FRAUDE: "No hemos podido verificar la cuenta.",
+  DUPLICADA: "Ya tenemos registrado este negocio.",
+};
+
+/**
+ * LAS ETIQUETAS, en un solo sitio porque las usan DOS pantallas: el portal (lo que lee la empresa de
+ * sí misma) y el panel (lo que lee el equipo). Dos copias habrían divergido en el primer cambio de
+ * copy, y entonces el panel y el portal llamarían distinto a lo mismo.
+ */
+export const ETIQUETA_TIPO_CUENTA: Record<TipoCuentaEmpresa, string> = {
+  EMPRESA: "Empresa",
+  MARCA_PERSONAL: "Marca personal",
+};
+export const ETIQUETA_TIPO_NEGOCIO: Record<TipoNegocio, string> = {
+  FISICO: "Negocio físico",
+  ONLINE: "Negocio online",
+  MARCA_O_DIGITAL: "Marca o producto digital",
+};
+/** Una palabra para el estado (la lista del panel y la píldora del portal). El relato va en `MSG_ESTADO_EMPRESA`. */
+export const ETIQUETA_ESTADO_EMPRESA: Record<EstadoEmpresa, string> = {
+  PENDIENTE: "Pendiente",
+  VERIFICADA: "Verificada",
+  RECHAZADA: "Rechazada",
+  SUSPENDIDA: "Suspendida",
+};
+
+/** Lo que queda escrito en `AuditLog` al tocar una empresa. Su `targetType` es "EMPRESA". */
+export const AuditAccionEmpresaSchema = z.enum(["EMPRESA_VERIFY", "EMPRESA_REJECT"]);
+export type AuditAccionEmpresa = z.infer<typeof AuditAccionEmpresaSchema>;
+
+/** Limites del formulario de alta. El nombre es obligatorio; web y direccion, opcionales. */
+export const EMPRESA_NOMBRE_MIN = 2;
+export const EMPRESA_NOMBRE_MAX = 120;
+export const EMPRESA_WEB_MAX = 300;
+export const EMPRESA_DIRECCION_MAX = 200;
+/** MISMO LARGO que la nota del ajuste de puntos: es la misma clase de dato y el mismo gesto. */
+export const EMPRESA_NOTA_MAX = 500;
+
+/** Tamaño de pagina de la cola de verificacion del panel (keyset, como el resto). */
+export const EMPRESAS_PAGINA = 25;
+
+/** Copy del portal y del panel de empresas. En humano, como el resto. */
+export const MSG_EMPRESA_SIN_VERIFICAR =
+  "Verifica tu correo para registrar tu empresa. Es la misma barrera que para participar o cobrar.";
+export const MSG_EMPRESA_DATOS_INVALIDOS =
+  "Revisa los datos: el nombre es obligatorio y la web tiene que ser una dirección válida.";
+export const MSG_EMPRESA_NO_ENCONTRADA = "Esa empresa no existe.";
+export const MSG_SIN_PERMISO_EMPRESAS = "No tienes permiso para gestionar empresas.";
+export const MSG_EMPRESA_MOTIVO_INVALIDO = "Elige un motivo de la lista para rechazar.";
+
+/**
+ * EL ESTADO, CONTADO AL DUEÑO. Un estado que el portal no sabe explicar es un estado que genera un
+ * correo preguntando. El motivo del rechazo se añade aparte (`MSG_MOTIVO_RECHAZO_EMPRESA`): aqui va
+ * lo que significa el estado, no el caso concreto.
+ */
+export const MSG_ESTADO_EMPRESA: Record<EstadoEmpresa, { titulo: string; cuerpo: string }> = {
+  PENDIENTE: {
+    titulo: "Estamos revisando tu empresa",
+    cuerpo:
+      "La revisamos a mano, una por una. Te escribimos en cuanto esté: no hace falta que vuelvas a enviarla.",
+  },
+  VERIFICADA: {
+    titulo: "Tu empresa está verificada",
+    cuerpo: "Ya puedes usar el portal. Lo que se puede hacer desde aquí irá creciendo.",
+  },
+  RECHAZADA: {
+    titulo: "No hemos podido verificar tu empresa",
+    cuerpo: "Si crees que es un error, escríbenos y lo miramos otra vez.",
+  },
+  SUSPENDIDA: {
+    titulo: "Tu empresa está suspendida",
+    cuerpo: "Puedes seguir viendo tus datos, pero no crear nada nuevo. Escríbenos y lo revisamos.",
+  },
+};
+
+/**
+ * EL AVISO AL ADMIN de que hay una empresa esperando. Es de los que SI exigen algo: bloquea a un
+ * cliente que ya se ha registrado, asi que sale inmediato y no en el resumen diario.
+ *
+ * NO LLEVA NI UN DATO FISCAL NI EL EMAIL DE NADIE: nombre comercial, tipo y un enlace al panel, que
+ * es donde se mira con una sesion. Un correo automatico no puede ser la rendija por la que sale lo
+ * que el panel protege.
+ */
+export const TITULO_AVISO_EMPRESA_NUEVA = "Hay una empresa esperando verificación";
+export function msgAvisoEmpresaNueva(datos: {
+  nombre: string;
+  tipoNegocio: TipoNegocio;
+  urlPanel: string;
+}): string {
+  return [
+    `${datos.nombre} se ha registrado como empresa (${datos.tipoNegocio}) y espera verificación.`,
+    "",
+    `Revísala aquí: ${datos.urlPanel}`,
+    "",
+    "Mientras no esté verificada, no puede hacer nada en el portal.",
+  ].join("\n");
+}
+
+// ----------------------------------------------------------------------------
+// Decisiones de Fase 9 YA CERRADAS que consumen piezas posteriores. Viven aqui
+// —la fuente unica de umbrales y catalogos— para que subirlas sea cambiar UN
+// numero, y no buscarlas repartidas por el codigo.
+// ----------------------------------------------------------------------------
+
+/**
+ * MAXIMO DE CAMPAÑAS ACTIVAS POR ZONA Y DIA (lo consume P6, que OCUPA la plaza en vez de contarla).
+ *
+ * El 3 sale del inventario medido: en una ciudad pequeña (≈50 huecos locales al dia) tres campañas
+ * dejan ≈17 personas al dia a cada una; con cinco serian 10 y el anuncio pasa a ser un gesto.
+ *
+ * SE SUBE CUANDO CREZCA EL TRAFICO, igual que los precios: subirlo diluye a todos proporcionalmente
+ * y la estimacion que se enseña antes de pagar lo refleja SOLA, porque se calcula con el mismo
+ * codigo que reparte. Es un numero, no un rediseño.
+ */
+export const PUBLICIDAD_MAX_POR_ZONA = 3;
+
+/**
+ * SOCIO FUNDADOR: hasta cuando. Toda empresa VERIFICADA antes de este instante recibe el regalo (lo
+ * acredita P4, con su ledger y su `idempotencyKey`). SIN CUPO: es una comparacion de fechas contra
+ * `Empresa.verificadaEn`, no una plaza que haya que ocupar.
+ *
+ * LLEVA LA ZONA ESCRITA (+02:00, CEST) Y NO ES UN DESCUIDO: "fin del dia del 30 de junio" sin zona
+ * son dos horas de diferencia, y una empresa verificada a las 23:30 de Madrid tiene que entrar. Con
+ * el desplazamiento dentro, el instante es exacto y no depende de la zona del servidor.
+ */
+export const SOCIO_FUNDADOR_HASTA_ISO = "2027-06-30T23:59:59.999+02:00";
+/** Cuantos creditos (= dias de publicidad) regala. Lo acredita P4. */
+export const SOCIO_FUNDADOR_CREDITOS = 90;

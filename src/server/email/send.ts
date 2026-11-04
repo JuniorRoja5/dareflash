@@ -7,7 +7,7 @@
 import "server-only";
 
 import { Prisma } from "@/generated/prisma/client";
-import type { PrismaClient } from "@/generated/prisma/client";
+import type { Db } from "@/server/db/types";
 
 import type { EmailMessage } from "./adapter";
 
@@ -20,9 +20,16 @@ export interface EnqueueEmailOptions {
   runAt?: Date;
 }
 
-/** Encola un correo. No envia. Un `idempotencyKey` repetido es un no-op silencioso (no duplica). */
+/**
+ * Encola un correo. No envia. Un `idempotencyKey` repetido es un no-op silencioso (no duplica).
+ *
+ * ACEPTA UN CLIENTE DE TRANSACCION (`Db`), no solo el `PrismaClient`. Es lo que permite encolar el
+ * aviso EN LA MISMA TRANSACCION que el hecho que lo provoca (p.ej. el registro de una empresa y el
+ * aviso al admin). Fuera de la transaccion hay dos huecos reales: el hecho sin aviso —alguien
+ * esperando que nadie sabe que existe— y el aviso sin hecho, si la transaccion revierte despues.
+ */
 export async function enqueueEmail(
-  db: PrismaClient,
+  db: Db,
   message: EmailMessage,
   options: EnqueueEmailOptions = {},
 ): Promise<void> {

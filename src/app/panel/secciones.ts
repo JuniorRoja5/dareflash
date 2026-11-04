@@ -82,6 +82,16 @@ export const SECCIONES_PANEL: SeccionPanel[] = [
     rol: "ADMIN",
   },
   {
+    href: "/panel/empresas",
+    label: "Empresas",
+    descripcion:
+      "Verificar a mano las cuentas de empresa del portal, y dejar escrito por qué se rechaza una.",
+    fase: null,
+    // ADMIN como Patrocinios, y por lo mismo: decidir quién puede anunciarse y facturar es una
+    // decisión comercial. Moderar es contenido; esto no lo es.
+    rol: "ADMIN",
+  },
+  {
     href: "/panel/ranking",
     label: "DareUp y ranking",
     descripcion:

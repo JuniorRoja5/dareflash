@@ -163,9 +163,18 @@ const serverSchema = z.object({
    */
   SMTP_HELO_NAME: z.string().min(1).default("dareflash.com"),
   /**
-   * Correo del ADMIN para AVISOS operativos DIRECTOS (no por la cola): p.ej. acumulacion de
-   * jobs en FAILED. Opcional hoy; sin ella el worker registra el aviso en el log (alto) en vez
-   * de enviarlo. Se promueve a obligatoria cuando el aviso deba llegar si o si.
+   * Correo del ADMIN para los AVISOS AL EQUIPO. Dos clases, y la diferencia importa:
+   *
+   *  - TECNICOS, por SMTP DIRECTO y no por la cola (acumulacion de jobs en FAILED, descuadres):
+   *    si lo que esta roto es la cola, un aviso DENTRO de la cola no sale nunca y el silencio se
+   *    lee como "todo va bien".
+   *  - DE NEGOCIO, por la COLA con su `idempotencyKey` (Fase 9: una empresa esperando
+   *    verificacion): un hecho, un correo, y que un SMTP lento no tumbe la peticion de nadie.
+   *
+   * Opcional hoy: sin ella NO se envia y NO se marca como enviado —marcarlo sin destinatario es
+   * perder el aviso para siempre—, y queda una linea en el log. Se promueve a obligatoria cuando
+   * algun aviso deba llegar si o si; promoverla obliga a ponerla en el `.env` del servidor EN EL
+   * MISMO PASO (si falta, el proceso muere al arrancar: fail-fast deliberado).
    */
   ADMIN_EMAIL: z.email().optional(),
   /** Observabilidad. */

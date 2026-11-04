@@ -228,6 +228,9 @@ model User {
   likes          Like[]
   /// Como mucho UNA: la suscripcion VIP. `onDelete: Restrict` como el resto del material de pago.
   suscripcion    Subscription?
+  /// Como mucho UNA: su empresa en el portal (Fase 9 · P1). `onDelete: Restrict`, como la
+  /// suscripcion: es material comercial, no un dato de perfil que se vaya con la cuenta.
+  empresa        Empresa?
 
   @@index([role])
   @@index([deletedAt])
@@ -1374,4 +1377,90 @@ model Subscription {
 
   /// Para barrer las que vencen (renovaciones que no llegaron) sin recorrer la tabla.
   @@index([estado, periodoFin])
+}
+
+// ============================================================================
+// PORTAL DE EMPRESA (Fase 9 · P1)
+// ============================================================================
+
+/// LA CUENTA DE EMPRESA DEL PORTAL. Verificacion MANUAL: nadie entra por cumplir un formulario.
+///
+/// ┌─ NO ES UNA IDENTIDAD NUEVA ───────────────────────────────────────────────────────────────────┐
+/// │ Una empresa es un `User` con esta fila colgada (`ownerUserId` UNIQUE). Asi hereda sesion,     │
+/// │ verificacion de email, rate-limit y CSRF sin estrenar ni un mecanismo. La alternativa —un     │
+/// │ login propio de empresas— habria duplicado la autenticacion, que es el sitio donde duplicar   │
+/// │ sale mas caro.                                                                                 │
+/// │                                                                                                │
+/// │ Y NO hay un valor `EMPRESA` en `Role`: `Role` es una ESCALA (USER < MODERATOR < ADMIN, la     │
+/// │ compara `alcanzaRol`), y meter un valor lateral en un orden total rompe a la vez el guard del │
+/// │ panel y su navegacion. Ser empresa es una RELACION, no un rango.                               │
+/// └────────────────────────────────────────────────────────────────────────────────────────────────┘
+///
+/// `onDelete: Restrict` como `Subscription` y como el resto del material comercial: la cuenta no se
+/// lleva por delante una empresa con historial.
+///
+/// EL MOTIVO SE ENSEÑA Y LA NOTA NO. `motivoRechazo` es de una lista cerrada y SI viaja al dueño (un
+/// rechazo sin motivo genera un correo de soporte por cada caso); `notaInterna` es la traza del
+/// equipo y NO sale nunca de aqui — misma regla y mismo largo que la nota del ajuste de puntos, y
+/// hay test de que el DTO del dueño no la trae.
+///
+/// LO QUE NO ESTA TODAVIA, a proposito: `saldoCreditos` (lo estrena P4, con su ledger) y `ciudadId`
+/// (lo estrena P5, cuando exista el catalogo de ciudades). Una columna que nadie escribe es una
+/// columna que alguien lee creyendo que significa algo. En P1 la ciudad de un negocio FISICO viaja
+/// dentro de `direccion`, que es dato de CONTACTO y no segmenta nada; cuando P5 traiga el catalogo,
+/// elegir ciudad sera requisito para comprar publicidad LOCAL, no para registrarse.
+model Empresa {
+  id String @id @default(cuid())
+
+  /// EL DUEÑO. UNIQUE: una persona, una empresa. Un segundo registro del mismo usuario es la misma
+  /// fila (ver `registrarEmpresa`), no una segunda empresa.
+  ownerUserId String @unique
+
+  /// Nombre comercial, el que se ve. No es una clave: no hay unicidad ni catalogo de marcas.
+  nombre String @db.VarChar(120)
+
+  /// EMPRESA | MARCA_PERSONAL (union en constants, `TipoCuentaEmpresaSchema`). Quien firma. No
+  /// cambia permisos: cambia el formulario y, el dia que exista, la factura.
+  tipoCuenta String
+
+  /// FISICO | ONLINE | MARCA_O_DIGITAL (union en constants, `TipoNegocioSchema`). Decide QUE
+  /// ALCANCES puede comprar, y eso lo resuelve una funcion pura (`lib/empresa`), no un `if` en el
+  /// formulario: un negocio digital no puede comprar Ciudad ni llamando a la API a mano.
+  tipoNegocio String
+
+  /// PENDIENTE | VERIFICADA | RECHAZADA | SUSPENDIDA (union en constants, `EstadoEmpresaSchema`).
+  /// Aqui el estado SI es el que manda —al contrario que en `Subscription`, que se calcula— porque
+  /// es una DECISION de una persona, no el vencimiento de un reloj. SUSPENDIDA la pondra la
+  /// moderacion posterior (P8); en P1 no hay quien la escriba todavia.
+  estado String @default("PENDIENTE")
+
+  /// Su sitio web. Es el dato con el que el admin verifica un negocio ONLINE o una marca.
+  webUrl String? @db.VarChar(300)
+
+  /// Direccion o localidad, SOLO CONTACTO. No entra en ninguna segmentacion (ver el bloque de
+  /// arriba): geocodificar una direccion exigiria un servicio externo, y el encargo los prohibe.
+  direccion String? @db.VarChar(200)
+
+  /// EL HECHO y su firma. `verificadaEn` es ademas lo que decidira el regalo de Socio Fundador en P4
+  /// (comparacion contra `SOCIO_FUNDADOR_HASTA`), asi que es una fecha de verdad y no un booleano.
+  /// `verificadaPor` SIN clave ajena, como en los ledgers y en `AuditLog`: el registro de quien
+  /// verifico no se va con la cuenta del admin.
+  verificadaEn  DateTime?
+  verificadaPor String?
+
+  /// De la lista cerrada `MotivoRechazoEmpresaSchema`. Se le ENSEÑA al dueño, traducido por su copy.
+  motivoRechazo String?
+
+  /// La traza del equipo. NO VIAJA AL DUEÑO (ver arriba).
+  notaInterna String? @db.VarChar(500)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+
+  /// LA COLA DE VERIFICACION DEL PANEL: filtra por `estado` y se pagina por KEYSET sobre
+  /// (createdAt, id), los dos DESC. El `id` va detras porque el keyset necesita un orden TOTAL, y
+  /// las tres columnas en el mismo indice es lo que hace que filtrar Y ordenar sea una sola pasada.
+  @@index([estado, createdAt, id])
 }

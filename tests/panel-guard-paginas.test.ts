@@ -91,6 +91,13 @@ const PAGINAS_ADMIN: {
     args: [{ searchParams: Promise.resolve({}) }],
   },
   {
+    // La cola de verificación de empresas (Fase 9 · P1). Entra aquí el mismo día que nace: una
+    // sección nueva que no ejecute su guard es el agujero que este fichero existe para cerrar.
+    ruta: "/panel/empresas",
+    cargar: () => import("../src/app/panel/empresas/page"),
+    args: [{ searchParams: Promise.resolve({}) }],
+  },
+  {
     ruta: "/panel/notificaciones",
     cargar: () => import("../src/app/panel/notificaciones/page"),
     args: [{ searchParams: Promise.resolve({}) }],
