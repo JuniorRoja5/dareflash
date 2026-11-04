@@ -4,8 +4,13 @@
  * ┌─ POR QUÉ EXISTE ───────────────────────────────────────────────────────────────────────────────┐
  * │ El lanzamiento es gradual y la máquina no se amplía por adelantado: se amplía cuando el       │
  * │ tráfico se acerque al techo medido. Eso solo funciona si alguien se entera a tiempo, y el     │
- * │ margen es estrecho — del límite razonable (200 personas, 64 % de CPU) a inservible (300        │
- * │ personas, 98 %) hay cien personas y la latencia se multiplica por veinticinco.                 │
+ * │ margen es estrecho: entre «va bien» e «inservible» la latencia se multiplica por veinticinco. │
+ * │                                                                                                 │
+ * │ EL CORREO NO DICE CUÁNTA GENTE ES ESO, a propósito. La equivalencia entre porcentaje de CPU y │
+ * │ personas cambia con cada optimización —el 50 % eran ~150 personas y tras arreglar el feed son  │
+ * │ ~215— así que una cifra en el correo envejece sin que nadie la revise, y un aviso que miente   │
+ * │ deja de leerse. El correo dice el PORCENTAJE sostenido, el reparto propio/steal y la acción.   │
+ * │ Las equivalencias, con su fecha y su SHA, viven en el comentario de `constants.ts`.            │
  * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
  *
  * ┌─ POR QUÉ LA CPU Y NO OTRA COSA ────────────────────────────────────────────────────────────────┐
@@ -205,9 +210,8 @@ export async function avisarSiCargaAlta(
       text: cuerpo(vigilante, {
         mediana,
         umbral: CPU_AVISO_AMPLIA_PCT,
-        titular: "La maquina esta cerca de su techo: mas de ~200 personas a la vez.",
-        queHacer:
-          "QUE HACER: ampliar a 2 vCPU. El acantilado esta cerca (a 250 personas la portada va a 431 ms de mediana; a 300, a 1,12 s).",
+        titular: "Amplia ya: estamos cerca del limite medido.",
+        queHacer: "QUE HACER: ampliar a 2 vCPU.",
         now,
       }),
     }),
@@ -227,9 +231,8 @@ export async function avisarSiCargaAlta(
       text: cuerpo(vigilante, {
         mediana,
         umbral: CPU_AVISO_PREPARATE_PCT,
-        titular: "El trafico se acerca al techo medido: ~150 personas a la vez.",
-        queHacer:
-          "QUE HACER: hay margen todavia (el limite razonable son ~200 personas). Es el momento de PLANIFICAR la segunda vCPU, no de correr.",
+        titular: "Preparate: hay margen, pero conviene planificar la 2.a vCPU.",
+        queHacer: "QUE HACER: planificar la segunda vCPU. Todavia no hay que correr.",
         now,
       }),
     }),

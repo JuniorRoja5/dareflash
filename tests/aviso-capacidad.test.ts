@@ -253,6 +253,23 @@ describe("qué lleva el correo", () => {
     expect(texto, "no dice que una vCPU no arregla el steal").toMatch(/no arregla nada/i);
   });
 
+  it("NO dice cuántas personas son: esa cifra envejece con cada optimización", async () => {
+    // El 50 % eran ~150 personas y, tras arreglar el plan del feed, son ~215. Una equivalencia
+    // escrita en el correo se queda vieja sin que nadie la revise, y un aviso que miente deja de
+    // leerse. El correo dice el porcentaje; las equivalencias viven en `constants.ts` con su SHA.
+    const { adapter, enviados } = correoFalso();
+    const v = vigilanteCon(todas(CPU_AVISO_AMPLIA_PCT + 5));
+    await muestrear(v, CPU_MUESTRAS_VENTANA + 1);
+    await avisarSiCargaAlta(prisma, adapter, v, { adminEmail: "j@test.local" });
+
+    const correo = `${enviados[0]!.subject} ${enviados[0]!.text ?? ""}`;
+    expect(correo).not.toMatch(/personas/i);
+    // Y sí dice lo que no caduca: el porcentaje, el reparto y qué hacer.
+    expect(correo).toMatch(/%/);
+    expect(correo).toMatch(/steal/i);
+    expect(correo).toMatch(/QUE HACER/);
+  });
+
   it("lleva las 20 muestras y la hora en Europe/Madrid", async () => {
     const { adapter, enviados } = correoFalso();
     const v = vigilanteCon(todas(CPU_AVISO_PREPARATE_PCT + 5));

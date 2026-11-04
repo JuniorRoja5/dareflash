@@ -153,6 +153,52 @@ con su medicion, nunca por la CPU.
 
 **No se toca el Caddyfile.** Ver el informe de capacidad para las tablas completas.
 
+### Descartado: cachear portada y ranking en Redis (4-nov-2026)
+
+Se propuso guardar los destacados de portada y el top del ranking en Redis con un TTL corto, para
+quitarle trabajo a MariaDB. **Descartado por medicion**, y por el mismo motivo estructural que la
+compresion: en un nucleo compartido, lo que decide es donde se va el tiempo de CPU, y **no se va en
+la base de datos**.
+
+Reparto medido con `main` = `10cea40` (feed ya arreglado), personas con pausas de 3-8 s, rampa y
+Caddy delante:
+
+| Personas | `web`  | **mariadb** | caddy | redis | Nucleo |
+| -------- | ------ | ----------- | ----- | ----- | ------ |
+| 200      | 37,9 % | **4,5 %**   | 4,6 % | 0,3 % | 47 %   |
+| 300      | 53,1 % | **6,5 %**   | 6,5 % | 0,2 % | 67 %   |
+| 400      | 77,7 % | **8,0 %**   | 8,5 % | 0,2 % | 96 %   |
+
+Son medianas. La proporcion se mantiene en **8 a 1 a favor de `web`** en los tres escalones, y
+MariaDB no pasa del 8 % ni a 400 personas con 218 consultas por segundo. Cachear la portada (~1 ms)
+y el ranking (~2,4 ms) movería el techo de ~300 a quiza ~310 personas, a cambio de una cache con su
+invalidacion, su clave por ventana de rotacion y su camino de respaldo cuando Redis no responda.
+
+Ademas, la portada **ya rota cada minuto**, asi que el TTL util queda acotado por la propia rotacion:
+la cache ahorraria como mucho las visitas de un mismo minuto.
+
+**CONDICION PARA RETOMARLO:** que una medicion nueva muestre que MariaDB se ha vuelto cara. El numero
+a vigilar esta en la tabla: hoy es **4,5 %** a 200 personas. No se retoma por costumbre.
+
+### Techo de capacidad medido (4-nov-2026, `10cea40`)
+
+Con el criterio de la portada por debajo de medio segundo en el p95: **~300 personas a la vez**
+(45 peticiones/s). Antes del arreglo del feed eran ~200.
+
+|                          | Antes (`659875b`) | Ahora (`10cea40`) |
+| ------------------------ | ----------------- | ----------------- |
+| Techo (p95 < 500 ms)     | ~200 personas     | **~300 personas** |
+| CPU a 200 personas       | 64 %              | **47 %**          |
+| `/inicio` a 200 personas | 42 ms             | **29 ms**         |
+| p95 a 200 personas       | 505 ms            | **156 ms**        |
+
+**Parte de la mejora NO es del feed:** la tanda vieja tenia 500 Boosts vigentes sembrados y ahora el
+cupo los limita a 60. Lo que si es limpio y no depende de esa comparacion es el reparto de la tabla
+de arriba.
+
+El banco **no mide TLS** (su Caddy escucha en claro), asi que en produccion el techo sera algo menor
+que 300. El sesgo va en contra del margen, que es el lado seguro.
+
 ## 7. Deuda de producto
 
 - El texto legal dice 30 s y la regla real es 90 s. Corregir antes de lanzar.

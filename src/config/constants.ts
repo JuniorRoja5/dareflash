@@ -1298,18 +1298,31 @@ export const JOB_FAILED_ALERT_THRESHOLD = 10;
  * AVISO DE CAPACIDAD: cuando la maquina se acerca a su techo, antes de que se note.
  *
  * ┌─ DE DONDE SALEN LOS UMBRALES ────────────────────────────────────────────────────────────────┐
- * │ Del banco de carga del 4-nov-2026, con los limites de produccion (1 nucleo compartido, sin    │
- * │ swap), personas con pausas de 3-8 s y Caddy delante. Las MISMAS unidades que mide el aviso:   │
- * │ porcentaje de UN nucleo.                                                                      │
+ * │ Del banco de carga, con los limites de produccion (1 nucleo compartido, sin swap), personas   │
+ * │ con pausas de 3-8 s, rampa y Caddy delante. Las MISMAS unidades que mide el aviso: porcentaje │
+ * │ de UN nucleo.                                                                                 │
  * │                                                                                               │
- * │   150 personas -> 49 %   <- PREPARATE (50 %). Hay margen: el acantilado esta a 100 personas.  │
- * │   200 personas -> 64 %       Limite razonable: /inicio en 42 ms de mediana, 505 ms el p95.    │
- * │   250 personas -> 87 %   <- AMPLIA YA (70 %). Aqui /inicio ya va a 431 ms de mediana.         │
- * │   300 personas -> 98 %       Inservible: 1,12 s de mediana.                                   │
+ * │ LA EQUIVALENCIA EN PERSONAS CAMBIA CON CADA OPTIMIZACION, y por eso vive AQUI y no en el      │
+ * │ correo: una cifra en el correo envejece sin que nadie la revise. Dos medidas, las dos con su  │
+ * │ fecha y el SHA con el que se midieron:                                                        │
  * │                                                                                               │
- * │ En PRODUCCION avisara antes que esas cifras de personas, porque el banco no medía TLS: el     │
- * │ mismo trafico real cuesta mas CPU y cruza el umbral con menos gente. El sesgo empuja al lado  │
- * │ seguro, que es el que queremos.                                                                │
+ * │   4-nov-2026, `659875b` (antes de arreglar el feed)                                           │
+ * │     150 personas -> 49 %   <- PREPARATE (50 %)                                                │
+ * │     200 personas -> 64 %       limite razonable                                               │
+ * │     250 personas -> 87 %   <- AMPLIA YA (70 %)                                                │
+ * │     300 personas -> 98 %       inservible                                                     │
+ * │                                                                                               │
+ * │   4-nov-2026, `10cea40` (feed arreglado + cupo de 60 Boosts)                                  │
+ * │     200 personas -> 47 %       /inicio 29 ms de mediana, 156 ms el p95                        │
+ * │     300 personas -> 67 %       limite razonable (p95 484 ms)                                  │
+ * │     400 personas -> 96 %       inservible (742 ms de mediana)                                 │
+ * │                                                                                               │
+ * │ Los PORCENTAJES no se tocan: con la medicion nueva, 50 % son ~215 personas y 70 % son ~310, y │
+ * │ los dos siguen avisando antes del acantilado (que ahora esta entre 300 y 400). Lo que cambia  │
+ * │ al optimizar es cuanta gente cabe bajo el mismo porcentaje, no cuando conviene avisar.        │
+ * │                                                                                               │
+ * │ En PRODUCCION avisara con menos gente que esas cifras, porque el banco no medía TLS: el mismo │
+ * │ trafico real cuesta mas CPU. El sesgo empuja al lado seguro, que es el que queremos.          │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
 export const CPU_AVISO_PREPARATE_PCT = 50;
