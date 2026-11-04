@@ -222,6 +222,8 @@ const CLASIFICADAS: Record<string, "clave" | "chokepoint" | "alta" | "ambito" | 
   altaEmpresaDesdeCero: "alta",
   miEmpresa: "ambito",
   fichaEmpresa: "ambito",
+  // Lee la identificación fiscal y ANOTA quién la miró, en la misma transacción.
+  fiscalDeEmpresa: "ambito",
   verificarEmpresa: "ambito",
   rechazarEmpresa: "ambito",
   listarEmpresas: "panel",

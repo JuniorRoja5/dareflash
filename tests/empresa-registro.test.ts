@@ -28,6 +28,7 @@ import {
   claveAvisoEmpresa,
   EmpresaError,
   fichaEmpresa,
+  fiscalDeEmpresa,
   listarEmpresas,
   miEmpresa,
   rechazarEmpresa,
@@ -370,12 +371,45 @@ describe("los DTO: quién ve qué", () => {
     expect(JSON.stringify(fila)).not.toContain("B12345678");
   });
 
-  it("y SOLO la ficha del admin la trae", async () => {
+  it("la ficha del admin dice que la HAY, pero tampoco la trae", async () => {
     await alta("bar@manolo.test", { fiscalId: "B12345678", fiscalPaisIso: "ES" });
     const { id } = await laEmpresa();
     const ficha = await fichaEmpresa(prisma, id);
-    expect(ficha?.fiscalId).toBe("B12345678");
-    expect(ficha?.fiscalPaisIso).toBe("ES");
+    expect(ficha?.tieneFiscal).toBe(true);
+    // Ni abriendo una ficha se ve: hay que pedirla, y pedirla deja rastro.
+    expect(JSON.stringify(ficha)).not.toContain("B12345678");
+  });
+
+  it("solo se obtiene por la puerta que ESCRIBE el rastro, y el rastro no lleva el valor", async () => {
+    await alta("bar@manolo.test", { fiscalId: "B12345678", fiscalPaisIso: "ES" });
+    const { id } = await laEmpresa();
+
+    const r = await fiscalDeEmpresa(prisma, { actorId: admin, empresaId: id });
+    expect(r).toEqual({ estado: "hecho", fiscalId: "B12345678", fiscalPaisIso: "ES" });
+
+    const rastro = await rastroDe(id);
+    expect(rastro).toHaveLength(1);
+    expect(rastro[0]?.action).toBe("EMPRESA_FISCAL_VIEW");
+    expect(rastro[0]?.actorId).toBe(admin);
+    // El valor NO se copia al AuditLog: duplicar el documento de una persona en la tabla de
+    // auditoría multiplicaría el problema que el registro existe para vigilar.
+    expect(JSON.stringify(rastro[0]?.metadata)).not.toContain("B12345678");
+  });
+
+  it("mirarla dos veces deja DOS filas: es un registro de accesos, no un estado", async () => {
+    await alta("bar@manolo.test", { fiscalId: "B12345678", fiscalPaisIso: "ES" });
+    const { id } = await laEmpresa();
+    await fiscalDeEmpresa(prisma, { actorId: admin, empresaId: id });
+    await fiscalDeEmpresa(prisma, { actorId: admin, empresaId: id });
+    expect(await rastroDe(id)).toHaveLength(2);
+  });
+
+  it("y una empresa SIN identificación también se anota (se registra QUE se miró)", async () => {
+    await alta("bar@manolo.test");
+    const { id } = await laEmpresa();
+    const r = await fiscalDeEmpresa(prisma, { actorId: admin, empresaId: id });
+    expect(r).toEqual({ estado: "hecho", fiscalId: null, fiscalPaisIso: null });
+    expect(await rastroDe(id)).toHaveLength(1);
   });
 });
 

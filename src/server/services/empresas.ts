@@ -496,16 +496,16 @@ export async function listarEmpresas(
 }
 
 /**
- * LA FICHA DE VERIFICACIÓN: una empresa, de una en una, con la IDENTIFICACIÓN FISCAL.
+ * LA FICHA DE VERIFICACIÓN: una empresa, de una en una.
  *
- * Es el ÚNICO sitio donde ese dato sale de la base de datos. No está en el listado (veinticinco
- * documentos de golpe en una pantalla), ni en ningún correo, ni en el DTO del dueño, ni en el
- * `AuditLog` — en una marca personal es el documento de una persona, y el admin solo necesita
- * mirarlo cuando está decidiendo si verifica ESA.
+ * LA IDENTIFICACIÓN FISCAL NO VIENE AQUÍ, solo si la HAY. Se pide aparte, y esa petición deja
+ * rastro (`fiscalDeEmpresa`), igual que el correo de una cuenta en `/panel/usuarios`: en una marca
+ * personal es el documento de una persona, así que no se pinta "de paso" al abrir una ficha —se
+ * pide a propósito, y queda escrito quién lo miró—.
  */
 export interface FichaEmpresa extends EmpresaPanel {
-  fiscalId: string | null;
-  fiscalPaisIso: string | null;
+  /** Si hay identificación fiscal guardada. El VALOR se pide por su puerta (ver `fiscalDeEmpresa`). */
+  tieneFiscal: boolean;
 }
 
 export async function fichaEmpresa(db: Db, empresaId: string): Promise<FichaEmpresa | null> {
@@ -554,8 +554,7 @@ export async function fichaEmpresa(db: Db, empresaId: string): Promise<FichaEmpr
     webUrl: e.webUrl,
     redes: e.redes,
     direccion: e.direccion,
-    fiscalId: e.fiscalId,
-    fiscalPaisIso: e.fiscalPaisIso,
+    tieneFiscal: e.fiscalId !== null,
     motivoRechazo: e.motivoRechazo as MotivoRechazoEmpresa | null,
     notaInterna: e.notaInterna,
     dueno: handle.get(e.ownerUserId) ?? null,
@@ -563,6 +562,42 @@ export async function fichaEmpresa(db: Db, empresaId: string): Promise<FichaEmpr
     verificadaMs: e.verificadaEn?.getTime() ?? null,
     verificadaPor: e.verificadaPor ? (handle.get(e.verificadaPor) ?? null) : null,
   };
+}
+
+export type ResultadoFiscal =
+  | { estado: "hecho"; fiscalId: string | null; fiscalPaisIso: string | null }
+  | { estado: "rechazado"; motivo: "NO_ENCONTRADA" };
+
+/**
+ * LA IDENTIFICACIÓN FISCAL, CON RASTRO. Se lee y se anota en la MISMA transacción, y en ese orden:
+ * si la anotación falla, la transacción revierte y nadie se lleva el dato. Un registro de accesos
+ * que se pueda saltar cuando algo va mal no es un registro de accesos.
+ *
+ * Puede devolver `null` legítimamente (una empresa que no la dio: es opcional). Se anota igual —lo
+ * que se registra es QUE SE MIRÓ, no qué había—, y el valor NO se copia al `AuditLog`: duplicar el
+ * documento de una persona en la tabla de auditoría multiplicaría el problema que el registro
+ * existe para vigilar.
+ *
+ * Es el MISMO trato que el correo de una cuenta en `/panel/usuarios`, y por el mismo motivo.
+ */
+export async function fiscalDeEmpresa(
+  db: PrismaClient,
+  entrada: { actorId: string; empresaId: string },
+): Promise<ResultadoFiscal> {
+  return db.$transaction(async (tx): Promise<ResultadoFiscal> => {
+    const fila = await tx.empresa.findUnique({
+      where: { id: entrada.empresaId },
+      select: { fiscalId: true, fiscalPaisIso: true },
+    });
+    if (!fila) return { estado: "rechazado", motivo: "NO_ENCONTRADA" };
+
+    await anotar(tx, {
+      accion: "EMPRESA_FISCAL_VIEW",
+      actorId: entrada.actorId,
+      empresaId: entrada.empresaId,
+    });
+    return { estado: "hecho", fiscalId: fila.fiscalId, fiscalPaisIso: fila.fiscalPaisIso };
+  });
 }
 
 // ---------------------------------------------------------------------------------------------------

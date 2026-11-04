@@ -1887,8 +1887,18 @@ export const ETIQUETA_ESTADO_EMPRESA: Record<EstadoEmpresa, string> = {
   SUSPENDIDA: "Suspendida",
 };
 
-/** Lo que queda escrito en `AuditLog` al tocar una empresa. Su `targetType` es "EMPRESA". */
-export const AuditAccionEmpresaSchema = z.enum(["EMPRESA_VERIFY", "EMPRESA_REJECT"]);
+/**
+ * Lo que queda escrito en `AuditLog` al tocar una empresa. Su `targetType` es "EMPRESA".
+ *
+ * `EMPRESA_FISCAL_VIEW` no es un cambio: es el ACTO DE MIRAR la identificación fiscal, como
+ * `EMAIL_VIEW` lo es de mirar un correo. Se anota QUE se miró y QUIÉN, nunca el valor — duplicar
+ * el dato en la tabla de auditoría multiplicaría el problema que el registro existe para vigilar.
+ */
+export const AuditAccionEmpresaSchema = z.enum([
+  "EMPRESA_VERIFY",
+  "EMPRESA_REJECT",
+  "EMPRESA_FISCAL_VIEW",
+]);
 export type AuditAccionEmpresa = z.infer<typeof AuditAccionEmpresaSchema>;
 
 /**

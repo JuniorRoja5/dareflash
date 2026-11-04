@@ -135,16 +135,33 @@ const muta = (src: string) =>
     new RegExp(`export\\s+(?:const\\s+${m}\\b|(?:async\\s+)?function\\s+${m}\\b)`).test(src),
   );
 
-const envuelta = (src: string) => /mutatingRoute(?:<[^>]*>)?\s*\(/.test(soloCodigo(src));
-const permiteEmpresa = (src: string) => /cuentaEmpresa:\s*"permite"/.test(soloCodigo(src));
+const cuenta = (src: string, re: RegExp) => soloCodigo(src).match(re)?.length ?? 0;
+
+/** Cuántos métodos de este fichero pasan por el envoltorio. */
+const envoltorios = (src: string) => cuenta(src, /mutatingRoute(?:<[^>]*>)?\s*\(/g);
+/** Cuántos de ellos abren la puerta a una cuenta de empresa. */
+const permisos = (src: string) => cuenta(src, /cuentaEmpresa:\s*"permite"/g);
+
+const permiteEmpresa = (src: string) => permisos(src) > 0;
 
 /**
  * LAS ÚNICAS RUTAS QUE UNA CUENTA DE EMPRESA PUEDE MUTAR, con su motivo. Son de GOBIERNO DE LA
- * PROPIA CUENTA, no de participación: una empresa tiene que poder salir y cambiar su contraseña.
+ * PROPIA CUENTA, no de participación:
+ *
+ *  - `auth/logout`: salir no es participar, y una cuenta que no puede cerrar su sesión es una
+ *    cuenta atrapada.
+ *  - `auth/change-password`: es lo primero que hace falta si una credencial se filtra.
+ *  - `perfil/email`: el correo es la IDENTIDAD DE ACCESO —con él se entra y con él se recupera la
+ *    cuenta—, así que moverlo es exactamente lo mismo que cambiar la contraseña. Sin esto, una
+ *    empresa a la que le cambia la persona de contacto se queda sin forma de recuperar su cuenta.
+ *
+ * LO QUE SIGUE CERRADO Y NO ES UN OLVIDO: `perfil` (PATCH) y `perfil/avatar`. Son el perfil PÚBLICO
+ * del producto de participación; la identidad de una empresa es su fila `Empresa`, no un perfil de
+ * participante. Abrirlos le daría presencia pública a quien, por decisión, solo mira.
  *
  * Cuando P2 traiga las rutas del portal, entran aquí —y cada una con su línea—.
  */
-const PERMITEN = new Set(["auth/logout", "auth/change-password"]);
+const PERMITEN = new Set(["auth/logout", "auth/change-password", "perfil/email"]);
 
 describe("el censo de rutas mutantes", () => {
   const MUTANTES = rutas().filter((r) => muta(r.src));
@@ -160,11 +177,18 @@ describe("el censo de rutas mutantes", () => {
     expect(abiertas.sort()).toEqual([...PERMITEN].sort());
   });
 
-  it("y las que declaramos abiertas están de verdad envueltas (si no, no abren: no pasan)", () => {
+  it("y las que declaramos abiertas lo están MÉTODO A MÉTODO, no «el fichero»", () => {
+    // La lección que `route-csrf` ya había pagado: comprobar por FICHERO deja pasar un `route.ts`
+    // con el POST abierto y el DELETE no (o al revés). `perfil/email` exporta los dos, y los dos
+    // son gobierno de la propia cuenta: si alguien quita la opción de uno, esto lo dice.
     for (const ruta of PERMITEN) {
       const r = MUTANTES.find((x) => x.ruta === ruta);
       expect(r, `${ruta} ya no existe o no muta`).toBeDefined();
-      expect(envuelta(r!.src), `${ruta} no pasa por mutatingRoute`).toBe(true);
+      expect(envoltorios(r!.src), `${ruta} no pasa por mutatingRoute`).toBeGreaterThan(0);
+      expect(
+        permisos(r!.src),
+        `${ruta}: ${envoltorios(r!.src)} métodos envueltos pero ${permisos(r!.src)} con permiso`,
+      ).toBe(envoltorios(r!.src));
     }
   });
 

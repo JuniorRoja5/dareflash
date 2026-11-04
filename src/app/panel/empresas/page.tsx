@@ -22,6 +22,7 @@ import { requireSeccion } from "../panel-guard";
 import { seccionPorHref } from "../secciones";
 
 import { AccionesEmpresa } from "./acciones-empresa";
+import { VerFiscal } from "./ver-fiscal";
 
 const S = seccionPorHref("/panel/empresas")!;
 
@@ -179,12 +180,15 @@ export default async function PaginaEmpresas({
                 .map((a) => a.toLowerCase())
                 .join(", ")}
             />
-            {/* EL ÚNICO SITIO donde sale la identificación fiscal. */}
-            {ficha.fiscalId ? (
-              <Dato
-                etiqueta="Id. fiscal"
-                valor={`${ficha.fiscalId}${ficha.fiscalPaisIso ? ` (${nombrePais(ficha.fiscalPaisIso)})` : ""}`}
-              />
+            {/* LA IDENTIFICACIÓN FISCAL NO SE PINTA: se pide, y pedirla deja rastro. Aquí solo se
+                dice SI la hay, que es lo que el admin necesita saber para decidir si la mira. */}
+            {ficha.tieneFiscal ? (
+              <div className="flex min-w-0 flex-wrap gap-2 sm:col-span-2">
+                <dt className="shrink-0 text-text-dim">Id. fiscal</dt>
+                <dd className="min-w-0">
+                  <VerFiscal empresaId={ficha.id} />
+                </dd>
+              </div>
             ) : null}
             {ficha.verificadaMs !== null ? (
               <Dato

@@ -1,6 +1,8 @@
 # DareFlash — Estado del codigo (LA PARTE QUE CADUCA)
 
-> **Foto del 2026-10-14. `main` = `81fd0bc`, pendiente de desplegar.**
+> **Foto del 2026-11-04, con la Fase 9 · P1 recien fusionada y PENDIENTE DE DESPLEGAR (lleva
+> migracion).** La foto describe el commit en el que se escribio: `git log` de este fichero da el
+> SHA exacto, que es mas fiable que una cifra copiada a mano que nadie vuelve a tocar.
 >
 > Todo lo de este fichero **caduca**: el resto de la documentacion (CLAUDE.md, AGENTS.md, MARCA.md,
 > los docblocks) describe decisiones que apenas cambian; esto cambia cada dos semanas.
@@ -25,6 +27,27 @@ de identidad del proveedor de pagos: eso es opcional y posterior. Lo que el prod
 el dinero SALE del monedero al pedirlo y VUELVE entero si se rechaza; el envio en si es manual.
 
 Quedan 4 fases (8–11): 8 VIP · 9 Brand Challenges · 10 1vs1 · 11 multiidioma/PWA.
+
+**FASE 9 EMPEZADA (portal de empresa y publicidad).** En `main` esta la **P1**: la cuenta de
+empresa, su alta DESDE CERO (crea cuenta y empresa juntas; un correo que ya tiene cuenta es un
+no-op silencioso, sin enumeracion) y la verificacion MANUAL desde `/panel/empresas`. **Pendiente de
+desplegar, y lleva migracion.**
+
+Tres decisiones de P1 que condicionan lo que viene:
+
+- **Una cuenta de empresa MIRA Y NO PARTICIPA.** El candado esta en `mutatingRoute` —el chokepoint
+  por el que pasa toda mutacion— y esta CERRADO POR DEFECTO: una ruta mutante nueva nace bloqueada
+  para empresas y abrirla exige escribir `cuentaEmpresa: "permite"`. Hoy solo lo dicen las de
+  gobierno de la propia cuenta (salir, contrasena, correo). El censo vive en
+  `tests/empresa-no-participa.test.ts` y se compone con `route-csrf`.
+- **El ambito sale de un solo sitio.** `requireEmpresa()` es el unico productor de un `empresaId`, y
+  los servicios lo reciben como parametro OBLIGATORIO. Un filtro opcional se olvida y compila.
+- **La identificacion fiscal no se pinta: se pide**, y pedirla escribe en `AuditLog` sin copiar el
+  valor. Mismo trato que el correo de una cuenta en `/panel/usuarios`.
+
+Lo siguiente es **P2**: el shell del portal, su navegacion y el CTA de la cuenta de empresa (hoy el
+CTA del shell le sigue diciendo "Subir video", que da 403 si lo pulsa). El plan completo por piezas
+—P1 a P13— vive fuera del repositorio, en el informe de diseno de la fase.
 
 Pre-lanzamiento: el sitio sigue tras el pestillo (`robots: Disallow: /` + `X-Robots-Tag: noindex`).
 
