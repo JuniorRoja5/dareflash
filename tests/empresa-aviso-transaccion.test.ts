@@ -28,11 +28,10 @@ vi.mock("@/server/email/send", () => ({
   }),
 }));
 
-const { registrarEmpresa } = await import("../src/server/services/empresas");
-const { crearUsuario, createTestPrisma, resetDb } = await import("./helpers/db");
+const { altaEmpresaDesdeCero, claveAvisoEmpresa } = await import("../src/server/services/empresas");
+const { createTestPrisma, resetDb } = await import("./helpers/db");
 
 let prisma: PrismaClient;
-let dueno: string;
 
 beforeAll(() => {
   prisma = createTestPrisma();
@@ -43,37 +42,54 @@ afterAll(async () => {
 beforeEach(async () => {
   await resetDb(prisma);
   llamadas.length = 0;
-  dueno = await crearUsuario(prisma, { username: "dueno_tx" });
 });
+
+const alta = (email: string, adminEmail: string | null) =>
+  altaEmpresaDesdeCero(
+    prisma,
+    {
+      email,
+      password: "Un4-Contrasena-Larga-Y-Buena!",
+      terminosAceptadosEn: new Date(),
+      nombre: "Bar de la Transacción",
+      tipoCuenta: "EMPRESA",
+      tipoNegocio: "FISICO",
+      paisIso: "ES",
+      personaContacto: "Quien firma",
+      webUrl: "https://bar.test",
+    },
+    {
+      adminEmail,
+      urlPanel: "https://dareflash.com/panel/empresas",
+      appUrl: "https://dareflash.com",
+    },
+  );
 
 describe("el encolado del aviso", () => {
   it("recibe el cliente de la transacción, NO el singleton de Prisma", async () => {
-    const r = await registrarEmpresa(
-      prisma,
-      {
-        userId: dueno,
-        nombre: "Bar de la Transacción",
-        tipoCuenta: "EMPRESA",
-        tipoNegocio: "FISICO",
-      },
-      { adminEmail: "admin@dareflash.com", urlPanel: "https://dareflash.com/panel/empresas" },
-    );
+    await alta("tx@bar.test", "admin@dareflash.com");
+    const e = await prisma.empresa.findFirstOrThrow({ select: { id: true } });
 
-    expect(llamadas).toHaveLength(1);
+    // El de verificación de la cuenta va FUERA de la transacción a propósito (es recuperable con
+    // «reenviar»), así que aquí hay DOS llamadas y la que importa es la del aviso.
+    const delAviso = llamadas.filter(
+      (l) =>
+        (l.opciones as { idempotencyKey?: string } | undefined)?.idempotencyKey ===
+        claveAvisoEmpresa(e.id),
+    );
+    expect(delAviso).toHaveLength(1);
     // LA COMPROBACIÓN QUE IMPORTA: si fuera el singleton, el aviso viviría fuera de la transacción.
-    expect(llamadas[0]?.cliente).not.toBe(prisma);
-    // Y la clave sale del HECHO, no del momento: un reintento no manda un segundo correo.
-    expect(llamadas[0]?.opciones).toMatchObject({
-      idempotencyKey: `empresa-pendiente:${r.id}`,
-    });
+    expect(delAviso[0]?.cliente).not.toBe(prisma);
   });
 
   it("y no se llama cuando no hay destinatario", async () => {
-    await registrarEmpresa(
-      prisma,
-      { userId: dueno, nombre: "Sin Avisos", tipoCuenta: "EMPRESA", tipoNegocio: "ONLINE" },
-      { adminEmail: null, urlPanel: "https://dareflash.com/panel/empresas" },
+    await alta("sinavisos@bar.test", null);
+    const e = await prisma.empresa.findFirstOrThrow({ select: { id: true } });
+    const delAviso = llamadas.filter(
+      (l) =>
+        (l.opciones as { idempotencyKey?: string } | undefined)?.idempotencyKey ===
+        claveAvisoEmpresa(e.id),
     );
-    expect(llamadas).toHaveLength(0);
+    expect(delAviso).toHaveLength(0);
   });
 });

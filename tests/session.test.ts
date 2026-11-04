@@ -66,14 +66,18 @@ describe("sesiones en base de datos", () => {
     expect(await validateSession(prisma, s2.rawToken)).not.toBeNull();
   });
 
-  it("sesion valida -> devuelve el usuario (id, rol, emailVerified)", async () => {
+  it("sesion valida -> devuelve el usuario (id, rol, emailVerified, si es empresa)", async () => {
     const userId = await crearUsuario("a@test.com", { role: "MODERATOR" });
     const { rawToken } = await createSession(prisma, userId);
     const user = await validateSession(prisma, rawToken);
+    // IGUALDAD EXACTA, no "contiene": la sesion es lo que lee TODA peticion autenticada, asi que un
+    // campo que se cuele aqui viaja a todas partes. `esCuentaEmpresa` esta porque el candado de
+    // `mutatingRoute` lo lee en cada mutacion y no se va a consultar aparte (Fase 9 · P1).
     expect(user).toEqual({
       userId,
       role: "MODERATOR",
       emailVerified: expect.any(Date),
+      esCuentaEmpresa: false,
       sessionId: expect.any(String),
     });
   });

@@ -1,4 +1,5 @@
-import { PasosKeyset } from "@/components/ui/pasos-keyset";
+import Link from "next/link";
+
 import {
   ETIQUETA_ESTADO_EMPRESA,
   ETIQUETA_TIPO_CUENTA,
@@ -8,7 +9,14 @@ import {
   type EstadoEmpresa,
 } from "@/config/constants";
 import { alcancesPermitidos } from "@/lib/empresa";
-import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
+import {
+  anterior,
+  escribirPila,
+  leerPila,
+  siguiente,
+  type Paginacion,
+} from "@/lib/paginacion-pila";
+import { nombrePais } from "@/lib/paises";
 
 import { requireSeccion } from "../panel-guard";
 import { seccionPorHref } from "../secciones";
@@ -27,6 +35,9 @@ const ESTILO_TITULO = {
   fontVariationSettings: '"wght" 720, "wdth" 112',
 } as const;
 const FECHA = { day: "2-digit", month: "2-digit", year: "numeric" } as const;
+const PILDORA = "rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim";
+const PASO =
+  "inline-block min-h-[38px] rounded-sm border border-line px-4 py-2 text-sm font-medium text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised";
 
 /** Un `?estado=` manipulado no revienta la consulta: se queda en «todas». */
 function estadoDe(v: string | string[] | undefined): EstadoEmpresa | null {
@@ -34,27 +45,53 @@ function estadoDe(v: string | string[] | undefined): EstadoEmpresa | null {
   return r.success ? r.data : null;
 }
 
-const PILDORA = "rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim";
+const texto = (v: string | string[] | undefined): string =>
+  typeof v === "string" ? v.trim().slice(0, 80) : "";
 
 /**
- * /panel/empresas — LA COLA DE VERIFICACIÓN.
+ * El enlace de esta pantalla conservando el estado. La PAGINACIÓN es obligatoria (no opcional con
+ * un valor por defecto): así cada enlace DECLARA si se queda donde está o vuelve al principio, en
+ * vez de heredar en silencio un cursor que ya no corresponde. Abrir una ficha conserva la página.
+ */
+function enlace(
+  e: { estado: EstadoEmpresa | null; ficha: string | null },
+  cambios: { estado?: EstadoEmpresa | null; ficha?: string | null; paginacion: Paginacion },
+): string {
+  const p = new URLSearchParams();
+  const v = { ...e, ...cambios };
+  if (v.estado) p.set("estado", v.estado);
+  if (v.ficha) p.set("e", v.ficha);
+  if (cambios.paginacion.cursor) p.set("cursor", cambios.paginacion.cursor);
+  const pila = escribirPila(cambios.paginacion.pila);
+  if (pila) p.set("pila", pila);
+  const s = p.toString();
+  return s ? `/panel/empresas?${s}` : "/panel/empresas";
+}
+
+function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+  return (
+    <div className="flex min-w-0 gap-2">
+      <dt className="shrink-0 text-text-dim">{etiqueta}</dt>
+      <dd className="min-w-0 break-words text-text">{valor}</dd>
+    </div>
+  );
+}
+
+/**
+ * /panel/empresas — LA COLA DE VERIFICACIÓN y la FICHA de cada empresa.
  *
- * TODO POR URL, como el resto del panel: `?estado=` filtra y `?cursor=`/`?pila=` paginan. Sin estado
- * de cliente no hay nada que se desincronice y un enlace a la cola se puede pegar en una
- * conversación.
+ * TODO POR URL, como el resto del panel: `?estado=` filtra, `?cursor=`/`?pila=` paginan y `?e=`
+ * abre una ficha. Sin estado de cliente no hay nada que se desincronice y un enlace a una ficha se
+ * puede pegar en una conversación.
  *
- * PAGINADO POR KEYSET, nunca `OFFSET`: la lista crece y «Anterior» tiene que costar lo mismo que
- * «Siguiente» (ver `lib/paginacion-pila`). Los controles van FUERA del `if` de la lista, para que
- * una página posterior que se quede vacía no encierre a nadie.
+ * LA DECISIÓN SE TOMA EN LA FICHA, no en la lista, y por una razón concreta: la IDENTIFICACIÓN
+ * FISCAL solo se enseña ahí, de una en una. En una marca personal es el documento de una persona,
+ * así que no entra en un listado de veinticinco, ni en ningún correo, ni en el `AuditLog`.
+ * Tampoco el correo del dueño, que sigue teniendo su única puerta en la ficha de la cuenta.
  *
- * LO QUE SÍ SE VE AQUÍ y no en el portal: la nota interna. Y lo que NO se ve en ningún sitio: el
- * correo del dueño. El panel no pinta direcciones en un listado de veinticinco (su única puerta es
- * la ficha de la cuenta, que escribe `AuditLog`), y una lista de empresas no puede ser la rendija
- * que se lo salta.
- *
- * QUÉ PUEDE COMPRAR cada una sale de `alcancesPermitidos`, la misma función pura que aplicará la
- * ruta que cree campañas. Está aquí porque es lo que necesita saber quien verifica: una marca
- * personal que pide verificarse para anunciar «su ciudad» no va a poder, y conviene verlo antes.
+ * PAGINADO POR KEYSET, nunca `OFFSET`: «Anterior» tiene que costar lo mismo que «Siguiente» (ver
+ * `lib/paginacion-pila`), y los controles viven fuera del `if` de la lista para que una página
+ * vacía no encierre a nadie.
  */
 export default async function PaginaEmpresas({
   searchParams,
@@ -65,14 +102,20 @@ export default async function PaginaEmpresas({
   const sp = await searchParams;
 
   const estado = estadoDe(sp["estado"]);
-  const aqui: Paginacion = {
-    cursor: typeof sp["cursor"] === "string" ? sp["cursor"].slice(0, 80) : null,
-    pila: leerPila(sp["pila"]),
-  };
+  const fichaId = texto(sp["e"]) || null;
+  const aqui: Paginacion = { cursor: texto(sp["cursor"]) || null, pila: leerPila(sp["pila"]) };
+  const ctx = { estado, ficha: fichaId };
 
   const { prisma } = await import("@/server/db/client");
-  const { listarEmpresas } = await import("@/server/services/empresas");
-  const pagina = await listarEmpresas(prisma, { estado, cursor: aqui.cursor });
+  const { fichaEmpresa, listarEmpresas } = await import("@/server/services/empresas");
+
+  const [pagina, ficha] = await Promise.all([
+    listarEmpresas(prisma, { estado, cursor: aqui.cursor }),
+    fichaId ? fichaEmpresa(prisma, fichaId) : Promise.resolve(null),
+  ]);
+
+  const atras = anterior(aqui);
+  const adelante = pagina.proximoCursor ? siguiente(aqui, pagina.proximoCursor) : null;
 
   return (
     <div className="df-rise space-y-8">
@@ -109,6 +152,67 @@ export default async function PaginaEmpresas({
         </button>
       </form>
 
+      {ficha ? (
+        <section
+          aria-label={`Ficha de ${ficha.nombre}`}
+          className="rounded-sm border border-line bg-surface p-5"
+          data-ficha={ficha.id}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg text-text">{ficha.nombre}</h2>
+            <span className={PILDORA}>{ETIQUETA_ESTADO_EMPRESA[ficha.estado]}</span>
+            <span className={PILDORA}>{ETIQUETA_TIPO_CUENTA[ficha.tipoCuenta]}</span>
+            <span className={PILDORA}>{ETIQUETA_TIPO_NEGOCIO[ficha.tipoNegocio]}</span>
+          </div>
+
+          <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+            <Dato etiqueta="Dueño" valor={ficha.dueno ? `@${ficha.dueno}` : "—"} />
+            <Dato etiqueta="Contacto" valor={ficha.personaContacto} />
+            <Dato etiqueta="País" valor={nombrePais(ficha.paisIso)} />
+            {ficha.ciudadTexto ? <Dato etiqueta="Ciudad" valor={ficha.ciudadTexto} /> : null}
+            {ficha.webUrl ? <Dato etiqueta="Web" valor={ficha.webUrl} /> : null}
+            {ficha.redes ? <Dato etiqueta="Redes" valor={ficha.redes} /> : null}
+            {ficha.direccion ? <Dato etiqueta="Dirección" valor={ficha.direccion} /> : null}
+            <Dato
+              etiqueta="Puede comprar"
+              valor={alcancesPermitidos(ficha.tipoNegocio)
+                .map((a) => a.toLowerCase())
+                .join(", ")}
+            />
+            {/* EL ÚNICO SITIO donde sale la identificación fiscal. */}
+            {ficha.fiscalId ? (
+              <Dato
+                etiqueta="Id. fiscal"
+                valor={`${ficha.fiscalId}${ficha.fiscalPaisIso ? ` (${nombrePais(ficha.fiscalPaisIso)})` : ""}`}
+              />
+            ) : null}
+            {ficha.verificadaMs !== null ? (
+              <Dato
+                etiqueta="Verificada"
+                valor={`${new Date(ficha.verificadaMs).toLocaleDateString("es-ES", FECHA)}${
+                  ficha.verificadaPor ? ` · @${ficha.verificadaPor}` : ""
+                }`}
+              />
+            ) : null}
+          </dl>
+
+          {ficha.motivoRechazo ? (
+            <p className="mt-3 text-sm text-text">
+              <span className="text-text-dim">Motivo (lo ve la empresa): </span>
+              {MSG_MOTIVO_RECHAZO_EMPRESA[ficha.motivoRechazo]}
+            </p>
+          ) : null}
+          {ficha.notaInterna ? (
+            <p className="mt-1 text-sm text-text-dim">
+              <span className={CABECERA}>Nota interna</span> {ficha.notaInterna}
+            </p>
+          ) : null}
+
+          <AccionesEmpresa id={ficha.id} nombre={ficha.nombre} />
+        </section>
+      ) : null}
+      {fichaId && !ficha ? <p className="text-sm text-text-dim">Esa empresa no existe.</p> : null}
+
       <section aria-label="Empresas">
         {pagina.items.length === 0 ? (
           <p className="text-sm text-text-dim">
@@ -121,83 +225,51 @@ export default async function PaginaEmpresas({
                 : "Todavía no se ha registrado ninguna empresa."}
           </p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="divide-y divide-line rounded-sm border border-line bg-surface">
             {pagina.items.map((e) => (
-              <li
-                key={e.id}
-                data-empresa={e.id}
-                className="rounded-sm border border-line bg-surface p-4"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-sm font-medium text-text">{e.nombre}</h2>
+              <li key={e.id} data-empresa={e.id}>
+                <Link
+                  href={enlace(ctx, { ficha: e.id, paginacion: aqui })}
+                  aria-current={e.id === fichaId ? "true" : undefined}
+                  className={`flex flex-wrap items-center gap-3 p-4 transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised ${
+                    e.id === fichaId ? "bg-raised" : ""
+                  }`}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-text">{e.nombre}</span>
+                    <span className="block truncate text-2xs text-text-dim">
+                      {ETIQUETA_TIPO_NEGOCIO[e.tipoNegocio]} · {nombrePais(e.paisIso)} ·{" "}
+                      {e.personaContacto}
+                    </span>
+                  </span>
                   <span className={PILDORA}>{ETIQUETA_ESTADO_EMPRESA[e.estado]}</span>
-                  <span className={PILDORA}>{ETIQUETA_TIPO_CUENTA[e.tipoCuenta]}</span>
-                  <span className={PILDORA}>{ETIQUETA_TIPO_NEGOCIO[e.tipoNegocio]}</span>
-                  <span className="ml-auto text-2xs text-text-dim tabular-nums">
+                  <span className="w-24 text-right text-2xs text-text-dim tabular-nums">
                     {new Date(e.creadaMs).toLocaleDateString("es-ES", FECHA)}
                   </span>
-                </div>
-
-                <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-                  <div className="flex gap-2">
-                    <dt className="text-text-dim">Dueño</dt>
-                    <dd className="text-text">{e.dueno ? `@${e.dueno}` : "—"}</dd>
-                  </div>
-                  <div className="flex gap-2">
-                    <dt className="text-text-dim">Puede comprar</dt>
-                    <dd className="text-text">
-                      {alcancesPermitidos(e.tipoNegocio)
-                        .map((a) => a.toLowerCase())
-                        .join(", ")}
-                    </dd>
-                  </div>
-                  {e.webUrl ? (
-                    <div className="flex min-w-0 gap-2">
-                      <dt className="text-text-dim">Web</dt>
-                      <dd className="min-w-0 truncate text-text">{e.webUrl}</dd>
-                    </div>
-                  ) : null}
-                  {e.direccion ? (
-                    <div className="flex min-w-0 gap-2">
-                      <dt className="text-text-dim">Dirección</dt>
-                      <dd className="min-w-0 truncate text-text">{e.direccion}</dd>
-                    </div>
-                  ) : null}
-                  {e.verificadaMs !== null ? (
-                    <div className="flex gap-2">
-                      <dt className="text-text-dim">Verificada</dt>
-                      <dd className="text-text tabular-nums">
-                        {new Date(e.verificadaMs).toLocaleDateString("es-ES", FECHA)}
-                        {e.verificadaPor ? ` · @${e.verificadaPor}` : ""}
-                      </dd>
-                    </div>
-                  ) : null}
-                </dl>
-
-                {e.motivoRechazo ? (
-                  <p className="mt-2 text-sm text-text">
-                    <span className="text-text-dim">Motivo (lo ve la empresa): </span>
-                    {MSG_MOTIVO_RECHAZO_EMPRESA[e.motivoRechazo]}
-                  </p>
-                ) : null}
-                {e.notaInterna ? (
-                  <p className="mt-1 text-sm text-text-dim">
-                    <span className={CABECERA}>Nota interna</span> {e.notaInterna}
-                  </p>
-                ) : null}
-
-                <AccionesEmpresa id={e.id} nombre={e.nombre} />
+                </Link>
               </li>
             ))}
           </ul>
         )}
 
-        <PasosKeyset
-          base="/panel/empresas"
-          aqui={aqui}
-          proximoCursor={pagina.proximoCursor}
-          filtro={{ estado }}
-        />
+        {atras || adelante ? (
+          <nav aria-label="Paginación" className="mt-6 flex items-center justify-between gap-3">
+            {atras ? (
+              <Link href={enlace(ctx, { paginacion: atras })} rel="prev" className={PASO}>
+                <span aria-hidden="true">←</span> Anterior
+              </Link>
+            ) : (
+              <span />
+            )}
+            {adelante ? (
+              <Link href={enlace(ctx, { paginacion: adelante })} rel="next" className={PASO}>
+                Siguiente <span aria-hidden="true">→</span>
+              </Link>
+            ) : (
+              <span />
+            )}
+          </nav>
+        ) : null}
       </section>
     </div>
   );

@@ -92,6 +92,14 @@ export interface SessionUser {
   userId: string;
   role: "USER" | "MODERATOR" | "ADMIN";
   emailVerified: Date | null;
+  /**
+   * ES UNA CUENTA DE EMPRESA, y por tanto NO PARTICIPA (Fase 9 · P1). Viaja en la sesion —y no se
+   * consulta donde haga falta— porque lo lee `mutatingRoute`, o sea TODA peticion que muta: una
+   * consulta mas por peticion en el camino mas caliente no se paga por un booleano.
+   *
+   * NO es un rol: `role` es una ESCALA (USER < MODERATOR < ADMIN) y esto es ortogonal a ella.
+   */
+  esCuentaEmpresa: boolean;
   /** Id de la fila Session (para atar el token CSRF a esta sesion concreta). */
   sessionId: string;
 }
@@ -131,7 +139,14 @@ export async function validateSession(
       expires: true,
       lastSeenAt: true,
       user: {
-        select: { id: true, role: true, emailVerified: true, deletedAt: true, bannedAt: true },
+        select: {
+          id: true,
+          role: true,
+          emailVerified: true,
+          deletedAt: true,
+          bannedAt: true,
+          esCuentaEmpresa: true,
+        },
       },
     },
   });
@@ -162,6 +177,7 @@ export async function validateSession(
     userId: row.user.id,
     role: row.user.role,
     emailVerified: row.user.emailVerified,
+    esCuentaEmpresa: row.user.esCuentaEmpresa,
     sessionId: row.id,
   };
 }

@@ -49,6 +49,7 @@ const MODERADOR: SessionUser = {
   userId: "mod-1",
   role: "MODERATOR",
   emailVerified: new Date(),
+  esCuentaEmpresa: false,
   sessionId: "s1",
 };
 

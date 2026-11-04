@@ -1,5 +1,6 @@
 /**
- * LAS PANTALLAS DEL PORTAL (Fase 9 · P1): su guard se EJECUTA, y lo que no debe salir no sale.
+ * LAS PANTALLAS DEL PORTAL Y DEL ALTA (Fase 9 · P1): su guard se EJECUTA, y lo que no debe salir
+ * no sale.
  *
  * `empresa-aislamiento` prueba el ámbito contra la base de datos; esto prueba la capa de delante:
  *
@@ -7,16 +8,17 @@
  *    igual: la promesa se evalúa, el `redirect()` de dentro se pierde en una promesa que nadie mira
  *    y el portal se pinta para un anónimo. Es la misma lección que `panel-guard-paginas`, y la
  *    comprobación por texto no la ve.
- *  - LO QUE NO SE PINTA: la nota interna del equipo no aparece en ningún fichero del portal. No es
- *    que no se seleccione al pintar: es que el DTO del dueño no la trae (y eso lo vigila
- *    `empresa-registro` con igualdad exacta de claves). Aquí se cierra el otro lado.
- *  - LA NAVEGACIÓN DURA al terminar el alta, con su motivo escrito.
+ *  - EL ALTA ESTÁ FUERA DEL GUARD. Es la pieza que más fácil se rompe «ordenando» rutas: si el alta
+ *    cuelga del portal, para registrar una empresa hace falta la sesión que crea el registro.
+ *  - LO QUE NO SE PINTA: ni la nota interna del equipo, ni el handle de quien verifica, ni la
+ *    identificación fiscal. No es que no se seleccionen al pintar: es que el DTO del dueño no las
+ *    trae (y eso lo vigila `empresa-registro` con igualdad exacta de claves).
  *
- * Para romperlo a propósito: quitar el `await` de `protegerPortal()` (rojo el primero); pintar
- * `notaInterna` en la pantalla del dueño (rojo el segundo); cambiar `navegarDuro` por `router.push`
+ * Para romperlo a propósito: quitar el `await` de `protegerPortal()` (rojo el primero); mover el
+ * alta a `/empresa/*` (rojo el segundo); pintar `notaInterna` o `fiscalId` en la pantalla del dueño
  * (rojo el tercero).
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -40,6 +42,7 @@ const VERIFICADO: SessionUser = {
   userId: "u-1",
   role: "USER",
   emailVerified: new Date(),
+  esCuentaEmpresa: true,
   sessionId: "s-1",
 };
 
@@ -47,6 +50,9 @@ beforeEach(() => {
   mocks.getCurrentUser.mockReset();
   mocks.redirect.mockClear();
 });
+
+const raiz = (...p: string[]) => path.resolve(__dirname, "..", ...p.join("/").split("/"));
+const leer = (...p: string[]) => readFileSync(raiz(...p), "utf8");
 
 describe("el guard del portal, ejecutado de verdad", () => {
   it("un anónimo no entra: al login, con vuelta al portal", async () => {
@@ -71,27 +77,39 @@ describe("el guard del portal, ejecutado de verdad", () => {
   });
 });
 
-const raiz = (...p: string[]) => path.resolve(__dirname, "..", ...p);
-const leer = (...p: string[]) => readFileSync(raiz(...p.join("/").split("/")), "utf8");
+describe("el alta vive FUERA del portal", () => {
+  it("no hay ninguna página bajo /empresa que no sea el portal", () => {
+    // El alta crea la cuenta: no puede estar detrás del guard que exige tener una. Si alguien la
+    // devuelve a `/empresa/alta`, el layout le pedirá sesión y nadie podrá registrarse.
+    expect(existsSync(raiz("src/app/(app)/(shell)/empresa/alta/page.tsx"))).toBe(false);
+    expect(existsSync(raiz("src/app/(app)/(shell)/empezar/empresa/page.tsx"))).toBe(true);
+    expect(existsSync(raiz("src/app/(app)/(shell)/empezar/page.tsx"))).toBe(true);
+  });
 
-/** Los ficheros del portal que ve el dueño. El panel es otra cosa y tiene otro DTO. */
+  it("y el portal manda al alta a quien todavía no tiene empresa", () => {
+    expect(leer("src/app/(app)/(shell)/empresa/page.tsx")).toContain(
+      'redirect("/empezar/empresa")',
+    );
+  });
+});
+
+/** Los ficheros que ve el dueño (o cualquiera): el portal y el alta. El panel es otra cosa. */
 const DEL_DUENO = [
   "src/app/(app)/(shell)/empresa/page.tsx",
-  "src/app/(app)/(shell)/empresa/alta/page.tsx",
-  "src/app/(app)/(shell)/empresa/formulario-alta.tsx",
   "src/app/(app)/(shell)/empresa/aviso-verificar.tsx",
+  "src/app/(app)/(shell)/empezar/page.tsx",
+  "src/app/(app)/(shell)/empezar/empresa/page.tsx",
+  "src/app/(app)/(shell)/empezar/empresa/formulario-alta.tsx",
 ];
 
 describe("lo que el portal no pinta", () => {
   it("ni una nota interna, en ningún fichero del dueño", () => {
-    const culpables = DEL_DUENO.filter((rel) => /notaInterna/.test(leer(rel)));
-    expect(culpables).toEqual([]);
+    expect(DEL_DUENO.filter((rel) => /notaInterna/.test(leer(rel)))).toEqual([]);
   });
 
   it("ni el handle de quien verifica (eso es del equipo)", () => {
     // Misma regla que la nota del ajuste de puntos: la traza es interna y el admin no se presenta.
-    const culpables = DEL_DUENO.filter((rel) => /verificadaPor/.test(leer(rel)));
-    expect(culpables).toEqual([]);
+    expect(DEL_DUENO.filter((rel) => /verificadaPor/.test(leer(rel)))).toEqual([]);
   });
 
   it("y el motivo del rechazo SÍ se le enseña (sin motivo, un correo de soporte por caso)", () => {
@@ -99,18 +117,24 @@ describe("lo que el portal no pinta", () => {
   });
 });
 
-describe("el alta", () => {
-  it("al terminar navega en DURO, no con el router", () => {
-    const fuente = leer("src/app/(app)/(shell)/empresa/formulario-alta.tsx");
-    expect(fuente).toContain("navegarDuro(");
-    // El motivo, escrito: a /empresa se llega porque /empresa nos redirigió al alta hace un
-    // momento, y esa redirección está en la caché del router de cliente.
-    expect(fuente).not.toMatch(/router\.push\(/);
+describe("el formulario del alta", () => {
+  const fuente = () => leer("src/app/(app)/(shell)/empezar/empresa/formulario-alta.tsx");
+
+  it("manda el alta a su ruta y SIN pedir CSRF (todavía no hay sesión)", () => {
+    expect(fuente()).toContain('"/api/empresa"');
+    // `postJson` con o sin genérico; lo que no puede aparecer es la variante con CSRF.
+    expect(fuente()).toMatch(/\bpostJson[<(]/);
+    expect(fuente()).not.toContain("postJsonCsrf");
   });
 
-  it("y manda el alta a su propia ruta, con CSRF", () => {
-    const fuente = leer("src/app/(app)/(shell)/empresa/formulario-alta.tsx");
-    expect(fuente).toContain("postJsonCsrf");
-    expect(fuente).toContain('"/api/empresa"');
+  it("explica ANTES de intentarlo que hace falta un correo nuevo", () => {
+    // En el formulario y no en la respuesta: contestar «ese correo ya existe» sería un oráculo de
+    // direcciones registradas, que es lo que el registro de participante evita a propósito.
+    expect(fuente()).toContain("MSG_EMPRESA_CORREO_NUEVO");
+  });
+
+  it("no navega al terminar: el correo está sin verificar, así que no hay sesión que llevar", () => {
+    expect(fuente()).not.toMatch(/navegarDuro\(/);
+    expect(fuente()).not.toMatch(/router\.push\(/);
   });
 });

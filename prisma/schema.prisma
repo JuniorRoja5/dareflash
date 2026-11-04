@@ -211,6 +211,24 @@ model User {
   deletedAt DateTime? // soft delete
   bannedAt  DateTime? // baneo de moderacion
 
+  /// ESTA CUENTA ES DE UNA EMPRESA, Y POR TANTO NO PARTICIPA (Fase 9 · P1).
+  ///
+  /// Una cuenta de empresa MIRA (feed, retos, perfiles) y no hace nada mas: ni sube video, ni vota,
+  /// ni comenta, ni da like, ni denuncia, ni compra Boost o VIP, ni cobra. El candado no es un `if`
+  /// por pantalla: lo aplica `mutatingRoute`, por el que pasa TODA ruta que muta, asi que una ruta
+  /// nueva nace bloqueada para empresas y hay que EXIMIRLA a mano y por escrito (ver su `opciones`
+  /// y el censo en `tests/empresa-no-participa.test.ts`).
+  ///
+  /// ES UNA COLUMNA Y NO UN JOIN a proposito: se lee en CADA peticion autenticada (va dentro de
+  /// `validateSession`), y un LEFT JOIN por peticion en un VPS de una vCPU se paga en el camino mas
+  /// caliente que hay. Es un cache de "tiene fila en `Empresa`", y no puede discrepar porque se
+  /// escribe en la MISMA transaccion que la crea y no hay otra forma de crearla.
+  ///
+  /// Su migracion lo RELLENA desde `Empresa` en vez de arrancar todo a `false`: un cache nuevo que
+  /// empieza a cero miente sin que nada falle (aqui, hoy, no hay ninguna empresa, pero la regla es
+  /// la regla y el dia que se reejecute sobre una base con datos tiene que converger).
+  esCuentaEmpresa Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1434,12 +1452,46 @@ model Empresa {
   /// moderacion posterior (P8); en P1 no hay quien la escriba todavia.
   estado String @default("PENDIENTE")
 
-  /// Su sitio web. Es el dato con el que el admin verifica un negocio ONLINE o una marca.
+  /// PAIS, en ISO 3166-1 alpha-2 (`ES`, `CO`, `MX`…). OBLIGATORIO y multipais desde el primer dia.
+  /// El NOMBRE no se guarda: lo pone `Intl.DisplayNames` en el idioma de quien mira (ver
+  /// `lib/paises`), asi que no hay una lista de 250 nombres que mantener ni traducir.
+  paisIso String @db.Char(2)
+
+  /// CIUDAD COMO TEXTO LIBRE, y solo hasta P5. Sirve para que el admin VERIFIQUE; no segmenta nada
+  /// y no se compara con nada. Cuando exista el catalogo (`GeoCiudad`), elegir ciudad de el sera
+  /// requisito para comprar publicidad LOCAL —no para registrarse—, y esta columna se quedara como
+  /// lo que ya es: un dato de contacto.
+  ciudadTexto String? @db.VarChar(120)
+
+  /// Con QUIEN se habla. Obligatorio: una cuenta de empresa sin una persona detras es una cuenta
+  /// que no se puede verificar ni reclamar.
+  personaContacto String @db.VarChar(120)
+
+  /// Su sitio web. Es uno de los dos datos con los que el admin verifica.
   webUrl String? @db.VarChar(300)
 
-  /// Direccion o localidad, SOLO CONTACTO. No entra en ninguna segmentacion (ver el bloque de
-  /// arriba): geocodificar una direccion exigiria un servicio externo, y el encargo los prohibe.
+  /// Sus redes (texto libre: un perfil, varios, un @). El OTRO dato de verificacion: hay negocios
+  /// —y marcas personales— que no tienen web y si tienen 50.000 seguidores. La regla "web O redes,
+  /// al menos uno" la aplica el servicio y hay test; NO se puede expresar en el esquema sin un
+  /// CHECK que luego nadie ve.
+  redes String? @db.VarChar(300)
+
+  /// Direccion, SOLO CONTACTO. No entra en ninguna segmentacion: geocodificar una direccion
+  /// exigiria un servicio externo, y el encargo los prohibe.
   direccion String? @db.VarChar(200)
+
+  /// IDENTIFICACION FISCAL (NIF, CIF, RUT, RFC…) y el PAIS que la emite. OPCIONAL, y multipais por
+  /// la misma razon que `paisIso`: no hay un formato que valga para todos, asi que es TEXTO y no se
+  /// valida contra ningun patron —validar un NIF español rechazaria un RUT valido—.
+  ///
+  /// ┌─ ESTE DATO NO SALE DE LA FICHA DEL ADMIN ──────────────────────────────────────────────────┐
+  /// │ En una MARCA PERSONAL la identificacion fiscal es el documento de una PERSONA. Asi que no  │
+  /// │ aparece en el listado del panel, ni en ningun correo, ni en el DTO del dueño, ni en el     │
+  /// │ `AuditLog`: solo en la ficha de verificacion, de una en una. Hay tests de igualdad EXACTA  │
+  /// │ de claves en los DTO del listado y del correo, que es donde se cuela un `select` que crece.│
+  /// └─────────────────────────────────────────────────────────────────────────────────────────────┘
+  fiscalId      String? @db.VarChar(60)
+  fiscalPaisIso String? @db.Char(2)
 
   /// EL HECHO y su firma. `verificadaEn` es ademas lo que decidira el regalo de Socio Fundador en P4
   /// (comparacion contra `SOCIO_FUNDADOR_HASTA`), asi que es una fecha de verdad y no un booleano.

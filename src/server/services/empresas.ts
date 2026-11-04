@@ -25,9 +25,18 @@ import "server-only";
 
 import {
   EMPRESAS_PAGINA,
+  EMPRESA_CIUDAD_MAX,
+  EMPRESA_CONTACTO_MAX,
+  EMPRESA_CONTACTO_MIN,
+  EMPRESA_DIRECCION_MAX,
+  EMPRESA_FISCAL_MAX,
   EMPRESA_NOMBRE_MAX,
   EMPRESA_NOMBRE_MIN,
   EMPRESA_NOTA_MAX,
+  EMPRESA_REDES_MAX,
+  EMPRESA_WEB_MAX,
+  MSG_EMPRESA_DATOS_INVALIDOS,
+  MSG_EMPRESA_WEB_O_REDES,
   TITULO_AVISO_EMPRESA_NUEVA,
   msgAvisoEmpresaNueva,
   type AuditAccionEmpresa,
@@ -36,14 +45,24 @@ import {
   type TipoCuentaEmpresa,
   type TipoNegocio,
 } from "@/config/constants";
-import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import type { PrismaClient } from "@/generated/prisma/client";
 import {
   codificarCursorTiempo,
   conKeysetTiempo,
   decodificarCursorTiempo,
 } from "@/lib/cursor-tiempo";
+import { esPaisIso } from "@/lib/paises";
+import { generarCodigoReferido } from "@/server/auth/codigo-referido";
+import { generarHandle, HANDLE_MAX_INTENTOS } from "@/server/auth/handle";
+import { hashPassword } from "@/server/auth/password";
+import {
+  esViolacionUnicaDeCodigoReferido,
+  esViolacionUnicaDeEmail,
+  esViolacionUnicaDeUsername,
+} from "@/server/auth/registration";
 import type { Db } from "@/server/db/types";
 import { enqueueEmail } from "@/server/email/send";
+import { requestEmailVerification } from "@/server/services/email-verification";
 
 export class EmpresaError extends Error {
   constructor(
@@ -54,9 +73,6 @@ export class EmpresaError extends Error {
     this.name = "EmpresaError";
   }
 }
-
-const esDuplicado = (e: unknown): boolean =>
-  e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
 
 /** Clave del aviso al admin: UNA por empresa. Un reintento del worker no manda un segundo correo. */
 export function claveAvisoEmpresa(empresaId: string): string {
@@ -86,53 +102,65 @@ export async function empresaDeUsuario(db: Db, userId: string): Promise<EmpresaD
 }
 
 // ---------------------------------------------------------------------------------------------------
-// REGISTRAR
+// EL ALTA — SIEMPRE DESDE CERO
 // ---------------------------------------------------------------------------------------------------
 
 export interface EntradaRegistro {
-  userId: string;
+  /** La cuenta se CREA aquí: no hay sesión previa. Ver el docblock de `altaEmpresaDesdeCero`. */
+  email: string;
+  password: string;
+  /** Lo sella el servidor, como en el registro de participante: una fecha que manda quien consiente no prueba nada. */
+  terminosAceptadosEn: Date;
   nombre: string;
   tipoCuenta: TipoCuentaEmpresa;
   tipoNegocio: TipoNegocio;
-  /** Opcionales de verdad: una marca puede no tener web, y un negocio online no tiene dirección. */
+  /** ISO 3166-1 alpha-2. Obligatorio. */
+  paisIso: string;
+  /** Con quién se habla. Obligatorio. */
+  personaContacto: string;
+  /** Texto libre hasta P5: sirve para verificar, no segmenta nada. */
+  ciudadTexto?: string | null;
+  /** Web O redes: al menos uno de los dos (lo exige el servicio, no el esquema). */
   webUrl?: string | null;
+  redes?: string | null;
   direccion?: string | null;
+  /** Identificación fiscal y su país emisor. OPCIONALES, y no salen de la ficha del admin. */
+  fiscalId?: string | null;
+  fiscalPaisIso?: string | null;
 }
 
-/** Lo que hace falta para avisar al admin. Se INYECTA: el servicio no lee `env` (regla de la casa). */
+/** Lo que hace falta para avisar. Se INYECTA: el servicio no lee `env` (regla de la casa). */
 export interface AvisoRegistro {
   /** `null` = no hay destinatario configurado: no se encola nada y se deja una línea en el log. */
   adminEmail: string | null;
   /** Enlace a la cola del panel. Un enlace, no un token: se mira con una sesión. */
   urlPanel: string;
+  /** Base para el enlace del correo de verificación (el de la cuenta recién creada). */
+  appUrl: string;
   log?: (mensaje: string) => void;
 }
 
 export interface EmpresaRegistrada {
-  id: string;
-  /** `false` = ya tenía una (doble clic, dos pestañas): no se ha creado otra ni se ha avisado dos veces. */
+  /**
+   * `false` = ese correo ya tenía cuenta (o dos altas simultáneas): NO se ha creado nada.
+   *
+   * NO LLEVA EL `id`, y es a propósito: quien llama responde lo MISMO en los dos casos (ver la
+   * ruta). Devolver el id sería darle al cliente la forma de distinguirlos, que es el oráculo de
+   * enumeración que el registro de participante se cuida de no abrir.
+   */
   creado: boolean;
 }
 
-/**
- * REGISTRAR una empresa y AVISAR al admin, en UNA transacción.
- *
- * El aviso es de los que exigen algo —bloquea a un cliente que ya se registró—, así que sale
- * inmediato por la cola (`SEND_EMAIL`, política de reaper FAIL: sobre SMTP no hay exactly-once) y no
- * en el resumen diario. Su clave se deriva del HECHO (`empresa-pendiente:{id}`), no del momento.
- *
- * IDEMPOTENTE POR LA BASE DE DATOS, no por un `if`: `ownerUserId` es UNIQUE. Dos envíos a la vez
- * dejan pasar uno, y el otro devuelve el que ganó, sin segunda empresa y sin segundo correo.
- *
- * SIN DESTINATARIO SE REGISTRA IGUAL. Que no tengamos a quién avisar no puede impedir que alguien se
- * dé de alta; lo que no se hace es dar el aviso por enviado.
- */
-export async function registrarEmpresa(
-  db: PrismaClient,
-  entrada: EntradaRegistro,
-  aviso: AvisoRegistro,
-  now: Date = new Date(),
-): Promise<EmpresaRegistrada> {
+/** Texto opcional: se limpia y, si queda vacío, es `null` — no cadena vacía. */
+const opcional = (v: string | null | undefined, max: number): string | null =>
+  v?.trim().slice(0, max) || null;
+
+/** Las reglas del alta que NO dependen de la base de datos. Lanzan con copy humano. */
+function validarAlta(entrada: EntradaRegistro): {
+  nombre: string;
+  personaContacto: string;
+  paisIso: string;
+} {
   const nombre = entrada.nombre.trim();
   if (nombre.length < EMPRESA_NOMBRE_MIN || nombre.length > EMPRESA_NOMBRE_MAX) {
     throw new EmpresaError(
@@ -140,56 +168,139 @@ export async function registrarEmpresa(
       `El nombre tiene que tener entre ${EMPRESA_NOMBRE_MIN} y ${EMPRESA_NOMBRE_MAX} caracteres.`,
     );
   }
-
-  const suya = () => empresaDeUsuario(db, entrada.userId);
-  const previa = await suya();
-  if (previa) return { id: previa.id, creado: false };
-
-  try {
-    return await db.$transaction(async (tx) => {
-      const e = await tx.empresa.create({
-        data: {
-          ownerUserId: entrada.userId,
-          nombre,
-          tipoCuenta: entrada.tipoCuenta,
-          tipoNegocio: entrada.tipoNegocio,
-          estado: "PENDIENTE",
-          ...(entrada.webUrl ? { webUrl: entrada.webUrl } : {}),
-          ...(entrada.direccion ? { direccion: entrada.direccion } : {}),
-          createdAt: now,
-        },
-        select: { id: true },
-      });
-
-      if (aviso.adminEmail) {
-        await enqueueEmail(
-          tx,
-          {
-            to: aviso.adminEmail,
-            subject: TITULO_AVISO_EMPRESA_NUEVA,
-            text: msgAvisoEmpresaNueva({
-              nombre,
-              tipoNegocio: entrada.tipoNegocio,
-              urlPanel: aviso.urlPanel,
-            }),
-          },
-          { idempotencyKey: claveAvisoEmpresa(e.id), runAt: now },
-        );
-      } else {
-        aviso.log?.(
-          "[empresas] ADMIN_EMAIL sin configurar: la empresa queda registrada y NADIE recibe el aviso.",
-        );
-      }
-
-      return { id: e.id, creado: true };
-    });
-  } catch (err) {
-    if (esDuplicado(err)) {
-      const ganadora = await suya();
-      if (ganadora) return { id: ganadora.id, creado: false };
-    }
-    throw err;
+  const personaContacto = entrada.personaContacto.trim();
+  if (
+    personaContacto.length < EMPRESA_CONTACTO_MIN ||
+    personaContacto.length > EMPRESA_CONTACTO_MAX
+  ) {
+    throw new EmpresaError("DATOS_INVALIDOS", MSG_EMPRESA_DATOS_INVALIDOS);
   }
+  const paisIso = entrada.paisIso.trim().toUpperCase();
+  if (!esPaisIso(paisIso)) throw new EmpresaError("DATOS_INVALIDOS", MSG_EMPRESA_DATOS_INVALIDOS);
+  // WEB O REDES, AL MENOS UNO. Es la regla que no cabe en el esquema (un CHECK que nadie ve) y la
+  // que decide si el admin PUEDE verificar: sin ninguno de los dos no hay nada que comprobar.
+  if (!entrada.webUrl?.trim() && !entrada.redes?.trim()) {
+    throw new EmpresaError("DATOS_INVALIDOS", MSG_EMPRESA_WEB_O_REDES);
+  }
+  return { nombre, personaContacto, paisIso };
+}
+
+/**
+ * EL ALTA DE UNA EMPRESA, SIEMPRE DESDE CERO: crea la CUENTA y la EMPRESA juntas.
+ *
+ * ┌─ POR QUÉ NO SE PUEDE COLGAR DE UNA CUENTA QUE YA EXISTE ───────────────────────────────────────┐
+ * │ Una cuenta de empresa NO PARTICIPA (ver `User.esCuentaEmpresa` y el candado de                 │
+ * │ `mutatingRoute`). Si el alta convirtiera una cuenta de participante, habría que decidir qué    │
+ * │ pasa con sus vídeos, sus votos, sus puntos y su monedero — y cualquier respuesta a eso es peor │
+ * │ que la regla simple: una empresa se registra con un correo NUEVO. Así la cuenta nace siendo lo │
+ * │ que es y no hay ninguna conversión que auditar.                                                 │
+ * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * SIN ENUMERACIÓN, igual que el registro de participante y por lo mismo: si el correo ya tiene
+ * cuenta, esto es un no-op SILENCIOSO (`creado: false`) y quien llama responde lo mismo que si
+ * hubiera creado. El coste en tiempo también es el mismo: argon2 se calcula SIEMPRE y ANTES de
+ * tocar la base de datos. Lo que explica la regla al humano es el copy del formulario
+ * (`MSG_EMPRESA_CORREO_NUEVO`), que se lee ANTES de intentarlo y no delata nada.
+ *
+ * TODO EN UNA TRANSACCIÓN: la cuenta, su marca de empresa, la empresa y el aviso al admin. Si algo
+ * revienta no queda ni media cuenta ni un correo prometiendo una empresa que no existe.
+ *
+ * EL CORREO DE VERIFICACIÓN VA DESPUÉS, fuera de la transacción, y no es un descuido: es lo que ya
+ * hace `registerUser`, y la diferencia con el aviso al admin es que este SÍ se puede recuperar
+ * («reenviar verificación») mientras que una empresa esperando sin que nadie lo sepa, no.
+ *
+ * El `username` y el `referralCode` se auto-generan y, si chocan, se REGENERAN y se reintenta
+ * (acotado), igual que en el alta de participante: la constraint es el árbitro, nunca un
+ * findUnique-luego-create.
+ */
+export async function altaEmpresaDesdeCero(
+  db: PrismaClient,
+  entrada: EntradaRegistro,
+  aviso: AvisoRegistro,
+  now: Date = new Date(),
+): Promise<EmpresaRegistrada> {
+  const { nombre, personaContacto, paisIso } = validarAlta(entrada);
+  const email = entrada.email.trim().toLowerCase();
+
+  // SIEMPRE y ANTES de mirar la BD: el coste dominante es igual exista o no la cuenta, así que no
+  // hay diferencia de tiempo que delate direcciones registradas.
+  const passwordHash = await hashPassword(entrada.password);
+
+  const datosEmpresa = {
+    nombre,
+    tipoCuenta: entrada.tipoCuenta,
+    tipoNegocio: entrada.tipoNegocio,
+    estado: "PENDIENTE",
+    paisIso,
+    personaContacto,
+    ciudadTexto: opcional(entrada.ciudadTexto, EMPRESA_CIUDAD_MAX),
+    webUrl: opcional(entrada.webUrl, EMPRESA_WEB_MAX),
+    redes: opcional(entrada.redes, EMPRESA_REDES_MAX),
+    direccion: opcional(entrada.direccion, EMPRESA_DIRECCION_MAX),
+    fiscalId: opcional(entrada.fiscalId, EMPRESA_FISCAL_MAX),
+    fiscalPaisIso: entrada.fiscalPaisIso?.trim().toUpperCase() || null,
+    createdAt: now,
+  };
+
+  for (let intento = 0; ; intento += 1) {
+    try {
+      await db.$transaction(async (tx) => {
+        const u = await tx.user.create({
+          data: {
+            email,
+            username: generarHandle(),
+            referralCode: generarCodigoReferido(),
+            passwordHash,
+            terminosAceptadosEn: entrada.terminosAceptadosEn,
+            emailVerified: null, // sin verificar: sin acciones con efectos, tampoco en el portal
+            // LA MARCA, en la MISMA transacción que la fila de `Empresa`: por eso el cache no
+            // puede discrepar de la verdad — no hay forma de crear una sin la otra.
+            esCuentaEmpresa: true,
+            createdAt: now,
+          },
+          select: { id: true },
+        });
+
+        const e = await tx.empresa.create({
+          data: { ownerUserId: u.id, ...datosEmpresa },
+          select: { id: true },
+        });
+
+        if (aviso.adminEmail) {
+          await enqueueEmail(
+            tx,
+            {
+              to: aviso.adminEmail,
+              subject: TITULO_AVISO_EMPRESA_NUEVA,
+              text: msgAvisoEmpresaNueva({
+                nombre,
+                tipoNegocio: entrada.tipoNegocio,
+                urlPanel: aviso.urlPanel,
+              }),
+            },
+            { idempotencyKey: claveAvisoEmpresa(e.id), runAt: now },
+          );
+        } else {
+          aviso.log?.(
+            "[empresas] ADMIN_EMAIL sin configurar: la empresa queda registrada y NADIE recibe el aviso.",
+          );
+        }
+      });
+      break; // creada
+    } catch (err) {
+      // El correo ya tenía cuenta (o dos altas a la vez): no-op SILENCIOSO, sin enumeración.
+      if (esViolacionUnicaDeEmail(err)) return { creado: false };
+      // Handle o código de referido repetidos: valores aleatorios que chocaron. Se regeneran solos
+      // en el siguiente intento, que es lo que hace el alta de participante.
+      const recuperable = esViolacionUnicaDeUsername(err) || esViolacionUnicaDeCodigoReferido(err);
+      if (recuperable && intento < HANDLE_MAX_INTENTOS - 1) continue;
+      throw err;
+    }
+  }
+
+  // Fuera de la transacción, como en el alta de participante (ver el docblock).
+  await requestEmailVerification(db, { email, appUrl: aviso.appUrl, now });
+  return { creado: true };
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -207,7 +318,11 @@ export interface MiEmpresa {
   tipoCuenta: TipoCuentaEmpresa;
   tipoNegocio: TipoNegocio;
   estado: EstadoEmpresa;
+  paisIso: string;
+  ciudadTexto: string | null;
+  personaContacto: string;
   webUrl: string | null;
+  redes: string | null;
   direccion: string | null;
   motivoRechazo: MotivoRechazoEmpresa | null;
   creadaMs: number;
@@ -221,13 +336,19 @@ export interface MiEmpresa {
 export async function miEmpresa(db: Db, empresaId: string): Promise<MiEmpresa | null> {
   const e = await db.empresa.findUnique({
     where: { id: empresaId },
+    // SIN `fiscalId` NI `fiscalPaisIso`: en una marca personal es el documento de una persona, y
+    // solo se enseña en la ficha de verificación del admin (ver `fichaEmpresa`).
     select: {
       id: true,
       nombre: true,
       tipoCuenta: true,
       tipoNegocio: true,
       estado: true,
+      paisIso: true,
+      ciudadTexto: true,
+      personaContacto: true,
       webUrl: true,
+      redes: true,
       direccion: true,
       motivoRechazo: true,
       createdAt: true,
@@ -241,7 +362,11 @@ export async function miEmpresa(db: Db, empresaId: string): Promise<MiEmpresa | 
     tipoCuenta: e.tipoCuenta as TipoCuentaEmpresa,
     tipoNegocio: e.tipoNegocio as TipoNegocio,
     estado: e.estado as EstadoEmpresa,
+    paisIso: e.paisIso,
+    ciudadTexto: e.ciudadTexto,
+    personaContacto: e.personaContacto,
     webUrl: e.webUrl,
+    redes: e.redes,
     direccion: e.direccion,
     motivoRechazo: e.motivoRechazo as MotivoRechazoEmpresa | null,
     creadaMs: e.createdAt.getTime(),
@@ -250,9 +375,13 @@ export async function miEmpresa(db: Db, empresaId: string): Promise<MiEmpresa | 
 }
 
 /**
- * LO QUE VE EL PANEL: lo del dueño MÁS la nota interna y las firmas. Sin el email del dueño: el
- * panel no pinta direcciones en un listado de veinticinco (su única puerta es la ficha de la cuenta,
- * que escribe `AuditLog`), y un listado de empresas no puede ser la rendija que se lo salta.
+ * LO QUE VE EL PANEL EN EL LISTADO: lo del dueño MÁS la nota interna y las firmas.
+ *
+ * DOS COSAS QUE NO ESTÁN, y las dos por la misma razón —un listado enseña veinticinco de golpe—:
+ *  - el EMAIL del dueño (su única puerta es la ficha de la cuenta, que escribe `AuditLog`);
+ *  - la IDENTIFICACIÓN FISCAL, que en una marca personal es el documento de una persona. Vive en
+ *    `FichaEmpresa`, de una en una. Hay test de igualdad EXACTA de claves: el hueco de verdad no es
+ *    una consulta sin filtro, es un `select` que crece.
  */
 export interface EmpresaPanel {
   id: string;
@@ -260,7 +389,11 @@ export interface EmpresaPanel {
   tipoCuenta: TipoCuentaEmpresa;
   tipoNegocio: TipoNegocio;
   estado: EstadoEmpresa;
+  paisIso: string;
+  ciudadTexto: string | null;
+  personaContacto: string;
   webUrl: string | null;
+  redes: string | null;
   direccion: string | null;
   motivoRechazo: MotivoRechazoEmpresa | null;
   notaInterna: string | null;
@@ -297,13 +430,18 @@ export async function listarEmpresas(
     where: conKeysetTiempo(filtro, decodificarCursorTiempo(opciones.cursor)),
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: limite + 1,
+    // SIN `fiscalId` NI `fiscalPaisIso`: un listado enseña veinticinco de golpe (ver el DTO).
     select: {
       id: true,
       nombre: true,
       tipoCuenta: true,
       tipoNegocio: true,
       estado: true,
+      paisIso: true,
+      ciudadTexto: true,
+      personaContacto: true,
       webUrl: true,
+      redes: true,
       direccion: true,
       motivoRechazo: true,
       notaInterna: true,
@@ -337,7 +475,11 @@ export async function listarEmpresas(
       tipoCuenta: e.tipoCuenta as TipoCuentaEmpresa,
       tipoNegocio: e.tipoNegocio as TipoNegocio,
       estado: e.estado as EstadoEmpresa,
+      paisIso: e.paisIso,
+      ciudadTexto: e.ciudadTexto,
+      personaContacto: e.personaContacto,
       webUrl: e.webUrl,
+      redes: e.redes,
       direccion: e.direccion,
       motivoRechazo: e.motivoRechazo as MotivoRechazoEmpresa | null,
       notaInterna: e.notaInterna,
@@ -350,6 +492,76 @@ export async function listarEmpresas(
       filas.length > limite
         ? codificarCursorTiempo({ creadoMs: ultima.createdAt.getTime(), id: ultima.id })
         : null,
+  };
+}
+
+/**
+ * LA FICHA DE VERIFICACIÓN: una empresa, de una en una, con la IDENTIFICACIÓN FISCAL.
+ *
+ * Es el ÚNICO sitio donde ese dato sale de la base de datos. No está en el listado (veinticinco
+ * documentos de golpe en una pantalla), ni en ningún correo, ni en el DTO del dueño, ni en el
+ * `AuditLog` — en una marca personal es el documento de una persona, y el admin solo necesita
+ * mirarlo cuando está decidiendo si verifica ESA.
+ */
+export interface FichaEmpresa extends EmpresaPanel {
+  fiscalId: string | null;
+  fiscalPaisIso: string | null;
+}
+
+export async function fichaEmpresa(db: Db, empresaId: string): Promise<FichaEmpresa | null> {
+  const e = await db.empresa.findUnique({
+    where: { id: empresaId },
+    select: {
+      id: true,
+      nombre: true,
+      tipoCuenta: true,
+      tipoNegocio: true,
+      estado: true,
+      paisIso: true,
+      ciudadTexto: true,
+      personaContacto: true,
+      webUrl: true,
+      redes: true,
+      direccion: true,
+      fiscalId: true,
+      fiscalPaisIso: true,
+      motivoRechazo: true,
+      notaInterna: true,
+      ownerUserId: true,
+      verificadaPor: true,
+      createdAt: true,
+      verificadaEn: true,
+    },
+  });
+  if (!e) return null;
+
+  const ids = [e.ownerUserId, ...(e.verificadaPor ? [e.verificadaPor] : [])];
+  const cuentas = await db.user.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, username: true },
+  });
+  const handle = new Map(cuentas.map((c) => [c.id, c.username]));
+
+  return {
+    id: e.id,
+    nombre: e.nombre,
+    tipoCuenta: e.tipoCuenta as TipoCuentaEmpresa,
+    tipoNegocio: e.tipoNegocio as TipoNegocio,
+    estado: e.estado as EstadoEmpresa,
+    paisIso: e.paisIso,
+    ciudadTexto: e.ciudadTexto,
+    personaContacto: e.personaContacto,
+    webUrl: e.webUrl,
+    redes: e.redes,
+    direccion: e.direccion,
+    fiscalId: e.fiscalId,
+    fiscalPaisIso: e.fiscalPaisIso,
+    motivoRechazo: e.motivoRechazo as MotivoRechazoEmpresa | null,
+    notaInterna: e.notaInterna,
+    dueno: handle.get(e.ownerUserId) ?? null,
+    creadaMs: e.createdAt.getTime(),
+    verificadaMs: e.verificadaEn?.getTime() ?? null,
+    verificadaPor: e.verificadaPor ? (handle.get(e.verificadaPor) ?? null) : null,
   };
 }
 

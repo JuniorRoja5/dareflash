@@ -40,7 +40,13 @@ const API_DIR = join(process.cwd(), "src", "app", "api");
 //  - vip/webhook: lo mismo que el de Boost, y por el mismo motivo. Lo que cuenta Stripe aqui es el
 //    estado y el fin de periodo de una suscripcion; sin firma, cualquiera se regalaria el VIP —y
 //    el sello, el color y el boost semanal— con un `curl`.
+//  - empresa: el ALTA DE UNA EMPRESA crea la cuenta y la empresa juntas, asi que quien la llama
+//    todavia no tiene cuenta —exactamente como `auth/register`—. Lleva el mismo juego de
+//    protecciones que aquel: rate-limit por IP Y por direccion, politica de contrasena, casilla de
+//    terminos y respuesta UNIFORME exista o no el correo. Y NO puede pasar por `mutatingRoute`:
+//    exigiria una sesion que, por definicion, no existe todavia.
 const EXEMPT = new Set([
+  "empresa",
   "boost/webhook",
   "vip/webhook",
   "auth/login",

@@ -13,7 +13,14 @@ import { hashPassword, needsRehash, verifyPasswordConstantTime } from "./passwor
 import { createSession, type CreatedSession } from "./session";
 
 export type LoginResult =
-  | { ok: true; userId: string; role: "USER" | "MODERATOR" | "ADMIN"; session: CreatedSession }
+  | {
+      ok: true;
+      userId: string;
+      role: "USER" | "MODERATOR" | "ADMIN";
+      /** Para elegir el destino tras entrar (su portal). No autoriza nada. */
+      esCuentaEmpresa: boolean;
+      session: CreatedSession;
+    }
   | { ok: false; reason: "INVALID_CREDENTIALS" | "EMAIL_NOT_VERIFIED" };
 
 export async function login(
@@ -32,6 +39,8 @@ export async function login(
       emailVerified: true,
       deletedAt: true,
       bannedAt: true,
+      // Solo para decidir el DESTINO tras entrar (su portal): no autoriza nada.
+      esCuentaEmpresa: true,
     },
   });
 
@@ -76,5 +85,11 @@ export async function login(
     now: input.now,
     ttlMs: SESSION_TTL_BY_ROLE[user.role],
   });
-  return { ok: true, userId: user.id, role: user.role, session };
+  return {
+    ok: true,
+    userId: user.id,
+    role: user.role,
+    esCuentaEmpresa: user.esCuentaEmpresa,
+    session,
+  };
 }

@@ -8,6 +8,7 @@ import {
   MSG_ESTADO_EMPRESA,
   MSG_MOTIVO_RECHAZO_EMPRESA,
 } from "@/config/constants";
+import { nombrePais } from "@/lib/paises";
 
 import { AvisoVerificar } from "./aviso-verificar";
 
@@ -47,7 +48,7 @@ export default async function PaginaMiEmpresa() {
   try {
     ambito = await requireEmpresa();
   } catch (e) {
-    if (e instanceof SinEmpresa) redirect("/empresa/alta");
+    if (e instanceof SinEmpresa) redirect("/empezar/empresa");
     if (e instanceof AuthError && e.code === "EMAIL_NOT_VERIFIED") {
       return (
         <div className="df-rise mx-auto w-full max-w-3xl px-4 py-8 lg:px-8 lg:py-12">
@@ -99,11 +100,15 @@ export default async function PaginaMiEmpresa() {
           <Dato etiqueta="Nombre" valor={empresa.nombre} />
           <Dato etiqueta="Tipo de cuenta" valor={ETIQUETA_TIPO_CUENTA[empresa.tipoCuenta]} />
           <Dato etiqueta="Tipo de negocio" valor={ETIQUETA_TIPO_NEGOCIO[empresa.tipoNegocio]} />
+          <Dato etiqueta="País" valor={nombrePais(empresa.paisIso)} />
+          <Dato etiqueta="Contacto" valor={empresa.personaContacto} />
           <Dato
             etiqueta="Alta"
             valor={new Date(empresa.creadaMs).toLocaleDateString("es-ES", FECHA)}
           />
+          {empresa.ciudadTexto ? <Dato etiqueta="Ciudad" valor={empresa.ciudadTexto} /> : null}
           {empresa.webUrl ? <Dato etiqueta="Web" valor={empresa.webUrl} /> : null}
+          {empresa.redes ? <Dato etiqueta="Redes" valor={empresa.redes} /> : null}
           {empresa.direccion ? <Dato etiqueta="Dirección" valor={empresa.direccion} /> : null}
           {empresa.verificadaMs !== null ? (
             <Dato

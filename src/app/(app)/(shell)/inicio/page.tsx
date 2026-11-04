@@ -84,6 +84,16 @@ export default async function InicioPage() {
                 Explorar retos
               </Boton>
             </div>
+            {/* LA PUERTA DEL NEGOCIO, en texto y no en un tercer botón: la pantalla ya tiene su
+                único acento de acción y su secundario, y un tercero convertiría la elección en un
+                menú. Quien viene a anunciarse lo busca; quien viene a competir ni lo lee. */}
+            <p className="mt-3 text-sm text-text-dim">
+              ¿Tienes un negocio?{" "}
+              <Link href="/empezar" className="underline">
+                Así se entra como empresa
+              </Link>
+              .
+            </p>
             <StatsInicio />
           </div>
 

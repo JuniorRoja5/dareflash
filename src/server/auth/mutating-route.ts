@@ -43,8 +43,26 @@ type MutatingHandler<C> = (
   routeContext: C,
 ) => Promise<Response>;
 
+/**
+ * ¿PUEDE UNA CUENTA DE EMPRESA llamar a esta ruta? Por DEFECTO no (Fase 9 · P1): una cuenta de
+ * empresa mira y no participa, y el candado vive AQUI —el sitio por el que pasa toda mutacion—
+ * en vez de en un `if` por pantalla.
+ *
+ * Que el defecto sea "bloquea" es la mitad del diseño: una ruta mutante NUEVA nace cerrada para
+ * empresas, y abrirla exige escribirlo. Al reves —abierto por defecto, cerrar a mano— el candado
+ * duraria hasta la primera ruta que alguien añadiera sin acordarse, y nada fallaria.
+ *
+ * El censo de `tests/empresa-no-participa.test.ts` recorre todas las rutas mutantes y exige que
+ * solo las de gobierno de la propia cuenta (y, desde P2, las del portal) digan "permite".
+ */
+export interface OpcionesMutatingRoute {
+  /** "permite" SOLO para lo que una empresa tiene que poder hacer: su portal y su propia cuenta. */
+  cuentaEmpresa?: "bloquea" | "permite";
+}
+
 export function mutatingRoute<C = unknown>(
   handler: MutatingHandler<C>,
+  opciones: OpcionesMutatingRoute = {},
 ): (req: Request, routeContext: C) => Promise<Response> {
   return async (req: Request, routeContext: C): Promise<Response> => {
     // Imports DINAMICOS (dentro del handler, nunca en ambito de modulo): getCurrentUser
@@ -65,6 +83,13 @@ export function mutatingRoute<C = unknown>(
     const csrf = req.headers.get("x-csrf-token");
     if (!verifyCsrfToken(env.AUTH_SECRET, user.sessionId, csrf)) {
       return apiError("CSRF", "Token CSRF invalido o ausente.", 403);
+    }
+
+    // EL CANDADO DE LA CUENTA DE EMPRESA. Va DESPUES del CSRF (no antes): a quien no ha demostrado
+    // ser quien dice no se le cuenta nada, ni siquiera que esta cuenta es de empresa.
+    if (user.esCuentaEmpresa && opciones.cuentaEmpresa !== "permite") {
+      const { MSG_CUENTA_EMPRESA_NO_PARTICIPA } = await import("@/config/constants");
+      return apiError("CUENTA_EMPRESA", MSG_CUENTA_EMPRESA_NO_PARTICIPA, 403);
     }
 
     return handler(req, { user, env, prisma }, routeContext);

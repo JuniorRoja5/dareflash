@@ -19,79 +19,84 @@ export const dynamic = "force-dynamic";
  * La sesion ROTA (sessionId nuevo), asi que el token CSRF que el cliente tenia en
  * memoria queda invalido: devolvemos uno nuevo atado a la sesion nueva en la respuesta.
  */
-export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
-  const { RATE_LIMITS } = await import("@/config/constants");
-  const { rateLimit, resetRateLimit } = await import("@/server/security/rate-limit");
-  const { verifyPasswordConstantTime, esArgon2Sobrecargado, ejecutarConHueco } =
-    await import("@/server/auth/password");
-  const { changePassword } = await import("@/server/auth/account");
-  const { setSessionCookie } = await import("@/server/auth/current-user");
-  const { issueCsrfToken } = await import("@/server/auth/csrf");
-  const { evaluarPassword } = await import("@/server/auth/password-policy");
+export const POST = mutatingRoute(
+  async (req, { user, env, prisma }) => {
+    const { RATE_LIMITS } = await import("@/config/constants");
+    const { rateLimit, resetRateLimit } = await import("@/server/security/rate-limit");
+    const { verifyPasswordConstantTime, esArgon2Sobrecargado, ejecutarConHueco } =
+      await import("@/server/auth/password");
+    const { changePassword } = await import("@/server/auth/account");
+    const { setSessionCookie } = await import("@/server/auth/current-user");
+    const { issueCsrfToken } = await import("@/server/auth/csrf");
+    const { evaluarPassword } = await import("@/server/auth/password-policy");
 
-  const schema = z.object({
-    currentPassword: z.string().min(1).max(200),
-    // La fuerza/longitud REAL de la NUEVA la valida `evaluarPassword` (abajo), MISMA politica que el
-    // registro y el reset. El .max evita quemar CPU en el pre-hash de Argon2; .min(1) para no vacio.
-    newPassword: z.string().min(1).max(200),
-  });
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return apiError("BAD_REQUEST", "Cuerpo de la peticion invalido.", 400);
-  }
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) return apiError("VALIDATION", "Datos invalidos.", 400);
-
-  // POLITICA FUERTE sobre la NUEVA (misma que registro/reset), ANTES del rate-limit y el argon2: una
-  // contrasena debil se rechaza sin gastar intento ni CPU. No mira la actual -> no abre oraculo.
-  const veredicto = evaluarPassword({ password: parsed.data.newPassword });
-  if (!veredicto.ok) return apiError("VALIDATION", veredicto.mensaje, 400);
-
-  const rlKey = `changepw:user:${rateLimitKey(env.AUTH_SECRET, user.userId)}`;
-
-  // Mismo trato que login (Opcion A, hallazgo 2): el cubo POR USUARIO + los dos argon2 (verificar
-  // la actual + hashear la nueva) van en un MISMO hueco del semaforo, para que un 503 por
-  // saturacion NO gaste un intento de cambio de contrasena. Menor severidad que en login (el cubo
-  // es del usuario autenticado, nadie lo llena desde fuera); se hace por COHERENCIA de estructura.
-  try {
-    const outcome = await ejecutarConHueco(async () => {
-      const rl = await rateLimit(prisma, { key: rlKey, ...RATE_LIMITS.CHANGE_PASSWORD_PER_USER });
-      if (!rl.allowed) return { tipo: "BLOQUEADA" as const };
-      const u = await prisma.user.findUnique({
-        where: { id: user.userId },
-        select: { passwordHash: true },
-      });
-      const ok = await verifyPasswordConstantTime(
-        u?.passwordHash ?? null,
-        parsed.data.currentPassword,
-      );
-      if (!ok) return { tipo: "MAL" as const };
-      const session = await changePassword(prisma, {
-        userId: user.userId,
-        newPassword: parsed.data.newPassword,
-      });
-      return { tipo: "OK" as const, session };
+    const schema = z.object({
+      currentPassword: z.string().min(1).max(200),
+      // La fuerza/longitud REAL de la NUEVA la valida `evaluarPassword` (abajo), MISMA politica que el
+      // registro y el reset. El .max evita quemar CPU en el pre-hash de Argon2; .min(1) para no vacio.
+      newPassword: z.string().min(1).max(200),
     });
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return apiError("BAD_REQUEST", "Cuerpo de la peticion invalido.", 400);
+    }
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) return apiError("VALIDATION", "Datos invalidos.", 400);
 
-    if (outcome.tipo === "BLOQUEADA") {
-      return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
+    // POLITICA FUERTE sobre la NUEVA (misma que registro/reset), ANTES del rate-limit y el argon2: una
+    // contrasena debil se rechaza sin gastar intento ni CPU. No mira la actual -> no abre oraculo.
+    const veredicto = evaluarPassword({ password: parsed.data.newPassword });
+    if (!veredicto.ok) return apiError("VALIDATION", veredicto.mensaje, 400);
+
+    const rlKey = `changepw:user:${rateLimitKey(env.AUTH_SECRET, user.userId)}`;
+
+    // Mismo trato que login (Opcion A, hallazgo 2): el cubo POR USUARIO + los dos argon2 (verificar
+    // la actual + hashear la nueva) van en un MISMO hueco del semaforo, para que un 503 por
+    // saturacion NO gaste un intento de cambio de contrasena. Menor severidad que en login (el cubo
+    // es del usuario autenticado, nadie lo llena desde fuera); se hace por COHERENCIA de estructura.
+    try {
+      const outcome = await ejecutarConHueco(async () => {
+        const rl = await rateLimit(prisma, { key: rlKey, ...RATE_LIMITS.CHANGE_PASSWORD_PER_USER });
+        if (!rl.allowed) return { tipo: "BLOQUEADA" as const };
+        const u = await prisma.user.findUnique({
+          where: { id: user.userId },
+          select: { passwordHash: true },
+        });
+        const ok = await verifyPasswordConstantTime(
+          u?.passwordHash ?? null,
+          parsed.data.currentPassword,
+        );
+        if (!ok) return { tipo: "MAL" as const };
+        const session = await changePassword(prisma, {
+          userId: user.userId,
+          newPassword: parsed.data.newPassword,
+        });
+        return { tipo: "OK" as const, session };
+      });
+
+      if (outcome.tipo === "BLOQUEADA") {
+        return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
+      }
+      if (outcome.tipo === "MAL") {
+        return apiError("INVALID_CREDENTIALS", "La contrasena actual no es correcta.", 403);
+      }
+      const { session } = outcome;
+      // Acierto: el cubo de este usuario se vacia (no acumula tras un cambio legitimo).
+      await resetRateLimit(prisma, rlKey);
+      await setSessionCookie(session.rawToken, session.expires); // sesion nueva para este dispositivo
+      // Token CSRF nuevo, atado a la sesion recien creada (la anterior ya no existe).
+      const csrfToken = issueCsrfToken(env.AUTH_SECRET, session.sessionId);
+      return apiOk({ ok: true, csrfToken });
+    } catch (e) {
+      if (esArgon2Sobrecargado(e)) {
+        return apiError("OVERLOADED", "Servicio ocupado, reintenta en unos segundos.", 503);
+      }
+      throw e;
     }
-    if (outcome.tipo === "MAL") {
-      return apiError("INVALID_CREDENTIALS", "La contrasena actual no es correcta.", 403);
-    }
-    const { session } = outcome;
-    // Acierto: el cubo de este usuario se vacia (no acumula tras un cambio legitimo).
-    await resetRateLimit(prisma, rlKey);
-    await setSessionCookie(session.rawToken, session.expires); // sesion nueva para este dispositivo
-    // Token CSRF nuevo, atado a la sesion recien creada (la anterior ya no existe).
-    const csrfToken = issueCsrfToken(env.AUTH_SECRET, session.sessionId);
-    return apiOk({ ok: true, csrfToken });
-  } catch (e) {
-    if (esArgon2Sobrecargado(e)) {
-      return apiError("OVERLOADED", "Servicio ocupado, reintenta en unos segundos.", 503);
-    }
-    throw e;
-  }
-});
+    // CUENTA DE EMPRESA: PERMITIDA. Cambiar la contraseña es gobierno de la propia cuenta, no
+    // participacion, y es ademas lo primero que hace falta si una credencial se filtra.
+  },
+  { cuentaEmpresa: "permite" },
+);

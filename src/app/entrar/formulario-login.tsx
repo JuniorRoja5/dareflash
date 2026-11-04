@@ -43,7 +43,7 @@ export function FormularioLogin() {
     setReenviado(null);
     setEstado("enviando");
     try {
-      const r = await postJson<{ role?: string }>("/api/auth/login", {
+      const r = await postJson<{ role?: string; esCuentaEmpresa?: boolean }>("/api/auth/login", {
         email: email.trim(),
         password,
       });
@@ -54,7 +54,13 @@ export function FormularioLogin() {
         // pre-cargó como invitado (el 307 de /crear a /entrar, entre otros). El formulario se queda en
         // "Entrando…" hasta que el documento se descarga: así tampoco se puede enviar dos veces.
         const siguiente = new URLSearchParams(window.location.search).get("siguiente");
-        navegarDuro(destinoTrasLogin(r.data.role ?? "USER", rutaSiguienteSegura(siguiente)));
+        navegarDuro(
+          destinoTrasLogin(
+            r.data.role ?? "USER",
+            rutaSiguienteSegura(siguiente),
+            r.data.esCuentaEmpresa === true,
+          ),
+        );
         return;
       }
       if (r.code === "EMAIL_NOT_VERIFIED") {

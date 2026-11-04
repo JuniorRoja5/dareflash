@@ -28,10 +28,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 import {
+  altaEmpresaDesdeCero,
   empresaDeUsuario,
   listarEmpresas,
   miEmpresa,
-  registrarEmpresa,
   verificarEmpresa,
 } from "../src/server/services/empresas";
 
@@ -52,41 +52,70 @@ beforeAll(() => {
 afterAll(async () => {
   await prisma.$disconnect();
 });
+const AVISO = {
+  adminEmail: null,
+  urlPanel: "https://dareflash.com/panel/empresas",
+  appUrl: "https://dareflash.com",
+};
+const PASS = "Un4-Contrasena-Larga-Y-Buena!";
+
+/** Da de alta una empresa desde cero y devuelve (id de la empresa, id de su cuenta). */
+async function altaDe(
+  email: string,
+  datos: Omit<
+    Parameters<typeof altaEmpresaDesdeCero>[1],
+    "email" | "password" | "terminosAceptadosEn"
+  >,
+  cuando: Date,
+): Promise<{ empresaId: string; userId: string }> {
+  await altaEmpresaDesdeCero(
+    prisma,
+    { email, password: PASS, terminosAceptadosEn: cuando, ...datos },
+    AVISO,
+    cuando,
+  );
+  const u = await prisma.user.findUniqueOrThrow({ where: { email }, select: { id: true } });
+  const e = await prisma.empresa.findUniqueOrThrow({
+    where: { ownerUserId: u.id },
+    select: { id: true },
+  });
+  return { empresaId: e.id, userId: u.id };
+}
+
 beforeEach(async () => {
   await resetDb(prisma);
   admin = await crearUsuario(prisma, { username: "admin_aislamiento" });
-  userA = await crearUsuario(prisma, { username: "duena_a" });
-  userB = await crearUsuario(prisma, { username: "dueno_b" });
 
-  const aviso = { adminEmail: null, urlPanel: "https://dareflash.com/panel/empresas" };
-  empresaA = (
-    await registrarEmpresa(
-      prisma,
-      {
-        userId: userA,
-        nombre: "Panadería A",
-        tipoCuenta: "EMPRESA",
-        tipoNegocio: "FISICO",
-        direccion: "Calle A",
-      },
-      aviso,
-      new Date(Date.UTC(2027, 0, 10, 12)),
-    )
-  ).id;
-  empresaB = (
-    await registrarEmpresa(
-      prisma,
-      {
-        userId: userB,
-        nombre: "Tienda B",
-        tipoCuenta: "MARCA_PERSONAL",
-        tipoNegocio: "MARCA_O_DIGITAL",
-        webUrl: "https://b.example.com",
-      },
-      aviso,
-      new Date(Date.UTC(2027, 0, 11, 12)),
-    )
-  ).id;
+  const a = await altaDe(
+    "a@panaderia.test",
+    {
+      nombre: "Panadería A",
+      tipoCuenta: "EMPRESA",
+      tipoNegocio: "FISICO",
+      paisIso: "ES",
+      personaContacto: "Ana",
+      webUrl: "https://a.example.com",
+      direccion: "Calle A",
+    },
+    new Date(Date.UTC(2027, 0, 10, 12)),
+  );
+  userA = a.userId;
+  empresaA = a.empresaId;
+
+  const b = await altaDe(
+    "b@tienda.test",
+    {
+      nombre: "Tienda B",
+      tipoCuenta: "MARCA_PERSONAL",
+      tipoNegocio: "MARCA_O_DIGITAL",
+      paisIso: "CO",
+      personaContacto: "Beto",
+      webUrl: "https://b.example.com",
+    },
+    new Date(Date.UTC(2027, 0, 11, 12)),
+  );
+  userB = b.userId;
+  empresaB = b.empresaId;
 });
 
 describe("con dos empresas de verdad en la base de datos", () => {
@@ -126,9 +155,11 @@ describe("con dos empresas de verdad en la base de datos", () => {
   it("el panel SÍ ve las dos: es su trabajo, y por eso su DTO es otro", async () => {
     const pagina = await listarEmpresas(prisma, {});
     expect(pagina.items.map((e) => e.id).sort()).toEqual([empresaA, empresaB].sort());
-    // Lo que NO ve ni el panel: el correo del dueño. Solo su handle.
-    expect(JSON.stringify(pagina.items)).not.toContain("@dareflash");
-    expect(pagina.items.map((e) => e.dueno).sort()).toEqual(["dueno_b", "duena_a"].sort());
+    // Lo que NO ve ni el panel: el CORREO del dueño. Solo su handle, que sí sale resuelto.
+    const crudo = JSON.stringify(pagina.items);
+    expect(crudo).not.toContain("a@panaderia.test");
+    expect(crudo).not.toContain("b@tienda.test");
+    expect(pagina.items.every((e) => typeof e.dueno === "string" && e.dueno.length > 0)).toBe(true);
   });
 });
 
@@ -187,8 +218,10 @@ const CLASIFICADAS: Record<string, "clave" | "chokepoint" | "alta" | "ambito" | 
   claveAvisoEmpresa: "clave",
   // La ÚNICA que busca una empresa por su dueño. La llama solo el chokepoint.
   empresaDeUsuario: "chokepoint",
-  registrarEmpresa: "alta",
+  // El alta crea la CUENTA y la empresa juntas: no recibe un `userId` porque todavía no existe.
+  altaEmpresaDesdeCero: "alta",
   miEmpresa: "ambito",
+  fichaEmpresa: "ambito",
   verificarEmpresa: "ambito",
   rechazarEmpresa: "ambito",
   listarEmpresas: "panel",
@@ -225,7 +258,7 @@ describe("el censo de superficies del portal", () => {
     expect(FUENTE_CHOKEPOINT).toContain("empresaDeUsuario");
     const sospechosos = [
       "src/app/(app)/(shell)/empresa/page.tsx",
-      "src/app/(app)/(shell)/empresa/alta/page.tsx",
+      "src/app/(app)/(shell)/empezar/empresa/page.tsx",
       "src/app/api/empresa/route.ts",
       "src/app/panel/empresas/page.tsx",
     ].filter((rel) => soloCodigo(leer(...rel.split("/"))).includes("empresaDeUsuario"));
@@ -246,7 +279,7 @@ describe("el censo de superficies del portal", () => {
     // apariciones tienen que venir del ámbito que devuelve el guard.
     for (const rel of [
       "src/app/(app)/(shell)/empresa/page.tsx",
-      "src/app/(app)/(shell)/empresa/alta/page.tsx",
+      "src/app/(app)/(shell)/empezar/empresa/page.tsx",
       "src/app/api/empresa/route.ts",
     ]) {
       const fuente = soloCodigo(leer(...rel.split("/")));

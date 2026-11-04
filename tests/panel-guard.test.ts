@@ -29,7 +29,7 @@ vi.mock("next/navigation", () => ({ redirect: mocks.redirect, notFound: mocks.no
 import { protegerPanel, requireSeccion } from "../src/app/panel/panel-guard";
 
 function usuario(role: SessionUser["role"], emailVerified: Date | null = new Date()): SessionUser {
-  return { userId: "u1", role, emailVerified, sessionId: "s1" };
+  return { userId: "u1", role, emailVerified, esCuentaEmpresa: false, sessionId: "s1" };
 }
 
 beforeEach(() => {

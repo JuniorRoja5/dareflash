@@ -94,8 +94,9 @@ export async function POST(req: Request) {
     await resetRateLimit(prisma, acctKey);
     // La cookie SOLO se fija ahora, tras verificar la contrasena.
     await setSessionCookie(result.session.rawToken, result.session.expires);
-    // `role` ADITIVO: el formulario decide el destino (destinoTrasLogin); no cambia nada mas.
-    return apiOk({ ok: true, role: result.role });
+    // `role` y `esCuentaEmpresa` ADITIVOS: el formulario decide el destino (destinoTrasLogin); no
+    // cambian nada mas. La empresa aterriza en su portal, que es su unica puerta hasta P2.
+    return apiOk({ ok: true, role: result.role, esCuentaEmpresa: result.esCuentaEmpresa });
   } catch (e) {
     if (esArgon2Sobrecargado(e)) {
       return apiError("OVERLOADED", "Servicio ocupado, reintenta en unos segundos.", 503);

@@ -218,6 +218,17 @@ export function FormularioRegistro() {
       {/* La edad ya la dice la casilla de arriba; repetir "debes tener 18" aquí sería decirlo dos
           veces. Y el número NO se escribe en el copy: viviría separado de `EDAD_MIN_USO`. */}
       <p className="text-xs text-text-dim">Te enviaremos un correo para verificar tu cuenta.</p>
+
+      {/* LA OTRA PUERTA. Esta cuenta es de PARTICIPANTE y no se puede convertir después (una cuenta
+          de empresa no participa), así que el desvío tiene que estar ANTES de crearla: quien viene
+          en nombre de un negocio lo ve aquí y no en un correo a soporte. */}
+      <p className="text-xs text-text-dim">
+        ¿Vienes en nombre de un negocio?{" "}
+        <Link href="/empezar" className="underline">
+          Mira las dos formas de entrar
+        </Link>
+        .
+      </p>
     </form>
   );
 }

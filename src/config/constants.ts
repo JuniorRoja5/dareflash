@@ -1891,22 +1891,315 @@ export const ETIQUETA_ESTADO_EMPRESA: Record<EstadoEmpresa, string> = {
 export const AuditAccionEmpresaSchema = z.enum(["EMPRESA_VERIFY", "EMPRESA_REJECT"]);
 export type AuditAccionEmpresa = z.infer<typeof AuditAccionEmpresaSchema>;
 
-/** Limites del formulario de alta. El nombre es obligatorio; web y direccion, opcionales. */
+/**
+ * LOS PAISES, en ISO 3166-1 alpha-2. Solo los CODIGOS: el nombre lo pone `Intl.DisplayNames` en el
+ * idioma de quien mira (ver `lib/paises`), asi que no hay una lista de 250 nombres que mantener,
+ * traducir ni revisar — y el dia que la app hable otro idioma, los paises ya lo hablan.
+ *
+ * Estan los 249 codigos asignados, sin recortes. Quitar "los que no tienen negocios" obliga a
+ * defender cada ausencia y acaba con alguien pidiendo el suyo por soporte.
+ */
+export const PAISES_ISO = [
+  "AD",
+  "AE",
+  "AF",
+  "AG",
+  "AI",
+  "AL",
+  "AM",
+  "AO",
+  "AQ",
+  "AR",
+  "AS",
+  "AT",
+  "AU",
+  "AW",
+  "AX",
+  "AZ",
+  "BA",
+  "BB",
+  "BD",
+  "BE",
+  "BF",
+  "BG",
+  "BH",
+  "BI",
+  "BJ",
+  "BL",
+  "BM",
+  "BN",
+  "BO",
+  "BQ",
+  "BR",
+  "BS",
+  "BT",
+  "BV",
+  "BW",
+  "BY",
+  "BZ",
+  "CA",
+  "CC",
+  "CD",
+  "CF",
+  "CG",
+  "CH",
+  "CI",
+  "CK",
+  "CL",
+  "CM",
+  "CN",
+  "CO",
+  "CR",
+  "CU",
+  "CV",
+  "CW",
+  "CX",
+  "CY",
+  "CZ",
+  "DE",
+  "DJ",
+  "DK",
+  "DM",
+  "DO",
+  "DZ",
+  "EC",
+  "EE",
+  "EG",
+  "EH",
+  "ER",
+  "ES",
+  "ET",
+  "FI",
+  "FJ",
+  "FK",
+  "FM",
+  "FO",
+  "FR",
+  "GA",
+  "GB",
+  "GD",
+  "GE",
+  "GF",
+  "GG",
+  "GH",
+  "GI",
+  "GL",
+  "GM",
+  "GN",
+  "GP",
+  "GQ",
+  "GR",
+  "GS",
+  "GT",
+  "GU",
+  "GW",
+  "GY",
+  "HK",
+  "HM",
+  "HN",
+  "HR",
+  "HT",
+  "HU",
+  "ID",
+  "IE",
+  "IL",
+  "IM",
+  "IN",
+  "IO",
+  "IQ",
+  "IR",
+  "IS",
+  "IT",
+  "JE",
+  "JM",
+  "JO",
+  "JP",
+  "KE",
+  "KG",
+  "KH",
+  "KI",
+  "KM",
+  "KN",
+  "KP",
+  "KR",
+  "KW",
+  "KY",
+  "KZ",
+  "LA",
+  "LB",
+  "LC",
+  "LI",
+  "LK",
+  "LR",
+  "LS",
+  "LT",
+  "LU",
+  "LV",
+  "LY",
+  "MA",
+  "MC",
+  "MD",
+  "ME",
+  "MF",
+  "MG",
+  "MH",
+  "MK",
+  "ML",
+  "MM",
+  "MN",
+  "MO",
+  "MP",
+  "MQ",
+  "MR",
+  "MS",
+  "MT",
+  "MU",
+  "MV",
+  "MW",
+  "MX",
+  "MY",
+  "MZ",
+  "NA",
+  "NC",
+  "NE",
+  "NF",
+  "NG",
+  "NI",
+  "NL",
+  "NO",
+  "NP",
+  "NR",
+  "NU",
+  "NZ",
+  "OM",
+  "PA",
+  "PE",
+  "PF",
+  "PG",
+  "PH",
+  "PK",
+  "PL",
+  "PM",
+  "PN",
+  "PR",
+  "PS",
+  "PT",
+  "PW",
+  "PY",
+  "QA",
+  "RE",
+  "RO",
+  "RS",
+  "RU",
+  "RW",
+  "SA",
+  "SB",
+  "SC",
+  "SD",
+  "SE",
+  "SG",
+  "SH",
+  "SI",
+  "SJ",
+  "SK",
+  "SL",
+  "SM",
+  "SN",
+  "SO",
+  "SR",
+  "SS",
+  "ST",
+  "SV",
+  "SX",
+  "SY",
+  "SZ",
+  "TC",
+  "TD",
+  "TF",
+  "TG",
+  "TH",
+  "TJ",
+  "TK",
+  "TL",
+  "TM",
+  "TN",
+  "TO",
+  "TR",
+  "TT",
+  "TV",
+  "TW",
+  "TZ",
+  "UA",
+  "UG",
+  "UM",
+  "US",
+  "UY",
+  "UZ",
+  "VA",
+  "VC",
+  "VE",
+  "VG",
+  "VI",
+  "VN",
+  "VU",
+  "WF",
+  "WS",
+  "YE",
+  "YT",
+  "ZA",
+  "ZM",
+  "ZW",
+] as const;
+export type PaisIso = (typeof PAISES_ISO)[number];
+
+/** Limites del formulario de alta. Lo OBLIGATORIO: nombre, país, persona de contacto, y web O redes. */
 export const EMPRESA_NOMBRE_MIN = 2;
 export const EMPRESA_NOMBRE_MAX = 120;
 export const EMPRESA_WEB_MAX = 300;
+export const EMPRESA_REDES_MAX = 300;
 export const EMPRESA_DIRECCION_MAX = 200;
+export const EMPRESA_CIUDAD_MAX = 120;
+export const EMPRESA_CONTACTO_MIN = 2;
+export const EMPRESA_CONTACTO_MAX = 120;
+/** La identificacion fiscal es TEXTO: no hay un formato que valga para un NIF, un RUT y un RFC. */
+export const EMPRESA_FISCAL_MAX = 60;
 /** MISMO LARGO que la nota del ajuste de puntos: es la misma clase de dato y el mismo gesto. */
 export const EMPRESA_NOTA_MAX = 500;
 
 /** Tamaño de pagina de la cola de verificacion del panel (keyset, como el resto). */
 export const EMPRESAS_PAGINA = 25;
 
+/**
+ * EL CANDADO: una cuenta de empresa MIRA Y NO PARTICIPA. Lo aplica `mutatingRoute` (una sola
+ * puerta, no un `if` por pantalla), así que este texto sale para cualquier intento: subir, votar,
+ * comentar, dar like, denunciar, comprar Boost o VIP, cobrar.
+ *
+ * DICE QUÉ HACER, no solo que no. Quien lee esto suele ser alguien que quería participar y se
+ * registró por el camino equivocado: la salida es una cuenta normal, con otro correo.
+ */
+export const MSG_CUENTA_EMPRESA_NO_PARTICIPA =
+  "Esta es una cuenta de empresa: puede mirarlo todo, pero no participar. Si quieres subir vídeos y competir, crea una cuenta normal con otro correo.";
+
 /** Copy del portal y del panel de empresas. En humano, como el resto. */
 export const MSG_EMPRESA_SIN_VERIFICAR =
-  "Verifica tu correo para registrar tu empresa. Es la misma barrera que para participar o cobrar.";
+  "Verifica tu correo para entrar al portal. Es la misma barrera que protege todo lo que tiene efectos.";
 export const MSG_EMPRESA_DATOS_INVALIDOS =
-  "Revisa los datos: el nombre es obligatorio y la web tiene que ser una dirección válida.";
+  "Revisa los datos: faltan el nombre, el país o la persona de contacto, o la web no es una dirección válida.";
+/**
+ * «Web O redes, al menos uno». Son los dos datos con los que el admin verifica que el negocio
+ * existe, y hay negocios —y marcas personales— sin web y con 50.000 seguidores.
+ */
+export const MSG_EMPRESA_WEB_O_REDES =
+  "Déjanos tu web o tus redes: con uno de los dos nos basta para comprobar que existís.";
+/**
+ * POR QUÉ EL ALTA DE EMPRESA PIDE UN CORREO NUEVO, contado ANTES de intentarlo.
+ *
+ * Va en el formulario, visible siempre, y NO como respuesta al envío: responder «ese correo ya
+ * tiene cuenta» convertiría el alta en un oráculo que confirma qué direcciones existen, que es
+ * justo lo que el registro de participante evita costando lo mismo exista la cuenta o no.
+ */
+export const MSG_EMPRESA_CORREO_NUEVO =
+  "Usa un correo que no tenga ya cuenta en DareFlash: una cuenta de empresa no participa, así que no se puede convertir una cuenta de participante en una.";
 export const MSG_EMPRESA_NO_ENCONTRADA = "Esa empresa no existe.";
 export const MSG_SIN_PERMISO_EMPRESAS = "No tienes permiso para gestionar empresas.";
 export const MSG_EMPRESA_MOTIVO_INVALIDO = "Elige un motivo de la lista para rechazar.";
@@ -1989,3 +2282,42 @@ export const PUBLICIDAD_MAX_POR_ZONA = 3;
 export const SOCIO_FUNDADOR_HASTA_ISO = "2027-06-30T23:59:59.999+02:00";
 /** Cuantos creditos (= dias de publicidad) regala. Lo acredita P4. */
 export const SOCIO_FUNDADOR_CREDITOS = 90;
+
+/**
+ * EL AVISO DE SOCIOS FUNDADORES, construido con las dos constantes y no escrito a mano. Si la
+ * fecha o la cifra se mueven, el copy se mueve con ellas; escrito a mano, la pantalla seguiria
+ * prometiendo lo de antes y nadie lo notaria hasta que alguien lo reclamara.
+ */
+export function msgSocioFundador(): string {
+  const hasta = new Date(SOCIO_FUNDADOR_HASTA_ISO).toLocaleDateString("es-ES", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/Madrid",
+  });
+  return `Socios Fundadores: las empresas que verifiquemos antes del ${hasta} se llevan ${SOCIO_FUNDADOR_CREDITOS} días de publicidad de regalo.`;
+}
+
+// ----------------------------------------------------------------------------
+// LA PANTALLA DE ELECCION (`/empezar`). Dos caminos, y el de participante es el
+// principal: se lleva el UNICO acento de accion de la pantalla.
+// ----------------------------------------------------------------------------
+
+export const TITULO_EMPEZAR = "¿Cómo quieres usar DareFlash?";
+export const SUBTITULO_EMPEZAR =
+  "Dos cuentas distintas, y no se pueden mezclar: elige con cuál entras.";
+
+export const CAMINO_PARTICIPANTE = {
+  titulo: "Quiero participar",
+  cuerpo: "Sube tus vídeos, compite en los retos y gana premios de verdad.",
+  cta: "Crear mi cuenta",
+  href: "/entrar?registro=1",
+} as const;
+
+export const CAMINO_EMPRESA = {
+  titulo: "Soy un negocio",
+  cuerpo:
+    "Patrocina retos y anúnciate donde está tu gente. Una cuenta de empresa lo ve todo, pero no participa: ni sube vídeos ni vota.",
+  cta: "Registrar mi empresa",
+  href: "/empezar/empresa",
+} as const;
