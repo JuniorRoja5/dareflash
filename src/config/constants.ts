@@ -1294,6 +1294,41 @@ export const MSG_VOTO_YA_VOTO_OTRA = "Ya has votado otra participación de este 
  */
 export const JOB_FAILED_ALERT_THRESHOLD = 10;
 
+/**
+ * AVISO DE CAPACIDAD: cuando la maquina se acerca a su techo, antes de que se note.
+ *
+ * ┌─ DE DONDE SALEN LOS UMBRALES ────────────────────────────────────────────────────────────────┐
+ * │ Del banco de carga del 4-nov-2026, con los limites de produccion (1 nucleo compartido, sin    │
+ * │ swap), personas con pausas de 3-8 s y Caddy delante. Las MISMAS unidades que mide el aviso:   │
+ * │ porcentaje de UN nucleo.                                                                      │
+ * │                                                                                               │
+ * │   150 personas -> 49 %   <- PREPARATE (50 %). Hay margen: el acantilado esta a 100 personas.  │
+ * │   200 personas -> 64 %       Limite razonable: /inicio en 42 ms de mediana, 505 ms el p95.    │
+ * │   250 personas -> 87 %   <- AMPLIA YA (70 %). Aqui /inicio ya va a 431 ms de mediana.         │
+ * │   300 personas -> 98 %       Inservible: 1,12 s de mediana.                                   │
+ * │                                                                                               │
+ * │ En PRODUCCION avisara antes que esas cifras de personas, porque el banco no medía TLS: el     │
+ * │ mismo trafico real cuesta mas CPU y cruza el umbral con menos gente. El sesgo empuja al lado  │
+ * │ seguro, que es el que queremos.                                                                │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+export const CPU_AVISO_PREPARATE_PCT = 50;
+export const CPU_AVISO_AMPLIA_PCT = 70;
+
+/**
+ * La VENTANA del aviso: 20 muestras cada 30 s = 10 minutos, y se compara la MEDIANA.
+ *
+ * Diez minutos y mediana, no un instante: el cron de puntuaciones, una migracion o un barrido
+ * pueden poner el nucleo al tope un par de minutos, y eso no es quedarse sin maquina. Con veinte
+ * muestras, un pico de tres minutos son seis y la mediana ni se mueve.
+ *
+ * Lo que SI puede disparar el aviso es un despliegue (`npm ci` + `next build` tardaron 319 y 461
+ * segundos con la CPU al tope). Se acepta convivir con ese falso positivo: el correo llega con las
+ * veinte muestras, que lo explican solas, y la histeresis impide que se repita.
+ */
+export const CPU_MUESTRA_CADA_MS = 30_000;
+export const CPU_MUESTRAS_VENTANA = 20;
+
 export const RATE_LIMITS = {
   // OJO: 10/15min se queda CORTO con CGNAT movil u oficinas (muchos usuarios tras una
   // misma IP publica). Revisar con trafico real; puede subirse sin tocar la seguridad

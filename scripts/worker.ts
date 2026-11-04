@@ -34,6 +34,7 @@ import {
   variablesSmtpQueFaltan,
 } from "@/server/email/adapter";
 import { construirRegistro } from "@/server/jobs/registry";
+import { VigilanteCapacidad } from "@/server/jobs/aviso-capacidad";
 import { bucleWorker, contarFallidos } from "@/server/jobs/worker";
 import { clienteBunnyReal } from "@/server/services/bunny";
 import { reconciliarContadores } from "@/server/services/reconciliacion-contadores";
@@ -132,6 +133,10 @@ async function main(): Promise<void> {
     // Mantenimiento cableado: purgas (Job DONE/FAILED, RateLimit, Session) y aviso de FAILED.
     emailAdapter, // aviso DIRECTO, fuera de la cola
     adminEmail: env.ADMIN_EMAIL,
+    // AVISO DE CAPACIDAD: muestrea la CPU del host (/proc/stat) y avisa al acercarse al techo
+    // medido. Se construye AQUI y no dentro del bucle porque guarda la ventana de muestras en
+    // memoria: una instancia por proceso, y que no la tengan los tests que no la ejercitan.
+    vigilanteCapacidad: new VigilanteCapacidad(),
     // Confirmacion de subidas: sondeo a Bunny por GUID (bytes/API key solo servidor).
     confirmar: (now) =>
       confirmarVideosPendientes(

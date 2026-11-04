@@ -13,6 +13,7 @@ import {
   CONFIRM_CADENCIA_REPOSO_MS,
   CONFIRM_WAKE_KEY,
   JOB_DONE_RETENTION_DAYS,
+  CPU_MUESTRA_CADA_MS,
   JOB_FAILED_ALERT_THRESHOLD,
   JOB_FAILED_RETENTION_DAYS,
   RATE_LIMIT_PURGE_RETENER_MS,
@@ -29,7 +30,7 @@ import {
 import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { purgeExpiredSessions } from "@/server/auth/session";
-import type { EmailAdapter, EmailMessage } from "@/server/email/adapter";
+import type { EmailAdapter } from "@/server/email/adapter";
 import { sanearError } from "@/server/observability/sanitize-error";
 import { claimJobs } from "@/server/services/jobs";
 import { purgarIpHashDeVotos } from "@/server/services/votes";
@@ -37,7 +38,10 @@ import type { ResultadoContadores } from "@/server/services/reconciliacion-conta
 import type { ResultadoHuerfanos } from "@/server/services/reconciliacion-huerfanos";
 import type { ResultadoPublicados } from "@/server/services/reconciliacion-publicados";
 import type { ResultadoRecalculo } from "@/server/services/recalculo-scores";
-import { escribirEstado, leerEstado } from "@/server/services/system-state";
+import { leerEstado } from "@/server/services/system-state";
+
+import { avisarSiCargaAlta, VigilanteCapacidad } from "./aviso-capacidad";
+import { avisarConHisteresis } from "./aviso-histeresis";
 import { cadenciaConfirmMs, type ResultadoConfirm } from "@/server/services/video-confirmacion";
 import type { ResultadoReconciliacion } from "@/server/services/video-reconciliacion";
 
@@ -61,8 +65,8 @@ const PURGA_LOTE = 1000;
 const PURGA_MAX_TANDAS = 1000;
 /** Clave en SystemState de la histeresis del aviso de FAILED (ver `avisarSiFallidos`). */
 const CLAVE_AVISO_FAILED = "aviso:job_failed";
-const AVISO_ARMADO = "armado";
-const AVISO_DISPARADO = "disparado";
+// (Los estados "armado"/"disparado" y su logica viven en `./aviso-histeresis`, compartidos con el
+// aviso de capacidad.)
 
 /**
  * INVARIANTE CRITICO: el timeout de un job debe ser SIEMPRE menor que el umbral del reaper.
@@ -427,56 +431,33 @@ export async function avisarSiFallidos(
   adapter: EmailAdapter,
   input: { now?: Date; umbral: number; adminEmail?: string; log?: (m: string) => void },
 ): Promise<AvisoResultado> {
-  const log = input.log ?? (() => {});
   const fallidos = await contarFallidos(db);
-  const estado = (await leerEstado(db, CLAVE_AVISO_FAILED)) ?? AVISO_ARMADO;
 
-  // Por DEBAJO del umbral: re-armar (sin correo) si estaba disparado.
-  if (fallidos < input.umbral) {
-    if (estado === AVISO_DISPARADO) await escribirEstado(db, CLAVE_AVISO_FAILED, AVISO_ARMADO);
-    return { fallidos, enviado: false };
-  }
-  // En/por encima del umbral y YA disparado: silencio.
-  if (estado === AVISO_DISPARADO) return { fallidos, enviado: false };
+  // LA HISTERESIS VIVE EN `aviso-histeresis`, compartida con el aviso de CAPACIDAD. Estaba escrita
+  // aqui y se extrajo al aparecer el segundo aviso: sus cuatro reglas (avisar al cruzar, re-armar
+  // al bajar, estado en BD para sobrevivir al reinicio, y no marcar disparado si el envio falla o
+  // falta el destinatario) son faciles de equivocar y no pueden vivir en dos sitios.
+  const enviado = await avisarConHisteresis(db, {
+    clave: CLAVE_AVISO_FAILED,
+    superado: fallidos >= input.umbral,
+    mensaje: () => ({
+      to: "",
+      subject: `[DareFlash] ${fallidos} trabajos en FAILED (umbral ${input.umbral})`,
+      text: [
+        `La cola tiene ${fallidos} trabajos en estado FAILED (umbral de aviso: ${input.umbral}).`,
+        "",
+        "Algo esta fallando de forma sostenida (correo, ledger u otro tipo). Revisa la cola.",
+        "Este aviso NO se repite hasta que el contador baje del umbral y lo cruce de nuevo.",
+      ].join("\n"),
+    }),
+    sinDestinatario: `[worker] AVISO (sin ADMIN_EMAIL, NO enviado): ${fallidos} jobs en FAILED (umbral ${input.umbral}).`,
+    enviado: `[worker] AVISO enviado al admin (${input.adminEmail}): ${fallidos} jobs en FAILED (umbral ${input.umbral}).`,
+    adapter,
+    adminEmail: input.adminEmail,
+    log: input.log,
+  });
 
-  // CRUCE del umbral: avisar una vez.
-  const mensaje: EmailMessage = {
-    to: input.adminEmail ?? "",
-    subject: `[DareFlash] ${fallidos} trabajos en FAILED (umbral ${input.umbral})`,
-    text: [
-      `La cola tiene ${fallidos} trabajos en estado FAILED (umbral de aviso: ${input.umbral}).`,
-      "",
-      "Algo esta fallando de forma sostenida (correo, ledger u otro tipo). Revisa la cola.",
-      "Este aviso NO se repite hasta que el contador baje del umbral y lo cruce de nuevo.",
-    ].join("\n"),
-  };
-
-  if (!input.adminEmail) {
-    // Sin destinatario: no se puede enviar. Se registra en cada ciclo por encima del umbral y NO
-    // se marca DISPARADO. Motivo (correccion de Junior): no ha salido ningun correo, asi que no
-    // hay spam que evitar; un log repetido es molesto, pero un silencio total es PELIGROSO (se
-    // olvida ADMIN_EMAIL en el VPS y el sistema de avisos queda muerto y callado para siempre).
-    // Ademas, al dejarlo ARMADO, en cuanto se configure ADMIN_EMAIL el aviso sale sin esperar a
-    // que el contador baje y vuelva a cruzar. El aviso destacado de que falta la variable se da
-    // AL ARRANCAR el worker (scripts/worker.ts).
-    log(
-      `[worker] AVISO (sin ADMIN_EMAIL, NO enviado): ${fallidos} jobs en FAILED (umbral ${input.umbral}).`,
-    );
-    return { fallidos, enviado: false };
-  }
-
-  try {
-    await adapter.send(mensaje);
-  } catch (e) {
-    // Fallo el envio DIRECTO (SMTP caido). NO marcar disparado: reintentar el proximo ciclo.
-    log(`[worker] AVISO no enviado (fallo el envio directo: ${sanearError(e)}); reintento luego.`);
-    return { fallidos, enviado: false };
-  }
-  await escribirEstado(db, CLAVE_AVISO_FAILED, AVISO_DISPARADO);
-  log(
-    `[worker] AVISO enviado al admin (${input.adminEmail}): ${fallidos} jobs en FAILED (umbral ${input.umbral}).`,
-  );
-  return { fallidos, enviado: true };
+  return { fallidos, enviado };
 }
 
 export interface OpcionesBucle {
@@ -500,6 +481,11 @@ export interface OpcionesBucle {
   avisoCadaMs?: number;
   /** Umbral de FAILED para avisar al admin. Por defecto JOB_FAILED_ALERT_THRESHOLD (10). */
   alertaUmbral?: number;
+  /**
+   * Vigilante de CPU del host para el aviso de capacidad. Sin el, no se muestrea ni se avisa —los
+   * tests que no lo ejercitan no pagan por el, igual que con `confirmar`.
+   */
+  vigilanteCapacidad?: VigilanteCapacidad;
   /** Adaptador de correo para el aviso DIRECTO (sin cola). Sin el, no se comprueba el aviso. */
   emailAdapter?: EmailAdapter;
   /** Destinatario del aviso. Sin el, el aviso se registra en el log en vez de enviarse. */
@@ -567,6 +553,8 @@ export async function bucleWorker(
   let ultimoReaper = 0;
   let ultimaPoda = 0;
   let ultimoAviso = 0;
+  let ultimaMuestraCpu = 0;
+  let ultimoAvisoCpu = 0;
   let proximoConfirm = 0;
   let proximoRecon = 0;
   let proximoHuerfanos = 0;
@@ -653,6 +641,28 @@ export async function bucleWorker(
         log: o.log,
       });
       ultimoAviso = t.getTime();
+    }
+
+    // MUESTREO DE CPU, en su propia cadencia (30 s). Va fuera del `if` del aviso porque son dos
+    // ritmos distintos: la ventana necesita una muestra cada 30 s para que diez minutos sean
+    // veinte muestras, y el aviso solo mira la mediana. Leer un fichero de /proc no cuesta nada.
+    if (o.vigilanteCapacidad && t.getTime() - ultimaMuestraCpu >= CPU_MUESTRA_CADA_MS) {
+      await o.vigilanteCapacidad.muestrear();
+      ultimaMuestraCpu = t.getTime();
+    }
+    // Y el aviso de capacidad, en la MISMA cadencia que el de FAILED: comparar una mediana ya
+    // calculada es gratis, y así los dos avisos comparten ritmo y log.
+    if (
+      o.emailAdapter &&
+      o.vigilanteCapacidad &&
+      t.getTime() - ultimoAvisoCpu >= (o.avisoCadaMs ?? 60_000)
+    ) {
+      await avisarSiCargaAlta(db, o.emailAdapter, o.vigilanteCapacidad, {
+        now: t,
+        adminEmail: o.adminEmail,
+        log: o.log,
+      });
+      ultimoAvisoCpu = t.getTime();
     }
 
     // Barrido de CONFIRMACION de subidas (sondeo a Bunny). Cadencia ADAPTATIVA propia; try/catch
