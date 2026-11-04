@@ -127,6 +127,32 @@ Trabajo acotado y listo para instruir.
 - Prisma 7.9.x. Vulnerabilidades moderadas de postcss (build-time, no explotables). **Nunca
   `npm audit fix --force`**: degrada Next.
 
+### Descartado: mover la compresion a Caddy (4-nov-2026)
+
+Se propuso `encode zstd gzip` en el Caddyfile + `compress: false` en `next.config.ts`, con el
+argumento de **descargar la CPU de `web`**. **Descartado por medicion**, no por opinion.
+
+Banco de carga con los limites de produccion (1 nucleo compartido, sin swap), 200 personas
+simultaneas con pausas de 3-8 s, Caddy delante:
+
+|                              | `/inicio` mediana | CPU de `web` | CPU del nucleo |
+| ---------------------------- | ----------------- | ------------ | -------------- |
+| Con gzip (hoy, lo hace Next) | 26 ms             | 68 %         | 60 %           |
+| Sin comprimir                | 27 ms             | 71 %         | 60 %           |
+
+**Sin diferencia medible**: comprimir no le cuesta a Next nada por encima del ruido del banco
+(+-5 puntos). Y el argumento no podia sostenerse de entrada: en una maquina de UN nucleo, mover
+trabajo de un contenedor a otro no lo quita de ningun sitio porque no hay un segundo sitio. De
+hecho meter Caddy delante **cuesta** ~4 puntos del nucleo y triplica el p95 (505 ms vs 172 ms), no
+porque Caddy sea caro — su contenedor no pasa del 9 % — sino porque compite por el mismo nucleo.
+
+Lo que si se ganaria (zstd y comprimir tambien los estaticos de `/avatars` y `/portadas`, que hoy
+no pasan por Next) **no compensa hoy**: las dos rutas sirven imagenes ya comprimidas, y el ahorro
+de bytes de zstd frente a gzip es pequeno. Si algun dia se retoma, que sea por el ancho de banda y
+con su medicion, nunca por la CPU.
+
+**No se toca el Caddyfile.** Ver el informe de capacidad para las tablas completas.
+
 ## 7. Deuda de producto
 
 - El texto legal dice 30 s y la regla real es 90 s. Corregir antes de lanzar.
