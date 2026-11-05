@@ -66,8 +66,11 @@ const CLASE_ITEM =
  */
 export function MenuCuenta({
   usuario,
+  esCuentaEmpresa = false,
 }: {
   usuario: { nombre: string; imagen: string | null; puntos: number } | null;
+  /** Cuenta de EMPRESA: su menú (portal + cuenta) y su avatar SIN anillo de nivel. */
+  esCuentaEmpresa?: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -75,7 +78,7 @@ export function MenuCuenta({
   useCerrarDesplegable(ref, abierto, cerrar);
   const { salir, cargando, error } = useCerrarSesion();
 
-  const items = itemsMenuCuenta(usuario !== null);
+  const items = itemsMenuCuenta(usuario !== null, esCuentaEmpresa);
 
   return (
     <div ref={ref} className="relative">
@@ -92,7 +95,8 @@ export function MenuCuenta({
             nombre={usuario.nombre}
             imagen={usuario.imagen}
             tamano="sm"
-            puntos={usuario.puntos}
+            // El anillo de NIVEL es de quien gana puntos participando: una empresa no tiene nivel.
+            puntos={esCuentaEmpresa ? undefined : usuario.puntos}
           />
         ) : (
           <SiluetaInvitado />

@@ -116,6 +116,8 @@ export const NAV_DESTINOS = [
   { clave: "inicio", nombre: "Inicio", href: "/inicio" },
   { clave: "feed", nombre: "Feed", href: "/feed" },
   { clave: "retos", nombre: "Retos", href: "/retos" },
+  // El hueco CENTRAL de móvil. Su texto y su ruta los pone `ctaPrincipal` en cada barra (también en
+  // la de la empresa, donde es "Mi empresa"); lo de aquí es el del participante, para marcar /crear.
   { clave: "crear", nombre: CTA_USUARIO.texto, href: CTA_USUARIO.href, central: true },
   { clave: "ranking", nombre: "Ranking", href: "/ranking" },
   // DESTACADOS — la vitrina de perfiles con Boost. Se llama "Boost" porque es la palabra del
@@ -142,6 +144,13 @@ export const NAV_DESTINOS = [
    * ve su estado y puede darse de baja. Esconderlo a los VIP dejaría la baja sin puerta.
    */
   { clave: "vip", nombre: "Hazte VIP Mythic", href: "/vip", acento: "vip" },
+  /**
+   * LA CUENTA DE UNA EMPRESA: correo, contraseña y cerrar sesión. Es el hueco de "Perfil" en su nav,
+   * porque una empresa NO tiene perfil de participante —ni vídeos, ni puntos, ni nombre público que
+   * editar—, y mandarla a /perfil/editar era enseñarle un formulario que el servidor le rechaza.
+   * Solo está en las listas de EMPRESA (ver `NAV_ESCRITORIO_EMPRESA`).
+   */
+  { clave: "cuenta", nombre: "Cuenta", href: "/empresa/cuenta" },
 ] as const;
 
 export type NavDestino = (typeof NAV_DESTINOS)[number];
@@ -237,6 +246,34 @@ export const NAV_MOVIL = ["feed", "retos", "crear", "perfil"] as const;
  */
 export const NAV_MOVIL_MAS = NAV_ESCRITORIO.filter(
   (clave) => !(NAV_MOVIL as readonly string[]).includes(clave),
+);
+
+/**
+ * LA NAV DE UNA CUENTA DE EMPRESA (Fase 9, P2).
+ *
+ * ┌─ POR QUÉ OTRAS LISTAS Y NO LAS MISMAS ────────────────────────────────────────────────────────┐
+ * │ Una empresa NO PARTICIPA: no sube vídeos, no vota, no gana puntos, no refiere ni se suscribe  │
+ * │ (lo cierra `mutatingRoute` en el servidor, por defecto). Con la nav del participante, cada    │
+ * │ puerta de "lo mío" —Perfil, Puntos, Referidos, Boost, VIP— la llevaba a una pantalla cuyo      │
+ * │ botón principal le responde 403. La nav no es la seguridad, pero sí es una promesa: no ofrece │
+ * │ lo que el servidor va a negar.                                                                │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * SE QUEDA CON LO DE MIRAR: Inicio, Feed, Retos y Ranking. Ver a quién le hablaría un anuncio es
+ * justo lo que una empresa viene a hacer. Y en vez de Perfil, su CUENTA.
+ *
+ * SU PORTAL (/empresa) NO ESTÁ EN LA LISTA, igual que /crear no está en la del participante: la
+ * puerta es el CTA PRINCIPAL ("Mi empresa", ver `ctaPrincipal`), el botón de la barra superior en
+ * escritorio y el central en móvil. Repetirlo aquí sería el mismo destino dos veces en la pantalla.
+ */
+export const NAV_ESCRITORIO_EMPRESA = ["inicio", "feed", "retos", "ranking", "cuenta"] as const;
+
+/** La barra de móvil de la empresa: los mismos cinco huecos; el central es su CTA. */
+export const NAV_MOVIL_EMPRESA = ["feed", "retos", "crear", "cuenta"] as const;
+
+/** El menú "Más" de la empresa, DERIVADO igual que el del participante: nunca una lista a mano. */
+export const NAV_MOVIL_MAS_EMPRESA = NAV_ESCRITORIO_EMPRESA.filter(
+  (clave) => !(NAV_MOVIL_EMPRESA as readonly string[]).includes(clave),
 );
 
 /** Resuelve una lista de claves a sus destinos, preservando el orden. */

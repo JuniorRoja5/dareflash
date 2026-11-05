@@ -65,8 +65,11 @@ export async function darToque(
 
   // El receptor tiene que existir y estar visible. MISMA respuesta para "no existe" que para
   // "suspendido": por construcción, quien prueba ids no averigua cuáles corresponden a cuentas.
+  // Y UNA CUENTA DE EMPRESA NO RECIBE TOQUES (Fase 9, P2): no participa, así que no tiene a dónde
+  // mirar un aviso —su shell no lleva campana— y un toque sería un mensaje de participante a quien
+  // no lo es. La misma respuesta que «no existe»: tampoco se averigua qué cuentas son de empresa.
   const receptor = await db.user.findFirst({
-    where: { id: input.receptorId, deletedAt: null, bannedAt: null },
+    where: { id: input.receptorId, deletedAt: null, bannedAt: null, esCuentaEmpresa: false },
     select: { id: true },
   });
   if (!receptor) return { estado: "no-disponible" };

@@ -18,7 +18,10 @@ const leer = (...partes: string[]): string =>
 
 describe("la campana de la barra", () => {
   it("es la real (`CampanaNotificaciones`) y SOLO se monta con sesión", () => {
-    expect(leer("(shell)", "barra-superior.tsx")).toMatch(/usuario \? <CampanaNotificaciones\b/);
+    // Con sesión… y de PARTICIPANTE: una cuenta de empresa no recibe avisos (Fase 9, P2).
+    expect(leer("(shell)", "barra-superior.tsx")).toMatch(
+      /usuario && !esCuentaEmpresa \? <CampanaNotificaciones\b/,
+    );
   });
 
   it("no queda el recuento inventado de la maqueta", () => {

@@ -1,3 +1,4 @@
+import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
 import { redirect } from "next/navigation";
 
 import { PerfilVista } from "./perfil-vista";
@@ -13,6 +14,7 @@ export const dynamic = "force-dynamic";
  * los vídeos PUBLICADOS (los no publicados aún no tienen reproducción — eso es otra pieza).
  */
 export default async function PerfilPage() {
+  await apartarCuentaEmpresa();
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const user = await getCurrentUser();
   if (!user) redirect("/entrar");

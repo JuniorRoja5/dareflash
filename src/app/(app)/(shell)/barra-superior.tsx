@@ -20,11 +20,18 @@ import { MenuCuenta } from "./menu-cuenta";
 export function BarraSuperior({
   usuario,
   rol,
+  esCuentaEmpresa = false,
 }: {
   /** Usuario de la sesión (nombre + avatar reales). `null` = invitado -> silueta genérica. */
   usuario: { nombre: string; imagen: string | null; puntos: number } | null;
   /** Rol de la sesión (`null` = invitado). Decide el CTA principal: ver `ctaPrincipal`. */
   rol: string | null;
+  /**
+   * ¿Cuenta de EMPRESA? Su CTA es su portal, su menú de cuenta es el suyo y NO lleva campana: no
+   * hay aviso que la tenga como destinataria (los anuncios la excluyen; los demás son de
+   * participación), y una campana que nunca suena enseña a no mirarla.
+   */
+  esCuentaEmpresa?: boolean;
 }) {
   return (
     <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-line bg-surface px-8 py-3">
@@ -34,17 +41,17 @@ export function BarraSuperior({
 
       <div className="ml-auto flex items-center gap-3">
         {/* CTA principal por rol — acento persistente (atenuado a secundario en /inicio) */}
-        <CtaCrear rol={rol} />
+        <CtaCrear rol={rol} esCuentaEmpresa={esCuentaEmpresa} />
 
         {/* Tema claro/oscuro del sitio público. También para el INVITADO: es una preferencia de
             lectura, no de cuenta. En móvil la vía es la columna de acciones del perfil. */}
         <ConmutadorTemaServidor />
 
         {/* Campana de avisos: solo con sesión. Su número lo lleva el contador compartido. */}
-        {usuario ? <CampanaNotificaciones /> : null}
+        {usuario && !esCuentaEmpresa ? <CampanaNotificaciones /> : null}
 
         {/* Menú de cuenta (avatar + chevron -> desplegable real con "Cerrar sesión") */}
-        <MenuCuenta usuario={usuario} />
+        <MenuCuenta usuario={usuario} esCuentaEmpresa={esCuentaEmpresa} />
       </div>
     </header>
   );

@@ -98,7 +98,7 @@ describe("boton: mapa variante -> tokens", () => {
 });
 
 describe("navegacion: catalogo canonico de destinos", () => {
-  it("diez destinos, orden y claves exactos (reordenar o perder uno cae en rojo)", () => {
+  it("once destinos, orden y claves exactos (reordenar o perder uno cae en rojo)", () => {
     expect(NAV_DESTINOS.map((d) => d.clave)).toEqual([
       "inicio",
       "feed",
@@ -109,8 +109,10 @@ describe("navegacion: catalogo canonico de destinos", () => {
       "perfil",
       "puntos",
       "referidos",
-      // La puerta al VIP, la última: no es un sitio al que se va a menudo, es una compra.
+      // La puerta al VIP, la última del participante: no es un sitio al que se va a menudo, es una compra.
       "vip",
+      // La cuenta de una EMPRESA (Fase 9, P2): solo está en sus listas (ver `empresa-shell`).
+      "cuenta",
     ]);
   });
 
@@ -132,6 +134,7 @@ describe("navegacion: catalogo canonico de destinos", () => {
       // Imperativo y con el nombre del plan: "VIP" a secas no dice que se pueda comprar, y quien
       // ya lo es entra por la misma puerta (es donde ve su estado y puede darse de baja).
       "Hazte VIP Mythic",
+      "Cuenta",
     ]);
     expect(NAV_DESTINOS.map((d) => d.href)).toEqual([
       "/inicio",
@@ -144,6 +147,7 @@ describe("navegacion: catalogo canonico de destinos", () => {
       "/puntos",
       "/referidos",
       "/vip",
+      "/empresa/cuenta",
     ]);
   });
 

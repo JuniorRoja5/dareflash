@@ -4,7 +4,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
-import { ACENTO_VIP, destinosDe, NAV_MOVIL_MAS, type DestinoClave } from "./logic";
+import {
+  ACENTO_VIP,
+  destinosDe,
+  NAV_MOVIL_MAS,
+  NAV_MOVIL_MAS_EMPRESA,
+  type DestinoClave,
+} from "./logic";
 
 /**
  * EL MENÚ "MÁS" DE LA BARRA DE MÓVIL — la puerta a lo que no cabe en la barra.
@@ -42,18 +48,23 @@ export function MenuMasMovil({
   activo,
   icono,
   etiqueta = "Más",
+  esCuentaEmpresa = false,
 }: {
   /** Clave del destino activo, para marcar la fila y encender el botón si lo que se ve está dentro. */
   activo?: string;
   /** El icono de cada destino, por clave. Lo pasa la barra: aquí no se dibuja nada propio. */
   icono: Record<string, ReactNode>;
   etiqueta?: string;
+  /** Cuenta de EMPRESA: su menú, derivado de SUS listas (`NAV_MOVIL_MAS_EMPRESA`). */
+  esCuentaEmpresa?: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
   const caja = useRef<HTMLDivElement>(null);
   const idMenu = useId();
 
-  const destinos = destinosDe(NAV_MOVIL_MAS as readonly DestinoClave[]);
+  const destinos = destinosDe(
+    (esCuentaEmpresa ? NAV_MOVIL_MAS_EMPRESA : NAV_MOVIL_MAS) as readonly DestinoClave[],
+  );
   /** Si el destino que se está viendo vive aquí dentro, el botón se enciende como cualquier otro. */
   const dentro = destinos.some((d) => d.clave === activo);
 

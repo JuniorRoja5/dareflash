@@ -1,13 +1,17 @@
+import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
 import { LanzadorSubida } from "./lanzador-subida";
 
 export const metadata = { title: "Crear · DareFlash" };
+// Lee la sesión (una cuenta de empresa no sube vídeos: va a su portal) -> por petición.
+export const dynamic = "force-dynamic";
 
 /**
  * CREAR — "Subir tu vídeo" por libre. La subida vive en el `ModalSubida` reutilizable (mismo modal que
  * usan "Participar" en un reto y otras entradas); esta ruta ofrece el CTA que lo abre sin `challengeId`.
  * Columna centrada de ancho cómodo, con panel en `lg` (glass + sombra suave); en móvil ocupa la columna.
  */
-export default function CrearPage() {
+export default async function CrearPage() {
+  await apartarCuentaEmpresa();
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-8 lg:px-8 lg:py-12">
       <h1

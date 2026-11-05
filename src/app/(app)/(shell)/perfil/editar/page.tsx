@@ -1,3 +1,4 @@
+import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
 import Link from "next/link";
 
 import { Boton } from "@/components/ui/boton";
@@ -22,6 +23,10 @@ export const dynamic = "force-dynamic";
  * el ancho completo de la rejilla de vídeos).
  */
 export default async function EditarPerfilPage() {
+  // Una empresa no tiene perfil que editar, pero SÍ llega aquí: el aviso a la dirección antigua de
+  // un cambio de correo ("si no has sido tú, cambia tu contraseña ahora mismo") enlaza a esta ruta.
+  // Por eso va a SU cuenta, donde está la contraseña, y no al portal: ese enlace no puede perderse.
+  await apartarCuentaEmpresa("/empresa/cuenta");
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const { prisma } = await import("@/server/db/client");
 

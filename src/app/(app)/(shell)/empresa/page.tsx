@@ -51,7 +51,7 @@ export default async function PaginaMiEmpresa() {
     if (e instanceof SinEmpresa) redirect("/empezar/empresa");
     if (e instanceof AuthError && e.code === "EMAIL_NOT_VERIFIED") {
       return (
-        <div className="df-rise mx-auto w-full max-w-3xl px-4 py-8 lg:px-8 lg:py-12">
+        <div className="df-rise">
           <h1 className="text-2xl text-text">Tu empresa</h1>
           <div className="mt-6">
             <AvisoVerificar />
@@ -71,7 +71,7 @@ export default async function PaginaMiEmpresa() {
   const relato = MSG_ESTADO_EMPRESA[empresa.estado];
 
   return (
-    <div className="df-rise mx-auto w-full max-w-3xl px-4 py-8 lg:px-8 lg:py-12">
+    <div className="df-rise">
       <h1 className="text-2xl text-text">{empresa.nombre}</h1>
       <p className="mt-1 text-sm text-text-dim">
         {ETIQUETA_TIPO_CUENTA[empresa.tipoCuenta]} · {ETIQUETA_TIPO_NEGOCIO[empresa.tipoNegocio]}

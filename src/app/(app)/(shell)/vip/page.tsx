@@ -1,3 +1,4 @@
+import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
 import { redirect } from "next/navigation";
 
 import { MSG_VIP_PAGO_NO_DISPONIBLE, MSG_VIP_SIN_VERIFICAR } from "@/config/constants";
@@ -47,6 +48,7 @@ export default async function VipPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await apartarCuentaEmpresa();
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
   if (!sesion) redirect("/entrar?siguiente=%2Fvip");

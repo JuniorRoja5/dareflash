@@ -19,13 +19,27 @@ import { CTA_ADMIN, CTA_USUARIO, ctaPrincipal } from "../src/lib/cta-principal";
 
 describe("ctaPrincipal", () => {
   it("ADMIN -> crear un reto de verdad, en el panel", () => {
-    expect(ctaPrincipal("ADMIN")).toEqual({ texto: "Crear reto", href: "/panel/retos" });
+    expect(ctaPrincipal("ADMIN")).toEqual({
+      texto: "Crear reto",
+      href: "/panel/retos",
+      crea: true,
+    });
   });
 
   it("usuario, moderador e invitado -> su acción real: subir un vídeo", () => {
     for (const rol of ["USER", "MODERATOR", null]) {
-      expect(ctaPrincipal(rol)).toEqual({ texto: "Subir vídeo", href: "/crear" });
+      expect(ctaPrincipal(rol)).toEqual({ texto: "Subir vídeo", href: "/crear", crea: true });
     }
+  });
+
+  it("una cuenta de EMPRESA -> su portal, SIN «+»: hoy su CTA no crea nada", () => {
+    // Su rol es USER: si la empresa no fuera primero, recibiría «Subir vídeo», que no puede hacer.
+    expect(ctaPrincipal("USER", true)).toEqual({
+      texto: "Mi empresa",
+      href: "/empresa",
+      crea: false,
+    });
+    expect(ctaPrincipal("USER", false)).toEqual(CTA_USUARIO);
   });
 
   it("el CTA del no-admin no lleva al panel ni se llama como el del admin", () => {

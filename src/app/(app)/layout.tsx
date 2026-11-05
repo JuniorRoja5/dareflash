@@ -22,15 +22,21 @@ import { NavInferiorActiva, NavLateralActiva } from "./nav-activa";
 export default async function ArmazonLayout({ children }: { children: ReactNode }) {
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const rol = (await getCurrentUser())?.role ?? null;
+  // La MISMA sesión (memoizada por petición): una cuenta de EMPRESA lleva su propia nav y su CTA.
+  const esCuentaEmpresa = (await getCurrentUser())?.esCuentaEmpresa ?? false;
+  // SIN AVISOS PARA UNA EMPRESA: ninguno de sus tipos la tiene como destinataria (participación,
+  // premios, puntos) y los anuncios la excluyen de su audiencia. Así que no se cuenta ni se sondea:
+  // un contador que nunca puede subir es una consulta cada minuto para nada.
+  const conAvisos = rol !== null && !esCuentaEmpresa;
   const { noLeidasDeSesion } = await import("@/server/services/notificaciones-sesion");
-  const noLeidas = rol ? await noLeidasDeSesion() : 0;
+  const noLeidas = conAvisos ? await noLeidasDeSesion() : 0;
 
   return (
-    <ProveedorAvisos inicial={noLeidas} activo={rol !== null}>
+    <ProveedorAvisos inicial={noLeidas} activo={conAvisos}>
       <div className="min-h-full">
         {/* Lateral fija — solo escritorio (>= lg) */}
         <div className="fixed inset-y-0 left-0 z-40 hidden lg:block">
-          <NavLateralActiva />
+          <NavLateralActiva esCuentaEmpresa={esCuentaEmpresa} />
         </div>
 
         {/* Contenido: solo reserva el hueco de la lateral (lg). El pb-24 de la barra inferior lo pone el shell. */}
@@ -38,7 +44,7 @@ export default async function ArmazonLayout({ children }: { children: ReactNode 
 
         {/* Barra inferior fija — solo movil; el wrapper pinta el safe-area del mismo color que la barra */}
         <div className="fixed inset-x-0 bottom-0 z-40 bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
-          <NavInferiorActiva rol={rol} />
+          <NavInferiorActiva rol={rol} esCuentaEmpresa={esCuentaEmpresa} />
         </div>
       </div>
     </ProveedorAvisos>

@@ -49,10 +49,11 @@ export default async function InicioPage() {
   ]);
 
   // CTA del hero POR ROL, de la misma fuente que el de la barra: "Crear reto" es del admin; el resto
-  // sube un vídeo. `getCurrentUser` está memoizado por petición: el layout del shell ya lo resolvió.
+  // sube un vídeo; una empresa va a su portal. `getCurrentUser` está memoizado por petición: el
+  // layout del shell ya lo resolvió.
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
-  const cta = ctaPrincipal(sesion?.role ?? null);
+  const cta = ctaPrincipal(sesion?.role ?? null, sesion?.esCuentaEmpresa ?? false);
 
   return (
     <>
@@ -83,7 +84,7 @@ export default async function InicioPage() {
             <div className="mt-6 flex flex-wrap gap-3">
               {/* UNICO acento de accion — PLANO (sin degradado), realzado con --df-cta-lift */}
               <Boton href={cta.href} variante="principal" className="shadow-[var(--df-cta-lift)]">
-                <span className="text-lg font-bold leading-none">+</span>
+                {cta.crea ? <span className="text-lg font-bold leading-none">+</span> : null}
                 <span>{cta.texto}</span>
               </Boton>
               <Boton href="/retos" variante="secundario">

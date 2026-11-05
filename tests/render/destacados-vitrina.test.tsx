@@ -16,6 +16,9 @@ import type { PerfilDestacado } from "@/server/services/boost-destacados";
 const H = vi.hoisted(() => ({ perfiles: [] as unknown[] }));
 
 vi.mock("@/server/db/client", () => ({ prisma: {} }));
+// La vitrina es pública: se pinta para un invitado. (Una cuenta de empresa la tiene apartada —ver
+// `solo-participante`—, y eso se prueba allí, no aquí.)
+vi.mock("@/server/auth/current-user", () => ({ getCurrentUser: async () => null }));
 vi.mock("@/server/services/boost-destacados", () => ({
   // La página pide una PÁGINA (keyset), no la lista entera. `paginaDestacados` envuelve a
   // `destacadosVigentes`, así que lo que estos casos miran —qué se pinta— no cambia.

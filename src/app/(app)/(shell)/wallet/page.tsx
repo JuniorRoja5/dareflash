@@ -1,3 +1,4 @@
+import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
 import { redirect } from "next/navigation";
 
 import { ESTADOS_RETIRADA_EN_CURSO, puedePedirCobro } from "@/lib/retirada";
@@ -41,6 +42,7 @@ export const dynamic = "force-dynamic";
  * no es una regla.
  */
 export default async function WalletPage() {
+  await apartarCuentaEmpresa();
   const { requireVerifiedUser, AuthError } = await import("@/server/auth/rbac");
   const { prisma } = await import("@/server/db/client");
   const { misMovimientosMonedero, misRetiradas } = await import("@/server/services/retirada");

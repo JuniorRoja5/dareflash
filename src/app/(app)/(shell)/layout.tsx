@@ -38,13 +38,26 @@ export default async function ShellLayout({ children }: { children: ReactNode })
         puntos: fila.pointsBalance,
       };
     }
+    // UNA EMPRESA SE LLAMA COMO SU EMPRESA. Su `username` es el handle automático del alta
+    // ("user4f…"): nadie lo eligió y no la representa. Una consulta MÁS, solo para estas cuentas.
+    if (cuenta && user.esCuentaEmpresa) {
+      const empresa = await prisma.empresa.findUnique({
+        where: { ownerUserId: user.userId },
+        select: { nombre: true },
+      });
+      if (empresa) cuenta = { ...cuenta, nombre: empresa.nombre };
+    }
   }
 
   return (
     <div className="flex min-h-full flex-col">
       {/* Barra superior: solo escritorio */}
       <div className="hidden lg:block">
-        <BarraSuperior usuario={cuenta} rol={user?.role ?? null} />
+        <BarraSuperior
+          usuario={cuenta}
+          rol={user?.role ?? null}
+          esCuentaEmpresa={user?.esCuentaEmpresa ?? false}
+        />
       </div>
 
       {/* Region de contenido: en escritorio, ancho disponible. `flex-1` para que el pie caiga abajo

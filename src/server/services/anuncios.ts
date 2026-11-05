@@ -18,7 +18,7 @@
  * recorrer desde el principio): la corrección la da la UNIQUE.
  *
  * AUDIENCIA "TODOS": las cuentas reales que EXISTÍAN al enviar (`createdAt <= anuncio.createdAt`), sin
- * borradas ni baneadas. Con ese corte, `targetCount` (la foto al enviar) y el recuento de avisos miden
+ * borradas ni baneadas ni cuentas de empresa (ver `audiencia`). Con ese corte, `targetCount` (la foto al enviar) y el recuento de avisos miden
  * lo mismo, y el progreso es exacto por construcción. Quien se registra después no lo recibe: el anuncio
  * era para quien estaba. Quien es baneado o borrado ANTES de que el reparto le llegue no lo recibe (no
  * debe), y su anuncio termina por debajo del objetivo: la revisión lo dice, en vez de pintarlo "en
@@ -63,9 +63,23 @@ export function claveTramo(announcementId: string, desde: string | null): string
   return `${TIPO_JOB_FANOUT}:${announcementId}:${desde ?? "inicio"}`;
 }
 
-/** La audiencia TODOS: cuentas reales que existían en `hasta` (ni borradas ni baneadas). */
+/**
+ * La audiencia TODOS: cuentas reales que existían en `hasta` (ni borradas ni baneadas), y DE
+ * PARTICIPANTE.
+ *
+ * ┌─ SIN CUENTAS DE EMPRESA (Fase 9, P2) ─────────────────────────────────────────────────────────┐
+ * │ Un anuncio del admin le habla a la comunidad ("nuevo reto", "esta semana premios dobles"); una │
+ * │ empresa no participa, así que para ella es ruido, y su shell ni siquiera lleva campana donde  │
+ * │ leerlo. Y no es solo el reparto: el panel enseña el tamaño de la audiencia ANTES de enviar,   │
+ * │ y contar empresas ahí inflaría el número con cuentas que no son su público.                    │
+ * │                                                                                               │
+ * │ Está AQUÍ, en el único `where` de la audiencia, y no en el bucle del reparto: lo leen el      │
+ * │ tamaño previo, la foto `targetCount` y cada tramo del keyset. Si uno filtrara y otro no, el     │
+ * │ progreso dejaría de ser exacto por construcción (ver arriba).                                  │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
 function audiencia(hasta: Date): Prisma.UserWhereInput {
-  return { deletedAt: null, bannedAt: null, createdAt: { lte: hasta } };
+  return { deletedAt: null, bannedAt: null, esCuentaEmpresa: false, createdAt: { lte: hasta } };
 }
 
 const esDuplicado = (e: unknown): boolean =>

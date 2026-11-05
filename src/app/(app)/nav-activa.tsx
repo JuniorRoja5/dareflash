@@ -16,13 +16,26 @@ import { useNoLeidas } from "./avisos-contexto";
  * campana de escritorio, y se refrescan solas.
  */
 
-export function NavInferiorActiva({ rol }: { rol: string | null }) {
+export function NavInferiorActiva({
+  rol,
+  esCuentaEmpresa,
+}: {
+  rol: string | null;
+  esCuentaEmpresa: boolean;
+}) {
   const activo = destinoActivo(usePathname()) ?? undefined;
   const { noLeidas } = useNoLeidas();
-  return <NavegacionInferior activo={activo} rol={rol} noLeidas={noLeidas} />;
+  return (
+    <NavegacionInferior
+      activo={activo}
+      rol={rol}
+      noLeidas={noLeidas}
+      esCuentaEmpresa={esCuentaEmpresa}
+    />
+  );
 }
 
-export function NavLateralActiva() {
+export function NavLateralActiva({ esCuentaEmpresa }: { esCuentaEmpresa: boolean }) {
   const activo = destinoActivo(usePathname()) ?? undefined;
-  return <NavegacionLateral activo={activo} />;
+  return <NavegacionLateral activo={activo} esCuentaEmpresa={esCuentaEmpresa} />;
 }

@@ -1,3 +1,4 @@
+import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -32,6 +33,7 @@ export default async function ReferidosPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await apartarCuentaEmpresa();
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
   if (!sesion) redirect("/entrar?siguiente=%2Freferidos");

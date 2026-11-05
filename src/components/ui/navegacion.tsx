@@ -5,7 +5,14 @@ import { NOTIF_NO_LEIDAS_TOPE } from "@/config/constants";
 import { ctaPrincipal } from "@/lib/cta-principal";
 import { textoBadge } from "@/lib/notificaciones";
 
-import { ACENTO_VIP, destinosDe, NAV_ESCRITORIO, NAV_MOVIL } from "./logic";
+import {
+  ACENTO_VIP,
+  destinosDe,
+  NAV_ESCRITORIO,
+  NAV_ESCRITORIO_EMPRESA,
+  NAV_MOVIL,
+  NAV_MOVIL_EMPRESA,
+} from "./logic";
 import { Logo } from "./logo";
 import { MenuMasMovil } from "./menu-mas-movil";
 
@@ -88,7 +95,38 @@ const ICONO: Record<string, ReactNode> = {
       <path d="M4.5 9.5h15" />
     </>,
   ),
+  // LA CUENTA de una empresa: una llave (acceso: correo y contraseña), no un engranaje de "ajustes".
+  cuenta: svg(
+    <>
+      <circle cx="8.5" cy="12" r="3.5" />
+      <path d="M12 12h8.5M17.5 12v3M20.5 12v2.5" />
+    </>,
+  ),
 };
+
+/**
+ * EL ESCAPARATE de la empresa: va DENTRO del círculo central cuando su CTA no crea nada (ver
+ * `ctaPrincipal`). Es el mismo dibujo que la sección Empresas del panel, para que "empresa" se
+ * reconozca igual en los dos lados.
+ */
+const ICONO_EMPRESA = (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.8}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-6 w-6"
+    aria-hidden
+    data-cta-empresa
+  >
+    <path d="M4 9.5 5.5 4h13L20 9.5" />
+    <path d="M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0" />
+    <path d="M5.5 12v8h13v-8" />
+    <path d="M10 20v-4.5h4V20" />
+  </svg>
+);
 
 /**
  * NAVEGACION INFERIOR (movil) — CINCO HUECOS: los cuatro destinos de `NAV_MOVIL` (Feed es el home
@@ -108,6 +146,8 @@ const ICONO: Record<string, ReactNode> = {
  * El [+] central es el CTA PRINCIPAL, por ROL y de la MISMA fuente que el de la barra de
  * escritorio y el hero (`ctaPrincipal`): "Subir vídeo" a /crear para el no-admin, "Crear reto" al panel
  * para el admin. Antes decia "Crear" e iba a /crear para todos: un tercer sitio con su propio texto.
+ * Para una cuenta de EMPRESA es "Mi empresa", a su portal, y el circulo lleva su escaparate en vez
+ * del "+": hoy su CTA no crea nada, y un "+" lo prometeria (ver `ctaPrincipal`).
  * Circulo de relleno --df-action con texto --df-void, el UNICO de la nav. Cada objetivo mide
  * 44 px. Presentacional: la posicion fija la pone el layout, y el rol se lo pasa quien la monta.
  *
@@ -120,20 +160,23 @@ export function NavegacionInferior({
   activo,
   rol,
   noLeidas = 0,
+  esCuentaEmpresa = false,
 }: {
   activo?: string;
   rol: string | null;
   /** Avisos sin leer del usuario de la sesión (0 = sin número). */
   noLeidas?: number;
+  /** ¿La sesión es de una cuenta de EMPRESA? Cambia la lista y el CTA (ver `NAV_MOVIL_EMPRESA`). */
+  esCuentaEmpresa?: boolean;
 }) {
-  const cta = ctaPrincipal(rol);
+  const cta = ctaPrincipal(rol, esCuentaEmpresa);
   const badgePerfil = textoBadge(noLeidas, NOTIF_NO_LEIDAS_TOPE);
   return (
     <nav
       aria-label="Principal"
       className="flex items-stretch justify-around border-t border-line bg-surface"
     >
-      {destinosDe(NAV_MOVIL).map((d) =>
+      {(esCuentaEmpresa ? destinosDe(NAV_MOVIL_EMPRESA) : destinosDe(NAV_MOVIL)).map((d) =>
         "central" in d && d.central ? (
           <Link
             key={d.clave}
@@ -142,7 +185,7 @@ export function NavegacionInferior({
             className="flex min-h-[44px] min-w-[44px] flex-1 items-center justify-center py-2"
           >
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-action text-2xl font-bold leading-none text-void">
-              +
+              {cta.crea ? "+" : ICONO_EMPRESA}
             </span>
           </Link>
         ) : (
@@ -174,7 +217,7 @@ export function NavegacionInferior({
       {/* EL QUINTO HUECO. Va después del bucle y no dentro: no es un destino del catálogo, es la
           puerta a los que no caben. Recibe el MISMO juego de iconos, así que las filas del
           desplegable se ven como las de la lateral y no como otra cosa. */}
-      <MenuMasMovil activo={activo} icono={ICONO} />
+      <MenuMasMovil activo={activo} icono={ICONO} esCuentaEmpresa={esCuentaEmpresa} />
     </nav>
   );
 }
@@ -184,7 +227,14 @@ export function NavegacionInferior({
  * Perfil). El CTA principal NO va aqui: es el boton de --df-action de la barra superior (el unico de la pantalla).
  * Sin [+]. Cada fila mide 44 px; activo = neutro elevado. Presentacional: el layout la fija.
  */
-export function NavegacionLateral({ activo }: { activo?: string }) {
+export function NavegacionLateral({
+  activo,
+  esCuentaEmpresa = false,
+}: {
+  activo?: string;
+  /** ¿La sesión es de una cuenta de EMPRESA? Pinta su lista (ver `NAV_ESCRITORIO_EMPRESA`). */
+  esCuentaEmpresa?: boolean;
+}) {
   return (
     <nav
       aria-label="Principal"
@@ -194,44 +244,46 @@ export function NavegacionLateral({ activo }: { activo?: string }) {
           marca grafica y la palabra juntas. El literal "DAREFLASH" vive SOLO en `logo.tsx`: escribirlo
           aqui otra vez volveria a crear dos marcas que pueden discrepar. */}
       <Logo className="mb-4 px-2 pt-2" />
-      {destinosDe(NAV_ESCRITORIO).map((d) => {
-        // EL ORO SALE DEL DATO, no de un `if` por clave: ver `NAV_DESTINOS`. Y el valor sale de
-        // `ACENTO_VIP`, que es el MISMO que usa el menú "Más" de móvil: escrito aquí a mano, la
-        // puerta de móvil se quedaría en el color viejo el día que esto cambie.
-        const esVip = "acento" in d && d.acento === "vip";
-        if (esVip) {
+      {(esCuentaEmpresa ? destinosDe(NAV_ESCRITORIO_EMPRESA) : destinosDe(NAV_ESCRITORIO)).map(
+        (d) => {
+          // EL ORO SALE DEL DATO, no de un `if` por clave: ver `NAV_DESTINOS`. Y el valor sale de
+          // `ACENTO_VIP`, que es el MISMO que usa el menú "Más" de móvil: escrito aquí a mano, la
+          // puerta de móvil se quedaría en el color viejo el día que esto cambie.
+          const esVip = "acento" in d && d.acento === "vip";
+          if (esVip) {
+            return (
+              <Link
+                key={d.clave}
+                href={d.href}
+                data-nav-vip
+                aria-current={activo === d.clave ? "page" : undefined}
+                // El margen de arriba lo separa del resto: no es un destino de uso diario, es una
+                // puerta de compra, y pegada a "Referidos" se lee como una sección más.
+                className="mt-3 flex min-h-[44px] items-center gap-3 rounded-sm border px-3 text-sm font-semibold transition-colors duration-150 ease-mechanical"
+                style={ACENTO_VIP}
+              >
+                {ICONO[d.clave]}
+                <span>{d.nombre}</span>
+              </Link>
+            );
+          }
           return (
             <Link
               key={d.clave}
               href={d.href}
-              data-nav-vip
               aria-current={activo === d.clave ? "page" : undefined}
-              // El margen de arriba lo separa del resto: no es un destino de uso diario, es una
-              // puerta de compra, y pegada a "Referidos" se lee como una sección más.
-              className="mt-3 flex min-h-[44px] items-center gap-3 rounded-sm border px-3 text-sm font-semibold transition-colors duration-150 ease-mechanical"
-              style={ACENTO_VIP}
+              className={`flex min-h-[44px] items-center gap-3 rounded-sm px-3 text-sm transition-colors duration-150 ease-mechanical ${
+                activo === d.clave
+                  ? "bg-raised font-medium text-text"
+                  : "text-text-dim hover:bg-raised hover:text-text"
+              }`}
             >
               {ICONO[d.clave]}
               <span>{d.nombre}</span>
             </Link>
           );
-        }
-        return (
-          <Link
-            key={d.clave}
-            href={d.href}
-            aria-current={activo === d.clave ? "page" : undefined}
-            className={`flex min-h-[44px] items-center gap-3 rounded-sm px-3 text-sm transition-colors duration-150 ease-mechanical ${
-              activo === d.clave
-                ? "bg-raised font-medium text-text"
-                : "text-text-dim hover:bg-raised hover:text-text"
-            }`}
-          >
-            {ICONO[d.clave]}
-            <span>{d.nombre}</span>
-          </Link>
-        );
-      })}
+        },
+      )}
     </nav>
   );
 }

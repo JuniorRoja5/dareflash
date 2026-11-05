@@ -1,3 +1,4 @@
+import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
 import { redirect } from "next/navigation";
 
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
@@ -45,6 +46,7 @@ export default async function BoostsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await apartarCuentaEmpresa();
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
   if (!sesion) redirect("/entrar?siguiente=%2Fboosts");

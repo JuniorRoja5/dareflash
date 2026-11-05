@@ -154,6 +154,17 @@ describe("a quién, y a quién no", () => {
     expect(baneado).toEqual(inventado);
     expect(await prisma.notification.count({ where: { tipo: "TOQUE" } })).toBe(0);
   });
+
+  it("a una cuenta de EMPRESA, no: no participa, y la respuesta no delata que lo es", async () => {
+    // Fase 9, P2. Para romperlo: quitar `esCuentaEmpresa: false` del receptor en `darToque`.
+    const empresa = await crearUsuario(prisma, { username: "la_empresa" });
+    await prisma.user.update({ where: { id: empresa }, data: { esCuentaEmpresa: true } });
+
+    const r = await darToque(prisma, { emisorId: vip, receptorId: empresa, ahora: AHORA });
+    // EL MISMO resultado que a un id inventado: quien prueba no averigua qué cuentas son empresas.
+    expect(r).toEqual({ estado: "no-disponible" });
+    expect(await prisma.notification.count({ where: { userId: empresa } })).toBe(0);
+  });
 });
 
 describe("ANTI-ACOSO: A toca a B una vez al día, y lo fuerza la clave", () => {

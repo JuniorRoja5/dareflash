@@ -1,3 +1,4 @@
+import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
 import Link from "next/link";
 
 import { Boton } from "@/components/ui/boton";
@@ -47,6 +48,7 @@ export default async function DestacadosPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await apartarCuentaEmpresa();
   const sp = await searchParams;
   const aqui: Paginacion = {
     cursor: typeof sp["cursor"] === "string" ? sp["cursor"].slice(0, 300) : null,

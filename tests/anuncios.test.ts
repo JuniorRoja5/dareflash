@@ -453,3 +453,39 @@ describe("inspector de notificaciones (todas las cuentas)", () => {
     expect(items[0]).toMatchObject({ tipo: "VOTO_RECIBIDO", leida: false });
   });
 });
+
+/**
+ * LAS CUENTAS DE EMPRESA NO SON LA AUDIENCIA DE UN ANUNCIO (Fase 9, P2). Un anuncio le habla a la
+ * comunidad; una empresa no participa y su shell no lleva campana donde leerlo.
+ *
+ * Las tres lecturas de la audiencia, a la vez —el número que enseña el panel antes de enviar, la foto
+ * `targetCount` y el reparto—, porque si una filtrara y otra no el progreso dejaría de ser exacto.
+ *
+ * Para romperlo a propósito: quitar `esCuentaEmpresa: false` de `audiencia` (rojos los tres).
+ */
+describe("las cuentas de empresa no son la audiencia", () => {
+  async function unaEmpresa(): Promise<string> {
+    const id = await crearUsuario(prisma);
+    await prisma.user.update({ where: { id }, data: { esCuentaEmpresa: true } });
+    return id;
+  }
+
+  it("ni en el número previo del panel ni en la foto del envío", async () => {
+    await cuentas(2);
+    await unaEmpresa();
+    const { tamanoAudiencia } = await import("../src/server/services/anuncios");
+    expect(await tamanoAudiencia(prisma, enElFuturo())).toBe(3); // 2 + el admin
+    expect((await enviar()).targetCount).toBe(3);
+  });
+
+  it("el reparto no le deja aviso, y el recuento llega EXACTO al objetivo", async () => {
+    await cuentas(2);
+    const empresa = await unaEmpresa();
+    const a = await enviar();
+
+    await vaciarCola();
+
+    expect(await prisma.notification.count({ where: { userId: empresa } })).toBe(0);
+    expect(await avisosDe(a.id)).toBe(a.targetCount);
+  });
+});

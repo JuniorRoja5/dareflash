@@ -76,8 +76,8 @@ export function EnviarAnuncio({ audiencia }: { audiencia: number }) {
     >
       <h3 className="text-sm font-semibold text-text">Enviar un anuncio</h3>
       <p className="mt-1 text-sm text-text-dim">
-        Lo recibirán las {cuentas} cuentas activas (sin borradas ni baneadas), en su campana. Se
-        reparte en segundo plano.
+        Lo recibirán las {cuentas} cuentas activas de participante (sin borradas, baneadas ni
+        cuentas de empresa), en su campana. Se reparte en segundo plano.
       </p>
 
       <label className="mt-4 block text-2xs font-semibold tracking-widest text-text-dim uppercase">
