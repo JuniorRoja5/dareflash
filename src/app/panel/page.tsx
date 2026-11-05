@@ -87,6 +87,13 @@ export default async function ResumenPage() {
             nota="Esperan una revisión a mano"
             href="/panel/empresas?estado=PENDIENTE"
           />
+          {/* SEGUNDA, por lo mismo: una empresa esperando a que decidamos su reto. */}
+          <TarjetaMetrica
+            valor={pendientes.propuestas}
+            etiqueta="Retos propuestos por revisar"
+            nota="Los propone una empresa; no se publica nada sin ti"
+            href="/panel/propuestas?estado=PENDIENTE"
+          />
           <TarjetaMetrica
             valor={dinero.retiradasPendientes}
             etiqueta="Retiradas por revisar"

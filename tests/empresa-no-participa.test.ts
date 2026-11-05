@@ -154,14 +154,17 @@ const permiteEmpresa = (src: string) => permisos(src) > 0;
  *  - `perfil/email`: el correo es la IDENTIDAD DE ACCESO —con él se entra y con él se recupera la
  *    cuenta—, así que moverlo es exactamente lo mismo que cambiar la contraseña. Sin esto, una
  *    empresa a la que le cambia la persona de contacto se queda sin forma de recuperar su cuenta.
+ *  - `empresa/retos` (Fase 9 · P3): PROPONER un reto patrocinado. No es participar —no sube, no
+ *    vota, no compite—: es lo que una empresa viene a hacer. Dentro, el chokepoint exige que la
+ *    sesión TENGA empresa (un participante recibe 404) y el servicio, que esté VERIFICADA.
  *
  * LO QUE SIGUE CERRADO Y NO ES UN OLVIDO: `perfil` (PATCH) y `perfil/avatar`. Son el perfil PÚBLICO
  * del producto de participación; la identidad de una empresa es su fila `Empresa`, no un perfil de
  * participante. Abrirlos le daría presencia pública a quien, por decisión, solo mira.
  *
- * Cuando P2 traiga las rutas del portal, entran aquí —y cada una con su línea—.
+ * Cada ruta nueva del portal entra aquí —y cada una con su línea—.
  */
-const PERMITEN = new Set(["auth/logout", "auth/change-password", "perfil/email"]);
+const PERMITEN = new Set(["auth/logout", "auth/change-password", "perfil/email", "empresa/retos"]);
 
 describe("el censo de rutas mutantes", () => {
   const MUTANTES = rutas().filter((r) => muta(r.src));

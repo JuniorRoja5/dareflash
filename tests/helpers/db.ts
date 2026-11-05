@@ -67,6 +67,8 @@ export const DELETE_ORDER = [
   "Like",
   "Vote",
   "RankingMensual",
+  // Antes que `Challenge` y que `Empresa`: tiene FK (Restrict) a los dos (Fase 9 · P3).
+  "RetoSolicitud",
   "ChallengeResult",
   "Submission",
   "Challenge",

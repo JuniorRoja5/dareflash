@@ -65,43 +65,74 @@ const DESCRIPCION_MAX = 2000;
 const REGLAS_MAX = 4000;
 
 /**
+ * LOS CAMPOS DE UN RETO QUE DECIDE QUIEN LO PROPONE: qué, cuánto y cuándo. Los comparten el formulario
+ * del admin (`crearRetoSchema`, que añade lo que es de DareFlash: nivel, VIP, marca, comisión) y la
+ * propuesta de una empresa (`solicitudRetoSchema`, Fase 9 · P3, que no añade nada de eso).
+ *
+ * UNA SOLA DEFINICIÓN para los dos: si el tope del título o la regla del premio vivieran copiados, la
+ * propuesta aceptaría algo que el borrador que nace de ella no podría guardar —o al revés—.
+ */
+export function camposDeReto() {
+  return {
+    title: z
+      .string()
+      .trim()
+      .min(TITULO_MIN, `El título debe tener al menos ${TITULO_MIN} caracteres.`)
+      .max(TITULO_MAX, `El título no puede pasar de ${TITULO_MAX} caracteres.`),
+    description: z
+      .string()
+      .trim()
+      .max(DESCRIPCION_MAX, "La descripción es demasiado larga.")
+      .optional()
+      .transform((s) => (s ? s : null)),
+    category: z.enum(CATEGORY_KEYS, { message: "Elige una categoría de la lista." }),
+    rules: z
+      .string()
+      .trim()
+      .max(REGLAS_MAX, "Las reglas son demasiado largas.")
+      .optional()
+      .transform((s) => (s ? s : null)),
+    prizeAmountCents: z.coerce
+      .number({ message: "El premio debe ser un número." })
+      .int("El premio debe ser un número entero de céntimos.")
+      .min(0, "El premio no puede ser negativo."),
+    startsAt: z.coerce.date({ message: "La fecha de apertura no es válida." }),
+    deadline: z.coerce.date({ message: "La fecha de cierre no es válida." }),
+    winnersCount: z.coerce
+      .number({ message: "El número de ganadores debe ser un número." })
+      .int("El número de ganadores debe ser entero.")
+      .min(1, "Debe haber al menos 1 ganador."),
+  };
+}
+
+/** Las dos reglas de fechas de todo reto: apertura antes que cierre, y cierre en el futuro. */
+export function conFechasDeReto<T extends { startsAt: Date; deadline: Date }, I>(
+  schema: z.ZodType<T, I>,
+  now: Date,
+) {
+  return schema
+    .refine((d) => d.startsAt < d.deadline, {
+      message: "El cierre debe ser posterior a la apertura.",
+      path: ["deadline"],
+    })
+    .refine((d) => d.deadline > now, {
+      message: "El cierre debe estar en el futuro.",
+      path: ["deadline"],
+    });
+}
+
+/**
  * Schema de creación de reto. FACTORÍA con `now` para poder testear "el cierre debe estar en el futuro"
  * de forma determinista. Reglas de dominio: título 3-120; categoría ∈ CATEGORIES; premio entero >= 0 en
  * céntimos; apertura < cierre y cierre en el futuro (UTC); ganadores >= 1. El
  * `status` NO viene del cuerpo: la creación es SIEMPRE DRAFT (publicar es una acción aparte).
  */
 export function crearRetoSchema(now: Date) {
-  return (
+  return conFechasDeReto(
     z
       .object({
-        title: z
-          .string()
-          .trim()
-          .min(TITULO_MIN, `El título debe tener al menos ${TITULO_MIN} caracteres.`)
-          .max(TITULO_MAX, `El título no puede pasar de ${TITULO_MAX} caracteres.`),
-        description: z
-          .string()
-          .trim()
-          .max(DESCRIPCION_MAX, "La descripción es demasiado larga.")
-          .optional()
-          .transform((s) => (s ? s : null)),
-        category: z.enum(CATEGORY_KEYS, { message: "Elige una categoría de la lista." }),
-        rules: z
-          .string()
-          .trim()
-          .max(REGLAS_MAX, "Las reglas son demasiado largas.")
-          .optional()
-          .transform((s) => (s ? s : null)),
-        prizeAmountCents: z.coerce
-          .number({ message: "El premio debe ser un número." })
-          .int("El premio debe ser un número entero de céntimos.")
-          .min(0, "El premio no puede ser negativo."),
-        startsAt: z.coerce.date({ message: "La fecha de apertura no es válida." }),
-        deadline: z.coerce.date({ message: "La fecha de cierre no es válida." }),
-        winnersCount: z.coerce
-          .number({ message: "El número de ganadores debe ser un número." })
-          .int("El número de ganadores debe ser entero.")
-          .min(1, "Debe haber al menos 1 ganador."),
+        ...camposDeReto(),
+        // ↓ Lo que es de DAREFLASH, no de quien propone el reto.
         /**
          * QUIÉN puede participar. Se guarda la CLAVE del nivel, no un número de puntos (ver el
          * comentario de la columna). Ausente = `rookie` = TODOS: así un formulario antiguo, o una
@@ -156,15 +187,8 @@ export function crearRetoSchema(now: Date) {
       .refine((d) => !d.esPatrocinado || (d.sponsorNombre?.length ?? 0) > 0, {
         message: "Un reto patrocinado necesita el nombre de la marca.",
         path: ["sponsorNombre"],
-      })
-      .refine((d) => d.startsAt < d.deadline, {
-        message: "El cierre debe ser posterior a la apertura.",
-        path: ["deadline"],
-      })
-      .refine((d) => d.deadline > now, {
-        message: "El cierre debe estar en el futuro.",
-        path: ["deadline"],
-      })
+      }),
+    now,
   );
 }
 

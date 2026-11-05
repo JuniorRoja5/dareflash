@@ -7,9 +7,9 @@
  * por separado acaban discrepando, y un contador que no cuadra con su cola es peor que ninguno: enseña
  * a no creérselo.
  *
- * PREPARADO PARA CRECER: hoy solo cuentan las empresas por verificar; P3 sumará los retos de empresa
- * por revisar y P8 la publicidad denunciada. Cada fuente nueva es una clave en `PendientesPanel` y
- * una línea en `SECCION_DE_PENDIENTE`: el total y las insignias salen solos.
+ * PREPARADO PARA CRECER: cuentan las empresas por verificar y, desde P3, los retos que proponen las
+ * empresas; P8 sumará la publicidad denunciada. Cada fuente nueva es una clave en `PendientesPanel` y
+ * una línea en `SECCION_DE_PENDIENTE`: el total, las insignias y el filtro por rol salen solos.
  *
  * SOLO CUENTA LO QUE QUIEN MIRA PUEDE ATENDER. Un moderador no verifica empresas (la sección es de
  * ADMIN), así que para él esa cifra no existe: ni insignia ni total. Avisarle de algo que no puede
@@ -20,6 +20,8 @@ import { alcanzaRol } from "@/lib/permisos";
 /** Una cifra por cosa que pide una decisión. Cada clave la produce `services/pendientes-panel`. */
 export interface PendientesPanel {
   empresas: number;
+  /** Retos patrocinados propuestos por empresas, esperando revisión (Fase 9 · P3). */
+  propuestas: number;
 }
 
 /** De qué sección es cada cifra, y qué rol hace falta para atenderla. */
@@ -28,13 +30,20 @@ export const SECCION_DE_PENDIENTE: Record<
   { href: string; rol: "ADMIN" | "MODERATOR" }
 > = {
   empresas: { href: "/panel/empresas", rol: "ADMIN" },
+  propuestas: { href: "/panel/propuestas", rol: "ADMIN" },
 };
 
-/** Lo que este rol puede atender: el resto se pone a cero (no se le cuenta, no se le enseña). */
+/**
+ * Lo que este rol puede atender: el resto se pone a cero (no se le cuenta, no se le enseña).
+ * RECORRE el mapa en vez de nombrar cada clave: una cifra nueva queda filtrada por rol sin que nadie
+ * tenga que acordarse de esta función.
+ */
 export function pendientesVisibles(p: PendientesPanel, rol: string): PendientesPanel {
-  return {
-    empresas: alcanzaRol(rol, SECCION_DE_PENDIENTE.empresas.rol) ? p.empresas : 0,
-  };
+  const v = { ...p };
+  for (const k of Object.keys(SECCION_DE_PENDIENTE) as (keyof PendientesPanel)[]) {
+    if (!alcanzaRol(rol, SECCION_DE_PENDIENTE[k].rol)) v[k] = 0;
+  }
+  return v;
 }
 
 /** El total de la cabecera: la suma de lo que este rol puede atender. */

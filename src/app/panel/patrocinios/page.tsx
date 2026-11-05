@@ -57,12 +57,15 @@ export default async function Pagina({
   };
 
   const { prisma } = await import("@/server/db/client");
-  const { listarPatrocinios, totalesPatrocinios } = await import("@/server/services/patrocinios");
+  const { listarPatrocinios, totalesPatrocinios, TODAS_LAS_MARCAS } =
+    await import("@/server/services/patrocinios");
   // EL TOTAL VA EN SU PROPIA CONSULTA, agregada en la base: sumar la página visible daría una
   // cifra plausible y falsa. Las dos salen a la vez, así que no añade una ida y vuelta.
+  // TODAS LAS MARCAS: es el panel, quien factura a todo el mundo. El portal de una empresa lee lo
+  // mismo con SU ámbito (ver `AlcancePatrocinios`), y por eso las dos cifras cuadran.
   const [pagina, totales] = await Promise.all([
-    listarPatrocinios(prisma, { cursor: aqui.cursor }),
-    totalesPatrocinios(prisma),
+    listarPatrocinios(prisma, TODAS_LAS_MARCAS, { cursor: aqui.cursor }),
+    totalesPatrocinios(prisma, TODAS_LAS_MARCAS),
   ]);
 
   return (

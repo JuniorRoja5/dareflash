@@ -15,6 +15,8 @@ export interface SeccionPortal {
 
 export const SECCIONES_PORTAL: readonly SeccionPortal[] = [
   { href: "/empresa", nombre: "Resumen" },
+  // Fase 9 · P3: sus propuestas de reto patrocinado y su extracto. Entra con su página, como dice arriba.
+  { href: "/empresa/retos", nombre: "Retos" },
   { href: "/empresa/cuenta", nombre: "Cuenta" },
 ];
 

@@ -526,8 +526,15 @@ model Challenge {
   /// usuario. Vive en el panel de admin, que es donde se cuadra lo que hay que facturar.
   esPatrocinado Boolean @default(false)
 
-  /// Nombre de la marca, tal y como se enseña ("Patrocinado por X"). Texto libre: es un nombre
-  /// comercial, no una clave; no hay catalogo de marcas porque no hay portal de empresa.
+  /// Nombre de la marca, tal y como se enseña ("Patrocinado por X").
+  ///
+  /// ES UNA COPIA CONGELADA, NO UNA REFERENCIA. Hay dos caminos para que un reto sea patrocinado:
+  ///  - el admin lo crea en el panel y escribe el nombre a mano (marcas sin cuenta, el caso de antes);
+  ///  - una EMPRESA lo propone desde su portal (Fase 9 · P3, `RetoSolicitud`) y, al aprobarlo, se
+  ///    copia aqui `Empresa.nombre` de ese momento.
+  /// La relacion con la empresa la lleva `empresaId`, no este texto: si la empresa cambia de nombre
+  /// manana, un reto que ya se publico sigue diciendo con que nombre se patrocino, que es lo que vio
+  /// la gente y lo que se facturo.
   sponsorNombre String?
 
   /// Logo de la marca: NOMBRE DE FICHERO, como `coverImage`, servido por Caddy desde el mismo
@@ -595,10 +602,23 @@ model Challenge {
   // `calcularScoreAutoridad` (punto unico de calculo).
   scoreAutoridad Int @default(0)
 
+  /// LA EMPRESA QUE LO PATROCINA, si el reto nacio de una propuesta suya (Fase 9 · P3). NULL en todos
+  /// los retos de antes y en los patrocinados que el admin crea a mano para una marca sin cuenta:
+  /// por eso la migracion no necesita backfill.
+  ///
+  /// Es lo que acota el EXTRACTO del portal (`patrocinios.ts`, con el ambito de la empresa): la
+  /// misma consulta que el panel, filtrada por esta columna, asi que lo que ve la empresa y lo que
+  /// factura el admin cuadran por construccion. Restrict: una empresa con retos no se borra sin
+  /// decidir antes que pasa con su contabilidad.
+  empresaId String?
+
   createdBy   User              @relation("ChallengeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  empresa     Empresa?          @relation(fields: [empresaId], references: [id], onDelete: Restrict)
   submissions Submission[]
   results     ChallengeResult[]
+  solicitud   RetoSolicitud?
 
+  @@index([empresaId, createdAt, id]) // el extracto del portal, por keyset
   @@index([category])
   @@index([status, deadline]) // retos vigentes / a cerrar, calculado por consulta
   @@index([createdById])
@@ -1511,8 +1531,77 @@ model Empresa {
 
   user User @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
 
+  /// Sus propuestas de reto patrocinado (Fase 9 · P3) y los retos que salieron de ellas.
+  solicitudesReto RetoSolicitud[]
+  retos           Challenge[]
+
   /// LA COLA DE VERIFICACION DEL PANEL: filtra por `estado` y se pagina por KEYSET sobre
   /// (createdAt, id), los dos DESC. El `id` va detras porque el keyset necesita un orden TOTAL, y
   /// las tres columnas en el mismo indice es lo que hace que filtrar Y ordenar sea una sola pasada.
   @@index([estado, createdAt, id])
+}
+
+/// UNA PROPUESTA DE RETO PATROCINADO HECHA POR UNA EMPRESA (Fase 9 · P3).
+///
+/// ┌─ POR QUE UNA TABLA APARTE Y NO UN `Challenge` EN OTRO ESTADO ─────────────────────────────────┐
+/// │ Una propuesta sin aprobar NO puede aparecer en ninguna consulta publica de retos. Si fuera un  │
+/// │ `Challenge` con un estado nuevo, cada consulta publica —listado, detalle, buscador, portada,   │
+/// │ ranking, sitemap, la que se escriba manana— tendria que acordarse de excluirlo, y la que se    │
+/// │ olvide la publica. En otra tabla no hay nada que olvidar: las consultas publicas leen          │
+/// │ `Challenge` y esto no lo es. El reto nace AL APROBAR, como borrador, y desde ahi sigue el       │
+/// │ camino de siempre (el admin lo revisa y lo publica con la accion que ya existe).              │
+/// └───────────────────────────────────────────────────────────────────────────────────────────────┘
+///
+/// LLEVA SOLO LO QUE DECIDE LA EMPRESA: que reto, que premio, cuando. Lo que es de DareFlash —la
+/// comision, el nivel minimo, si es exclusivo de VIP— no se propone: lo pone el admin en el borrador.
+/// La marca tampoco se escribe: es la de la empresa (`Empresa.nombre`, copiado al aprobar).
+///
+/// El PAGO va por fuera (premio + comision, por transferencia), como el resto de patrocinios: aqui no
+/// hay ni un centimo, y el ganador cobra el premio integro por el rail de siempre.
+model RetoSolicitud {
+  id String @id @default(cuid())
+
+  /// De quien es. El AMBITO: el portal solo lee filas de su `empresaId`, que sale del chokepoint.
+  empresaId String
+
+  /// PENDIENTE -> APROBADA | RECHAZADA (union en constants). Sin vuelta atras: una propuesta
+  /// rechazada se corrige proponiendo otra, y el historial de lo que se decidio no se reescribe.
+  estado String @default("PENDIENTE")
+
+  // LO QUE PROPONE: los mismos limites que el formulario del admin (`camposDeReto`).
+  title            String  @db.VarChar(120)
+  description      String? @db.Text
+  rules            String? @db.Text
+  category         String
+  prizeAmountCents Int
+  startsAt         DateTime
+  deadline         DateTime
+  winnersCount     Int
+
+  /// Logo de la marca, como `Challenge.sponsorLogo` (URL `/portadas/...` del mismo volumen). Al
+  /// aprobar se copia al reto. Opcional: el admin puede ponerlo en el borrador.
+  sponsorLogo String?
+
+  /// Por que se rechazo: CLAVE de lista cerrada, que SI se le cuenta a la empresa en humano.
+  motivoRechazo String?
+  /// Nota del equipo. NUNCA sale al portal ni a un correo: el DTO del dueno no la trae.
+  notaInterna   String? @db.VarChar(500)
+
+  /// Quien y cuando lo decidio. Tampoco sale al portal (el handle del admin no es de la empresa).
+  revisadaPor String?
+  revisadaEn  DateTime?
+
+  /// El reto que nacio al aprobarla. UNICO: una propuesta da, como mucho, un reto.
+  challengeId String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  empresa   Empresa    @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+  challenge Challenge? @relation(fields: [challengeId], references: [id], onDelete: Restrict)
+
+  /// La cola del panel (por estado) y la lista del portal (por empresa), las dos por KEYSET sobre
+  /// (createdAt, id).
+  @@index([estado, createdAt, id])
+  @@index([empresaId, createdAt, id])
 }

@@ -156,6 +156,9 @@ const COMPARTIDAS = [
   "/empezar/empresa",
   "/empresa",
   "/empresa/cuenta",
+  // Fase 9 · P3: sus propuestas de reto, su extracto y el formulario de proponer.
+  "/empresa/retos",
+  "/empresa/retos/nuevo",
 ];
 
 describe("el censo: toda página de (app) está clasificada", () => {

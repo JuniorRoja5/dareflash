@@ -122,10 +122,10 @@ describe("solo cuenta lo que quien mira puede atender", () => {
   });
 
   it("puro: visibles, total e insignia", () => {
-    const p = { empresas: 3 };
-    expect(pendientesVisibles(p, "ADMIN")).toEqual({ empresas: 3 });
-    expect(pendientesVisibles(p, "MODERATOR")).toEqual({ empresas: 0 });
-    expect(totalPendientes(p, "ADMIN")).toBe(3);
+    const p = { empresas: 3, propuestas: 2 };
+    expect(pendientesVisibles(p, "ADMIN")).toEqual({ empresas: 3, propuestas: 2 });
+    expect(pendientesVisibles(p, "MODERATOR")).toEqual({ empresas: 0, propuestas: 0 });
+    expect(totalPendientes(p, "ADMIN")).toBe(5);
     expect(pendientesDeSeccion("/panel/retos", p, "ADMIN")).toBe(0);
     expect(textoInsignia(0)).toBeNull();
     expect(textoInsignia(7)).toBe("7");

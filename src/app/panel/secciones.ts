@@ -92,6 +92,15 @@ export const SECCIONES_PANEL: SeccionPanel[] = [
     rol: "ADMIN",
   },
   {
+    href: "/panel/propuestas",
+    label: "Propuestas",
+    descripcion:
+      "Revisar los retos patrocinados que proponen las empresas: aprobarlos crea el borrador, y rechazarlos les cuenta por qué.",
+    fase: null,
+    // ADMIN: aprobar CREA UN RETO, y crear retos es del admin (decisión de producto, cerrada).
+    rol: "ADMIN",
+  },
+  {
     href: "/panel/ranking",
     label: "DareUp y ranking",
     descripcion:

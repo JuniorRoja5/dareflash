@@ -1425,6 +1425,9 @@ export const RATE_LIMITS = {
   DENUNCIAR_PER_USER: { limit: 30, windowMs: 15 * 60 * 1000 }, // 30 / 15 min por usuario
   // Crear reto (admin): el procesado de la portada cuesta CPU/memoria -> mismo trato que el avatar.
   CREAR_RETO_PER_USER: { limit: 20, windowMs: 15 * 60 * 1000 }, // 20 / 15 min por usuario
+  // Proponer un reto (empresa, Fase 9 · P3): procesa un logo como crear, y además el tope de
+  // propuestas pendientes ya frena la cola. Esto frena el martilleo del formulario.
+  PROPONER_RETO_PER_USER: { limit: 10, windowMs: 15 * 60 * 1000 }, // 10 / 15 min por usuario
   // Editar reto (admin): puede traer una portada nueva (mismo coste de decodificado/recompresión que
   // crear), así que se acota igual. Cubo por usuario independiente del de crear.
   EDITAR_RETO_PER_USER: { limit: 30, windowMs: 15 * 60 * 1000 }, // 30 / 15 min por usuario
@@ -2288,6 +2291,104 @@ export function msgAvisoEmpresaNueva(datos: {
     "Mientras no esté verificada, no puede hacer nada en el portal.",
   ].join("\n");
 }
+
+// ----------------------------------------------------------------------------
+// RETOS PATROCINADOS PROPUESTOS DESDE EL PORTAL (Fase 9 · P3)
+// ----------------------------------------------------------------------------
+
+/**
+ * La vida de una propuesta. PENDIENTE -> APROBADA | RECHAZADA, y ahí se queda: una rechazada se
+ * corrige proponiendo otra. Lo que pasa DESPUÉS de aprobar (borrador, publicado) no es un estado de
+ * la propuesta sino del reto que nació de ella, y se calcula leyéndolo (`estadoVisibleSolicitud`).
+ */
+export const EstadoRetoSolicitudSchema = z.enum(["PENDIENTE", "APROBADA", "RECHAZADA"]);
+export type EstadoRetoSolicitud = z.infer<typeof EstadoRetoSolicitudSchema>;
+
+/**
+ * POR QUÉ se rechaza una propuesta. Lista CERRADA porque ESTE motivo SÍ se le enseña a la empresa,
+ * como el de la verificación: un rechazo sin motivo es un correo de soporte por cada caso. La nota
+ * interna del equipo no viaja nunca.
+ */
+export const MotivoRechazoRetoSchema = z.enum([
+  "FECHAS_NO_VIABLES",
+  "PREMIO_NO_ADECUADO",
+  "CONTENIDO_NO_PERMITIDO",
+  "DATOS_INSUFICIENTES",
+  "DUPLICADA",
+]);
+export type MotivoRechazoReto = z.infer<typeof MotivoRechazoRetoSchema>;
+
+/** En humano y en segunda persona: lo lee la empresa, en su portal y en el correo. */
+export const MSG_MOTIVO_RECHAZO_RETO: Record<MotivoRechazoReto, string> = {
+  FECHAS_NO_VIABLES: "Las fechas no nos dan tiempo a prepararlo y difundirlo bien.",
+  PREMIO_NO_ADECUADO: "El premio no encaja con lo que suele mover un reto así.",
+  CONTENIDO_NO_PERMITIDO: "El reto pide algo que no podemos publicar.",
+  DATOS_INSUFICIENTES: "Nos falta información para entender qué tiene que hacer la gente.",
+  DUPLICADA: "Ya tenemos una propuesta igual de tu empresa.",
+};
+
+/**
+ * Lo que la EMPRESA ve de cada propuesta, en una palabra. Va más allá de los tres estados porque
+ * "aprobada" no le dice si ya se puede participar: eso lo decide el reto (borrador o publicado).
+ */
+export type EstadoVisibleSolicitud = "EN_REVISION" | "RECHAZADA" | "APROBADA" | "PUBLICADA";
+export const ETIQUETA_ESTADO_SOLICITUD: Record<EstadoVisibleSolicitud, string> = {
+  EN_REVISION: "En revisión",
+  RECHAZADA: "Rechazada",
+  APROBADA: "Aprobada",
+  PUBLICADA: "Publicada",
+};
+/** La línea que acompaña a cada estado en el portal. */
+export const MSG_ESTADO_SOLICITUD: Record<EstadoVisibleSolicitud, string> = {
+  EN_REVISION: "La revisamos a mano y te escribimos en cuanto la decidamos.",
+  RECHAZADA: "No la hemos podido aprobar.",
+  APROBADA: "Está aprobada y la estamos preparando para publicarla.",
+  PUBLICADA: "Está publicada: la gente ya puede participar.",
+};
+
+/** Lo que queda en `AuditLog` al decidir una propuesta. Su `targetType` es "RETO_SOLICITUD". */
+export const AuditAccionRetoSolicitudSchema = z.enum([
+  "RETO_SOLICITUD_APROBAR",
+  "RETO_SOLICITUD_RECHAZAR",
+]);
+export type AuditAccionRetoSolicitud = z.infer<typeof AuditAccionRetoSolicitudSchema>;
+
+/**
+ * CUÁNTAS PROPUESTAS PUEDE TENER UNA EMPRESA ESPERANDO A LA VEZ. Es un freno de cola, no dinero:
+ * cada propuesta la revisa una persona, y diez seguidas de la misma empresa bloquean la cola de las
+ * demás. Se cuenta, no se ocupa (ver `crearSolicitudReto`): en una carrera de dos envíos simultáneos
+ * puede colarse una de más, y eso no le cuesta nada a nadie.
+ */
+export const RETO_SOLICITUDES_PENDIENTES_MAX = 3;
+/** Página de la cola del panel y de la lista del portal. */
+export const RETO_SOLICITUDES_PAGINA = 25;
+
+/**
+ * El aviso INMEDIATO al admin de que hay una propuesta esperando. Mismo criterio que el de la empresa
+ * nueva: nombre comercial, título y enlace al panel. Nada que el panel proteja.
+ */
+export const TITULO_AVISO_RETO_PROPUESTO = "Hay un reto patrocinado esperando revisión";
+export function msgAvisoRetoPropuesto(datos: {
+  empresa: string;
+  titulo: string;
+  urlPanel: string;
+}): string {
+  return [
+    `${datos.empresa} ha propuesto un reto patrocinado: «${datos.titulo}».`,
+    "",
+    `Revísalo aquí: ${datos.urlPanel}`,
+    "",
+    "No se publica nada hasta que lo apruebes.",
+  ].join("\n");
+}
+
+/**
+ * Cómo se paga, contado una vez para el formulario y el correo de aprobación: por fuera, premio más
+ * comisión, como cualquier patrocinio. El porcentaje NO va escrito aquí: lo fija el equipo en cada
+ * reto (`Challenge.comisionBps`) y la empresa lo ve en su extracto, con el importe ya calculado.
+ */
+export const MSG_PAGO_PATROCINIO =
+  "El premio y nuestra comisión se pagan por transferencia, fuera de DareFlash. Te escribimos para cerrarlo cuando aprobemos el reto. Quien gane cobra el premio entero.";
 
 // ----------------------------------------------------------------------------
 // Decisiones de Fase 9 YA CERRADAS que consumen piezas posteriores. Viven aqui

@@ -116,6 +116,18 @@ const Empresas: Icono = (p) => (
   </Svg>
 );
 
+/**
+ * PROPUESTAS — una bandeja de entrada con una flecha que baja: "llega algo que hay que decidir".
+ * Distinta del escaparate (Empresas, quién es) y del apretón de manos (Patrocinios, lo ya pactado).
+ */
+const Propuestas: Icono = (p) => (
+  <Svg {...p}>
+    <path d="M4 13.5 6.5 5h11l2.5 8.5" />
+    <path d="M4 13.5V19h16v-5.5h-4.5l-1.5 2h-4l-1.5-2z" />
+    <path d="M12 7.5v4.5M10 10l2 2 2-2" />
+  </Svg>
+);
+
 /** Icono por `href` de sección. Fuente única para la barra lateral. */
 export const ICONO_SECCION: Record<string, Icono> = {
   "/panel": Resumen,
@@ -126,6 +138,7 @@ export const ICONO_SECCION: Record<string, Icono> = {
   "/panel/boost": Boost,
   "/panel/patrocinios": Patrocinios,
   "/panel/empresas": Empresas,
+  "/panel/propuestas": Propuestas,
   "/panel/ranking": Ranking,
   "/panel/notificaciones": Notificaciones,
 };

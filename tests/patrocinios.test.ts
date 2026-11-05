@@ -30,6 +30,7 @@ import {
   exportarPatrocinios,
   listarPatrocinios,
   totalesPatrocinios,
+  TODAS_LAS_MARCAS,
 } from "../src/server/services/patrocinios";
 import { generarPublicCode } from "../src/server/services/reto-codigo";
 
@@ -116,7 +117,7 @@ describe("la lista de patrocinios", () => {
     await crearReto({ premio: 100_000, patrocinado: true, marca: "Nexus", bps: 2500 });
     await crearReto({ premio: 5_000 });
 
-    const { filas } = await listarPatrocinios(prisma);
+    const { filas } = await listarPatrocinios(prisma, TODAS_LAS_MARCAS);
 
     expect(filas).toHaveLength(1);
     expect(filas[0]).toMatchObject({
@@ -133,7 +134,7 @@ describe("la lista de patrocinios", () => {
     await crearReto({ premio: 100_000, patrocinado: true, marca: "Cara", bps: 3000 });
     await crearReto({ premio: 100_000, patrocinado: true, marca: "Barata", bps: 1000 });
 
-    const { filas } = await listarPatrocinios(prisma);
+    const { filas } = await listarPatrocinios(prisma, TODAS_LAS_MARCAS);
     const porMarca = new Map(filas.map((f) => [f.marca, f.comisionCents]));
 
     expect(porMarca.get("Cara")).toBe(30_000);
@@ -151,22 +152,28 @@ describe("la lista de patrocinios", () => {
       });
     }
 
-    const p1 = await listarPatrocinios(prisma, { limite: 2 });
+    const p1 = await listarPatrocinios(prisma, TODAS_LAS_MARCAS, { limite: 2 });
     expect(p1.filas).toHaveLength(2);
     expect(p1.proximoCursor).not.toBeNull();
 
-    const p2 = await listarPatrocinios(prisma, { limite: 2, cursor: p1.proximoCursor });
+    const p2 = await listarPatrocinios(prisma, TODAS_LAS_MARCAS, {
+      limite: 2,
+      cursor: p1.proximoCursor,
+    });
     const ids = [...p1.filas, ...p2.filas].map((f) => f.id);
     expect(new Set(ids).size, "una fila sale en las dos páginas").toBe(ids.length);
 
-    const p3 = await listarPatrocinios(prisma, { limite: 2, cursor: p2.proximoCursor });
+    const p3 = await listarPatrocinios(prisma, TODAS_LAS_MARCAS, {
+      limite: 2,
+      cursor: p2.proximoCursor,
+    });
     expect(p3.filas).toHaveLength(1);
     expect(p3.proximoCursor, "la última página dice que no hay más").toBeNull();
   });
 
   it("un cursor manipulado no revienta: vuelve a la primera página", async () => {
     await crearReto({ premio: 1000, patrocinado: true });
-    const p = await listarPatrocinios(prisma, { cursor: "no-es-un-cursor" });
+    const p = await listarPatrocinios(prisma, TODAS_LAS_MARCAS, { cursor: "no-es-un-cursor" });
     expect(p.filas).toHaveLength(1);
   });
 
@@ -174,7 +181,7 @@ describe("la lista de patrocinios", () => {
     const reto = await crearReto({ premio: 100_000, patrocinado: true, bps: 2500 });
     const antes = await prisma.challenge.findUniqueOrThrow({ where: { id: reto } });
 
-    await listarPatrocinios(prisma);
+    await listarPatrocinios(prisma, TODAS_LAS_MARCAS);
     await exportarPatrocinios(prisma, TODO);
 
     const despues = await prisma.challenge.findUniqueOrThrow({ where: { id: reto } });
@@ -199,8 +206,8 @@ describe("el total general", () => {
       await crearReto({ premio: 10_000, patrocinado: true, bps: 2500, creadoHaceMs: i * 60_000 });
     }
 
-    const pagina = await listarPatrocinios(prisma, { limite: 2 });
-    const totales = await totalesPatrocinios(prisma);
+    const pagina = await listarPatrocinios(prisma, TODAS_LAS_MARCAS, { limite: 2 });
+    const totales = await totalesPatrocinios(prisma, TODAS_LAS_MARCAS);
 
     expect(pagina.filas).toHaveLength(2);
     // Si el total se calculara sobre la página, serían 20.000 y 5.000.
@@ -215,8 +222,8 @@ describe("el total general", () => {
     await crearReto({ premio: 90_000 });
     await crearReto({ premio: 70_000, soloVip: true });
 
-    const totales = await totalesPatrocinios(prisma);
-    const { filas } = await listarPatrocinios(prisma);
+    const totales = await totalesPatrocinios(prisma, TODAS_LAS_MARCAS);
+    const { filas } = await listarPatrocinios(prisma, TODAS_LAS_MARCAS);
 
     expect(totales.retos).toBe(filas.length);
     expect(totales.premiosCents).toBe(10_000);
@@ -224,7 +231,7 @@ describe("el total general", () => {
 
   it("sin ningún patrocinado, todo a cero (y no `null`)", async () => {
     await crearReto({ premio: 5_000 });
-    expect(await totalesPatrocinios(prisma)).toEqual({
+    expect(await totalesPatrocinios(prisma, TODAS_LAS_MARCAS)).toEqual({
       retos: 0,
       premiosCents: 0,
       comisionCents: 0,
@@ -237,7 +244,7 @@ describe("el total general", () => {
 
   it("los importes son enteros: ni un decimal se escapa del agregado", async () => {
     await crearReto({ premio: 999, patrocinado: true, bps: 2500 });
-    const t = await totalesPatrocinios(prisma);
+    const t = await totalesPatrocinios(prisma, TODAS_LAS_MARCAS);
     const numeros = Object.entries(t).filter(([, v]) => typeof v === "number");
     for (const [k, v] of numeros) {
       expect(Number.isInteger(v), `${k} = ${v}`).toBe(true);
@@ -263,7 +270,7 @@ describe("la moneda del total", () => {
     await crearReto({ premio: 10_000, patrocinado: true, bps: 2500 });
     await crearReto({ premio: 20_000, patrocinado: true, bps: 2500 });
 
-    const t = await totalesPatrocinios(prisma);
+    const t = await totalesPatrocinios(prisma, TODAS_LAS_MARCAS);
 
     expect(t.monedas).toBe(1);
     expect(t.moneda).toBe("USD");
@@ -274,7 +281,7 @@ describe("la moneda del total", () => {
     await crearReto({ premio: 10_000, patrocinado: true, bps: 2500 });
     await crearReto({ premio: 20_000, patrocinado: true, bps: 2500, moneda: "EUR" });
 
-    const t = await totalesPatrocinios(prisma);
+    const t = await totalesPatrocinios(prisma, TODAS_LAS_MARCAS);
 
     expect(t.monedas, "el agregado no se ha enterado de que hay dos monedas").toBe(2);
     expect(t.moneda, "con dos monedas, elegir una sería etiquetar mal la suma").toBeNull();
@@ -286,8 +293,8 @@ describe("la moneda del total", () => {
   it("y la moneda del total es la MISMA que la de las filas", async () => {
     await crearReto({ premio: 10_000, patrocinado: true, bps: 2500, moneda: "EUR" });
 
-    const t = await totalesPatrocinios(prisma);
-    const fila = (await listarPatrocinios(prisma)).filas[0]!;
+    const t = await totalesPatrocinios(prisma, TODAS_LAS_MARCAS);
+    const fila = (await listarPatrocinios(prisma, TODAS_LAS_MARCAS)).filas[0]!;
 
     expect(t.moneda).toBe(fila.moneda);
   });
@@ -351,7 +358,7 @@ describe("el total SQL y `lib/comision` dicen lo mismo", () => {
       await crearReto({ premio: c.premio, patrocinado: true, bps: c.bps });
     }
 
-    const totales = await totalesPatrocinios(prisma);
+    const totales = await totalesPatrocinios(prisma, TODAS_LAS_MARCAS);
 
     // La verdad de referencia es `lib/comision`, la misma función que usa el formulario al pactar
     // y la tabla al pintar. El SQL tiene que coincidir con ella, no al revés.
@@ -378,8 +385,8 @@ describe("el total SQL y `lib/comision` dicen lo mismo", () => {
       await crearReto({ premio, patrocinado: true, bps });
     }
 
-    const { filas } = await listarPatrocinios(prisma);
-    const totales = await totalesPatrocinios(prisma);
+    const { filas } = await listarPatrocinios(prisma, TODAS_LAS_MARCAS);
+    const totales = await totalesPatrocinios(prisma, TODAS_LAS_MARCAS);
 
     expect(filas.reduce((a, f) => a + f.comisionCents, 0)).toBe(totales.comisionCents);
     expect(filas.reduce((a, f) => a + f.totalCents, 0)).toBe(totales.totalCents);
@@ -392,8 +399,8 @@ describe("el total SQL y `lib/comision` dicen lo mismo", () => {
     const id = await crearReto({ premio: 10_000, patrocinado: true, bps: 2500 });
     await prisma.$executeRaw`UPDATE \`Challenge\` SET \`comisionBps\` = -500 WHERE \`id\` = ${id}`;
 
-    const totales = await totalesPatrocinios(prisma);
-    const fila = (await listarPatrocinios(prisma)).filas[0]!;
+    const totales = await totalesPatrocinios(prisma, TODAS_LAS_MARCAS);
+    const fila = (await listarPatrocinios(prisma, TODAS_LAS_MARCAS)).filas[0]!;
 
     expect(totales.comisionCents).toBe(0);
     expect(fila.comisionCents).toBe(0);

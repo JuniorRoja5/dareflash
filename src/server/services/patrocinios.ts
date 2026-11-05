@@ -40,6 +40,31 @@ const PANEL_LIMITE = 25;
 const FILTRO = { esPatrocinado: true } as const;
 const FILTRO_SQL = Prisma.sql`\`esPatrocinado\` = TRUE`;
 
+/**
+ * DE QUIÉN SON LAS CUENTAS QUE SE LEEN (Fase 9 · P3). OBLIGATORIO en la tabla y en el total:
+ *  - el PANEL pide `TODAS_LAS_MARCAS` —es quien factura a todo el mundo—;
+ *  - el PORTAL pide `{ empresaId }`, el que sale del chokepoint (`requireEmpresa`), nunca de la URL.
+ *
+ * Por eso el extracto de una empresa y la contabilidad del admin CUADRAN POR CONSTRUCCIÓN: son la
+ * misma consulta, el mismo cálculo de comisión y el mismo total en SQL, con una condición más. Un
+ * extracto con su propia consulta sería un segundo sitio donde la cifra que ve la marca y la que
+ * factura el admin pueden separarse.
+ *
+ * NO ES OPCIONAL a propósito: un `alcance?` que por defecto fuese "todas" es exactamente el filtro que
+ * alguien se olvida al montar una pantalla nueva del portal, y entonces una empresa ve lo de todas.
+ */
+export type AlcancePatrocinios = { readonly todas: true } | { readonly empresaId: string };
+export const TODAS_LAS_MARCAS: AlcancePatrocinios = { todas: true };
+
+function filtroDe(alcance: AlcancePatrocinios) {
+  return "empresaId" in alcance ? { ...FILTRO, empresaId: alcance.empresaId } : FILTRO;
+}
+function filtroSqlDe(alcance: AlcancePatrocinios): Prisma.Sql {
+  return "empresaId" in alcance
+    ? Prisma.sql`${FILTRO_SQL} AND \`empresaId\` = ${alcance.empresaId}`
+    : FILTRO_SQL;
+}
+
 /** Tope de la exportación. Alto y explícito: lo que importa es que exista y que se diga. */
 export const EXPORT_PATROCINIOS_TOPE = 5000;
 
@@ -130,13 +155,14 @@ function aFila(f: FilaCruda): FilaPatrocinio {
  */
 export async function listarPatrocinios(
   db: PrismaClient,
+  alcance: AlcancePatrocinios,
   opts: { cursor?: string | null; limite?: number } = {},
 ): Promise<PaginaPatrocinios> {
   const limite = Math.min(Math.max(1, Math.floor(opts.limite ?? PANEL_LIMITE)), PANEL_LIMITE);
   const desde = decodificarCursorTiempo(opts.cursor);
 
   const filas = await db.challenge.findMany({
-    where: { ...FILTRO, ...dondeDesde(desde) },
+    where: { ...filtroDe(alcance), ...dondeDesde(desde) },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     // Una de más: así se sabe si hay siguiente sin un `count` aparte.
     take: limite + 1,
@@ -202,7 +228,10 @@ export interface TotalesPatrocinios {
  * MULTIPLICAR PRIMERO Y DIVIDIR DESPUÉS, igual que en TypeScript: `*` y `DIV` tienen la misma
  * precedencia y se evalúan de izquierda a derecha, así que `a * b DIV 10000` es `(a*b) DIV 10000`.
  */
-export async function totalesPatrocinios(db: PrismaClient): Promise<TotalesPatrocinios> {
+export async function totalesPatrocinios(
+  db: PrismaClient,
+  alcance: AlcancePatrocinios,
+): Promise<TotalesPatrocinios> {
   const filas = await db.$queryRaw<
     {
       retos: bigint | number;
@@ -222,7 +251,7 @@ export async function totalesPatrocinios(db: PrismaClient): Promise<TotalesPatro
       MIN(\`prizeCurrency\`) AS moneda,
       COUNT(DISTINCT \`prizeCurrency\`) AS monedas
     FROM \`Challenge\`
-    WHERE ${FILTRO_SQL}
+    WHERE ${filtroSqlDe(alcance)}
   `);
 
   // `COUNT`/`SUM` vuelven como BigInt o string según el driver: se normalizan aquí y no en la
