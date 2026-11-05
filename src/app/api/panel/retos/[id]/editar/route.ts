@@ -20,7 +20,8 @@ export const dynamic = "force-dynamic";
 export const POST = mutatingRoute(
   async (req, { env, prisma }, ctx: { params: Promise<{ id: string }> }) => {
     const { requireRole } = await import("@/server/auth/rbac");
-    const { crearRetoSchema, editarRetoAdmin } = await import("@/server/services/retos-admin");
+    const { crearRetoSchema, editarRetoAdmin, RetoDeEmpresaError } =
+      await import("@/server/services/retos-admin");
     const { RATE_LIMITS, PORTADA_MAX_BYTES, PORTADA_MAX_LADO, SPONSOR_LOGO_MAX_LADO } =
       await import("@/config/constants");
     const { rateLimit } = await import("@/server/security/rate-limit");
@@ -82,7 +83,15 @@ export const POST = mutatingRoute(
     if (logo.tipo === "error") return apiError(logo.code, logo.mensaje, logo.status);
 
     // Actualiza los campos (publicCode y status quedan intactos por diseño de editarRetoAdmin).
-    const reto = await editarRetoAdmin(prisma, id, existente.publicCode, parsed.data);
+    let reto;
+    try {
+      reto = await editarRetoAdmin(prisma, id, existente.publicCode, parsed.data);
+    } catch (e) {
+      // Un reto de EMPRESA no deja de ser patrocinado ni cambia de marca: la regla vive en el
+      // servicio; aquí solo se traduce a un 409 que dice qué pasa.
+      if (e instanceof RetoDeEmpresaError) return apiError("RETO_DE_EMPRESA", e.message, 409);
+      throw e;
+    }
     if (!reto) {
       // Carrera improbable: existía al comprobar y desapareció antes del update.
       return apiError("NOT_FOUND", "Ese reto ya no existe.", 404);

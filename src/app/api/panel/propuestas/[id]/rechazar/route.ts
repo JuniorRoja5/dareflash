@@ -24,7 +24,8 @@ const CuerpoSchema = z.object({
 export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (req, { env, prisma }, { params }) => {
     const { requireRole } = await import("@/server/auth/rbac");
-    const { rechazarSolicitudReto } = await import("@/server/services/retos-empresa");
+    const { rechazarSolicitudReto, limpiarLogosDescartados } =
+      await import("@/server/services/retos-empresa");
 
     let actorId: string;
     try {
@@ -48,6 +49,16 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
       nota: cuerpo.data.nota ?? null,
       appUrl: env.APP_URL,
     });
+    // EL LOGO DE UNA RECHAZADA SE BORRA EN EL ACTO, después de que la decisión ya esté confirmada
+    // (un fichero no entra en una transacción). Si esto falla o el proceso muere aquí, el barrido del
+    // worker lo recoge: la columna sigue apuntando al fichero hasta que se borra de verdad.
+    if (r.rechazada) {
+      await limpiarLogosDescartados(prisma, {
+        dir: env.PORTADAS_DIR,
+        solicitudId: p.data.id,
+        log: (m) => console.warn(m),
+      });
+    }
     return apiOk({ ok: true, cambiado: r.rechazada });
   },
 );

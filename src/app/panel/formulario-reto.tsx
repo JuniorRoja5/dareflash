@@ -68,6 +68,8 @@ export function FormularioReto({
   const [soloVip, setSoloVip] = useState(reto?.soloVip ?? false);
   const [esPatrocinado, setEsPatrocinado] = useState(reto?.esPatrocinado ?? false);
   const [sponsorNombre, setSponsorNombre] = useState(reto?.sponsorNombre ?? "");
+  /** ¿Lo propuso una empresa? Entonces "patrocinado" y la marca no se tocan (Fase 9 · P3). */
+  const deEmpresa = (reto?.empresaId ?? null) !== null;
   // El % se edita en PORCENTAJE (lo que una persona negocia) y viaja en BPS (lo que se guarda).
   const [comisionPct, setComisionPct] = useState(
     bpsAPorcentaje(reto?.comisionBps ?? COMISION_SPONSOR_BPS_DEFECTO),
@@ -422,14 +424,17 @@ export function FormularioReto({
               name="esPatrocinado"
               checked={esPatrocinado}
               onChange={(e) => setEsPatrocinado(e.target.checked)}
-              disabled={ocupado}
+              // UN RETO DE EMPRESA NO DEJA DE SER PATROCINADO NI CAMBIA DE MARCA: lo rechaza el
+              // servidor (`editarRetoAdmin`), y aquí no se ofrece lo que se va a rechazar.
+              disabled={ocupado || deEmpresa}
               className="h-4 w-4 shrink-0 accent-[var(--df-action)]"
             />
             <span className="text-base text-text">Lo paga una marca</span>
           </label>
           <p className="mt-1.5 text-2xs text-text-dim">
-            El ganador cobra el premio íntegro, como en cualquier reto. La comisión se le factura a
-            la marca aparte y solo se ve en el panel.
+            {deEmpresa
+              ? "Lo propuso una empresa desde su portal: sigue siendo patrocinado y con su marca."
+              : "El ganador cobra el premio íntegro, como en cualquier reto. La comisión se le factura a la marca aparte y solo se ve en el panel."}
           </p>
         </div>
 
@@ -441,7 +446,7 @@ export function FormularioReto({
               placeholder="Nombre comercial"
               value={sponsorNombre}
               onChange={(e) => setSponsorNombre(e.target.value)}
-              disabled={ocupado}
+              disabled={ocupado || deEmpresa}
               maxLength={SPONSOR_NOMBRE_MAX}
             />
 

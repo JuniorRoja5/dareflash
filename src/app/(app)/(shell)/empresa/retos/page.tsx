@@ -32,9 +32,10 @@ const dinero = (cents: number, moneda = DEFAULT_CURRENCY) => importeConMoneda(ce
  * DOS COSAS, Y LAS DOS CON EL ÁMBITO DEL CHOKEPOINT (`ambitoDelPortal`), nunca de la URL:
  *  - LAS PROPUESTAS, con su estado calculado (en revisión, rechazada con su motivo, aprobada,
  *    publicada con enlace al reto). La nota interna del equipo no está: el DTO no la trae.
- *  - EL EXTRACTO: lo que la empresa debe por sus retos (premio + comisión), leído con la MISMA
- *    consulta que la contabilidad del panel (`listarPatrocinios` / `totalesPatrocinios`) acotada a su
- *    `empresaId`. Por eso lo que ve la empresa y lo que factura el admin cuadran por construcción.
+ *  - EL EXTRACTO (`extractoDeEmpresa`): por reto, el premio para quien gane y el total a pagar, y
+ *    nada de cómo se reparte el dinero dentro de DareFlash —ese desglose es solo del panel—. Sale de
+ *    la MISMA consulta que la contabilidad del panel acotada a su `empresaId`, así que las cifras
+ *    cuadran por construcción.
  */
 export default async function PaginaMisRetos({
   searchParams,
@@ -57,13 +58,12 @@ export default async function PaginaMisRetos({
 
   const { prisma } = await import("@/server/db/client");
   const { misSolicitudesReto } = await import("@/server/services/retos-empresa");
-  const { listarPatrocinios, totalesPatrocinios } = await import("@/server/services/patrocinios");
-  const alcance = { empresaId: ambito.empresaId };
-  const [solicitudes, extracto, totales] = await Promise.all([
+  const { extractoDeEmpresa } = await import("@/server/services/patrocinios");
+  const [solicitudes, extracto] = await Promise.all([
     misSolicitudesReto(prisma, ambito.empresaId),
-    listarPatrocinios(prisma, alcance),
-    totalesPatrocinios(prisma, alcance),
+    extractoDeEmpresa(prisma, ambito.empresaId),
   ]);
+  const totales = extracto.totales;
 
   const verificada = ambito.estado === "VERIFICADA";
 
@@ -150,32 +150,46 @@ export default async function PaginaMisRetos({
         </h2>
         {extracto.filas.length === 0 ? (
           <p className="max-w-prose text-sm text-text-dim">
-            Cuando aprobemos uno de tus retos, aquí verás el premio, nuestra comisión y el total de
-            cada uno.
+            Cuando aprobemos uno de tus retos, aquí verás el premio para quien gane y el total a
+            pagar de cada uno.
           </p>
         ) : (
           <Tarjeta>
-            {/* EL TOTAL DE TODOS, no el de la lista: sale agregado en la base, como en el panel. */}
+            {/* EL TOTAL DE TODOS, no el de la lista: sale agregado en la base, como en el panel.
+                Solo lo que paga: cómo se reparte dentro de DareFlash no se le cuenta a la empresa. */}
             {totales.moneda ? (
               <p className="text-sm text-text">
-                Total ({totales.retos} {totales.retos === 1 ? "reto" : "retos"}):{" "}
-                <span className="font-semibold">{dinero(totales.totalCents, totales.moneda)}</span>{" "}
-                <span className="text-text-dim">
-                  ({dinero(totales.premiosCents, totales.moneda)} en premios +{" "}
-                  {dinero(totales.comisionCents, totales.moneda)} de comisión)
-                </span>
+                Total a pagar ({totales.retos} {totales.retos === 1 ? "reto" : "retos"}):{" "}
+                <span className="font-semibold">{dinero(totales.totalCents, totales.moneda)}</span>
               </p>
             ) : null}
-            <ul className="mt-3 divide-y divide-line">
+            {/* Dos cifras por reto y con su nombre, en columnas en escritorio. */}
+            <p className="mt-3 hidden gap-3 sm:flex">
+              <span className={`flex-1 ${CABECERA}`}>Reto</span>
+              <span className={`w-36 text-right ${CABECERA}`}>Premio para quien gane</span>
+              <span className={`w-28 text-right ${CABECERA}`}>Total a pagar</span>
+              <span className="w-20" />
+            </p>
+            <ul className="mt-1 divide-y divide-line">
               {extracto.filas.map((f) => (
-                <li key={f.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
+                <li
+                  key={f.id}
+                  data-extracto={f.id}
+                  className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2"
+                >
                   <span className="min-w-0 flex-1 truncate text-sm text-text">{f.titulo}</span>
-                  <span className="text-2xs text-text-dim tabular-nums">
-                    {dinero(f.premioCents, f.moneda)} + {f.comisionBps / 100}% ={" "}
-                    <span className="text-text">{dinero(f.totalCents, f.moneda)}</span>
+                  <span className="text-2xs text-text-dim tabular-nums sm:w-36 sm:text-right">
+                    <span className="sm:hidden">Premio para quien gane: </span>
+                    {dinero(f.premioCents, f.moneda)}
+                  </span>
+                  <span className="text-sm text-text tabular-nums sm:w-28 sm:text-right">
+                    <span className="text-2xs text-text-dim sm:hidden">Total a pagar: </span>
+                    {dinero(f.totalCents, f.moneda)}
                   </span>
                   {/* «Sin cerrar» y no «en curso»: un borrador todavía sin publicar tampoco ha cerrado. */}
-                  <span className={PILDORA}>{f.cerrado ? "Cerrado" : "Sin cerrar"}</span>
+                  <span className={`sm:w-20 sm:text-center ${PILDORA}`}>
+                    {f.cerrado ? "Cerrado" : "Sin cerrar"}
+                  </span>
                 </li>
               ))}
             </ul>

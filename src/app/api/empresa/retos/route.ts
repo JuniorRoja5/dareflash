@@ -28,8 +28,13 @@ export const POST = mutatingRoute(
   async (req, { env, prisma }) => {
     const { requireEmpresa, SinEmpresa } = await import("@/server/auth/empresa-actual");
     const { AuthError } = await import("@/server/auth/rbac");
-    const { solicitudRetoSchema, crearSolicitudReto, apuntarLogoSolicitud, SolicitudRetoError } =
-      await import("@/server/services/retos-empresa");
+    const {
+      solicitudRetoSchema,
+      crearSolicitudReto,
+      apuntarLogoSolicitud,
+      nombreLogoPropuesta,
+      SolicitudRetoError,
+    } = await import("@/server/services/retos-empresa");
     const { RATE_LIMITS, PORTADA_MAX_BYTES, SPONSOR_LOGO_MAX_LADO } =
       await import("@/config/constants");
     const { rateLimit } = await import("@/server/security/rate-limit");
@@ -99,7 +104,8 @@ export const POST = mutatingRoute(
     if (logo.tipo === "ok") {
       logoGuardado = await guardarImagenDeReto({
         dir: env.PORTADAS_DIR,
-        nombre: `propuesta-${solicitud.id}-sponsor.webp`,
+        // El MISMO nombre con el que lo borra `limpiarLogosDescartados`: una función, no dos literales.
+        nombre: nombreLogoPropuesta(solicitud.id),
         buffer: logo.buffer,
         apuntar: (url) =>
           apuntarLogoSolicitud(prisma, {

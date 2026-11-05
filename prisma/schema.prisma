@@ -612,6 +612,16 @@ model Challenge {
   /// decidir antes que pasa con su contabilidad.
   empresaId String?
 
+  /// CUANDO SE RECIBIO EL PAGO de un reto de empresa (Fase 9 · P3). El trato que se le cuenta a la
+  /// empresa es "lo publicamos en cuanto recibamos el pago", y esto es lo que lo hace verdad:
+  /// `publicarReto` se niega a publicar un reto con `empresaId` mientras esto sea NULL. Lo marca el
+  /// admin a mano (el pago va por transferencia, fuera de DareFlash) y queda en `AuditLog`.
+  ///
+  /// Solo significa algo con `empresaId`: los patrocinados que el admin crea a mano para marcas sin
+  /// cuenta se publican como siempre, y los retos normales no tienen pago. NULL en todos los de
+  /// antes, que es lo correcto: ninguno tenia empresa.
+  pagoRecibidoEn DateTime?
+
   createdBy   User              @relation("ChallengeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   empresa     Empresa?          @relation(fields: [empresaId], references: [id], onDelete: Restrict)
   submissions Submission[]

@@ -525,6 +525,13 @@ export interface OpcionesBucle {
   limpiarHuerfanos?: (now: Date) => Promise<ResultadoHuerfanos>;
   huerfanosCadaMs?: number;
   /**
+   * LOGOS DE PROPUESTAS DESCARTADAS (Fase 9 · P3): borra del volumen de portadas el logo de las
+   * propuestas rechazadas y de las que caducaron sin decidirse. La ruta de rechazar ya lo borra en el
+   * acto; esto recoge las caducadas y cualquier borrado que se quedó a medias. Cadencia de una hora.
+   * Sin él, no se barre (tests que no lo usan).
+   */
+  limpiarLogosPropuestas?: (now: Date) => Promise<{ borrados: number; sinVolumen: boolean }>;
+  /**
    * Barrido de PUBLICADOS DESAPARECIDOS (reconciliacion Parte C, integridad de datos — NO destructivo:
    * degrada la fila a FAILED, no borra nada). Cadencia BAJA propia. Por defecto dry-run hasta que se
    * configure RECON_PUBLICADOS_MODO=actuar. Sin el, no se reconcilia (p. ej. en tests que no lo usan).
@@ -570,6 +577,7 @@ export async function bucleWorker(
   let proximoScores = 0;
   let proximoContadores = 0;
   let proximoBorrados = 0;
+  let proximoLogos = 0;
   // Arranca en 0 igual que los demas: la primera vuelta del worker recoge lo que quedara vencido
   // mientras estaba parado, sin esperar una cadencia entera.
   let proximoCierres = 0;
@@ -813,6 +821,20 @@ export async function bucleWorker(
         o.log?.(`[worker] retos: barrido de borrados fallo (${sanearError(e)}); reintento luego.`);
       }
       proximoBorrados = t.getTime() + RETO_BORRADO_CADENCIA_MS;
+    }
+
+    // LOGOS DE PROPUESTAS DESCARTADAS (Fase 9 · P3). Misma cadencia que los borrados: no es urgente,
+    // pero un logo de una propuesta rechazada o caducada no puede quedarse en el volumen para siempre.
+    if (o.limpiarLogosPropuestas && t.getTime() >= proximoLogos) {
+      try {
+        const r = await o.limpiarLogosPropuestas(t);
+        if (r.borrados > 0) o.log?.(`[worker] propuestas: logos borrados=${r.borrados}`);
+      } catch (e) {
+        o.log?.(
+          `[worker] propuestas: barrido de logos fallo (${sanearError(e)}); reintento luego.`,
+        );
+      }
+      proximoLogos = t.getTime() + RETO_BORRADO_CADENCIA_MS;
     }
 
     // CIERRE de retos vencidos (Fase 4). Es el disparador REAL de la finalizacion: sin este barrido,

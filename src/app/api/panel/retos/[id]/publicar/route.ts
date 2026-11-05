@@ -27,6 +27,13 @@ export const POST = mutatingRoute(
 
     const { id } = await ctx.params;
     const r = await publicarReto(prisma, id);
+    if (r.estado === "rechazado" && r.motivo === "PAGO_PENDIENTE") {
+      return apiError(
+        "PAGO_PENDIENTE",
+        "Este reto es de una empresa: márcalo como pagado cuando recibas la transferencia, y entonces podrás publicarlo.",
+        409,
+      );
+    }
     if (r.estado === "rechazado") {
       return apiError(
         "CIERRE_PASADO",

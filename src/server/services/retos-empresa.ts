@@ -34,7 +34,6 @@ import {
   type EstadoRetoSolicitud,
   type EstadoVisibleSolicitud,
   MSG_MOTIVO_RECHAZO_RETO,
-  MSG_PAGO_PATROCINIO,
   type MotivoRechazoReto,
   RETO_SOLICITUDES_PAGINA,
   RETO_SOLICITUDES_PENDIENTES_MAX,
@@ -596,13 +595,16 @@ async function avisarDecisionReto(
   const portal = new URL("/empresa/retos", entrada.appUrl).toString();
   const aprobada = entrada.decision === "APROBADA";
   const titulo = aprobada ? "Hemos aprobado tu reto" : "No hemos podido aprobar tu reto";
+  // SIN IMPORTES NI DESGLOSE: a la empresa se le dice que está aprobado, que le escribimos para
+  // organizar el pago y que se publica al recibirlo (la regla de `publicarReto`). Cómo se reparte el
+  // dinero dentro de DareFlash no es cosa suya (`empresa-sin-comisiones` censa este correo).
   const cuerpo = aprobada
-    ? `Hemos aprobado «${entrada.titulo}». Ahora lo preparamos para publicarlo, y en tu portal verás cuándo está abierto.`
+    ? `Hemos aprobado «${entrada.titulo}». Te escribiremos para organizar el pago, y lo publicaremos en cuanto lo recibamos.`
     : `Hemos revisado «${entrada.titulo}» y no lo hemos podido aprobar. ${
         entrada.motivo ? MSG_MOTIVO_RECHAZO_RETO[entrada.motivo] : ""
       }`.trim();
   const nota = aprobada
-    ? MSG_PAGO_PATROCINIO
+    ? "Quien gane cobra el premio entero. En tu portal verás cuándo está publicado."
     : "Puedes proponer otro desde tu portal. Si crees que es un error, contesta a este correo.";
 
   await enqueueEmail(
@@ -621,4 +623,130 @@ async function avisarDecisionReto(
     },
     { idempotencyKey: `reto-decision:${entrada.claveCambio}`, runAt: entrada.ahora },
   );
+}
+
+// ---------------------------------------------------------------------------------------------------
+// El pago
+// ---------------------------------------------------------------------------------------------------
+
+/**
+ * MARCA RECIBIDO EL PAGO de un reto de empresa. Es lo que desbloquea `publicarReto`: a la empresa se
+ * le promete que su reto se publica cuando se recibe el pago, y este es el único sitio que lo dice.
+ *
+ * Solo un reto CON empresa (los patrocinados a mano no tienen pago que marcar) y solo una vez: el
+ * `WHERE` lleva las dos condiciones, así que repetirlo no reescribe la fecha ni deja dos rastros. Con
+ * su línea en `AuditLog`, en la misma transacción: quién dio por recibido el dinero se sabe siempre.
+ */
+export async function marcarPagoRecibido(
+  db: Db,
+  entrada: { challengeId: string; actorId: string; ahora?: Date },
+): Promise<{ marcado: boolean }> {
+  const ahora = entrada.ahora ?? new Date();
+  return db.$transaction(async (tx) => {
+    const r = await tx.challenge.updateMany({
+      where: { id: entrada.challengeId, empresaId: { not: null }, pagoRecibidoEn: null },
+      data: { pagoRecibidoEn: ahora },
+    });
+    if (r.count === 0) return { marcado: false };
+    await tx.auditLog.create({
+      data: {
+        actorId: entrada.actorId,
+        action: "RETO_PAGO_RECIBIDO",
+        targetType: "CHALLENGE",
+        targetId: entrada.challengeId,
+        metadata: {},
+      },
+    });
+    return { marcado: true };
+  });
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Los logos que ya no sirven
+// ---------------------------------------------------------------------------------------------------
+
+/**
+ * EL NOMBRE DEL LOGO DE UNA PROPUESTA en el volumen de portadas. Sale SOLO del id (un cuid): para
+ * borrarlo nunca se lee la URL guardada, así que una fila tocada a mano no puede convertir un borrado
+ * en un `../` fuera del volumen. La ruta que lo guarda usa esta misma función.
+ */
+export function nombreLogoPropuesta(solicitudId: string): string {
+  return `propuesta-${solicitudId}-sponsor.webp`;
+}
+
+/**
+ * Las propuestas cuyo logo ya no va a usar nadie: RECHAZADAS, o PENDIENTES cuyo cierre ya pasó (no se
+ * pueden aprobar, ver `aprobarSolicitudReto`). Las APROBADAS NO: su logo es el del reto que nació de
+ * ellas (`Challenge.sponsorLogo` apunta al mismo fichero).
+ */
+function logosDescartados(ahora: Date) {
+  return {
+    sponsorLogo: { not: null },
+    OR: [{ estado: "RECHAZADA" }, { estado: "PENDIENTE", deadline: { lte: ahora } }],
+  };
+}
+
+/**
+ * BORRA DEL VOLUMEN el logo de las propuestas descartadas y deja la fila sin él.
+ *
+ * Lo llaman DOS sitios, y los dos hacen falta:
+ *  - la ruta de RECHAZAR, justo después de decidir, con su `solicitudId`: el fichero desaparece en el
+ *    acto, que es lo que pidió el analista;
+ *  - el BARRIDO del worker, sin id: recoge las que caducaron sin decidirse y cualquier rechazo cuyo
+ *    borrado se quedó a medias (el proceso murió entre la decisión y el `unlink`). Por eso el orden
+ *    es FICHERO PRIMERO y columna después: mientras la columna apunte al fichero, el barrido lo ve.
+ *
+ * SI EL VOLUMEN NO ESTÁ, NO TOCA NADA. Un `ENOENT` del FICHERO es "ya no está" y se da por hecho; uno
+ * del DIRECTORIO es que este proceso no tiene el volumen montado, y entonces poner la columna a null
+ * dejaría el fichero en el disco sin que nadie volviera a buscarlo. Se dice en el log y se sale.
+ */
+export async function limpiarLogosDescartados(
+  db: Db,
+  entrada: {
+    dir: string;
+    ahora?: Date;
+    /** Solo esta propuesta (la ruta de rechazar). Sin él, el barrido entero. */
+    solicitudId?: string;
+    lote?: number;
+    log?: (m: string) => void;
+  },
+): Promise<{ borrados: number; sinVolumen: boolean }> {
+  const { access, unlink } = await import("node:fs/promises");
+  const { join } = await import("node:path");
+  const ahora = entrada.ahora ?? new Date();
+  try {
+    await access(entrada.dir);
+  } catch {
+    entrada.log?.(
+      `[retos-empresa] sin acceso a ${entrada.dir}: no se borra ningún logo (¿volumen sin montar?).`,
+    );
+    return { borrados: 0, sinVolumen: true };
+  }
+
+  const filtro = logosDescartados(ahora);
+  const filas = await db.retoSolicitud.findMany({
+    where: entrada.solicitudId ? { ...filtro, id: entrada.solicitudId } : filtro,
+    select: { id: true },
+    take: entrada.lote ?? 100,
+  });
+
+  let borrados = 0;
+  for (const f of filas) {
+    try {
+      await unlink(join(entrada.dir, nombreLogoPropuesta(f.id)));
+    } catch (e) {
+      if ((e as { code?: unknown }).code !== "ENOENT") {
+        entrada.log?.(`[retos-empresa] no se pudo borrar el logo de ${f.id}; reintento luego.`);
+        continue; // la columna sigue apuntando: el siguiente barrido lo vuelve a intentar
+      }
+    }
+    // La misma condición en el WHERE: si entre medias cambió (no debería: rechazada es final y una
+    // vencida no se aprueba), no se toca.
+    await db.retoSolicitud.updateMany({
+      where: { id: f.id, ...filtro },
+      data: { sponsorLogo: null },
+    });
+    borrados += 1;
+  }
+  return { borrados, sinVolumen: false };
 }

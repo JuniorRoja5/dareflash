@@ -257,13 +257,41 @@ export interface RetoEditado {
  *  - Si cambia el título, el slug se regenera; las URLs viejas hacen 308 al canónico -> sin enlaces rotos.
  * Devuelve `null` si el reto no existe (el endpoint traduce a 404). El caller pasa el `publicCode` que ya
  * cargó (para el 404 y para nombrar la portada), evitando una segunda consulta.
+ *
+ * ┌─ UN RETO DE EMPRESA NO DEJA DE SER PATROCINADO, NI CAMBIA DE MARCA (Fase 9 · P3) ──────────────┐
+ * │ Un reto con `empresaId` nació de una propuesta aprobada: es de esa empresa, sale en su extracto │
+ * │ y se le factura. Desmarcar "patrocinado" lo sacaría del extracto (que filtra por `esPatrocinado`)│
+ * │ y dejaría una línea sin facturar; cambiar la marca pondría el nombre de otro en algo que pagó    │
+ * │ ella. Se bloquea AQUÍ, en el servicio, y no en el formulario: cualquier camino que edite pasa   │
+ * │ por este sitio, y un formulario se puede saltar con una petición a mano.                        │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ * El logo sí se puede poner o cambiar: el admin lo añade al borrador cuando la empresa no lo mandó.
  */
+export class RetoDeEmpresaError extends Error {
+  constructor() {
+    super("Este reto es de una empresa: sigue siendo patrocinado y con su marca.");
+    this.name = "RetoDeEmpresaError";
+  }
+}
+
 export async function editarRetoAdmin(
   db: Db,
   id: string,
   publicCode: string,
   datos: CrearRetoInput,
 ): Promise<RetoEditado | null> {
+  const actual = await db.challenge.findUnique({
+    where: { id },
+    select: { empresaId: true, sponsorNombre: true },
+  });
+  if (!actual) return null;
+  if (
+    actual.empresaId !== null &&
+    (!datos.esPatrocinado || datos.sponsorNombre !== actual.sponsorNombre)
+  ) {
+    throw new RetoDeEmpresaError();
+  }
+
   const res = await db.challenge.updateMany({
     where: { id },
     data: {
@@ -302,7 +330,9 @@ export type ResultadoPublicar =
   /** Ya estaba publicado, o no existe. No es un error: el doble clic acaba aquí. */
   | { estado: "sin_cambios" }
   /** El cierre ya pasó: publicarlo sería crear un reto muerto. Ver abajo. */
-  | { estado: "rechazado"; motivo: "CIERRE_PASADO" };
+  | { estado: "rechazado"; motivo: "CIERRE_PASADO" }
+  /** Reto de empresa sin el pago marcado como recibido (Fase 9 · P3). Ver abajo. */
+  | { estado: "rechazado"; motivo: "PAGO_PENDIENTE" };
 
 /**
  * Publica un reto: DRAFT -> PUBLISHED. IDEMPOTENTE y seguro: `updateMany` con `status: "DRAFT"` en el
@@ -324,6 +354,11 @@ export type ResultadoPublicar =
  *
  * NO COMPRUEBA LA APERTURA a propósito: publicar un reto cuya apertura ya pasó es legítimo —abre al
  * instante— y es el caso normal de "publícalo ya". Lo que no puede estar en el pasado es el CIERRE.
+ *
+ * UN RETO DE EMPRESA SE PUBLICA CUANDO SE RECIBE EL PAGO (Fase 9 · P3). Es lo que se le promete a
+ * la empresa —en el portal, en el formulario y en el correo de aprobación—, y es aquí, en el único
+ * sitio que publica, donde se hace verdad: con `empresaId` y sin `pagoRecibidoEn`, no se publica. La
+ * condición va también en el `WHERE` del `UPDATE`, no solo en la lectura de arriba.
  */
 export async function publicarReto(
   db: Db,
@@ -336,15 +371,23 @@ export async function publicarReto(
   // distinguir "ya estaba publicado" de "lo rechacé por la fecha".
   const reto = await db.challenge.findUnique({
     where: { id },
-    select: { status: true, deadline: true },
+    select: { status: true, deadline: true, empresaId: true, pagoRecibidoEn: true },
   });
   if (!reto) return { estado: "sin_cambios" };
   if (reto.status === "DRAFT" && reto.deadline <= ahora) {
     return { estado: "rechazado", motivo: "CIERRE_PASADO" };
   }
+  if (reto.status === "DRAFT" && reto.empresaId !== null && reto.pagoRecibidoEn === null) {
+    return { estado: "rechazado", motivo: "PAGO_PENDIENTE" };
+  }
 
   const res = await db.challenge.updateMany({
-    where: { id, status: "DRAFT" },
+    where: {
+      id,
+      status: "DRAFT",
+      // Sin empresa, o con el pago recibido. Repetido aquí para que no dependa de la lectura.
+      OR: [{ empresaId: null }, { pagoRecibidoEn: { not: null } }],
+    },
     data: { status: "PUBLISHED" },
   });
   return res.count > 0 ? { estado: "publicado" } : { estado: "sin_cambios" };
@@ -377,6 +420,10 @@ export interface RetoAdminFila {
   sponsorLogo: string | null;
   /** Comision pactada con esa marca, en puntos basicos. Se guarda por reto (ver la columna). */
   comisionBps: number;
+  /** La empresa del portal que lo propuso (Fase 9 · P3), o null. Con empresa, no se publica sin pago. */
+  empresaId: string | null;
+  /** Cuándo se marcó recibido el pago (ms), o null. Solo significa algo con `empresaId`. */
+  pagoRecibidoMs: number | null;
   coverImage: string | null;
   publicCode: string;
   /** Gracia de borrado en curso (ms) o null. El panel pinta la cuenta atras y ofrece restaurar. */
@@ -407,6 +454,8 @@ const SELECT_RETO_ADMIN = {
   sponsorNombre: true,
   sponsorLogo: true,
   comisionBps: true,
+  empresaId: true,
+  pagoRecibidoEn: true,
   coverImage: true,
   publicCode: true,
   eliminacionProgramadaEn: true,
@@ -419,18 +468,23 @@ type FilaCruda = { [K in keyof typeof SELECT_RETO_ADMIN]: unknown } & {
   prizeAmountCents: number | bigint;
   eliminacionProgramadaEn: Date | null;
   deletedAt: Date | null;
+  pagoRecibidoEn: Date | null;
   /** Solo lo trae la LISTA, y solo para construir el cursor: ver `listarRetosAdmin`. */
   createdAt?: Date;
 };
 
 function aFila(f: FilaCruda): RetoAdminFila {
-  const { eliminacionProgramadaEn, deletedAt, prizeAmountCents, ...resto } = f;
+  const { eliminacionProgramadaEn, deletedAt, prizeAmountCents, pagoRecibidoEn, ...resto } = f;
   // `createdAt` SE QUEDA FUERA aunque la lista lo pida: es la mitad del cursor, no un campo del
   // DTO. Sin quitarlo, el `...resto` de abajo lo llevaría al cliente como un `Date`.
   delete (resto as { createdAt?: Date }).createdAt;
   return {
-    ...(resto as unknown as Omit<RetoAdminFila, "prizeAmountCents" | "eliminaEnMs" | "borradoMs">),
+    ...(resto as unknown as Omit<
+      RetoAdminFila,
+      "prizeAmountCents" | "eliminaEnMs" | "borradoMs" | "pagoRecibidoMs"
+    >),
     prizeAmountCents: Number(prizeAmountCents),
+    pagoRecibidoMs: pagoRecibidoEn ? pagoRecibidoEn.getTime() : null,
     eliminaEnMs: eliminacionProgramadaEn ? eliminacionProgramadaEn.getTime() : null,
     borradoMs: deletedAt ? deletedAt.getTime() : null,
   };

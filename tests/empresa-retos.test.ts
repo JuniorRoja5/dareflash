@@ -20,7 +20,15 @@
  * `empresaId` de `misSolicitudesReto` o del extracto (rojo el 4); añadir `notaInterna` al DTO del
  * dueño (rojo la igualdad de claves); quitar `cuentaEmpresa: "permite"` de la ruta (rojo el 5).
  */
-import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -181,7 +189,13 @@ describe("una propuesta sin aprobar no aparece en ninguna consulta pública", ()
     const { empresaId } = await unaEmpresa("Panadería La Espiga");
     const r = await aprobar(await proponer(empresaId));
     if (r.estado !== "aprobada") throw new Error("no se aprobó");
-    await publicarReto(prisma, r.challengeId, AHORA);
+    // Un reto de empresa se publica cuando se recibe el pago: primero se marca, luego se publica.
+    await svc.marcarPagoRecibido(prisma, {
+      challengeId: r.challengeId,
+      actorId: admin,
+      ahora: AHORA,
+    });
+    expect(await publicarReto(prisma, r.challengeId, AHORA)).toEqual({ estado: "publicado" });
 
     // Abre mañana: a esta hora es PRÓXIMO (no abierto), y el buscador lo encuentra. Dos puertas
     // distintas, comprobadas por separado.
@@ -471,7 +485,13 @@ describe("cada empresa ve lo suyo", () => {
     const r = await aprobar(id);
     expect(await ver()).toMatchObject({ estado: "APROBADA", reto: null });
     if (r.estado !== "aprobada") throw new Error("no se aprobó");
-    await publicarReto(prisma, r.challengeId, AHORA);
+    // Un reto de empresa se publica cuando se recibe el pago: primero se marca, luego se publica.
+    await svc.marcarPagoRecibido(prisma, {
+      challengeId: r.challengeId,
+      actorId: admin,
+      ahora: AHORA,
+    });
+    expect(await publicarReto(prisma, r.challengeId, AHORA)).toEqual({ estado: "publicado" });
     expect((await ver()).estado).toBe("PUBLICADA");
     expect((await ver()).reto?.publicCode).toBe(r.publicCode);
   });
@@ -539,6 +559,9 @@ describe("censo del servicio: lo que opera sobre UNA empresa recibe su `empresaI
     contarSolicitudesReto: "panel",
     listarSolicitudesReto: "panel",
     aprobarSolicitudReto: "panel",
+    marcarPagoRecibido: "panel",
+    nombreLogoPropuesta: "clave",
+    limpiarLogosDescartados: "panel",
     rechazarSolicitudReto: "panel",
   };
 
@@ -679,5 +702,244 @@ describe("la cifra de propuestas pendientes", () => {
     ).replace(/\/\*[\s\S]*?\*\//g, "");
     expect(src).toMatch(/count\(\{ where: filtroSolicitudesReto\(estado\) \}\)/);
     expect(src).toMatch(/const filtro = filtroSolicitudesReto\(opciones\.estado\)/);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+// 7. Se publica cuando se recibe el pago (la regla que promete el copy a la empresa)
+// ---------------------------------------------------------------------------------------------------
+
+describe("un reto de empresa se publica cuando se recibe el pago", () => {
+  it("sin el pago marcado no se publica; marcado, sí", async () => {
+    const { empresaId } = await unaEmpresa("Panadería La Espiga");
+    const r = await aprobar(await proponer(empresaId));
+    if (r.estado !== "aprobada") throw new Error("no se aprobó");
+
+    expect(await publicarReto(prisma, r.challengeId, AHORA)).toEqual({
+      estado: "rechazado",
+      motivo: "PAGO_PENDIENTE",
+    });
+    expect(
+      (await prisma.challenge.findUniqueOrThrow({ where: { id: r.challengeId } })).status,
+    ).toBe("DRAFT");
+
+    expect(
+      await svc.marcarPagoRecibido(prisma, { challengeId: r.challengeId, actorId: admin }),
+    ).toEqual({ marcado: true });
+    expect(await publicarReto(prisma, r.challengeId, AHORA)).toEqual({ estado: "publicado" });
+  });
+
+  it("marcarlo dos veces no reescribe la fecha ni deja dos rastros", async () => {
+    const { empresaId } = await unaEmpresa("Panadería La Espiga");
+    const r = await aprobar(await proponer(empresaId));
+    if (r.estado !== "aprobada") throw new Error("no se aprobó");
+    const primera = new Date("2026-11-06T10:00:00.000Z");
+    await svc.marcarPagoRecibido(prisma, {
+      challengeId: r.challengeId,
+      actorId: admin,
+      ahora: primera,
+    });
+    expect(
+      await svc.marcarPagoRecibido(prisma, { challengeId: r.challengeId, actorId: admin }),
+    ).toEqual({ marcado: false });
+    const c = await prisma.challenge.findUniqueOrThrow({ where: { id: r.challengeId } });
+    expect(c.pagoRecibidoEn?.toISOString()).toBe(primera.toISOString());
+    expect(await prisma.auditLog.count({ where: { action: "RETO_PAGO_RECIBIDO" } })).toBe(1);
+  });
+
+  it("un reto SIN empresa se publica como siempre, y no tiene pago que marcar", async () => {
+    const c = await prisma.challenge.create({
+      data: {
+        title: "Patrocinazo a mano",
+        slug: "patrocinazo-a-mano",
+        publicCode: "manual01",
+        category: "fitness",
+        status: "DRAFT",
+        prizeAmountCents: 1000,
+        prizeCurrency: "USD",
+        startsAt: new Date(AHORA.getTime() + DIA),
+        deadline: new Date(AHORA.getTime() + 10 * DIA),
+        winnersCount: 1,
+        esPatrocinado: true,
+        sponsorNombre: "Marca sin cuenta",
+        createdById: admin,
+      },
+      select: { id: true },
+    });
+    expect(await svc.marcarPagoRecibido(prisma, { challengeId: c.id, actorId: admin })).toEqual({
+      marcado: false,
+    });
+    expect(await publicarReto(prisma, c.id, AHORA)).toEqual({ estado: "publicado" });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+// 8. Un reto de empresa no deja de ser patrocinado ni cambia de marca
+// ---------------------------------------------------------------------------------------------------
+
+describe("editar un reto de empresa", () => {
+  const edicion = async (over: Record<string, unknown>) => {
+    const { crearRetoSchema } = await import("../src/server/services/retos-admin");
+    return crearRetoSchema(AHORA).parse({
+      title: "Patrocinazo de verano",
+      category: "fitness",
+      prizeAmountCents: 5000,
+      startsAt: new Date(AHORA.getTime() + DIA),
+      deadline: new Date(AHORA.getTime() + 10 * DIA),
+      winnersCount: 1,
+      esPatrocinado: "1",
+      sponsorNombre: "Panadería La Espiga",
+      ...over,
+    });
+  };
+
+  async function retoDeEmpresa() {
+    const { empresaId } = await unaEmpresa("Panadería La Espiga");
+    const r = await aprobar(await proponer(empresaId));
+    if (r.estado !== "aprobada") throw new Error("no se aprobó");
+    return { empresaId, challengeId: r.challengeId, publicCode: r.publicCode };
+  }
+
+  it("con patrocinado=false: rechazado, y sigue en el extracto", async () => {
+    const { editarRetoAdmin, RetoDeEmpresaError } =
+      await import("../src/server/services/retos-admin");
+    const { empresaId, challengeId, publicCode } = await retoDeEmpresa();
+    await expect(
+      editarRetoAdmin(prisma, challengeId, publicCode, await edicion({ esPatrocinado: "0" })),
+    ).rejects.toBeInstanceOf(RetoDeEmpresaError);
+    const c = await prisma.challenge.findUniqueOrThrow({ where: { id: challengeId } });
+    expect(c.esPatrocinado).toBe(true);
+    expect((await listarPatrocinios(prisma, { empresaId })).filas.map((f) => f.id)).toEqual([
+      challengeId,
+    ]);
+  });
+
+  it("con otra marca: rechazado, la marca sigue siendo la suya", async () => {
+    const { editarRetoAdmin, RetoDeEmpresaError } =
+      await import("../src/server/services/retos-admin");
+    const { challengeId, publicCode } = await retoDeEmpresa();
+    await expect(
+      editarRetoAdmin(
+        prisma,
+        challengeId,
+        publicCode,
+        await edicion({ sponsorNombre: "Otra marca" }),
+      ),
+    ).rejects.toBeInstanceOf(RetoDeEmpresaError);
+    expect(
+      (await prisma.challenge.findUniqueOrThrow({ where: { id: challengeId } })).sponsorNombre,
+    ).toBe("Panadería La Espiga");
+  });
+
+  it("lo demás sí se edita (el admin pone lo de DareFlash en el borrador)", async () => {
+    const { editarRetoAdmin } = await import("../src/server/services/retos-admin");
+    const { challengeId, publicCode } = await retoDeEmpresa();
+    await editarRetoAdmin(
+      prisma,
+      challengeId,
+      publicCode,
+      await edicion({ comisionBps: 3000, soloVip: "1" }),
+    );
+    const c = await prisma.challenge.findUniqueOrThrow({ where: { id: challengeId } });
+    expect(c).toMatchObject({ comisionBps: 3000, soloVip: true, esPatrocinado: true });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+// 9. El logo de una propuesta descartada se borra del volumen
+// ---------------------------------------------------------------------------------------------------
+
+describe("el logo de una propuesta rechazada o caducada", () => {
+  /** Una propuesta con su logo DE VERDAD en el volumen (el de la prueba). */
+  async function conLogo(empresaId: string, over: Record<string, unknown> = {}) {
+    const id = await proponer(empresaId, over);
+    const fichero = path.join(PORTADAS_DIR, svc.nombreLogoPropuesta(id));
+    writeFileSync(fichero, "logo");
+    await svc.apuntarLogoSolicitud(prisma, {
+      empresaId,
+      solicitudId: id,
+      url: "/portadas/" + svc.nombreLogoPropuesta(id) + "?v=1",
+    });
+    return { id, fichero };
+  }
+
+  it("rechazar por la RUTA: el fichero ya no existe y la fila no apunta a nada", async () => {
+    const { POST: RECHAZAR } = await import("../src/app/api/panel/propuestas/[id]/rechazar/route");
+    const { empresaId } = await unaEmpresa("Panadería La Espiga");
+    const { id, fichero } = await conLogo(empresaId);
+    const sesionAdmin = "s-" + admin;
+    await prisma.user.update({ where: { id: admin }, data: { role: "ADMIN" } });
+    H.sesion = {
+      userId: admin,
+      sessionId: sesionAdmin,
+      role: "ADMIN",
+      emailVerified: new Date(),
+      esCuentaEmpresa: false,
+    };
+    const r = await RECHAZAR(
+      new Request(APP_URL + "/api/panel/propuestas/" + id + "/rechazar", {
+        method: "POST",
+        headers: {
+          Origin: APP_URL,
+          "content-type": "application/json",
+          "X-CSRF-Token": issueCsrfToken(SECRET, sesionAdmin),
+        },
+        body: JSON.stringify({ motivo: "DUPLICADA" }),
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+    expect(r.status).toBe(200);
+    expect(existsSync(fichero)).toBe(false);
+    expect(
+      (await prisma.retoSolicitud.findUniqueOrThrow({ where: { id } })).sponsorLogo,
+    ).toBeNull();
+  });
+
+  it("el barrido: borra el de la caducada; NO toca la vigente ni la aprobada", async () => {
+    const { empresaId } = await unaEmpresa("Panadería La Espiga");
+    const caduca = await conLogo(empresaId, { deadline: new Date(AHORA.getTime() + 2 * DIA) });
+    const vigente = await conLogo(empresaId);
+    const aprobada = await conLogo(empresaId);
+    await aprobar(aprobada.id);
+
+    const despues = new Date(AHORA.getTime() + 3 * DIA); // pasado el cierre de la primera
+    const r = await svc.limpiarLogosDescartados(prisma, { dir: PORTADAS_DIR, ahora: despues });
+    expect(r).toEqual({ borrados: 1, sinVolumen: false });
+    expect(existsSync(caduca.fichero)).toBe(false);
+    // La vigente aún puede aprobarse, y la aprobada es el logo de su reto: las dos se quedan.
+    expect(existsSync(vigente.fichero)).toBe(true);
+    expect(existsSync(aprobada.fichero)).toBe(true);
+  });
+
+  it("sin el volumen montado no toca nada (ni el disco ni la fila) y lo dice", async () => {
+    const { empresaId } = await unaEmpresa("Panadería La Espiga");
+    const { id } = await conLogo(empresaId);
+    await svc.rechazarSolicitudReto(prisma, {
+      solicitudId: id,
+      actorId: admin,
+      motivo: "DUPLICADA",
+      appUrl: APP_URL,
+    });
+    const log = vi.fn();
+    const r = await svc.limpiarLogosDescartados(prisma, {
+      dir: path.join(PORTADAS_DIR, "no-existe"),
+      log,
+    });
+    expect(r).toEqual({ borrados: 0, sinVolumen: true });
+    expect(log).toHaveBeenCalledOnce();
+    // La columna sigue apuntando: el siguiente barrido con el volumen lo encontrará.
+    expect(
+      (await prisma.retoSolicitud.findUniqueOrThrow({ where: { id } })).sponsorLogo,
+    ).not.toBeNull();
+  });
+
+  it("el worker tiene el barrido cableado (proceso real: scripts/worker.ts)", () => {
+    const script = readFileSync(path.resolve(__dirname, "..", "scripts", "worker.ts"), "utf8");
+    expect(script).toMatch(/limpiarLogosPropuestas: \(now\) =>\s+limpiarLogosDescartados\(prisma,/);
+    const bucle = readFileSync(
+      path.resolve(__dirname, "..", "src", "server", "jobs", "worker.ts"),
+      "utf8",
+    );
+    expect(bucle).toMatch(/await o\.limpiarLogosPropuestas\(t\)/);
   });
 });

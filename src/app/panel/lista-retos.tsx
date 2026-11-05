@@ -16,37 +16,65 @@ import { FechaLocal } from "./fecha-local";
 const NOMBRE_CATEGORIA = new Map<string, string>(
   CATEGORIES.map((c) => [c.key, `${c.emoji} ${c.es}`]),
 );
-function Publicar({ id }: { id: string }) {
+/**
+ * PUBLICAR, o —en un reto de EMPRESA sin el pago marcado— MARCAR EL PAGO (Fase 9 · P3).
+ *
+ * A la empresa se le promete que su reto se publica cuando se recibe el pago, y `publicarReto` lo
+ * cumple: sin `pagoRecibidoEn` no publica. Por eso aquí no se ofrece "Publicar" a un reto que el
+ * servidor va a rechazar: se ofrece lo que falta, marcar el pago, y después aparece "Publicar".
+ * El error del servidor se enseña tal cual: "no se pudo publicar" a secas no dice qué hacer.
+ */
+function Publicar({ id, pagoPendiente }: { id: string; pagoPendiente: boolean }) {
   const router = useRouter();
-  const [estado, setEstado] = useState<"idle" | "enviando" | "error">("idle");
+  const [estado, setEstado] = useState<"idle" | "enviando">("idle");
+  const [error, setError] = useState<string | null>(null);
 
-  async function publicar(): Promise<void> {
+  async function llamar(url: string, fallo: string): Promise<void> {
     setEstado("enviando");
+    setError(null);
     try {
-      const r = await postJsonCsrf(`/api/panel/retos/${id}/publicar`, {});
+      const r = await postJsonCsrf(url, {});
       if (r.ok) {
+        setEstado("idle");
         router.refresh();
         return;
       }
-      setEstado("error");
+      setError(mensajeDe(r.data) || fallo);
     } catch {
-      setEstado("error");
+      setError("No hemos podido conectar. Reinténtalo.");
     }
+    setEstado("idle");
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        onClick={publicar}
-        disabled={estado === "enviando"}
-        className="min-h-[36px] rounded-sm border border-line px-3 text-sm font-medium text-text transition-colors duration-150 ease-mechanical hover:bg-raised disabled:opacity-40"
-      >
-        {estado === "enviando" ? "Publicando…" : "Publicar"}
-      </button>
-      {estado === "error" ? (
+    <div className="flex flex-wrap items-center gap-2">
+      {pagoPendiente ? (
+        <>
+          <span className="text-xs text-text-dim">Pago pendiente</span>
+          <button
+            type="button"
+            onClick={() =>
+              void llamar(`/api/panel/retos/${id}/pago-recibido`, "No se pudo marcar el pago.")
+            }
+            disabled={estado === "enviando"}
+            className="min-h-[36px] rounded-sm border border-line px-3 text-sm font-medium text-text transition-colors duration-150 ease-mechanical hover:bg-raised disabled:opacity-40"
+          >
+            {estado === "enviando" ? "Marcando…" : "Marcar pago recibido"}
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          onClick={() => void llamar(`/api/panel/retos/${id}/publicar`, "No se pudo publicar.")}
+          disabled={estado === "enviando"}
+          className="min-h-[36px] rounded-sm border border-line px-3 text-sm font-medium text-text transition-colors duration-150 ease-mechanical hover:bg-raised disabled:opacity-40"
+        >
+          {estado === "enviando" ? "Publicando…" : "Publicar"}
+        </button>
+      )}
+      {error ? (
         <span role="alert" className="text-xs text-alarm">
-          No se pudo publicar.
+          {error}
         </span>
       ) : null}
     </div>
@@ -344,7 +372,10 @@ export function ListaRetos({
                   </Link>
                   <BotonEditar onEditar={() => onEditar(r)} />
                   {r.status === "DRAFT" && r.eliminaEnMs === null && r.borradoMs === null ? (
-                    <Publicar id={r.id} />
+                    <Publicar
+                      id={r.id}
+                      pagoPendiente={r.empresaId !== null && r.pagoRecibidoMs === null}
+                    />
                   ) : null}
                   {/* REABRIR, solo donde puede servir de algo: un reto CERRADO que no está en
                       camino de borrarse. Que de verdad se pueda lo decide el servidor —aquí no se

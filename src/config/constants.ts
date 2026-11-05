@@ -2342,14 +2342,20 @@ export const ETIQUETA_ESTADO_SOLICITUD: Record<EstadoVisibleSolicitud, string> =
 export const MSG_ESTADO_SOLICITUD: Record<EstadoVisibleSolicitud, string> = {
   EN_REVISION: "La revisamos a mano y te escribimos en cuanto la decidamos.",
   RECHAZADA: "No la hemos podido aprobar.",
-  APROBADA: "Está aprobada y la estamos preparando para publicarla.",
+  // Lo que promete es la regla de `publicarReto`: un reto de empresa no se publica sin el pago.
+  APROBADA:
+    "Está aprobada. Te escribiremos para organizar el pago, y la publicaremos en cuanto lo recibamos.",
   PUBLICADA: "Está publicada: la gente ya puede participar.",
 };
 
-/** Lo que queda en `AuditLog` al decidir una propuesta. Su `targetType` es "RETO_SOLICITUD". */
+/**
+ * Lo que queda en `AuditLog` al decidir una propuesta (`targetType` "RETO_SOLICITUD") y al marcar
+ * recibido el pago de un reto de empresa (`targetType` "CHALLENGE": es del reto, no de la propuesta).
+ */
 export const AuditAccionRetoSolicitudSchema = z.enum([
   "RETO_SOLICITUD_APROBAR",
   "RETO_SOLICITUD_RECHAZAR",
+  "RETO_PAGO_RECIBIDO",
 ]);
 export type AuditAccionRetoSolicitud = z.infer<typeof AuditAccionRetoSolicitudSchema>;
 
@@ -2383,12 +2389,18 @@ export function msgAvisoRetoPropuesto(datos: {
 }
 
 /**
- * Cómo se paga, contado una vez para el formulario y el correo de aprobación: por fuera, premio más
- * comisión, como cualquier patrocinio. El porcentaje NO va escrito aquí: lo fija el equipo en cada
- * reto (`Challenge.comisionBps`) y la empresa lo ve en su extracto, con el importe ya calculado.
+ * CÓMO SE PAGA, contado a la EMPRESA (formulario y portal). Copy firmado por el analista.
+ *
+ * SIN UNA PALABRA SOBRE CÓMO SE REPARTE EL DINERO DENTRO DE DAREFLASH: a la empresa se le dice lo que
+ * paga y que quien gane cobra el premio entero, nunca la comisión ni su porcentaje. El desglose vive
+ * solo en el panel. Lo vigila `empresa-sin-comisiones`, que censa todo lo que se le enseña o se le
+ * escribe a una empresa.
+ *
+ * Y PROMETE UNA REGLA QUE EL CÓDIGO CUMPLE: "lo publicaremos en cuanto lo recibamos" es
+ * `publicarReto`, que no publica un reto de empresa sin `pagoRecibidoEn`.
  */
 export const MSG_PAGO_PATROCINIO =
-  "El premio y nuestra comisión se pagan por transferencia, fuera de DareFlash: al aprobar cada reto te escribimos para cerrarlo. Quien gane cobra el premio entero.";
+  "El pago se hace por transferencia, fuera de DareFlash. Cuando aprobemos tu reto, te escribiremos para organizarlo, y lo publicaremos en cuanto lo recibamos. Quien gane cobra el premio entero.";
 
 // ----------------------------------------------------------------------------
 // Decisiones de Fase 9 YA CERRADAS que consumen piezas posteriores. Viven aqui

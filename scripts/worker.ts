@@ -41,6 +41,7 @@ import { reconciliarContadores } from "@/server/services/reconciliacion-contador
 import { limpiarHuerfanosBunny } from "@/server/services/reconciliacion-huerfanos";
 import { reconciliarPublicadosDesaparecidos } from "@/server/services/reconciliacion-publicados";
 import { recalcularScoresAutoridad } from "@/server/services/recalculo-scores";
+import { limpiarLogosDescartados } from "@/server/services/retos-empresa";
 import { confirmarVideosPendientes } from "@/server/services/video-confirmacion";
 import { reconciliarVideosAbandonados } from "@/server/services/video-reconciliacion";
 
@@ -168,6 +169,14 @@ async function main(): Promise<void> {
       ),
     // Limpieza de huerfanos en Bunny (Parte B, DESTRUCTIVA). Modo desde el env: dry-run por defecto
     // (NO borra); Junior lo pone a "borrar" tras revisar los logs del dry-run.
+    // Logos de propuestas de reto rechazadas o caducadas (Fase 9 · P3): fuera del volumen de
+    // portadas. Si este proceso no tiene el volumen montado, no toca nada y lo dice en el log.
+    limpiarLogosPropuestas: (now) =>
+      limpiarLogosDescartados(prisma, {
+        dir: env.PORTADAS_DIR,
+        ahora: now,
+        log: (m) => console.warn(m),
+      }),
     limpiarHuerfanos: (now) =>
       limpiarHuerfanosBunny(
         prisma,

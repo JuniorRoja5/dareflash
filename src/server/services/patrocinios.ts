@@ -445,3 +445,67 @@ export async function exportarGanadores(
 
   return { csv, filas: pagina.length, truncada };
 }
+
+/**
+ * EL EXTRACTO QUE VE UNA EMPRESA (Fase 9 · P3): por reto, el premio para quien gane y el total a
+ * pagar. NADA MÁS.
+ *
+ * ┌─ SIN UNA CIFRA DE CÓMO SE REPARTE EL DINERO DENTRO DE DAREFLASH ──────────────────────────────┐
+ * │ La empresa no tiene por qué conocer la comisión ni su porcentaje. Por eso esto NO es la fila   │
+ * │ del panel (`FilaPatrocinio`, que lleva `comisionBps` y `comisionCents`): es una PROYECCIÓN sin │
+ * │ esos campos. No basta con no pintarlos —un campo que viaja al portal acaba pintado algún día—: │
+ * │ el DTO no los tiene, y `empresa-sin-comisiones` lo comprueba con igualdad exacta de claves.     │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * LAS CIFRAS SON LAS DEL PANEL: sale de `listarPatrocinios` y `totalesPatrocinios` con el alcance de
+ * la empresa —la MISMA consulta y el mismo cálculo—, así que "total a pagar" aquí y "total a cobrar"
+ * en el panel no pueden discrepar. Solo cambia lo que se enseña.
+ */
+export interface FilaExtractoEmpresa {
+  id: string;
+  titulo: string;
+  /** Lo que se lleva quien gane (entero, como siempre). */
+  premioCents: number;
+  /** Lo que paga la empresa por este reto. */
+  totalCents: number;
+  moneda: string;
+  deadlineMs: number;
+  cerrado: boolean;
+}
+
+export interface ExtractoEmpresa {
+  filas: FilaExtractoEmpresa[];
+  proximoCursor: string | null;
+  /** De TODOS sus retos, no de la página: agregado en la base, como en el panel. */
+  totales: { retos: number; premiosCents: number; totalCents: number; moneda: string | null };
+}
+
+export async function extractoDeEmpresa(
+  db: PrismaClient,
+  empresaId: string,
+  opts: { cursor?: string | null } = {},
+): Promise<ExtractoEmpresa> {
+  const alcance: AlcancePatrocinios = { empresaId };
+  const [pagina, t] = await Promise.all([
+    listarPatrocinios(db, alcance, opts),
+    totalesPatrocinios(db, alcance),
+  ]);
+  return {
+    filas: pagina.filas.map((f) => ({
+      id: f.id,
+      titulo: f.titulo,
+      premioCents: f.premioCents,
+      totalCents: f.totalCents,
+      moneda: f.moneda,
+      deadlineMs: f.deadlineMs,
+      cerrado: f.cerrado,
+    })),
+    proximoCursor: pagina.proximoCursor,
+    totales: {
+      retos: t.retos,
+      premiosCents: t.premiosCents,
+      totalCents: t.totalCents,
+      moneda: t.moneda,
+    },
+  };
+}
