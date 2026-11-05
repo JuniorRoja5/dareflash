@@ -2,6 +2,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { Marcador } from "@/components/ui/marcador";
 import { PildoraCategoria } from "@/components/ui/pildora";
+import { MSG_EMPRESA_SOLO_MIRA } from "@/config/constants";
+import { soloMirar } from "@/lib/solo-mirar";
 
 import { ChapaExclusivo } from "../chapa-exclusivo";
 import { MarcaSponsor } from "../marca-sponsor";
@@ -202,19 +204,28 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
             {/* Participar: invitado -> login; logueado -> modal de subida con el challengeId. Si ya
                 participó (publicada), el CTA pasa a "Reemplazar". */}
             <div className="mt-5 lg:mt-8">
-              <BotonParticipar
-                challengeId={reto.id}
-                publicCode={reto.publicCode}
-                slug={reto.slug}
-                autenticado={usuario !== null}
-                activo={activo}
-                /* POR QUÉ no está activo: un reto que aún no ha abierto NO está "cerrado", y el
-                   botón lo decía igual. La fase sale de la misma regla que `activo`. */
-                fase={cuenta.fase}
-                yaParticipa={mi?.estado === "publicada"}
-                avisoNivel={avisoNivel}
-                vetoVip={vetoVip}
-              />
+              {/* QUIEN SOLO MIRA (cuenta de empresa, `soloMirar`): en el sitio del botón, la razón.
+                  No un botón desactivado: "Participar" es la acción de `--df-action` de esta pantalla,
+                  y apagada seguiría ocupando su sitio sin hacer nada (MARCA.md, una por pantalla). */}
+              {soloMirar(usuario) ? (
+                <p data-solo-mirar className="text-sm text-text-dim">
+                  {MSG_EMPRESA_SOLO_MIRA}
+                </p>
+              ) : (
+                <BotonParticipar
+                  challengeId={reto.id}
+                  publicCode={reto.publicCode}
+                  slug={reto.slug}
+                  autenticado={usuario !== null}
+                  activo={activo}
+                  /* POR QUÉ no está activo: un reto que aún no ha abierto NO está "cerrado", y el
+                     botón lo decía igual. La fase sale de la misma regla que `activo`. */
+                  fase={cuenta.fase}
+                  yaParticipa={mi?.estado === "publicada"}
+                  avisoNivel={avisoNivel}
+                  vetoVip={vetoVip}
+                />
+              )}
               {miEstado ? (
                 <p
                   role="status"
@@ -245,6 +256,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
             miSubmissionId={mi?.submissionId ?? null}
             haySesion={usuario !== null}
             emailVerificado={usuario?.emailVerified != null}
+            soloMirar={soloMirar(usuario)}
           />
         </section>
       </div>

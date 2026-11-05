@@ -2208,6 +2208,13 @@ export const MSG_REVISA_CORREO_EMPRESA =
 export const MSG_CUENTA_EMPRESA_NO_PARTICIPA =
   "Esta es una cuenta de empresa: puede mirarlo todo, pero no participar. Si quieres subir vídeos y competir, crea una cuenta normal con otro correo.";
 
+/**
+ * La línea CORTA que sustituye a un control de participación cuando una empresa mira una página
+ * compartida (Fase 9, P2): en el sitio de la caja de comentar, o del botón "Participar" de un reto.
+ * Corta porque va en el hueco de un control, no en un aviso; la larga, de arriba, es la del 403.
+ */
+export const MSG_EMPRESA_SOLO_MIRA = "Las cuentas de empresa no participan.";
+
 /** Copy del portal y del panel de empresas. En humano, como el resto. */
 export const MSG_EMPRESA_SIN_VERIFICAR =
   "Verifica tu correo para entrar al portal. Es la misma barrera que protege todo lo que tiene efectos.";

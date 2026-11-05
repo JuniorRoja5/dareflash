@@ -68,7 +68,7 @@ export default async function ShellLayout({ children }: { children: ReactNode })
           tiene cuenta (la otra es la casilla del registro, que esa persona ya no vuelve a ver).
           Aqui tambien RESERVA el hueco de la barra inferior de movil, que antes reservaba el
           contenido con `pb-24`: ese hueco tiene que estar DEBAJO del pie, no encima. */}
-      <PieLegal sobreNavMovil />
+      <PieLegal sobreNavMovil esCuentaEmpresa={user?.esCuentaEmpresa ?? false} />
     </div>
   );
 }

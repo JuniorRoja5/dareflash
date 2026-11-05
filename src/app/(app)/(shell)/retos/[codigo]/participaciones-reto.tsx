@@ -63,8 +63,12 @@ export function ParticipacionesReto({
   miSubmissionId = null,
   haySesion = false,
   emailVerificado = false,
+  soloMirar = false,
 }: {
   challengeId: string;
+  /** Sesión que solo mira (cuenta de empresa, `lib/solo-mirar`): su feed va sin controles, y el
+   *  vacío no la invita a ser la primera. */
+  soloMirar?: boolean;
   participaciones: ParticipacionUI[];
   cursorInicial: string | null;
   /** ¿Hay sesión? Solo decide si el reproductor marca "visto" (un invitado no marca). La vista es
@@ -145,7 +149,9 @@ export function ParticipacionesReto({
   if (items.length === 0) {
     return (
       <p className="rounded-sm border border-line bg-surface/40 p-8 text-center text-sm text-text-dim">
-        Aún no hay participaciones en este reto. Sé el primero.
+        {soloMirar
+          ? "Aún no hay participaciones en este reto."
+          : "Aún no hay participaciones en este reto. Sé el primero."}
       </p>
     );
   }
@@ -195,6 +201,7 @@ export function ParticipacionesReto({
           fuente={fuente}
           haySesion={haySesion}
           emailVerificado={emailVerificado}
+          soloMirar={soloMirar}
           onCerrar={cerrar}
         />
       ) : null}
@@ -225,6 +232,7 @@ function FeedDelReto({
   fuente,
   haySesion,
   emailVerificado,
+  soloMirar,
   onCerrar,
 }: {
   items: ParticipacionUI[];
@@ -233,6 +241,7 @@ function FeedDelReto({
   fuente: ReturnType<typeof fuenteReto>;
   haySesion: boolean;
   emailVerificado: boolean;
+  soloMirar: boolean;
   onCerrar: () => void;
 }) {
   const posts: PostFeed[] = items.map((p) => p.post);
@@ -256,6 +265,7 @@ function FeedDelReto({
         indiceInicial={indice}
         haySesion={haySesion}
         emailVerificado={emailVerificado}
+        soloMirar={soloMirar}
       />
       <button
         type="button"

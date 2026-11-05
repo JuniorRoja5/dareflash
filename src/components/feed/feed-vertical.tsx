@@ -114,6 +114,23 @@ function Accion({
 }
 
 /**
+ * UNA CIFRA DE SOLO LECTURA, en el sitio de un control de participación, para quien SOLO MIRA (una
+ * cuenta de empresa, ver `lib/solo-mirar`). No es un `<button>` ni lo parece: sin círculo de acción,
+ * sin icono pulsable. El número sí se enseña, porque saber cuántos votos lleva algo es mirar.
+ */
+function Cifra({ valor, etiqueta }: { valor: number; etiqueta: string }) {
+  return (
+    <div
+      data-cifra-solo-lectura
+      className="flex flex-col items-center gap-0.5 text-white lg:text-text"
+    >
+      <span className="text-sm font-semibold tabular-nums">{formatearContador(valor)}</span>
+      <span className="text-2xs text-white/80 lg:text-text-dim">{etiqueta}</span>
+    </div>
+  );
+}
+
+/**
  * Un post. DOM en orden MOVIL (video con info/acciones ENCIMA); el grid de FeedInicio recompone en lg.
  * El VIDEO real lo reproduce `ReproductorHls` (variante `feed`, 9:16 inmersivo, autoplay en mute con
  * carga/descarga por visibilidad). `votos` sale de Submission.voteCount y `comentarios` de
@@ -130,9 +147,12 @@ function PostInicio({
   onToggleSilencio,
   onNoDisponible,
   onComentar,
+  soloMirar,
 }: {
   post: PostFeed;
   alRef: (el: HTMLElement | null) => void;
+  /** Sesión que solo mira (cuenta de empresa): cifras en vez de controles, y sin denunciar. */
+  soloMirar: boolean;
   /** ¿Marcar la reproducción como "vista"? Solo con sesión y solo si el vídeo ES una participación. */
   haySesion: boolean;
   /** ¿Correo verificado? Solo lo usa el botón de denunciar (misma regla que la ruta). */
@@ -257,16 +277,24 @@ function PostInicio({
             `onClick`, heredado de cuando los likes no existían: pintaba un corazón, decía 0 y no
             hacía nada. Al construir los likes se añadió el botón DE VERDAD más abajo y el adorno
             se quedó, así que el rail tenía DOS corazones y el que se pulsaba era el muerto. El
-            botón real ocupa ahora su sitio, que es el primero de la columna. */}
-        <BotonLike
-          videoId={post.id}
-          likes={post.likes}
-          miLike={post.miLike}
-          haySesion={haySesion}
-          esMio={post.esMio}
-        />
+            botón real ocupa ahora su sitio, que es el primero de la columna.
+
+            QUIEN SOLO MIRA (cuenta de empresa) ve la CIFRA, no el botón: ver cuántos me gusta
+            tiene es mirar; darlo, participar. */}
+        {soloMirar ? (
+          <Cifra valor={post.likes} etiqueta="me gusta" />
+        ) : (
+          <BotonLike
+            videoId={post.id}
+            likes={post.likes}
+            miLike={post.miLike}
+            haySesion={haySesion}
+            esMio={post.esMio}
+          />
+        )}
+        {/* Abre los comentarios. Para quien solo mira, a LEERLOS: por eso no se llama "Comentar". */}
         <Accion
-          label="Comentar"
+          label={soloMirar ? "Ver comentarios" : "Comentar"}
           valor={post.comentarios}
           icono={<IconoComentario />}
           onClick={onComentar}
@@ -275,7 +303,9 @@ function PostInicio({
             —una subida libre no pertenece a ningun reto, asi que no hay nada que votar y no se pinta un
             boton muerto—. Todo su estado (visto, mi voto, reto abierto) sale del payload y de los
             registros compartidos; ver `components/ui/boton-voto`. */}
-        {post.participacionId && post.retoId ? (
+        {post.participacionId && post.retoId && soloMirar ? (
+          <Cifra valor={post.votos} etiqueta="votos" />
+        ) : post.participacionId && post.retoId ? (
           <BotonVoto
             variante="rail"
             retoId={post.retoId}
@@ -308,15 +338,18 @@ function PostInicio({
           </span>
         </button>
         {/* DENUNCIAR el vídeo: discreto y el último de la columna — es una salida, no una acción del
-            producto. No aparece sobre lo propio (lo decide `Denunciar` con la regla compartida). */}
-        <Denunciar
-          targetType="VIDEO"
-          targetId={post.id}
-          haySesion={haySesion}
-          emailVerificado={emailVerificado}
-          esMio={post.esMio}
-          className="text-white/80 hover:text-white lg:text-text-dim lg:hover:text-text"
-        />
+            producto. No aparece sobre lo propio (lo decide `Denunciar` con la regla compartida), ni a
+            quien solo mira: denunciar es participar en la moderación. */}
+        {soloMirar ? null : (
+          <Denunciar
+            targetType="VIDEO"
+            targetId={post.id}
+            haySesion={haySesion}
+            emailVerificado={emailVerificado}
+            esMio={post.esMio}
+            className="text-white/80 hover:text-white lg:text-text-dim lg:hover:text-text"
+          />
+        )}
       </div>
     </section>
   );
@@ -330,9 +363,11 @@ function PanelComentarios({
   emailVerificado,
   onContador,
   anclaComentario,
+  soloMirar,
 }: {
   post: PostFeed;
   haySesion: boolean;
+  soloMirar: boolean;
   emailVerificado: boolean;
   onContador: (videoId: string, comentarios: number) => void;
   anclaComentario?: string;
@@ -372,6 +407,7 @@ function PanelComentarios({
         idCaja={`comentar-${post.id}`}
         anclaId={anclaComentario}
         onContador={(n) => onContador(post.id, n)}
+        soloMirar={soloMirar}
       />
     </aside>
   );
@@ -390,9 +426,11 @@ function HojaComentarios({
   onContador,
   onCerrar,
   anclaComentario,
+  soloMirar,
 }: {
   post: PostFeed;
   haySesion: boolean;
+  soloMirar: boolean;
   emailVerificado: boolean;
   onContador: (videoId: string, comentarios: number) => void;
   onCerrar: () => void;
@@ -440,6 +478,7 @@ function HojaComentarios({
           emailVerificado={emailVerificado}
           anclaId={anclaComentario}
           onContador={(n) => onContador(post.id, n)}
+          soloMirar={soloMirar}
         />
       </div>
     </div>
@@ -577,8 +616,20 @@ export function FeedVertical({
   indiceInicial = 0,
   comentarioDestacado,
   aviso,
+  soloMirar = false,
 }: {
   postsIniciales: PostFeed[];
+  /**
+   * ¿La sesión SOLO MIRA? (una cuenta de empresa; la decide `soloMirar` de `lib/solo-mirar` en el
+   * servidor). Sin controles de participación: like y voto pasan a ser CIFRAS de solo lectura, no
+   * hay denunciar, y los comentarios se leen sin caja de escribir.
+   *
+   * SE ESCONDEN, NO SE DESACTIVAN, y es por MARCA.md: el voto es el círculo de `--df-action`, la
+   * ÚNICA acción de la pantalla; desactivado seguiría ocupando ese sitio sin hacer nada, y repetido
+   * en cada vídeo del scroll. La cifra cuenta lo mismo sin prometer nada. La seguridad sigue en el
+   * servidor (`mutatingRoute`): esto es que la pantalla no ofrezca lo que se va a negar.
+   */
+  soloMirar?: boolean;
   cursorInicial: string | null;
   /** ¿Hay sesión? Solo decide si el reproductor marca "visto" (un invitado no marca). El feed es
    *  público: esto NO oculta ni protege nada, y la seguridad real la aplica siempre el endpoint. */
@@ -796,6 +847,7 @@ export function FeedVertical({
               }}
               onNoDisponible={() => quitarPost(post.id)}
               onComentar={() => abrirComentarios(post.id)}
+              soloMirar={soloMirar}
             />
           ))}
         </div>
@@ -821,6 +873,7 @@ export function FeedVertical({
                 emailVerificado={emailVerificado}
                 onContador={alContador}
                 anclaComentario={post.id === videoAncla ? comentarioDestacado : undefined}
+                soloMirar={soloMirar}
               />
             );
           })()
@@ -834,6 +887,7 @@ export function FeedVertical({
           onContador={alContador}
           onCerrar={cerrarHoja}
           anclaComentario={postHoja.id === videoAncla ? comentarioDestacado : undefined}
+          soloMirar={soloMirar}
         />
       ) : null}
 

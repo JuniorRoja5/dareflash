@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
+import { soloMirar } from "@/lib/solo-mirar";
+
 import { PerfilVista } from "../../perfil/perfil-vista";
 
 export const dynamic = "force-dynamic";
@@ -44,8 +46,13 @@ export default async function PerfilPublicoPage({
   // sello y su color), esta de si el visitante puede dar un toque. Solo se consulta habiendo
   // sesión y si el perfil no es el suyo — un invitado no tiene de dónde ser VIP, y a uno mismo no
   // se toca. El botón que esto enciende es comodidad; quien decide es el servidor.
+  // Quien SOLO MIRA (cuenta de empresa, `soloMirar`) no toca: hoy no podría ser VIP de todos modos,
+  // pero la regla de "no se ofrecen controles de participación" es una, y no depende de esa casualidad.
   const yo = await getCurrentUser();
-  const puedeTocar = yo && yo.userId !== perfil.id ? await esVipActivoDe(prisma, yo.userId) : false;
+  const puedeTocar =
+    yo && !soloMirar(yo) && yo.userId !== perfil.id
+      ? await esVipActivoDe(prisma, yo.userId)
+      : false;
 
   const videos = perfil.videos.map((v) => ({
     id: v.id,

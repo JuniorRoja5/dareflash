@@ -1,5 +1,6 @@
 import { FeedVertical } from "@/components/feed/feed-vertical";
 import { PARAM_COMENTARIO, PARAM_VIDEO } from "@/lib/enlace-comentario";
+import { soloMirar } from "@/lib/solo-mirar";
 
 export const metadata = { title: "Feed · DareFlash" };
 export const dynamic = "force-dynamic";
@@ -68,6 +69,7 @@ export default async function FeedPage({
       emailVerificado={usuario?.emailVerified != null}
       comentarioDestacado={destino && comentario ? comentario : undefined}
       aviso={pedido && !destino ? "Ese vídeo ya no está disponible." : undefined}
+      soloMirar={soloMirar(usuario)}
     />
   );
 }

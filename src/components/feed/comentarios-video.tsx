@@ -6,7 +6,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Denunciar } from "@/components/ui/denunciar";
 import { NombreUsuario } from "@/components/ui/identidad-usuario";
-import { COMENTARIO_TEXTO_MAX } from "@/config/constants";
+import { COMENTARIO_TEXTO_MAX, MSG_EMPRESA_SOLO_MIRA } from "@/config/constants";
 import { delCsrf, getJson, mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { limpiarComentario } from "@/lib/comentarios";
 import { haceCuanto } from "@/lib/notificaciones";
@@ -30,6 +30,8 @@ type Carga = { estado: "cargando" } | { estado: "error" } | { estado: "listo" };
  *  - BORRAR: solo los propios (el servidor lo marca en `esMio`), con confirmación.
  *  - El CONTADOR del vídeo lo devuelve el servidor tras publicar o borrar, y se sube con `onContador`:
  *    el número del feed es el de la BD, no una suma hecha aquí.
+ *  - `soloMirar` (una cuenta de EMPRESA, ver `lib/solo-mirar`): lee igual, pero sin caja de escribir
+ *    —en su hueco, la línea que dice por qué— y sin denunciar. Ni "sé el primero".
  */
 export function ComentariosVideo({
   videoId,
@@ -38,9 +40,12 @@ export function ComentariosVideo({
   onContador,
   idCaja,
   anclaId,
+  soloMirar = false,
 }: {
   videoId: string;
   haySesion: boolean;
+  /** Una sesión que solo mira (cuenta de empresa): lee, no escribe ni denuncia. */
+  soloMirar?: boolean;
   /** ¿El correo de la sesión está verificado? Lo necesita el botón de denunciar, que aplica la MISMA
    *  regla que la ruta (`veredictoDenuncia`) para no ofrecer lo que la API va a rechazar. */
   emailVerificado?: boolean;
@@ -205,7 +210,7 @@ export function ComentariosVideo({
           </p>
         ) : lista.length === 0 ? (
           <p className="text-sm text-text-dim">
-            Aún no hay comentarios.{haySesion ? " Sé el primero." : ""}
+            Aún no hay comentarios.{haySesion && !soloMirar ? " Sé el primero." : ""}
           </p>
         ) : (
           <ul className="space-y-4">
@@ -271,7 +276,7 @@ export function ComentariosVideo({
                         Borrar
                       </button>
                     )
-                  ) : (
+                  ) : soloMirar ? null : (
                     // El de otra persona: denunciar. El botón decide si se ofrece con la misma regla
                     // que la ruta, y sobre lo propio no aparece (de eso se encarga `Denunciar`).
                     <Denunciar
@@ -301,7 +306,12 @@ export function ComentariosVideo({
       </div>
 
       <div className="shrink-0 border-t border-line p-3">
-        {haySesion ? (
+        {soloMirar ? (
+          // EN EL HUECO DE LA CAJA, la razón: una caja que falta sin más parece un fallo de carga.
+          <p data-solo-mirar className="px-1 py-2 text-center text-sm text-text-dim">
+            {MSG_EMPRESA_SOLO_MIRA}
+          </p>
+        ) : haySesion ? (
           <form onSubmit={(e) => void publicar(e)} className="flex items-end gap-2">
             <label className="min-w-0 flex-1">
               <span className="sr-only">Escribe un comentario</span>

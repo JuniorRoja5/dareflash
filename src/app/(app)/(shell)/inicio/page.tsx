@@ -10,6 +10,7 @@ import { Boton } from "@/components/ui/boton";
 import { FilaPuesto } from "@/components/ui/fila-puesto";
 import { FondoVideo } from "@/components/ui/fondo-video";
 import { ctaPrincipal } from "@/lib/cta-principal";
+import { soloMirar } from "@/lib/solo-mirar";
 
 import { BoostDestacados } from "./boost-destacados";
 import { HeroDestacado } from "./hero-destacado";
@@ -128,7 +129,7 @@ export default async function InicioPage() {
 
         {/* PERFILES DESTACADOS (Boost) */}
         <div className="df-rise mt-12 lg:mt-16" style={{ animationDelay: "80ms" }}>
-          <BoostDestacados perfiles={destacados} soloMirar={sesion?.esCuentaEmpresa ?? false} />
+          <BoostDestacados perfiles={destacados} soloMirar={soloMirar(sesion)} />
         </div>
 
         {/* MURO de retos + rail de ranking */}

@@ -34,8 +34,16 @@ export function PieLegal({
    * no se ve mirando el JSX—.
    */
   sobreNavMovil = false,
+  /**
+   * ¿Lo ve una CUENTA DE EMPRESA con sesión? Entonces sin "Para empresas" (Fase 9, P2): esa puerta
+   * lleva a registrar una empresa, y quien ya es una no tiene nada que hacer ahí. La pasa el shell,
+   * que es quien lee la sesión. `/privacidad` y `/entrar` no la pasan a propósito: son estáticas, y
+   * leer la sesión las volvería dinámicas en cada petición por un enlace del pie.
+   */
+  esCuentaEmpresa = false,
 }: {
   sobreNavMovil?: boolean;
+  esCuentaEmpresa?: boolean;
 }) {
   return (
     <footer
@@ -60,13 +68,16 @@ export function PieLegal({
         <span>Términos (pronto)</span>
         {/* LA PUERTA DEL NEGOCIO, en el pie de TODAS las páginas que lo montan. El alta de empresa
             estaba escondida —solo se llegaba escribiendo la dirección— y el pie es el sitio donde
-            se busca "para empresas" en cualquier web. Discreto, como el resto del pie. */}
-        <Link
-          href={ENLACE_PIE_EMPRESAS.href}
-          className="rounded-xs underline underline-offset-2 hover:text-text focus-visible:text-text"
-        >
-          {ENLACE_PIE_EMPRESAS.texto}
-        </Link>
+            se busca "para empresas" en cualquier web. Discreto, como el resto del pie. Fuera para
+            una cuenta de empresa: ya lo es. */}
+        {esCuentaEmpresa ? null : (
+          <Link
+            href={ENLACE_PIE_EMPRESAS.href}
+            className="rounded-xs underline underline-offset-2 hover:text-text focus-visible:text-text"
+          >
+            {ENLACE_PIE_EMPRESAS.texto}
+          </Link>
+        )}
       </div>
     </footer>
   );

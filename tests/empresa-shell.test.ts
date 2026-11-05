@@ -290,7 +290,7 @@ describe("el tipo de cuenta sale de la SESIÓN y llega a cada pieza", () => {
     );
     // Y la fila de destacados, sin sus puertas a pantallas de participante.
     expect(leer("src", "app", "(app)", "(shell)", "inicio", "page.tsx")).toMatch(
-      /soloMirar=\{sesion\?\.esCuentaEmpresa \?\? false\}/,
+      /soloMirar=\{soloMirar\(sesion\)\}/,
     );
   });
 
