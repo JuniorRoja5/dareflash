@@ -222,9 +222,9 @@ describe("verificar", () => {
   it("sella la fecha, firma quién y deja rastro", async () => {
     await alta();
     const { id } = await laEmpresa();
-    expect((await verificarEmpresa(prisma, { empresaId: id, actorId: admin })).estado).toBe(
-      "hecho",
-    );
+    expect(
+      (await verificarEmpresa(prisma, { empresaId: id, actorId: admin, appUrl: APP_URL })).estado,
+    ).toBe("hecho");
 
     const fila = await prisma.empresa.findUniqueOrThrow({ where: { id } });
     expect(fila.estado).toBe("VERIFICADA");
@@ -239,12 +239,12 @@ describe("verificar", () => {
   it("verificar lo ya verificado no escribe nada", async () => {
     await alta();
     const { id } = await laEmpresa();
-    await verificarEmpresa(prisma, { empresaId: id, actorId: admin });
+    await verificarEmpresa(prisma, { empresaId: id, actorId: admin, appUrl: APP_URL });
     const antes = (await prisma.empresa.findUniqueOrThrow({ where: { id } })).verificadaEn;
 
-    expect((await verificarEmpresa(prisma, { empresaId: id, actorId: admin })).estado).toBe(
-      "sin_cambios",
-    );
+    expect(
+      (await verificarEmpresa(prisma, { empresaId: id, actorId: admin, appUrl: APP_URL })).estado,
+    ).toBe("sin_cambios");
     expect(await rastroDe(id)).toHaveLength(1);
     expect((await prisma.empresa.findUniqueOrThrow({ where: { id } })).verificadaEn).toEqual(antes);
   });
@@ -253,11 +253,22 @@ describe("verificar", () => {
     await alta();
     const { id } = await laEmpresa();
     const sello = new Date("2027-01-15T10:00:00.000Z");
-    await verificarEmpresa(prisma, { empresaId: id, actorId: admin, ahora: sello });
-    await rechazarEmpresa(prisma, { empresaId: id, actorId: admin, motivo: "SOSPECHA_FRAUDE" });
     await verificarEmpresa(prisma, {
       empresaId: id,
       actorId: admin,
+      appUrl: APP_URL,
+      ahora: sello,
+    });
+    await rechazarEmpresa(prisma, {
+      empresaId: id,
+      actorId: admin,
+      appUrl: APP_URL,
+      motivo: "SOSPECHA_FRAUDE",
+    });
+    await verificarEmpresa(prisma, {
+      empresaId: id,
+      actorId: admin,
+      appUrl: APP_URL,
       ahora: new Date("2027-12-01T10:00:00.000Z"),
     });
 
@@ -269,7 +280,9 @@ describe("verificar", () => {
   });
 
   it("una empresa que no existe es un 404, no un 403", async () => {
-    expect(await verificarEmpresa(prisma, { empresaId: "no-existe", actorId: admin })).toEqual({
+    expect(
+      await verificarEmpresa(prisma, { empresaId: "no-existe", actorId: admin, appUrl: APP_URL }),
+    ).toEqual({
       estado: "rechazado",
       motivo: "NO_ENCONTRADA",
     });
@@ -283,6 +296,7 @@ describe("rechazar", () => {
     const r = await rechazarEmpresa(prisma, {
       empresaId: id,
       actorId: admin,
+      appUrl: APP_URL,
       motivo: "WEB_NO_VALIDA",
       nota: "El dominio no resuelve.",
     });
@@ -301,7 +315,12 @@ describe("rechazar", () => {
   it("el mismo rechazo dos veces no escribe un segundo rastro; cambiar el motivo sí", async () => {
     await alta();
     const { id } = await laEmpresa();
-    const entrada = { empresaId: id, actorId: admin, motivo: "DUPLICADA" as const };
+    const entrada = {
+      empresaId: id,
+      actorId: admin,
+      appUrl: APP_URL,
+      motivo: "DUPLICADA" as const,
+    };
     await rechazarEmpresa(prisma, entrada);
     expect((await rechazarEmpresa(prisma, entrada)).estado).toBe("sin_cambios");
     expect(await rastroDe(id)).toHaveLength(1);
@@ -320,6 +339,7 @@ describe("los DTO: quién ve qué", () => {
     await rechazarEmpresa(prisma, {
       empresaId: id,
       actorId: admin,
+      appUrl: APP_URL,
       motivo: "DATOS_INSUFICIENTES",
       nota: "Traza interna del equipo.",
     });
@@ -445,7 +465,7 @@ describe("la cola del panel", () => {
       });
       ids.push(ultima.id);
     }
-    await verificarEmpresa(prisma, { empresaId: ids[2]!, actorId: admin });
+    await verificarEmpresa(prisma, { empresaId: ids[2]!, actorId: admin, appUrl: APP_URL });
 
     const pendientes = await listarEmpresas(prisma, { estado: "PENDIENTE" });
     expect(pendientes.items.map((e) => e.id)).toEqual([ids[1], ids[0]]);

@@ -17,7 +17,7 @@ const ParamsSchema = z.object({ id: z.string().min(1).max(64) });
  * Idempotente: verificar lo ya verificado no vuelve a escribir rastro ni mueve `verificadaEn`.
  */
 export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
-  async (_req, { prisma }, { params }) => {
+  async (_req, { env, prisma }, { params }) => {
     const { requireRole } = await import("@/server/auth/rbac");
     const { verificarEmpresa } = await import("@/server/services/empresas");
 
@@ -31,7 +31,12 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
     const parsed = ParamsSchema.safeParse(await params);
     if (!parsed.success) return apiError("NOT_FOUND", MSG_EMPRESA_NO_ENCONTRADA, 404);
 
-    const r = await verificarEmpresa(prisma, { empresaId: parsed.data.id, actorId });
+    // `appUrl` para el enlace al portal del correo que avisa a la empresa (ver `avisarDecision`).
+    const r = await verificarEmpresa(prisma, {
+      empresaId: parsed.data.id,
+      actorId,
+      appUrl: env.APP_URL,
+    });
     if (r.estado === "rechazado") {
       return apiError("NOT_FOUND", MSG_EMPRESA_NO_ENCONTRADA, 404);
     }

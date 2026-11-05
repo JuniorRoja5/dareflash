@@ -30,7 +30,7 @@ const CuerpoSchema = z.object({
  * motivo y la misma nota no escribe nada; cambiar el motivo sí deja rastro (ver `rechazarEmpresa`).
  */
 export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
-  async (req, { prisma }, { params }) => {
+  async (req, { env, prisma }, { params }) => {
     const { requireRole } = await import("@/server/auth/rbac");
     const { rechazarEmpresa } = await import("@/server/services/empresas");
 
@@ -52,6 +52,7 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
       actorId,
       motivo: cuerpo.data.motivo,
       nota: cuerpo.data.nota ?? null,
+      appUrl: env.APP_URL,
     });
     if (r.estado === "rechazado") {
       return apiError("NOT_FOUND", MSG_EMPRESA_NO_ENCONTRADA, 404);

@@ -99,6 +99,23 @@ const Patrocinios: Icono = (p) => (
   </Svg>
 );
 
+/**
+ * EMPRESAS — un escaparate: toldo arriba y puerta abajo. Es «un negocio», no una persona (eso es
+ * Usuarios) ni un trato (eso es Patrocinios, el apretón de manos); a 20 px tiene que distinguirse de
+ * los dos, que es la única prueba que importa en una barra lateral.
+ *
+ * Faltaba: la sección nació sin icono y la barra la pintaba con un hueco a la izquierda. Hay test de
+ * que toda sección tiene el suyo, para que la próxima no nazca igual.
+ */
+const Empresas: Icono = (p) => (
+  <Svg {...p}>
+    <path d="M4 9.5 5.5 4h13L20 9.5" />
+    <path d="M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0" />
+    <path d="M5.5 12v8h13v-8" />
+    <path d="M10 20v-4.5h4V20" />
+  </Svg>
+);
+
 /** Icono por `href` de sección. Fuente única para la barra lateral. */
 export const ICONO_SECCION: Record<string, Icono> = {
   "/panel": Resumen,
@@ -108,6 +125,7 @@ export const ICONO_SECCION: Record<string, Icono> = {
   "/panel/monedero": Monedero,
   "/panel/boost": Boost,
   "/panel/patrocinios": Patrocinios,
+  "/panel/empresas": Empresas,
   "/panel/ranking": Ranking,
   "/panel/notificaciones": Notificaciones,
 };

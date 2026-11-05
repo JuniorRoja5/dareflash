@@ -2,13 +2,10 @@ import Link from "next/link";
 
 import {
   ETIQUETA_ESTADO_EMPRESA,
-  ETIQUETA_TIPO_CUENTA,
   ETIQUETA_TIPO_NEGOCIO,
   EstadoEmpresaSchema,
-  MSG_MOTIVO_RECHAZO_EMPRESA,
   type EstadoEmpresa,
 } from "@/config/constants";
-import { alcancesPermitidos } from "@/lib/empresa";
 import {
   anterior,
   escribirPila,
@@ -21,8 +18,7 @@ import { nombrePais } from "@/lib/paises";
 import { requireSeccion } from "../panel-guard";
 import { seccionPorHref } from "../secciones";
 
-import { AccionesEmpresa } from "./acciones-empresa";
-import { VerFiscal } from "./ver-fiscal";
+import { FichaEmpresa } from "./ficha";
 
 const S = seccionPorHref("/panel/empresas")!;
 
@@ -30,12 +26,15 @@ export const metadata = { title: "Empresas · Panel" };
 // Lee la sesión y consulta según el filtro: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 
+/** Los mismos controles, cabeceras y título que `/panel/usuarios`: es la sección hermana (cola + ficha). */
+const CONTROL =
+  "min-h-[38px] rounded-sm border border-line bg-surface px-3 text-sm text-text focus:outline-none";
 const CABECERA = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
 const ESTILO_TITULO = {
   fontFamily: "var(--font-display)",
   fontVariationSettings: '"wght" 720, "wdth" 112',
 } as const;
-const FECHA = { day: "2-digit", month: "2-digit", year: "numeric" } as const;
+const FECHA = { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" } as const;
 const PILDORA = "rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim";
 const PASO =
   "inline-block min-h-[38px] rounded-sm border border-line px-4 py-2 text-sm font-medium text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised";
@@ -69,26 +68,47 @@ function enlace(
   return s ? `/panel/empresas?${s}` : "/panel/empresas";
 }
 
-function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+/**
+ * EL ESTADO VACÍO DICE QUÉ APARECERÁ AQUÍ Y CUÁNDO, no solo que no hay nada. Una cola vacía sin
+ * explicación se lee como «esto no funciona»; una que dice de dónde vienen las filas y cómo te vas a
+ * enterar se lee como «todavía no ha pasado».
+ */
+function TextoVacio({ estado, paginando }: { estado: EstadoEmpresa | null; paginando: boolean }) {
+  // En una página posterior, "vacío" es que se acabaron (o que alguien cambió de estado mientras se
+  // hojeaba). Decirlo distinto evita que el admin crea que su filtro no vale.
+  if (paginando) return <>No quedan más empresas por aquí.</>;
+  if (estado === "PENDIENTE") {
+    return (
+      <>
+        No hay ninguna empresa esperando. Cuando alguien se registre desde «Para empresas» aparecerá
+        aquí, y te enterarás sin buscarla: por el número junto a «Empresas» en la barra, por el
+        indicador de la cabecera y por un correo.
+      </>
+    );
+  }
+  if (estado)
+    return <>Ninguna empresa en estado «{ETIQUETA_ESTADO_EMPRESA[estado].toLowerCase()}».</>;
   return (
-    <div className="flex min-w-0 gap-2">
-      <dt className="shrink-0 text-text-dim">{etiqueta}</dt>
-      <dd className="min-w-0 break-words text-text">{valor}</dd>
-    </div>
+    <>
+      Todavía no se ha registrado ninguna empresa. Las que lo hagan desde «Para empresas» llegarán
+      pendientes, y no podrán hacer nada en su portal hasta que las verifiques aquí.
+    </>
   );
 }
 
 /**
  * /panel/empresas — LA COLA DE VERIFICACIÓN y la FICHA de cada empresa.
  *
- * TODO POR URL, como el resto del panel: `?estado=` filtra, `?cursor=`/`?pila=` paginan y `?e=`
- * abre una ficha. Sin estado de cliente no hay nada que se desincronice y un enlace a una ficha se
- * puede pegar en una conversación.
+ * MISMA ESTRUCTURA QUE `/panel/usuarios`, que es la sección hermana: título y descripción de la
+ * sección, filtro por GET, la ficha arriba cuando se abre una (`?e=`), la lista, y la paginación. Y
+ * los mismos controles y clases. Un admin no tiene que reaprender cada pantalla del panel.
  *
- * LA DECISIÓN SE TOMA EN LA FICHA, no en la lista, y por una razón concreta: la IDENTIFICACIÓN
- * FISCAL solo se enseña ahí, de una en una. En una marca personal es el documento de una persona,
- * así que no entra en un listado de veinticinco, ni en ningún correo, ni en el `AuditLog`.
- * Tampoco el correo del dueño, que sigue teniendo su única puerta en la ficha de la cuenta.
+ * TODO POR URL: `?estado=` filtra, `?cursor=`/`?pila=` paginan y `?e=` abre una ficha. Sin estado
+ * de cliente no hay nada que se desincronice y un enlace a una ficha se puede pegar en una
+ * conversación. La tarjeta del Resumen enlaza aquí con `?estado=PENDIENTE`.
+ *
+ * LA DECISIÓN SE TOMA EN LA FICHA, no en la lista: ahí están todos los datos con los que se
+ * verifica. La identificación fiscal tampoco sale en la ficha: se pide, y pedirla deja rastro.
  *
  * PAGINADO POR KEYSET, nunca `OFFSET`: «Anterior» tiene que costar lo mismo que «Siguiente» (ver
  * `lib/paginacion-pila`), y los controles viven fuera del `if` de la lista para que una página
@@ -132,11 +152,7 @@ export default async function PaginaEmpresas({
       <form method="GET" className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1">
           <span className={CABECERA}>Estado</span>
-          <select
-            name="estado"
-            defaultValue={estado ?? ""}
-            className="min-h-[38px] rounded-sm border border-line bg-surface px-3 text-sm text-text focus:outline-none"
-          >
+          <select name="estado" defaultValue={estado ?? ""} className={CONTROL}>
             <option value="">Todas</option>
             {EstadoEmpresaSchema.options.map((e) => (
               <option key={e} value={e}>
@@ -147,115 +163,62 @@ export default async function PaginaEmpresas({
         </label>
         <button
           type="submit"
-          className="min-h-[38px] rounded-sm border border-line bg-surface px-3 text-sm font-medium text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised"
+          className={`${CONTROL} font-medium transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised`}
         >
           Aplicar
         </button>
       </form>
 
-      {ficha ? (
-        <section
-          aria-label={`Ficha de ${ficha.nombre}`}
-          className="rounded-sm border border-line bg-surface p-5"
-          data-ficha={ficha.id}
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg text-text">{ficha.nombre}</h2>
-            <span className={PILDORA}>{ETIQUETA_ESTADO_EMPRESA[ficha.estado]}</span>
-            <span className={PILDORA}>{ETIQUETA_TIPO_CUENTA[ficha.tipoCuenta]}</span>
-            <span className={PILDORA}>{ETIQUETA_TIPO_NEGOCIO[ficha.tipoNegocio]}</span>
-          </div>
-
-          <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-            <Dato etiqueta="Dueño" valor={ficha.dueno ? `@${ficha.dueno}` : "—"} />
-            <Dato etiqueta="Contacto" valor={ficha.personaContacto} />
-            <Dato etiqueta="País" valor={nombrePais(ficha.paisIso)} />
-            {ficha.ciudadTexto ? <Dato etiqueta="Ciudad" valor={ficha.ciudadTexto} /> : null}
-            {ficha.webUrl ? <Dato etiqueta="Web" valor={ficha.webUrl} /> : null}
-            {ficha.redes ? <Dato etiqueta="Redes" valor={ficha.redes} /> : null}
-            {ficha.direccion ? <Dato etiqueta="Dirección" valor={ficha.direccion} /> : null}
-            <Dato
-              etiqueta="Puede comprar"
-              valor={alcancesPermitidos(ficha.tipoNegocio)
-                .map((a) => a.toLowerCase())
-                .join(", ")}
-            />
-            {/* LA IDENTIFICACIÓN FISCAL NO SE PINTA: se pide, y pedirla deja rastro. Aquí solo se
-                dice SI la hay, que es lo que el admin necesita saber para decidir si la mira. */}
-            {ficha.tieneFiscal ? (
-              <div className="flex min-w-0 flex-wrap gap-2 sm:col-span-2">
-                <dt className="shrink-0 text-text-dim">Id. fiscal</dt>
-                <dd className="min-w-0">
-                  <VerFiscal empresaId={ficha.id} />
-                </dd>
-              </div>
-            ) : null}
-            {ficha.verificadaMs !== null ? (
-              <Dato
-                etiqueta="Verificada"
-                valor={`${new Date(ficha.verificadaMs).toLocaleDateString("es-ES", FECHA)}${
-                  ficha.verificadaPor ? ` · @${ficha.verificadaPor}` : ""
-                }`}
-              />
-            ) : null}
-          </dl>
-
-          {ficha.motivoRechazo ? (
-            <p className="mt-3 text-sm text-text">
-              <span className="text-text-dim">Motivo (lo ve la empresa): </span>
-              {MSG_MOTIVO_RECHAZO_EMPRESA[ficha.motivoRechazo]}
-            </p>
-          ) : null}
-          {ficha.notaInterna ? (
-            <p className="mt-1 text-sm text-text-dim">
-              <span className={CABECERA}>Nota interna</span> {ficha.notaInterna}
-            </p>
-          ) : null}
-
-          <AccionesEmpresa id={ficha.id} nombre={ficha.nombre} />
-        </section>
-      ) : null}
+      {ficha ? <FichaEmpresa ficha={ficha} /> : null}
       {fichaId && !ficha ? <p className="text-sm text-text-dim">Esa empresa no existe.</p> : null}
 
       <section aria-label="Empresas">
         {pagina.items.length === 0 ? (
-          <p className="text-sm text-text-dim">
-            {/* Estar en una página posterior y no encontrar nada NO es «no hay empresas»: es que se
-                acabaron. Decirlo distinto evita que el admin crea que su filtro no vale. */}
-            {aqui.cursor !== null
-              ? "No quedan más empresas por aquí."
-              : estado
-                ? "Ninguna empresa en ese estado."
-                : "Todavía no se ha registrado ninguna empresa."}
+          <p className="max-w-prose text-sm text-text-dim">
+            <TextoVacio estado={estado} paginando={aqui.cursor !== null} />
           </p>
         ) : (
-          <ul className="divide-y divide-line rounded-sm border border-line bg-surface">
-            {pagina.items.map((e) => (
-              <li key={e.id} data-empresa={e.id}>
-                <Link
-                  href={enlace(ctx, { ficha: e.id, paginacion: aqui })}
-                  aria-current={e.id === fichaId ? "true" : undefined}
-                  className={`flex flex-wrap items-center gap-3 p-4 transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised ${
-                    e.id === fichaId ? "bg-raised" : ""
-                  }`}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-text">{e.nombre}</span>
-                    <span className="block truncate text-2xs text-text-dim">
-                      {ETIQUETA_TIPO_NEGOCIO[e.tipoNegocio]} · {nombrePais(e.paisIso)} ·{" "}
-                      {e.personaContacto}
+          <>
+            {/* Las cifras de la derecha no se entienden solas. La cabecera se oculta en móvil, donde
+                las filas se apilan y una rejilla de columnas no tiene a qué alinearse. */}
+            <p className="hidden flex-wrap justify-end gap-3 pr-4 sm:flex">
+              <span className={`w-24 text-right ${CABECERA}`}>Estado</span>
+              <span className={`w-24 text-right ${CABECERA}`}>Alta</span>
+            </p>
+            <ul className="mt-2 divide-y divide-line rounded-sm border border-line bg-surface">
+              {pagina.items.map((e) => (
+                <li key={e.id} data-empresa={e.id}>
+                  <Link
+                    href={enlace(ctx, { ficha: e.id, paginacion: aqui })}
+                    aria-current={e.id === fichaId ? "true" : undefined}
+                    className={`flex flex-wrap items-center gap-3 p-4 transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised ${
+                      e.id === fichaId ? "bg-raised" : ""
+                    }`}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-text">
+                        {e.nombre}
+                      </span>
+                      <span className="block truncate text-2xs text-text-dim">
+                        {ETIQUETA_TIPO_NEGOCIO[e.tipoNegocio]} · {nombrePais(e.paisIso)} ·{" "}
+                        {e.personaContacto}
+                      </span>
                     </span>
-                  </span>
-                  <span className={PILDORA}>{ETIQUETA_ESTADO_EMPRESA[e.estado]}</span>
-                  <span className="w-24 text-right text-2xs text-text-dim tabular-nums">
-                    {new Date(e.creadaMs).toLocaleDateString("es-ES", FECHA)}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                    <span className={`w-24 text-center ${PILDORA}`}>
+                      {ETIQUETA_ESTADO_EMPRESA[e.estado]}
+                    </span>
+                    <span className="w-24 text-right text-2xs text-text-dim tabular-nums">
+                      {new Date(e.creadaMs).toLocaleDateString("es-ES", FECHA)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
 
+        {/* PASAR DE PÁGINA, no "cargar más". Fuera del `if` de la lista a propósito: si una página
+            posterior se queda vacía, "Anterior" tiene que seguir ahí. */}
         {atras || adelante ? (
           <nav aria-label="Paginación" className="mt-6 flex items-center justify-between gap-3">
             {atras ? (

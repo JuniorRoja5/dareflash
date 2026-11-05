@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { ImportePremio } from "@/components/ui/importe-premio";
 
 /**
@@ -26,14 +28,21 @@ export function TarjetaMetrica({
   valor,
   etiqueta,
   nota,
+  href,
 }: {
   valor: number;
   etiqueta: string;
   /** Matiz opcional bajo la cifra (p.ej. de qué se está contando exactamente). */
   nota?: string;
+  /**
+   * A dónde se va para ATENDER lo que cuenta (p.ej. la cola filtrada). Opcional: un inventario no
+   * lleva a ningún sitio, pero una tarjeta de «pendiente de ti» que no lleva a la cola obliga a
+   * buscarla, que es justo lo que la tarjeta existe para evitar.
+   */
+  href?: string;
 }) {
-  return (
-    <div className="rounded-sm border border-line bg-surface/60 p-5 shadow-[var(--df-shadow-md)]">
+  const cuerpo = (
+    <>
       <p className="text-3xl leading-none tabular-nums text-text" style={ESTILO_CIFRA}>
         {valor.toLocaleString("es-ES")}
       </p>
@@ -41,7 +50,18 @@ export function TarjetaMetrica({
         {etiqueta}
       </p>
       {nota ? <p className="mt-1 text-2xs text-text-dim">{nota}</p> : null}
-    </div>
+    </>
+  );
+  const marco = "rounded-sm border border-line bg-surface/60 p-5 shadow-[var(--df-shadow-md)]";
+  return href ? (
+    <Link
+      href={href}
+      className={`block ${marco} transition-colors duration-150 ease-mechanical hover:bg-surface`}
+    >
+      {cuerpo}
+    </Link>
+  ) : (
+    <div className={marco}>{cuerpo}</div>
   );
 }
 

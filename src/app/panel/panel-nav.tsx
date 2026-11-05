@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { pendientesDeSeccion, type PendientesPanel } from "@/lib/pendientes-panel";
+
+import { InsigniaPendientes } from "./insignia-pendientes";
 import { ICONO_SECCION } from "./panel-iconos";
 import { seccionActiva, seccionesPara } from "./secciones";
 
@@ -10,9 +13,13 @@ import { seccionActiva, seccionesPara } from "./secciones";
  * Navegación del panel. Barra lateral persistente en escritorio (icono + etiqueta, columna vertical);
  * en móvil, fila horizontal desplazable dentro del área. Resalta la sección activa (`seccionActiva`) sin
  * usar el acento —reservado a la ACCIÓN principal de cada pantalla—: el activo es fondo elevado + texto
- * pleno + una barra fina a la izquierda. Reutilizable, sin datos.
+ * pleno + una barra fina a la izquierda.
+ *
+ * LA INSIGNIA de cada sección dice cuántas cosas esperan una decisión ahí (`pendientes`, que calcula
+ * el layout). No la calcula esta barra: es un componente de cliente, y la cifra tiene que salir de la
+ * MISMA consulta que la cola de la sección, que vive en el servidor.
  */
-export function PanelNav({ rol }: { rol: string }) {
+export function PanelNav({ rol, pendientes }: { rol: string; pendientes: PendientesPanel }) {
   const pathname = usePathname();
   // Lo que se enseña sale de la MISMA lista que aplica el guard de cada página (`secciones.ts`): así
   // la barra no puede ofrecer una sección que luego responde 404.
@@ -42,6 +49,12 @@ export function PanelNav({ rol }: { rol: string }) {
               />
             ) : null}
             <span className="whitespace-nowrap">{s.label}</span>
+            <span className="ml-auto pl-1">
+              <InsigniaPendientes
+                n={pendientesDeSeccion(s.href, pendientes, rol)}
+                etiqueta={`${pendientesDeSeccion(s.href, pendientes, rol)} pendientes en ${s.label}`}
+              />
+            </span>
           </Link>
         );
       })}

@@ -37,6 +37,7 @@ import {
   EMPRESA_WEB_MAX,
   MSG_EMPRESA_DATOS_INVALIDOS,
   MSG_EMPRESA_WEB_O_REDES,
+  MSG_MOTIVO_RECHAZO_EMPRESA,
   TITULO_AVISO_EMPRESA_NUEVA,
   msgAvisoEmpresaNueva,
   type AuditAccionEmpresa,
@@ -61,6 +62,7 @@ import {
   esViolacionUnicaDeUsername,
 } from "@/server/auth/registration";
 import type { Db } from "@/server/db/types";
+import { renderCorreoHtml } from "@/server/email/plantilla";
 import { enqueueEmail } from "@/server/email/send";
 import { avisarCuentaExistente } from "@/server/services/aviso-cuenta-existente";
 import { requestEmailVerification } from "@/server/services/email-verification";
@@ -431,12 +433,27 @@ export interface PaginaEmpresas {
  * spread se comería una de las dos ramas SIN AVISAR y la página 2 dejaría de filtrar lo que
  * filtraba la 1. Cuesta lo mismo hacerlo bien desde el principio.
  */
+/**
+ * EL FILTRO DE LA COLA, en un solo sitio. Lo usan la LISTA (`listarEmpresas`) y el CONTADOR
+ * (`contarEmpresas`), y es lo que hace que el número de la insignia y las filas de la cola no puedan
+ * discrepar: si mañana «pendiente» pasa a excluir algo, cambia aquí y cambian los dos. Dos `where`
+ * escritos a mano acabarían diciendo «3 por verificar» sobre una cola de 2.
+ */
+export function filtroEmpresas(estado: EstadoEmpresa | null | undefined): { estado?: string } {
+  return estado ? { estado } : {};
+}
+
+/** Cuántas hay en ese estado. Lee EL MISMO filtro que la cola (ver `filtroEmpresas`). */
+export function contarEmpresas(db: Db, estado: EstadoEmpresa): Promise<number> {
+  return db.empresa.count({ where: filtroEmpresas(estado) });
+}
+
 export async function listarEmpresas(
   db: Db,
   opciones: { estado?: EstadoEmpresa | null; cursor?: string | null; limite?: number } = {},
 ): Promise<PaginaEmpresas> {
   const limite = Math.min(Math.max(opciones.limite ?? EMPRESAS_PAGINA, 1), 50);
-  const filtro = opciones.estado ? { estado: opciones.estado } : {};
+  const filtro = filtroEmpresas(opciones.estado);
 
   const filas = await db.empresa.findMany({
     where: conKeysetTiempo(filtro, decodificarCursorTiempo(opciones.cursor)),
@@ -631,8 +648,8 @@ async function anotar(
     empresaId: string;
     metadata?: Record<string, string>;
   },
-): Promise<void> {
-  await tx.auditLog.create({
+): Promise<string> {
+  const fila = await tx.auditLog.create({
     data: {
       actorId: entrada.actorId,
       action: entrada.accion,
@@ -640,7 +657,70 @@ async function anotar(
       targetId: entrada.empresaId,
       metadata: entrada.metadata ?? {},
     },
+    select: { id: true },
   });
+  // Se devuelve el id porque es la clave natural de "ESTE cambio": el correo que avisa a la empresa
+  // de una verificación o un rechazo se ata a él, así que una vuelta (rechazo → verificación) son
+  // dos correos —dos hechos— y un reintento del mismo cambio es uno.
+  return fila.id;
+}
+
+/**
+ * LO QUE LE CONTAMOS A LA EMPRESA cuando decidimos. Existe porque el portal y el alta le PROMETEN
+ * «te escribimos en cuanto esté», y verificar o rechazar no enviaba nada: otra pantalla diciendo
+ * algo que no era verdad. Va en la MISMA transacción que el cambio de estado —el aviso sin el hecho,
+ * o el hecho sin el aviso, son los dos huecos de siempre— y por la cola, con la clave atada a la fila
+ * de `AuditLog` de ese cambio.
+ *
+ * EL MOTIVO SÍ, LA NOTA NO: el correo de rechazo lleva el motivo de la lista cerrada (es lo que ve en
+ * su portal) y jamás la nota interna. Tampoco quién lo decidió.
+ */
+async function avisarDecision(
+  tx: Db,
+  entrada: {
+    empresaId: string;
+    decision: "VERIFICADA" | "RECHAZADA";
+    motivo?: MotivoRechazoEmpresa;
+    claveCambio: string;
+    appUrl: string;
+    ahora: Date;
+  },
+): Promise<void> {
+  const e = await tx.empresa.findUnique({
+    where: { id: entrada.empresaId },
+    select: { nombre: true, user: { select: { email: true } } },
+  });
+  // Una cuenta sin correo (anonimizada) no tiene a quién avisar. No es un error de la decisión.
+  if (!e?.user.email) return;
+
+  const portal = new URL("/empresa", entrada.appUrl).toString();
+  const verificada = entrada.decision === "VERIFICADA";
+  const titulo = verificada ? "Tu empresa está verificada" : "No hemos podido verificar tu empresa";
+  const cuerpo = verificada
+    ? `Hemos revisado ${e.nombre} y está verificada. Ya puedes usar tu portal.`
+    : `Hemos revisado ${e.nombre} y no hemos podido verificarla. ${
+        entrada.motivo ? MSG_MOTIVO_RECHAZO_EMPRESA[entrada.motivo] : ""
+      }`.trim();
+  const nota = verificada
+    ? "Lo que se puede hacer desde el portal irá creciendo."
+    : "Si crees que es un error, contesta a este correo y lo miramos otra vez.";
+
+  await enqueueEmail(
+    tx,
+    {
+      to: e.user.email,
+      subject: titulo,
+      text: [cuerpo, "", `Tu portal: ${portal}`, "", nota].join("\n"),
+      html: renderCorreoHtml({
+        preheader: cuerpo,
+        titulo,
+        intro: cuerpo,
+        cta: { texto: "Ir a mi portal", href: portal },
+        notas: [nota],
+      }),
+    },
+    { idempotencyKey: `empresa-decision:${entrada.claveCambio}`, runAt: entrada.ahora },
+  );
 }
 
 async function estadoActual(
@@ -669,7 +749,8 @@ async function estadoActual(
  */
 export async function verificarEmpresa(
   db: PrismaClient,
-  entrada: { empresaId: string; actorId: string; ahora?: Date },
+  /** `appUrl` es OBLIGATORIO: sin él no hay enlace al portal en el correo que avisa a la empresa. */
+  entrada: { empresaId: string; actorId: string; appUrl: string; ahora?: Date },
 ): Promise<ResultadoEmpresa> {
   const actual = await estadoActual(db, entrada.empresaId);
   if (!actual) return { estado: "rechazado", motivo: "NO_ENCONTRADA" };
@@ -688,11 +769,19 @@ export async function verificarEmpresa(
         motivoRechazo: null,
       },
     });
-    await anotar(tx, {
+    const cambio = await anotar(tx, {
       accion: "EMPRESA_VERIFY",
       actorId: entrada.actorId,
       empresaId: entrada.empresaId,
       metadata: { de: actual.estado },
+    });
+    // Lo prometido en su portal: «te escribimos en cuanto esté».
+    await avisarDecision(tx, {
+      empresaId: entrada.empresaId,
+      decision: "VERIFICADA",
+      claveCambio: cambio,
+      appUrl: entrada.appUrl,
+      ahora,
     });
   });
   return { estado: "hecho" };
@@ -712,6 +801,8 @@ export async function rechazarEmpresa(
     actorId: string;
     motivo: MotivoRechazoEmpresa;
     nota?: string | null;
+    /** OBLIGATORIO: sin él no hay enlace al portal en el correo que avisa a la empresa. */
+    appUrl: string;
   },
 ): Promise<ResultadoEmpresa> {
   const actual = await estadoActual(db, entrada.empresaId);
@@ -736,7 +827,7 @@ export async function rechazarEmpresa(
         verificadaPor: entrada.actorId,
       },
     });
-    await anotar(tx, {
+    const cambio = await anotar(tx, {
       accion: "EMPRESA_REJECT",
       actorId: entrada.actorId,
       empresaId: entrada.empresaId,
@@ -744,6 +835,20 @@ export async function rechazarEmpresa(
       // libre que ya vive en su columna, y así no hay dos copias que puedan discrepar.
       metadata: { motivo: entrada.motivo, de: actual.estado },
     });
+    // SE AVISA SI CAMBIÓ LO QUE LA EMPRESA VE (el estado o el motivo). Si solo cambió la nota
+    // interna, para ella no ha pasado nada —no la ve— y otro «no hemos podido verificarte» sería
+    // ruido que parece una segunda decisión.
+    const cambioVisible = actual.estado !== "RECHAZADA" || actual.motivoRechazo !== entrada.motivo;
+    if (cambioVisible) {
+      await avisarDecision(tx, {
+        empresaId: entrada.empresaId,
+        decision: "RECHAZADA",
+        motivo: entrada.motivo,
+        claveCambio: cambio,
+        appUrl: entrada.appUrl,
+        ahora: new Date(),
+      });
+    }
   });
   return { estado: "hecho" };
 }

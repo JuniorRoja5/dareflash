@@ -11,8 +11,9 @@ import {
 } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 
+/** La MISMA clase que los botones de la ficha de una cuenta (`usuarios/acciones-cuenta`). */
 const BOTON =
-  "min-h-[36px] rounded-sm border border-line px-3 text-sm font-medium text-text transition-colors duration-150 ease-mechanical hover:bg-raised disabled:opacity-40";
+  "min-h-[36px] rounded-sm border border-line px-3 text-sm font-medium text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised disabled:opacity-40";
 const CONTROL =
   "min-h-[36px] rounded-sm border border-line bg-raised px-2 text-sm text-text focus:outline-none";
 
@@ -71,7 +72,9 @@ export function AccionesEmpresa({ id, nombre }: { id: string; nombre: string }) 
   }
 
   return (
-    <div className="mt-3">
+    // El pie con el filete lo pone la ficha; aquí solo el contenido, alineado a la derecha como en
+    // la ficha de una cuenta. El formulario del rechazo ocupa todo el ancho porque es un formulario.
+    <div className="w-full sm:w-auto">
       {panel === "rechazo" ? (
         <div role="group" aria-label={`Rechazar ${nombre}`} className="space-y-2">
           <label className="block text-2xs font-semibold tracking-widest text-text-dim uppercase">
@@ -99,7 +102,7 @@ export function AccionesEmpresa({ id, nombre }: { id: string; nombre: string }) 
               className="mt-1 w-full rounded-sm border border-line bg-raised px-2 py-1.5 text-sm font-normal tracking-normal text-text normal-case"
             />
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               disabled={enviando}
@@ -125,7 +128,7 @@ export function AccionesEmpresa({ id, nombre }: { id: string; nombre: string }) 
           </div>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <button
             type="button"
             disabled={enviando}

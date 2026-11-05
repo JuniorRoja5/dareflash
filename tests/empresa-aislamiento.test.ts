@@ -140,7 +140,11 @@ describe("con dos empresas de verdad en la base de datos", () => {
   it("y sigue siendo la de A aunque B sea la más reciente Y la única verificada", async () => {
     // El caso que cazaría un `findFirst` sin `where`: B es la que saldría "primera" por cualquier
     // orden natural (más nueva, verificada), así que si el ámbito se perdiera, se vería aquí.
-    await verificarEmpresa(prisma, { empresaId: empresaB, actorId: admin });
+    await verificarEmpresa(prisma, {
+      empresaId: empresaB,
+      actorId: admin,
+      appUrl: "https://dareflash.com",
+    });
     const suya = await miEmpresa(prisma, empresaA);
     expect(suya?.id).toBe(empresaA);
     expect(suya?.estado).toBe("PENDIENTE");
@@ -227,6 +231,10 @@ const CLASIFICADAS: Record<string, "clave" | "chokepoint" | "alta" | "ambito" | 
   verificarEmpresa: "ambito",
   rechazarEmpresa: "ambito",
   listarEmpresas: "panel",
+  // El filtro de la cola y su contador: del PANEL, no del portal. No reciben ni `userId` ni
+  // `empresaId` porque cuentan TODAS las empresas en un estado —es la cola del admin—.
+  filtroEmpresas: "panel",
+  contarEmpresas: "panel",
 };
 
 describe("el censo de superficies del portal", () => {

@@ -38,9 +38,16 @@ export default async function ResumenPage() {
 
   const { prisma } = await import("@/server/db/client");
   const { metricasDinero, metricasPanel } = await import("@/server/services/panel-metricas");
+  const { pendientesPanel } = await import("@/server/services/pendientes-panel");
   // LAS DOS, Y POR SEPARADO. El dinero es una llamada explícita desde una pantalla que YA ha pasado
   // el guard de ADMIN (arriba): un moderador no llega aquí, lo desvía `primeraSeccionPara`.
-  const [m, dinero] = await Promise.all([metricasPanel(prisma), metricasDinero(prisma)]);
+  // Y lo pendiente sale de `pendientesPanel`, la MISMA función que pinta la insignia de la barra y el
+  // total de la cabecera: las tres cifras no pueden discrepar.
+  const [m, dinero, pendientes] = await Promise.all([
+    metricasPanel(prisma),
+    metricasDinero(prisma),
+    pendientesPanel(prisma, quienMira.role),
+  ]);
 
   // Los accesos que se pintan son los que ese rol alcanza (aunque aquí, hoy, siempre sea el admin).
   const secciones = seccionesPara(quienMira.role).filter((s) => s.href !== "/panel");
@@ -64,14 +71,22 @@ export default async function ResumenPage() {
 
       {/* ┌─ LO QUE PIDE UNA DECISIÓN, ARRIBA ──────────────────────────────────────────────────────┐
           │ Una portada de panel que empieza por "retos en total" cuenta el inventario; esto empieza │
-          │ por la COLA: retiradas que esperan una firma, denuncias sin revisar, empates sin         │
-          │ resolver. Son las tres cosas que, si nadie las mira hoy, alguien nota mañana.            │
+          │ por la COLA: empresas por verificar, retiradas que esperan una firma, denuncias sin      │
+          │ revisar, empates sin resolver. Lo que, si nadie lo mira hoy, alguien nota mañana.        │
           └─────────────────────────────────────────────────────────────────────────────────────────┘ */}
       <section>
         <h2 className="mb-3 text-sm font-semibold tracking-widest text-text-dim uppercase">
           Pendiente de ti
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {/* PRIMERA, porque es la que bloquea a alguien de FUERA: una empresa que se registró y no
+              puede hacer nada hasta que la miremos. Lleva a la cola YA FILTRADA por pendientes. */}
+          <TarjetaMetrica
+            valor={pendientes.empresas}
+            etiqueta="Empresas por verificar"
+            nota="Esperan una revisión a mano"
+            href="/panel/empresas?estado=PENDIENTE"
+          />
           <TarjetaMetrica
             valor={dinero.retiradasPendientes}
             etiqueta="Retiradas por revisar"
