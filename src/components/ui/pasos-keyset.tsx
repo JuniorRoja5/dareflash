@@ -2,8 +2,13 @@ import Link from "next/link";
 
 import { anterior, enlacePaginado, siguiente, type Paginacion } from "@/lib/paginacion-pila";
 
+/**
+ * 44 px por debajo de escritorio (el mínimo táctil del brief) y 38 con ratón, donde el panel y las
+ * listas son más densos. `inline-flex` + `items-center` y no `inline-block` + `py-2`: con la altura
+ * mínima subida, el relleno fijo dejaba el texto pegado arriba (fase9-diseno).
+ */
 const PASO =
-  "inline-block min-h-[38px] rounded-sm border border-line px-4 py-2 text-sm font-medium text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised";
+  "inline-flex min-h-[44px] items-center gap-1.5 rounded-sm border border-line px-4 text-sm font-medium text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised lg:min-h-[38px]";
 
 /**
  * ANTERIOR / SIGUIENTE de una lista por KEYSET. Pasar de página, no acumular: la lista se REEMPLAZA.
