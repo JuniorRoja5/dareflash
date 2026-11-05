@@ -236,7 +236,10 @@ describe("escritorio: sin números mágicos ni hueco muerto", () => {
     expect(src.match(/<ComentariosVideo\b/g)?.length).toBe(2); // panel de escritorio + hoja de móvil
     expect(src).not.toContain("COMENTARIOS_FEED");
     expect(src).not.toContain("Próximamente");
-    // Y el contador de "Comentar" es el del vídeo, no un 0 fijo.
-    expect(src).toMatch(/label="Comentar"\s+valor=\{post\.comentarios\}/);
+    // Y el contador de "Comentar" es el del vídeo, no un 0 fijo. (El texto cambia a "Ver comentarios"
+    // para quien solo mira —cuenta de empresa, Fase 9 P2—; el contador es el mismo.)
+    expect(src).toMatch(
+      /label=\{soloMirar \? "Ver comentarios" : "Comentar"\}\s+valor=\{post\.comentarios\}/,
+    );
   });
 });
