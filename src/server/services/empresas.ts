@@ -62,6 +62,7 @@ import {
 } from "@/server/auth/registration";
 import type { Db } from "@/server/db/types";
 import { enqueueEmail } from "@/server/email/send";
+import { avisarCuentaExistente } from "@/server/services/aviso-cuenta-existente";
 import { requestEmailVerification } from "@/server/services/email-verification";
 
 export class EmpresaError extends Error {
@@ -288,8 +289,19 @@ export async function altaEmpresaDesdeCero(
       });
       break; // creada
     } catch (err) {
-      // El correo ya tenía cuenta (o dos altas a la vez): no-op SILENCIOSO, sin enumeración.
-      if (esViolacionUnicaDeEmail(err)) return { creado: false };
+      // El correo ya tenía cuenta (o dos altas a la vez): SIN enumeración, pero NO en silencio.
+      // Se avisa al DUEÑO de la dirección, y así la pantalla («te hemos enviado un mensaje») es
+      // verdad también en este caso. Antes era un no-op mudo y la pantalla mentía: lo encontró
+      // Junior en producción. Ver `services/aviso-cuenta-existente`.
+      if (esViolacionUnicaDeEmail(err)) {
+        await avisarCuentaExistente(db, {
+          email,
+          motivo: "EMPRESA",
+          appUrl: aviso.appUrl,
+          ahora: now,
+        });
+        return { creado: false };
+      }
       // Handle o código de referido repetidos: valores aleatorios que chocaron. Se regeneran solos
       // en el siguiente intento, que es lo que hace el alta de participante.
       const recuperable = esViolacionUnicaDeUsername(err) || esViolacionUnicaDeCodigoReferido(err);

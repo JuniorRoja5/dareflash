@@ -163,7 +163,7 @@ describe("el alta crea la cuenta y la empresa", () => {
 });
 
 describe("un participante NO se convierte en empresa", () => {
-  it("su correo da un no-op silencioso, y su cuenta no se toca", async () => {
+  it("su correo no crea nada, su cuenta no se toca, y SU DUEÑO recibe el aviso", async () => {
     const yaExiste = await crearUsuario(prisma, { username: "participante" });
     await prisma.user.update({
       where: { id: yaExiste },
@@ -172,15 +172,21 @@ describe("un participante NO se convierte en empresa", () => {
 
     const r = await alta("yo@participante.test");
 
-    // Sin enumeración: la misma forma de respuesta que un alta buena. Quien llama responde igual.
+    // Sin enumeración: quien llama responde lo mismo que en un alta buena.
     expect(r.creado).toBe(false);
     expect(await prisma.empresa.count()).toBe(0);
 
     const intacto = await prisma.user.findUniqueOrThrow({ where: { id: yaExiste } });
     expect(intacto.esCuentaEmpresa).toBe(false);
     expect(intacto.passwordHash).toBe("hash-de-antes");
-    // Y no se le ha encolado ningún correo por el intento ajeno.
-    expect(await prisma.job.count()).toBe(0);
+
+    // Antes aquí ponía «cero correos», y era el fallo petrificado: la pantalla decía que habíamos
+    // enviado algo y no era verdad (Junior, en producción). Ahora: exactamente UN aviso «ya tienes
+    // cuenta» a esa dirección, y NINGÚN aviso al admin (no hay empresa que verificar).
+    const jobs = await prisma.job.findMany();
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.idempotencyKey).toMatch(/^cuenta-existente:EMPRESA:/);
+    expect((jobs[0]?.payload as { to?: string }).to).toBe("yo@participante.test");
   });
 
   it("la segunda alta con el mismo correo tampoco crea una segunda empresa", async () => {

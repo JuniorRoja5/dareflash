@@ -18,6 +18,7 @@ import {
   ETIQUETA_TIPO_NEGOCIO,
   MSG_EMPRESA_CORREO_NUEVO,
   MSG_EMPRESA_WEB_O_REDES,
+  MSG_REVISA_CORREO_EMPRESA,
   TipoCuentaEmpresaSchema,
   TipoNegocioSchema,
   type TipoCuentaEmpresa,
@@ -113,14 +114,14 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
     setEnviando(false);
   }
 
+  // NO dice «empresa registrada» ni promete un enlace de verificación: las dos cosas serían mentira
+  // si el correo ya tenía cuenta. Dice lo que es verdad en los dos casos —hay un mensaje en tu
+  // correo— y la frase es la misma que devuelve la API. Lo encontró Junior en producción: la
+  // pantalla anterior prometía un enlace que nunca salió.
   if (enviado) {
     return (
-      <Tarjeta className="mt-6 max-w-prose">
-        <h2 className="text-sm font-semibold text-text">Revisa tu correo</h2>
-        <p className="mt-2 text-sm text-text-dim">
-          Te hemos enviado un enlace para confirmar la dirección. Cuando lo abras, revisaremos la
-          empresa a mano y te escribimos: no hace falta que vuelvas a enviarla.
-        </p>
+      <Tarjeta className="mt-6 max-w-prose" role="status">
+        <p className="text-sm text-text">{MSG_REVISA_CORREO_EMPRESA}</p>
       </Tarjeta>
     );
   }

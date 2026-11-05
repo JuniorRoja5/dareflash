@@ -147,9 +147,9 @@ export async function POST(req: Request) {
     throw e;
   }
 
-  // Respuesta UNIFORME: no revela si la direccion ya tenia cuenta (sin enumeracion).
-  return apiOk({
-    ok: true,
-    message: "Si el email es valido, te hemos enviado un correo de verificacion.",
-  });
+  // Respuesta UNIFORME: no revela si la direccion ya tenia cuenta (sin enumeracion). Y es VERDAD en
+  // los dos casos: si era nueva sale la verificacion, si no el aviso «ya tienes cuenta». Antes decia
+  // "te hemos enviado un correo de verificacion" tambien cuando no habiamos enviado nada.
+  const { MSG_REVISA_CORREO_EMPRESA } = await import("@/config/constants");
+  return apiOk({ ok: true, message: MSG_REVISA_CORREO_EMPRESA });
 }

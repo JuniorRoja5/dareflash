@@ -2180,6 +2180,24 @@ export const EMPRESA_NOTA_MAX = 500;
 export const EMPRESAS_PAGINA = 25;
 
 /**
+ * LO QUE DICE LA PANTALLA TRAS UN ALTA — y es VERDAD en los dos casos.
+ *
+ * La regla: ninguna pantalla afirma algo que el servidor no sabe que es verdad. Antes, tras un alta
+ * con un correo que ya tenía cuenta, la pantalla decía que habíamos enviado un enlace de
+ * verificación y no habíamos enviado nada (lo encontró Junior en producción). Ahora SIEMPRE sale un
+ * mensaje hacia esa dirección —la verificación si es nueva, el aviso «ya tienes cuenta» si no
+ * (`services/aviso-cuenta-existente`)— y la frase dice solo eso: que hay un mensaje, no cuál.
+ *
+ * No dice «registrada» ni «enviado el enlace de verificación»: cualquiera de las dos sería mentira en
+ * uno de los dos casos, y distinguirlos en pantalla sería el oráculo de enumeración que el alta
+ * evita. La API devuelve el MISMO texto, para que no haya dos versiones de la verdad.
+ */
+export const MSG_REVISA_CORREO_REGISTRO =
+  "Revisa tu correo. Te hemos enviado un mensaje para continuar con tu registro.";
+export const MSG_REVISA_CORREO_EMPRESA =
+  "Revisa tu correo. Te hemos enviado un mensaje para continuar con el registro de tu empresa.";
+
+/**
  * EL CANDADO: una cuenta de empresa MIRA Y NO PARTICIPA. Lo aplica `mutatingRoute` (una sola
  * puerta, no un `if` por pantalla), así que este texto sale para cualquier intento: subir, votar,
  * comentar, dar like, denunciar, comprar Boost o VIP, cobrar.

@@ -6,7 +6,7 @@ import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
-import { MSG_EDAD_MINIMA, PARAM_REFERIDO } from "@/config/constants";
+import { MSG_EDAD_MINIMA, MSG_REVISA_CORREO_REGISTRO, PARAM_REFERIDO } from "@/config/constants";
 import { declaraEdadMinima, leerFechaNacimiento } from "@/lib/edad";
 import { postJson } from "@/lib/cliente-http";
 import { mensajeError, MSG_REGISTRO } from "@/lib/mensajes-error";
@@ -20,8 +20,9 @@ import { mensajeError, MSG_REGISTRO } from "@/lib/mensajes-error";
  * LA EDAD ES DECLARADA, NO VERIFICADA, y el copy lo dice así ("confirmo que soy mayor de edad"):
  * aquí nadie enseña un documento. Quien verifica de verdad es Stripe Connect al reclamar un premio,
  * que es otra puerta y otro momento. La respuesta del endpoint es UNIFORME (sin enumeración): tanto si el correo es nuevo
- * como si ya existía, contesta "te hemos enviado un correo de verificación" -> aquí NO se redirige ni
- * se inicia sesión: se pide al usuario que confirme su correo. Cada error se MAPEA a copy humano.
+ * como si ya existía, contesta "te hemos enviado un mensaje" —y es verdad en los dos casos: la
+ * verificación o el aviso «ya tienes cuenta»—. Aquí NO se redirige ni se inicia sesión: se pide al
+ * usuario que mire su correo. Cada error se MAPEA a copy humano.
  */
 type Estado = "idle" | "enviando" | "hecho";
 
@@ -86,16 +87,17 @@ export function FormularioRegistro() {
     }
   }
 
-  // ÉXITO: mensaje uniforme (no revela si el correo ya tenía cuenta). El usuario verifica por email.
+  // ÉXITO: mensaje uniforme (no revela si el correo ya tenía cuenta) Y CIERTO EN LOS DOS CASOS.
+  // Antes decía "te hemos enviado un enlace de verificación" también cuando el correo ya tenía
+  // cuenta y no habíamos mandado nada. Ahora siempre sale un mensaje (verificación o «ya tienes
+  // cuenta») y la frase dice solo eso. Ver `MSG_REVISA_CORREO_REGISTRO`.
   if (estado === "hecho") {
     return (
       <div
         role="status"
-        className="rounded-sm border border-line bg-surface/60 p-4 text-sm text-text-dim"
+        className="rounded-sm border border-line bg-surface/60 p-4 text-sm text-text"
       >
-        <p className="mb-1 font-medium text-text">Revisa tu correo.</p>
-        Si la dirección es válida, te hemos enviado un enlace de verificación. Ábrelo para activar
-        tu cuenta y poder entrar.
+        {MSG_REVISA_CORREO_REGISTRO}
       </div>
     );
   }

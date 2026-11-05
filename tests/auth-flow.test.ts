@@ -47,7 +47,10 @@ describe("registro", () => {
     expect(await prisma.job.count({ where: { type: "SEND_EMAIL" } })).toBe(1);
   });
 
-  it("email existente: no-op (sin enumeracion) — no crea un segundo usuario", async () => {
+  it("email existente: no crea un segundo usuario, y AVISA al dueño (no un no-op mudo)", async () => {
+    // Antes este caso afirmaba CERO correos, y eso era el fallo petrificado: la pantalla decía
+    // "te hemos enviado un correo" y no habíamos enviado nada (Junior, en producción). Ahora el
+    // dueño de la dirección recibe exactamente UN aviso «ya tienes cuenta», y NINGUNA verificación.
     await prisma.user.create({
       data: {
         referralCode: generarCodigoReferido(),
@@ -64,7 +67,10 @@ describe("registro", () => {
       appUrl: APP_URL,
     });
     expect(await prisma.user.count({ where: { email: "ya@test.com" } })).toBe(1);
-    expect(await prisma.job.count({ where: { type: "SEND_EMAIL" } })).toBe(0); // no reenvia
+    const jobs = await prisma.job.findMany({ where: { type: "SEND_EMAIL" } });
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]?.idempotencyKey).toMatch(/^cuenta-existente:REGISTRO:/);
+    expect(await prisma.verificationToken.count()).toBe(0); // y no se le "re-verifica" nada
   });
 });
 

@@ -21,6 +21,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { objetivoDeViolacionUnica } from "@/server/db/errores";
+import { avisarCuentaExistente } from "@/server/services/aviso-cuenta-existente";
 import { requestEmailVerification } from "@/server/services/email-verification";
 import { referentePorCodigo } from "@/server/services/referidos";
 
@@ -126,8 +127,19 @@ export async function registerUser(
       });
       break; // creado
     } catch (e) {
-      // Choque en `email` -> no-op silencioso (sin enumeracion).
-      if (esViolacionUnicaDeEmail(e)) return;
+      // Choque en `email` -> SIN enumeracion, pero NO en silencio: se avisa al DUEÑO de esa
+      // direccion (el unico con derecho a saber que existe la cuenta). Sin esto, la pantalla decia
+      // "te hemos enviado un correo" y no habiamos enviado nada — Junior lo encontro en produccion.
+      // Ver `services/aviso-cuenta-existente` (tope de uno por cuenta y dia).
+      if (esViolacionUnicaDeEmail(e)) {
+        await avisarCuentaExistente(db, {
+          email,
+          motivo: "REGISTRO",
+          appUrl: input.appUrl,
+          ahora: input.now ?? new Date(),
+        });
+        return;
+      }
       // Choque en `username` o en `referralCode` -> el valor aleatorio ya existia; se regeneran los
       // dos y se reintenta (acotado). La constraint es el arbitro; nunca findUnique-luego-create.
       const recuperable = esViolacionUnicaDeUsername(e) || esViolacionUnicaDeCodigoReferido(e);

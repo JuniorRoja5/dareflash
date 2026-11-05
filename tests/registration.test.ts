@@ -215,7 +215,10 @@ describe("registro: el no-op silencioso SOLO cubre la constraint de email", () =
       appUrl: "https://x.test",
     };
 
-    // Choque en email -> no-op silencioso (resuelve sin lanzar), UN solo intento.
+    // Choque en email -> resuelve sin lanzar, UN solo intento de alta. (Ya no es "silencioso": se
+    // busca la cuenta para avisar a su dueño. Aquí la cuenta "no aparece" —el doble devuelve null—
+    // porque lo que se prueba es el reintento, no el aviso; el aviso lo prueba
+    // `registro-cuenta-existente` contra la base de datos de verdad.)
     let intentosEmail = 0;
     const dbEmail = {
       user: {
@@ -223,6 +226,7 @@ describe("registro: el no-op silencioso SOLO cubre la constraint de email", () =
           intentosEmail++;
           return Promise.reject(p2002Adapter("User_email_key"));
         },
+        findUnique: async () => null,
       },
     } as unknown as PrismaClient;
     await expect(registerUser(dbEmail, input)).resolves.toBeUndefined();
