@@ -9,6 +9,7 @@
  * la fila fuerza un barrido en el siguiente tick, sin sondear Bunny en vacio (ver el bucle).
  */
 import {
+  AFORO_MATERIALIZAR_CADENCIA_MS,
   CONFIRM_CADENCIA_ACTIVO_MS,
   CONFIRM_CADENCIA_REPOSO_MS,
   CONFIRM_WAKE_KEY,
@@ -554,6 +555,16 @@ export interface OpcionesBucle {
    */
   reconciliarContadores?: (now: Date) => Promise<ResultadoContadores>;
   contadoresCadaMs?: number;
+  /**
+   * AFORO POR ZONA (Fase 9 · P5, `materializarAforo`): pasa los HyperLogLog de Redis de hoy y ayer a
+   * `AforoZonaDia` con el recuento absoluto. Cada hora. Sin él (o sin Redis), no se materializa.
+   */
+  materializarAforo?: (now: Date) => Promise<{ filas: number; sinRedis: boolean }>;
+  /**
+   * EL FICHERO DE IP (Fase 9 · P5, `revisarFicheroGeoIp`): avisa al admin, con histéresis, si falta o
+   * pasa de GEOIP_DIAS_CADUCA. Una vez al día. Sin él, no se revisa.
+   */
+  revisarGeoIp?: (now: Date) => Promise<{ estado: { dias: number | null; viejo: boolean } }>;
 }
 
 /**
@@ -581,6 +592,8 @@ export async function bucleWorker(
   let proximoContadores = 0;
   let proximoBorrados = 0;
   let proximoLogos = 0;
+  let proximoAforo = 0;
+  let proximoGeoIp = 0;
   // Arranca en 0 igual que los demas: la primera vuelta del worker recoge lo que quedara vencido
   // mientras estaba parado, sin esperar una cadencia entera.
   let proximoCierres = 0;
@@ -839,6 +852,29 @@ export async function bucleWorker(
         o.log?.(`[worker] propuestas: barrido fallo (${sanearError(e)}); reintento luego.`);
       }
       proximoLogos = t.getTime() + RETO_BORRADO_CADENCIA_MS;
+    }
+
+    // AFORO POR ZONA (Fase 9 · P5): Redis -> AforoZonaDia, recuento absoluto, cada hora. Reejecutarlo
+    // converge, así que una pasada perdida se recupera sola en la siguiente.
+    if (o.materializarAforo && t.getTime() >= proximoAforo) {
+      try {
+        const r = await o.materializarAforo(t);
+        if (r.filas > 0) o.log?.(`[worker] aforo: ${r.filas} zonas materializadas`);
+      } catch (e) {
+        o.log?.(`[worker] aforo: materializacion fallo (${sanearError(e)}); reintento luego.`);
+      }
+      proximoAforo = t.getTime() + AFORO_MATERIALIZAR_CADENCIA_MS;
+    }
+
+    // EL FICHERO DE IP (Fase 9 · P5): una vez al día, avisar si falta o se quedó viejo (histéresis en
+    // SystemState: un aviso al cruzar, re-armado al actualizarse).
+    if (o.revisarGeoIp && t.getTime() >= proximoGeoIp) {
+      try {
+        await o.revisarGeoIp(t);
+      } catch (e) {
+        o.log?.(`[worker] geoip: revision fallo (${sanearError(e)}); reintento luego.`);
+      }
+      proximoGeoIp = t.getTime() + 24 * 60 * 60 * 1000;
     }
 
     // CIERRE de retos vencidos (Fase 4). Es el disparador REAL de la finalizacion: sin este barrido,

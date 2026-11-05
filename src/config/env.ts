@@ -99,6 +99,17 @@ const serverSchema = z.object({
    */
   PORTADAS_DIR: z.string().min(1).default("/srv/portadas"),
 
+  /**
+   * El FICHERO DE IP (DB-IP Lite City, MMDB, CC BY 4.0) con el que se resuelve dónde está quien mira
+   * (Fase 9 · P5). Vive en un VOLUMEN, fuera del repositorio y fuera de la imagen: pesa, cambia cada mes
+   * y actualizarlo no puede obligar a reconstruir la app. Lo deja ahí el guión mensual del host
+   * (`scripts/actualizar-geoip.sh`) con un `rename` atómico, y el lector lo reabre solo.
+   *
+   * Opcional con default, como las otras rutas de volumen: SIN FICHERO NO SE ROMPE NADA, todo se
+   * resuelve «desconocido» y el aviso diario de caducidad avisa al admin.
+   */
+  GEOIP_FICHERO: z.string().min(1).default("/srv/geoip/dbip-city-lite.mmdb"),
+
   // --- Se promueven a obligatorias en su paso (ver comentario de cada una) ---
   /** Paso 8 — cola de trabajos disparada por cron. */
   CRON_SECRET: z.string().min(1).optional(),

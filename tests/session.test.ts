@@ -79,6 +79,8 @@ describe("sesiones en base de datos", () => {
       emailVerified: expect.any(Date),
       esCuentaEmpresa: false,
       sessionId: expect.any(String),
+      // Fase 9 · P5: la ubicación sale de la misma consulta; una sesión recién creada no la tiene aún.
+      ubicacion: { paisIso: null, estadoCodigo: null, ciudadId: null },
     });
   });
 

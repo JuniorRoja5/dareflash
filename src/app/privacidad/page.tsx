@@ -144,6 +144,13 @@ export default function PrivacidadPage() {
             prevención del fraude.
           </li>
           <li>
+            <span className="text-text">Ubicación aproximada:</span> a partir de tu dirección IP
+            deducimos tu país y una ciudad aproximada, nunca tu dirección exacta. Guardamos ese
+            resultado, no la IP, y lo usamos para medir cuánta gente ve la Plataforma en cada zona y
+            para la publicidad local. El recuento por zona es anónimo: dice cuántas personas, no
+            quiénes.
+          </li>
+          <li>
             <span className="text-text">Datos de pago:</span> cuando compras un Boost, el pago lo
             procesa Stripe.{" "}
             <span className="text-text">No almacenamos los números de tu tarjeta</span> en ningún
@@ -189,6 +196,10 @@ export default function PrivacidadPage() {
                   "Ejecución del contrato",
                 ],
                 ["Seguridad, prevención del fraude y del abuso, y moderación", "Interés legítimo"],
+                [
+                  "Medir la audiencia por zona y mostrar publicidad local con tu ubicación aproximada",
+                  "Interés legítimo (pendiente de revisión legal)",
+                ],
                 [
                   "Enviarte correos operativos (verificación, avisos de tu cuenta)",
                   "Ejecución del contrato",
@@ -241,6 +252,25 @@ export default function PrivacidadPage() {
           </li>
         </ul>
         <p>También podremos compartir datos cuando lo exija la ley o una autoridad competente.</p>
+        <p>
+          <span className="text-text">Fuentes de ubicación:</span> la ubicación aproximada sale de
+          la base de datos de IP de{" "}
+          <a href="https://db-ip.com" className="underline underline-offset-2">
+            DB-IP
+          </a>{" "}
+          y del catálogo de ciudades de{" "}
+          <a href="https://www.geonames.org" className="underline underline-offset-2">
+            GeoNames
+          </a>
+          , ambos con licencia{" "}
+          <a
+            href="https://creativecommons.org/licenses/by/4.0/"
+            className="underline underline-offset-2"
+          >
+            CC BY 4.0
+          </a>
+          . Son ficheros que consultamos en nuestros servidores: no les enviamos ningún dato tuyo.
+        </p>
         <p>
           <span className="text-text">Transferencias internacionales:</span> algunos de estos
           proveedores, y el propio responsable, pueden estar fuera del EEE. En ese caso aplicamos

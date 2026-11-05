@@ -86,6 +86,10 @@ services:
       - avatars_data:/srv/avatars
       # Portadas de reto (env.PORTADAS_DIR=/srv/portadas): mismo patron que los avatares.
       - portadas_data:/srv/portadas
+      # Fichero de IP (Fase 9 · P5, env.GEOIP_FICHERO): la app solo LEE; lo escribe el guion mensual
+      # del host (scripts/actualizar-geoip.sh) con un rename atomico, y la app lo reabre sola. Sin
+      # fichero no se rompe nada: la ubicacion queda "desconocida" y el worker avisa al admin.
+      - geoip_data:/srv/geoip:ro
     networks:
       - internal
 
@@ -139,6 +143,9 @@ services:
       # La MISMA ruta que el montaje de abajo, fijada aqui y no heredada del .env: si las dos
       # discreparan, el barrido miraria un directorio vacio. Es la ruta que usa `web`.
       PORTADAS_DIR: /srv/portadas
+      # Igual que PORTADAS_DIR: la ruta del montaje de abajo, fijada aqui (el aviso de caducidad del
+      # fichero de IP mira la fecha de ESTE fichero; si la ruta discrepara, avisaria de que no existe).
+      GEOIP_FICHERO: /srv/geoip/dbip-city-lite.mmdb
     depends_on:
       mariadb:
         condition: service_healthy
@@ -150,6 +157,9 @@ services:
       # en el volumen para siempre. El worker corre como root (etapa `builder`), asi que puede borrar
       # ficheros que escribio `web` (nextjs, uid 1001) sin EACCES.
       - portadas_data:/srv/portadas
+      # Fichero de IP, SOLO LECTURA: el worker no lo abre (pesa ~127 MB en memoria), solo mira su fecha
+      # para el aviso de caducidad (GEOIP_DIAS_CADUCA).
+      - geoip_data:/srv/geoip:ro
     networks:
       - internal
 
@@ -189,6 +199,7 @@ volumes:
   caddy_config:
   avatars_data: # avatares subidos (WebP); escrito por `web`, servido por `caddy`
   portadas_data: # portadas de reto (WebP); escrito por `web`, servido por `caddy`, limpiado por `worker`
+  geoip_data: # fichero de IP (DB-IP Lite City); escrito por el cron del host, leido por `web` y `worker`
 
 networks:
   internal:

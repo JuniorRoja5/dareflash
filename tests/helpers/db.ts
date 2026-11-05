@@ -60,6 +60,9 @@ export function nombreBdWorker(): string {
  * conexion con las FK aun activas. Con el orden correcto no hace falta desactivarlas.
  */
 export const DELETE_ORDER = [
+  // Fase 9 · P5. `Ciudad` NO va aquí, a propósito: es el catálogo sembrado en su migración, como las
+  // categorías, y los tests lo leen; borrarlo dejaría al resto de la suite sin ciudades.
+  "AforoZonaDia",
   "Notification",
   "Announcement",
   "Comment",

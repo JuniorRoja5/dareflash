@@ -307,6 +307,14 @@ model Session {
   /// SESION_REFRESCO_MIN_MS): escribir en cada peticion multiplicaria por N las escrituras.
   lastSeenAt DateTime @default(now())
 
+  /// DÓNDE ESTÁ QUIEN MIRA (Fase 9 · P5), resuelto UNA VEZ al crear la sesión desde X-Real-IP con el
+  /// fichero de DB-IP. Aquí y no en una cookie: una ubicación que el cliente pudiera editar ensuciaría el
+  /// aforo por zona, que es el número con el que alguien decide comprar. La IP NO se guarda: solo el
+  /// resultado. NULL = desconocida (sin fichero, IP privada, o fuera del catálogo).
+  geoPais     String? @db.Char(2)
+  geoEstado   String? @db.VarChar(20)
+  geoCiudadId Int?
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt]) // tope por usuario, ordenado por antiguedad
@@ -419,7 +427,6 @@ model Video {
   @@index([status])
   // El worker completa reemplazos abandonados: busca PUBLISHED con este puntero seteado.
   @@index([reemplazaSubmissionId])
-
   /// EL CAMINO ORDENADO DEL FEED. Las tres primeras columnas son los filtros ESCALARES de
   /// `VIDEO_VISIBLE` y las dos ultimas, su orden (`createdAt DESC, id DESC`). Asi MariaDB puede
   /// recorrer el indice EN ORDEN, descartar por el camino y parar al juntar las once filas de la
@@ -551,7 +558,7 @@ model Challenge {
   /// EN BPS Y NO EN PORCENTAJE: 25,5% no cabe en un entero de porcentaje y un decimal en dinero es
   /// justo lo que este esquema evita en todas partes. El importe se calcula en centimos enteros
   /// (ver `lib/comision`), nunca con float.
-  comisionBps Int @default(2500)
+  comisionBps Int     @default(2500)
 
   /// MINIMO de participaciones que CUENTAN (invariante 3: Submission PUBLISHED **y** Video PUBLISHED)
   /// para que se declare ganador. NULL = el reto no exige minimo, que es el caso de todos los retos
@@ -1591,9 +1598,9 @@ model RetoSolicitud {
   estado String @default("PENDIENTE")
 
   // LO QUE PROPONE: los mismos limites que el formulario del admin (`camposDeReto`).
-  title            String  @db.VarChar(120)
-  description      String? @db.Text
-  rules            String? @db.Text
+  title            String   @db.VarChar(120)
+  description      String?  @db.Text
+  rules            String?  @db.Text
   category         String
   prizeAmountCents Int
   startsAt         DateTime
@@ -1651,14 +1658,72 @@ model CreditoLedger {
   /// como en el resto de ledgers: la traza no se va con la cuenta de quien la hizo.
   refType        String?
   refId          String?
-  idempotencyKey String  @unique
+  idempotencyKey String   @unique
   /// El POR QUE de un ajuste manual. Para el EQUIPO: no viaja al portal de la empresa (su historial
   /// se pinta por el motivo, nunca por esta nota).
-  nota           String? @db.VarChar(500)
+  nota           String?  @db.VarChar(500)
   createdAt      DateTime @default(now())
 
   empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Restrict)
 
   /// El historial de una empresa (portal y panel), por KEYSET sobre (createdAt, id).
   @@index([empresaId, createdAt, id])
+}
+
+// ============================================================================
+// GEOLOCALIZACIÓN Y AFORO (Fase 9 · P5)
+// ============================================================================
+
+/// EL CATÁLOGO DE CIUDADES: GeoNames `cities15000` (CC BY 4.0), unas 34.000 ciudades de más de 15.000
+/// habitantes, SEMBRADO EN SU MIGRACIÓN — un catálogo que no debe arrancar vacío se rellena ahí, y es
+/// pequeño y casi inmóvil (al revés que el fichero de IP, que es enorme, cambia cada mes y vive en un
+/// volumen).
+///
+/// `id` ES EL geonameId: estable entre versiones de GeoNames, así que una campaña que guarda ciudades
+/// no se descoloca si un día se resiembra el catálogo.
+///
+/// EL ESTADO es el código admin1 de GeoNames (`ES.60`) y su NOMBRE, desnormalizado a propósito: el
+/// autocompletado enseña «Medellín, Antioquia, Colombia» y un join por tecla pulsada es absurdo. No es
+/// ISO 3166-2 (lo que decía el plan): GeoNames no lo trae y casarlo por nombre con otra fuente era
+/// frágil. Decidido con el analista el 2026-11-05.
+///
+/// ACENTOS Y MAYÚSCULAS, GRATIS — POR UN DEFAULT INVISIBLE: la tabla es `utf8mb4_unicode_ci`, que
+/// ignora caja y acentos, así que `LIKE 'medellin%'` encuentra «Medellín» Y usa el índice. Como es
+/// invisible, lo clava un test (`geo-ciudades`): si alguien cambia la collation, salta el test en vez
+/// de volverse tonto el buscador. `nombreAscii` cubre las transliteraciones que la collation no iguala.
+model Ciudad {
+  id           Int     @id
+  nombre       String  @db.VarChar(200)
+  nombreAscii  String  @db.VarChar(200)
+  paisIso      String  @db.Char(2)
+  estadoCodigo String? @db.VarChar(20)
+  estadoNombre String? @db.VarChar(200)
+  latitud      Float
+  longitud     Float
+  poblacion    Int
+
+  /// El autocompletado: PREFIJO (`LIKE 'x%'`), que usa el índice; la subcadena no.
+  @@index([nombre])
+  @@index([nombreAscii])
+  /// El recorte por caja del radio (§4.6) y la ciudad más cercana a unas coordenadas de IP.
+  @@index([latitud, longitud])
+  @@index([paisIso, estadoCodigo])
+}
+
+/// CUÁNTAS PERSONAS DISTINTAS PASARON por una zona en un día (§5.3), MATERIALIZADO cada hora desde el
+/// HyperLogLog de Redis con el RECUENTO ABSOLUTO —reejecutar converge—. Es el número con el que se
+/// calcula la estimación antes de pagar (P6: mediana de 7 días), y por eso existe ANTES de la primera
+/// campaña. Un HLL no guarda quién pasó: aquí solo hay una cifra por zona y día.
+///
+/// `alcance` = CIUDAD | ESTADO | PAIS | GLOBAL; `zona` = el id de la ciudad, el código de estado, el ISO
+/// del país, o «*» para global. Se llama `alcance` y NO `nivel` a propósito: «nivel» en este esquema es
+/// el de los usuarios, que se DERIVA de los puntos y no se guarda nunca (lo vigila `tests/ranking`).
+model AforoZonaDia {
+  alcance   String   @db.VarChar(10)
+  zona      String   @db.VarChar(20)
+  dia       DateTime @db.Date
+  personas  Int
+  updatedAt DateTime @updatedAt
+
+  @@id([alcance, zona, dia])
 }

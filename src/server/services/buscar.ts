@@ -438,3 +438,67 @@ export async function buscarRetos(
     deadline: f.deadline,
   }));
 }
+
+// ============================================================================
+// CIUDADES (Fase 9 · P5)
+// ============================================================================
+
+/** Una sugerencia del autocompletado de ciudades. `etiqueta` desambigua: «Medellín, Antioquia, Colombia». */
+export interface CiudadBusqueda {
+  id: number;
+  nombre: string;
+  estado: string | null;
+  paisIso: string;
+  etiqueta: string;
+}
+
+/**
+ * EL AUTOCOMPLETADO DE CIUDADES: el mismo motor, otro tipo (§4.5 del plan).
+ *
+ * POR PREFIJO, NO POR SUBCADENA: `LIKE 'mede%'` usa el índice; `LIKE '%dell%'` recorrería las 32.000
+ * filas en cada tecla, y esto corre en una vCPU. «Mede» encuentra Medellín y «dellín» no: es el precio,
+ * y se paga.
+ *
+ * ACENTOS Y MAYÚSCULAS LOS RESUELVE LA COLLATION (`utf8mb4_unicode_ci`): «medellin» encuentra «Medellín».
+ * Es un default invisible, así que lo clava `tests/geo-ciudades`. `nombreAscii` cubre lo que la collation
+ * no iguala (transliteraciones).
+ *
+ * DESAMBIGUAR SIEMPRE: hay una veintena de «Santiago». Se ordena por POBLACIÓN descendente —la que casi
+ * siempre se busca sale primera— y cada sugerencia dice ciudad, estado y país. `paisIso` filtra cuando
+ * quien pregunta ya sabe el país.
+ */
+export async function buscarCiudades(
+  db: PrismaClient,
+  q: string,
+  opciones: { paisIso?: string | null; limite?: number } = {},
+): Promise<PaginaBusqueda<CiudadBusqueda>> {
+  const termino = q.trim();
+  if (termino.length < 2) return { items: [], proximoCursor: null };
+  const { CIUDADES_AUTOCOMPLETAR } = await import("@/config/constants");
+  const { nombrePais } = await import("@/lib/paises");
+  const limite = Math.min(Math.max(opciones.limite ?? CIUDADES_AUTOCOMPLETAR, 1), BUSCAR_LIMITE);
+  // SQL CRUDO CON `escaparLike`, NO `startsWith` de Prisma: medido, `startsWith` NO escapa `%` ni `_`
+  // en este conector — «%%» devolvía el catálogo entero, 31.789 filas por pulsación —, y escaparlos a
+  // mano dentro de él tampoco funciona. Es el mismo patrón que la búsqueda de usuarios y de retos.
+  const prefijo = `${escaparLike(termino)}%`;
+  const filtroPais = opciones.paisIso
+    ? Prisma.sql`AND paisIso = ${opciones.paisIso}`
+    : Prisma.empty;
+  const filas = await db.$queryRaw<
+    { id: number; nombre: string; estadoNombre: string | null; paisIso: string }[]
+  >`
+    SELECT id, nombre, estadoNombre, paisIso FROM \`Ciudad\`
+    WHERE (nombre LIKE ${prefijo} OR nombreAscii LIKE ${prefijo}) ${filtroPais}
+    ORDER BY poblacion DESC, id ASC
+    LIMIT ${limite}`;
+  return {
+    items: filas.map((c) => ({
+      id: c.id,
+      nombre: c.nombre,
+      estado: c.estadoNombre,
+      paisIso: c.paisIso,
+      etiqueta: [c.nombre, c.estadoNombre, nombrePais(c.paisIso)].filter(Boolean).join(", "),
+    })),
+    proximoCursor: null,
+  };
+}

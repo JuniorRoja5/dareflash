@@ -139,3 +139,25 @@ describe("GET /api/buscar", () => {
     expect(new Set(vistos).size).toBe(total);
   });
 });
+
+describe("GET /api/buscar?tipo=ciudades (Fase 9 · P5)", () => {
+  it("el autocompletado: «medellin» sin acento, con la etiqueta que desambigua", async () => {
+    const res = await GET(reqBuscar({ q: "medellin", tipo: "ciudades" }, "203.0.113.40"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { items: { id: number; etiqueta: string }[] };
+    expect(body.items[0]).toMatchObject({ id: 3674962, etiqueta: "Medellín, Antioquia, Colombia" });
+  });
+
+  it("acota por país, y un país mal escrito es un 400", async () => {
+    const ok = await GET(
+      reqBuscar({ q: "santiago", tipo: "ciudades", pais: "ES" }, "203.0.113.41"),
+    );
+    const body = (await ok.json()) as { items: { paisIso: string }[] };
+    expect(body.items.length).toBeGreaterThan(0);
+    expect(body.items.every((c) => c.paisIso === "ES")).toBe(true);
+    const mal = await GET(
+      reqBuscar({ q: "santiago", tipo: "ciudades", pais: "es" }, "203.0.113.42"),
+    );
+    expect(mal.status).toBe(400);
+  });
+});

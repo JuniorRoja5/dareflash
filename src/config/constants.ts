@@ -2539,3 +2539,57 @@ export const CAMINO_EMPRESA = {
   cta: "Registrar mi empresa",
   href: "/empezar/empresa",
 } as const;
+
+// ----------------------------------------------------------------------------
+// GEOLOCALIZACIÓN Y AFORO POR ZONA (Fase 9 · P5). El plan: §4 (ubicación) y §5.3 (aforo).
+// ----------------------------------------------------------------------------
+
+/**
+ * EL RADIO de una campaña de ciudad. Absorbe buena parte del error de la geolocalización por IP (en
+ * móvil, la IP de un operador sale a decenas de kilómetros): con 5 km, media segmentación iría al sitio
+ * equivocado. Se resuelve AL ACTIVAR (P6), no al servir. Si un día cambia, las campañas activas se
+ * recalculan en un job y lo vendido con el radio anterior no se reescribe.
+ */
+export const RADIO_PUBLICIDAD_KM = 100;
+
+/**
+ * Cuántos días puede tener el fichero de IP antes de avisar. El fichero es MENSUAL: con 31 el aviso
+ * saltaría cada vez que la publicación se retrasa unos días, y un aviso que salta por nada deja de
+ * leerse. 60 = «se perdieron dos ciclos», que sí es un problema.
+ */
+export const GEOIP_DIAS_CADUCA = 60;
+
+/** Cada cuánto, COMO MUCHO, el lector mira si el fichero de IP cambió (para reabrirlo sin reiniciar). */
+export const GEOIP_REVISAR_MS = 60_000;
+
+/**
+ * La ciudad del catálogo que se le asigna a unas coordenadas de IP: la MÁS CERCANA del mismo país,
+ * siempre que esté a menos de esto. Más lejos, se sabe el país pero no la ciudad.
+ */
+export const GEOIP_CIUDAD_MAX_KM = 60;
+
+/** Cuánto vive el resultado de una IP de invitado memoizado (Redis o memoria). Corto: la IP cambia. */
+export const GEOIP_MEMO_ANONIMO_S = 60 * 60;
+
+/** Sugerencias del autocompletado de ciudades. */
+export const CIUDADES_AUTOCOMPLETAR = 10;
+
+/** Los niveles de zona, del más concreto al más amplio. `GLOBAL` tiene una sola zona: «*». */
+export const NivelAforoSchema = z.enum(["CIUDAD", "ESTADO", "PAIS", "GLOBAL"]);
+export type NivelAforo = z.infer<typeof NivelAforoSchema>;
+export const ZONA_GLOBAL = "*";
+
+/**
+ * La estimación se calcula con la MEDIANA de los últimos 7 días completos de `AforoZonaDia`: mediana y no
+ * media, como en el aviso de capacidad, para que un día raro no mueva la cifra con la que alguien decide.
+ */
+export const AFORO_MEDIANA_DIAS = 7;
+
+/** Cada cuánto se materializa el aforo de Redis a `AforoZonaDia` (recuento absoluto: reejecutar converge). */
+export const AFORO_MATERIALIZAR_CADENCIA_MS = 60 * 60 * 1000;
+
+/** Cuánto viven en Redis las claves de aforo de un día: lo justo para materializar hoy y ayer y algo más. */
+export const AFORO_TTL_S = 3 * 24 * 60 * 60;
+
+/** La clave de `SystemState` del aviso del fichero de IP viejo (con histéresis, como el de capacidad). */
+export const CLAVE_AVISO_GEOIP = "geoip:aviso";

@@ -33,8 +33,12 @@ function modelosDelEsquema(): string[] {
  * "agotado" y el fallo aparecería en tests que no tienen nada que ver. Lo que sí hace falta entre
  * casos es LIBERARLAS, y eso lo hace `resetDb`; el caso de abajo lo comprueba, para que esta
  * excepción no se convierta en un agujero de aislamiento.
+ *
+ * `Ciudad` (Fase 9 · P5): el catálogo de GeoNames, ~32.000 filas sembradas en su migración y de solo
+ * lectura —ningún código de la app escribe en él—. Borrarlo dejaría el buscador y el radio sin
+ * ciudades en toda la suite; y como nada lo modifica, no hay estado que se pueda filtrar entre tests.
  */
-const SIN_LIMPIAR = new Set<string>(["BoostPlaza"]);
+const SIN_LIMPIAR = new Set<string>(["BoostPlaza", "Ciudad"]);
 
 describe("el aislamiento entre tests no depende de que nadie se olvide", () => {
   it("todo modelo del esquema se borra en `resetDb`", () => {

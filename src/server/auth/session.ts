@@ -17,6 +17,7 @@
  * envoltorio de cookie (server-only) vive en `current-user.ts`.
  */
 import { createHash, randomBytes } from "node:crypto";
+import type { Ubicacion } from "@/lib/geo";
 
 import {
   plazosSesion,
@@ -102,6 +103,14 @@ export interface SessionUser {
   esCuentaEmpresa: boolean;
   /** Id de la fila Session (para atar el token CSRF a esta sesion concreta). */
   sessionId: string;
+  /**
+   * DONDE ESTA, resuelto UNA vez tras crear la sesion (Fase 9 · P5, `ubicarSesion`). Viaja aqui porque
+   * sale de la MISMA consulta que valida la sesion: leerlo aparte en el feed seria una consulta mas por
+   * visita en el camino mas caliente. Todo null = desconocida. OPCIONAL en el tipo para que quien
+   * construye un SessionUser a mano (tests, sesiones sinteticas) no tenga que inventarla: ausente
+   * tambien es desconocida. `validateSession` la rellena siempre.
+   */
+  ubicacion?: Ubicacion;
 }
 
 /**
@@ -138,6 +147,9 @@ export async function validateSession(
       id: true,
       expires: true,
       lastSeenAt: true,
+      geoPais: true,
+      geoEstado: true,
+      geoCiudadId: true,
       user: {
         select: {
           id: true,
@@ -179,6 +191,7 @@ export async function validateSession(
     emailVerified: row.user.emailVerified,
     esCuentaEmpresa: row.user.esCuentaEmpresa,
     sessionId: row.id,
+    ubicacion: { paisIso: row.geoPais, estadoCodigo: row.geoEstado, ciudadId: row.geoCiudadId },
   };
 }
 

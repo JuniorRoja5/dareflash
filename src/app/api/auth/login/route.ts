@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { apiError, apiOk, clientIpKey, rateLimitKey } from "@/server/http/api";
+import { apiError, apiOk, clientIp, clientIpKey, rateLimitKey } from "@/server/http/api";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +94,14 @@ export async function POST(req: Request) {
     await resetRateLimit(prisma, acctKey);
     // La cookie SOLO se fija ahora, tras verificar la contrasena.
     await setSessionCookie(result.session.rawToken, result.session.expires);
+    // DÓNDE ESTÁ (Fase 9 · P5): se guarda en la fila de la sesión, una vez. FUERA del hueco y SIN
+    // await: puede esperar a que el fichero de IP termine de cargar, y ni el semáforo de argon2 ni la
+    // respuesta tienen por qué pagarlo. Best-effort: si falla, la sesión queda «desconocida».
+    const { ubicarSesion } = await import("@/server/geo/ubicacion");
+    const { lectorIp } = await import("@/server/geo/lector-ip");
+    void lectorIp()
+      .then((lector) => ubicarSesion(prisma, result.session.sessionId, clientIp(req), lector))
+      .catch(() => {});
     // `role` y `esCuentaEmpresa` ADITIVOS: el formulario decide el destino (destinoTrasLogin); no
     // cambian nada mas. La empresa aterriza en su portal, que es su unica puerta hasta P2.
     return apiOk({ ok: true, role: result.role, esCuentaEmpresa: result.esCuentaEmpresa });

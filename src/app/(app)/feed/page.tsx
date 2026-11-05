@@ -1,5 +1,8 @@
+import { headers } from "next/headers";
+
 import { FeedVertical } from "@/components/feed/feed-vertical";
 import { PARAM_COMENTARIO, PARAM_VIDEO } from "@/lib/enlace-comentario";
+import { UBICACION_DESCONOCIDA } from "@/lib/geo";
 import { soloMirar } from "@/lib/solo-mirar";
 
 export const metadata = { title: "Feed · DareFlash" };
@@ -40,6 +43,19 @@ export default async function FeedPage({
   const usuario = await getCurrentUser();
   const haySesion = usuario !== null;
   const userId = usuario?.userId ?? null;
+
+  // EL AFORO POR ZONA (Fase 9 · P5): cuenta a esta persona en su ciudad, estado, país y global. SIN
+  // `await` y sin poder lanzar: el feed no espera a contar. La IP solo de X-Real-IP (la fija Caddy).
+  const { contarVisitaEnAforo } = await import("@/server/geo/visita");
+  if (usuario) {
+    void contarVisitaEnAforo(prisma, {
+      userId: usuario.userId,
+      ubicacion: usuario.ubicacion ?? UBICACION_DESCONOCIDA,
+    });
+  } else {
+    const ip = (await headers()).get("x-real-ip")?.trim();
+    if (ip) void contarVisitaEnAforo(prisma, { ip });
+  }
   const [pagina, destino] = await Promise.all([
     feedPublicado(prisma, { firmar: firmarReproduccion, userId }),
     pedido ? videoParaFeed(prisma, pedido, { firmar: firmarReproduccion, userId }) : null,

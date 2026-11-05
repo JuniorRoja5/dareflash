@@ -42,6 +42,9 @@ import { limpiarHuerfanosBunny } from "@/server/services/reconciliacion-huerfano
 import { reconciliarPublicadosDesaparecidos } from "@/server/services/reconciliacion-publicados";
 import { recalcularScoresAutoridad } from "@/server/services/recalculo-scores";
 import { barrerPropuestas } from "@/server/services/retos-empresa";
+import { getRedis } from "@/server/cache/redis";
+import { materializarAforo } from "@/server/services/aforo";
+import { revisarFicheroGeoIp } from "@/server/services/geoip-caducidad";
 import { confirmarVideosPendientes } from "@/server/services/video-confirmacion";
 import { reconciliarVideosAbandonados } from "@/server/services/video-reconciliacion";
 
@@ -175,6 +178,19 @@ async function main(): Promise<void> {
         dir: env.PORTADAS_DIR,
         ahora: now,
         appUrl: env.APP_URL,
+        log: (m) => console.warn(m),
+      }),
+    // Aforo por zona (Fase 9 · P5): los HyperLogLog de Redis -> AforoZonaDia, cada hora. Sin Redis no
+    // hay nada que materializar (y no falla: Redis es opcional en este despliegue).
+    materializarAforo: (now) => materializarAforo(prisma, getRedis(), now),
+    // El fichero de IP (Fase 9 · P5): aviso diario si falta o pasa de GEOIP_DIAS_CADUCA. El worker no
+    // abre el fichero (pesa ~100 MB en memoria): solo mira su fecha.
+    revisarGeoIp: (now) =>
+      revisarFicheroGeoIp(prisma, {
+        ruta: env.GEOIP_FICHERO,
+        adapter: emailAdapter,
+        adminEmail: env.ADMIN_EMAIL,
+        ahora: now,
         log: (m) => console.warn(m),
       }),
     // Limpieza de huerfanos en Bunny (Parte B, DESTRUCTIVA). Modo desde el env: dry-run por defecto
