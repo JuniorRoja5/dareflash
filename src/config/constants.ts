@@ -2271,8 +2271,10 @@ export function msgAvisoEmpresaNueva(datos: {
   tipoNegocio: TipoNegocio;
   urlPanel: string;
 }): string {
+  // La ETIQUETA y no el valor del enum: el correo lo lee una persona, y «(FISICO)» —lo que salía
+  // antes, visto en el buzón de pruebas— es un dato de la base de datos, no una frase.
   return [
-    `${datos.nombre} se ha registrado como empresa (${datos.tipoNegocio}) y espera verificación.`,
+    `${datos.nombre} se ha registrado como empresa (${ETIQUETA_TIPO_NEGOCIO[datos.tipoNegocio].toLowerCase()}) y espera verificación.`,
     "",
     `Revísala aquí: ${datos.urlPanel}`,
     "",
