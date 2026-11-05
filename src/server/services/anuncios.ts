@@ -40,6 +40,7 @@ import type { FiltrosInspector } from "@/lib/filtros-inspector";
 import { AvisoSchema, avisoAnuncio, textoAviso } from "@/lib/notificaciones";
 import type { Db } from "@/server/db/types";
 import { textosDeAnuncios } from "@/server/services/notificaciones";
+import { USUARIO_VISIBLE } from "@/server/services/usuario-visible";
 
 export const TIPO_JOB_FANOUT = "FANOUT_ANUNCIO";
 
@@ -77,9 +78,11 @@ export function claveTramo(announcementId: string, desde: string | null): string
  * │ tamaño previo, la foto `targetCount` y cada tramo del keyset. Si uno filtrara y otro no, el     │
  * │ progreso dejaría de ser exacto por construcción (ver arriba).                                  │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * Las tres condiciones de persona son `USUARIO_VISIBLE`, la misma regla que el perfil y el buscador.
  */
 function audiencia(hasta: Date): Prisma.UserWhereInput {
-  return { deletedAt: null, bannedAt: null, esCuentaEmpresa: false, createdAt: { lte: hasta } };
+  return { ...USUARIO_VISIBLE, createdAt: { lte: hasta } };
 }
 
 const esDuplicado = (e: unknown): boolean =>

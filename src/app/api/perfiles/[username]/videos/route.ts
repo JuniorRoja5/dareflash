@@ -38,12 +38,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ username: strin
   const { videosPublicosDe } = await import("@/server/services/perfil");
   const { firmarReproduccion } = await import("@/server/services/reproduccion-servidor");
   const { sanearError } = await import("@/server/observability/sanitize-error");
+  const { USUARIO_VISIBLE } = await import("@/server/services/usuario-visible");
 
   try {
-    // LA MISMA PUERTA QUE EL PERFIL: ni borrada ni baneada. Sin esto, la rejilla de una cuenta
-    // suspendida se seguiría pudiendo paginar aunque su perfil diera 404.
+    // LA MISMA PUERTA QUE EL PERFIL (`USUARIO_VISIBLE`): ni borrada, ni baneada, ni de empresa. Sin
+    // esto, la rejilla de una cuenta suspendida se seguiría pudiendo paginar aunque su perfil diera 404.
     const duenyo = await prisma.user.findFirst({
-      where: { username: params.data.username, deletedAt: null, bannedAt: null },
+      where: { username: params.data.username, ...USUARIO_VISIBLE },
       select: { id: true },
     });
     if (!duenyo) return apiError("NOT_FOUND", "Perfil no disponible.", 404);

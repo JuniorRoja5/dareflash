@@ -30,6 +30,7 @@ import { Prisma } from "@/generated/prisma/client";
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { EstadoCuenta, RolFiltro } from "@/lib/cuentas-listado";
 
+import { usuarioVisibleSql } from "./usuario-visible";
 import { vipsActivosEntre } from "./vip";
 
 /** Multiplicador para que la EXACTITUD (rango 0/1/2) domine sobre la relevancia FULLTEXT en `orden`. */
@@ -265,7 +266,11 @@ async function filasDeUsuarios<F extends FilaUsuario>(
 
   // `username IS NOT NULL` estaba aquí y se ha ido: la columna es NOT NULL desde que el handle se
   // auto-genera en el alta, así que era una condición que nunca podía ser falsa.
-  const visibilidad = admin ? Prisma.empty : Prisma.sql`AND bannedAt IS NULL`;
+  //
+  // QUIÉN SALE: en PÚBLICO, solo personas visibles (`usuarioVisibleSql`, la regla única: ni borradas,
+  // ni baneadas, ni cuentas de empresa). El PANEL ve también a las suspendidas y a las empresas —es
+  // gobierno de cuentas, no escaparate—, y solo se le quitan las borradas.
+  const visibilidad = admin ? Prisma.sql`deletedAt IS NULL` : usuarioVisibleSql();
   const filtroRol = filtros.rol ? Prisma.sql`AND role = ${filtros.rol}` : Prisma.empty;
   const filtroEstado =
     filtros.estado === "suspendida"
@@ -287,7 +292,7 @@ async function filasDeUsuarios<F extends FilaUsuario>(
     WHEN username LIKE ${prefijo} OR displayName LIKE ${prefijo} THEN 1
     ELSE 0 END`;
 
-  const donde = Prisma.sql`WHERE deletedAt IS NULL ${visibilidad} ${filtroRol} ${filtroEstado}`;
+  const donde = Prisma.sql`WHERE ${visibilidad} ${filtroRol} ${filtroEstado}`;
 
   const interior = usarFulltext
     ? // FULLTEXT BOOLEAN word-prefix + prefijo indexado + exacto (relevancia como 2ª dimensión).

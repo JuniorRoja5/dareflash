@@ -36,6 +36,7 @@ import { indiceVentana, portadaDeVentana } from "@/lib/boost-rotacion";
 import { codificarCursorTiempo, decodificarCursorTiempo } from "@/lib/cursor-tiempo";
 import type { Db } from "@/server/db/types";
 
+import { usuarioVisibleSql } from "./usuario-visible";
 import { vipsActivosEntre } from "./vip";
 
 export interface PerfilDestacado {
@@ -164,8 +165,7 @@ export async function destacadosVigentes(
       FROM \`BoostActivation\` a
       JOIN \`User\` u ON u.\`id\` = a.\`userId\`
       WHERE a.\`expiresAt\` > ${ahora}
-        AND u.\`deletedAt\` IS NULL
-        AND u.\`bannedAt\` IS NULL
+        AND ${usuarioVisibleSql("u")}
     ) t
     WHERE t.rn = 1
     ${corte}

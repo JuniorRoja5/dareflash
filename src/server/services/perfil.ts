@@ -43,6 +43,7 @@ import { HANDLE_RE } from "@/lib/handle-formato";
 import type { Db } from "@/server/db/types";
 
 import { categoriaKeyDeVideo } from "./categoria-video";
+import { USUARIO_VISIBLE } from "./usuario-visible";
 import { VIDEO_VISIBLE } from "./video-visible";
 
 // ============================================================================
@@ -269,9 +270,10 @@ export async function videosPublicosDe(
 
 /** Carga comun: resuelve la fila publica por `where` y agrega videos PUBLISHED + retos ganados. */
 async function cargarPerfil(db: Db, where: Prisma.UserWhereInput): Promise<PerfilPublico | null> {
-  // No se muestran perfiles de cuentas borradas ni baneadas.
+  // Solo el perfil de un participante VISIBLE (`USUARIO_VISIBLE`): ni borrado, ni baneado, ni cuenta
+  // de empresa. Los tres dan `null` -> 404, el mismo que un handle que no existe.
   const usuario = await db.user.findFirst({
-    where: { ...where, deletedAt: null, bannedAt: null },
+    where: { ...where, ...USUARIO_VISIBLE },
     select: SELECT_USUARIO_PUBLICO,
   });
   if (!usuario) return null;

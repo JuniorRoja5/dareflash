@@ -16,6 +16,7 @@ import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { ordenarParaCierre, type ParticipacionCierre } from "@/lib/cierre-reto";
 import { periodoDe, rangoDelPeriodo } from "@/lib/periodo";
 
+import { USUARIO_VISIBLE } from "./usuario-visible";
 import { vipsActivosEntre } from "./vip";
 
 /** El `now` se inyecta en todo para poder probar los bordes de mes sin esperar al día 1. */
@@ -161,8 +162,11 @@ export async function rankingMensual(
   // Y la marca VIP, igual: otra consulta para TODA la página, del mismo conjunto de ids.
   const ids = visibles.map((f) => f.userId);
   const [usuarios, vips] = await Promise.all([
+    // Solo personas VISIBLES (`USUARIO_VISIBLE`). Una fila de la caché cuyo dueño no lo es —borrado,
+    // baneado o cuenta de empresa— se cae abajo (el `flatMap`), igual que una que no tuviera usuario:
+    // antes salía con su nombre y su enlace llevaba a un perfil que respondía 404.
     db.user.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, ...USUARIO_VISIBLE },
       select: {
         id: true,
         username: true,

@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import type { Db } from "@/server/db/types";
+import { USUARIO_VISIBLE } from "@/server/services/usuario-visible";
 
 /**
  * QUÉ VÍDEO SE VE EN PÚBLICO. La regla del feed, escrita UNA vez para todo lo que cuelga de un vídeo
@@ -9,7 +10,7 @@ import type { Db } from "@/server/db/types";
  *
  *  - PUBLISHED (lo retirado o fallido no se ve), y no un REEMPLAZO en vuelo: ese sale cuando el swap lo
  *    convierte en la participación.
- *  - De un autor ni borrado ni baneado.
+ *  - De un autor visible (`USUARIO_VISIBLE`: ni borrado, ni baneado, ni cuenta de empresa).
  *  - O es la participación de un reto que sigue existiendo (un reto borrado por el admin se lleva su
  *    contenido), o es una subida LIBRE con categoría (un vídeo suelto sin ella no se cuela).
  *  - Y NO lo ha escondido el umbral de denuncias.
@@ -24,7 +25,8 @@ export const VIDEO_VISIBLE: Prisma.VideoWhereInput = {
   status: "PUBLISHED",
   ocultoAutoEn: null,
   reemplazaSubmissionId: null,
-  user: { deletedAt: null, bannedAt: null },
+  // El AUTOR, con la regla de persona visible (`USUARIO_VISIBLE`): una sola definición para los dos.
+  user: USUARIO_VISIBLE,
   OR: [
     { submission: { challenge: { deletedAt: null, eliminacionProgramadaEn: null } } },
     { submission: null, category: { not: null } },

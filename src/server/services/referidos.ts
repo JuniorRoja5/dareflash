@@ -32,6 +32,7 @@ import type { Db } from "@/server/db/types";
 import { sanearError } from "@/server/observability/sanitize-error";
 
 import { applyPoints } from "./ledger";
+import { USUARIO_VISIBLE } from "./usuario-visible";
 import { vipsActivosEntre } from "./vip";
 
 /**
@@ -54,13 +55,15 @@ export function enlaceReferido(appUrl: string, codigo: string): string {
  * sería regalarle a cualquiera un botón de "romper el registro" pegando un enlace roto.
  *
  * Se excluye a los SUSPENDIDOS a propósito: invitar es ganar puntos, y una cuenta a la que se ha
- * echado por moderación no sigue cobrando por traer gente.
+ * echado por moderación no sigue cobrando por traer gente. Y a las cuentas de EMPRESA (Fase 9, P2):
+ * no participan, así que invitar a participar no es algo que puedan cobrar. Las tres condiciones son
+ * `USUARIO_VISIBLE`, la regla única de persona visible.
  */
 export async function referentePorCodigo(db: Db, codigo: unknown): Promise<string | null> {
   // La forma se comprueba ANTES de tocar la base: un `?ref=` de 400 caracteres no llega a ser consulta.
   if (!esCodigoReferidoValido(codigo)) return null;
   const u = await db.user.findFirst({
-    where: { referralCode: codigo, deletedAt: null, bannedAt: null },
+    where: { referralCode: codigo, ...USUARIO_VISIBLE },
     select: { id: true },
   });
   return u?.id ?? null;
@@ -95,9 +98,10 @@ export async function premiarReferido(
 
   const referenteId = invitado.referredById;
   // El referente pudo borrarse o ser suspendido entre el alta y la verificación. Su fila de puntos no
-  // se escribe, pero la del INVITADO sí: él no tiene culpa de a quién siguió.
+  // se escribe, pero la del INVITADO sí: él no tiene culpa de a quién siguió. La MISMA regla que al
+  // resolver el código (`USUARIO_VISIBLE`): un referente que hoy no es participante visible no cobra.
   const referente = await db.user.findFirst({
-    where: { id: referenteId, deletedAt: null, bannedAt: null },
+    where: { id: referenteId, ...USUARIO_VISIBLE },
     select: { id: true },
   });
 

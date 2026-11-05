@@ -5,6 +5,7 @@ import { avisoToque } from "@/lib/notificaciones";
 import type { Db } from "@/server/db/types";
 
 import { emitirAviso } from "./notificaciones";
+import { USUARIO_VISIBLE } from "./usuario-visible";
 import { esVipActivoDe } from "./vip";
 
 /**
@@ -68,8 +69,9 @@ export async function darToque(
   // Y UNA CUENTA DE EMPRESA NO RECIBE TOQUES (Fase 9, P2): no participa, así que no tiene a dónde
   // mirar un aviso —su shell no lleva campana— y un toque sería un mensaje de participante a quien
   // no lo es. La misma respuesta que «no existe»: tampoco se averigua qué cuentas son de empresa.
+  // Las tres condiciones son `USUARIO_VISIBLE`, la regla única de persona visible.
   const receptor = await db.user.findFirst({
-    where: { id: input.receptorId, deletedAt: null, bannedAt: null, esCuentaEmpresa: false },
+    where: { id: input.receptorId, ...USUARIO_VISIBLE },
     select: { id: true },
   });
   if (!receptor) return { estado: "no-disponible" };
