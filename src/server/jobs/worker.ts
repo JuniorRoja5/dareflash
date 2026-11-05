@@ -525,12 +525,15 @@ export interface OpcionesBucle {
   limpiarHuerfanos?: (now: Date) => Promise<ResultadoHuerfanos>;
   huerfanosCadaMs?: number;
   /**
-   * LOGOS DE PROPUESTAS DESCARTADAS (Fase 9 · P3): borra del volumen de portadas el logo de las
-   * propuestas rechazadas y de las que caducaron sin decidirse. La ruta de rechazar ya lo borra en el
-   * acto; esto recoge las caducadas y cualquier borrado que se quedó a medias. Cadencia de una hora.
-   * Sin él, no se barre (tests que no lo usan).
+   * BARRIDO DE PROPUESTAS DE RETO (Fase 9 · P3, `barrerPropuestas`): pasa a CADUCADA las pendientes
+   * cuyo cierre ya pasó y avisa a su empresa (una vez), y borra del volumen de portadas el logo de las
+   * rechazadas y caducadas. La ruta de rechazar ya borra el suyo en el acto; esto recoge las
+   * caducadas y cualquier borrado que se quedó a medias. Cadencia de una hora. Sin él, no se barre
+   * (tests que no lo usan).
    */
-  limpiarLogosPropuestas?: (now: Date) => Promise<{ borrados: number; sinVolumen: boolean }>;
+  barrerPropuestas?: (
+    now: Date,
+  ) => Promise<{ caducadas: number; borrados: number; sinVolumen: boolean }>;
   /**
    * Barrido de PUBLICADOS DESAPARECIDOS (reconciliacion Parte C, integridad de datos — NO destructivo:
    * degrada la fila a FAILED, no borra nada). Cadencia BAJA propia. Por defecto dry-run hasta que se
@@ -823,16 +826,17 @@ export async function bucleWorker(
       proximoBorrados = t.getTime() + RETO_BORRADO_CADENCIA_MS;
     }
 
-    // LOGOS DE PROPUESTAS DESCARTADAS (Fase 9 · P3). Misma cadencia que los borrados: no es urgente,
-    // pero un logo de una propuesta rechazada o caducada no puede quedarse en el volumen para siempre.
-    if (o.limpiarLogosPropuestas && t.getTime() >= proximoLogos) {
+    // PROPUESTAS DE RETO (Fase 9 · P3): caducar las vencidas (y avisar) y borrar los logos que ya no
+    // usa nadie. Misma cadencia que los borrados: el estado visible ya es CADUCADA sin esperar a esto;
+    // lo que no puede faltar es el aviso a la empresa y que el logo no se quede en el volumen.
+    if (o.barrerPropuestas && t.getTime() >= proximoLogos) {
       try {
-        const r = await o.limpiarLogosPropuestas(t);
-        if (r.borrados > 0) o.log?.(`[worker] propuestas: logos borrados=${r.borrados}`);
+        const r = await o.barrerPropuestas(t);
+        if (r.caducadas > 0 || r.borrados > 0) {
+          o.log?.(`[worker] propuestas: caducadas=${r.caducadas} logos borrados=${r.borrados}`);
+        }
       } catch (e) {
-        o.log?.(
-          `[worker] propuestas: barrido de logos fallo (${sanearError(e)}); reintento luego.`,
-        );
+        o.log?.(`[worker] propuestas: barrido fallo (${sanearError(e)}); reintento luego.`);
       }
       proximoLogos = t.getTime() + RETO_BORRADO_CADENCIA_MS;
     }

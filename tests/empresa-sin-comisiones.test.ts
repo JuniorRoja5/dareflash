@@ -30,6 +30,7 @@ import { avisarCuentaExistente } from "../src/server/services/aviso-cuenta-exist
 import { rechazarEmpresa, verificarEmpresa } from "../src/server/services/empresas";
 import {
   aprobarSolicitudReto,
+  caducarPropuestasVencidas,
   crearSolicitudReto,
   misSolicitudesReto,
   rechazarSolicitudReto,
@@ -257,6 +258,22 @@ async function unaEmpresaOtra() {
   });
   return { empresaId: e.id, email };
 }
+
+describe("el aviso de propuesta caducada tampoco habla de dinero", () => {
+  it("el correo que manda el barrido", async () => {
+    const { empresaId, email } = await unaEmpresa();
+    await proponer(empresaId);
+    // Pasado el cierre propuesto (10 días): el barrido la caduca y avisa.
+    await caducarPropuestasVencidas(prisma, {
+      ahora: new Date(AHORA.getTime() + 11 * DIA),
+      appUrl: APP_URL,
+    });
+    const correos = await correosA(email);
+    expect(correos).toHaveLength(1);
+    expect(correos[0]).not.toMatch(PROHIBIDO);
+    expect(correos[0]).toMatch(/caducado/i);
+  });
+});
 
 describe("los DTO del portal no llevan campos de comisión", () => {
   it("el extracto: dos cifras por reto, y las claves exactas", async () => {

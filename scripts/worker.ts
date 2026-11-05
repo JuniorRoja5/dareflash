@@ -41,7 +41,7 @@ import { reconciliarContadores } from "@/server/services/reconciliacion-contador
 import { limpiarHuerfanosBunny } from "@/server/services/reconciliacion-huerfanos";
 import { reconciliarPublicadosDesaparecidos } from "@/server/services/reconciliacion-publicados";
 import { recalcularScoresAutoridad } from "@/server/services/recalculo-scores";
-import { limpiarLogosDescartados } from "@/server/services/retos-empresa";
+import { barrerPropuestas } from "@/server/services/retos-empresa";
 import { confirmarVideosPendientes } from "@/server/services/video-confirmacion";
 import { reconciliarVideosAbandonados } from "@/server/services/video-reconciliacion";
 
@@ -167,16 +167,18 @@ async function main(): Promise<void> {
           log: (m) => console.log(m),
         },
       ),
-    // Limpieza de huerfanos en Bunny (Parte B, DESTRUCTIVA). Modo desde el env: dry-run por defecto
-    // (NO borra); Junior lo pone a "borrar" tras revisar los logs del dry-run.
-    // Logos de propuestas de reto rechazadas o caducadas (Fase 9 · P3): fuera del volumen de
-    // portadas. Si este proceso no tiene el volumen montado, no toca nada y lo dice en el log.
-    limpiarLogosPropuestas: (now) =>
-      limpiarLogosDescartados(prisma, {
+    // Propuestas de reto (Fase 9 · P3): pasa a CADUCADA las pendientes vencidas y avisa a su empresa,
+    // y borra del volumen de portadas los logos de las rechazadas y caducadas. Caducar no depende del
+    // volumen; los ficheros sí: sin él montado, no toca ninguno y lo dice en el log.
+    barrerPropuestas: (now) =>
+      barrerPropuestas(prisma, {
         dir: env.PORTADAS_DIR,
         ahora: now,
+        appUrl: env.APP_URL,
         log: (m) => console.warn(m),
       }),
+    // Limpieza de huerfanos en Bunny (Parte B, DESTRUCTIVA). Modo desde el env: dry-run por defecto
+    // (NO borra); Junior lo pone a "borrar" tras revisar los logs del dry-run.
     limpiarHuerfanos: (now) =>
       limpiarHuerfanosBunny(
         prisma,

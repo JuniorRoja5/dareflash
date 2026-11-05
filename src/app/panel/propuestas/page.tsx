@@ -53,12 +53,22 @@ const ETIQUETA: Record<EstadoRetoSolicitud, string> = {
   PENDIENTE: "Pendiente",
   APROBADA: "Aprobada",
   RECHAZADA: "Rechazada",
+  CADUCADA: "Caducada",
 };
 
-/** Un `?estado=` manipulado no revienta la consulta: se queda en «todas». */
+/** El valor de `?estado=` que pide TODAS: sin él, la cola es la de pendientes. */
+const TODAS = "TODAS";
+
+/**
+ * LA COLA POR DEFECTO ES LA DE PENDIENTES DE VERDAD —las que se pueden decidir—: sin `?estado=`, o
+ * con uno manipulado, se ven las pendientes con el cierre por delante, que es lo mismo que cuenta la
+ * insignia. Una caducada no se puede aprobar, así que no se le ofrece al admin como trabajo.
+ * «Todas» es una elección explícita (`?estado=TODAS`).
+ */
 function estadoDe(v: string | string[] | undefined): EstadoRetoSolicitud | null {
+  if (v === TODAS) return null;
   const r = EstadoRetoSolicitudSchema.safeParse(typeof v === "string" ? v : undefined);
-  return r.success ? r.data : null;
+  return r.success ? r.data : "PENDIENTE";
 }
 
 const texto = (v: string | string[] | undefined): string =>
@@ -66,7 +76,7 @@ const texto = (v: string | string[] | undefined): string =>
 
 function enlace(estado: EstadoRetoSolicitud | null, paginacion: Paginacion): string {
   const p = new URLSearchParams();
-  if (estado) p.set("estado", estado);
+  p.set("estado", estado ?? TODAS);
   if (paginacion.cursor) p.set("cursor", paginacion.cursor);
   const pila = escribirPila(paginacion.pila);
   if (pila) p.set("pila", pila);
@@ -149,13 +159,13 @@ export default async function PaginaPropuestas({
       <form method="GET" className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1">
           <span className={CABECERA}>Estado</span>
-          <select name="estado" defaultValue={estado ?? ""} className={CONTROL}>
-            <option value="">Todas</option>
+          <select name="estado" defaultValue={estado ?? TODAS} className={CONTROL}>
             {EstadoRetoSolicitudSchema.options.map((e) => (
               <option key={e} value={e}>
                 {ETIQUETA[e]}
               </option>
             ))}
+            <option value={TODAS}>Todas</option>
           </select>
         </label>
         <button
@@ -253,6 +263,11 @@ export default async function PaginaPropuestas({
                     >
                       Ver el reto que salió de ella
                     </Link>
+                  ) : s.estado === "CADUCADA" ? (
+                    <p className="text-sm text-text-dim">
+                      Caducó sin decidirse: el cierre que propuso ya pasó. La empresa recibe un
+                      correo y puede proponerla de nuevo con otras fechas.
+                    </p>
                   ) : s.estado === "RECHAZADA" ? (
                     <div className="space-y-1 text-sm">
                       <p className="text-text">

@@ -562,6 +562,9 @@ describe("censo del servicio: lo que opera sobre UNA empresa recibe su `empresaI
     marcarPagoRecibido: "panel",
     nombreLogoPropuesta: "clave",
     limpiarLogosDescartados: "panel",
+    claveAvisoCaducada: "clave",
+    caducarPropuestasVencidas: "panel",
+    barrerPropuestas: "panel",
     rechazarSolicitudReto: "panel",
   };
 
@@ -700,8 +703,8 @@ describe("la cifra de propuestas pendientes", () => {
       path.resolve(__dirname, "..", "src", "server", "services", "retos-empresa.ts"),
       "utf8",
     ).replace(/\/\*[\s\S]*?\*\//g, "");
-    expect(src).toMatch(/count\(\{ where: filtroSolicitudesReto\(estado\) \}\)/);
-    expect(src).toMatch(/const filtro = filtroSolicitudesReto\(opciones\.estado\)/);
+    expect(src).toMatch(/count\(\{ where: filtroSolicitudesReto\(estado, ahora\) \}\)/);
+    expect(src).toMatch(/const filtro = filtroSolicitudesReto\(opciones\.estado, ahora\)/);
   });
 });
 
@@ -935,11 +938,174 @@ describe("el logo de una propuesta rechazada o caducada", () => {
 
   it("el worker tiene el barrido cableado (proceso real: scripts/worker.ts)", () => {
     const script = readFileSync(path.resolve(__dirname, "..", "scripts", "worker.ts"), "utf8");
-    expect(script).toMatch(/limpiarLogosPropuestas: \(now\) =>\s+limpiarLogosDescartados\(prisma,/);
+    expect(script).toMatch(/barrerPropuestas: \(now\) =>\s+barrerPropuestas\(prisma,/);
     const bucle = readFileSync(
       path.resolve(__dirname, "..", "src", "server", "jobs", "worker.ts"),
       "utf8",
     );
-    expect(bucle).toMatch(/await o\.limpiarLogosPropuestas\(t\)/);
+    expect(bucle).toMatch(/await o\.barrerPropuestas\(t\)/);
+  });
+
+  it("y el worker de producción MONTA el volumen de portadas, en la misma ruta que su variable", () => {
+    // Sin el montaje, el barrido no ve el directorio y —a propósito— no toca nada: los logos
+    // caducados se quedarían para siempre. Pasó: el worker se desplegó sin él.
+    const compose = readFileSync(path.resolve(__dirname, "..", "docker-compose.prod.yml"), "utf8");
+    const worker = compose.slice(compose.indexOf("\n  worker:"), compose.indexOf("\n  caddy:"));
+    expect(worker).toMatch(/^\s+- portadas_data:\/srv\/portadas\s*$/m);
+    expect(worker).not.toMatch(/portadas_data:\/srv\/portadas:ro/); // tiene que poder BORRAR
+    expect(worker).toMatch(/PORTADAS_DIR: \/srv\/portadas/);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+// 10. CADUCADA: una pendiente con el cierre vencido no está "en revisión"
+// ---------------------------------------------------------------------------------------------------
+
+describe("una propuesta pendiente con el cierre ya pasado está CADUCADA", () => {
+  /** Una pendiente que caduca a los 2 días; `DESPUES` es pasado ese cierre. */
+  const DESPUES = new Date(AHORA.getTime() + 3 * DIA);
+  const unaQueCaduca = (empresaId: string) =>
+    proponer(empresaId, { deadline: new Date(AHORA.getTime() + 2 * DIA) });
+
+  it("no cuenta en el panel (insignia, cabecera y Resumen), ni en la cola por defecto", async () => {
+    const { pendientesPanel } = await import("../src/server/services/pendientes-panel");
+    const { empresaId } = await unaEmpresa("Panadería La Espiga");
+    await unaQueCaduca(empresaId);
+
+    // Antes del cierre, cuenta; después, no — sin que haya pasado ningún barrido.
+    expect(await svc.contarSolicitudesReto(prisma, "PENDIENTE", AHORA)).toBe(1);
+    expect(await svc.contarSolicitudesReto(prisma, "PENDIENTE", DESPUES)).toBe(0);
+    vi.setSystemTime(DESPUES);
+    try {
+      expect((await pendientesPanel(prisma, "ADMIN")).propuestas).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+    // La cola de pendientes no la trae; la de caducadas, sí.
+    const pendientes = await svc.listarSolicitudesReto(prisma, {
+      estado: "PENDIENTE",
+      ahora: DESPUES,
+    });
+    expect(pendientes.items).toEqual([]);
+    const caducadas = await svc.listarSolicitudesReto(prisma, {
+      estado: "CADUCADA",
+      ahora: DESPUES,
+    });
+    expect(caducadas.items.map((s) => s.estado)).toEqual(["CADUCADA"]);
+  });
+
+  it("en el portal se ve CADUCADA, con su línea, antes de que pase el barrido", async () => {
+    const { MSG_ESTADO_SOLICITUD } = await import("../src/config/constants");
+    const { empresaId } = await unaEmpresa("Panadería La Espiga");
+    await unaQueCaduca(empresaId);
+    const [antes] = (await svc.misSolicitudesReto(prisma, empresaId, { ahora: AHORA })).items;
+    expect(antes!.estado).toBe("EN_REVISION");
+    const [despues] = (await svc.misSolicitudesReto(prisma, empresaId, { ahora: DESPUES })).items;
+    expect(despues!.estado).toBe("CADUCADA");
+    expect(MSG_ESTADO_SOLICITUD.CADUCADA).toBe(
+      "Caducada: la fecha del reto ya pasó. Puedes proponerlo de nuevo con otras fechas.",
+    );
+    // Y la columna sigue en PENDIENTE: lo que se enseña se CALCULA, no espera al barrido.
+    expect((await prisma.retoSolicitud.findFirstOrThrow()).estado).toBe("PENDIENTE");
+  });
+
+  it("el barrido la pasa a CADUCADA y genera EXACTAMENTE un correo, aunque pase dos veces", async () => {
+    const { empresaId, email } = await unaEmpresa("Panadería La Espiga");
+    const id = await unaQueCaduca(empresaId);
+    const vigente = await proponer(empresaId); // cierre a 10 días: no se toca
+
+    const r1 = await svc.barrerPropuestas(prisma, {
+      dir: PORTADAS_DIR,
+      ahora: DESPUES,
+      appUrl: APP_URL,
+    });
+    const r2 = await svc.barrerPropuestas(prisma, {
+      dir: PORTADAS_DIR,
+      ahora: new Date(DESPUES.getTime() + 60 * 60 * 1000),
+      appUrl: APP_URL,
+    });
+    expect(r1.caducadas).toBe(1);
+    expect(r2.caducadas).toBe(0);
+
+    expect((await prisma.retoSolicitud.findUniqueOrThrow({ where: { id } })).estado).toBe(
+      "CADUCADA",
+    );
+    expect((await prisma.retoSolicitud.findUniqueOrThrow({ where: { id: vigente } })).estado).toBe(
+      "PENDIENTE",
+    );
+    const jobs = await prisma.job.findMany({
+      where: { idempotencyKey: { startsWith: "reto-caducada:" } },
+    });
+    expect(jobs.map((j) => j.idempotencyKey)).toEqual([svc.claveAvisoCaducada(id)]);
+    const p = jobs[0]!.payload as { to: string; text: string };
+    expect(p.to).toBe(email);
+    expect(p.text).toContain("Patrocinazo de verano");
+    expect(p.text).toContain(`${APP_URL}/empresa/retos/nuevo`);
+  });
+
+  it("caducar no depende del volumen: sin él, caduca y avisa igual", async () => {
+    const { empresaId } = await unaEmpresa("Panadería La Espiga");
+    const id = await unaQueCaduca(empresaId);
+    const r = await svc.barrerPropuestas(prisma, {
+      dir: path.join(PORTADAS_DIR, "no-existe"),
+      ahora: DESPUES,
+      appUrl: APP_URL,
+    });
+    expect(r).toMatchObject({ caducadas: 1, sinVolumen: true });
+    expect((await prisma.retoSolicitud.findUniqueOrThrow({ where: { id } })).estado).toBe(
+      "CADUCADA",
+    );
+  });
+
+  it("una caducada no se aprueba ni se rechaza, y no ocupa hueco en el tope de pendientes", async () => {
+    const { RETO_SOLICITUDES_PENDIENTES_MAX } = await import("../src/config/constants");
+    const { empresaId } = await unaEmpresa("Panadería La Espiga");
+    const id = await unaQueCaduca(empresaId);
+    await svc.barrerPropuestas(prisma, { dir: PORTADAS_DIR, ahora: DESPUES, appUrl: APP_URL });
+
+    expect(await aprobar(id, DESPUES)).toEqual({ estado: "sin_cambios" });
+    expect(
+      await svc.rechazarSolicitudReto(prisma, {
+        solicitudId: id,
+        actorId: admin,
+        motivo: "DUPLICADA",
+        appUrl: APP_URL,
+      }),
+    ).toEqual({ rechazada: false });
+
+    // El tope cuenta las pendientes DE VERDAD: con una caducada, caben todas las demás.
+    for (let i = 0; i < RETO_SOLICITUDES_PENDIENTES_MAX; i += 1) {
+      await svc.crearSolicitudReto(prisma, {
+        empresaId,
+        datos: svc.solicitudRetoSchema(DESPUES).parse(
+          entrada({
+            startsAt: new Date(DESPUES.getTime() + DIA),
+            deadline: new Date(DESPUES.getTime() + 10 * DIA),
+          }),
+        ),
+        aviso: SIN_AVISO,
+        ahora: DESPUES,
+      });
+    }
+    expect(await prisma.retoSolicitud.count({ where: { estado: "PENDIENTE" } })).toBe(
+      RETO_SOLICITUDES_PENDIENTES_MAX,
+    );
+  });
+
+  it("puro: la regla de caducidad y el estado visible", async () => {
+    const { estadoVisibleSolicitud, estaCaducada } = await import("../src/lib/reto-solicitud");
+    const cierre = new Date("2026-11-10T00:00:00.000Z");
+    expect(estaCaducada(cierre, new Date("2026-11-09T23:59:59.999Z"))).toBe(false);
+    expect(estaCaducada(cierre, cierre)).toBe(true); // en el instante del cierre ya no se aprueba
+    expect(estadoVisibleSolicitud("PENDIENTE", null, cierre, new Date("2026-11-11"))).toBe(
+      "CADUCADA",
+    );
+    expect(estadoVisibleSolicitud("CADUCADA", null, cierre, new Date("2026-11-01"))).toBe(
+      "CADUCADA",
+    );
+    // Una APROBADA no caduca por fecha: su vida la decide el reto.
+    expect(estadoVisibleSolicitud("APROBADA", "DRAFT", cierre, new Date("2026-11-11"))).toBe(
+      "APROBADA",
+    );
   });
 });

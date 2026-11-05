@@ -135,10 +135,21 @@ services:
     cpu_shares: 512 # trabajo de FONDO: menos peso que web/mariadb bajo contencion
     env_file:
       - ${HOME}/dareflash-config/.env # DATABASE_URL, SMTP_*, EMAIL_FROM, APP_URL, AUTH_SECRET...
+    environment:
+      # La MISMA ruta que el montaje de abajo, fijada aqui y no heredada del .env: si las dos
+      # discreparan, el barrido miraria un directorio vacio. Es la ruta que usa `web`.
+      PORTADAS_DIR: /srv/portadas
     depends_on:
       mariadb:
         condition: service_healthy
     stop_grace_period: 90s
+    volumes:
+      # Portadas de reto, en LECTURA-ESCRITURA (Fase 9 · P3): el barrido horario del worker BORRA el
+      # logo de las propuestas de reto rechazadas o caducadas (`limpiarLogosDescartados`). Sin este
+      # montaje no veia el directorio y, a proposito, no tocaba nada: los logos caducados se quedaban
+      # en el volumen para siempre. El worker corre como root (etapa `builder`), asi que puede borrar
+      # ficheros que escribio `web` (nextjs, uid 1001) sin EACCES.
+      - portadas_data:/srv/portadas
     networks:
       - internal
 
@@ -177,7 +188,7 @@ volumes:
   caddy_data:
   caddy_config:
   avatars_data: # avatares subidos (WebP); escrito por `web`, servido por `caddy`
-  portadas_data: # portadas de reto (WebP); escrito por `web`, servido por `caddy`
+  portadas_data: # portadas de reto (WebP); escrito por `web`, servido por `caddy`, limpiado por `worker`
 
 networks:
   internal:

@@ -45,8 +45,9 @@ import {
   conKeysetTiempo,
   decodificarCursorTiempo,
 } from "@/lib/cursor-tiempo";
-import { estadoVisibleSolicitud } from "@/lib/reto-solicitud";
+import { estaCaducada, estadoVisibleSolicitud } from "@/lib/reto-solicitud";
 import { slugDesdeTitulo } from "@/lib/reto-slug";
+import type { Prisma } from "@/generated/prisma/client";
 import type { Db } from "@/server/db/types";
 import { renderCorreoHtml } from "@/server/email/plantilla";
 import { enqueueEmail } from "@/server/email/send";
@@ -134,8 +135,9 @@ export async function crearSolicitudReto(
         "Podrás proponer retos en cuanto verifiquemos tu empresa.",
       );
     }
+    // Las PENDIENTES DE VERDAD, con el mismo filtro que la cola: una caducada ya no ocupa hueco.
     const pendientes = await tx.retoSolicitud.count({
-      where: { empresaId: entrada.empresaId, estado: "PENDIENTE" },
+      where: { empresaId: entrada.empresaId, ...filtroSolicitudesReto("PENDIENTE", ahora) },
     });
     if (pendientes >= RETO_SOLICITUDES_PENDIENTES_MAX) {
       throw new SolicitudRetoError(
@@ -233,8 +235,9 @@ export interface PaginaSolicitudes<T> {
 export async function misSolicitudesReto(
   db: Db,
   empresaId: string,
-  opciones: { cursor?: string | null } = {},
+  opciones: { cursor?: string | null; ahora?: Date } = {},
 ): Promise<PaginaSolicitudes<SolicitudDeEmpresa>> {
+  const ahora = opciones.ahora ?? new Date();
   const filas = await db.retoSolicitud.findMany({
     where: conKeysetTiempo({ empresaId }, decodificarCursorTiempo(opciones.cursor)),
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -261,6 +264,8 @@ export async function misSolicitudesReto(
       const estado = estadoVisibleSolicitud(
         f.estado as EstadoRetoSolicitud,
         f.challenge?.status ?? null,
+        f.deadline,
+        ahora,
       );
       return {
         id: f.id,
@@ -291,18 +296,35 @@ export async function misSolicitudesReto(
 // ---------------------------------------------------------------------------------------------------
 
 /**
- * EL FILTRO DE LA COLA, en un solo sitio: lo usan la LISTA y el CONTADOR de la insignia, para que
- * "2 por revisar" y las filas de la cola no puedan discrepar (la misma regla que `filtroEmpresas`).
+ * EL FILTRO DE LA COLA, en un solo sitio: lo usan la LISTA, el CONTADOR de la insignia y el tope de
+ * propuestas al proponer, para que "2 por revisar" y las filas de la cola no puedan discrepar (la
+ * misma regla que `filtroEmpresas`).
+ *
+ * CON EL RELOJ DENTRO, porque CADUCADA se calcula (ver `estadoVisibleSolicitud`): una PENDIENTE con
+ * el cierre vencido ya es caducada aunque el barrido aún no lo haya escrito. Así:
+ *  - PENDIENTE = pendiente Y con el cierre por delante (lo que de verdad se puede decidir);
+ *  - CADUCADA  = caducada en la columna, O pendiente con el cierre vencido.
+ * Es la forma en `where` de `estaCaducada` (cierre <= ahora): las dos dicen lo mismo, y
+ * `empresa-retos` lo comprueba contra la base de datos.
  */
-export function filtroSolicitudesReto(estado: EstadoRetoSolicitud | null | undefined): {
-  estado?: string;
-} {
+export function filtroSolicitudesReto(
+  estado: EstadoRetoSolicitud | null | undefined,
+  ahora: Date,
+): Prisma.RetoSolicitudWhereInput {
+  if (estado === "PENDIENTE") return { estado: "PENDIENTE", deadline: { gt: ahora } };
+  if (estado === "CADUCADA") {
+    return { OR: [{ estado: "CADUCADA" }, { estado: "PENDIENTE", deadline: { lte: ahora } }] };
+  }
   return estado ? { estado } : {};
 }
 
 /** Cuántas hay en ese estado. Lee EL MISMO filtro que la cola. */
-export function contarSolicitudesReto(db: Db, estado: EstadoRetoSolicitud): Promise<number> {
-  return db.retoSolicitud.count({ where: filtroSolicitudesReto(estado) });
+export function contarSolicitudesReto(
+  db: Db,
+  estado: EstadoRetoSolicitud,
+  ahora: Date = new Date(),
+): Promise<number> {
+  return db.retoSolicitud.count({ where: filtroSolicitudesReto(estado, ahora) });
 }
 
 /** Una fila de la cola del panel. Aquí SÍ va la nota interna: es el equipo quien mira. */
@@ -330,9 +352,10 @@ export interface SolicitudPanel {
 /** LA COLA, por KEYSET, más nuevas primero. Del panel: no recibe ámbito porque mira todas. */
 export async function listarSolicitudesReto(
   db: Db,
-  opciones: { estado?: EstadoRetoSolicitud | null; cursor?: string | null } = {},
+  opciones: { estado?: EstadoRetoSolicitud | null; cursor?: string | null; ahora?: Date } = {},
 ): Promise<PaginaSolicitudes<SolicitudPanel>> {
-  const filtro = filtroSolicitudesReto(opciones.estado);
+  const ahora = opciones.ahora ?? new Date();
+  const filtro = filtroSolicitudesReto(opciones.estado, ahora);
   const filas = await db.retoSolicitud.findMany({
     where: conKeysetTiempo(filtro, decodificarCursorTiempo(opciones.cursor)),
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -374,7 +397,12 @@ export async function listarSolicitudesReto(
       cierreMs: f.deadline.getTime(),
       ganadores: f.winnersCount,
       logo: f.sponsorLogo,
-      estado: f.estado as EstadoRetoSolicitud,
+      // Una pendiente vencida es CADUCADA también en el panel, antes de que el barrido lo escriba:
+      // la misma regla que el portal (`estaCaducada`).
+      estado:
+        f.estado === "PENDIENTE" && estaCaducada(f.deadline, ahora)
+          ? "CADUCADA"
+          : (f.estado as EstadoRetoSolicitud),
       motivoRechazo: (f.motivoRechazo as MotivoRechazoReto | null) ?? null,
       notaInterna: f.notaInterna,
       creadaMs: f.createdAt.getTime(),
@@ -682,7 +710,11 @@ export function nombreLogoPropuesta(solicitudId: string): string {
 function logosDescartados(ahora: Date) {
   return {
     sponsorLogo: { not: null },
-    OR: [{ estado: "RECHAZADA" }, { estado: "PENDIENTE", deadline: { lte: ahora } }],
+    OR: [
+      { estado: "RECHAZADA" },
+      { estado: "CADUCADA" },
+      { estado: "PENDIENTE", deadline: { lte: ahora } },
+    ],
   };
 }
 
@@ -749,4 +781,96 @@ export async function limpiarLogosDescartados(
     borrados += 1;
   }
   return { borrados, sinVolumen: false };
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Las que caducan sin decidirse
+// ---------------------------------------------------------------------------------------------------
+
+/** La clave del aviso de caducidad: UNO por propuesta, aunque el barrido pase cien veces. */
+export function claveAvisoCaducada(solicitudId: string): string {
+  return `reto-caducada:${solicitudId}`;
+}
+
+/**
+ * CONSOLIDA LAS CADUCADAS: una PENDIENTE cuyo cierre ya pasó pasa a CADUCADA en la columna, y se le
+ * escribe a la empresa, UNA VEZ.
+ *
+ * El estado visible no depende de esto —ya es CADUCADA para el portal y el panel desde el instante en
+ * que pasa el cierre (`estadoVisibleSolicitud`)—: esto lo deja escrito y AVISA. Mismo principio que el
+ * resto del producto: el estado se calcula, el job consolida.
+ *
+ * UNA VEZ, POR DOS CERROJOS: el `UPDATE` que la reclama solo afecta a una PENDIENTE (el segundo barrido
+ * no encuentra nada que reclamar), y el correo lleva una `idempotencyKey` por propuesta. Las dos cosas
+ * van en la MISMA transacción, por propuesta: o pasa a caducada Y se encola el aviso, o ninguna.
+ * Primero el `UPDATE`, sin lecturas antes (ver `aprobarSolicitudReto`).
+ */
+export async function caducarPropuestasVencidas(
+  db: Db,
+  entrada: { ahora: Date; appUrl: string; lote?: number },
+): Promise<{ caducadas: number }> {
+  const candidatas = await db.retoSolicitud.findMany({
+    where: { estado: "PENDIENTE", deadline: { lte: entrada.ahora } },
+    select: { id: true },
+    orderBy: [{ deadline: "asc" }, { id: "asc" }],
+    take: entrada.lote ?? 100,
+  });
+
+  let caducadas = 0;
+  for (const c of candidatas) {
+    const hecha = await db.$transaction(async (tx) => {
+      const r = await tx.retoSolicitud.updateMany({
+        where: { id: c.id, estado: "PENDIENTE", deadline: { lte: entrada.ahora } },
+        data: { estado: "CADUCADA", revisadaEn: entrada.ahora },
+      });
+      if (r.count === 0) return false; // la decidió alguien entre medias, o ya estaba
+      const s = await tx.retoSolicitud.findUniqueOrThrow({
+        where: { id: c.id },
+        select: { title: true, empresa: { select: { user: { select: { email: true } } } } },
+      });
+      const email = s.empresa.user.email;
+      if (email) {
+        const nuevo = new URL("/empresa/retos/nuevo", entrada.appUrl).toString();
+        const titulo = "Tu propuesta de reto ha caducado";
+        // Sin dinero: a la empresa no se le cuenta cómo se reparte (`empresa-sin-comisiones`).
+        const cuerpo = `La fecha de «${s.title}» ya pasó sin que llegáramos a decidir tu propuesta. Puedes proponerlo de nuevo con otras fechas.`;
+        await enqueueEmail(
+          tx,
+          {
+            to: email,
+            subject: titulo,
+            text: [cuerpo, "", `Proponer un reto: ${nuevo}`].join("\n"),
+            html: renderCorreoHtml({
+              preheader: cuerpo,
+              titulo,
+              intro: cuerpo,
+              cta: { texto: "Proponer un reto", href: nuevo },
+              notas: [],
+            }),
+          },
+          { idempotencyKey: claveAvisoCaducada(c.id), runAt: entrada.ahora },
+        );
+      }
+      return true;
+    });
+    if (hecha) caducadas += 1;
+  }
+  return { caducadas };
+}
+
+/**
+ * EL BARRIDO HORARIO DE PROPUESTAS (lo llama el worker): primero consolida las caducadas y avisa,
+ * después borra los logos que ya no usará nadie.
+ *
+ * EN ESE ORDEN Y POR SEPARADO: caducar es base de datos y correo, y no puede depender de que el
+ * proceso tenga el volumen de portadas montado. Si no lo tiene, las propuestas caducan y se avisa
+ * igual, y solo los ficheros esperan (`limpiarLogosDescartados` lo dice en el log).
+ */
+export async function barrerPropuestas(
+  db: Db,
+  entrada: { dir: string; ahora: Date; appUrl: string; log?: (m: string) => void },
+): Promise<{ caducadas: number; borrados: number; sinVolumen: boolean }> {
+  const { caducadas } = await caducarPropuestasVencidas(db, entrada);
+  const { borrados, sinVolumen } = await limpiarLogosDescartados(db, entrada);
+  return { caducadas, borrados, sinVolumen };
 }

@@ -2297,11 +2297,17 @@ export function msgAvisoEmpresaNueva(datos: {
 // ----------------------------------------------------------------------------
 
 /**
- * La vida de una propuesta. PENDIENTE -> APROBADA | RECHAZADA, y ahí se queda: una rechazada se
- * corrige proponiendo otra. Lo que pasa DESPUÉS de aprobar (borrador, publicado) no es un estado de
- * la propuesta sino del reto que nació de ella, y se calcula leyéndolo (`estadoVisibleSolicitud`).
+ * La vida de una propuesta. PENDIENTE -> APROBADA | RECHAZADA | CADUCADA, y ahí se queda: una
+ * rechazada o caducada se corrige proponiendo otra. Lo que pasa DESPUÉS de aprobar (borrador,
+ * publicado) no es un estado de la propuesta sino del reto que nació de ella, y se calcula leyéndolo
+ * (`estadoVisibleSolicitud`).
+ *
+ * CADUCADA: el cierre propuesto pasó sin que se decidiera (ya no se puede aprobar). Se CALCULA desde
+ * el momento en que pasa —una PENDIENTE con el cierre vencido ya es caducada para todo el mundo—, y
+ * el barrido horario lo CONSOLIDA en la columna y avisa a la empresa. El estado visible no espera al
+ * barrido: mismo principio que el resto del producto (se calcula, el job solo consolida).
  */
-export const EstadoRetoSolicitudSchema = z.enum(["PENDIENTE", "APROBADA", "RECHAZADA"]);
+export const EstadoRetoSolicitudSchema = z.enum(["PENDIENTE", "APROBADA", "RECHAZADA", "CADUCADA"]);
 export type EstadoRetoSolicitud = z.infer<typeof EstadoRetoSolicitudSchema>;
 
 /**
@@ -2331,10 +2337,12 @@ export const MSG_MOTIVO_RECHAZO_RETO: Record<MotivoRechazoReto, string> = {
  * Lo que la EMPRESA ve de cada propuesta, en una palabra. Va más allá de los tres estados porque
  * "aprobada" no le dice si ya se puede participar: eso lo decide el reto (borrador o publicado).
  */
-export type EstadoVisibleSolicitud = "EN_REVISION" | "RECHAZADA" | "APROBADA" | "PUBLICADA";
+export type EstadoVisibleSolicitud =
+  "EN_REVISION" | "RECHAZADA" | "CADUCADA" | "APROBADA" | "PUBLICADA";
 export const ETIQUETA_ESTADO_SOLICITUD: Record<EstadoVisibleSolicitud, string> = {
   EN_REVISION: "En revisión",
   RECHAZADA: "Rechazada",
+  CADUCADA: "Caducada",
   APROBADA: "Aprobada",
   PUBLICADA: "Publicada",
 };
@@ -2342,6 +2350,7 @@ export const ETIQUETA_ESTADO_SOLICITUD: Record<EstadoVisibleSolicitud, string> =
 export const MSG_ESTADO_SOLICITUD: Record<EstadoVisibleSolicitud, string> = {
   EN_REVISION: "La revisamos a mano y te escribimos en cuanto la decidamos.",
   RECHAZADA: "No la hemos podido aprobar.",
+  CADUCADA: "Caducada: la fecha del reto ya pasó. Puedes proponerlo de nuevo con otras fechas.",
   // Lo que promete es la regla de `publicarReto`: un reto de empresa no se publica sin el pago.
   APROBADA:
     "Está aprobada. Te escribiremos para organizar el pago, y la publicaremos en cuanto lo recibamos.",
