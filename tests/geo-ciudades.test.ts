@@ -111,6 +111,16 @@ describe("el radio de 100 km", () => {
     expect(ids).not.toContain(ALICANTE);
   });
 
+  it("lo que cae en la ESQUINA de la caja pero a más de 100 km, fuera: la haversine sí se aplica", async () => {
+    // Alicante no basta para probar esto: está fuera ya por latitud, así que la caja sola la
+    // descarta y un `ciudadesEnRadio` sin el filtro de distancia seguía en verde (diente que no
+    // mordía, visto al romperlo). Teruel (≈115 km) y Villena (≈102 km) están DENTRO de la caja y
+    // fuera del círculo: solo la haversine las quita.
+    const ids = await ciudadesEnRadio(prisma, VALENCIA);
+    expect(ids).not.toContain(3108126); // Teruel
+    expect(ids).not.toContain(2509463); // Villena
+  });
+
   it("una ciudad que no existe no tiene radio (y no lanza)", async () => {
     expect(await ciudadesEnRadio(prisma, -1)).toEqual([]);
   });
