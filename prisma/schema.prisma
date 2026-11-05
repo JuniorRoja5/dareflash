@@ -1536,6 +1536,16 @@ model Empresa {
   /// La traza del equipo. NO VIAJA AL DUEÑO (ver arriba).
   notaInterna String? @db.VarChar(500)
 
+  /// SALDO DE CREDITOS DE PUBLICIDAD (Fase 9 · P4). 1 credito = 1 dia de anuncio (el precio por zona lo
+  /// pone P6). Es la CACHE de `CreditoLedger`, no la verdad: se mueve SOLO por `aplicarCreditos`, que
+  /// bloquea ESTA fila (FOR UPDATE) y escribe el movimiento y el saldo en la misma transaccion. Un
+  /// saldo sin su fila es un descuadre.
+  ///
+  /// EN `Empresa` Y NO EN `User`: los creditos son de la empresa, y el veto de deadlock del repositorio
+  /// prohibe anidar un FOR UPDATE de `User` dentro de transacciones de contenido. Asi el ledger de
+  /// publicidad no toca nunca la fila del User. Nunca negativo (lo comprueba el primitivo).
+  creditosSaldo Int @default(0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1544,6 +1554,8 @@ model Empresa {
   /// Sus propuestas de reto patrocinado (Fase 9 · P3) y los retos que salieron de ellas.
   solicitudesReto RetoSolicitud[]
   retos           Challenge[]
+  /// Sus movimientos de creditos de publicidad (Fase 9 · P4).
+  creditos        CreditoLedger[]
 
   /// LA COLA DE VERIFICACION DEL PANEL: filtra por `estado` y se pagina por KEYSET sobre
   /// (createdAt, id), los dos DESC. El `id` va detras porque el keyset necesita un orden TOTAL, y
@@ -1613,5 +1625,40 @@ model RetoSolicitud {
   /// La cola del panel (por estado) y la lista del portal (por empresa), las dos por KEYSET sobre
   /// (createdAt, id).
   @@index([estado, createdAt, id])
+  @@index([empresaId, createdAt, id])
+}
+
+/// MOVIMIENTOS DE CREDITOS DE PUBLICIDAD DE UNA EMPRESA (Fase 9 · P4). 1 credito = 1 dia de anuncio.
+///
+/// LEDGER DE SOLO INSERCION, como los de puntos, dinero y Boost: una fila por movimiento, nunca se
+/// edita ni se borra, y el saldo de `Empresa.creditosSaldo` es la suma de sus filas, escrita en la
+/// MISMA transaccion que cada una (`aplicarCreditos`). `idempotencyKey` UNICA: un mismo hecho no se
+/// aplica dos veces —el regalo de Socio Fundador tiene la suya por empresa, asi que una empresa que se
+/// rechaza y se vuelve a verificar no lo cobra dos veces—.
+///
+/// ENTEROS, como todo el dinero del esquema. Hoy entran dos motivos: el regalo de Socio Fundador y el
+/// ajuste manual del admin (que deja su POR QUE en `nota`). La compra (P11) y el consumo diario (P9)
+/// entraran aqui mismo, con su motivo.
+model CreditoLedger {
+  id        String @id @default(cuid())
+  empresaId String
+  /// +N al regalar, comprar o ajustar a favor; -N al consumir o ajustar en contra. Nunca 0.
+  delta     Int
+  /// SOCIO_FUNDADOR | AJUSTE_ADMIN (union en constants; COMPRA y CONSUMO llegaran con su pieza).
+  reason    String
+
+  /// De que viene: el admin que ajusto (`ADMIN` + su id), la empresa del regalo... SIN clave ajena,
+  /// como en el resto de ledgers: la traza no se va con la cuenta de quien la hizo.
+  refType        String?
+  refId          String?
+  idempotencyKey String  @unique
+  /// El POR QUE de un ajuste manual. Para el EQUIPO: no viaja al portal de la empresa (su historial
+  /// se pinta por el motivo, nunca por esta nota).
+  nota           String? @db.VarChar(500)
+  createdAt      DateTime @default(now())
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+
+  /// El historial de una empresa (portal y panel), por KEYSET sobre (createdAt, id).
   @@index([empresaId, createdAt, id])
 }

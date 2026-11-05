@@ -38,6 +38,7 @@ import {
   MSG_EMPRESA_DATOS_INVALIDOS,
   MSG_EMPRESA_WEB_O_REDES,
   MSG_MOTIVO_RECHAZO_EMPRESA,
+  SOCIO_FUNDADOR_CREDITOS,
   TITULO_AVISO_EMPRESA_NUEVA,
   msgAvisoEmpresaNueva,
   type AuditAccionEmpresa,
@@ -684,6 +685,8 @@ async function avisarDecision(
     claveCambio: string;
     appUrl: string;
     ahora: Date;
+    /** Créditos de publicidad que se le acaban de regalar como Socio Fundador (0 = ninguno). */
+    regaloCreditos?: number;
   },
 ): Promise<void> {
   const e = await tx.empresa.findUnique({
@@ -696,8 +699,13 @@ async function avisarDecision(
   const portal = new URL("/empresa", entrada.appUrl).toString();
   const verificada = entrada.decision === "VERIFICADA";
   const titulo = verificada ? "Tu empresa está verificada" : "No hemos podido verificar tu empresa";
+  // EL REGALO SE CUENTA EN EL MISMO CORREO: se le prometió en el alta («las empresas que verifiquemos
+  // antes de… se llevan N días de publicidad»), y este es el momento en que se cumple.
+  const regalo = entrada.regaloCreditos
+    ? ` Como Socio Fundador, te regalamos ${entrada.regaloCreditos} créditos de publicidad: cada uno es un día de anuncio.`
+    : "";
   const cuerpo = verificada
-    ? `Hemos revisado ${e.nombre} y está verificada. Ya puedes usar tu portal.`
+    ? `Hemos revisado ${e.nombre} y está verificada. Ya puedes usar tu portal.${regalo}`
     : `Hemos revisado ${e.nombre} y no hemos podido verificarla. ${
         entrada.motivo ? MSG_MOTIVO_RECHAZO_EMPRESA[entrada.motivo] : ""
       }`.trim();
@@ -775,6 +783,16 @@ export async function verificarEmpresa(
       empresaId: entrada.empresaId,
       metadata: { de: actual.estado },
     });
+    // EL REGALO DE SOCIO FUNDADOR, en ESTA transacción (Fase 9 · P4): o se verifica y se regala, o
+    // ninguna de las dos. Se decide por la fecha SELLADA (la primera verificación), y su clave es la de
+    // la empresa: rechazarla y volver a verificarla no lo cobra dos veces. La fila de la empresa ya
+    // está bloqueada por el `update` de arriba; el primitivo la vuelve a pedir FOR UPDATE (es la misma
+    // transacción) y no toca la fila del User.
+    const { regalarSocioFundador } = await import("./creditos");
+    const { regalado } = await regalarSocioFundador(tx, {
+      empresaId: entrada.empresaId,
+      verificadaEn: actual.verificadaEn ?? ahora,
+    });
     // Lo prometido en su portal: «te escribimos en cuanto esté».
     await avisarDecision(tx, {
       empresaId: entrada.empresaId,
@@ -782,6 +800,7 @@ export async function verificarEmpresa(
       claveCambio: cambio,
       appUrl: entrada.appUrl,
       ahora,
+      regaloCreditos: regalado ? SOCIO_FUNDADOR_CREDITOS : 0,
     });
   });
   return { estado: "hecho" };

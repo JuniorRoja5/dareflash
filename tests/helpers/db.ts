@@ -98,6 +98,8 @@ export const DELETE_ORDER = [
   // La empresa del portal: tiene FK al `User` (Restrict), así que va antes que él. Y además, una
   // que sobreviva al reset deja a un usuario nuevo con empresa sin que su caso la haya creado — y
   // como `ownerUserId` es UNIQUE, el siguiente registro fallaría por un duplicado que nadie pidió.
+  // Sus créditos de publicidad (Fase 9 · P4) tienen FK a ella: van antes.
+  "CreditoLedger",
   "Empresa",
   "Report",
   "AuditLog",

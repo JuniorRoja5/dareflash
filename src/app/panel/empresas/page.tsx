@@ -129,10 +129,13 @@ export default async function PaginaEmpresas({
 
   const { prisma } = await import("@/server/db/client");
   const { fichaEmpresa, listarEmpresas } = await import("@/server/services/empresas");
+  const { creditosDeFicha } = await import("@/server/services/creditos");
 
-  const [pagina, ficha] = await Promise.all([
+  // Los créditos de la ficha, en paralelo con ella (Fase 9 · P4): una consulta más solo si hay ficha.
+  const [pagina, ficha, creditos] = await Promise.all([
     listarEmpresas(prisma, { estado, cursor: aqui.cursor }),
     fichaId ? fichaEmpresa(prisma, fichaId) : Promise.resolve(null),
+    fichaId ? creditosDeFicha(prisma, fichaId) : Promise.resolve(undefined),
   ]);
 
   const atras = anterior(aqui);
@@ -169,7 +172,7 @@ export default async function PaginaEmpresas({
         </button>
       </form>
 
-      {ficha ? <FichaEmpresa ficha={ficha} /> : null}
+      {ficha ? <FichaEmpresa ficha={ficha} creditos={creditos} /> : null}
       {fichaId && !ficha ? <p className="text-sm text-text-dim">Esa empresa no existe.</p> : null}
 
       <section aria-label="Empresas">

@@ -6,9 +6,11 @@ import {
 } from "@/config/constants";
 import { alcancesPermitidos } from "@/lib/empresa";
 import { nombrePais } from "@/lib/paises";
+import type { MovimientoCreditoPanel } from "@/server/services/creditos";
 import type { FichaEmpresa as DatosFicha } from "@/server/services/empresas";
 
 import { AccionesEmpresa } from "./acciones-empresa";
+import { CreditosEmpresa } from "./creditos-empresa";
 import { VerFiscal } from "./ver-fiscal";
 
 const DATO = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
@@ -34,7 +36,14 @@ function Dato({ etiqueta, children }: { etiqueta: string; children: React.ReactN
  * La identificación fiscal no se pinta —se pide con su botón, y pedirla deja rastro—; aquí solo se
  * dice si la hay.
  */
-export function FichaEmpresa({ ficha }: { ficha: DatosFicha }) {
+export function FichaEmpresa({
+  ficha,
+  creditos,
+}: {
+  ficha: DatosFicha;
+  /** Saldo y últimos movimientos de créditos de publicidad (`creditosDeFicha`). */
+  creditos?: { saldo: number; movimientos: MovimientoCreditoPanel[] };
+}) {
   return (
     <section
       aria-label={`Ficha de ${ficha.nombre}`}
@@ -104,6 +113,16 @@ export function FichaEmpresa({ ficha }: { ficha: DatosFicha }) {
             </p>
           ) : null}
         </div>
+      ) : null}
+
+      {/* LOS CRÉDITOS DE PUBLICIDAD (Fase 9 · P4): saldo, historial con nota y ajuste manual. */}
+      {creditos ? (
+        <CreditosEmpresa
+          empresaId={ficha.id}
+          nombre={ficha.nombre}
+          saldo={creditos.saldo}
+          movimientos={creditos.movimientos}
+        />
       ) : null}
 
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">

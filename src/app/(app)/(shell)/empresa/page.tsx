@@ -64,7 +64,12 @@ export default async function PaginaMiEmpresa() {
 
   const { prisma } = await import("@/server/db/client");
   const { miEmpresa } = await import("@/server/services/empresas");
-  const empresa = await miEmpresa(prisma, ambito.empresaId);
+  const { misCreditos } = await import("@/server/services/creditos");
+  // Los dos por EL MISMO ámbito del chokepoint: esta pantalla no sabe pedir lo de otra empresa.
+  const [empresa, creditos] = await Promise.all([
+    miEmpresa(prisma, ambito.empresaId),
+    misCreditos(prisma, ambito.empresaId),
+  ]);
   // Solo si la fila desapareció entre el guard y la lectura. No se inventa una pantalla vacía.
   if (!empresa) notFound();
 
@@ -92,6 +97,38 @@ export default async function PaginaMiEmpresa() {
             {MSG_MOTIVO_RECHAZO_EMPRESA[empresa.motivoRechazo]}
           </p>
         ) : null}
+      </Tarjeta>
+
+      {/* CRÉDITOS DE PUBLICIDAD (Fase 9 · P4). Siempre con ese nombre —nunca «puntos»— y cada
+          movimiento por su CONCEPTO: la nota de un ajuste es del equipo y no viaja aquí (el DTO no
+          la trae). Sin promesas de fecha: la tarjeta cuenta lo que hay, no lo que vendrá. */}
+      <Tarjeta className="mt-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold text-text">Créditos de publicidad</h2>
+          <p className="text-sm text-text tabular-nums" data-creditos-saldo={creditos.saldo}>
+            <span className="text-lg font-semibold">{creditos.saldo.toLocaleString("es-ES")}</span>{" "}
+            {creditos.saldo === 1 ? "crédito" : "créditos"}
+          </p>
+        </div>
+        <p className="mt-1 text-2xs text-text-dim">Cada crédito es un día de anuncio.</p>
+        {creditos.movimientos.length > 0 ? (
+          <ul className="mt-3 divide-y divide-line text-sm">
+            {creditos.movimientos.map((m) => (
+              <li key={m.id} className="flex flex-wrap items-baseline gap-x-3 py-1.5">
+                <span className="w-14 text-text tabular-nums">
+                  {m.delta > 0 ? "+" : ""}
+                  {m.delta.toLocaleString("es-ES")}
+                </span>
+                <span className="min-w-0 flex-1 text-text">{m.concepto}</span>
+                <span className="text-2xs text-text-dim">
+                  {new Date(m.creadoMs).toLocaleDateString("es-ES", FECHA)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-text-dim">Todavía no tienes movimientos.</p>
+        )}
       </Tarjeta>
 
       <Tarjeta className="mt-4">

@@ -1896,11 +1896,15 @@ export const ETIQUETA_ESTADO_EMPRESA: Record<EstadoEmpresa, string> = {
  * `EMPRESA_FISCAL_VIEW` no es un cambio: es el ACTO DE MIRAR la identificación fiscal, como
  * `EMAIL_VIEW` lo es de mirar un correo. Se anota QUE se miró y QUIÉN, nunca el valor — duplicar
  * el dato en la tabla de auditoría multiplicaría el problema que el registro existe para vigilar.
+ *
+ * `EMPRESA_CREDITOS_AJUSTE` (Fase 9 · P4): el admin movió a mano los créditos de publicidad. El POR
+ * QUÉ va en la fila del ledger (`CreditoLedger.nota`); aquí, quién, cuánto y qué movimiento fue.
  */
 export const AuditAccionEmpresaSchema = z.enum([
   "EMPRESA_VERIFY",
   "EMPRESA_REJECT",
   "EMPRESA_FISCAL_VIEW",
+  "EMPRESA_CREDITOS_AJUSTE",
 ]);
 export type AuditAccionEmpresa = z.infer<typeof AuditAccionEmpresaSchema>;
 
@@ -2455,6 +2459,42 @@ export function msgSocioFundador(): string {
     timeZone: "Europe/Madrid",
   });
   return `Socios Fundadores: las empresas que verifiquemos antes del ${hasta} se llevan ${SOCIO_FUNDADOR_CREDITOS} días de publicidad de regalo.`;
+}
+
+// ----------------------------------------------------------------------------
+// CRÉDITOS DE PUBLICIDAD (Fase 9 · P4). En pantalla se llaman SIEMPRE así —«créditos de publicidad»—
+// y nunca «puntos»: los puntos son de los participantes y se ganan jugando; esto es de las empresas y
+// se gasta en anuncios. Llamarlos igual invitaría a preguntar cuántos puntos son un día de anuncio.
+// ----------------------------------------------------------------------------
+
+/**
+ * Por qué se mueve un crédito. Unión CERRADA; cada motivo entra con la pieza que lo emite (la compra
+ * en P11, el consumo diario en P9), como los tipos de notificación: un motivo que nadie emite sería
+ * una promesa que el sistema no cumple.
+ */
+export const RazonCreditoSchema = z.enum(["SOCIO_FUNDADOR", "AJUSTE_ADMIN"]);
+export type RazonCredito = z.infer<typeof RazonCreditoSchema>;
+
+/**
+ * Cómo se lee cada movimiento en el PORTAL de la empresa. Por el MOTIVO y nunca por la nota del
+ * ajuste: esa es para el equipo (la misma regla que la nota del ajuste de puntos de un participante).
+ */
+export const ETIQUETA_MOVIMIENTO_CREDITO: Record<RazonCredito, string> = {
+  SOCIO_FUNDADOR: "Regalo de Socio Fundador",
+  AJUSTE_ADMIN: "Ajuste del equipo de DareFlash",
+};
+
+/**
+ * Tope de un ajuste manual (en un sentido o en otro). Holgado —cubre una corrección de un trimestre
+ * entero de publicidad— pero existe: un cero de más tecleado no puede regalar diez años de anuncios.
+ */
+export const AJUSTE_CREDITOS_DELTA_MAX = 1000;
+/** Página del historial de créditos (portal y panel). */
+export const CREDITOS_PAGINA = 25;
+
+/** La clave del regalo: UNA por empresa, para siempre. La usa también su migración (backfill). */
+export function claveRegaloSocioFundador(empresaId: string): string {
+  return `socio-fundador:${empresaId}`;
 }
 
 // ----------------------------------------------------------------------------
