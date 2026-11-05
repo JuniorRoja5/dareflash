@@ -1,6 +1,11 @@
 import Link from "next/link";
 
-import { VIDEO_FONDO_HOME } from "@/config/constants";
+import {
+  CAMINO_EMPRESA,
+  CTA_NEGOCIO,
+  VIDEO_FONDO_HOME,
+  msgSocioFundador,
+} from "@/config/constants";
 import { Boton } from "@/components/ui/boton";
 import { FilaPuesto } from "@/components/ui/fila-puesto";
 import { FondoVideo } from "@/components/ui/fondo-video";
@@ -46,7 +51,8 @@ export default async function InicioPage() {
   // CTA del hero POR ROL, de la misma fuente que el de la barra: "Crear reto" es del admin; el resto
   // sube un vídeo. `getCurrentUser` está memoizado por petición: el layout del shell ya lo resolvió.
   const { getCurrentUser } = await import("@/server/auth/current-user");
-  const cta = ctaPrincipal((await getCurrentUser())?.role ?? null);
+  const sesion = await getCurrentUser();
+  const cta = ctaPrincipal(sesion?.role ?? null);
 
   return (
     <>
@@ -84,21 +90,40 @@ export default async function InicioPage() {
                 Explorar retos
               </Boton>
             </div>
-            {/* LA PUERTA DEL NEGOCIO, en texto y no en un tercer botón: la pantalla ya tiene su
-                único acento de acción y su secundario, y un tercero convertiría la elección en un
-                menú. Quien viene a anunciarse lo busca; quien viene a competir ni lo lee. */}
-            <p className="mt-3 text-sm text-text-dim">
-              ¿Tienes un negocio?{" "}
-              <Link href="/empezar" className="underline">
-                Así se entra como empresa
-              </Link>
-              .
-            </p>
             <StatsInicio />
           </div>
 
           <HeroDestacado />
         </section>
+
+        {/* ┌─ ¿TIENES UN NEGOCIO? — SOLO PARA INVITADOS ──────────────────────────────────────────┐
+            │ Antes era una línea de texto pequeño dentro del hero, y el alta de empresa seguía     │
+            │ escondida. Ahora es un bloque propio, con el aviso de Socios Fundadores y su botón,   │
+            │ DEBAJO del hero: la portada sigue siendo del participante (el hero lleva el único     │
+            │ acento) y quien viene a anunciarse lo encuentra sin tener que adivinarlo.             │
+            │                                                                                        │
+            │ Solo para INVITADOS: quien ya tiene cuenta de participante no puede convertirla, y    │
+            │ una cuenta de empresa aterriza en su portal. A ninguno de los dos le sirve.           │
+            └────────────────────────────────────────────────────────────────────────────────────────┘ */}
+        {sesion ? null : (
+          <section
+            aria-labelledby="para-negocios"
+            className="df-rise mt-10 rounded-sm border border-line bg-surface/80 p-6 backdrop-blur-sm lg:mt-12 lg:flex lg:items-center lg:gap-8"
+            style={{ animationDelay: "40ms" }}
+          >
+            <div className="min-w-0 flex-1">
+              <h2 id="para-negocios" className="text-xl text-text">
+                ¿Tienes un negocio?
+              </h2>
+              <p className="mt-2 max-w-prose text-sm text-text-dim">{CAMINO_EMPRESA.cuerpo}</p>
+              {/* Construido con sus constantes: si la fecha o la cifra se mueven, esto se mueve. */}
+              <p className="mt-2 max-w-prose text-sm text-text">{msgSocioFundador()}</p>
+            </div>
+            <Boton href={CTA_NEGOCIO.href} variante="secundario" className="mt-4 shrink-0 lg:mt-0">
+              Registrar mi empresa
+            </Boton>
+          </section>
+        )}
 
         {/* PERFILES DESTACADOS (Boost) */}
         <div className="df-rise mt-12 lg:mt-16" style={{ animationDelay: "80ms" }}>

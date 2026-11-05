@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
+import { CTA_NEGOCIO } from "@/config/constants";
 
 import { FormularioLogin } from "./formulario-login";
 import { FormularioRegistro } from "./formulario-registro";
@@ -62,6 +63,12 @@ export function TarjetaAcceso() {
               Crear cuenta
             </button>
           </p>
+          {/* LA PUERTA DEL NEGOCIO, visible YA en la vista inicial (móvil): quien viene a registrar
+              una empresa no tiene por qué adivinar que está detrás de «Crear cuenta», que además es
+              la cuenta equivocada para él. En escritorio la aporta el panel oscuro. */}
+          <Boton variante="secundario" href={CTA_NEGOCIO.href} className="mt-4 w-full lg:hidden">
+            {CTA_NEGOCIO.texto}
+          </Boton>
         </div>
       </div>
 
@@ -122,6 +129,13 @@ export function TarjetaAcceso() {
           <Boton variante="secundario" onClick={activo ? irLogin : irRegistro}>
             {activo ? "Iniciar sesión" : "Crear cuenta"}
           </Boton>
+          {/* LA PUERTA DEL NEGOCIO, junto a «Crear cuenta» y en la vista inicial: es la otra forma de
+              darse de alta. Cuando se ve el registro, la pone el propio formulario debajo del suyo. */}
+          {activo ? null : (
+            <Boton variante="secundario" href={CTA_NEGOCIO.href}>
+              {CTA_NEGOCIO.texto}
+            </Boton>
+          )}
         </div>
       </div>
     </div>

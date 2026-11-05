@@ -2342,6 +2342,25 @@ export const CAMINO_PARTICIPANTE = {
   href: "/entrar?registro=1",
 } as const;
 
+/**
+ * LA PUERTA DEL NEGOCIO, desde donde está la gente: `/entrar` (a la altura del registro, y visible
+ * desde la vista inicial, no solo tras pulsar «Crear cuenta») y el bloque de la portada para
+ * invitados. Texto y destino en UN sitio —como `ctaPrincipal`—: si cambian, cambian en todas partes.
+ *
+ * Existe porque `/empezar` estaba ESCONDIDO: solo se llegaba escribiendo la dirección. Una página a
+ * la que no lleva ningún camino es una página que no existe para quien no la conoce.
+ *
+ * Va directa al ALTA (`/empezar/empresa`), no a la pantalla de elección: quien pulsa «tengo un
+ * negocio» ya ha elegido.
+ */
+export const CTA_NEGOCIO = {
+  texto: "¿Tienes un negocio? Regístralo aquí",
+  href: "/empezar/empresa",
+} as const;
+
+/** El enlace del pie de página: discreto, como el resto del pie, pero en TODAS las páginas. */
+export const ENLACE_PIE_EMPRESAS = { texto: "Para empresas", href: "/empezar/empresa" } as const;
+
 export const CAMINO_EMPRESA = {
   titulo: "Soy un negocio",
   cuerpo:

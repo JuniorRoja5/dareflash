@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { ENLACE_PIE_EMPRESAS } from "@/config/constants";
+
 /**
  * EL PIE LEGAL — la única puerta a los documentos legales desde dentro del producto.
  *
@@ -56,6 +58,15 @@ export function PieLegal({
         {/* NO ES UN ENLACE, y no es un olvido: la página no existe todavía. Un `<span>` no promete un
             clic (ver la familia de "sin botones muertos"). */}
         <span>Términos (pronto)</span>
+        {/* LA PUERTA DEL NEGOCIO, en el pie de TODAS las páginas que lo montan. El alta de empresa
+            estaba escondida —solo se llegaba escribiendo la dirección— y el pie es el sitio donde
+            se busca "para empresas" en cualquier web. Discreto, como el resto del pie. */}
+        <Link
+          href={ENLACE_PIE_EMPRESAS.href}
+          className="rounded-xs underline underline-offset-2 hover:text-text focus-visible:text-text"
+        >
+          {ENLACE_PIE_EMPRESAS.texto}
+        </Link>
       </div>
     </footer>
   );

@@ -6,7 +6,12 @@ import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
-import { MSG_EDAD_MINIMA, MSG_REVISA_CORREO_REGISTRO, PARAM_REFERIDO } from "@/config/constants";
+import {
+  CTA_NEGOCIO,
+  MSG_EDAD_MINIMA,
+  MSG_REVISA_CORREO_REGISTRO,
+  PARAM_REFERIDO,
+} from "@/config/constants";
 import { declaraEdadMinima, leerFechaNacimiento } from "@/lib/edad";
 import { postJson } from "@/lib/cliente-http";
 import { mensajeError, MSG_REGISTRO } from "@/lib/mensajes-error";
@@ -221,16 +226,13 @@ export function FormularioRegistro() {
           veces. Y el número NO se escribe en el copy: viviría separado de `EDAD_MIN_USO`. */}
       <p className="text-xs text-text-dim">Te enviaremos un correo para verificar tu cuenta.</p>
 
-      {/* LA OTRA PUERTA. Esta cuenta es de PARTICIPANTE y no se puede convertir después (una cuenta
-          de empresa no participa), así que el desvío tiene que estar ANTES de crearla: quien viene
-          en nombre de un negocio lo ve aquí y no en un correo a soporte. */}
-      <p className="text-xs text-text-dim">
-        ¿Vienes en nombre de un negocio?{" "}
-        <Link href="/empezar" className="underline">
-          Mira las dos formas de entrar
-        </Link>
-        .
-      </p>
+      {/* LA OTRA PUERTA, A LA ALTURA DEL REGISTRO y como botón, no como letra pequeña al pie. Esta
+          cuenta es de PARTICIPANTE y no se puede convertir después (una cuenta de empresa no
+          participa), así que el desvío tiene que estar ANTES de crearla y tiene que verse. Es
+          secundario: la acción principal de esta vista sigue siendo «Crear cuenta». */}
+      <Boton variante="secundario" href={CTA_NEGOCIO.href} className="w-full">
+        {CTA_NEGOCIO.texto}
+      </Boton>
     </form>
   );
 }
