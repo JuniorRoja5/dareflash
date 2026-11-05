@@ -27,7 +27,10 @@ export function PanelNav({ rol, pendientes }: { rol: string; pendientes: Pendien
   return (
     <nav
       aria-label="Secciones del panel"
-      className="flex gap-1 overflow-x-auto border-b border-line px-5 py-2 [scrollbar-width:none] lg:flex-col lg:overflow-visible lg:border-b-0 lg:px-3 lg:py-4 [&::-webkit-scrollbar]:hidden"
+      // `relative` NO ES DECORATIVO: sin él, el texto `sr-only` de cada insignia (posición absoluta)
+      // tomaba el documento como bloque contenedor, escapaba del recorte de `overflow-x-auto` y la
+      // página entera se desplazaba en horizontal en móvil y tableta (medido: 511 px de más a 768).
+      className="relative flex gap-1 overflow-x-auto border-b border-line px-5 py-2 [scrollbar-width:none] lg:flex-col lg:overflow-visible lg:border-b-0 lg:px-3 lg:py-4 [&::-webkit-scrollbar]:hidden"
     >
       {secciones.map((s) => {
         const activo = seccionActiva(s.href, pathname);

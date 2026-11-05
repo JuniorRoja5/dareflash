@@ -28,16 +28,18 @@ export const dynamic = "force-dynamic";
 
 /** Los mismos controles, cabeceras y título que `/panel/usuarios`: es la sección hermana (cola + ficha). */
 const CONTROL =
-  "min-h-[38px] rounded-sm border border-line bg-surface px-3 text-sm text-text focus:outline-none";
+  "min-h-[44px] lg:min-h-[38px] rounded-sm border border-line bg-surface px-3 text-sm text-text focus:outline-none";
 const CABECERA = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
 const ESTILO_TITULO = {
   fontFamily: "var(--font-display)",
   fontVariationSettings: '"wght" 720, "wdth" 112',
 } as const;
 const FECHA = { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" } as const;
-const PILDORA = "rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim";
+const PILDORA =
+  "inline-block whitespace-nowrap rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim";
+const TH = `px-4 py-3 whitespace-nowrap ${CABECERA}`;
 const PASO =
-  "inline-block min-h-[38px] rounded-sm border border-line px-4 py-2 text-sm font-medium text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised";
+  "inline-block min-h-[44px] lg:min-h-[38px] rounded-sm border border-line px-4 py-2 text-sm font-medium text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised";
 
 /** Un `?estado=` manipulado no revienta la consulta: se queda en «todas». */
 function estadoDe(v: string | string[] | undefined): EstadoEmpresa | null {
@@ -106,6 +108,9 @@ function TextoVacio({ estado, paginando }: { estado: EstadoEmpresa | null; pagin
  * TODO POR URL: `?estado=` filtra, `?cursor=`/`?pila=` paginan y `?e=` abre una ficha. Sin estado
  * de cliente no hay nada que se desincronice y un enlace a una ficha se puede pegar en una
  * conversación. La tarjeta del Resumen enlaza aquí con `?estado=PENDIENTE`.
+ *
+ * LA COLA ES UNA TABLA EN ESCRITORIO y tarjetas en móvil (fase9-diseno): una columna por dato para
+ * comparar de un vistazo; a 390 px, cinco columnas no caben sin cortar el nombre.
  *
  * LA DECISIÓN SE TOMA EN LA FICHA, no en la lista: ahí están todos los datos con los que se
  * verifica. La identificación fiscal tampoco sale en la ficha: se pide, y pedirla deja rastro.
@@ -182,36 +187,79 @@ export default async function PaginaEmpresas({
           </p>
         ) : (
           <>
-            {/* Las cifras de la derecha no se entienden solas. La cabecera se oculta en móvil, donde
-                las filas se apilan y una rejilla de columnas no tiene a qué alinearse. */}
-            <p className="hidden flex-wrap justify-end gap-3 pr-4 sm:flex">
-              <span className={`w-24 text-right ${CABECERA}`}>Estado</span>
-              <span className={`w-24 text-right ${CABECERA}`}>Alta</span>
-            </p>
-            <ul className="mt-2 divide-y divide-line rounded-sm border border-line bg-surface">
+            <div className="hidden overflow-x-auto rounded-sm border border-line bg-surface/60 md:block">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead className="border-b border-line">
+                  <tr>
+                    <th className={TH}>Empresa</th>
+                    <th className={TH}>Contacto</th>
+                    <th className={TH}>Negocio</th>
+                    <th className={TH}>País</th>
+                    <th className={TH}>Alta</th>
+                    <th className={TH}>Estado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {pagina.items.map((e) => (
+                    <tr
+                      key={e.id}
+                      data-empresa={e.id}
+                      aria-current={e.id === fichaId ? "true" : undefined}
+                      className={`transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised ${
+                        e.id === fichaId ? "bg-raised" : ""
+                      }`}
+                    >
+                      <td className="max-w-[28ch] px-4 py-3">
+                        <Link
+                          href={enlace(ctx, { ficha: e.id, paginacion: aqui })}
+                          className="block truncate font-medium text-text underline-offset-2 hover:underline"
+                        >
+                          {e.nombre}
+                        </Link>
+                      </td>
+                      <td className="max-w-[20ch] truncate px-4 py-3 text-text-dim">
+                        {e.personaContacto}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-text-dim">
+                        {ETIQUETA_TIPO_NEGOCIO[e.tipoNegocio]}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-text-dim">
+                        {nombrePais(e.paisIso)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-text-dim tabular-nums">
+                        {new Date(e.creadaMs).toLocaleDateString("es-ES", FECHA)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={PILDORA}>{ETIQUETA_ESTADO_EMPRESA[e.estado]}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <ul className="space-y-3 md:hidden">
               {pagina.items.map((e) => (
-                <li key={e.id} data-empresa={e.id}>
+                <li key={e.id} data-empresa-movil={e.id}>
                   <Link
                     href={enlace(ctx, { ficha: e.id, paginacion: aqui })}
                     aria-current={e.id === fichaId ? "true" : undefined}
-                    className={`flex flex-wrap items-center gap-3 p-4 transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised ${
-                      e.id === fichaId ? "bg-raised" : ""
+                    className={`block rounded-sm border border-line p-4 transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised ${
+                      e.id === fichaId ? "bg-raised" : "bg-surface"
                     }`}
                   >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-text">
+                    <span className="flex items-start gap-2">
+                      <span className="min-w-0 flex-1 text-sm font-medium break-words text-text">
                         {e.nombre}
                       </span>
-                      <span className="block truncate text-2xs text-text-dim">
-                        {ETIQUETA_TIPO_NEGOCIO[e.tipoNegocio]} · {nombrePais(e.paisIso)} ·{" "}
-                        {e.personaContacto}
+                      <span className={PILDORA}>{ETIQUETA_ESTADO_EMPRESA[e.estado]}</span>
+                    </span>
+                    <span className="mt-1 block text-2xs text-text-dim">
+                      {ETIQUETA_TIPO_NEGOCIO[e.tipoNegocio]} · {nombrePais(e.paisIso)} ·{" "}
+                      {e.personaContacto} ·{" "}
+                      <span className="tabular-nums">
+                        {new Date(e.creadaMs).toLocaleDateString("es-ES", FECHA)}
                       </span>
-                    </span>
-                    <span className={`w-24 text-center ${PILDORA}`}>
-                      {ETIQUETA_ESTADO_EMPRESA[e.estado]}
-                    </span>
-                    <span className="w-24 text-right text-2xs text-text-dim tabular-nums">
-                      {new Date(e.creadaMs).toLocaleDateString("es-ES", FECHA)}
                     </span>
                   </Link>
                 </li>

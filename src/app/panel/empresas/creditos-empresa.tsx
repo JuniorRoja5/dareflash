@@ -128,7 +128,7 @@ export function CreditosEmpresa({
         <p className="mt-3 text-sm text-text-dim">Todavía no tiene movimientos.</p>
       )}
 
-      <div className="mt-4 grid gap-3 border-t border-line pt-4 sm:grid-cols-[10rem_1fr]">
+      <div className="mt-4 grid gap-3 border-t border-line pt-4">
         <label className="block text-2xs font-semibold tracking-widest text-text-dim uppercase">
           Cantidad
           <input
@@ -166,7 +166,7 @@ export function CreditosEmpresa({
           type="button"
           onClick={() => setFase("confirmar")}
           disabled={!listo}
-          className="mt-4 min-h-[36px] rounded-sm border border-line px-4 text-sm font-medium text-text transition-colors duration-150 ease-mechanical hover:bg-raised disabled:opacity-40"
+          className="mt-4 min-h-[44px] lg:min-h-[36px] rounded-sm border border-line px-4 text-sm font-medium text-text transition-colors duration-150 ease-mechanical hover:bg-raised disabled:opacity-40"
         >
           Revisar ajuste
         </button>
@@ -184,7 +184,7 @@ export function CreditosEmpresa({
             type="button"
             onClick={() => void aplicar()}
             disabled={fase === "enviando"}
-            className="min-h-[36px] rounded-sm border border-line px-3 font-medium text-text transition-colors hover:bg-raised disabled:opacity-40"
+            className="min-h-[44px] lg:min-h-[36px] rounded-sm border border-line px-3 font-medium text-text transition-colors hover:bg-raised disabled:opacity-40"
           >
             {fase === "enviando" ? "Aplicando…" : "Sí, aplicar"}
           </button>
@@ -192,7 +192,7 @@ export function CreditosEmpresa({
             type="button"
             onClick={() => setFase("editar")}
             disabled={fase === "enviando"}
-            className="min-h-[36px] rounded-sm border border-line px-3 text-text-dim transition-colors hover:bg-raised disabled:opacity-40"
+            className="min-h-[44px] lg:min-h-[36px] rounded-sm border border-line px-3 text-text-dim transition-colors hover:bg-raised disabled:opacity-40"
           >
             Cancelar
           </button>

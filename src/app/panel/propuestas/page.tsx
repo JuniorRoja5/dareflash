@@ -4,9 +4,7 @@ import {
   DEFAULT_CURRENCY,
   EstadoRetoSolicitudSchema,
   type EstadoRetoSolicitud,
-  MSG_MOTIVO_RECHAZO_RETO,
 } from "@/config/constants";
-import { nombreCategoria } from "@/lib/categorias";
 import { importeConMoneda } from "@/lib/dinero";
 import {
   anterior,
@@ -19,7 +17,8 @@ import {
 import { requireSeccion } from "../panel-guard";
 import { seccionPorHref } from "../secciones";
 
-import { AccionesPropuesta } from "./acciones-propuesta";
+import { ETIQUETA_SOLICITUD_PANEL as ETIQUETA } from "./etiquetas";
+import { FichaPropuesta } from "./ficha-propuesta";
 
 const S = seccionPorHref("/panel/propuestas")!;
 
@@ -29,32 +28,20 @@ export const dynamic = "force-dynamic";
 
 /** Los mismos controles, cabeceras y título que `/panel/empresas`: es su sección hermana. */
 const CONTROL =
-  "min-h-[38px] rounded-sm border border-line bg-surface px-3 text-sm text-text focus:outline-none";
+  "min-h-[44px] lg:min-h-[38px] rounded-sm border border-line bg-surface px-3 text-sm text-text focus:outline-none";
 const CABECERA = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
 const ESTILO_TITULO = {
   fontFamily: "var(--font-display)",
   fontVariationSettings: '"wght" 720, "wdth" 112',
 } as const;
 /** Las fechas en UTC y diciéndolo: la propuesta se escribió en la hora local de la empresa. */
-const FECHA_HORA = {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "UTC",
-} as const;
-const PILDORA = "rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim";
+const FECHA = { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" } as const;
+const fecha = (ms: number) => new Date(ms).toLocaleDateString("es-ES", FECHA);
+const PILDORA =
+  "inline-block whitespace-nowrap rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim";
+const TH = `px-4 py-3 whitespace-nowrap ${CABECERA}`;
 const PASO =
-  "inline-block min-h-[38px] rounded-sm border border-line px-4 py-2 text-sm font-medium text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised";
-
-/** La palabra del estado, en el panel (el portal tiene la suya, que sabe si ya está publicada). */
-const ETIQUETA: Record<EstadoRetoSolicitud, string> = {
-  PENDIENTE: "Pendiente",
-  APROBADA: "Aprobada",
-  RECHAZADA: "Rechazada",
-  CADUCADA: "Caducada",
-};
+  "inline-block min-h-[44px] lg:min-h-[38px] rounded-sm border border-line px-4 py-2 text-sm font-medium text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised";
 
 /** El valor de `?estado=` que pide TODAS: sin él, la cola es la de pendientes. */
 const TODAS = "TODAS";
@@ -74,23 +61,20 @@ function estadoDe(v: string | string[] | undefined): EstadoRetoSolicitud | null 
 const texto = (v: string | string[] | undefined): string =>
   typeof v === "string" ? v.trim().slice(0, 80) : "";
 
-function enlace(estado: EstadoRetoSolicitud | null, paginacion: Paginacion): string {
+/** El enlace de esta pantalla. Abrir una ficha (`p`) conserva el filtro y la página. */
+function enlace(
+  estado: EstadoRetoSolicitud | null,
+  paginacion: Paginacion,
+  ficha: string | null = null,
+): string {
   const p = new URLSearchParams();
   p.set("estado", estado ?? TODAS);
+  if (ficha) p.set("p", ficha);
   if (paginacion.cursor) p.set("cursor", paginacion.cursor);
   const pila = escribirPila(paginacion.pila);
   if (pila) p.set("pila", pila);
   const s = p.toString();
   return s ? `/panel/propuestas?${s}` : "/panel/propuestas";
-}
-
-function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
-  return (
-    <div>
-      <dt className={CABECERA}>{etiqueta}</dt>
-      <dd className="mt-0.5 text-sm break-words text-text">{valor}</dd>
-    </div>
-  );
 }
 
 function TextoVacio({
@@ -122,10 +106,11 @@ function TextoVacio({
 /**
  * /panel/propuestas — LOS RETOS PATROCINADOS QUE PROPONEN LAS EMPRESAS (Fase 9 · P3).
  *
- * Cada tarjeta lleva la propuesta ENTERA —qué, premio, fechas, reglas, logo— porque es lo que hay que
- * leer para decidir, y abrir una ficha aparte sería un clic más por propuesta. Una pendiente lleva sus
- * botones; una aprobada, el enlace a su BORRADOR (que es donde se pone lo de DareFlash y se publica);
- * una rechazada, el motivo que leyó la empresa y la nota del equipo.
+ * COLA + FICHA, como `/panel/empresas` (fase9-diseno). Antes cada tarjeta llevaba la propuesta
+ * entera para ahorrar un clic, y la cola era una pila de tarjetas altas donde comparar dos era hacer
+ * scroll. Ahora la cola es una TABLA en escritorio (tarjetas en móvil) con lo que sirve para elegir
+ * —qué, quién, premio, cierre, estado— y `?p=` abre la FICHA arriba, con la propuesta entera y sus
+ * acciones (`FichaPropuesta`). Abrir una ficha conserva el filtro y la página.
  *
  * Solo ADMIN (lo exige `requireSeccion`): aprobar crea un reto, y crear retos es del admin.
  */
@@ -141,8 +126,13 @@ export default async function PaginaPropuestas({
   const aqui: Paginacion = { cursor: texto(sp["cursor"]) || null, pila: leerPila(sp["pila"]) };
 
   const { prisma } = await import("@/server/db/client");
-  const { listarSolicitudesReto } = await import("@/server/services/retos-empresa");
-  const pagina = await listarSolicitudesReto(prisma, { estado, cursor: aqui.cursor });
+  const fichaId = texto(sp["p"]) || null;
+  const { listarSolicitudesReto, solicitudDelPanel } =
+    await import("@/server/services/retos-empresa");
+  const [pagina, ficha] = await Promise.all([
+    listarSolicitudesReto(prisma, { estado, cursor: aqui.cursor }),
+    fichaId ? solicitudDelPanel(prisma, fichaId) : Promise.resolve(null),
+  ]);
 
   const atras = anterior(aqui);
   const adelante = pagina.nextCursor ? siguiente(aqui, pagina.nextCursor) : null;
@@ -176,113 +166,93 @@ export default async function PaginaPropuestas({
         </button>
       </form>
 
+      {ficha ? <FichaPropuesta s={ficha} /> : null}
+      {fichaId && !ficha ? <p className="text-sm text-text-dim">Esa propuesta no existe.</p> : null}
+
       <section aria-label="Propuestas">
         {pagina.items.length === 0 ? (
           <p className="max-w-prose text-sm text-text-dim">
             <TextoVacio estado={estado} paginando={aqui.cursor !== null} />
           </p>
         ) : (
-          <ul className="space-y-4">
-            {pagina.items.map((s) => (
-              <li
-                key={s.id}
-                data-propuesta={s.id}
-                className="rounded-sm border border-line bg-surface"
-              >
-                <div className="flex flex-wrap items-start gap-3 p-4">
-                  {s.logo ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- fichero del volumen de portadas, ya saneado a WebP
-                    <img
-                      src={s.logo}
-                      alt={`Logo de ${s.empresa}`}
-                      className="h-12 w-12 shrink-0 rounded-xs border border-line bg-raised object-contain"
-                    />
-                  ) : null}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold break-words text-text">{s.titulo}</p>
-                    <p className="text-2xs text-text-dim">
-                      Propuesto por {s.empresa} ·{" "}
-                      {new Date(s.creadaMs).toLocaleDateString("es-ES", FECHA_HORA)} UTC
-                    </p>
-                  </div>
-                  <span className={PILDORA}>{ETIQUETA[s.estado]}</span>
-                </div>
-
-                <dl className="grid gap-4 border-t border-line p-4 sm:grid-cols-3">
-                  <Dato
-                    etiqueta="Premio"
-                    valor={importeConMoneda(s.premioCents, DEFAULT_CURRENCY)}
-                  />
-                  <Dato
-                    etiqueta="Ganadores"
-                    valor={s.ganadores === 1 ? "1 ganador" : `${s.ganadores} ganadores`}
-                  />
-                  <Dato etiqueta="Categoría" valor={nombreCategoria(s.categoria) ?? s.categoria} />
-                  <Dato
-                    etiqueta="Abre"
-                    valor={`${new Date(s.aperturaMs).toLocaleString("es-ES", FECHA_HORA)} UTC`}
-                  />
-                  <Dato
-                    etiqueta="Cierra"
-                    valor={`${new Date(s.cierreMs).toLocaleString("es-ES", FECHA_HORA)} UTC`}
-                  />
-                </dl>
-
-                {s.descripcion || s.reglas ? (
-                  <div className="space-y-3 border-t border-line p-4">
-                    {s.descripcion ? (
-                      <div>
-                        <p className={CABECERA}>Descripción</p>
-                        <p className="mt-1 text-sm whitespace-pre-line text-text-dim">
-                          {s.descripcion}
-                        </p>
-                      </div>
-                    ) : null}
-                    {s.reglas ? (
-                      <div>
-                        <p className={CABECERA}>Reglas</p>
-                        <p className="mt-1 text-sm whitespace-pre-line text-text-dim">{s.reglas}</p>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                <div className="flex flex-wrap items-start justify-between gap-3 border-t border-line p-4">
-                  {s.estado === "PENDIENTE" ? (
-                    <>
-                      <p className="max-w-prose text-2xs text-text-dim">
-                        Aprobarla crea el reto en BORRADOR, patrocinado por {s.empresa}. Ahí pones
-                        la comisión, el nivel y la portada, y lo publicas.
-                      </p>
-                      <AccionesPropuesta id={s.id} titulo={s.titulo} />
-                    </>
-                  ) : s.estado === "APROBADA" && s.challengeId ? (
-                    <Link
-                      href={`/panel/retos/${s.challengeId}`}
-                      className="text-sm font-medium text-text underline underline-offset-2"
+          <>
+            {/* ESCRITORIO: TABLA. El enlace a la ficha va en el título; la fila entera se ilumina
+                para decir que es una sola cosa. */}
+            <div className="hidden overflow-x-auto rounded-sm border border-line bg-surface/60 md:block">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead className="border-b border-line">
+                  <tr>
+                    <th className={TH}>Propuesta</th>
+                    <th className={TH}>Empresa</th>
+                    <th className={`text-right ${TH}`}>Premio</th>
+                    <th className={TH}>Cierra (UTC)</th>
+                    <th className={TH}>Enviada</th>
+                    <th className={TH}>Estado</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {pagina.items.map((s) => (
+                    <tr
+                      key={s.id}
+                      data-propuesta={s.id}
+                      aria-current={s.id === fichaId ? "true" : undefined}
+                      className={`transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised ${
+                        s.id === fichaId ? "bg-raised" : ""
+                      }`}
                     >
-                      Ver el reto que salió de ella
-                    </Link>
-                  ) : s.estado === "CADUCADA" ? (
-                    <p className="text-sm text-text-dim">
-                      Caducó sin decidirse: el cierre que propuso ya pasó. La empresa recibe un
-                      correo y puede proponerla de nuevo con otras fechas.
-                    </p>
-                  ) : s.estado === "RECHAZADA" ? (
-                    <div className="space-y-1 text-sm">
-                      <p className="text-text">
-                        Motivo (lo leyó la empresa):{" "}
-                        {s.motivoRechazo ? MSG_MOTIVO_RECHAZO_RETO[s.motivoRechazo] : "—"}
-                      </p>
-                      {s.notaInterna ? (
-                        <p className="text-text-dim">Nota interna: {s.notaInterna}</p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
+                      <td className="max-w-[26ch] px-4 py-3">
+                        <Link
+                          href={enlace(estado, aqui, s.id)}
+                          className="block truncate font-medium text-text underline-offset-2 hover:underline"
+                        >
+                          {s.titulo}
+                        </Link>
+                      </td>
+                      <td className="max-w-[20ch] truncate px-4 py-3 text-text-dim">{s.empresa}</td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap text-text tabular-nums">
+                        {importeConMoneda(s.premioCents, DEFAULT_CURRENCY)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-text-dim tabular-nums">
+                        {fecha(s.cierreMs)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-text-dim tabular-nums">
+                        {fecha(s.creadaMs)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={PILDORA}>{ETIQUETA[s.estado]}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* MÓVIL: TARJETAS, cada una un enlace a su ficha. */}
+            <ul className="space-y-3 md:hidden">
+              {pagina.items.map((s) => (
+                <li key={s.id} data-propuesta-movil={s.id}>
+                  <Link
+                    href={enlace(estado, aqui, s.id)}
+                    aria-current={s.id === fichaId ? "true" : undefined}
+                    className={`block rounded-sm border border-line p-4 transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised ${
+                      s.id === fichaId ? "bg-raised" : "bg-surface"
+                    }`}
+                  >
+                    <span className="flex items-start gap-2">
+                      <span className="min-w-0 flex-1 text-sm font-semibold break-words text-text">
+                        {s.titulo}
+                      </span>
+                      <span className={PILDORA}>{ETIQUETA[s.estado]}</span>
+                    </span>
+                    <span className="mt-1 block text-2xs text-text-dim tabular-nums">
+                      {s.empresa} · {importeConMoneda(s.premioCents, DEFAULT_CURRENCY)} · cierra{" "}
+                      {fecha(s.cierreMs)} (UTC)
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
 
         {atras || adelante ? (

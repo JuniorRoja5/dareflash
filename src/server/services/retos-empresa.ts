@@ -365,6 +365,56 @@ export interface SolicitudPanel {
   challengeId: string | null;
 }
 
+/** Lo que el panel lee de una propuesta: UNA lista de columnas para la cola y para la ficha. */
+const SELECT_PANEL = {
+  id: true,
+  empresaId: true,
+  title: true,
+  description: true,
+  rules: true,
+  category: true,
+  prizeAmountCents: true,
+  startsAt: true,
+  deadline: true,
+  winnersCount: true,
+  sponsorLogo: true,
+  estado: true,
+  motivoRechazo: true,
+  notaInterna: true,
+  createdAt: true,
+  challengeId: true,
+  empresa: { select: { nombre: true } },
+} satisfies Prisma.RetoSolicitudSelect;
+
+type FilaPanel = Prisma.RetoSolicitudGetPayload<{ select: typeof SELECT_PANEL }>;
+
+function aSolicitudPanel(f: FilaPanel, ahora: Date): SolicitudPanel {
+  return {
+    id: f.id,
+    empresaId: f.empresaId,
+    empresa: f.empresa.nombre,
+    titulo: f.title,
+    descripcion: f.description,
+    reglas: f.rules,
+    categoria: f.category,
+    premioCents: f.prizeAmountCents,
+    aperturaMs: f.startsAt.getTime(),
+    cierreMs: f.deadline.getTime(),
+    ganadores: f.winnersCount,
+    logo: f.sponsorLogo,
+    // Una pendiente vencida es CADUCADA también en el panel, antes de que el barrido lo escriba:
+    // la misma regla que el portal (`estaCaducada`).
+    estado:
+      f.estado === "PENDIENTE" && estaCaducada(f.deadline, ahora)
+        ? "CADUCADA"
+        : (f.estado as EstadoRetoSolicitud),
+    motivoRechazo: (f.motivoRechazo as MotivoRechazoReto | null) ?? null,
+    notaInterna: f.notaInterna,
+    creadaMs: f.createdAt.getTime(),
+    challengeId: f.challengeId,
+  };
+}
+
 /** LA COLA, por KEYSET, más nuevas primero. Del panel: no recibe ámbito porque mira todas. */
 export async function listarSolicitudesReto(
   db: Db,
@@ -376,59 +426,32 @@ export async function listarSolicitudesReto(
     where: conKeysetTiempo(filtro, decodificarCursorTiempo(opciones.cursor)),
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: RETO_SOLICITUDES_PAGINA + 1,
-    select: {
-      id: true,
-      empresaId: true,
-      title: true,
-      description: true,
-      rules: true,
-      category: true,
-      prizeAmountCents: true,
-      startsAt: true,
-      deadline: true,
-      winnersCount: true,
-      sponsorLogo: true,
-      estado: true,
-      motivoRechazo: true,
-      notaInterna: true,
-      createdAt: true,
-      challengeId: true,
-      empresa: { select: { nombre: true } },
-    },
+    select: SELECT_PANEL,
   });
   const hayMas = filas.length > RETO_SOLICITUDES_PAGINA;
   const pagina = hayMas ? filas.slice(0, RETO_SOLICITUDES_PAGINA) : filas;
   const ultima = pagina.at(-1);
   return {
-    items: pagina.map((f) => ({
-      id: f.id,
-      empresaId: f.empresaId,
-      empresa: f.empresa.nombre,
-      titulo: f.title,
-      descripcion: f.description,
-      reglas: f.rules,
-      categoria: f.category,
-      premioCents: f.prizeAmountCents,
-      aperturaMs: f.startsAt.getTime(),
-      cierreMs: f.deadline.getTime(),
-      ganadores: f.winnersCount,
-      logo: f.sponsorLogo,
-      // Una pendiente vencida es CADUCADA también en el panel, antes de que el barrido lo escriba:
-      // la misma regla que el portal (`estaCaducada`).
-      estado:
-        f.estado === "PENDIENTE" && estaCaducada(f.deadline, ahora)
-          ? "CADUCADA"
-          : (f.estado as EstadoRetoSolicitud),
-      motivoRechazo: (f.motivoRechazo as MotivoRechazoReto | null) ?? null,
-      notaInterna: f.notaInterna,
-      creadaMs: f.createdAt.getTime(),
-      challengeId: f.challengeId,
-    })),
+    items: pagina.map((f) => aSolicitudPanel(f, ahora)),
     nextCursor:
       hayMas && ultima
         ? codificarCursorTiempo({ creadoMs: ultima.createdAt.getTime(), id: ultima.id })
         : null,
   };
+}
+
+/**
+ * UNA propuesta, para la FICHA del panel (`/panel/propuestas?p=`). Las mismas columnas y el mismo
+ * estado calculado que la cola (`SELECT_PANEL` + `aSolicitudPanel`): la fila y su ficha no pueden
+ * decir cosas distintas. Del panel: no recibe ámbito porque mira todas.
+ */
+export async function solicitudDelPanel(
+  db: Db,
+  id: string,
+  ahora: Date = new Date(),
+): Promise<SolicitudPanel | null> {
+  const f = await db.retoSolicitud.findUnique({ where: { id }, select: SELECT_PANEL });
+  return f ? aSolicitudPanel(f, ahora) : null;
 }
 
 // ---------------------------------------------------------------------------------------------------

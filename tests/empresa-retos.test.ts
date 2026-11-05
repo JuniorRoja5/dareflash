@@ -555,7 +555,9 @@ describe("censo del servicio: lo que opera sobre UNA empresa recibe su `empresaI
     crearSolicitudReto: "ambito",
     apuntarLogoSolicitud: "ambito",
     misSolicitudesReto: "ambito",
+    misPropuestasEnRevision: "ambito",
     filtroSolicitudesReto: "panel",
+    solicitudDelPanel: "panel",
     contarSolicitudesReto: "panel",
     listarSolicitudesReto: "panel",
     aprobarSolicitudReto: "panel",
@@ -696,6 +698,49 @@ describe("la cifra de propuestas pendientes", () => {
     expect(cola.items).toHaveLength(1);
     await aprobar(id);
     expect(await cifras()).toEqual({ insignia: 0, cabecera: 0, resumen: 0 });
+  });
+
+  it("la tarjeta del portal cuenta SOLO las suyas en revisión, con la misma regla que la cola", async () => {
+    // fase9-diseno: «Propuestas en revisión» del Resumen de su portal.
+    const a = await unaEmpresa("Panadería La Espiga");
+    const b = await unaEmpresa("Frutería Lola");
+    const id = await proponer(a.empresaId);
+    await proponer(a.empresaId, { title: "Otra más" });
+    await proponer(b.empresaId);
+    expect(await svc.misPropuestasEnRevision(prisma, a.empresaId, AHORA)).toBe(2);
+    expect(await svc.misPropuestasEnRevision(prisma, b.empresaId, AHORA)).toBe(1);
+    // Una vencida ya no está «en revisión»: es CADUCADA, aunque el barrido no la haya escrito.
+    expect(
+      await svc.misPropuestasEnRevision(prisma, a.empresaId, new Date(AHORA.getTime() + 30 * DIA)),
+    ).toBe(0);
+    // Decidida, deja de contar.
+    await aprobar(id);
+    expect(await svc.misPropuestasEnRevision(prisma, a.empresaId, AHORA)).toBe(1);
+    // Y cuadra con la cola del panel acotada a esa empresa.
+    const cola = await svc.listarSolicitudesReto(prisma, { estado: "PENDIENTE", ahora: AHORA });
+    expect(cola.items.filter((s) => s.empresaId === a.empresaId)).toHaveLength(1);
+  });
+
+  it("la ficha del panel dice lo mismo que su fila de la cola", async () => {
+    const { empresaId } = await unaEmpresa("Panadería La Espiga");
+    const id = await proponer(empresaId);
+    const tarde = new Date(AHORA.getTime() + 30 * DIA);
+    const [fila] = (await svc.listarSolicitudesReto(prisma, { ahora: tarde })).items;
+    const ficha = await svc.solicitudDelPanel(prisma, id, tarde);
+    expect(ficha).toEqual(fila);
+    // Con el estado CALCULADO: vencida es caducada también en la ficha.
+    expect(ficha?.estado).toBe("CADUCADA");
+    expect(await svc.solicitudDelPanel(prisma, "no-existe", AHORA)).toBeNull();
+  });
+
+  it("estructural: la tarjeta del portal cuenta con el filtro de la cola, acotado a su empresa", () => {
+    const src = readFileSync(
+      path.resolve(__dirname, "..", "src", "server", "services", "retos-empresa.ts"),
+      "utf8",
+    ).replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(src).toMatch(
+      /where: \{ AND: \[\{ empresaId \}, filtroSolicitudesReto\("PENDIENTE", ahora\)\] \}/,
+    );
   });
 
   it("estructural: el contador y la cola usan el MISMO filtro", () => {

@@ -11,11 +11,11 @@ import {
 } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 
-/** La MISMA clase que los botones de la ficha de una empresa (`empresas/acciones-empresa`). */
+/** La MISMA clase que los botones de la ficha de una empresa (`empresas/acciones-empresa`), 44 px en móvil. */
 const BOTON =
-  "min-h-[36px] rounded-sm border border-line px-3 text-sm font-medium text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised disabled:opacity-40";
+  "min-h-[44px] lg:min-h-[36px] rounded-sm border border-line px-3 text-sm font-medium text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised disabled:opacity-40";
 const CONTROL =
-  "min-h-[36px] rounded-sm border border-line bg-raised px-2 text-sm text-text focus:outline-none";
+  "min-h-[44px] lg:min-h-[36px] rounded-sm border border-line bg-raised px-2 text-sm text-text focus:outline-none";
 
 type Panel = "botones" | "rechazo";
 
@@ -58,7 +58,7 @@ export function AccionesPropuesta({ id, titulo }: { id: string; titulo: string }
   }
 
   return (
-    <div className="w-full sm:w-auto">
+    <div className="w-full">
       {panel === "rechazo" ? (
         <div role="group" aria-label={`Rechazar «${titulo}»`} className="space-y-2">
           <label className="block text-2xs font-semibold tracking-widest text-text-dim uppercase">
@@ -86,7 +86,7 @@ export function AccionesPropuesta({ id, titulo }: { id: string; titulo: string }
               className="mt-1 w-full rounded-sm border border-line bg-raised px-2 py-1.5 text-sm font-normal tracking-normal text-text normal-case"
             />
           </label>
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               disabled={enviando}
@@ -112,7 +112,7 @@ export function AccionesPropuesta({ id, titulo }: { id: string; titulo: string }
           </div>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             disabled={enviando}

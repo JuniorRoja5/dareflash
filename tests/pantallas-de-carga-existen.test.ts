@@ -41,6 +41,11 @@ const CUBIERTAS: ReadonlyArray<{ nombre: string; ruta: readonly string[] }> = [
   { nombre: "/boosts", ruta: ["(shell)", "boosts", "loading.tsx"] },
   { nombre: "/perfil", ruta: ["(shell)", "perfil", "loading.tsx"] },
   { nombre: "/u/[username]", ruta: ["(shell)", "u", "[username]", "loading.tsx"] },
+  // fase9-diseno: el portal de empresa (dentro de su layout, para que la navegación no desaparezca).
+  { nombre: "el portal de empresa", ruta: ["(shell)", "empresa", "loading.tsx"] },
+  // Y las dos colas del panel (fuera de `(app)`: se sube un nivel).
+  { nombre: "/panel/empresas", ruta: ["..", "panel", "empresas", "loading.tsx"] },
+  { nombre: "/panel/propuestas", ruta: ["..", "panel", "propuestas", "loading.tsx"] },
 ];
 
 describe("cada pantalla cubierta tiene su esqueleto", () => {

@@ -38,6 +38,9 @@ import CargandoReto from "@/app/(app)/(shell)/retos/[codigo]/loading";
 import CargandoRetos from "@/app/(app)/(shell)/retos/loading";
 import CargandoPerfilPublico from "@/app/(app)/(shell)/u/[username]/loading";
 import CargandoFeed from "@/app/(app)/feed/loading";
+import CargandoPortal from "@/app/(app)/(shell)/empresa/loading";
+import CargandoPanelEmpresas from "@/app/panel/empresas/loading";
+import CargandoPanelPropuestas from "@/app/panel/propuestas/loading";
 
 /** Raíz en `(app)` y no en `(shell)`: `/feed` vive fuera del shell (ver su `loading.tsx`). */
 const APP = join(process.cwd(), "src", "app", "(app)");
@@ -79,6 +82,11 @@ const PANTALLAS = [
     Comp: CargandoPerfilPublico,
     contenedor: ["(shell)", "perfil", "perfil-vista.tsx"],
   },
+  // fase9-diseno: viven DENTRO de un layout que ya pone el ancho (el portal, el panel). Su contenedor
+  // se comprueba abajo, en negativo: que NO repitan el del shell.
+  { nombre: "portal de empresa", Comp: CargandoPortal, contenedor: null },
+  { nombre: "/panel/empresas", Comp: CargandoPanelEmpresas, contenedor: null },
+  { nombre: "/panel/propuestas", Comp: CargandoPanelPropuestas, contenedor: null },
 ] as const;
 
 /**
@@ -127,6 +135,18 @@ describe("ningún esqueleto afirma nada", () => {
 });
 
 describe("y ocupan el sitio de su página (contra el salto)", () => {
+  it.each([
+    ["portal de empresa", CargandoPortal],
+    ["/panel/empresas", CargandoPanelEmpresas],
+    ["/panel/propuestas", CargandoPanelPropuestas],
+  ] as const)("%s no mete un contenedor dentro del de su layout", (_nombre, Comp) => {
+    // El layout del portal y el del panel ya ponen el ancho y el aire: un segundo `mx-auto max-w-…
+    // py-…` dentro sumaría márgenes y el contenido saltaría al llegar.
+    const { container } = render(<Comp />);
+    const raiz = container.querySelector('[role="status"]')!;
+    expect(raiz.className).not.toMatch(/max-w-|mx-auto|py-/);
+  });
+
   const conContenedor = PANTALLAS.filter((p) => p.contenedor !== null);
 
   it.each(conContenedor.map((p) => [p.nombre, p.Comp, p.contenedor!] as const))(

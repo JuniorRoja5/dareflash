@@ -132,21 +132,29 @@ type AireMovil = "py-8" | "py-5";
  * `py-8 lg:py-12` y el `max-w` SALEN DE LAS PÁGINAS REALES (`/inicio`, `/retos`, `/destacados`
  * usan `max-w-7xl`; `/boosts`, `max-w-5xl`). Si alguien cambia el contenedor de una página, hay que
  * cambiarlo aquí: es el precio de que no salte, y no hay forma de deducirlo desde este componente.
+ *
+ * `sinContenedor`: para un `loading.tsx` que vive DENTRO de un layout que ya pone el ancho y el aire
+ * (el portal de empresa, el panel). Repetir ahí el contenedor del shell metería un margen dentro de
+ * otro y el contenido saltaría al llegar. Solo el anuncio y el `role`, sin maqueta.
  */
 export function PantallaCargando({
   children,
   ancho = "max-w-7xl",
   aireMovil = "py-8",
+  sinContenedor = false,
 }: {
   children: ReactNode;
   ancho?: Ancho;
   aireMovil?: AireMovil;
+  sinContenedor?: boolean;
 }) {
   return (
     <div
       role="status"
       aria-busy="true"
-      className={`mx-auto w-full ${ancho} px-4 ${aireMovil} lg:px-8 lg:py-12`}
+      className={
+        sinContenedor ? "w-full" : `mx-auto w-full ${ancho} px-4 ${aireMovil} lg:px-8 lg:py-12`
+      }
     >
       <span className="sr-only">Cargando…</span>
       {children}
