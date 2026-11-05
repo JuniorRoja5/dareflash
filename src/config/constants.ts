@@ -2388,7 +2388,7 @@ export function msgAvisoRetoPropuesto(datos: {
  * reto (`Challenge.comisionBps`) y la empresa lo ve en su extracto, con el importe ya calculado.
  */
 export const MSG_PAGO_PATROCINIO =
-  "El premio y nuestra comisión se pagan por transferencia, fuera de DareFlash. Te escribimos para cerrarlo cuando aprobemos el reto. Quien gane cobra el premio entero.";
+  "El premio y nuestra comisión se pagan por transferencia, fuera de DareFlash: al aprobar cada reto te escribimos para cerrarlo. Quien gane cobra el premio entero.";
 
 // ----------------------------------------------------------------------------
 // Decisiones de Fase 9 YA CERRADAS que consumen piezas posteriores. Viven aqui
