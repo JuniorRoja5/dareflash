@@ -312,7 +312,10 @@ describe("rechazar", () => {
     expect(JSON.stringify(rastro[0]?.metadata)).not.toContain("no resuelve");
   });
 
-  it("el mismo rechazo dos veces no escribe un segundo rastro; cambiar el motivo sí", async () => {
+  it("una rechazada no se vuelve a rechazar —ni con otro motivo—: un rastro y el motivo de antes", async () => {
+    // Fase 9 · P4: la regla de desde dónde tiene efecto cada decisión es UNA (`puedeDecidirEmpresa`),
+    // la misma que decide qué botones enseña la ficha. Antes, cambiar el motivo de un rechazo era una
+    // segunda decisión con aspecto de repetición; ahora se verifica y se vuelve a rechazar.
     await alta();
     const { id } = await laEmpresa();
     const entrada = {
@@ -323,12 +326,20 @@ describe("rechazar", () => {
     };
     await rechazarEmpresa(prisma, entrada);
     expect((await rechazarEmpresa(prisma, entrada)).estado).toBe("sin_cambios");
+    expect((await rechazarEmpresa(prisma, { ...entrada, motivo: "SOSPECHA_FRAUDE" })).estado).toBe(
+      "sin_cambios",
+    );
     expect(await rastroDe(id)).toHaveLength(1);
+    expect((await prisma.empresa.findUniqueOrThrow({ where: { id } })).motivoRechazo).toBe(
+      "DUPLICADA",
+    );
 
+    // Verificar y volver a rechazar SÍ son dos decisiones, y cada una deja su rastro.
+    await verificarEmpresa(prisma, { empresaId: id, actorId: admin, appUrl: APP_URL });
     expect((await rechazarEmpresa(prisma, { ...entrada, motivo: "SOSPECHA_FRAUDE" })).estado).toBe(
       "hecho",
     );
-    expect(await rastroDe(id)).toHaveLength(2);
+    expect(await rastroDe(id)).toHaveLength(3);
   });
 });
 

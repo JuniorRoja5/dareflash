@@ -67,3 +67,32 @@ export function espacioDeNegocio(tipoNegocio: TipoNegocio): EspacioPublicidad {
 export function puedeOperarEmpresa(estado: EstadoEmpresa): boolean {
   return estado === "VERIFICADA";
 }
+
+/** Las decisiones del panel sobre una empresa. */
+export type AccionEmpresa = "VERIFICAR" | "RECHAZAR";
+
+/**
+ * DESDE QUÉ ESTADOS TIENE EFECTO CADA DECISIÓN (Fase 9 · P4). Fuente ÚNICA: la usan el SERVIDOR
+ * (`verificarEmpresa` y `rechazarEmpresa` no hacen nada fuera de aquí) y la FICHA del panel (que solo
+ * ofrece los botones que harían algo). Así un botón nunca promete un cambio que el servidor no va a
+ * hacer, y el día que cambie una regla cambian los dos a la vez.
+ *
+ *  - VERIFICAR: desde todo lo que no está verificado (pendiente, rechazada, suspendida).
+ *  - RECHAZAR: desde todo lo que no está rechazado (pendiente, verificada, suspendida). Una rechazada
+ *    NO se vuelve a rechazar: cambiar el motivo de un rechazo era una segunda decisión con aspecto de
+ *    repetición; si hace falta, se verifica y se vuelve a rechazar, y cada paso queda en `AuditLog`.
+ *
+ * Lista BLANCA por estado, como `puedeOperarEmpresa`: un estado nuevo no admite ninguna decisión hasta
+ * que alguien la escriba aquí.
+ */
+const TRANSICIONES: Record<EstadoEmpresa, readonly AccionEmpresa[]> = {
+  PENDIENTE: ["VERIFICAR", "RECHAZAR"],
+  VERIFICADA: ["RECHAZAR"],
+  RECHAZADA: ["VERIFICAR"],
+  SUSPENDIDA: ["VERIFICAR", "RECHAZAR"],
+};
+
+/** ¿Tiene efecto esta decisión sobre una empresa en este estado? */
+export function puedeDecidirEmpresa(estado: EstadoEmpresa, accion: AccionEmpresa): boolean {
+  return TRANSICIONES[estado]?.includes(accion) ?? false;
+}

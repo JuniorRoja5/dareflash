@@ -53,6 +53,7 @@ import {
   conKeysetTiempo,
   decodificarCursorTiempo,
 } from "@/lib/cursor-tiempo";
+import { puedeDecidirEmpresa } from "@/lib/empresa";
 import { esPaisIso } from "@/lib/paises";
 import { generarCodigoReferido } from "@/server/auth/codigo-referido";
 import { generarHandle, HANDLE_MAX_INTENTOS } from "@/server/auth/handle";
@@ -762,7 +763,8 @@ export async function verificarEmpresa(
 ): Promise<ResultadoEmpresa> {
   const actual = await estadoActual(db, entrada.empresaId);
   if (!actual) return { estado: "rechazado", motivo: "NO_ENCONTRADA" };
-  if (actual.estado === "VERIFICADA") return { estado: "sin_cambios" };
+  // La MISMA regla que esconde el botón en la ficha (`puedeDecidirEmpresa`).
+  if (!puedeDecidirEmpresa(actual.estado, "VERIFICAR")) return { estado: "sin_cambios" };
 
   const ahora = entrada.ahora ?? new Date();
   await db.$transaction(async (tx) => {
@@ -809,9 +811,9 @@ export async function verificarEmpresa(
 /**
  * RECHAZAR, con motivo de la lista cerrada (el dueño lo ve) y nota interna opcional (no lo ve).
  *
- * Rechazar lo ya rechazado CON EL MISMO motivo y la misma nota no escribe nada: no ha pasado nada.
- * Cambiar el motivo SÍ es un hecho nuevo y deja su rastro — es información distinta para quien la
- * lee, y el `AuditLog` tiene que poder contar la secuencia.
+ * Rechazar lo ya rechazado no escribe nada, ni con otro motivo ni con otra nota (Fase 9 · P4): la
+ * ficha no ofrece ese botón y el servidor aplica la MISMA regla (`puedeDecidirEmpresa`). Para cambiar
+ * el motivo se verifica y se vuelve a rechazar: dos hechos, cada uno con su rastro en `AuditLog`.
  */
 export async function rechazarEmpresa(
   db: PrismaClient,
@@ -827,14 +829,11 @@ export async function rechazarEmpresa(
   const actual = await estadoActual(db, entrada.empresaId);
   if (!actual) return { estado: "rechazado", motivo: "NO_ENCONTRADA" };
 
+  // La MISMA regla que esconde el botón en la ficha (`puedeDecidirEmpresa`): un botón nunca promete
+  // un cambio que el servidor no va a hacer.
+  if (!puedeDecidirEmpresa(actual.estado, "RECHAZAR")) return { estado: "sin_cambios" };
+
   const nota = entrada.nota?.trim().slice(0, EMPRESA_NOTA_MAX) || null;
-  if (
-    actual.estado === "RECHAZADA" &&
-    actual.motivoRechazo === entrada.motivo &&
-    actual.notaInterna === nota
-  ) {
-    return { estado: "sin_cambios" };
-  }
 
   await db.$transaction(async (tx) => {
     await tx.empresa.update({
@@ -854,20 +853,16 @@ export async function rechazarEmpresa(
       // libre que ya vive en su columna, y así no hay dos copias que puedan discrepar.
       metadata: { motivo: entrada.motivo, de: actual.estado },
     });
-    // SE AVISA SI CAMBIÓ LO QUE LA EMPRESA VE (el estado o el motivo). Si solo cambió la nota
-    // interna, para ella no ha pasado nada —no la ve— y otro «no hemos podido verificarte» sería
-    // ruido que parece una segunda decisión.
-    const cambioVisible = actual.estado !== "RECHAZADA" || actual.motivoRechazo !== entrada.motivo;
-    if (cambioVisible) {
-      await avisarDecision(tx, {
-        empresaId: entrada.empresaId,
-        decision: "RECHAZADA",
-        motivo: entrada.motivo,
-        claveCambio: cambio,
-        appUrl: entrada.appUrl,
-        ahora: new Date(),
-      });
-    }
+    // Siempre se avisa: solo se llega aquí desde un estado que NO era rechazada, así que para la
+    // empresa es una decisión nueva (re-rechazar ya no existe, ver arriba).
+    await avisarDecision(tx, {
+      empresaId: entrada.empresaId,
+      decision: "RECHAZADA",
+      motivo: entrada.motivo,
+      claveCambio: cambio,
+      appUrl: entrada.appUrl,
+      ahora: new Date(),
+    });
   });
   return { estado: "hecho" };
 }

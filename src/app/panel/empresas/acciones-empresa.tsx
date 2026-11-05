@@ -7,9 +7,11 @@ import {
   EMPRESA_NOTA_MAX,
   MSG_MOTIVO_RECHAZO_EMPRESA,
   MotivoRechazoEmpresaSchema,
+  type EstadoEmpresa,
   type MotivoRechazoEmpresa,
 } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
+import { puedeDecidirEmpresa } from "@/lib/empresa";
 
 /** La MISMA clase que los botones de la ficha de una cuenta (`usuarios/acciones-cuenta`). */
 const BOTON =
@@ -38,7 +40,16 @@ type Panel = "botones" | "rechazo";
  * `router.refresh()` al terminar: la lista es un componente de servidor y lo que cambió está en la
  * base de datos. No hace falta navegación dura — no cambia quién eres, solo lo que se ve.
  */
-export function AccionesEmpresa({ id, nombre }: { id: string; nombre: string }) {
+export function AccionesEmpresa({
+  id,
+  nombre,
+  estado,
+}: {
+  id: string;
+  nombre: string;
+  /** Su estado actual: decide qué botones se ofrecen (`puedeDecidirEmpresa`). */
+  estado: EstadoEmpresa;
+}) {
   const router = useRouter();
   const [panel, setPanel] = useState<Panel>("botones");
   const [enviando, setEnviando] = useState(false);
@@ -128,25 +139,35 @@ export function AccionesEmpresa({ id, nombre }: { id: string; nombre: string }) 
           </div>
         </div>
       ) : (
+        // SOLO LO QUE HARÍA ALGO (Fase 9 · P4): ya verificada, sin «Verificar»; ya rechazada, sin
+        // «Rechazar». Lo decide `puedeDecidirEmpresa`, la MISMA regla que aplica el servidor.
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <button
-            type="button"
-            disabled={enviando}
-            className={BOTON}
-            onClick={() =>
-              void llamar(`/api/panel/empresas/${id}/verificar`, {}, "Verificada. Ya puede operar.")
-            }
-          >
-            {enviando ? "Verificando…" : "Verificar"}
-          </button>
-          <button
-            type="button"
-            disabled={enviando}
-            className={`${BOTON} text-text-dim`}
-            onClick={() => setPanel("rechazo")}
-          >
-            Rechazar…
-          </button>
+          {puedeDecidirEmpresa(estado, "VERIFICAR") ? (
+            <button
+              type="button"
+              disabled={enviando}
+              className={BOTON}
+              onClick={() =>
+                void llamar(
+                  `/api/panel/empresas/${id}/verificar`,
+                  {},
+                  "Verificada. Ya puede operar.",
+                )
+              }
+            >
+              {enviando ? "Verificando…" : "Verificar"}
+            </button>
+          ) : null}
+          {puedeDecidirEmpresa(estado, "RECHAZAR") ? (
+            <button
+              type="button"
+              disabled={enviando}
+              className={`${BOTON} text-text-dim`}
+              onClick={() => setPanel("rechazo")}
+            >
+              Rechazar…
+            </button>
+          ) : null}
         </div>
       )}
 

@@ -126,7 +126,7 @@ export function FichaEmpresa({
       ) : null}
 
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
-        <AccionesEmpresa id={ficha.id} nombre={ficha.nombre} />
+        <AccionesEmpresa id={ficha.id} nombre={ficha.nombre} estado={ficha.estado} />
       </div>
     </section>
   );

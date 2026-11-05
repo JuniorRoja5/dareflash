@@ -171,15 +171,15 @@ describe("lo prometido a la empresa: un correo cuando decidimos", () => {
     expect(await decisiones()).toHaveLength(1);
   });
 
-  it("cambiar SOLO la nota de un rechazo no le reenvía nada: para ella no ha cambiado", async () => {
+  it("rechazar una ya rechazada no le reenvía nada, ni con otra nota ni con otro motivo", async () => {
+    // Fase 9 · P4: una rechazada no se vuelve a rechazar (`puedeDecidirEmpresa`, la misma regla que
+    // esconde el botón en la ficha). Para ella no ha pasado nada, así que no recibe ningún correo.
     const id = await unaPendiente();
     const base = { empresaId: id, actorId: admin, motivo: "DUPLICADA" as const, appUrl: APP_URL };
     await rechazarEmpresa(prisma, { ...base, nota: "primera" });
     await rechazarEmpresa(prisma, { ...base, nota: "segunda" });
-    expect(await decisiones()).toHaveLength(1);
-    // Cambiar el MOTIVO sí: es lo que ella lee.
     await rechazarEmpresa(prisma, { ...base, motivo: "SOSPECHA_FRAUDE", nota: "segunda" });
-    expect(await decisiones()).toHaveLength(2);
+    expect(await decisiones()).toHaveLength(1);
   });
 });
 
