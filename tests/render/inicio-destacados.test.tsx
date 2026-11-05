@@ -111,3 +111,23 @@ describe("la cabecera invita a destacar", () => {
     expect(invitacion.closest("a")?.getAttribute("href")).toBe("/boosts");
   });
 });
+
+/**
+ * A UNA CUENTA DE EMPRESA, la fila sin sus puertas (Fase 9, P2): /destacados y /boosts son pantallas
+ * de participante que la apartan a su portal, y "puedes ser el primero" la invitaría a comprar.
+ * Para romperlo a propósito: ignorar `soloMirar` (rojo los dos).
+ */
+describe("una cuenta de empresa mira la fila, sin sus puertas", () => {
+  it("ve los perfiles, pero ni «Ver todos» ni «Destaca tu perfil»", () => {
+    render(<BoostDestacados perfiles={[perfil(1), perfil(2)]} soloMirar />);
+    expect(tarjetas()).toHaveLength(2);
+    expect(screen.queryByText(/Ver todos/)).toBeNull();
+    expect(screen.queryByText(/Destaca tu perfil/)).toBeNull();
+  });
+
+  it("y vacía no la invita a ser la primera", () => {
+    render(<BoostDestacados perfiles={[]} soloMirar />);
+    expect(screen.getByText(/no hay ningún perfil destacado/)).toBeTruthy();
+    expect(screen.queryByText(/Puedes ser el primero/)).toBeNull();
+  });
+});

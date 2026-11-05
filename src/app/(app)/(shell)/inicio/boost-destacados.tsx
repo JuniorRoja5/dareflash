@@ -25,8 +25,18 @@ import type { PerfilDestacado } from "@/server/services/boost-destacados";
  *
  * Son usuarios DISTINTOS del Top Ranking por naturaleza: el Boost es visibilidad comprada, el
  * ranking se gana. Y aquí NO hay acento: el único de la portada es el CTA del hero.
+ *
+ * `soloMirar` — UNA CUENTA DE EMPRESA ve la fila, pero sin sus dos puertas (Fase 9, P2): /destacados y
+ * /boosts son pantallas de participante, que la apartan a su portal, y "puedes ser el primero" la
+ * invitaría a comprar algo que no puede tener. Ver los perfiles sí: mirar es lo que viene a hacer.
  */
-export function BoostDestacados({ perfiles }: { perfiles: PerfilDestacado[] }) {
+export function BoostDestacados({
+  perfiles,
+  soloMirar = false,
+}: {
+  perfiles: PerfilDestacado[];
+  soloMirar?: boolean;
+}) {
   return (
     <section aria-labelledby="destacados">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -41,21 +51,28 @@ export function BoostDestacados({ perfiles }: { perfiles: PerfilDestacado[] }) {
         {/* DOS ENLACES CON TRABAJOS DISTINTOS: "ver todos" lleva a la lista (y es la puerta de móvil
             a la sección); "destaca tu perfil" lleva a comprar. Juntar los dos en uno obligaría a
             elegir entre mirar y pagar. */}
-        <div className="flex shrink-0 flex-wrap items-baseline gap-x-4">
-          {perfiles.length > 0 ? (
-            <Link href="/destacados" className="text-sm font-medium text-text-dim hover:text-text">
-              Ver todos →
+        {soloMirar ? null : (
+          <div className="flex shrink-0 flex-wrap items-baseline gap-x-4">
+            {perfiles.length > 0 ? (
+              <Link
+                href="/destacados"
+                className="text-sm font-medium text-text-dim hover:text-text"
+              >
+                Ver todos →
+              </Link>
+            ) : null}
+            <Link href="/boosts" className="text-sm font-medium text-text-dim hover:text-text">
+              Destaca tu perfil →
             </Link>
-          ) : null}
-          <Link href="/boosts" className="text-sm font-medium text-text-dim hover:text-text">
-            Destaca tu perfil →
-          </Link>
-        </div>
+          </div>
+        )}
       </div>
 
       {perfiles.length === 0 ? (
         <p className="mt-4 rounded-sm border border-line bg-surface/40 p-6 text-center text-sm text-text-dim">
-          Ahora mismo no hay ningún perfil destacado. Puedes ser el primero.
+          {soloMirar
+            ? "Ahora mismo no hay ningún perfil destacado."
+            : "Ahora mismo no hay ningún perfil destacado. Puedes ser el primero."}
         </p>
       ) : (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

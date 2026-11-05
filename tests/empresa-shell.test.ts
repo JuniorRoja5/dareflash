@@ -288,6 +288,10 @@ describe("el tipo de cuenta sale de la SESIÓN y llega a cada pieza", () => {
     expect(leer("src", "app", "(app)", "(shell)", "inicio", "page.tsx")).toMatch(
       /ctaPrincipal\(sesion\?\.role \?\? null, sesion\?\.esCuentaEmpresa \?\? false\)/,
     );
+    // Y la fila de destacados, sin sus puertas a pantallas de participante.
+    expect(leer("src", "app", "(app)", "(shell)", "inicio", "page.tsx")).toMatch(
+      /soloMirar=\{sesion\?\.esCuentaEmpresa \?\? false\}/,
+    );
   });
 
   it("nadie fija el tipo de cuenta a mano", () => {

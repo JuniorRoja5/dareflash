@@ -128,7 +128,7 @@ export default async function InicioPage() {
 
         {/* PERFILES DESTACADOS (Boost) */}
         <div className="df-rise mt-12 lg:mt-16" style={{ animationDelay: "80ms" }}>
-          <BoostDestacados perfiles={destacados} />
+          <BoostDestacados perfiles={destacados} soloMirar={sesion?.esCuentaEmpresa ?? false} />
         </div>
 
         {/* MURO de retos + rail de ranking */}
