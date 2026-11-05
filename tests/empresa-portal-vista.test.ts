@@ -100,6 +100,9 @@ const DEL_DUENO = [
   "src/app/(app)/(shell)/empezar/page.tsx",
   "src/app/(app)/(shell)/empezar/empresa/page.tsx",
   "src/app/(app)/(shell)/empezar/empresa/formulario-alta.tsx",
+  // fase9-diseno: la sección de créditos y su lista de movimientos también son del dueño.
+  "src/app/(app)/(shell)/empresa/creditos/page.tsx",
+  "src/app/(app)/(shell)/empresa/movimientos-creditos.tsx",
 ];
 
 describe("lo que el portal no pinta", () => {

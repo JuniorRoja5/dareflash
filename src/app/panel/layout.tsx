@@ -49,10 +49,14 @@ export default async function PanelLayout({ children }: { children: ReactNode })
       <header className="sticky top-0 z-30 flex items-center gap-4 border-b border-line bg-surface px-5 py-3 lg:px-6">
         {/* El rótulo dice el rol de QUIEN MIRA: desde que entran moderadores, poner "Admin" fijo
             sería mentir en la mitad de las sesiones. */}
-        <span className="text-sm font-semibold tracking-widest text-text-dim uppercase">
+        <span className="min-w-0 truncate text-sm font-semibold tracking-widest text-text-dim uppercase">
           Panel <span className="text-text">· {ETIQUETA_ROL[quienMira.role]}</span>
         </span>
-        <div className="ml-auto flex items-center gap-4">
+        {/* EN MÓVIL CABE: a 390 px el total, el nombre y «Salir» no entraban en una fila y la página
+            entera desbordaba en horizontal (medido: el grupo acababa en 532 px). El nombre se queda
+            en escritorio —en móvil no aporta, es tu propio nombre— y la palabra junto a la insignia
+            también: la cifra con su `aria-label` ya lo dice. */}
+        <div className="ml-auto flex min-w-0 items-center gap-3 sm:gap-4">
           {/* EL TOTAL DE LO QUE PIDE UNA DECISIÓN, visible desde cualquier página del panel. Lleva al
               Resumen, que es donde está desglosado ("Pendiente de ti"). Con 0 no aparece. */}
           {total > 0 ? (
@@ -62,10 +66,14 @@ export default async function PanelLayout({ children }: { children: ReactNode })
               className="flex items-center gap-2 rounded-sm border border-line px-3 py-1.5 text-sm text-text transition-colors duration-150 ease-mechanical hover:bg-raised"
             >
               <InsigniaPendientes n={total} etiqueta={`${total} cosas esperan una decisión`} />
-              <span aria-hidden="true">{total === 1 ? "pendiente" : "pendientes"}</span>
+              <span aria-hidden="true" className="hidden sm:inline">
+                {total === 1 ? "pendiente" : "pendientes"}
+              </span>
             </Link>
           ) : null}
-          <span className="max-w-[40ch] truncate text-sm text-text-dim">{nombre}</span>
+          <span className="hidden max-w-[40ch] truncate text-sm text-text-dim sm:inline">
+            {nombre}
+          </span>
           <SalirPanel />
         </div>
       </header>

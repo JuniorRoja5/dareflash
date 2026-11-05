@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { Tarjeta } from "@/components/ui/tarjeta";
+import { TarjetaMetrica } from "@/components/ui/tarjeta-metrica";
 import {
   ETIQUETA_ESTADO_EMPRESA,
   ETIQUETA_TIPO_CUENTA,
@@ -17,6 +19,7 @@ export const metadata = { title: "Mi empresa · DareFlash" };
 export const dynamic = "force-dynamic";
 
 const FECHA = { day: "numeric", month: "long", year: "numeric" } as const;
+const ENLACE = "font-medium text-text underline underline-offset-2 hover:no-underline";
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
@@ -65,10 +68,12 @@ export default async function PaginaMiEmpresa() {
   const { prisma } = await import("@/server/db/client");
   const { miEmpresa } = await import("@/server/services/empresas");
   const { misCreditos } = await import("@/server/services/creditos");
-  // Los dos por EL MISMO ámbito del chokepoint: esta pantalla no sabe pedir lo de otra empresa.
-  const [empresa, creditos] = await Promise.all([
+  const { misPropuestasEnRevision } = await import("@/server/services/retos-empresa");
+  // Los tres por EL MISMO ámbito del chokepoint: esta pantalla no sabe pedir lo de otra empresa.
+  const [empresa, creditos, enRevision] = await Promise.all([
     miEmpresa(prisma, ambito.empresaId),
     misCreditos(prisma, ambito.empresaId),
+    misPropuestasEnRevision(prisma, ambito.empresaId),
   ]);
   // Solo si la fila desapareció entre el guard y la lectura. No se inventa una pantalla vacía.
   if (!empresa) notFound();
@@ -82,82 +87,88 @@ export default async function PaginaMiEmpresa() {
         {ETIQUETA_TIPO_CUENTA[empresa.tipoCuenta]} · {ETIQUETA_TIPO_NEGOCIO[empresa.tipoNegocio]}
       </p>
 
-      <Tarjeta className="mt-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-sm font-semibold text-text">{relato.titulo}</h2>
-          <span className="rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim">
-            {ETIQUETA_ESTADO_EMPRESA[empresa.estado]}
-          </span>
-        </div>
-        <p className="mt-2 max-w-prose text-sm text-text-dim">{relato.cuerpo}</p>
-        {/* EL MOTIVO SÍ SE LE ENSEÑA. Un rechazo sin motivo genera un correo de soporte por cada
-            caso; la nota interna del equipo, en cambio, no sale de la base de datos. */}
-        {empresa.motivoRechazo ? (
-          <p className="mt-3 max-w-prose text-sm text-text">
-            {MSG_MOTIVO_RECHAZO_EMPRESA[empresa.motivoRechazo]}
-          </p>
-        ) : null}
-      </Tarjeta>
+      {/* ┌─ TRES CIFRAS ARRIBA, EN REJILLA ─────────────────────────────────────────────────────┐
+          │ Estado, créditos de publicidad y propuestas: lo que una empresa viene a mirar. En   │
+          │ escritorio, las tres en fila; en móvil, apiladas. Cada una lleva a su sección. Los  │
+          │ créditos, siempre con ese nombre —nunca «puntos»—; sus movimientos, en «Créditos».  │
+          └─────────────────────────────────────────────────────────────────────────────────────┘ */}
+      <div className="mt-6 grid gap-4 md:grid-cols-3">
+        <TarjetaMetrica etiqueta="Estado" valor={ETIQUETA_ESTADO_EMPRESA[empresa.estado]} />
+        <TarjetaMetrica
+          etiqueta="Créditos de publicidad"
+          valor={
+            <span data-creditos-saldo={creditos.saldo}>
+              {creditos.saldo.toLocaleString("es-ES")}
+            </span>
+          }
+          pie={
+            <>
+              Cada crédito es un día de anuncio.
+              <Link href="/empresa/creditos" className={`mt-1 block ${ENLACE}`}>
+                Ver movimientos
+              </Link>
+            </>
+          }
+        />
+        <TarjetaMetrica
+          etiqueta="Propuestas en revisión"
+          valor={enRevision.toLocaleString("es-ES")}
+          pie={
+            <Link href="/empresa/retos" className={ENLACE}>
+              Ver mis retos
+            </Link>
+          }
+        />
+      </div>
 
-      {/* CRÉDITOS DE PUBLICIDAD (Fase 9 · P4). Siempre con ese nombre —nunca «puntos»— y cada
-          movimiento por su CONCEPTO: la nota de un ajuste es del equipo y no viaja aquí (el DTO no
-          la trae). Sin promesas de fecha: la tarjeta cuenta lo que hay, no lo que vendrá. */}
-      <Tarjeta className="mt-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-sm font-semibold text-text">Créditos de publicidad</h2>
-          <p className="text-sm text-text tabular-nums" data-creditos-saldo={creditos.saldo}>
-            <span className="text-lg font-semibold">{creditos.saldo.toLocaleString("es-ES")}</span>{" "}
-            {creditos.saldo === 1 ? "crédito" : "créditos"}
-          </p>
-        </div>
-        <p className="mt-1 text-2xs text-text-dim">Cada crédito es un día de anuncio.</p>
-        {creditos.movimientos.length > 0 ? (
-          <ul className="mt-3 divide-y divide-line text-sm">
-            {creditos.movimientos.map((m) => (
-              <li key={m.id} className="flex flex-wrap items-baseline gap-x-3 py-1.5">
-                <span className="w-14 text-text tabular-nums">
-                  {m.delta > 0 ? "+" : ""}
-                  {m.delta.toLocaleString("es-ES")}
-                </span>
-                <span className="min-w-0 flex-1 text-text">{m.concepto}</span>
-                <span className="text-2xs text-text-dim">
-                  {new Date(m.creadoMs).toLocaleDateString("es-ES", FECHA)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-3 text-sm text-text-dim">Todavía no tienes movimientos.</p>
-        )}
-      </Tarjeta>
-
-      <Tarjeta className="mt-4">
-        <h2 className="text-sm font-semibold text-text">Los datos que nos diste</h2>
-        <dl className="mt-3 grid gap-4 sm:grid-cols-2">
-          <Dato etiqueta="Nombre" valor={empresa.nombre} />
-          <Dato etiqueta="Tipo de cuenta" valor={ETIQUETA_TIPO_CUENTA[empresa.tipoCuenta]} />
-          <Dato etiqueta="Tipo de negocio" valor={ETIQUETA_TIPO_NEGOCIO[empresa.tipoNegocio]} />
-          <Dato etiqueta="País" valor={nombrePais(empresa.paisIso)} />
-          <Dato etiqueta="Contacto" valor={empresa.personaContacto} />
-          <Dato
-            etiqueta="Alta"
-            valor={new Date(empresa.creadaMs).toLocaleDateString("es-ES", FECHA)}
-          />
-          {empresa.ciudadTexto ? <Dato etiqueta="Ciudad" valor={empresa.ciudadTexto} /> : null}
-          {empresa.webUrl ? <Dato etiqueta="Web" valor={empresa.webUrl} /> : null}
-          {empresa.redes ? <Dato etiqueta="Redes" valor={empresa.redes} /> : null}
-          {empresa.direccion ? <Dato etiqueta="Dirección" valor={empresa.direccion} /> : null}
-          {empresa.verificadaMs !== null ? (
-            <Dato
-              etiqueta="Verificada"
-              valor={new Date(empresa.verificadaMs).toLocaleDateString("es-ES", FECHA)}
-            />
+      {/* DOS COLUMNAS EN ESCRITORIO: qué significa el estado (y el motivo, si lo hay) a la izquierda;
+          los datos que nos dio, a la derecha. */}
+      <div className="mt-6 grid gap-4 lg:grid-cols-2 lg:items-start">
+        <Tarjeta className="p-5 lg:p-6">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base font-semibold text-text">{relato.titulo}</h2>
+            <span className="rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim">
+              {ETIQUETA_ESTADO_EMPRESA[empresa.estado]}
+            </span>
+          </div>
+          <p className="mt-2 max-w-prose text-sm text-text-dim">{relato.cuerpo}</p>
+          {/* EL MOTIVO SÍ SE LE ENSEÑA. Un rechazo sin motivo genera un correo de soporte por cada
+              caso; la nota interna del equipo, en cambio, no sale de la base de datos. */}
+          {empresa.motivoRechazo ? (
+            <p className="mt-3 max-w-prose text-sm text-text">
+              {MSG_MOTIVO_RECHAZO_EMPRESA[empresa.motivoRechazo]}
+            </p>
           ) : null}
-        </dl>
-        <p className="mt-4 text-2xs text-text-dim">
-          Para cambiar cualquiera de estos datos, escríbenos: los revisamos a mano.
-        </p>
-      </Tarjeta>
+        </Tarjeta>
+
+        <Tarjeta className="p-5 lg:p-6">
+          <h2 className="text-base font-semibold text-text">Los datos que nos diste</h2>
+          <dl className="mt-3 grid gap-4 sm:grid-cols-2">
+            <Dato etiqueta="Nombre" valor={empresa.nombre} />
+            <Dato etiqueta="Tipo de cuenta" valor={ETIQUETA_TIPO_CUENTA[empresa.tipoCuenta]} />
+            <Dato etiqueta="Tipo de negocio" valor={ETIQUETA_TIPO_NEGOCIO[empresa.tipoNegocio]} />
+            <Dato etiqueta="País" valor={nombrePais(empresa.paisIso)} />
+            <Dato etiqueta="Contacto" valor={empresa.personaContacto} />
+            <Dato
+              etiqueta="Alta"
+              valor={new Date(empresa.creadaMs).toLocaleDateString("es-ES", FECHA)}
+            />
+            {empresa.ciudadTexto ? <Dato etiqueta="Ciudad" valor={empresa.ciudadTexto} /> : null}
+            {empresa.webUrl ? <Dato etiqueta="Web" valor={empresa.webUrl} /> : null}
+            {empresa.redes ? <Dato etiqueta="Redes" valor={empresa.redes} /> : null}
+            {empresa.direccion ? <Dato etiqueta="Dirección" valor={empresa.direccion} /> : null}
+            {empresa.verificadaMs !== null ? (
+              <Dato
+                etiqueta="Verificada"
+                valor={new Date(empresa.verificadaMs).toLocaleDateString("es-ES", FECHA)}
+              />
+            ) : null}
+          </dl>
+          <p className="mt-4 text-2xs text-text-dim">
+            Para cambiar cualquiera de estos datos, escríbenos: los revisamos a mano.
+          </p>
+        </Tarjeta>
+      </div>
     </div>
   );
 }

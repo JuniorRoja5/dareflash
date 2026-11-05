@@ -47,7 +47,9 @@ export default async function CuentaEmpresaPage() {
         El correo con el que entras es también donde te escribimos sobre tu empresa.
       </p>
 
-      <div className="mt-6 space-y-4">
+      {/* LADO A LADO EN ESCRITORIO (fase9-diseno): son dos formularios independientes y cortos; uno
+          debajo del otro dejaban media pantalla vacía. Los componentes son los del perfil, sin tocar. */}
+      <div className="mt-6 grid gap-4 lg:grid-cols-2 lg:items-start">
         <CambiarEmail
           emailActual={cuenta?.email ?? "—"}
           pendienteInicial={cuenta?.emailPendiente ?? null}

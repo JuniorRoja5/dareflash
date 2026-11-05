@@ -446,6 +446,8 @@ describe("estructural", () => {
     const ficheros = [
       ["src", "app", "panel", "empresas", "creditos-empresa.tsx"],
       ["src", "app", "(app)", "(shell)", "empresa", "page.tsx"],
+      // fase9-diseno: su sección propia, con el historial entero.
+      ["src", "app", "(app)", "(shell)", "empresa", "creditos", "page.tsx"],
     ];
     for (const f of ficheros) {
       const src = soloCodigo(readFileSync(path.join(RAIZ, ...f), "utf8"));

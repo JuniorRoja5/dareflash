@@ -26,26 +26,41 @@ export const metadata = { title: "Empezar · DareFlash" };
  */
 export default function PaginaEmpezar() {
   return (
-    <div className="df-rise mx-auto w-full max-w-4xl px-4 py-10 lg:px-8 lg:py-16">
-      <h1 className="text-3xl text-text">{TITULO_EMPEZAR}</h1>
-      <p className="mt-2 max-w-prose text-sm text-text-dim">{SUBTITULO_EMPEZAR}</p>
+    <div className="df-rise mx-auto w-full max-w-5xl px-4 py-10 lg:px-8 lg:py-16">
+      <h1 className="text-3xl text-text lg:text-4xl">{TITULO_EMPEZAR}</h1>
+      <p className="mt-2 max-w-prose text-sm text-text-dim lg:text-base">{SUBTITULO_EMPEZAR}</p>
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <Tarjeta className="flex flex-col">
-          <h2 className="text-lg text-text">{CAMINO_PARTICIPANTE.titulo}</h2>
+      {/* LADO A LADO desde tableta, apiladas en móvil (participar primero: es el producto). Las dos
+          miden lo mismo y alinean el botón abajo, para que se comparen como dos opciones y no como
+          una tarjeta y su nota al pie. */}
+      <div className="mt-8 grid gap-4 md:grid-cols-2 lg:mt-10 lg:gap-6">
+        <Tarjeta className="flex flex-col p-6 lg:p-8">
+          <p className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
+            Participante
+          </p>
+          <h2 className="mt-2 text-xl text-text lg:text-2xl">{CAMINO_PARTICIPANTE.titulo}</h2>
           <p className="mt-2 flex-1 text-sm text-text-dim">{CAMINO_PARTICIPANTE.cuerpo}</p>
-          <Boton href={CAMINO_PARTICIPANTE.href} className="mt-5 self-start">
+          <Boton href={CAMINO_PARTICIPANTE.href} className="mt-6 w-full sm:w-auto sm:self-start">
             {CAMINO_PARTICIPANTE.cta}
           </Boton>
         </Tarjeta>
 
-        <Tarjeta className="flex flex-col">
-          <h2 className="text-lg text-text">{CAMINO_EMPRESA.titulo}</h2>
+        <Tarjeta className="flex flex-col p-6 lg:p-8">
+          <p className="text-2xs font-semibold tracking-widest text-text-dim uppercase">Negocio</p>
+          <h2 className="mt-2 text-xl text-text lg:text-2xl">{CAMINO_EMPRESA.titulo}</h2>
           <p className="mt-2 text-sm text-text-dim">{CAMINO_EMPRESA.cuerpo}</p>
           {/* El aviso se construye con las constantes (fecha y cifra), nunca escrito a mano: si se
-              mueven, la promesa se mueve con ellas. */}
-          <p className="mt-3 flex-1 text-sm text-text">{msgSocioFundador()}</p>
-          <Boton href={CAMINO_EMPRESA.href} variante="secundario" className="mt-5 self-start">
+              mueven, la promesa se mueve con ellas. En su recuadro, para que no se pierda como una
+              línea más del cuerpo: es la razón para registrarse AHORA. */}
+          <p className="mt-4 rounded-sm border border-text/40 px-3 py-2 text-sm text-text">
+            {msgSocioFundador()}
+          </p>
+          <span className="flex-1" aria-hidden />
+          <Boton
+            href={CAMINO_EMPRESA.href}
+            variante="secundario"
+            className="mt-6 w-full sm:w-auto sm:self-start"
+          >
             {CAMINO_EMPRESA.cta}
           </Boton>
         </Tarjeta>

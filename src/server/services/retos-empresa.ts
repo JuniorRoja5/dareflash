@@ -291,6 +291,22 @@ export async function misSolicitudesReto(
   };
 }
 
+/**
+ * Cuántas propuestas SUYAS están en revisión, para la tarjeta del Resumen de su portal. Lee EL MISMO
+ * filtro que la cola del panel (`filtroSolicitudesReto`), acotado a su `empresaId` (del chokepoint):
+ * «2 en revisión» en el portal y las 2 filas que ve el equipo no pueden discrepar. Contar desde la
+ * primera página de `misSolicitudesReto` mentiría en cuanto hubiera más de una página.
+ */
+export function misPropuestasEnRevision(
+  db: Db,
+  empresaId: string,
+  ahora: Date = new Date(),
+): Promise<number> {
+  return db.retoSolicitud.count({
+    where: { AND: [{ empresaId }, filtroSolicitudesReto("PENDIENTE", ahora)] },
+  });
+}
+
 // ---------------------------------------------------------------------------------------------------
 // La cola del panel
 // ---------------------------------------------------------------------------------------------------

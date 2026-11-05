@@ -1,7 +1,7 @@
 /**
  * LAS SECCIONES DEL PORTAL DE EMPRESA — fuente única de su pestañero (`NavPortal`).
  *
- * SOLO LAS QUE EXISTEN. Ni "Campañas" ni "Créditos" están aquí todavía, y no es un olvido: una
+ * SOLO LAS QUE EXISTEN. "Campañas" no está aquí todavía, y no es un olvido: una
  * pestaña que lleva a un "próximamente" es una promesa con fecha que nadie vigila, y sobrevive a su
  * fase. Cada sección entra en esta lista EN LA MISMA PIEZA que construye su página, y un test
  * (`empresa-shell`) comprueba que toda entrada tiene su `page.tsx`.
@@ -17,6 +17,8 @@ export const SECCIONES_PORTAL: readonly SeccionPortal[] = [
   { href: "/empresa", nombre: "Resumen" },
   // Fase 9 · P3: sus propuestas de reto patrocinado y su extracto. Entra con su página, como dice arriba.
   { href: "/empresa/retos", nombre: "Retos" },
+  // fase9-diseno: el historial entero de créditos de publicidad, paginado. El Resumen enseña el saldo.
+  { href: "/empresa/creditos", nombre: "Créditos" },
   { href: "/empresa/cuenta", nombre: "Cuenta" },
 ];
 
