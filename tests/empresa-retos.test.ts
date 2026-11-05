@@ -642,3 +642,42 @@ describe("POST /api/empresa/retos", () => {
     expect(await prisma.retoSolicitud.count()).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------------------------------
+// 6. El admin se entera sin buscar: la insignia sube y baja con la cola
+// ---------------------------------------------------------------------------------------------------
+
+describe("la cifra de propuestas pendientes", () => {
+  it("sube con una propuesta y baja al decidirla; a un moderador no se le cuenta", async () => {
+    const { pendientesPanel } = await import("../src/server/services/pendientes-panel");
+    const { pendientesDeSeccion, totalPendientes } = await import("../src/lib/pendientes-panel");
+    const { empresaId } = await unaEmpresa("Panadería La Espiga");
+    const cifras = async (rol = "ADMIN") => {
+      const p = await pendientesPanel(prisma, rol);
+      return {
+        insignia: pendientesDeSeccion("/panel/propuestas", p, rol),
+        cabecera: totalPendientes(p, rol),
+        resumen: p.propuestas,
+      };
+    };
+
+    expect(await cifras()).toEqual({ insignia: 0, cabecera: 0, resumen: 0 });
+    const id = await proponer(empresaId);
+    expect(await cifras()).toEqual({ insignia: 1, cabecera: 1, resumen: 1 });
+    expect(await cifras("MODERATOR")).toEqual({ insignia: 0, cabecera: 0, resumen: 0 });
+    // Y cuadra con las filas de la cola filtrada.
+    const cola = await svc.listarSolicitudesReto(prisma, { estado: "PENDIENTE" });
+    expect(cola.items).toHaveLength(1);
+    await aprobar(id);
+    expect(await cifras()).toEqual({ insignia: 0, cabecera: 0, resumen: 0 });
+  });
+
+  it("estructural: el contador y la cola usan el MISMO filtro", () => {
+    const src = readFileSync(
+      path.resolve(__dirname, "..", "src", "server", "services", "retos-empresa.ts"),
+      "utf8",
+    ).replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(src).toMatch(/count\(\{ where: filtroSolicitudesReto\(estado\) \}\)/);
+    expect(src).toMatch(/const filtro = filtroSolicitudesReto\(opciones\.estado\)/);
+  });
+});
