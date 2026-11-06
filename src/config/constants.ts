@@ -1428,6 +1428,11 @@ export const RATE_LIMITS = {
   // Proponer un reto (empresa, Fase 9 · P3): procesa un logo como crear, y además el tope de
   // propuestas pendientes ya frena la cola. Esto frena el martilleo del formulario.
   PROPONER_RETO_PER_USER: { limit: 10, windowMs: 15 * 60 * 1000 }, // 10 / 15 min por usuario
+  // Crear una campaña de publicidad (empresa, Fase 9 · P6): procesa una imagen, como proponer.
+  CREAR_PUBLICIDAD_PER_USER: { limit: 20, windowMs: 15 * 60 * 1000 }, // 20 / 15 min por usuario
+  // Activar, pausar, reanudar, terminar o borrar una campaña: cada una abre una transacción que ocupa
+  // o libera calendario. Holgado para el uso normal; frena el martilleo de un botón.
+  ACCION_PUBLICIDAD_PER_USER: { limit: 60, windowMs: 15 * 60 * 1000 }, // 60 / 15 min por usuario
   // Editar reto (admin): puede traer una portada nueva (mismo coste de decodificado/recompresión que
   // crear), así que se acota igual. Cubo por usuario independiente del de crear.
   EDITAR_RETO_PER_USER: { limit: 30, windowMs: 15 * 60 * 1000 }, // 30 / 15 min por usuario
@@ -2496,6 +2501,100 @@ export const CREDITOS_PAGINA = 25;
 export function claveRegaloSocioFundador(empresaId: string): string {
   return `socio-fundador:${empresaId}`;
 }
+
+// ----------------------------------------------------------------------------
+// PUBLICIDAD (Fase 9 · P6): la campaña, su calendario y su precio. El plan: §1, §3.4, §3.5 bis, §4.6.
+// En el código se llama «publicidad» o «campaña», NUNCA «anuncio»: «anuncio» ya es el aviso que el
+// admin manda a los usuarios (`Announcement`). En pantalla, quien mira lee «Publicidad».
+// ----------------------------------------------------------------------------
+
+/**
+ * LA INTENCIÓN de la campaña, que es lo que se GUARDA. Lo que se ENSEÑA (programada, activa,
+ * finalizada) se calcula con el calendario (`estadoVisiblePublicidad`): un job que no corrió no puede
+ * dejar «activa» una campaña que ya terminó.
+ *  - BORRADOR: creada, sin calendario. Se puede borrar.
+ *  - ACTIVA: quiere salir; ocupa sus días en `ZonaOcupacion`.
+ *  - PAUSADA: la empresa la paró; sus días por venir se liberaron.
+ *  - TERMINADA: la empresa la acabó antes de tiempo; sus días por venir se liberaron. No vuelve.
+ * La retirada del ADMIN (con motivo) entra con la moderación (P8), con su estado y sus columnas.
+ */
+export const EstadoPublicidadSchema = z.enum(["BORRADOR", "ACTIVA", "PAUSADA", "TERMINADA"]);
+export type EstadoPublicidad = z.infer<typeof EstadoPublicidadSchema>;
+
+/** Lo que se le enseña a la empresa. PROGRAMADA y FINALIZADA no se guardan nunca: se calculan. */
+export type EstadoVisiblePublicidad =
+  "BORRADOR" | "PROGRAMADA" | "ACTIVA" | "FINALIZADA" | "PAUSADA" | "TERMINADA";
+
+export const ETIQUETA_ESTADO_PUBLICIDAD: Record<EstadoVisiblePublicidad, string> = {
+  BORRADOR: "Borrador",
+  PROGRAMADA: "Programada",
+  ACTIVA: "Activa",
+  FINALIZADA: "Finalizada",
+  PAUSADA: "Pausada",
+  TERMINADA: "Terminada",
+};
+
+/**
+ * LA FRASE de cada estado. P6 deja las campañas OCUPANDO calendario pero todavía no se sirven (eso es
+ * P7): por eso ninguna frase promete que «se está viendo». Cuando P7 sirva, esta tabla cambia con él.
+ */
+export const MSG_ESTADO_PUBLICIDAD: Record<EstadoVisiblePublicidad, string> = {
+  BORRADOR: "Todavía no ocupa ningún día. Actívala o prográmala cuando quieras.",
+  PROGRAMADA: "Tiene sus días reservados y empieza en la fecha indicada.",
+  ACTIVA: "Está dentro de sus días contratados.",
+  FINALIZADA: "Ya pasaron sus días contratados.",
+  PAUSADA: "La has pausado. Sus días por venir quedaron libres para otras campañas.",
+  TERMINADA: "La terminaste antes de tiempo. Sus días por venir quedaron libres.",
+};
+
+/**
+ * CRÉDITOS POR DÍA de cada alcance (1 crédito = 1 día en su zona). En UN sitio: subir un precio es
+ * cambiar un número. Y lo vendido NO se mueve: al activar o programar, la tarifa se CONGELA en
+ * `Publicidad.creditosPorDia` (la misma razón que `comisionBps` por reto). Hay un test que cambia esta
+ * tabla y comprueba que una campaña activa y una reserva siguen con su precio (por eso el objeto no se
+ * congela con `as const`: ese test lo escribe; el código, nunca).
+ */
+export const CREDITOS_POR_DIA: Record<AlcancePublicidad, number> = {
+  CIUDAD: 1,
+  ESTADO: 2,
+  PAIS: 5,
+  GLOBAL: 15,
+};
+
+/**
+ * Un negocio ONLINE puede comprar VARIOS países: `CREDITOS_POR_DIA.PAIS` por país y día, con TOPE en
+ * el de Global (a partir de `PUBLICIDAD_PAISES_AVISO_GLOBAL` países, Global sale igual o mejor, y la
+ * pantalla lo dice). El máximo de países existe para que una campaña no ocupe plaza en medio mundo
+ * pagando el precio de Global.
+ */
+export const PUBLICIDAD_PAISES_MAX = 10;
+export const PUBLICIDAD_PAISES_AVISO_GLOBAL = 3;
+
+/** Días que se pueden contratar de una vez. Holgado (un trimestre) pero acotado: cada día es una fila. */
+export const PUBLICIDAD_DIAS_MIN = 1;
+export const PUBLICIDAD_DIAS_MAX = 90;
+
+/**
+ * HORIZONTE DE RESERVA: lo más lejos que puede EMPEZAR una campaña. Sin tope, una reserva —que no
+ * cobra hasta su primer día— bloquearía una zona indefinidamente, y gratis.
+ */
+export const PUBLICIDAD_RESERVA_MAX_DIAS = 60;
+
+/** El nombre (solo para el portal: quien mira no lo ve), el texto y el destino del clic. */
+export const PUBLICIDAD_NOMBRE_MAX = 80;
+export const PUBLICIDAD_TEXTO_MAX = 125;
+export const PUBLICIDAD_DESTINO_MAX = 300;
+/** La imagen: por el pipeline de siempre, contenida en este lado (el feed es vertical). */
+export const PUBLICIDAD_IMAGEN_MAX_LADO = 1080;
+/** Página de la lista de campañas del portal. */
+export const PUBLICIDAD_PAGINA = 25;
+
+/**
+ * LA LÍNEA QUE HACE HONESTA LA RESERVA: el saldo se COMPRUEBA al reservar, pero no se RETIENE —retener
+ * sería un segundo saldo, y dos saldos acaban discrepando—. La consecuencia se dice, no se esconde.
+ */
+export const MSG_SALDO_NO_RETENIDO =
+  "Comprobamos que tienes créditos de publicidad para todos los días, pero no los apartamos: se descuentan cada día de campaña. Si cuando llegue un día no te quedan, la campaña se pausa.";
 
 // ----------------------------------------------------------------------------
 // LA PANTALLA DE ELECCION (`/empezar`). Dos caminos, y el de participante es el

@@ -1563,6 +1563,7 @@ model Empresa {
   retos           Challenge[]
   /// Sus movimientos de creditos de publicidad (Fase 9 · P4).
   creditos        CreditoLedger[]
+  publicidades    Publicidad[]
 
   /// LA COLA DE VERIFICACION DEL PANEL: filtra por `estado` y se pagina por KEYSET sobre
   /// (createdAt, id), los dos DESC. El `id` va detras porque el keyset necesita un orden TOTAL, y
@@ -1671,6 +1672,126 @@ model CreditoLedger {
 }
 
 // ============================================================================
+// PUBLICIDAD (Fase 9 · P6): la campaña, su alcance y su calendario
+// ============================================================================
+
+/// UNA CAMPAÑA DE PUBLICIDAD con UNA pieza (imagen, texto y destino). Se llama `Publicidad` y no
+/// «Anuncio»: «anuncio» ya es el aviso del admin a los usuarios (`Announcement`).
+///
+/// `estado` GUARDA LA INTENCIÓN (BORRADOR | ACTIVA | PAUSADA | TERMINADA, unión en constants); lo que se
+/// ENSEÑA —programada, activa, finalizada— se CALCULA con su calendario, que es la OCUPACIÓN
+/// (`ZonaOcupacion`): los días que tiene tomados. Pausar y reanudar parten el calendario en tramos, así
+/// que una fecha de fin guardada mentiría; las filas de ocupación no.
+///
+/// Arranca a cero LEGÍTIMAMENTE: antes de esta migración no existían ni las campañas ni su calendario,
+/// así que no hay ningún backfill que buscar.
+model Publicidad {
+  id        String @id @default(cuid())
+  /// De quién es. EL ÁMBITO: el portal solo lee filas de su `empresaId`, que sale del chokepoint.
+  empresaId String
+  estado    String @default("BORRADOR")
+
+  /// Solo para el portal (para reconocerla en la lista). Quien mira no lo ve.
+  nombre String @db.VarChar(80)
+
+  /// CIUDAD | ESTADO | PAIS | GLOBAL. El ESPACIO (local o global) se DERIVA (`espacioDeAlcance`), no se
+  /// guarda: una columna más podría contradecirlo.
+  alcance      String
+  /// CIUDAD: la ciudad comprada (del catálogo). Su radio de 100 km va desplegado en `PublicidadCiudad`.
+  ciudadId     Int?
+  /// ESTADO: el código admin1 de GeoNames (`ES.60`), el mismo que guarda la sesión.
+  estadoCodigo String? @db.VarChar(20)
+
+  /// La pieza. La imagen es un fichero del volumen de portadas (la sirve Caddy), por el pipeline de
+  /// `services/imagen`: NUNCA una URL remota, que puede cambiar o caerse después de publicarse.
+  imagen     String? @db.VarChar(300)
+  texto      String  @db.VarChar(125)
+  destinoUrl String  @db.VarChar(300)
+
+  /// El calendario PEDIDO: desde qué día y cuántos. Lo que de verdad tiene tomado es su ocupación.
+  fechaInicio     DateTime @db.Date
+  diasContratados Int
+
+  /// LA TARIFA CONGELADA al activar o programar (créditos por día). Por la misma razón exacta que
+  /// `comisionBps` se guarda por reto: si viviera solo en la constante, subir el precio reescribiría lo
+  /// que ya se vendió. Null en un borrador: todavía no se ha vendido nada.
+  creditosPorDia Int?
+
+  activadaEn  DateTime?
+  pausadaEn   DateTime?
+  terminadaEn DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  empresa     Empresa            @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+  ciudad      Ciudad?            @relation(fields: [ciudadId], references: [id], onDelete: Restrict)
+  paises      PublicidadPais[]
+  ciudades    PublicidadCiudad[]
+  ocupaciones ZonaOcupacion[]
+
+  /// La lista del portal, por KEYSET sobre (createdAt, id). El índice del REPARTO es de P7: se diseña
+  /// contra su consulta y se mide con EXPLAIN, no se adivina aquí.
+  @@index([empresaId, createdAt, id])
+}
+
+/// LOS PAÍSES de una campaña de PAÍS: un negocio ONLINE puede comprar varios (5 créditos por país y
+/// día, con tope en Global). Una fila por país, para que el reparto sea una igualdad indexada.
+model PublicidadPais {
+  publicidadId String
+  paisIso      String @db.Char(2)
+
+  publicidad Publicidad @relation(fields: [publicidadId], references: [id], onDelete: Cascade)
+
+  @@id([publicidadId, paisIso])
+  @@index([paisIso])
+}
+
+/// EL RADIO DE 100 KM, DESPLEGADO: las ciudades del catálogo que caen dentro, calculadas UNA VEZ al
+/// activar o programar (§4.6). Servir pasa a ser una igualdad indexada en vez de trigonometría por
+/// impresión. Si el radio cambia algún día, se recalculan las activas en un job y lo vendido no se toca.
+model PublicidadCiudad {
+  publicidadId String
+  ciudadId     Int
+
+  publicidad Publicidad @relation(fields: [publicidadId], references: [id], onDelete: Cascade)
+
+  @@id([publicidadId, ciudadId])
+  @@index([ciudadId])
+}
+
+/// EL MÁXIMO POR ZONA Y LA RESERVA, CON LA MISMA TABLA. Una campaña que arranca ocupa una POSICIÓN por
+/// cada día contratado; si las `PUBLICIDAD_MAX_POR_ZONA` posiciones de un día están tomadas, ese día
+/// está lleno. Una reserva es exactamente esto, sin cobrar: el cargo lo escribe cada día (P9).
+///
+/// SE OCUPA CON UN INSERT, NO CONTANDO. El índice único decide, y una clave duplicada se resuelve contra
+/// la última versión CONFIRMADA, no contra la instantánea de la transacción. Contar las campañas de la
+/// zona antes de insertar es la trampa que costó el cupo de Boost (61 activaciones en 60 plazas): un
+/// SELECT dentro de la transacción devuelve el mundo de antes de esperar.
+///
+/// Las filas de días pasados SE QUEDAN: son el calendario que tuvo la campaña (lo que P9 cobra y lo que
+/// la empresa ve). Pausar o terminar borra solo los días POR VENIR.
+model ZonaOcupacion {
+  id           String   @id @default(cuid())
+  /// `CIUDAD:<id>` | `ESTADO:<código>` | `PAIS:<iso>` | `GLOBAL:*` (`zonasDeCampana`).
+  zonaClave    String   @db.VarChar(40)
+  dia          DateTime @db.Date
+  /// 1..PUBLICIDAD_MAX_POR_ZONA. La plaza del día.
+  posicion     Int
+  publicidadId String
+  createdAt    DateTime @default(now())
+
+  publicidad Publicidad @relation(fields: [publicidadId], references: [id], onDelete: Restrict)
+
+  /// LA PLAZA: dos campañas no pueden tener la misma posición de la misma zona el mismo día.
+  @@unique([zonaClave, dia, posicion])
+  /// Y una campaña no puede tener DOS plazas de la misma zona el mismo día.
+  @@unique([publicidadId, zonaClave, dia])
+  /// La competencia de un rango de días (la estimación) y el «hoy» del reparto.
+  @@index([dia])
+}
+
+// ============================================================================
 // GEOLOCALIZACIÓN Y AFORO (Fase 9 · P5)
 // ============================================================================
 
@@ -1701,6 +1822,8 @@ model Ciudad {
   latitud      Float
   longitud     Float
   poblacion    Int
+
+  publicidades Publicidad[]
 
   /// El autocompletado: PREFIJO (`LIKE 'x%'`), que usa el índice; la subcadena no.
   @@index([nombre])
