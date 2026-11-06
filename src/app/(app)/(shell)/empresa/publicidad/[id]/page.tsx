@@ -9,7 +9,7 @@ import {
   MSG_PUBLICIDAD_PERIODO_GRATIS,
   MSG_SALDO_NO_RETENIDO,
 } from "@/config/constants";
-import { accionesPublicidad, costeTotal, fraseSaldo } from "@/lib/publicidad";
+import { accionesPublicidad, costeTotal, diasPorDelante, fraseSaldo } from "@/lib/publicidad";
 import type { Estimacion } from "@/server/services/publicidad";
 
 import { ambitoDelPortal } from "../../ambito-portal";
@@ -89,9 +89,8 @@ export default async function PaginaCampana({ params }: { params: Promise<{ id: 
   if (!c) notFound();
 
   const acciones = ambito.estado === "VERIFICADA" ? accionesPublicidad(c.estado) : [];
-  const diasPorDelante =
-    c.estado === "BORRADOR" ? c.diasContratados : Math.max(0, c.diasContratados - c.diasTenidos);
-  const coste = costeTotal(c.creditosPorDia, diasPorDelante);
+  const porDelante = diasPorDelante(c.estado, c.diasContratados, c.diasTenidos);
+  const coste = costeTotal(c.creditosPorDia, porDelante);
   const hoyMs = Date.UTC(
     new Date().getUTCFullYear(),
     new Date().getUTCMonth(),
@@ -192,14 +191,14 @@ export default async function PaginaCampana({ params }: { params: Promise<{ id: 
                 <dt className="text-2xs text-text-dim">Créditos por día</dt>
                 <dd className="text-text tabular-nums">{c.creditosPorDia}</dd>
               </div>
-              {diasPorDelante > 0 && c.estado !== "FINALIZADA" && c.estado !== "TERMINADA" ? (
+              {porDelante > 0 ? (
                 <div className="sm:col-span-2">
                   <dt className="text-2xs text-text-dim">
                     {c.estado === "BORRADOR" ? "Coste total" : "Le quedan"}
                   </dt>
                   <dd className="text-text tabular-nums">
                     <span className="font-semibold">{coste} créditos</span>
-                    {c.estado === "BORRADOR" ? "" : ` (${diasPorDelante} días)`}
+                    {c.estado === "BORRADOR" ? "" : ` (${porDelante} días)`}
                   </dd>
                   {/* Antes de comprometer (borrador o pausada): contra lo DISPONIBLE se comprobará. */}
                   {c.estado === "BORRADOR" || c.estado === "PAUSADA" ? (

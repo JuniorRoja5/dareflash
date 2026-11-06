@@ -136,7 +136,10 @@ function Ficha({ f }: { f: FichaPublicidadPanel }) {
             >
               {f.empresa.nombre}
             </Link>{" "}
-            · {ETIQUETA_ALCANCE_PUBLICIDAD[f.alcance]} · {f.zona}
+            {/* «Todo el mundo · Todo el mundo»: en global el alcance y la zona dicen lo mismo. */}
+            {ETIQUETA_ALCANCE_PUBLICIDAD[f.alcance] === f.zona
+              ? `· ${f.zona}`
+              : `· ${ETIQUETA_ALCANCE_PUBLICIDAD[f.alcance]} · ${f.zona}`}
           </p>
           <p className="mt-2">
             <span className={PILDORA}>{ETIQUETA_ESTADO_PUBLICIDAD[f.estado]}</span>
@@ -259,7 +262,8 @@ export default async function PaginaPublicidadPanel({
                     <th className={TH}>Campaña</th>
                     <th className={TH}>Empresa</th>
                     <th className={TH}>Zona</th>
-                    <th className={`text-right ${TH}`}>Denuncias</th>
+                    {/* ABIERTAS: una retirada o absuelta las tiene cerradas y marca 0 (igual que la ficha). */}
+                    <th className={`text-right ${TH}`}>Denuncias abiertas</th>
                     <th className={TH}>Creada</th>
                     <th className={TH}>Estado</th>
                   </tr>
@@ -319,7 +323,7 @@ export default async function PaginaPublicidadPanel({
                     </span>
                     <span className="mt-1 block text-2xs break-words text-text-dim">
                       {c.empresa.nombre} · {c.zona} · {c.denunciasAbiertas}{" "}
-                      {c.denunciasAbiertas === 1 ? "denuncia" : "denuncias"}
+                      {c.denunciasAbiertas === 1 ? "denuncia abierta" : "denuncias abiertas"}
                     </span>
                   </Link>
                 </li>

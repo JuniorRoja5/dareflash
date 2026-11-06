@@ -162,6 +162,29 @@ export function accionesPublicidad(estado: EstadoVisiblePublicidad): readonly Ac
   }
 }
 
+/**
+ * LOS DÍAS QUE LE QUEDAN POR DELANTE, los que la ficha enseña como «Le quedan N créditos». En una
+ * pausada o en revisión son los que recupera al reanudar; en una cerrada no vuelve ninguno. La RETIRADA
+ * es la que importa: sus días se liberaron y no se devuelven, y enseñarle «le quedan 60 créditos» a la
+ * empresa le promete algo que no va a pasar (se vio así en la ficha mirándola, no en un test).
+ */
+export function diasPorDelante(
+  estado: EstadoVisiblePublicidad,
+  diasContratados: number,
+  diasTenidos: number,
+): number {
+  switch (estado) {
+    case "BORRADOR":
+      return diasContratados;
+    case "FINALIZADA":
+    case "TERMINADA":
+    case "RETIRADA":
+      return 0;
+    default:
+      return Math.max(0, diasContratados - diasTenidos);
+  }
+}
+
 // ---------------------------------------------------------------------------------------------------
 // La cascada de cada espacio (§3.2) — la pieza que reutiliza el reparto (P7)
 // ---------------------------------------------------------------------------------------------------

@@ -15,6 +15,7 @@ import {
   accionesPublicidad,
   claveRotacion,
   destinoValido,
+  diasPorDelante,
   diasSeguidos,
   elegiblesEnHueco,
   elegirConRotacion,
@@ -251,5 +252,22 @@ describe("el destino del clic", () => {
     expect(destinoValido("data:text/html,hola")).toBe(false);
     expect(destinoValido("/ruta/relativa")).toBe(false);
     expect(destinoValido("https://localhost")).toBe(false);
+  });
+});
+
+describe("los días por delante que enseña la ficha (Fase 9 · P8)", () => {
+  it("una RETIRADA no tiene días por delante: se liberaron y no se devuelven", () => {
+    // Se vio en la ficha del portal: «Le quedan 60 créditos (4 días)» en una campaña retirada.
+    expect(diasPorDelante("RETIRADA", 5, 1)).toBe(0);
+    expect(diasPorDelante("TERMINADA", 5, 1)).toBe(0);
+    expect(diasPorDelante("FINALIZADA", 5, 5)).toBe(0);
+  });
+
+  it("pausada o en revisión: los que recupera al reanudar; borrador: los contratados", () => {
+    expect(diasPorDelante("PAUSADA", 5, 1)).toBe(4);
+    expect(diasPorDelante("EN_REVISION", 5, 1)).toBe(4);
+    expect(diasPorDelante("ACTIVA", 5, 2)).toBe(3);
+    expect(diasPorDelante("BORRADOR", 5, 0)).toBe(5);
+    expect(diasPorDelante("ACTIVA", 5, 9)).toBe(0);
   });
 });
