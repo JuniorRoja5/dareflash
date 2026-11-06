@@ -111,6 +111,22 @@ Reglas que aplican desde el primer commit y no se renegocian:
   verificacion real la hace el proveedor de pagos al reclamar. Hay guard que lo vigila.
 - `WalletLedger`, `AuditLog` y `ChallengeResult` **ya existen** en el esquema.
 
+## Siguiente prioridad de infraestructura (tras la Fase 9, antes de la 11)
+
+**Construir la imagen FUERA del servidor de produccion.** Un CI (GitHub Actions u otro) construye la
+imagen y la publica en un registro de imagenes; el servidor solo hace `pull` + `up`. **El servidor no
+vuelve a compilar Next.** `migrate` entra en el mismo esquema: su imagen (la etapa `builder`) tambien
+llega construida y el servidor solo la ejecuta.
+
+**Motivo (2026-11-06):** `next build` se hacia en la misma maquina que sirve la web, y su pico de
+memoria crece con cada pieza. En un despliegue de la Fase 9 esa construccion dejo la maquina sin
+memoria y la web dejo de responder mientras compilaba. No es trafico: en reposo la app usa poco. El
+detalle del incidente y de la maquina es operacion y vive fuera del repositorio.
+
+**Mientras no exista:** cada despliegue que lleve build se hace dentro de una sesion persistente del
+servidor (para que una conexion perdida no deje el build a medias). No se empieza antes de cerrar la
+Fase 9.
+
 ## 5. Piezas cortas pendientes
 
 Trabajo acotado y listo para instruir.
