@@ -38,11 +38,19 @@ import {
   conKeysetTiempo,
   decodificarCursorTiempo,
 } from "@/lib/cursor-tiempo";
-import { diaDe, estadoVisiblePublicidad } from "@/lib/publicidad";
+import { diaDe, estadoVisiblePublicidad, sumarDias } from "@/lib/publicidad";
 import type { Db } from "@/server/db/types";
 
 import { levantarAutoOcultoEnTx, sellarDescarteEnTx } from "./ocultado-automatico";
-import { calendarios, nombresDeEstados, zonaLegible } from "./publicidad";
+import {
+  type ReanudacionTrasAbsolver,
+  bloquearEmpresa,
+  calendarios,
+  conReintentos,
+  nombresDeEstados,
+  reanudarTrasAbsolverEnTx,
+  zonaLegible,
+} from "./publicidad";
 
 // ---------------------------------------------------------------------------------------------------
 // El listado y el contador
@@ -275,7 +283,8 @@ export const ACCION_RETIRAR_PUBLICIDAD = "PUBLICIDAD_RETIRADA";
 export const ACCION_ABSOLVER_PUBLICIDAD = "PUBLICIDAD_ABSUELTA";
 
 export type ResultadoDecisionPublicidad =
-  | { estado: "hecho" }
+  /** Al absolver, qué pasó al reanudarla (`null` si no estaba en revisión: no había nada que reanudar). */
+  | { estado: "hecho"; reanudacion?: ReanudacionTrasAbsolver["tipo"] | null }
   | { estado: "sin_cambios" }
   | { estado: "rechazado"; motivo: "NO_EXISTE" | "NO_SE_PUEDE" };
 
@@ -380,48 +389,131 @@ export async function retirarPublicidad(
 
 /**
  * ABSUELVE UNA CAMPAÑA DENUNCIADA (solo ADMIN): sus denuncias abiertas pasan a DISMISSED y se SELLA la
- * absolución —durante la inmunidad, el umbral no la vuelve a ocultar (el candado de siempre)—. Si el
- * umbral la había pausado, se levanta: queda como una PAUSADA normal y la empresa recibe un correo para
- * reanudarla ella (volver a ocupar plaza y comprometer saldo es decisión suya).
+ * absolución —durante la inmunidad, el umbral no la vuelve a ocultar (el candado de siempre)—.
+ *
+ * Si el umbral la había pausado, SE REANUDA SOLA en esta misma transacción (revisión de P8: absolver es
+ * decir que no hizo nada malo, y no se le hace entrar a reanudarla después de perder días por unas
+ * denuncias injustas), con el MISMO cuerpo que el botón de la empresa: los días que le faltan desde hoy,
+ * su tarifa congelada y lo comprometido. Si no cabe —la zona se llenó mientras la revisábamos, o no le
+ * llega el saldo— queda pausada, y el correo dice cuál de los casos ha pasado (y, si es la zona, la
+ * primera fecha libre). El crédito no se mueve en ningún caso: reanudar no cobra (cobra cada día, P9).
+ *
+ * ORDEN DE CERROJOS: Empresa → denuncias → campaña → ocupación. La Empresa primero, como en todo lo que
+ * compromete saldo, y como PRIMERA sentencia: la instantánea se toma después de esperarla, y lo
+ * comprometido se lee con lo que la otra transacción acaba de confirmar. Por eso su id se lee ANTES,
+ * fuera (una campaña no cambia de empresa). Las denuncias antes que la campaña porque `denunciar` va en
+ * ese sentido (crea la denuncia y luego pausa): al revés, una absolución y una denuncia a la vez se
+ * esperarían la una a la otra.
  */
 export async function absolverPublicidad(
   db: PrismaClient,
   entrada: { publicidadId: string; adminId: string; appUrl: string; ahora?: Date },
 ): Promise<ResultadoDecisionPublicidad> {
   const ahora = entrada.ahora ?? new Date();
-  return db.$transaction(async (tx): Promise<ResultadoDecisionPublicidad> => {
-    const existe = await tx.publicidad.findUnique({
-      where: { id: entrada.publicidadId },
-      select: { id: true },
-    });
-    if (!existe) return { estado: "rechazado", motivo: "NO_EXISTE" };
-    const objeto = { targetType: "PUBLICIDAD" as const, targetId: entrada.publicidadId };
-    const levantado = await levantarAutoOcultoEnTx(tx, objeto);
-    const cerradas = await cerrarDenunciasPublicidad(tx, entrada.publicidadId, "DISMISSED");
-    // Como en los vídeos: el juicio se sella solo si de verdad había algo que juzgar (si no, sería
-    // regalar inmunidad por pulsar un botón).
-    if (cerradas > 0) await sellarDescarteEnTx(tx, objeto, ahora);
-    if (!levantado && cerradas === 0) return { estado: "sin_cambios" };
-    await tx.auditLog.create({
-      data: {
-        actorId: entrada.adminId,
-        action: ACCION_ABSOLVER_PUBLICIDAD,
-        targetType: "PUBLICIDAD",
-        targetId: entrada.publicidadId,
-        metadata: { denunciasDescartadas: cerradas, levantada: levantado },
-      },
-    });
-    if (levantado) {
-      await avisarEmpresaEnTx(tx, entrada.publicidadId, entrada.appUrl, ahora, {
-        clave: `publicidad-absuelta:${entrada.publicidadId}:${ahora.getTime()}`,
-        titulo: "Hemos revisado tu campaña: puedes reanudarla",
-        cuerpo: (nombre) =>
-          `Hemos revisado «${nombre}» tras unas denuncias y está todo en orden. Sigue pausada: puedes reanudarla desde tu portal cuando quieras.`,
-        nota: "Al reanudarla se reservan los días que le quedan, si hay plaza en su zona.",
-      });
-    }
-    return { estado: "hecho" };
+  const fila = await db.publicidad.findUnique({
+    where: { id: entrada.publicidadId },
+    select: { empresaId: true },
   });
+  if (!fila) return { estado: "rechazado", motivo: "NO_EXISTE" };
+
+  const r = await conReintentos(() =>
+    db.$transaction(async (tx): Promise<ResultadoDecisionPublicidad> => {
+      await bloquearEmpresa(tx, fila.empresaId);
+      const objeto = { targetType: "PUBLICIDAD" as const, targetId: entrada.publicidadId };
+      const cerradas = await cerrarDenunciasPublicidad(tx, entrada.publicidadId, "DISMISSED");
+      const levantado = await levantarAutoOcultoEnTx(tx, objeto);
+      // Como en los vídeos: el juicio se sella solo si de verdad había algo que juzgar (si no, sería
+      // regalar inmunidad por pulsar un botón).
+      if (cerradas > 0) await sellarDescarteEnTx(tx, objeto, ahora);
+      if (!levantado && cerradas === 0) return { estado: "sin_cambios" };
+      // Solo la que pausó el UMBRAL se reanuda: el umbral solo pausa campañas ACTIVAS, así que es
+      // devolverla a lo que la empresa tenía en marcha. Una que nunca llegó a pausarse sigue como estaba.
+      const reanudacion = levantado
+        ? await reanudarTrasAbsolverEnTx(tx, fila.empresaId, entrada.publicidadId, ahora)
+        : null;
+      await tx.auditLog.create({
+        data: {
+          actorId: entrada.adminId,
+          action: ACCION_ABSOLVER_PUBLICIDAD,
+          targetType: "PUBLICIDAD",
+          targetId: entrada.publicidadId,
+          metadata: {
+            denunciasDescartadas: cerradas,
+            levantada: levantado,
+            reanudacion: reanudacion?.tipo ?? null,
+          },
+        },
+      });
+      if (reanudacion) {
+        await avisarEmpresaEnTx(tx, entrada.publicidadId, entrada.appUrl, ahora, {
+          clave: `publicidad-absuelta:${entrada.publicidadId}:${ahora.getTime()}`,
+          ...correoDeAbsolucion(reanudacion),
+        });
+      }
+      return { estado: "hecho", reanudacion: reanudacion?.tipo ?? null };
+    }),
+  );
+  // Vuelve a servirse en la SIGUIENTE petición, no al caducar la caché (vaciarla dentro de la
+  // transacción la rellenaría con lo de antes).
+  if (r.estado === "hecho" && r.reanudacion) await vaciarCache();
+  return r;
+}
+
+const FECHA_CORREO = { day: "numeric", month: "long", timeZone: "UTC" } as const;
+const diaEnCorreo = (d: Date) => d.toLocaleDateString("es-ES", FECHA_CORREO);
+const enDias = (n: number) => (n === 1 ? "el día que le queda" : `los ${n} días que le quedan`);
+
+/**
+ * EL CORREO DE LA ABSOLUCIÓN dice cuál de los casos ha pasado: que vuelve a mostrarse, o por qué sigue
+ * pausada y qué puede hacer. Lo que se revisó está en orden en todos; lo que cambia es el final.
+ */
+function correoDeAbsolucion(r: ReanudacionTrasAbsolver): {
+  titulo: string;
+  cuerpo: (nombre: string) => string;
+  nota: string;
+} {
+  const enOrden = (nombre: string) =>
+    `Hemos revisado «${nombre}» tras unas denuncias y está todo en orden.`;
+  const gratis = "El tiempo que ha estado en revisión no te ha costado nada.";
+  switch (r.tipo) {
+    case "REANUDADA":
+      return {
+        titulo: "Hemos revisado tu campaña: ya vuelve a mostrarse",
+        cuerpo: (nombre) =>
+          `${enOrden(nombre)} Ya vuelve a mostrarse con ${enDias(r.dias)}, hasta el ${diaEnCorreo(sumarDias(r.inicio, r.dias - 1))}.`,
+        nota: gratis,
+      };
+    case "SIN_DIAS":
+      return {
+        titulo: "Hemos revisado tu campaña: está en orden",
+        cuerpo: (nombre) =>
+          `${enOrden(nombre)} Ya había tenido todos sus días, así que no le queda ninguno por mostrar.`,
+        nota: gratis,
+      };
+    case "ZONA_LLENA":
+      return {
+        titulo: "Hemos revisado tu campaña: está en orden",
+        cuerpo: (nombre) =>
+          r.primeraLibre
+            ? `${enOrden(nombre)} Mientras la revisábamos se llenó su zona, así que de momento sigue pausada. El primer día con sitio es el ${diaEnCorreo(r.primeraLibre)}: cuando la reanudes desde tu portal te ofreceremos esa fecha.`
+            : `${enOrden(nombre)} Mientras la revisábamos se llenó su zona y en las próximas semanas no queda sitio, así que de momento sigue pausada. Puedes reanudarla desde tu portal cuando se libere.`,
+        nota: gratis,
+      };
+    case "SIN_SALDO":
+      return {
+        titulo: "Hemos revisado tu campaña: está en orden",
+        cuerpo: (nombre) =>
+          `${enOrden(nombre)} Sigue pausada porque tus créditos de publicidad no llegan para los días que le quedan. Cuando recargues, puedes reanudarla desde tu portal.`,
+        nota: gratis,
+      };
+    case "EMPRESA_NO_OPERA":
+      return {
+        titulo: "Hemos revisado tu campaña: está en orden",
+        cuerpo: (nombre) =>
+          `${enOrden(nombre)} Sigue pausada porque ahora mismo tu cuenta de empresa no puede publicar campañas.`,
+        nota: "Si tienes dudas, contesta a este correo.",
+      };
+  }
 }
 
 /** El correo a la empresa (un hecho, un correo, con su clave). Sin correo de la cuenta, no se encola. */

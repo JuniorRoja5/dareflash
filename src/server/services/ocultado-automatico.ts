@@ -259,8 +259,9 @@ export async function levantarAutoOcultoEnTx(tx: Db, objeto: ObjetoDenunciado): 
     return r.count > 0;
   }
   if (objeto.targetType === "PUBLICIDAD") {
-    // La campaña se queda PAUSADA (una pausa normal): sus días se liberaron al ocultarla, y volver a
-    // ocupar plaza y comprometer saldo es decisión de la empresa, que la reanuda (decidido en P8).
+    // Aquí solo se levanta: queda PAUSADA (sus días se liberaron al ocultarla). Lo que pasa DESPUÉS lo
+    // decide quien llama: al absolver, `absolverPublicidad` la reanuda en la misma transacción
+    // (revisión de P8); al retirar, pasa a RETIRADA.
     const r = await tx.publicidad.updateMany({
       where: { id: objeto.targetId, ocultoAutoEn: { not: null } },
       data: { ocultoAutoEn: null },

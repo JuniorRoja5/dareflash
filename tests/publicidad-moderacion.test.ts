@@ -6,13 +6,18 @@
  *    deja de servirse AL MOMENTO y se avisa al admin por correo.
  *  - La empresa NO puede reanudar una campaña en revisión (lo dice el servidor, no solo el botón).
  *  - Lo que el admin ABSOLVIÓ no se vuelve a ocultar por acumular denuncias (el candado de siempre).
+ *  - ABSOLVER LA REANUDA SOLA (revisión de P8), con el mismo cuerpo que el botón de la empresa: con la
+ *    zona libre vuelve a servirse en la SIGUIENTE petición; con la zona llena queda pausada, sin un día
+ *    a medias, y el correo trae la primera fecha libre; sin créditos, pausada y dicho. El saldo no se
+ *    mueve en ningún caso.
  *  - RETIRAR: deja de servirse AL MOMENTO —la siguiente petición ya no la sirve, sin esperar a la
  *    caché—, libera sus días, cierra sus denuncias y le escribe a la empresa el MOTIVO, nunca la nota.
  *  - La cola de moderación de vídeos no decide publicidad.
  *
  * Para romperlo a propósito: quitar el `olvidarCacheDeHoy` de `retirarPublicidad` (rojo el de «al
  * momento»); quitar la comprobación de `ocultoAutoEn` en `reanudarPublicidad` (rojo); no sellar la
- * absolución (rojo el de la inmunidad); poner la nota en el correo (rojo).
+ * absolución (rojo el de la inmunidad); poner la nota en el correo (rojo); no reanudar al absolver, o no
+ * vaciar la caché después (rojo el de la zona libre); quitar el SAVEPOINT (rojo el de la zona llena).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -70,7 +75,9 @@ const BASE: DatosCampana = {
 
 let n = 0;
 /** Una campaña ACTIVA de una empresa nueva (con correo, para los avisos). */
-async function unaActiva(): Promise<{ id: string; empresaId: string; owner: string }> {
+async function unaActiva(
+  datos: Partial<DatosCampana> = {},
+): Promise<{ id: string; empresaId: string; owner: string }> {
   n += 1;
   const owner = await crearUsuario(prisma);
   await prisma.user.update({
@@ -96,7 +103,7 @@ async function unaActiva(): Promise<{ id: string; empresaId: string; owner: stri
     idempotencyKey: `test:${e.id}`,
     nota: "saldo de prueba",
   });
-  const { id } = await crearBorrador(prisma, e.id, BASE, AHORA);
+  const { id } = await crearBorrador(prisma, e.id, { ...BASE, ...datos }, AHORA);
   await apuntarImagenPublicidad(prisma, e.id, id, `/portadas/publicidad-${id}.webp`);
   expect((await activarPublicidad(prisma, e.id, id, { ahora: AHORA })).ok).toBe(true);
   return { id, empresaId: e.id, owner };
@@ -120,7 +127,19 @@ async function denunciada(id: string, cuantas: number, ahora = AHORA) {
   return r;
 }
 
-const seSirve = async (id: string) => (await campanasDeHoy(prisma, AHORA)).some((c) => c.id === id);
+const seSirve = async (id: string, ahora = AHORA) =>
+  (await campanasDeHoy(prisma, ahora)).some((c) => c.id === id);
+const saldo = async (empresaId: string) =>
+  (await prisma.empresa.findUniqueOrThrow({ where: { id: empresaId } })).creditosSaldo;
+const diasOcupados = async (id: string) =>
+  (
+    await prisma.zonaOcupacion.findMany({
+      where: { publicidadId: id },
+      distinct: ["dia"],
+      select: { dia: true },
+      orderBy: { dia: "asc" },
+    })
+  ).map((f) => f.dia.toISOString().slice(0, 10));
 const correos = (prefijo: string) =>
   prisma.job.findMany({ where: { idempotencyKey: { startsWith: prefijo } } });
 
@@ -200,25 +219,95 @@ describe("el umbral pausa la campaña (EN REVISIÓN)", () => {
   });
 });
 
-describe("absolver", () => {
-  it("la devuelve como pausada normal, descarta sus denuncias y le escribe a la empresa para reanudarla", async () => {
+describe("absolver: la campaña se reanuda sola (revisión de P8)", () => {
+  // La revisión dura dos días: se pausa el 1 (y conserva ese día) y se absuelve el 3.
+  const LUEGO = new Date("2026-12-03T10:00:00.000Z");
+  const absolver = (id: string, admin: string, ahora = LUEGO) =>
+    absolverPublicidad(prisma, { publicidadId: id, adminId: admin, appUrl: APP, ahora });
+
+  it("con la zona libre: vuelve a servirse en la SIGUIENTE petición, con sus días, sin tocar el saldo", async () => {
     const admin = await crearUsuario(prisma);
     const c = await unaActiva();
     await denunciada(c.id, 3);
-    const r = await absolverPublicidad(prisma, {
-      publicidadId: c.id,
-      adminId: admin,
-      appUrl: APP,
-      ahora: AHORA,
-    });
-    expect(r).toEqual({ estado: "hecho" });
-    expect((await miPublicidad(prisma, c.empresaId, c.id, AHORA))?.estado).toBe("PAUSADA");
+    // La caché del día 3 se rellena SIN ella: si la absolución no la vaciara, seguiría fuera 60 s.
+    expect(await seSirve(c.id, LUEGO)).toBe(false);
+
+    expect(await absolver(c.id, admin)).toEqual({ estado: "hecho", reanudacion: "REANUDADA" });
+    expect(await seSirve(c.id, LUEGO)).toBe(true);
+    expect((await miPublicidad(prisma, c.empresaId, c.id, LUEGO))?.estado).toBe("ACTIVA");
+    // Los 4 días que le faltaban, DESDE HOY (el 2 lo perdió en revisión y no se le cuenta).
+    expect(await diasOcupados(c.id)).toEqual([
+      "2026-12-01",
+      "2026-12-03",
+      "2026-12-04",
+      "2026-12-05",
+      "2026-12-06",
+    ]);
+    expect(await saldo(c.empresaId)).toBe(50);
     expect(await prisma.report.count({ where: { targetId: c.id, status: "DISMISSED" } })).toBe(3);
     const [aviso] = await correos(`publicidad-absuelta:${c.id}`);
-    expect(JSON.stringify(aviso?.payload)).toMatch(/puedes reanudarla/);
-    // Y ahora sí puede reanudarla ella.
-    const reanudada = await reanudarPublicidad(prisma, c.empresaId, c.id, { ahora: AHORA });
-    expect(reanudada.ok).toBe(true);
+    const texto = JSON.stringify(aviso?.payload);
+    expect(texto).toContain("vuelve a mostrarse");
+    expect(texto).toContain("hasta el 6 de diciembre");
+    expect(texto).not.toContain(admin);
+  });
+
+  it("con la zona llena: queda pausada, nada a medias, y el correo trae la primera fecha libre", async () => {
+    const admin = await crearUsuario(prisma);
+    const c = await unaActiva();
+    await denunciada(c.id, 3);
+    // Mientras está en revisión, otras tres campañas llenan su zona del 4 al 6. Del 4 y no del 2 a
+    // propósito: así el intento SÍ llega a escribir el 2 y el 3 antes de chocar con el 4, que es lo que
+    // el SAVEPOINT tiene que deshacer (con la zona llena desde el primer día no escribiría nada, y quitar
+    // el SAVEPOINT seguiría en verde).
+    for (let i = 0; i < 3; i += 1) await unaActiva({ fechaInicio: "2026-12-04", dias: 3 });
+
+    expect(await absolver(c.id, admin, AHORA)).toEqual({
+      estado: "hecho",
+      reanudacion: "ZONA_LLENA",
+    });
+    expect((await miPublicidad(prisma, c.empresaId, c.id, AHORA))?.estado).toBe("PAUSADA");
+    // Ni un día a medias: el intento se deshizo entero (solo le queda el día 1, el que ya tenía).
+    expect(await diasOcupados(c.id)).toEqual(["2026-12-01"]);
+    expect(await saldo(c.empresaId)).toBe(50);
+    // La absolución sí se confirmó: denuncias descartadas y ya no está en revisión.
+    expect(await prisma.report.count({ where: { targetId: c.id, status: "DISMISSED" } })).toBe(3);
+    expect(await contarPublicidadEnRevision(prisma)).toBe(0);
+    const [aviso] = await correos(`publicidad-absuelta:${c.id}`);
+    const texto = JSON.stringify(aviso?.payload);
+    expect(texto).toContain("se llenó su zona");
+    expect(texto).toContain("7 de diciembre");
+    // Y esa fecha es la que le ofrecerá su botón de reanudar.
+    const suya = await reanudarPublicidad(prisma, c.empresaId, c.id, { ahora: AHORA });
+    expect(suya).toMatchObject({ ok: false, code: "ZONA_LLENA" });
+    expect(suya.ok ? null : suya.primeraLibre?.toISOString().slice(0, 10)).toBe("2026-12-07");
+  });
+
+  it("sin créditos para lo que le queda: queda pausada y el correo lo dice; el saldo no se toca", async () => {
+    const admin = await crearUsuario(prisma);
+    const c = await unaActiva();
+    await denunciada(c.id, 3);
+    await aplicarCreditos(prisma, {
+      empresaId: c.empresaId,
+      delta: -50,
+      reason: "AJUSTE_ADMIN",
+      idempotencyKey: `test:vaciar:${c.empresaId}`,
+      nota: "sin saldo",
+    });
+    expect(await absolver(c.id, admin)).toEqual({ estado: "hecho", reanudacion: "SIN_SALDO" });
+    expect((await miPublicidad(prisma, c.empresaId, c.id, LUEGO))?.estado).toBe("PAUSADA");
+    expect(await saldo(c.empresaId)).toBe(0);
+    const [aviso] = await correos(`publicidad-absuelta:${c.id}`);
+    expect(JSON.stringify(aviso?.payload)).toContain("no llegan");
+  });
+
+  it("una que no estaba en revisión no se toca: solo se descartan sus denuncias", async () => {
+    const admin = await crearUsuario(prisma);
+    const c = await unaActiva();
+    await denunciada(c.id, 2);
+    expect(await absolver(c.id, admin, AHORA)).toEqual({ estado: "hecho", reanudacion: null });
+    expect((await miPublicidad(prisma, c.empresaId, c.id, AHORA))?.estado).toBe("ACTIVA");
+    expect(await correos(`publicidad-absuelta:${c.id}`)).toHaveLength(0);
   });
 
   it("lo que el admin absolvió no se vuelve a ocultar por acumular denuncias", async () => {
@@ -231,7 +320,6 @@ describe("absolver", () => {
       appUrl: APP,
       ahora: AHORA,
     });
-    await reanudarPublicidad(prisma, c.empresaId, c.id, { ahora: AHORA });
     // Tres denuncias NUEVAS de otra gente: se registran (vuelve a la lista), pero no la esconden.
     const despues = new Date(AHORA.getTime() + 60_000);
     const nuevas = await denunciada(c.id, 3, despues);

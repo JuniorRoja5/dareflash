@@ -430,7 +430,7 @@ function esReintentable(e: unknown): boolean {
 /** Cuántas veces se reintenta ante un 1020/1213. Con 3 plazas por zona, sobra para una avalancha. */
 const REINTENTOS = 12;
 
-async function conReintentos<T>(fn: () => Promise<T>): Promise<T> {
+export async function conReintentos<T>(fn: () => Promise<T>): Promise<T> {
   for (let intento = 0; ; intento += 1) {
     try {
       return await fn();
@@ -515,7 +515,7 @@ export type ResultadoOcupar =
  * Y fija el orden de cerrojos: Empresa → Publicidad → ocupación. El cobro diario de P9 bloqueará también
  * la Empresa primero (el primitivo de créditos), así que los dos caminos van en el mismo sentido.
  */
-async function bloquearEmpresa(tx: Db, empresaId: string): Promise<void> {
+export async function bloquearEmpresa(tx: Db, empresaId: string): Promise<void> {
   await tx.$queryRaw`SELECT \`id\` FROM \`Empresa\` WHERE \`id\` = ${empresaId} FOR UPDATE`;
 }
 
@@ -700,54 +700,12 @@ export async function reanudarPublicidad(
   opciones: { fechaInicio?: string; ahora?: Date } = {},
 ): Promise<ResultadoOcupar> {
   const ahora = opciones.ahora ?? new Date();
-  let zonas: string[] = [];
-  let inicio = diaDe(ahora);
-  let dias = 0;
+  const intento: IntentoReanudar = { zonas: [], inicio: diaDe(ahora), dias: 0 };
   try {
     return await conReintentos(() =>
       db.$transaction(async (tx) => {
         await bloquearEmpresa(tx, empresaId);
-        const c = await bloquear(tx, empresaId, publicidadId);
-        if (c.estado !== "PAUSADA") {
-          throw new PublicidadError(
-            "ESTADO_NO_PERMITE",
-            "Solo se puede reanudar una campaña pausada.",
-          );
-        }
-        // EN REVISIÓN (la pausó el umbral de denuncias): reanudarla sería saltarse la revisión. Lo
-        // comprueba el SERVIDOR, no solo el botón: la puerta de verdad es esta.
-        if (c.ocultoAutoEn !== null) {
-          throw new PublicidadError(
-            "ESTADO_NO_PERMITE",
-            "La estamos revisando por unas denuncias. Podrás reanudarla cuando terminemos.",
-          );
-        }
-        const empresa = await empresaParaOperar(tx, empresaId);
-        const cal = await calendarioDe(tx, publicidadId, ahora);
-        dias = Math.max(0, c.diasContratados - cal.diasTenidos);
-        const primerPosible = cal.ocupaHoy ? sumarDias(diaDe(ahora), 1) : diaDe(ahora);
-        inicio = opciones.fechaInicio ? diaDeTexto(opciones.fechaInicio) : primerPosible;
-        if (inicio < primerPosible || !dentroDePlazo(inicio, ahora)) {
-          throw new PublicidadError(
-            "FECHA_FUERA_DE_PLAZO",
-            `Puede volver a empezar entre el ${claveDia(primerPosible)} y dentro de ${PUBLICIDAD_RESERVA_MAX_DIAS} días.`,
-          );
-        }
-        if (dias > 0) {
-          // La tarifa CONGELADA al activar; un borrador nunca llega aquí, así que siempre la hay.
-          exigirSaldo(
-            empresa,
-            costeTotal(c.creditosPorDia ?? 0, dias),
-            await compromisoDeEmpresa(tx, empresaId, ahora, publicidadId),
-          );
-          zonas = zonasDeCampana(c);
-          await ocuparDias(tx, publicidadId, zonas, diasSeguidos(inicio, dias));
-        }
-        await tx.publicidad.update({
-          where: { id: publicidadId },
-          data: { estado: "ACTIVA", pausadaEn: null },
-        });
-        return { ok: true as const, inicio, dias };
+        return reanudarEnTx(tx, empresaId, publicidadId, ahora, opciones.fechaInicio, intento);
       }, TX_OPCIONES),
     );
   } catch (e) {
@@ -756,8 +714,132 @@ export async function reanudarPublicidad(
       ok: false,
       code: "ZONA_LLENA",
       diaLleno: e.dia,
-      primeraLibre: await primeraFechaLibre(db, zonas, dias, inicio, ahora),
+      primeraLibre: await primeraFechaLibre(db, intento.zonas, intento.dias, intento.inicio, ahora),
     };
+  }
+}
+
+/** Lo que intentó ocupar el último reanudar: con ello se busca la primera fecha libre si no cupo. */
+interface IntentoReanudar {
+  zonas: string[];
+  inicio: Date;
+  dias: number;
+}
+
+/**
+ * EL CUERPO DE REANUDAR, el MISMO para la empresa (`reanudarPublicidad`) y para el admin al absolver
+ * (`reanudarTrasAbsolverEnTx`): los días que le faltan, la tarifa congelada y lo comprometido. Corre
+ * DENTRO de una transacción que YA bloqueó la Empresa como primera sentencia (orden Empresa →
+ * Publicidad → ocupación). Si la zona está llena lanza `ZonaLlena` y deja apuntado en `intento` lo que
+ * buscaba, para ofrecer la primera fecha libre.
+ */
+async function reanudarEnTx(
+  tx: Db,
+  empresaId: string,
+  publicidadId: string,
+  ahora: Date,
+  fechaInicio: string | undefined,
+  intento: IntentoReanudar,
+): Promise<{ ok: true; inicio: Date; dias: number }> {
+  const c = await bloquear(tx, empresaId, publicidadId);
+  if (c.estado !== "PAUSADA") {
+    throw new PublicidadError("ESTADO_NO_PERMITE", "Solo se puede reanudar una campaña pausada.");
+  }
+  // EN REVISIÓN (la pausó el umbral de denuncias): reanudarla sería saltarse la revisión. Lo comprueba
+  // el SERVIDOR, no solo el botón: la puerta de verdad es esta. La absolución pasa porque levanta el
+  // auto-oculto ANTES, por su única puerta (`levantarAutoOcultoEnTx`): no hay atajo que la salte.
+  if (c.ocultoAutoEn !== null) {
+    throw new PublicidadError(
+      "ESTADO_NO_PERMITE",
+      "La estamos revisando por unas denuncias. Podrás reanudarla cuando terminemos.",
+    );
+  }
+  const empresa = await empresaParaOperar(tx, empresaId);
+  const cal = await calendarioDe(tx, publicidadId, ahora);
+  intento.dias = Math.max(0, c.diasContratados - cal.diasTenidos);
+  const primerPosible = cal.ocupaHoy ? sumarDias(diaDe(ahora), 1) : diaDe(ahora);
+  intento.inicio = fechaInicio ? diaDeTexto(fechaInicio) : primerPosible;
+  if (intento.inicio < primerPosible || !dentroDePlazo(intento.inicio, ahora)) {
+    throw new PublicidadError(
+      "FECHA_FUERA_DE_PLAZO",
+      `Puede volver a empezar entre el ${claveDia(primerPosible)} y dentro de ${PUBLICIDAD_RESERVA_MAX_DIAS} días.`,
+    );
+  }
+  if (intento.dias > 0) {
+    // La tarifa CONGELADA al activar; un borrador nunca llega aquí, así que siempre la hay.
+    exigirSaldo(
+      empresa,
+      costeTotal(c.creditosPorDia ?? 0, intento.dias),
+      await compromisoDeEmpresa(tx, empresaId, ahora, publicidadId),
+    );
+    intento.zonas = zonasDeCampana(c);
+    await ocuparDias(tx, publicidadId, intento.zonas, diasSeguidos(intento.inicio, intento.dias));
+  }
+  await tx.publicidad.update({
+    where: { id: publicidadId },
+    data: { estado: "ACTIVA", pausadaEn: null },
+  });
+  return { ok: true as const, inicio: intento.inicio, dias: intento.dias };
+}
+
+/** Lo que pasó al intentar reanudar una campaña absuelta. El correo de la absolución dice cuál. */
+export type ReanudacionTrasAbsolver =
+  | { tipo: "REANUDADA"; inicio: Date; dias: number }
+  /** Ya había tenido todos sus días: vuelve a ACTIVA, pero no le queda nada por mostrar. */
+  | { tipo: "SIN_DIAS" }
+  | { tipo: "ZONA_LLENA"; primeraLibre: Date | null }
+  | { tipo: "SIN_SALDO" }
+  | { tipo: "EMPRESA_NO_OPERA" };
+
+/**
+ * AL ABSOLVER, LA CAMPAÑA SE REANUDA SOLA (revisión de P8): absolver es decir que no hizo nada malo, y
+ * obligar a la empresa a entrar a reanudarla, después de perder días por unas denuncias injustas, era
+ * cargarle a ella el coste de nuestra revisión. Usa el MISMO cuerpo que su botón de reanudar.
+ *
+ * Dentro de la transacción del admin, que tiene que haber bloqueado la Empresa como PRIMERA sentencia
+ * (`bloquearEmpresa`). Si no puede —zona llena, sin saldo para lo que le queda, empresa que ya no
+ * opera— la absolución se confirma IGUAL y la campaña queda pausada: el intento se deshace con un
+ * SAVEPOINT, porque `ocuparDias` deja filas escritas antes de saber que no cabe, y aquí no se puede
+ * deshacer la transacción entera como hace el botón de la empresa. Los 1020/1213 NO se atrapan: suben y
+ * reintentan la transacción entera, que es lo que toca.
+ */
+export async function reanudarTrasAbsolverEnTx(
+  tx: Db,
+  empresaId: string,
+  publicidadId: string,
+  ahora: Date,
+): Promise<ReanudacionTrasAbsolver> {
+  const intento: IntentoReanudar = { zonas: [], inicio: diaDe(ahora), dias: 0 };
+  await tx.$executeRaw`SAVEPOINT reanudar_tras_absolver`;
+  const deshacer = () => tx.$executeRaw`ROLLBACK TO SAVEPOINT reanudar_tras_absolver`;
+  try {
+    const r = await reanudarEnTx(tx, empresaId, publicidadId, ahora, undefined, intento);
+    return r.dias > 0
+      ? { tipo: "REANUDADA", inicio: r.inicio, dias: r.dias }
+      : { tipo: "SIN_DIAS" };
+  } catch (e) {
+    if (e instanceof ZonaLlena) {
+      await deshacer();
+      return {
+        tipo: "ZONA_LLENA",
+        primeraLibre: await primeraFechaLibre(
+          tx,
+          intento.zonas,
+          intento.dias,
+          intento.inicio,
+          ahora,
+        ),
+      };
+    }
+    if (e instanceof PublicidadError && e.code === "SALDO_INSUFICIENTE") {
+      await deshacer();
+      return { tipo: "SIN_SALDO" };
+    }
+    if (e instanceof PublicidadError && e.code === "EMPRESA_NO_OPERA") {
+      await deshacer();
+      return { tipo: "EMPRESA_NO_OPERA" };
+    }
+    throw e;
   }
 }
 

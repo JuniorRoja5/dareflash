@@ -71,6 +71,17 @@ export const POST = mutatingRoute<ContextoRuta>(async (req, { env, prisma }, { p
         ? "No había nada que cambiar."
         : cuerpo.data.accion === "RETIRAR"
           ? "Retirada. Ya no se muestra y hemos avisado a la empresa."
-          : "Absuelta. Sus denuncias quedan descartadas.",
+          : `Absuelta. Sus denuncias quedan descartadas.${
+              r.reanudacion ? ` ${TRAS_ABSOLVER[r.reanudacion]}` : ""
+            }`,
   });
 });
+
+/** Al absolver una campaña en revisión, qué pasó al reanudarla (la empresa lo recibe por correo). */
+const TRAS_ABSOLVER = {
+  REANUDADA: "Ya vuelve a mostrarse.",
+  SIN_DIAS: "No le quedaban días por mostrar.",
+  ZONA_LLENA: "Sigue pausada: su zona se llenó mientras estaba en revisión.",
+  SIN_SALDO: "Sigue pausada: a la empresa no le llegan los créditos para lo que le queda.",
+  EMPRESA_NO_OPERA: "Sigue pausada: la empresa no puede publicar ahora mismo.",
+} as const;
