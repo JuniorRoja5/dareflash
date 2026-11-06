@@ -25,7 +25,7 @@ export function MovimientosCreditos({ movimientos }: { movimientos: MovimientoCr
       <table className="hidden w-full border-collapse text-left text-sm md:table">
         <thead className="border-b border-line">
           <tr>
-            <th className={`py-2 pr-4 ${CABECERA}`}>Fecha (UTC)</th>
+            <th className={`py-2 pr-4 ${CABECERA}`}>Fecha</th>
             <th className={`py-2 pr-4 ${CABECERA}`}>Concepto</th>
             <th className={`py-2 text-right ${CABECERA}`}>Créditos</th>
           </tr>
@@ -50,7 +50,7 @@ export function MovimientosCreditos({ movimientos }: { movimientos: MovimientoCr
             <span className="min-w-0">
               <span className="block text-sm text-text">{m.concepto}</span>
               <span className="block text-2xs text-text-dim tabular-nums">
-                {new Date(m.creadoMs).toLocaleDateString("es-ES", FECHA)} (UTC)
+                {new Date(m.creadoMs).toLocaleDateString("es-ES", FECHA)}
               </span>
             </span>
             <span className="shrink-0 text-sm font-semibold text-text tabular-nums">

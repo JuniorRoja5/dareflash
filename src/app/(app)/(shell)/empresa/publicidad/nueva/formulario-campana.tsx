@@ -40,6 +40,11 @@ export interface PropsFormularioCampana {
   /** Hoy y el último día en que se puede empezar, en AAAA-MM-DD: los fija el servidor. */
   hoy: string;
   ultimoInicio: string;
+  /**
+   * A qué hora LOCAL empieza cada día de campaña, ya escrita en el servidor (`fraseInicioDelDia`: usa Intl,
+   * y el de Node y el del navegador no siempre coinciden). `null` si no se sabe la zona de su país.
+   */
+  inicioDelDia: string | null;
 }
 
 /**
@@ -254,7 +259,10 @@ export function FormularioCampana(props: PropsFormularioCampana) {
         ) : null}
       </BloqueFormulario>
 
-      <BloqueFormulario titulo="Cuándo" descripcion="Días completos, en hora UTC.">
+      <BloqueFormulario
+        titulo="Cuándo"
+        descripcion={props.inicioDelDia ?? "Se cuenta por días completos."}
+      >
         <Campo
           id="inicio"
           label="Empieza el"

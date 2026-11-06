@@ -241,6 +241,12 @@ que 300. El sesgo va en contra del margen, que es el lado seguro.
 
 ## 7. Deuda de producto
 
+- **Para la Fase 11: «medianoche UTC» en textos de participantes.** Los avisos del limite diario de
+  toques (`MSG_TOQUE_LIMITE_DIARIO`) y de Boost (`MSG_BOOST_LIMITE_DIARIO`, y `/boosts`) dicen que el
+  contador se reinicia «a medianoche UTC»: jerga, y en America el dia se reinicia por la tarde. Mismo
+  arreglo que el portal de empresas en P10 (`fraseInicioDelDia`): la hora LOCAL de quien lee, con su
+  horario de verano. Para participantes, la zona sale de su ubicacion o de su navegador, no del pais
+  de una empresa. No se hace antes de la Fase 11 (Boost esta fuera de lo que se toca ahora).
 - El texto legal dice 30 s y la regla real es 90 s. Corregir antes de lanzar.
 - Anonimizacion real de cuenta: hoy solo hay tombstone `del_<aleatorio>`.
 - Bloquear la indexacion del dominio temporal antiguo.

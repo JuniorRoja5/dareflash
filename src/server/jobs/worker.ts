@@ -11,6 +11,7 @@
 import {
   AFORO_MATERIALIZAR_CADENCIA_MS,
   PUBLICIDAD_COBRO_CADENCIA_MS,
+  PUBLICIDAD_METRICAS_CADENCIA_MS,
   CONFIRM_CADENCIA_ACTIVO_MS,
   CONFIRM_CADENCIA_REPOSO_MS,
   CONFIRM_WAKE_KEY,
@@ -566,6 +567,12 @@ export interface OpcionesBucle {
    * lo ocupa y no lo ha pagado; sin saldo la pausa y avisa. Cada `PUBLICIDAD_COBRO_CADENCIA_MS`. Sin él
    * no se cobra, y como la entrega exige el cobro del día, tampoco se sirve publicidad.
    */
+  /**
+   * LAS CIFRAS DE LA PUBLICIDAD (Fase 9 · P10, `materializarMetricasPublicidad`): vistas y clics de hoy y
+   * de ayer, de Redis a `PublicidadMetricaDia`, con el recuento absoluto. Cada
+   * `PUBLICIDAD_METRICAS_CADENCIA_MS`. Sin él (o sin Redis), el informe del portal no avanza.
+   */
+  materializarMetricas?: (now: Date) => Promise<{ filas: number; sinRedis: boolean }>;
   cobrarPublicidad?: (
     now: Date,
   ) => Promise<{ revisadas: number; cobradas: number; pausadas: number; fallos: number }>;
@@ -603,6 +610,7 @@ export async function bucleWorker(
   let proximoLogos = 0;
   let proximoAforo = 0;
   let proximoCobro = 0;
+  let proximoMetricas = 0;
   let proximoGeoIp = 0;
   // Arranca en 0 igual que los demas: la primera vuelta del worker recoge lo que quedara vencido
   // mientras estaba parado, sin esperar una cadencia entera.
@@ -892,6 +900,17 @@ export async function bucleWorker(
         o.log?.(`[worker] publicidad: cobro fallo (${sanearError(e)}); reintento luego.`);
       }
       proximoCobro = t.getTime() + PUBLICIDAD_COBRO_CADENCIA_MS;
+    }
+
+    // LAS CIFRAS DE LA PUBLICIDAD (Fase 9 · P10): Redis -> PublicidadMetricaDia, recuento absoluto.
+    // Reejecutarlo converge; una pasada perdida se recupera en la siguiente (hoy y ayer cada vez).
+    if (o.materializarMetricas && t.getTime() >= proximoMetricas) {
+      try {
+        await o.materializarMetricas(t);
+      } catch (e) {
+        o.log?.(`[worker] publicidad: cifras fallaron (${sanearError(e)}); reintento luego.`);
+      }
+      proximoMetricas = t.getTime() + PUBLICIDAD_METRICAS_CADENCIA_MS;
     }
 
     // EL FICHERO DE IP (Fase 9 · P5): una vez al día, avisar si falta o se quedó viejo (histéresis en

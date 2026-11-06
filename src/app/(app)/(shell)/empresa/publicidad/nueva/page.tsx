@@ -10,6 +10,7 @@ import {
 import { alcancesPermitidos } from "@/lib/empresa";
 import { paisesParaElegir } from "@/lib/paises";
 import { claveDia, diaDe, sumarDias } from "@/lib/publicidad";
+import { fraseInicioDelDia } from "@/lib/zona-horaria-pais";
 
 import { ambitoDelPortal } from "../../ambito-portal";
 import { AvisoVerificar } from "../../aviso-verificar";
@@ -105,6 +106,7 @@ export default async function PaginaNuevaCampana() {
             comprometido={saldo.comprometido}
             hoy={claveDia(hoy)}
             ultimoInicio={claveDia(sumarDias(hoy, PUBLICIDAD_RESERVA_MAX_DIAS))}
+            inicioDelDia={fraseInicioDelDia(empresa.paisIso, hoy)}
           />
         </div>
         <aside aria-label="Cómo funciona" className="space-y-4 lg:sticky lg:top-24">

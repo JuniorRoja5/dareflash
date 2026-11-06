@@ -38,6 +38,7 @@ import {
   piezasDelFeed,
   piezaDePortada,
 } from "../src/server/services/publicidad-entrega";
+import type { RedisLeerMetricas } from "../src/server/services/publicidad-metricas";
 
 import { createTestPrisma, crearUsuario, resetDb } from "./helpers/db";
 
@@ -65,12 +66,22 @@ const enValencia: Espectador = {
   esEmpresa: false,
 };
 
-/** Redis en memoria: lo justo de lo que usa la entrega. */
-function redisFalso(): RedisReparto {
+/** Redis en memoria: lo justo de lo que usa la entrega (y las cifras de P10, que se leen con hgetall). */
+function redisFalso(): RedisReparto & RedisLeerMetricas {
   const numeros = new Map<string, number>();
   const listas = new Map<string, string[]>();
   const claves = new Set<string>();
+  const hashes = new Map<string, Map<string, number>>();
   return {
+    async hincrby(k, campo, n) {
+      const h = hashes.get(k) ?? new Map<string, number>();
+      h.set(campo, (h.get(campo) ?? 0) + n);
+      hashes.set(k, h);
+      return h.get(campo)!;
+    },
+    async hgetall(k) {
+      return Object.fromEntries([...(hashes.get(k) ?? new Map())].map(([c, v]) => [c, String(v)]));
+    },
     async incr(k) {
       const n = (numeros.get(k) ?? 0) + 1;
       numeros.set(k, n);
@@ -275,13 +286,22 @@ describe("el DTO de entrega", () => {
       tipo: "campana",
       id,
       etiqueta: "Publicidad",
-      enlace: "https://panaderia.example.com",
+      // P10: el enlace es el redirector que cuenta el clic; el destino lo lee él de la campaña.
+      enlace: `/ir/${id}`,
       externo: true,
     });
     const casa = await elegir("GLOBAL", enValencia, "portada");
     expect(Object.keys(casa!).sort()).toEqual(CLAVES);
     const crudo = JSON.stringify(campana);
-    for (const prohibido of ["empresa", "creditos", "diasContratados", "fechaInicio", "nombre"]) {
+    // Ni el destino: viaja dentro del redirector, no en la pieza (un enlace directo no contaría el clic).
+    for (const prohibido of [
+      "empresa",
+      "creditos",
+      "diasContratados",
+      "fechaInicio",
+      "nombre",
+      "panaderia.example.com",
+    ]) {
       expect(crudo).not.toContain(prohibido);
     }
   });

@@ -1749,13 +1749,15 @@ model Publicidad {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  empresa     Empresa            @relation(fields: [empresaId], references: [id], onDelete: Restrict)
-  ciudad      Ciudad?            @relation(fields: [ciudadId], references: [id], onDelete: Restrict)
+  empresa     Empresa                @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+  ciudad      Ciudad?                @relation(fields: [ciudadId], references: [id], onDelete: Restrict)
   paises      PublicidadPais[]
   ciudades    PublicidadCiudad[]
   ocupaciones ZonaOcupacion[]
   /// Sus cobros y devoluciones de cada dia (P9). La entrega sirve solo lo que ha pagado HOY.
   movimientos CreditoLedger[]
+  /// Sus vistas y clics de cada dia (P10), materializados desde Redis.
+  metricas    PublicidadMetricaDia[]
 
   /// La lista del portal, por KEYSET sobre (createdAt, id). El índice del REPARTO es de P7: se diseña
   /// contra su consulta y se mide con EXPLAIN, no se adivina aquí.
@@ -1880,4 +1882,23 @@ model AforoZonaDia {
   updatedAt DateTime @updatedAt
 
   @@id([alcance, zona, dia])
+}
+
+/// LAS CIFRAS DE UNA CAMPAÑA POR DÍA (Fase 9 · P10): cuántas veces se mostró y cuántos clics hizo. Se
+/// cuentan en Redis al servir y en el redirector `/ir/{id}`, y el worker las MATERIALIZA aquí con el
+/// recuento absoluto (nunca `increment`: reejecutar converge). No toca el dinero: el cobro es por día
+/// mostrado (P9), no por vista ni por clic.
+///
+/// Un día por campaña, y solo los días que tuvieron algo. El informe del portal las lee por KEYSET sobre
+/// `dia` (la PK ya lo sirve).
+model PublicidadMetricaDia {
+  publicidadId String
+  dia          DateTime @db.Date
+  vistas       Int      @default(0)
+  clics        Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  publicidad Publicidad @relation(fields: [publicidadId], references: [id], onDelete: Restrict)
+
+  @@id([publicidadId, dia])
 }

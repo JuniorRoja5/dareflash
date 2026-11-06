@@ -401,3 +401,15 @@ export function destinoValido(url: string): boolean {
     return false;
   }
 }
+
+/**
+ * CLICS POR CADA 100 VISTAS de una campaña (P10), con un decimal. Dicho así y no como tanto por ciento:
+ * el portal no enseña porcentajes (lo vigila `empresa-sin-comisiones`: a una empresa, un «%» se le lee
+ * como comisión). `null` sin vistas —un 0 diría que nadie hizo clic, cuando lo que pasa es que aún no
+ * se ha mostrado—. Puede pasar de 100: un clic desde una pieza que se entregó otro día suma al día del
+ * clic.
+ */
+export function clicsPorCienVistas(vistas: number, clics: number): number | null {
+  if (vistas <= 0) return null;
+  return Math.round((clics / vistas) * 1000) / 10;
+}

@@ -1391,6 +1391,10 @@ export const RATE_LIMITS = {
   // MUCHAS veces de forma legitima. El cubo es GENEROSO a proposito —no es una accion con efectos,
   // solo una marca efimera—; existe para que nadie martillee el endpoint, no para racionar el uso.
   VISTO_PER_USER: { limit: 200, windowMs: 15 * 60 * 1000 }, // 200 / 15 min por usuario
+  // Clic en una campaña (`/ir/{id}`, P10). Por IP CIFRADA (leída solo de X-Real-IP). NO frena a nadie:
+  // por encima del tope se le redirige igual, solo que el clic ya no CUENTA. Lo que se acota es que una
+  // sola IP infle las cifras de una empresa a base de recargar el enlace.
+  CLIC_PUBLICIDAD_PER_IP: { limit: 30, windowMs: 10 * 60 * 1000 }, // 30 / 10 min por IP
   // Marcar avisos como leídos: lo dispara abrir la campana o la página de avisos. Barato (un UPDATE
   // acotado a las filas del propio usuario), pero es una escritura: tope por usuario.
   NOTIF_LEER_PER_USER: { limit: 120, windowMs: 15 * 60 * 1000 }, // 120 / 15 min por usuario
@@ -2527,6 +2531,17 @@ export const CLAVE_INICIO_COBRO_PUBLICIDAD = "publicidad.cobro-desde";
  * como mucho, en salir al cambiar el día.
  */
 export const PUBLICIDAD_COBRO_CADENCIA_MS = 5 * 60 * 1000;
+
+/**
+ * LAS CIFRAS DE UNA CAMPAÑA (P10): vistas y clics, contados en Redis por día (`pub:met:{dia}`, un hash
+ * con `v:{id}` y `c:{id}`) y materializados en `PublicidadMetricaDia` por el worker. El hash vive tres
+ * días: el de ayer se termina de volcar en las primeras pasadas de hoy.
+ */
+export const PUBLICIDAD_METRICAS_TTL_S = 3 * 24 * 60 * 60;
+/** Cada cuánto vuelca el worker las cifras de Redis a la base: lo que tarda el informe en ponerse al día. */
+export const PUBLICIDAD_METRICAS_CADENCIA_MS = 10 * 60 * 1000;
+/** Días por página en el informe de la campaña (portal). */
+export const PUBLICIDAD_METRICAS_PAGINA = 14;
 
 /**
  * Tope de un ajuste manual (en un sentido o en otro). Holgado —cubre una corrección de un trimestre

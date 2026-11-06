@@ -63,6 +63,9 @@ const EXENTOS: Record<string, { palabras: string[]; porque: string }> = {
   // firma Sergio— y el valor de cada opción vive en `globals.css`, uno por tema. Lo que esta
   // exención NO abre es escribir un color en la prosa: va por palabra, y la única es "lima".
   "src/config/constants.ts": { palabras: ["lima"], porque: "el catálogo de colores de nombre VIP" },
+  // La zona horaria IANA `America/Lima` (la capital de Perú) en la tabla de zonas por país (P10): es
+  // un nombre de ciudad, no un color. Va por palabra, y solo en ese fichero.
+  "src/lib/zona-horaria-pais.ts": { palabras: ["lima"], porque: "la zona horaria America/Lima" },
   "src/app/(app)/(shell)/ranking/podio-ranking.tsx": {
     palabras: ["verde", "cian"],
     porque: "ídem",

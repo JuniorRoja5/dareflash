@@ -9,11 +9,14 @@ import {
   MSG_SALDO_NO_RETENIDO,
 } from "@/config/constants";
 import { accionesPublicidad, costeTotal, diasPorDelante, fraseSaldo } from "@/lib/publicidad";
+import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
+import { fraseInicioDelDia } from "@/lib/zona-horaria-pais";
 import type { Estimacion } from "@/server/services/publicidad";
 
 import { ambitoDelPortal } from "../../ambito-portal";
 import { AvisoVerificar } from "../../aviso-verificar";
 import { AccionesCampana } from "./acciones-campana";
+import { InformeCampana } from "./informe-campana";
 
 export const metadata = { title: "Campaña · DareFlash" };
 // Lee la sesión, la campaña y el aforo: por petición.
@@ -61,7 +64,13 @@ function fraseEstimacion(e: Estimacion): { cifra: string | null; frase: string }
  * DOS COLUMNAS EN ESCRITORIO: la pieza a la izquierda (es lo que se compra), las cifras y las acciones a
  * la derecha. En móvil, la pieza arriba y lo demás debajo.
  */
-export default async function PaginaCampana({ params }: { params: Promise<{ id: string }> }) {
+export default async function PaginaCampana({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ambito = await ambitoDelPortal();
   if (ambito === null) {
     return (
@@ -75,15 +84,23 @@ export default async function PaginaCampana({ params }: { params: Promise<{ id: 
   }
   const { id } = await params;
   if (!ID_VALIDO.test(id)) notFound();
+  const sp = await searchParams;
+  const cursor = typeof sp["cursor"] === "string" ? sp["cursor"].trim().slice(0, 20) : "";
+  const aqui: Paginacion = { cursor: cursor || null, pila: leerPila(sp["pila"]) };
 
   const { prisma } = await import("@/server/db/client");
   const { miPublicidad, estimacionDeMiPublicidad, saldoCreditosDe } =
     await import("@/server/services/publicidad");
-  const [c, estimacion, saldo] = await Promise.all([
+  const { miEmpresa } = await import("@/server/services/empresas");
+  const { informeDeMiCampana } = await import("@/server/services/publicidad-metricas");
+  const [c, estimacion, saldo, empresa, informe] = await Promise.all([
     miPublicidad(prisma, ambito.empresaId, id),
     estimacionDeMiPublicidad(prisma, ambito.empresaId, id),
     // Lo comprometido SIN esta campaña: es lo que se le restará al activarla o reanudarla.
     saldoCreditosDe(prisma, ambito.empresaId, { excluirPublicidadId: id }),
+    miEmpresa(prisma, ambito.empresaId),
+    // P10: sus resultados por día (un borrador no tiene: se pinta sin la sección).
+    informeDeMiCampana(prisma, ambito.empresaId, id, aqui.cursor),
   ]);
   if (!c) notFound();
 
@@ -96,6 +113,8 @@ export default async function PaginaCampana({ params }: { params: Promise<{ id: 
     new Date().getUTCDate(),
   );
   const est = estimacion ? fraseEstimacion(estimacion) : null;
+  // A qué hora de SU país empieza cada día (los días son UTC; decir «UTC» a una empresa es jerga).
+  const inicioDelDia = empresa ? fraseInicioDelDia(empresa.paisIso, new Date()) : null;
 
   return (
     <div className="df-rise space-y-6">
@@ -178,7 +197,7 @@ export default async function PaginaCampana({ params }: { params: Promise<{ id: 
               </div>
               <div>
                 <dt className="text-2xs text-text-dim">
-                  {c.estado === "BORRADOR" ? "Empezaría el" : "Días (UTC)"}
+                  {c.estado === "BORRADOR" ? "Empezaría el" : "Días"}
                 </dt>
                 <dd className="text-text tabular-nums">
                   {c.estado === "BORRADOR" || c.finMs === null
@@ -208,6 +227,7 @@ export default async function PaginaCampana({ params }: { params: Promise<{ id: 
                 </div>
               ) : null}
             </dl>
+            {inicioDelDia ? <p className="mt-3 text-2xs text-text-dim">{inicioDelDia}</p> : null}
           </Tarjeta>
 
           {acciones.length > 0 ? (
@@ -223,6 +243,10 @@ export default async function PaginaCampana({ params }: { params: Promise<{ id: 
           ) : null}
         </div>
       </div>
+
+      {informe && c.estado !== "BORRADOR" ? (
+        <InformeCampana informe={informe} aqui={aqui} base={`/empresa/publicidad/${c.id}`} />
+      ) : null}
     </div>
   );
 }

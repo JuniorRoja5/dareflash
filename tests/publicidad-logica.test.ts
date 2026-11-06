@@ -15,6 +15,7 @@ import {
   accionesPublicidad,
   claveRotacion,
   destinoValido,
+  clicsPorCienVistas,
   diasPorDelante,
   diasSeguidos,
   elegiblesEnHueco,
@@ -269,5 +270,14 @@ describe("los días por delante que enseña la ficha (Fase 9 · P8)", () => {
     expect(diasPorDelante("ACTIVA", 5, 2)).toBe(3);
     expect(diasPorDelante("BORRADOR", 5, 0)).toBe(5);
     expect(diasPorDelante("ACTIVA", 5, 9)).toBe(0);
+  });
+});
+
+describe("clics por cada 100 vistas (Fase 9 · P10)", () => {
+  it("con un decimal; sin vistas no hay cifra (no es un 0)", () => {
+    expect(clicsPorCienVistas(200, 5)).toBe(2.5);
+    expect(clicsPorCienVistas(3, 1)).toBe(33.3);
+    expect(clicsPorCienVistas(0, 0)).toBeNull();
+    expect(clicsPorCienVistas(0, 2)).toBeNull();
   });
 });

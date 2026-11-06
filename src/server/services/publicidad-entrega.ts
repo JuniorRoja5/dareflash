@@ -50,6 +50,7 @@ import {
 import type { Db } from "@/server/db/types";
 
 import { filtroPagadoEl, inicioDelCobro, seCobra } from "./publicidad-consumo";
+import { type RedisContarMetricas, contarMetrica } from "./publicidad-metricas";
 import { PUBLICIDAD_SERVIBLE } from "./publicidad-visible";
 
 // ---------------------------------------------------------------------------------------------------
@@ -72,11 +73,12 @@ export interface PiezaEntregada {
 }
 
 /**
- * EL ENLACE DE UNA CAMPAÑA, en UN SOLO SITIO para el feed y la portada. Hoy va directo a su destino;
- * P10 lo cambia por el redirector `/ir/{id}` que cuenta el clic, y solo tiene que tocar esta función.
+ * EL ENLACE DE UNA CAMPAÑA, en UN SOLO SITIO para el feed y la portada: el redirector `/ir/{id}`, que
+ * cuenta el clic y lleva a su web (P10). El destino NO viaja en el enlace: lo lee el redirector de la
+ * campaña, así que `/ir` no puede llevar a ninguna dirección que no sea la de una campaña que se sirve.
  */
-export function enlaceDeCampana(c: { id: string; destinoUrl: string }): string {
-  return c.destinoUrl;
+export function enlaceDeCampana(c: { id: string }): string {
+  return `/ir/${encodeURIComponent(c.id)}`;
 }
 
 /** El texto del botón de una campaña (el destino es suyo: no se sabe qué hay al otro lado). */
@@ -204,8 +206,8 @@ export async function campanasDeHoy(db: Db, ahora: Date = new Date()): Promise<C
 // La elección de una pieza
 // ---------------------------------------------------------------------------------------------------
 
-/** Lo mínimo de Redis que se usa (inyectable en los tests). */
-export interface RedisReparto {
+/** Lo mínimo de Redis que se usa (inyectable en los tests). Cuenta también las vistas (P10). */
+export interface RedisReparto extends RedisContarMetricas {
   incr(clave: string): Promise<number>;
   expire(clave: string, segundos: number): Promise<unknown>;
   lrange(clave: string, desde: number, hasta: number): Promise<string[]>;
@@ -281,6 +283,8 @@ export async function elegirPieza(
           // Sin recuerdo esta vez: el tope de frecuencia es una cortesía, no una garantía.
         }
       }
+      // UNA VISTA (P10): la campaña se entrega en este hueco. Nunca lanza.
+      await contarMetrica(redis, "v", elegida.id, ahora);
       return piezaDeCampana(elegida);
     }
   }

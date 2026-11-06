@@ -104,7 +104,8 @@ export const DELETE_ORDER = [
   // Sus créditos de publicidad (Fase 9 · P4) tienen FK a ella: van antes.
   "CreditoLedger",
   // Sus campañas (Fase 9 · P6): la ocupación y el alcance desplegado cuelgan de la campaña, y la
-  // campaña de la empresa. En ese orden.
+  // campaña de la empresa. En ese orden. Sus cifras por día (P10) también cuelgan de la campaña.
+  "PublicidadMetricaDia",
   "ZonaOcupacion",
   "PublicidadCiudad",
   "PublicidadPais",

@@ -132,7 +132,7 @@ export default async function PaginaMisRetos({
                   <tr>
                     <th className={`pl-5 ${TH}`}>Reto</th>
                     <th className={`text-right ${TH}`}>Premio</th>
-                    <th className={TH}>Abre – cierra (UTC)</th>
+                    <th className={TH}>Abre – cierra</th>
                     <th className={`pr-5 ${TH}`}>Estado</th>
                   </tr>
                 </thead>
@@ -190,7 +190,7 @@ export default async function PaginaMisRetos({
                     </div>
                     <p className="mt-1 text-2xs text-text-dim">
                       {nombreCategoria(s.categoria) ?? s.categoria} · Premio {dinero(s.premioCents)}{" "}
-                      · {fecha(s.aperturaMs)} – {fecha(s.cierreMs)} (UTC)
+                      · {fecha(s.aperturaMs)} – {fecha(s.cierreMs)}
                     </p>
                     <p className="mt-2 text-sm text-text-dim">{MSG_ESTADO_SOLICITUD[s.estado]}</p>
                     {s.motivoRechazo ? (

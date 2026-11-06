@@ -121,7 +121,7 @@ export default async function PaginaPublicidad({
                   <tr>
                     <th className={`pl-5 ${TH}`}>Campaña</th>
                     <th className={TH}>Zona</th>
-                    <th className={TH}>Días (UTC)</th>
+                    <th className={TH}>Días</th>
                     <th className={`text-right ${TH}`}>Cr./día</th>
                     <th className={`pr-5 ${TH}`}>Estado</th>
                   </tr>
@@ -168,7 +168,7 @@ export default async function PaginaPublicidad({
                       </div>
                       <p className="mt-1 text-2xs break-words text-text-dim">{c.zona}</p>
                       <p className="mt-1 text-2xs text-text-dim tabular-nums">
-                        {calendario(c)} (UTC) · {c.creditosPorDia} cr./día
+                        {calendario(c)} · {c.creditosPorDia} cr./día
                       </p>
                     </Tarjeta>
                   </Link>
