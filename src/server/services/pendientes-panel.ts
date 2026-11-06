@@ -20,13 +20,16 @@ import { alcanzaRol } from "@/lib/permisos";
 import type { Db } from "@/server/db/types";
 
 import { contarEmpresas } from "./empresas";
+import { contarPublicidadEnRevision } from "./publicidad-moderacion";
 import { contarSolicitudesReto } from "./retos-empresa";
 
 export async function pendientesPanel(db: Db, rol: string): Promise<PendientesPanel> {
   const puede = (k: keyof PendientesPanel) => alcanzaRol(rol, SECCION_DE_PENDIENTE[k].rol);
-  const [empresas, propuestas] = await Promise.all([
+  const [empresas, propuestas, publicidad] = await Promise.all([
     puede("empresas") ? contarEmpresas(db, "PENDIENTE") : 0,
     puede("propuestas") ? contarSolicitudesReto(db, "PENDIENTE") : 0,
+    // Fase 9 · P8: las campañas en revisión, con el MISMO filtro que la lista «En revisión».
+    puede("publicidad") ? contarPublicidadEnRevision(db) : 0,
   ]);
-  return { empresas, propuestas };
+  return { empresas, propuestas, publicidad };
 }

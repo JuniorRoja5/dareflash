@@ -5,7 +5,7 @@ import {
   MSG_MODERACION_RETIRADO,
   MSG_MODERACION_SIN_CAMBIOS,
   MSG_SIN_PERMISO_COLA,
-  ReportTargetDenunciableSchema,
+  ReportTargetModerableSchema,
 } from "@/config/constants";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk } from "@/server/http/api";
@@ -13,7 +13,7 @@ import { apiError, apiOk } from "@/server/http/api";
 export const dynamic = "force-dynamic";
 
 const CuerpoSchema = z.object({
-  targetType: ReportTargetDenunciableSchema,
+  targetType: ReportTargetModerableSchema,
   targetId: z.string().min(1).max(64),
 });
 

@@ -88,6 +88,13 @@ describe("el estado visible y las acciones", () => {
     expect(accionesPublicidad("PAUSADA")).toEqual(["REANUDAR", "TERMINAR"]);
     expect(accionesPublicidad("FINALIZADA")).toEqual([]);
     expect(accionesPublicidad("TERMINADA")).toEqual([]);
+    // P8: en revisión (la pausó el umbral) solo se puede terminar; retirada, nada.
+    expect(accionesPublicidad("EN_REVISION")).toEqual(["TERMINAR"]);
+    expect(accionesPublicidad("RETIRADA")).toEqual([]);
+    const sinDias = { ocupaHoy: false, ocupaDespues: false };
+    expect(estadoVisiblePublicidad("PAUSADA", sinDias, true)).toBe("EN_REVISION");
+    expect(estadoVisiblePublicidad("PAUSADA", sinDias, false)).toBe("PAUSADA");
+    expect(estadoVisiblePublicidad("RETIRADA", sinDias)).toBe("RETIRADA");
   });
 });
 

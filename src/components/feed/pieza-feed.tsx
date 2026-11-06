@@ -1,3 +1,4 @@
+import { Denunciar } from "@/components/ui/denunciar";
 import type { PiezaEntregada } from "@/server/services/publicidad-entrega";
 
 /**
@@ -15,9 +16,15 @@ import type { PiezaEntregada } from "@/server/services/publicidad-entrega";
 export function PiezaFeed({
   pieza,
   alRef,
+  denuncia = null,
 }: {
   pieza: PiezaEntregada;
   alRef: (el: HTMLElement | null) => void;
+  /**
+   * P8: con qué sesión se puede DENUNCIAR la campaña (la misma regla que un vídeo), o `null` para quien
+   * solo mira (una cuenta de empresa). La casa no se denuncia: es de DareFlash.
+   */
+  denuncia?: { haySesion: boolean; emailVerificado: boolean } | null;
 }) {
   const esCasa = pieza.tipo === "casa";
   return (
@@ -32,6 +39,19 @@ export function PiezaFeed({
         <span className="absolute top-4 left-4 z-10 rounded-xs bg-void/70 px-2 py-1 text-2xs font-semibold tracking-widest text-text uppercase backdrop-blur-sm">
           {pieza.etiqueta}
         </span>
+        {/* DENUNCIAR una campaña (P8): arriba a la derecha, frente a la etiqueta. */}
+        {!esCasa && denuncia ? (
+          <div className="absolute top-3 right-3 z-10 rounded-xs bg-void/70 backdrop-blur-sm">
+            <Denunciar
+              targetType="PUBLICIDAD"
+              targetId={pieza.id}
+              haySesion={denuncia.haySesion}
+              emailVerificado={denuncia.emailVerificado}
+              esMio={false}
+              className="text-text"
+            />
+          </div>
+        ) : null}
 
         {pieza.imagen ? (
           <div className="relative min-h-0 flex-1 bg-void">

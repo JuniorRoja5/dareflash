@@ -8,7 +8,7 @@
  * a no creérselo.
  *
  * PREPARADO PARA CRECER: cuentan las empresas por verificar y, desde P3, los retos que proponen las
- * empresas; P8 sumará la publicidad denunciada. Cada fuente nueva es una clave en `PendientesPanel` y
+ * empresas; P8 suma la publicidad en revisión. Cada fuente nueva es una clave en `PendientesPanel` y
  * una línea en `SECCION_DE_PENDIENTE`: el total, las insignias y el filtro por rol salen solos.
  *
  * SOLO CUENTA LO QUE QUIEN MIRA PUEDE ATENDER. Un moderador no verifica empresas (la sección es de
@@ -22,6 +22,8 @@ export interface PendientesPanel {
   empresas: number;
   /** Retos patrocinados propuestos por empresas, esperando revisión (Fase 9 · P3). */
   propuestas: number;
+  /** Campañas de publicidad pausadas por denuncias, esperando la decisión del admin (Fase 9 · P8). */
+  publicidad: number;
 }
 
 /** De qué sección es cada cifra, y qué rol hace falta para atenderla. */
@@ -31,6 +33,7 @@ export const SECCION_DE_PENDIENTE: Record<
 > = {
   empresas: { href: "/panel/empresas", rol: "ADMIN" },
   propuestas: { href: "/panel/propuestas", rol: "ADMIN" },
+  publicidad: { href: "/panel/publicidad", rol: "ADMIN" },
 };
 
 /**

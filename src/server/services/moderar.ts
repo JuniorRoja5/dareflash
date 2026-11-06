@@ -26,7 +26,7 @@
  */
 import "server-only";
 
-import type { ReportTargetDenunciable } from "@/config/constants";
+import type { ReportTargetModerable } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { Db } from "@/server/db/types";
 
@@ -44,7 +44,7 @@ export type ResultadoModeracion =
 /** Cierra las denuncias ABIERTAS de un objeto. Devuelve cuántas. */
 async function cerrarDenuncias(
   tx: Db,
-  objeto: { targetType: ReportTargetDenunciable; targetId: string },
+  objeto: { targetType: ReportTargetModerable; targetId: string },
   estado: "RESOLVED" | "DISMISSED",
 ): Promise<number> {
   const r = await tx.report.updateMany({
@@ -61,7 +61,7 @@ async function cerrarDenuncias(
  */
 export async function retirarPorModeracion(
   db: PrismaClient,
-  objeto: { targetType: ReportTargetDenunciable; targetId: string },
+  objeto: { targetType: ReportTargetModerable; targetId: string },
 ): Promise<ResultadoModeracion> {
   if (objeto.targetType === "VIDEO") {
     const video = await db.video.findUnique({
@@ -130,7 +130,7 @@ export async function retirarPorModeracion(
  */
 export async function descartarDenuncias(
   db: PrismaClient,
-  objeto: { targetType: ReportTargetDenunciable; targetId: string },
+  objeto: { targetType: ReportTargetModerable; targetId: string },
   ahora: Date = new Date(),
 ): Promise<ResultadoModeracion> {
   const { denunciasCerradas, levantado } = await db.$transaction(async (tx) => {

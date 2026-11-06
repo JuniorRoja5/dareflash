@@ -1721,6 +1721,19 @@ model Publicidad {
   pausadaEn   DateTime?
   terminadaEn DateTime?
 
+  /// MODERACIÓN POSTERIOR (Fase 9 · P8). `ocultoAutoEn`: el umbral de denuncias la pausó (EN REVISIÓN:
+  /// la empresa no puede reanudarla hasta que un admin decida). Columna PROPIA, como en Video: si
+  /// compartiera estado con la pausa de la empresa, absolver podría deshacer algo que no hizo el umbral.
+  ocultoAutoEn DateTime?
+  /// Cuándo la absolvió un admin por última vez: durante la inmunidad, el umbral no la vuelve a ocultar.
+  descartadoEn DateTime?
+  /// LA RETIRADA DEL ADMIN. El MOTIVO es de una lista cerrada y SÍ se le cuenta a la empresa; la NOTA y
+  /// QUIÉN la firmó son traza interna y no viajan nunca al portal (ni al correo).
+  retiradaMotivo String?
+  retiradaNota   String?   @db.VarChar(500)
+  retiradaPor    String?
+  retiradaEn     DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1733,6 +1746,10 @@ model Publicidad {
   /// La lista del portal, por KEYSET sobre (createdAt, id). El índice del REPARTO es de P7: se diseña
   /// contra su consulta y se mide con EXPLAIN, no se adivina aquí.
   @@index([empresaId, createdAt, id])
+  /// El listado del panel (P8), por keyset y filtrado por estado.
+  @@index([estado, createdAt, id])
+  /// El contador «en revisión» del menú del panel: un rango del índice, no un recorrido.
+  @@index([ocultoAutoEn])
 }
 
 /// LOS PAÍSES de una campaña de PAÍS: un negocio ONLINE puede comprar varios (5 créditos por país y

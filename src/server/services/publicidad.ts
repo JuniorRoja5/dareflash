@@ -40,6 +40,8 @@ import {
   type EstadoEmpresa,
   type EstadoPublicidad,
   type EstadoVisiblePublicidad,
+  MSG_MOTIVO_RETIRADA_PUBLICIDAD,
+  MotivoRetiradaPublicidadSchema,
   PUBLICIDAD_DESTINO_MAX,
   PUBLICIDAD_DIAS_MAX,
   PUBLICIDAD_DIAS_MIN,
@@ -70,6 +72,7 @@ import {
   destinoValido,
   diaDe,
   diasSeguidos,
+  accionesPublicidad,
   estadoVisiblePublicidad,
   estimacionDelCalendario,
   nivelesDeRespaldo,
@@ -450,6 +453,8 @@ interface FilaBloqueada {
   fechaInicio: Date;
   diasContratados: number;
   creditosPorDia: number | null;
+  /** P8: si la pausó el umbral de denuncias (EN REVISIÓN). */
+  ocultoAutoEn: Date | null;
 }
 
 /** BLOQUEA la campaña (FOR UPDATE) CON SU ÁMBITO DENTRO, y la devuelve con sus países. */
@@ -460,7 +465,7 @@ async function bloquear(
 ): Promise<FilaBloqueada & { paises: string[] }> {
   const filas = await tx.$queryRaw<FilaBloqueada[]>`
     SELECT \`id\`, \`estado\`, \`alcance\`, \`ciudadId\`, \`estadoCodigo\`, \`imagen\`, \`fechaInicio\`,
-           \`diasContratados\`, \`creditosPorDia\`
+           \`diasContratados\`, \`creditosPorDia\`, \`ocultoAutoEn\`
     FROM \`Publicidad\` WHERE \`id\` = ${publicidadId} AND \`empresaId\` = ${empresaId} FOR UPDATE`;
   const f = filas[0];
   if (!f) throw new PublicidadError("NO_EXISTE", MSG_NO_EXISTE);
@@ -665,8 +670,9 @@ export async function pausarPublicidad(
       const visible = estadoVisiblePublicidad(
         c.estado,
         await calendarioDe(tx, publicidadId, ahora),
+        c.ocultoAutoEn !== null,
       );
-      if (visible !== "ACTIVA" && visible !== "PROGRAMADA") {
+      if (!accionesPublicidad(visible).includes("PAUSAR")) {
         throw new PublicidadError(
           "ESTADO_NO_PERMITE",
           "Solo se puede pausar una campaña activa o programada.",
@@ -706,6 +712,14 @@ export async function reanudarPublicidad(
           throw new PublicidadError(
             "ESTADO_NO_PERMITE",
             "Solo se puede reanudar una campaña pausada.",
+          );
+        }
+        // EN REVISIÓN (la pausó el umbral de denuncias): reanudarla sería saltarse la revisión. Lo
+        // comprueba el SERVIDOR, no solo el botón: la puerta de verdad es esta.
+        if (c.ocultoAutoEn !== null) {
+          throw new PublicidadError(
+            "ESTADO_NO_PERMITE",
+            "La estamos revisando por unas denuncias. Podrás reanudarla cuando terminemos.",
           );
         }
         const empresa = await empresaParaOperar(tx, empresaId);
@@ -763,8 +777,10 @@ export async function terminarPublicidad(
       const visible = estadoVisiblePublicidad(
         c.estado,
         await calendarioDe(tx, publicidadId, ahora),
+        c.ocultoAutoEn !== null,
       );
-      if (visible !== "ACTIVA" && visible !== "PROGRAMADA" && visible !== "PAUSADA") {
+      // EN REVISIÓN también se puede terminar: es suya y no esquiva nada (las denuncias siguen ahí).
+      if (!accionesPublicidad(visible).includes("TERMINAR")) {
         throw new PublicidadError("ESTADO_NO_PERMITE", "Esa campaña ya no se puede terminar.");
       }
       await liberarFuturo(tx, publicidadId, ahora);
@@ -800,6 +816,11 @@ export interface CampanaDeEmpresa {
   /** La tarifa: la congelada si ya se vendió; la de hoy si es un borrador. */
   creditosPorDia: number;
   creadaMs: number;
+  /**
+   * P8: POR QUÉ LA RETIRÓ EL EQUIPO, ya en humano (de la lista cerrada); `null` si no está retirada. La
+   * NOTA interna y QUIÉN la firmó no salen nunca de aquí: el select ni siquiera las pide.
+   */
+  motivoRetirada: string | null;
 }
 
 const SELECT_CAMPANA = {
@@ -816,13 +837,15 @@ const SELECT_CAMPANA = {
   diasContratados: true,
   creditosPorDia: true,
   createdAt: true,
+  ocultoAutoEn: true,
+  retiradaMotivo: true,
   ciudad: { select: { nombre: true, estadoNombre: true } },
   paises: { select: { paisIso: true } },
 } as const;
 
 type FilaCampana = Prisma.PublicidadGetPayload<{ select: typeof SELECT_CAMPANA }>;
 
-interface ResumenCalendario {
+export interface ResumenCalendario {
   min: Date | null;
   max: Date | null;
   dias: number;
@@ -830,7 +853,7 @@ interface ResumenCalendario {
   ocupaDespues: boolean;
 }
 
-async function calendarios(
+export async function calendarios(
   db: Db,
   ids: readonly string[],
   ahora: Date,
@@ -861,7 +884,10 @@ async function calendarios(
   return mapa;
 }
 
-async function nombresDeEstados(db: Db, codigos: readonly string[]): Promise<Map<string, string>> {
+export async function nombresDeEstados(
+  db: Db,
+  codigos: readonly string[],
+): Promise<Map<string, string>> {
   if (codigos.length === 0) return new Map();
   const filas = await db.ciudad.findMany({
     where: { estadoCodigo: { in: [...codigos] } },
@@ -876,7 +902,10 @@ async function nombresDeEstados(db: Db, codigos: readonly string[]): Promise<Map
  * («Valencia», «Valencia»), y una lista que dice «Valencia» en dos campañas distintas obliga a abrir las
  * dos para saber cuál es la región. Por eso cada alcance lleva su apellido.
  */
-function zonaLegible(f: FilaCampana, estados: Map<string, string>): string {
+export function zonaLegible(
+  f: Pick<FilaCampana, "alcance" | "estadoCodigo" | "ciudad" | "paises">,
+  estados: Map<string, string>,
+): string {
   switch (f.alcance as AlcancePublicidad) {
     case "CIUDAD":
       return `${f.ciudad?.nombre ?? "Ciudad"} y 100 km alrededor`;
@@ -898,10 +927,11 @@ function aDto(
   return {
     id: f.id,
     nombre: f.nombre,
-    estado: estadoVisiblePublicidad(estado, {
-      ocupaHoy: cal?.ocupaHoy ?? false,
-      ocupaDespues: cal?.ocupaDespues ?? false,
-    }),
+    estado: estadoVisiblePublicidad(
+      estado,
+      { ocupaHoy: cal?.ocupaHoy ?? false, ocupaDespues: cal?.ocupaDespues ?? false },
+      f.ocultoAutoEn !== null,
+    ),
     alcance: f.alcance as AlcancePublicidad,
     zona: zonaLegible(f, estados),
     texto: f.texto,
@@ -915,6 +945,10 @@ function aDto(
       f.creditosPorDia ??
       tarifaPorDia(f.alcance as AlcancePublicidad, Math.max(1, f.paises.length)),
     creadaMs: f.createdAt.getTime(),
+    motivoRetirada: (() => {
+      const m = MotivoRetiradaPublicidadSchema.safeParse(f.retiradaMotivo);
+      return estado === "RETIRADA" && m.success ? MSG_MOTIVO_RETIRADA_PUBLICIDAD[m.data] : null;
+    })(),
   };
 }
 

@@ -28,6 +28,7 @@ import { objetivoDeViolacionUnica } from "@/server/db/errores";
 
 import { COMENTARIO_VISIBLE } from "./comentario-visible";
 import { ocultarSiCruzaEnTx } from "./ocultado-automatico";
+import { PUBLICIDAD_SERVIBLE } from "./publicidad-visible";
 import { VIDEO_VISIBLE } from "./video-visible";
 
 export type ResultadoDenuncia =
@@ -64,6 +65,18 @@ async function duenoDelObjeto(
       });
       return c?.userId ?? null;
     }
+    case "PUBLICIDAD": {
+      // Fase 9 · P8. Se denuncia lo que SE SIRVE: activa, sin pausa del umbral y de una empresa
+      // verificada (lo mismo que mira `campanasDeHoy`). Una campaña que ya no sale no tiene nada que
+      // mirar. El «dueño» es quien tiene la cuenta de la empresa —que además no puede denunciar: las
+      // cuentas de empresa no mutan nada de participación—.
+      const p = await db.publicidad.findFirst({
+        // LA MISMA regla que decide qué se sirve: solo se denuncia lo que se ve.
+        where: { id: targetId, ...PUBLICIDAD_SERVIBLE },
+        select: { empresa: { select: { ownerUserId: true } } },
+      });
+      return p?.empresa.ownerUserId ?? null;
+    }
   }
 }
 
@@ -76,6 +89,58 @@ function esDenunciaRepetida(e: unknown): boolean {
   return /reporterId/i.test(objetivo);
 }
 
+/**
+ * EL AVISO AL ADMIN cuando una CAMPAÑA cruza el umbral (Fase 9 · P8). Un correo a ADMIN_EMAIL en la
+ * MISMA transacción que el ocultado (un hecho, un correo, con su clave). Sin ADMIN_EMAIL no se encola
+ * nada y se deja una línea en el log: perder el aviso en silencio es peor que no tenerlo configurado.
+ */
+async function avisarAdminPublicidadEnTx(
+  tx: Prisma.TransactionClient,
+  publicidadId: string,
+  ahora: Date,
+  aviso: AvisoUmbralPublicidad | undefined,
+): Promise<void> {
+  if (!aviso?.adminEmail) {
+    aviso?.log?.(
+      `[denuncias] una campaña (${publicidadId}) se ha pausado por denuncias, pero no hay ADMIN_EMAIL: no se avisa.`,
+    );
+    return;
+  }
+  const p = await tx.publicidad.findUnique({
+    where: { id: publicidadId },
+    select: { nombre: true, empresa: { select: { nombre: true } } },
+  });
+  const { enqueueEmail } = await import("@/server/email/send");
+  const { renderCorreoHtml } = await import("@/server/email/plantilla");
+  const titulo = "Una campaña se ha pausado por denuncias";
+  // Solo el nombre comercial y el de la campaña: nada de correos, ni datos fiscales, ni quién denunció.
+  const cuerpo = `«${p?.nombre ?? "Una campaña"}», de ${p?.empresa.nombre ?? "una empresa"}, ha llegado a las denuncias que la pausan sola. Está en revisión: decide si la retiras o la absuelves.`;
+  await enqueueEmail(
+    tx,
+    {
+      to: aviso.adminEmail,
+      subject: titulo,
+      text: [cuerpo, "", `Revisarla: ${aviso.urlPanel}`].join("\n"),
+      html: renderCorreoHtml({
+        preheader: cuerpo,
+        titulo,
+        intro: cuerpo,
+        cta: { texto: "Revisar la campaña", href: aviso.urlPanel },
+        notas: ["La campaña ya no se muestra y sus días por venir quedaron libres."],
+      }),
+    },
+    // UNA por ocultado: si la absuelven y, pasada la inmunidad, vuelve a cruzar, es otro hecho.
+    { idempotencyKey: `publicidad-umbral:${publicidadId}:${ahora.getTime()}`, runAt: ahora },
+  );
+}
+
+/** A quién y adónde avisar si una campaña cruza el umbral. Lo pone la ruta (lee `env`). */
+export interface AvisoUmbralPublicidad {
+  adminEmail: string | null;
+  urlPanel: string;
+  log?: (mensaje: string) => void;
+}
+
 export async function denunciar(
   db: PrismaClient,
   entrada: {
@@ -85,6 +150,8 @@ export async function denunciar(
     reason: ReportReason;
     /** Inyectable solo para test: el instante del ocultado si esta denuncia cruza el umbral. */
     ahora?: Date;
+    /** Solo para PUBLICIDAD: el aviso al admin si esta denuncia cruza el umbral (P8). */
+    avisoPublicidad?: AvisoUmbralPublicidad;
   },
 ): Promise<ResultadoDenuncia> {
   const dueno = await duenoDelObjeto(db, entrada.targetType, entrada.targetId);
@@ -98,7 +165,7 @@ export async function denunciar(
     // UNA TRANSACCIÓN para la denuncia y el ocultado. El `catch` va FUERA: una denuncia repetida
     // choca con el UNIQUE, la transacción se deshace entera —no había nada más que deshacer— y se
     // responde "ya nos habías avisado", que nunca fue un error.
-    return await db.$transaction(async (tx) => {
+    const resultado = await db.$transaction(async (tx) => {
       await tx.report.create({
         data: {
           reporterId: entrada.reporterId,
@@ -112,8 +179,19 @@ export async function denunciar(
       // Se cuenta DESPUÉS de insertar y dentro de la misma transacción, así que la propia denuncia
       // que se acaba de escribir entra en el recuento: la tercera se ve a sí misma cruzar.
       const ocultado = await ocultarSiCruzaEnTx(tx, objeto, ahora);
+      if (ocultado && entrada.targetType === "PUBLICIDAD") {
+        await avisarAdminPublicidadEnTx(tx, entrada.targetId, ahora, entrada.avisoPublicidad);
+      }
       return { estado: "registrada" as const, ocultado };
     });
+    // UNA CAMPAÑA OCULTA DEJA DE SERVIRSE AL MOMENTO: se vacía la caché de campañas servibles, y
+    // DESPUÉS de confirmar (dentro de la transacción, otra petición podría volver a llenarla con lo
+    // de antes y servirla 60 s más).
+    if (resultado.ocultado && entrada.targetType === "PUBLICIDAD") {
+      const { olvidarCacheDeHoy } = await import("./publicidad-entrega");
+      olvidarCacheDeHoy();
+    }
+    return resultado;
   } catch (e) {
     if (esDenunciaRepetida(e)) return { estado: "repetida" };
     throw e;

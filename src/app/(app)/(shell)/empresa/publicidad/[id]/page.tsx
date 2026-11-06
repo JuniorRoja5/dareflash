@@ -115,6 +115,12 @@ export default async function PaginaCampana({ params }: { params: Promise<{ id: 
           </span>
         </div>
         <p className="mt-1 max-w-prose text-sm text-text-dim">{MSG_ESTADO_PUBLICIDAD[c.estado]}</p>
+        {/* P8: EL MOTIVO de la retirada, el de la lista cerrada (la nota interna no viaja al portal). */}
+        {c.motivoRetirada ? (
+          <p className="mt-2 max-w-prose rounded-sm border border-line bg-surface p-3 text-sm text-text">
+            {c.motivoRetirada} Si crees que es un error, contesta al correo que te enviamos.
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start lg:gap-8">

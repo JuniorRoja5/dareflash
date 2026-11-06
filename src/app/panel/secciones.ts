@@ -101,6 +101,16 @@ export const SECCIONES_PANEL: SeccionPanel[] = [
     rol: "ADMIN",
   },
   {
+    href: "/panel/publicidad",
+    label: "Publicidad",
+    descripcion:
+      "Las campañas de las empresas: revisar las denunciadas, retirarlas con un motivo o absolverlas.",
+    fase: null,
+    // ADMIN (Fase 9 · P8): retirar una campaña le escribe a una empresa y libera plazas vendidas, y
+    // eso es una decisión comercial. Sus denuncias NO pasan por la cola de moderación de vídeos.
+    rol: "ADMIN",
+  },
+  {
     href: "/panel/ranking",
     label: "DareUp y ranking",
     descripcion:

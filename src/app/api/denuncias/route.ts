@@ -69,6 +69,12 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     targetType: cuerpo.data.targetType,
     targetId: cuerpo.data.targetId,
     reason: cuerpo.data.reason,
+    // Fase 9 · P8: si una CAMPAÑA cruza el umbral, el aviso inmediato va al admin por correo.
+    avisoPublicidad: {
+      adminEmail: env.ADMIN_EMAIL ?? null,
+      urlPanel: new URL("/panel/publicidad?filtro=REVISION", env.APP_URL).toString(),
+      log: (m) => console.warn(m),
+    },
   });
 
   if (r.estado === "rechazada") {

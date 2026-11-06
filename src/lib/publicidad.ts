@@ -126,7 +126,10 @@ export function claveDia(dia: Date): string {
 export function estadoVisiblePublicidad(
   estado: EstadoPublicidad,
   calendario: { ocupaHoy: boolean; ocupaDespues: boolean },
+  /** ¿La pausó el UMBRAL de denuncias (`ocultoAutoEn`)? Entonces está EN REVISIÓN, no pausada por ella. */
+  ocultaPorDenuncias = false,
 ): EstadoVisiblePublicidad {
+  if (estado === "PAUSADA" && ocultaPorDenuncias) return "EN_REVISION";
   if (estado !== "ACTIVA") return estado;
   if (calendario.ocupaHoy) return "ACTIVA";
   if (calendario.ocupaDespues) return "PROGRAMADA";
@@ -148,8 +151,13 @@ export function accionesPublicidad(estado: EstadoVisiblePublicidad): readonly Ac
       return ["PAUSAR", "TERMINAR"];
     case "PAUSADA":
       return ["REANUDAR", "TERMINAR"];
+    // EN REVISIÓN (la pausó el umbral de denuncias): reanudarla sería saltarse la revisión; terminarla,
+    // en cambio, es suya y no esquiva nada.
+    case "EN_REVISION":
+      return ["TERMINAR"];
     case "FINALIZADA":
     case "TERMINADA":
+    case "RETIRADA":
       return [];
   }
 }

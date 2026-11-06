@@ -49,6 +49,8 @@ import {
 } from "@/lib/publicidad";
 import type { Db } from "@/server/db/types";
 
+import { PUBLICIDAD_SERVIBLE } from "./publicidad-visible";
+
 // ---------------------------------------------------------------------------------------------------
 // El DTO de entrega
 // ---------------------------------------------------------------------------------------------------
@@ -119,9 +121,25 @@ export function piezaDeLaCasa(espacio: EspacioPublicidad, esEmpresa: boolean): P
 // Las campañas de hoy (con caché corta por proceso)
 // ---------------------------------------------------------------------------------------------------
 
+/**
+ * ┌─ LA CACHÉ ES POR PROCESO ───────────────────────────────────────────────────────────────────────┐
+ * │ Vive en la memoria de ESTE proceso `web`. Pausar o terminar (la empresa) tarda como mucho        │
+ * │ `PUBLICIDAD_CACHE_HOY_MS` en notarse; lo que NO puede esperar —la retirada del admin y el        │
+ * │ ocultado por denuncias (P8)— la vacía con `olvidarCacheDeHoy` al confirmar, y la siguiente       │
+ * │ petición ya no la sirve.                                                                         │
+ * │                                                                                                  │
+ * │ HOY HAY UN SOLO `web`, y por eso basta vaciarla aquí. SI ALGÚN DÍA HAY VARIAS INSTANCIAS, vaciar │
+ * │ la de una no vacía las demás: la retirada tendría que AVISAR A TODAS —por ejemplo, con una clave │
+ * │ de versión en Redis que la retirada incrementa y que cada proceso compara antes de usar su       │
+ * │ caché—. Sin eso, una campaña retirada seguiría saliendo hasta 60 s en las otras instancias.      │
+ * └──────────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
 let cache: { dia: string; hasta: number; campanas: CampanaEntrega[] } | null = null;
 
-/** Solo para los tests: que cada caso lea la base de datos de nuevo. */
+/**
+ * VACÍA LA CACHÉ DE CAMPAÑAS SERVIBLES de este proceso. La usan la retirada del admin y el ocultado por
+ * denuncias (P8), siempre DESPUÉS de confirmar su transacción; y los tests, para leer la base de nuevo.
+ */
 export function olvidarCacheDeHoy(): void {
   cache = null;
 }
@@ -141,11 +159,8 @@ export async function campanasDeHoy(db: Db, ahora: Date = new Date()): Promise<C
   const ocupadas = await db.zonaOcupacion.findMany({
     where: {
       dia: diaDe(ahora),
-      publicidad: {
-        estado: "ACTIVA",
-        imagen: { not: null },
-        empresa: { estado: "VERIFICADA" },
-      },
+      // La regla de qué se sirve, de su único sitio (la misma que decide qué se puede denunciar).
+      publicidad: PUBLICIDAD_SERVIBLE,
     },
     distinct: ["publicidadId"],
     select: { publicidadId: true },

@@ -1607,7 +1607,14 @@ export const ReportStatusSchema = z.enum(["OPEN", "REVIEWING", "RESOLVED", "DISM
 export type ReportStatus = z.infer<typeof ReportStatusSchema>;
 
 /** Tipo de entidad denunciada. COMMENT: los comentarios ya existen; su moderación es la Fase 5. */
-export const ReportTargetTypeSchema = z.enum(["VIDEO", "SUBMISSION", "USER", "COMMENT"]);
+export const ReportTargetTypeSchema = z.enum([
+  "VIDEO",
+  "SUBMISSION",
+  "USER",
+  "COMMENT",
+  // Fase 9 · P8: una campaña de publicidad (la pieza que se sirve en el feed y la portada).
+  "PUBLICIDAD",
+]);
 export type ReportTargetType = z.infer<typeof ReportTargetTypeSchema>;
 
 /**
@@ -1616,8 +1623,18 @@ export type ReportTargetType = z.infer<typeof ReportTargetTypeSchema>;
  * tipo que el servidor no comprueba contra un objeto real sería abrir denuncias contra la nada.
  * Cuando se construya la denuncia de un perfil, entra aquí y trae su comprobación.
  */
-export const ReportTargetDenunciableSchema = z.enum(["VIDEO", "COMMENT"]);
+export const ReportTargetDenunciableSchema = z.enum(["VIDEO", "COMMENT", "PUBLICIDAD"]);
 export type ReportTargetDenunciable = z.infer<typeof ReportTargetDenunciableSchema>;
+
+/**
+ * LO QUE DECIDE LA COLA DE MODERACIÓN (`/panel/moderacion`, MODERATOR): vídeos y comentarios. La
+ * PUBLICIDAD se denuncia igual, pero NO entra aquí: la decide el ADMIN en `/panel/publicidad` (Fase 9 ·
+ * P8), porque retirar una campaña manda un correo a una empresa y libera plazas vendidas —una decisión
+ * comercial—. Las rutas de la cola validan contra ESTA unión, no contra la de denunciables: si no, un
+ * moderador podría retirar una campaña por la puerta de los vídeos.
+ */
+export const ReportTargetModerableSchema = z.enum(["VIDEO", "COMMENT"]);
+export type ReportTargetModerable = z.infer<typeof ReportTargetModerableSchema>;
 
 /**
  * POR QUÉ se denuncia. Tipado, nunca texto libre: el moderador filtra y agrupa por esto, y un campo
@@ -2516,14 +2533,32 @@ export function claveRegaloSocioFundador(empresaId: string): string {
  *  - ACTIVA: quiere salir; ocupa sus días en `ZonaOcupacion`.
  *  - PAUSADA: la empresa la paró; sus días por venir se liberaron.
  *  - TERMINADA: la empresa la acabó antes de tiempo; sus días por venir se liberaron. No vuelve.
- * La retirada del ADMIN (con motivo) entra con la moderación (P8), con su estado y sus columnas.
+ *  - RETIRADA (P8): la retiró un ADMIN, con motivo. Sus días por venir se liberaron. No vuelve.
+ * La pausa del UMBRAL de denuncias no es un estado propio: es PAUSADA con `ocultoAutoEn` (ver el
+ * modelo), y se enseña como EN_REVISION.
  */
-export const EstadoPublicidadSchema = z.enum(["BORRADOR", "ACTIVA", "PAUSADA", "TERMINADA"]);
+export const EstadoPublicidadSchema = z.enum([
+  "BORRADOR",
+  "ACTIVA",
+  "PAUSADA",
+  "TERMINADA",
+  "RETIRADA",
+]);
 export type EstadoPublicidad = z.infer<typeof EstadoPublicidadSchema>;
 
-/** Lo que se le enseña a la empresa. PROGRAMADA y FINALIZADA no se guardan nunca: se calculan. */
+/**
+ * Lo que se le enseña a la empresa. PROGRAMADA, FINALIZADA y EN_REVISION no se guardan nunca: se
+ * calculan (las dos primeras con el calendario; la tercera con `ocultoAutoEn`).
+ */
 export type EstadoVisiblePublicidad =
-  "BORRADOR" | "PROGRAMADA" | "ACTIVA" | "FINALIZADA" | "PAUSADA" | "TERMINADA";
+  | "BORRADOR"
+  | "PROGRAMADA"
+  | "ACTIVA"
+  | "FINALIZADA"
+  | "PAUSADA"
+  | "EN_REVISION"
+  | "TERMINADA"
+  | "RETIRADA";
 
 export const ETIQUETA_ESTADO_PUBLICIDAD: Record<EstadoVisiblePublicidad, string> = {
   BORRADOR: "Borrador",
@@ -2531,8 +2566,43 @@ export const ETIQUETA_ESTADO_PUBLICIDAD: Record<EstadoVisiblePublicidad, string>
   ACTIVA: "Activa",
   FINALIZADA: "Finalizada",
   PAUSADA: "Pausada",
+  EN_REVISION: "En revisión",
   TERMINADA: "Terminada",
+  RETIRADA: "Retirada",
 };
+
+/**
+ * POR QUÉ SE RETIRA UNA CAMPAÑA (P8). Lista CERRADA porque ESTE motivo SÍ se le cuenta a la empresa
+ * (en el portal y en el correo): una retirada sin motivo genera un correo de soporte por cada caso. Lo
+ * que no viaja nunca es la NOTA interna ni quién firmó.
+ */
+export const MotivoRetiradaPublicidadSchema = z.enum([
+  "ENGANOSA",
+  "CONTENIDO_NO_PERMITIDO",
+  "DESTINO_PELIGROSO",
+  "INCUMPLE_NORMAS",
+  "OTRO",
+]);
+export type MotivoRetiradaPublicidad = z.infer<typeof MotivoRetiradaPublicidadSchema>;
+
+/** El copy del motivo, en segunda persona: es lo que lee la empresa. */
+export const MSG_MOTIVO_RETIRADA_PUBLICIDAD: Record<MotivoRetiradaPublicidad, string> = {
+  ENGANOSA: "La campaña promete algo que no se corresponde con lo que ofrece.",
+  CONTENIDO_NO_PERMITIDO: "La imagen o el texto incluyen contenido que no podemos mostrar.",
+  DESTINO_PELIGROSO: "El enlace lleva a un sitio que no es seguro para quien lo pulse.",
+  INCUMPLE_NORMAS: "La campaña no cumple las normas de publicidad de DareFlash.",
+  OTRO: "Hemos revisado la campaña y no podemos seguir mostrándola.",
+};
+/** Lo que el panel ve de cada motivo (etiqueta corta para elegir y filtrar). */
+export const ETIQUETA_MOTIVO_RETIRADA_PUBLICIDAD: Record<MotivoRetiradaPublicidad, string> = {
+  ENGANOSA: "Engañosa",
+  CONTENIDO_NO_PERMITIDO: "Contenido no permitido",
+  DESTINO_PELIGROSO: "Enlace peligroso",
+  INCUMPLE_NORMAS: "Incumple las normas",
+  OTRO: "Otro motivo",
+};
+/** Página del listado de publicidad del panel. */
+export const PUBLICIDAD_PANEL_PAGINA = 25;
 
 /**
  * LA FRASE de cada estado. Desde P7 las campañas activas SE SIRVEN (feed y portada), así que ACTIVA ya
@@ -2544,8 +2614,12 @@ export const MSG_ESTADO_PUBLICIDAD: Record<EstadoVisiblePublicidad, string> = {
   PROGRAMADA: "Tiene sus días reservados y empieza a mostrarse en la fecha indicada.",
   ACTIVA: "Se está mostrando en su zona, en el feed y en la portada.",
   FINALIZADA: "Ya pasaron sus días contratados.",
-  PAUSADA: "La has pausado. Sus días por venir quedaron libres para otras campañas.",
+  PAUSADA:
+    "Está pausada. Sus días por venir quedaron libres para otras campañas; puedes reanudarla.",
+  EN_REVISION:
+    "La hemos pausado mientras revisamos unas denuncias. Sus días por venir quedaron libres y no se te descuenta nada. Te escribiremos cuando lo hayamos decidido.",
   TERMINADA: "La terminaste antes de tiempo. Sus días por venir quedaron libres.",
+  RETIRADA: "La hemos retirado y ya no se muestra.",
 };
 
 /**

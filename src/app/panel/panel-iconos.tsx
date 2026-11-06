@@ -128,6 +128,18 @@ const Propuestas: Icono = (p) => (
   </Svg>
 );
 
+/**
+ * PUBLICIDAD (Fase 9 · P8) — un megáfono: «se anuncia algo a mucha gente». Distinto de la campana
+ * (Notificaciones, avisos a los usuarios) y de la bandeja (Propuestas, algo que llega para decidir).
+ */
+const Publicidad: Icono = (p) => (
+  <Svg {...p}>
+    <path d="M4 10v4h3l7 4V6L7 10H4z" />
+    <path d="M17 9.5a3.5 3.5 0 0 1 0 5" />
+    <path d="M7 14l1 4.5h2.5L9.5 14" />
+  </Svg>
+);
+
 /** Icono por `href` de sección. Fuente única para la barra lateral. */
 export const ICONO_SECCION: Record<string, Icono> = {
   "/panel": Resumen,
@@ -139,6 +151,7 @@ export const ICONO_SECCION: Record<string, Icono> = {
   "/panel/patrocinios": Patrocinios,
   "/panel/empresas": Empresas,
   "/panel/propuestas": Propuestas,
+  "/panel/publicidad": Publicidad,
   "/panel/ranking": Ranking,
   "/panel/notificaciones": Notificaciones,
 };

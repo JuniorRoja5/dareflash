@@ -67,6 +67,10 @@ export default async function InicioPage() {
   const ip = sesion ? null : (await headers()).get("x-real-ip");
   const espacio1 = await piezaDePortada(prisma, { sesion, ip, espacio: "GLOBAL" });
   const espacio2 = await piezaDePortada(prisma, { sesion, ip, espacio: "LOCAL" });
+  // P8: denunciar una campaña, con la misma regla que un vídeo; nada para quien solo mira (empresa).
+  const denunciaPortada = soloMirar(sesion)
+    ? null
+    : { haySesion: sesion !== null, emailVerificado: sesion?.emailVerified != null };
 
   return (
     <>
@@ -147,7 +151,7 @@ export default async function InicioPage() {
         {/* ESPACIO 1 — publicidad global o de su país (o la casa). Ancho, entre bloques. */}
         {espacio1 ? (
           <div className="df-rise mt-12 lg:mt-16" style={{ animationDelay: "110ms" }}>
-            <PiezaPortada pieza={espacio1} />
+            <PiezaPortada pieza={espacio1} denuncia={denunciaPortada} />
           </div>
         ) : null}
 
@@ -207,7 +211,7 @@ export default async function InicioPage() {
             {/* ESPACIO 2 — publicidad de su ciudad o región (o la casa), en el rail. */}
             {espacio2 ? (
               <div className="mt-6">
-                <PiezaPortada pieza={espacio2} compacta />
+                <PiezaPortada pieza={espacio2} compacta denuncia={denunciaPortada} />
               </div>
             ) : null}
           </aside>

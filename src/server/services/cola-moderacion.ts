@@ -19,7 +19,7 @@
  */
 import "server-only";
 
-import type { ReportReason, ReportTargetDenunciable } from "@/config/constants";
+import type { ReportReason, ReportTargetModerable } from "@/config/constants";
 import { Prisma } from "@/generated/prisma/client";
 import { codificarCursorCola, decodificarCursorCola } from "@/lib/cursor-cola";
 import type { Db } from "@/server/db/types";
@@ -28,7 +28,7 @@ import type { Firmante } from "./feed";
 
 /** Un objeto denunciado, listo para revisar. */
 export interface FilaCola {
-  targetType: ReportTargetDenunciable;
+  targetType: ReportTargetModerable;
   targetId: string;
   /** Personas distintas que lo han denunciado (denuncias abiertas). */
   denunciantes: number;
@@ -94,6 +94,7 @@ function agregado(challengeId: string | null) {
     LEFT JOIN \`Comment\` c ON r.targetType = 'COMMENT' AND c.id = r.targetId
     LEFT JOIN \`Video\` vc ON vc.id = c.videoId
     WHERE r.status = 'OPEN'
+      -- Solo vídeos y comentarios: la PUBLICIDAD denunciada la decide el admin en /panel/publicidad (P8).
       AND (v.id IS NOT NULL OR c.id IS NOT NULL)
       ${filtroDeReto(challengeId)}`;
 }

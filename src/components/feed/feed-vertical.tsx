@@ -883,6 +883,8 @@ export function FeedVertical({
               <PiezaFeed
                 key={`pieza-${fila.tras.id}`}
                 pieza={fila.pieza}
+                // P8: la misma regla que el botón de denunciar de un vídeo; nada para quien solo mira.
+                denuncia={soloMirar ? null : { haySesion, emailVerificado }}
                 alRef={(el) => {
                   if (el) secciones.current[i] = el;
                 }}

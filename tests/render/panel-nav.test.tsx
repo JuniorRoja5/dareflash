@@ -16,7 +16,7 @@ vi.mock("next/navigation", () => ({ usePathname: () => "/panel/moderacion" }));
 import { PanelNav } from "@/app/panel/panel-nav";
 import { SECCIONES_PANEL } from "@/app/panel/secciones";
 
-const NADA = { empresas: 0, propuestas: 0 };
+const NADA = { empresas: 0, propuestas: 0, publicidad: 0 };
 
 const enlaces = (): string[] =>
   screen.getAllByRole("link").map((a) => a.getAttribute("href") ?? "");
@@ -45,7 +45,7 @@ describe("PanelNav", () => {
 
 describe("la insignia de pendientes", () => {
   it("con empresas por verificar, el número sale junto a «Empresas»", () => {
-    render(<PanelNav rol="ADMIN" pendientes={{ empresas: 3, propuestas: 0 }} />);
+    render(<PanelNav rol="ADMIN" pendientes={{ empresas: 3, propuestas: 0, publicidad: 0 }} />);
     const empresas = screen.getByRole("link", { name: /Empresas/ });
     const insignia = empresas.querySelector("[data-insignia]");
     expect(insignia?.getAttribute("data-insignia")).toBe("3");
@@ -60,7 +60,7 @@ describe("la insignia de pendientes", () => {
   });
 
   it("y a un moderador no se le pinta aunque las haya: no es su sección", () => {
-    render(<PanelNav rol="MODERATOR" pendientes={{ empresas: 3, propuestas: 0 }} />);
+    render(<PanelNav rol="MODERATOR" pendientes={{ empresas: 3, propuestas: 0, publicidad: 0 }} />);
     expect(document.querySelectorAll("[data-insignia]")).toHaveLength(0);
   });
 });

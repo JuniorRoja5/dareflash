@@ -1,5 +1,7 @@
 import type { PiezaEntregada } from "@/server/services/publicidad-entrega";
 
+import { Denunciar } from "./denunciar";
+
 /**
  * UN HUECO DE PUBLICIDAD EN LA PORTADA (Fase 9 · P7): Espacio 1 (global/país) o Espacio 2 (local).
  *
@@ -14,9 +16,12 @@ import type { PiezaEntregada } from "@/server/services/publicidad-entrega";
 export function PiezaPortada({
   pieza,
   compacta = false,
+  denuncia = null,
 }: {
   pieza: PiezaEntregada;
   compacta?: boolean;
+  /** P8: con qué sesión se puede denunciar la campaña; `null` para quien solo mira. La casa, nunca. */
+  denuncia?: { haySesion: boolean; emailVerificado: boolean } | null;
 }) {
   const externo = pieza.externo ? { target: "_blank", rel: "sponsored noopener noreferrer" } : {};
   return (
@@ -30,6 +35,18 @@ export function PiezaPortada({
       <span className="absolute top-3 left-3 z-10 rounded-xs bg-void/70 px-2 py-0.5 text-2xs font-semibold tracking-widest text-text uppercase backdrop-blur-sm">
         {pieza.etiqueta}
       </span>
+      {pieza.tipo === "campana" && denuncia ? (
+        <div className="absolute top-2 right-2 z-10 rounded-xs bg-void/70 backdrop-blur-sm">
+          <Denunciar
+            targetType="PUBLICIDAD"
+            targetId={pieza.id}
+            haySesion={denuncia.haySesion}
+            emailVerificado={denuncia.emailVerificado}
+            esMio={false}
+            className="text-text"
+          />
+        </div>
+      ) : null}
       {pieza.imagen ? (
         <div
           className={`relative bg-void ${compacta ? "aspect-[4/3]" : "aspect-[4/3] sm:aspect-auto sm:w-64 sm:shrink-0"}`}

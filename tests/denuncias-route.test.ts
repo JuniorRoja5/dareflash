@@ -74,6 +74,11 @@ describe("registrar", () => {
       targetType: "VIDEO",
       targetId: "vid-1",
       reason: "SPAM",
+      // Fase 9 · P8: a quién avisar si lo denunciado es una CAMPAÑA y cruza el umbral. Lo pone la ruta
+      // (lee `env`) y el servicio solo lo usa para la publicidad.
+      avisoPublicidad: expect.objectContaining({
+        urlPanel: expect.stringContaining("/panel/publicidad"),
+      }),
     });
   });
 

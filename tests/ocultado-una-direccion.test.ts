@@ -67,6 +67,8 @@ describe("quién puede escribir el ocultado", () => {
     const VISIBILIDAD = [
       "src/server/services/video-visible.ts",
       "src/server/services/comentario-visible.ts",
+      // Fase 9 · P8: qué campaña se sirve (y por tanto se puede denunciar). Otra lectura.
+      "src/server/services/publicidad-visible.ts",
     ];
     const tocan = TODOS.filter((f) => /ocultoAutoEn:\s*null/.test(f.codigo))
       .map((f) => f.rel)
@@ -74,14 +76,22 @@ describe("quién puede escribir el ocultado", () => {
     expect(tocan).toEqual(["src/server/services/ocultado-automatico.ts"]);
   });
 
-  it("y la puerta de vuelta solo la abre el MODERADOR", () => {
+  it("y la puerta de vuelta solo la abre una DECISIÓN HUMANA", () => {
     const llaman = TODOS.filter(
       (f) =>
         /levantarAutoOcultoEnTx\s*\(/.test(f.codigo) &&
         f.rel !== "src/server/services/ocultado-automatico.ts",
-    ).map((f) => f.rel);
-    // `moderar.ts` y nadie más: ni un job, ni un barrido, ni una ruta pública.
-    expect(llaman).toEqual(["src/server/services/moderar.ts"]);
+    )
+      .map((f) => f.rel)
+      .sort();
+    // Ni un job, ni un barrido, ni una ruta pública. Dos personas y nadie más:
+    //  - `moderar.ts`: el MODERADOR, sobre vídeos y comentarios (la cola de moderación).
+    //  - `publicidad-moderacion.ts`: el ADMIN, sobre la publicidad (Fase 9 · P8), al absolver o retirar
+    //    una campaña. La publicidad la decide el admin, no la cola de vídeos.
+    expect(llaman).toEqual([
+      "src/server/services/moderar.ts",
+      "src/server/services/publicidad-moderacion.ts",
+    ]);
   });
 });
 

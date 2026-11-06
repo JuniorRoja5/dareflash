@@ -74,7 +74,9 @@ export async function ocultarSiCruzaEnTx(
   const ocultado =
     objeto.targetType === "VIDEO"
       ? await ocultarVideo(tx, objeto.targetId, ahora)
-      : await ocultarComentario(tx, objeto.targetId, ahora);
+      : objeto.targetType === "COMMENT"
+        ? await ocultarComentario(tx, objeto.targetId, ahora)
+        : await ocultarPublicidad(tx, objeto.targetId, ahora);
   if (!ocultado) return false; // otra petición llegó antes: su llamada hace el resto.
 
   await tx.auditLog.create({
@@ -89,6 +91,10 @@ export async function ocultarSiCruzaEnTx(
       metadata: { denunciasAbiertas: abiertas },
     },
   });
+
+  // LA PUBLICIDAD NO AVISA AL EQUIPO DE MODERACIÓN: la decide el ADMIN en `/panel/publicidad` (P8), y
+  // su aviso es un correo a ADMIN_EMAIL que encola `denunciar` en esta misma transacción.
+  if (objeto.targetType === "PUBLICIDAD") return true;
 
   // EL AVISO VA POR LA COLA, no aquí: notificar a todo el equipo son N escrituras y un fallo suyo
   // no puede tumbar el ocultado, que es lo que de verdad protege. `createMany` con `skipDuplicates`
@@ -122,6 +128,10 @@ export async function repartirAvisoAutoOculto(
   db: Db,
   objeto: ObjetoDenunciado,
 ): Promise<{ avisados: number }> {
+  // La publicidad no encola este job (ver `ocultarSiCruzaEnTx`); si alguno llegara, no hay a quién del
+  // equipo de moderación avisar de algo que decide el admin por otro camino.
+  if (objeto.targetType === "PUBLICIDAD") return { avisados: 0 };
+  const objetivo = { targetType: objeto.targetType, targetId: objeto.targetId };
   // SIN TOPE Y SIN PAGINAR, a propósito: esto no es una lista de datos, es el EQUIPO —las cuentas
   // con rol de moderación—, y no crece con el uso del producto sino con las contrataciones. Ponerle
   // un `take` dejaría a alguien del equipo sin avisar, que es justo lo contrario de lo que hace.
@@ -131,11 +141,7 @@ export async function repartirAvisoAutoOculto(
   });
   let avisados = 0;
   for (const m of equipo) {
-    const nuevo = await emitirAviso(
-      db,
-      m.id,
-      avisoContenidoAutoOculto({ targetType: objeto.targetType, targetId: objeto.targetId }),
-    );
+    const nuevo = await emitirAviso(db, m.id, avisoContenidoAutoOculto(objetivo));
     if (nuevo) avisados += 1;
   }
   return { avisados };
@@ -146,16 +152,14 @@ async function estadoDelObjeto(
   tx: Db,
   objeto: ObjetoDenunciado,
 ): Promise<{ yaOculto: boolean; descartadoEn: Date | null }> {
+  const select = { ocultoAutoEn: true, descartadoEn: true } as const;
+  const where = { id: objeto.targetId };
   const fila =
     objeto.targetType === "VIDEO"
-      ? await tx.video.findUnique({
-          where: { id: objeto.targetId },
-          select: { ocultoAutoEn: true, descartadoEn: true },
-        })
-      : await tx.comment.findUnique({
-          where: { id: objeto.targetId },
-          select: { ocultoAutoEn: true, descartadoEn: true },
-        });
+      ? await tx.video.findUnique({ where, select })
+      : objeto.targetType === "COMMENT"
+        ? await tx.comment.findUnique({ where, select })
+        : await tx.publicidad.findUnique({ where, select });
   return { yaOculto: fila?.ocultoAutoEn != null, descartadoEn: fila?.descartadoEn ?? null };
 }
 
@@ -175,7 +179,36 @@ export async function sellarDescarteEnTx(
     await tx.video.updateMany({ where: { id: objeto.targetId }, data: { descartadoEn: ahora } });
     return;
   }
+  if (objeto.targetType === "PUBLICIDAD") {
+    await tx.publicidad.updateMany({
+      where: { id: objeto.targetId },
+      data: { descartadoEn: ahora },
+    });
+    return;
+  }
   await tx.comment.updateMany({ where: { id: objeto.targetId }, data: { descartadoEn: ahora } });
+}
+
+/**
+ * OCULTA UNA CAMPAÑA (Fase 9 · P8, §6.4 del plan): pasa a PAUSADA con `ocultoAutoEn` —EN REVISIÓN: la
+ * empresa no puede reanudarla— y LIBERA SUS DÍAS POR VENIR. Una campaña escondida no puede seguir
+ * ocupando plaza ni consumir el día: cobrar días que nadie ve es exactamente el error que no se detecta
+ * desde dentro. El crédito se queda en el saldo (no se ha cobrado nada que devolver).
+ *
+ * Solo una ACTIVA se oculta (una pausada o terminada no se sirve: no hay nada que esconder), y el
+ * `UPDATE ... WHERE ocultoAutoEn IS NULL` decide la carrera, como en el vídeo. Orden de cerrojos: la
+ * fila de la campaña y después su ocupación, el mismo que usa el portal. Quien llama vacía la caché de
+ * campañas servibles DESPUÉS de confirmar (dentro de la transacción se rellenaría con lo de antes).
+ */
+async function ocultarPublicidad(tx: Db, id: string, ahora: Date): Promise<boolean> {
+  const r = await tx.publicidad.updateMany({
+    where: { id, ocultoAutoEn: null, estado: "ACTIVA" },
+    data: { ocultoAutoEn: ahora, estado: "PAUSADA", pausadaEn: ahora },
+  });
+  if (r.count === 0) return false;
+  const hoy = new Date(`${ahora.toISOString().slice(0, 10)}T00:00:00.000Z`);
+  await tx.zonaOcupacion.deleteMany({ where: { publicidadId: id, dia: { gt: hoy } } });
+  return true;
 }
 
 async function ocultarVideo(tx: Db, id: string, ahora: Date): Promise<boolean> {
@@ -220,6 +253,15 @@ async function ocultarComentario(tx: Db, id: string, ahora: Date): Promise<boole
 export async function levantarAutoOcultoEnTx(tx: Db, objeto: ObjetoDenunciado): Promise<boolean> {
   if (objeto.targetType === "VIDEO") {
     const r = await tx.video.updateMany({
+      where: { id: objeto.targetId, ocultoAutoEn: { not: null } },
+      data: { ocultoAutoEn: null },
+    });
+    return r.count > 0;
+  }
+  if (objeto.targetType === "PUBLICIDAD") {
+    // La campaña se queda PAUSADA (una pausa normal): sus días se liberaron al ocultarla, y volver a
+    // ocupar plaza y comprometer saldo es decisión de la empresa, que la reanuda (decidido en P8).
+    const r = await tx.publicidad.updateMany({
       where: { id: objeto.targetId, ocultoAutoEn: { not: null } },
       data: { ocultoAutoEn: null },
     });
