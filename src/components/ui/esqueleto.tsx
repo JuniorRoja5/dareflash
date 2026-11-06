@@ -114,8 +114,11 @@ export function EsqueletoTarjeta({ className = "" }: { className?: string }) {
   );
 }
 
-/** Anchos del contenedor que usan las pantallas. Los dos que existen, no una cadena libre. */
-type Ancho = "max-w-7xl" | "max-w-5xl";
+/**
+ * Anchos del contenedor que usan las pantallas. Los que existen, no una cadena libre. `max-w-6xl` es
+ * el de /wallet y /puntos (participante-diseno-wallet-puntos), el mismo que el portal de empresa.
+ */
+type Ancho = "max-w-7xl" | "max-w-6xl" | "max-w-5xl";
 
 /**
  * El aire vertical en MÓVIL. También dos, y también los que hay: el detalle del reto usa `py-5`

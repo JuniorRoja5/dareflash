@@ -68,7 +68,7 @@ export default async function PuntosPage({
   const { nivel, siguiente, faltan, porcentaje, esMaximo } = progresoNivel(puntos);
 
   return (
-    <div className="df-rise mx-auto w-full max-w-5xl px-4 py-8 lg:px-8 lg:py-12">
+    <div className="df-rise mx-auto w-full max-w-6xl px-4 py-8 lg:px-8 lg:py-12">
       <HeroNivel puntos={puntos} racha={racha} />
 
       {/* LAS CIFRAS EXACTAS, debajo del hero. El hero dice quién eres; estas dicen cuánto. */}
@@ -99,9 +99,11 @@ export default async function PuntosPage({
         />
       </div>
 
-      {/* DOS COLUMNAS EN ESCRITORIO para aprovechar el ancho: la escalera (corta, cinco filas) al
-          lado de la tabla (nueve). En móvil se apilan en este mismo orden. */}
-      <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:gap-10">
+      {/* DOS COLUMNAS EN ESCRITORIO para aprovechar el ancho: la escalera (cinco filas) al lado de
+          la tabla (nueve). Pesos 5:7 y no 320 px fijos: con la columna fija, a 1440 la tabla se
+          llevaba casi todo el ancho y la escalera quedaba como una tira. Las dos arriba
+          (`items-start`), cada una con su alto. En móvil se apilan en este mismo orden. */}
+      <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-10">
         <EscaleraNiveles puntos={puntos} />
         <TablaPuntos />
       </div>

@@ -61,6 +61,24 @@ function cuando(valor: Date | string): string {
   return FECHA.format(new Date(valor));
 }
 
+const FECHA_CORTA = new Intl.DateTimeFormat("es-ES", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+/** La de la columna «Fecha» de la fila: sin la hora, que ya está en el detalle desplegado. */
+function cuandoCorto(valor: Date | string): string {
+  return FECHA_CORTA.format(new Date(valor));
+}
+
+/**
+ * Las columnas de la lista en escritorio: las MISMAS en la cabecera y en cada fila. Las fijas, lo justo
+ * para su contenido: el método («Cuenta bancaria ····1332») se quedaba en «Cuenta ban…» en la columna
+ * derecha de 1440 con unas fijas más anchas (visto en la captura).
+ */
+const COLUMNAS = "md:grid-cols-[6.5rem_minmax(0,1fr)_6rem_6.5rem_1rem]";
+
 function Dato({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) {
   return (
     <div className="rounded-sm bg-raised px-3 py-2">
@@ -122,19 +140,29 @@ function Fila({ r }: { r: RetiradaPropia }) {
 
   return (
     <details className="group rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-sm)] backdrop-blur-md open:border-line">
-      <summary className="flex cursor-pointer list-none items-center gap-3 p-4 [&::-webkit-details-marker]:hidden">
-        <span className="min-w-[5.5rem] text-sm font-semibold tabular-nums text-text">
+      {/* MÓVIL: una tarjeta (importe, destino, estado). ESCRITORIO: la misma fila en las columnas
+          de la cabecera de la lista —fecha, método, importe, estado—; sigue siendo un `<details>`,
+          así que el recorrido se despliega igual en los dos. */}
+      <summary
+        className={`flex cursor-pointer list-none items-center gap-3 p-4 md:grid md:gap-3 ${COLUMNAS} [&::-webkit-details-marker]:hidden`}
+      >
+        <span className="hidden text-sm text-text-dim tabular-nums md:block">
+          {cuandoCorto(r.createdAt)}
+        </span>
+        <span className="min-w-[5.5rem] text-sm font-semibold tabular-nums text-text md:order-3 md:min-w-0 md:text-right">
           {importeConMoneda(r.amountCents, r.currency)}
         </span>
-        <span className="min-w-0 flex-1 truncate text-xs text-text-dim">{destinoDe(r)}</span>
+        <span className="min-w-0 flex-1 truncate text-xs text-text-dim md:order-2 md:text-sm md:whitespace-normal">
+          {destinoDe(r)}
+        </span>
         <span
-          className={`shrink-0 rounded-full border px-2.5 py-0.5 text-2xs font-medium ${CHIP[estado] ?? "border-line text-text-dim"}`}
+          className={`shrink-0 justify-self-start rounded-full border px-2.5 py-0.5 text-2xs font-medium md:order-4 ${CHIP[estado] ?? "border-line text-text-dim"}`}
         >
           {ETIQUETA_ESTADO[estado] ?? r.status}
         </span>
         {/* El giro es CSS: la regla global de movimiento reducido lo apaga sin que nada avise. */}
         <span
-          className="shrink-0 text-text-dim transition-transform duration-[var(--df-dur-fast)] ease-mechanical group-open:rotate-90"
+          className="shrink-0 text-text-dim transition-transform duration-[var(--df-dur-fast)] ease-mechanical group-open:rotate-90 md:order-5"
           aria-hidden
         >
           ›
@@ -225,7 +253,19 @@ export function HistorialRetiradas({
 
   return (
     <>
-      <ul className="mt-3 space-y-2">
+      {/* La cabecera de las columnas, solo en escritorio (en móvil cada fila es una tarjeta). Las
+          mismas columnas que cada `summary`, con la de la flecha vacía. */}
+      <div
+        aria-hidden
+        className={`mt-3 hidden gap-3 px-4 text-2xs font-semibold tracking-widest text-text-dim uppercase md:grid ${COLUMNAS}`}
+      >
+        <span>Fecha</span>
+        <span>Método</span>
+        <span className="text-right">Importe</span>
+        <span>Estado</span>
+        <span />
+      </div>
+      <ul className="mt-3 space-y-2 md:mt-2">
         {filas.map((r) => (
           <li key={r.id}>
             <Fila r={r} />

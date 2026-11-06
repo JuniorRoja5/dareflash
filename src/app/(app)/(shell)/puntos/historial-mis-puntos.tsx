@@ -32,30 +32,91 @@ export function HistorialMisPuntos({ items }: { items: MovimientoPuntos[] }) {
     );
   }
 
+  // La columna «Detalle» solo si alguna fila de ESTA página dice algo: vacía, se comía el ancho de la
+  // tabla con una cabecera sobre nada (visto en la captura a 1440).
+  const hayDetalle = items.some((m) => referencia(m) !== null);
+
   return (
-    <ul className="mt-4 divide-y divide-line overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-sm)] backdrop-blur-md">
-      {items.map((m) => (
-        <li
-          key={m.id}
-          data-movimiento={m.id}
-          className="flex items-start gap-3 p-4 transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised/60"
-        >
-          <span className="min-w-0 flex-1">
-            {/* El importe viaja con el motivo: un ajuste del equipo se lee distinto si suma o si
-                resta, y el usuario no tiene por qué deducirlo del número de al lado. */}
-            <span className="block text-sm text-text">{razonHumanaPropia(m.razon, m.delta)}</span>
-            <span className="block text-2xs text-text-dim">
-              {fecha(m.creadoEnMs)}
-              {/* La referencia solo se añade cuando dice algo: el servicio devuelve "—" cuando no
-                  hay a qué apuntar, y arrastrar ese guion a cada fila sería ruido. */}
-              {m.referencia && m.referencia !== "—" ? ` · ${m.referencia}` : ""}
-            </span>
-          </span>
-          <span className="shrink-0 rounded-xs bg-raised px-2 py-1 text-sm font-semibold tabular-nums text-text">
-            {m.delta > 0 ? `+${m.delta}` : m.delta}
-          </span>
-        </li>
-      ))}
-    </ul>
+    <>
+      {/* ESCRITORIO: TABLA. Fecha, concepto, de qué (el reto, a quién invitaste) y puntos, cada uno
+          en su columna: bajar por la de los puntos se hace de un vistazo. Filas centradas en
+          vertical: la cifra va en una pastilla con relleno y, alineada arriba, quedaba más baja
+          que el texto de su fila. */}
+      <div className={`mt-4 hidden overflow-x-auto md:block ${CAJA}`}>
+        <table className="w-full border-collapse text-left text-sm">
+          <thead className="border-b border-line">
+            <tr>
+              <th className={`pl-4 ${TH}`}>Fecha</th>
+              <th className={TH}>Concepto</th>
+              {hayDetalle ? <th className={TH}>Detalle</th> : null}
+              <th className={`pr-4 text-right ${TH}`}>Puntos</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {items.map((m) => (
+              <tr key={m.id} data-movimiento={m.id} className="align-middle">
+                <td className="py-3 pr-4 pl-4 whitespace-nowrap text-text-dim tabular-nums">
+                  {fecha(m.creadoEnMs)}
+                </td>
+                {/* El importe viaja con el motivo: un ajuste del equipo se lee distinto si suma o
+                    si resta, y el usuario no tiene por qué deducirlo del número de al lado. */}
+                <td className="py-3 pr-4 text-text">{razonHumanaPropia(m.razon, m.delta)}</td>
+                {hayDetalle ? (
+                  <td className="max-w-[20rem] py-3 pr-4 break-words text-text-dim">
+                    {referencia(m) ?? ""}
+                  </td>
+                ) : null}
+                <td className="py-3 pr-4 text-right">
+                  <Delta delta={m.delta} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* MÓVIL: TARJETAS. El concepto arriba, la fecha y el detalle debajo, los puntos a la derecha. */}
+      <ul className={`mt-4 divide-y divide-line overflow-hidden md:hidden ${CAJA}`}>
+        {items.map((m) => {
+          const ref = referencia(m);
+          return (
+            <li key={m.id} data-movimiento-movil={m.id} className="flex items-start gap-3 p-4">
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm text-text">
+                  {razonHumanaPropia(m.razon, m.delta)}
+                </span>
+                <span className="block text-2xs break-words text-text-dim">
+                  {fecha(m.creadoEnMs)}
+                  {ref ? ` · ${ref}` : ""}
+                </span>
+              </span>
+              <Delta delta={m.delta} />
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
+}
+
+const CAJA =
+  "rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-sm)] backdrop-blur-md";
+const TH =
+  "py-3 pr-4 text-2xs font-semibold tracking-widest whitespace-nowrap text-text-dim uppercase";
+
+/**
+ * La referencia solo se enseña cuando dice algo: el servicio devuelve "—" cuando no hay a qué apuntar,
+ * y arrastrar ese guion a cada fila sería ruido.
+ */
+function referencia(m: MovimientoPuntos): string | null {
+  return m.referencia && m.referencia !== "—" ? m.referencia : null;
+}
+
+/** El signo siempre y en tono normal: sin verde ni rojo (ver el docblock de arriba). */
+function Delta({ delta }: { delta: number }) {
+  return (
+    <span className="inline-block shrink-0 rounded-xs bg-raised px-2 py-1 text-sm font-semibold tabular-nums text-text">
+      {delta > 0 ? `+${delta}` : delta}
+    </span>
   );
 }

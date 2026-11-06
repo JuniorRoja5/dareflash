@@ -154,7 +154,7 @@ export function MetodosDeCobro({
   }
 
   return (
-    <section aria-labelledby="donde-cobrar" className="mt-10">
+    <section aria-labelledby="donde-cobrar">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 id="donde-cobrar" className="font-medium text-text">
           Dónde cobrar

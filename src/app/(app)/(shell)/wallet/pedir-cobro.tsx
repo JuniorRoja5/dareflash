@@ -71,7 +71,7 @@ export function PedirCobro({
   return (
     <form
       onSubmit={enviar}
-      className="mt-6 space-y-5 rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-sm)] backdrop-blur-md"
+      className="space-y-5 rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-sm)] backdrop-blur-md"
       aria-label="Pedir un cobro"
     >
       <h2 className="font-medium text-text">Pedir un cobro</h2>

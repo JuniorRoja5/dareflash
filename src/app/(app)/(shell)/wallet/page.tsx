@@ -89,39 +89,49 @@ export default async function WalletPage() {
   // vista y el servidor no pueden discrepar sobre dónde está el mínimo.
   const llegaAlMinimo = puedePedirCobro(saldo);
 
+  // DOS COLUMNAS EN ESCRITORIO (participante-diseno-wallet-puntos): a la izquierda lo que se HACE
+  // —el saldo, pedir el cobro, dónde cobrar—; a la derecha lo que se CONSULTA —cómo funciona,
+  // tus solicitudes, los movimientos—. En móvil se apilan en ese mismo orden, así que el saldo y
+  // «Pedir cobro» quedan arriba y a mano. Solo cambia la disposición: ni una regla, ni un importe,
+  // ni un texto de cobro.
   return (
-    <div className="df-rise mx-auto w-full max-w-3xl px-4 py-8 lg:px-8 lg:py-12">
-      <HeroMonedero
-        saldoCents={saldo}
-        // DERIVADO de la máquina de estados (`en curso` = lo que no es final), no una lista escrita
-        // aquí: una segunda lista de estados es una lista libre de discrepar, y lo que contaría mal
-        // es dinero.
-        enRevisionCents={sumaDe(ESTADOS_RETIRADA_EN_CURSO)}
-        cobradoCents={sumaDe(["PAID"])}
-      />
+    <div className="df-rise mx-auto w-full max-w-6xl px-4 py-8 lg:px-8 lg:py-12 xl:grid xl:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] xl:items-start xl:gap-10">
+      <div className="min-w-0 space-y-8">
+        <HeroMonedero
+          saldoCents={saldo}
+          // DERIVADO de la máquina de estados (`en curso` = lo que no es final), no una lista escrita
+          // aquí: una segunda lista de estados es una lista libre de discrepar, y lo que contaría mal
+          // es dinero.
+          enRevisionCents={sumaDe(ESTADOS_RETIRADA_EN_CURSO)}
+          cobradoCents={sumaDe(["PAID"])}
+        />
 
-      {/* DÓNDE COBRAR: SIEMPRE, saldo o no. Guardar un método no mueve dinero y dejarlo listo de
-          antemano es lo único útil que se puede hacer aquí con el monedero vacío. */}
-      <MetodosDeCobro metodos={metodos} saldoCents={saldo} />
+        {/* PEDIR EL COBRO: al llegar al mínimo Y con algún método guardado. Sin método no hay a dónde
+            mandarlo, así que el formulario diría "elige uno" sobre una lista vacía. Va pegado al
+            saldo: es la acción de la pantalla. */}
+        {llegaAlMinimo && metodos.length > 0 ? (
+          <PedirCobro saldoCents={saldo} metodos={metodos} />
+        ) : null}
 
-      {/* PEDIR EL COBRO: al llegar al mínimo Y con algún método guardado. Sin método no hay a dónde
-          mandarlo, así que el formulario diría "elige uno" sobre una lista vacía. */}
-      {llegaAlMinimo && metodos.length > 0 ? (
-        <PedirCobro saldoCents={saldo} metodos={metodos} />
-      ) : null}
+        {/* DÓNDE COBRAR: SIEMPRE, saldo o no. Guardar un método no mueve dinero y dejarlo listo de
+            antemano es lo único útil que se puede hacer aquí con el monedero vacío. */}
+        <MetodosDeCobro metodos={metodos} saldoCents={saldo} />
+      </div>
 
-      <section aria-labelledby="tus-solicitudes" className="mt-10">
-        <h2 id="tus-solicitudes" className="font-medium text-text">
-          Tus solicitudes
-        </h2>
-        {/* La lista es CLIENTE porque el "Ver más" añade páginas sin recargar; la PRIMERA la trae
-            el servidor ya pintada, así que no hay un salto en blanco al abrir. */}
-        <HistorialRetiradas inicial={historial.items} cursorInicial={historial.nextCursor} />
-      </section>
+      <div className="mt-10 min-w-0 space-y-10 xl:mt-0">
+        <InformacionCobro />
 
-      <MovimientosMonedero movimientos={movimientos} />
+        <section aria-labelledby="tus-solicitudes">
+          <h2 id="tus-solicitudes" className="font-medium text-text">
+            Tus solicitudes
+          </h2>
+          {/* La lista es CLIENTE porque el "Ver más" añade páginas sin recargar; la PRIMERA la trae
+              el servidor ya pintada, así que no hay un salto en blanco al abrir. */}
+          <HistorialRetiradas inicial={historial.items} cursorInicial={historial.nextCursor} />
+        </section>
 
-      <InformacionCobro />
+        <MovimientosMonedero movimientos={movimientos} />
+      </div>
     </div>
   );
 }

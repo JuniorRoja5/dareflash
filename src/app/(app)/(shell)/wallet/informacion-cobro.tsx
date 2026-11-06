@@ -18,7 +18,7 @@ import { importeConMoneda } from "@/lib/dinero";
  */
 export function InformacionCobro() {
   return (
-    <section aria-labelledby="info-cobro" className="mt-10">
+    <section aria-labelledby="info-cobro">
       <h2 id="info-cobro" className="sr-only">
         Información sobre los cobros
       </h2>
