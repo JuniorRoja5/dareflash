@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # ACTUALIZA EL FICHERO DE IP (DB-IP Lite City, MMDB, CC BY 4.0) — Fase 9 · P5, §4.1 del plan.
 #
-# Pensado para el cron MENSUAL del host. Vive en el repositorio porque no lleva credenciales ni nada
-# secreto (DB-IP Lite se descarga sin cuenta ni clave); lo que NO vive aquí es su instalación —la línea
-# de cron, la ruta real del volumen—, que es operación y se queda fuera.
+# Pensado para el cron MENSUAL del host, que lo ejecuta DENTRO del servicio `geoip` del compose (la
+# imagen trae curl, gunzip, node y maxmind, y monta el volumen en escritura):
+#   docker compose -f docker-compose.prod.yml run --rm --build geoip
+# Vive en el repositorio porque no lleva credenciales ni nada secreto (DB-IP Lite se descarga sin
+# cuenta ni clave).
 #
 # Ocho pasos, ninguno de adorno:
 #   1. Descarga a un fichero TEMPORAL en el MISMO volumen (el rename solo es atómico dentro del mismo
@@ -18,7 +20,8 @@
 #   7. Deja una línea de registro: fecha, tamaño y resultado de las IP de control.
 #   8. Si algo falla, NO TOCA NADA y sale con código distinto de cero.
 #
-# Uso:  GEOIP_FICHERO=/ruta/del/volumen/dbip-city-lite.mmdb scripts/actualizar-geoip.sh
+# Uso directo (fuera de Docker, p.ej. para probarlo en local):
+#       GEOIP_FICHERO=/ruta/dbip-city-lite.mmdb scripts/actualizar-geoip.sh
 # Variables opcionales:
 #   GEOIP_MES         AAAA-MM a descargar (por defecto, el mes actual; si aún no está, el anterior).
 #   GEOIP_COMPROBAR   comando que comprueba un .mmdb (recibe la ruta); por defecto el de este repo con

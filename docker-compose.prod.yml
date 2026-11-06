@@ -86,8 +86,8 @@ services:
       - avatars_data:/srv/avatars
       # Portadas de reto (env.PORTADAS_DIR=/srv/portadas): mismo patron que los avatares.
       - portadas_data:/srv/portadas
-      # Fichero de IP (Fase 9 · P5, env.GEOIP_FICHERO): la app solo LEE; lo escribe el guion mensual
-      # del host (scripts/actualizar-geoip.sh) con un rename atomico, y la app lo reabre sola. Sin
+      # Fichero de IP (Fase 9 · P5, env.GEOIP_FICHERO): la app solo LEE; lo escribe el servicio `geoip`
+      # (scripts/actualizar-geoip.sh, cron mensual) con un rename atomico, y la app lo reabre sola. Sin
       # fichero no se rompe nada: la ubicacion queda "desconocida" y el worker avisa al admin.
       - geoip_data:/srv/geoip:ro
     networks:
@@ -163,6 +163,30 @@ services:
     networks:
       - internal
 
+  # --- geoip: ACTUALIZA el fichero de IP (one-off, Fase 9 · P5) ---
+  # El UNICO servicio que monta geoip_data en ESCRITURA; web y worker lo montan en solo lectura. Lleva
+  # dentro lo que necesita el guion (curl, gunzip, node, maxmind): el host no instala nada ni necesita
+  # saber donde vive el volumen. El perfil `geoip` evita que arranque con `up -d`.
+  #
+  #   Uso (y linea del cron mensual):  docker compose -f docker-compose.prod.yml run --rm --build geoip
+  #   (`--build`: la etapa no depende del codigo de la app, asi que reconstruirla es casi siempre la
+  #    cache; sin el flag, el contenedor usaria para siempre la imagen del primer dia.)
+  #
+  # Si algo falla NO toca el fichero vivo y sale con codigo distinto de cero; el registro queda en
+  # /srv/geoip/actualizar-geoip.log, dentro del volumen.
+  geoip:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: geoip
+    profiles: ["geoip"]
+    restart: "no"
+    environment:
+      GEOIP_FICHERO: /srv/geoip/dbip-city-lite.mmdb
+    volumes:
+      - geoip_data:/srv/geoip
+    # Sin `networks`: no habla con ningun servicio, solo descarga de DB-IP (red por defecto).
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -199,7 +223,7 @@ volumes:
   caddy_config:
   avatars_data: # avatares subidos (WebP); escrito por `web`, servido por `caddy`
   portadas_data: # portadas de reto (WebP); escrito por `web`, servido por `caddy`, limpiado por `worker`
-  geoip_data: # fichero de IP (DB-IP Lite City); escrito por el cron del host, leido por `web` y `worker`
+  geoip_data: # fichero de IP (DB-IP Lite City); escrito por el servicio `geoip`, leido por `web` y `worker`
 
 networks:
   internal:

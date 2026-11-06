@@ -10,10 +10,12 @@
  *  - Sin Redis, o con Redis caído, nada lanza.
  *  - La mediana usa los 7 días COMPLETOS (hoy no), y la cascada sube de nivel solo si no hay datos.
  *  - El aviso del fichero de IP: uno al cruzar los 60 días (o si falta), re-armado al actualizarse.
+ *  - Los VIP no cuentan (no ven publicidad): se excluyen al CONTAR, con el chokepoint de VIP.
  *
  * Para romperlo a propósito: materializar con `personas = personas + VALUES(personas)` (rojo el de
  * reejecutar); incluir hoy en la mediana (rojo); que la cascada devuelva el primer nivel aunque esté
- * vacío (rojo); umbral `>= 60` en vez de `> 60` (rojo el del día 60).
+ * vacío (rojo); umbral `>= 60` en vez de `> 60` (rojo el del día 60); quitar el `esVipActivoDe` de
+ * `contarVisitaEnAforo` (rojo el de los VIP).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -27,8 +29,10 @@ import {
   medianaAforo,
 } from "../src/server/services/aforo";
 import { estadoFicheroIp, revisarFicheroGeoIp } from "../src/server/services/geoip-caducidad";
+import type { RedisMemo } from "../src/server/geo/ubicacion";
+import { contarVisitaEnAforo } from "../src/server/geo/visita";
 
-import { createTestPrisma, resetDb } from "./helpers/db";
+import { createTestPrisma, crearUsuario, resetDb } from "./helpers/db";
 
 let prisma: PrismaClient;
 beforeAll(() => {
@@ -45,8 +49,9 @@ beforeEach(async () => {
 const DIA = 24 * 60 * 60 * 1000;
 const AHORA = new Date("2026-11-05T12:00:00.000Z");
 
-/** Redis en memoria: lo justo de PFADD/PFCOUNT/SADD/SMEMBERS/EXPIRE, con conjuntos exactos. */
-function redisFalso(): RedisAforo & { claves: Map<string, Set<string>> } {
+/** Redis en memoria: lo justo de PFADD/PFCOUNT/SADD/SMEMBERS/EXPIRE (y GET/SET del memo de invitados,
+ *  que aquí no se ejercita), con conjuntos exactos. */
+function redisFalso(): RedisAforo & RedisMemo & { claves: Map<string, Set<string>> } {
   const claves = new Map<string, Set<string>>();
   const anadir = (k: string, ms: string[]) => {
     const s = claves.get(k) ?? new Set<string>();
@@ -70,6 +75,12 @@ function redisFalso(): RedisAforo & { claves: Map<string, Set<string>> } {
     },
     async pfcount(k) {
       return claves.get(k)?.size ?? 0;
+    },
+    async get() {
+      return null;
+    },
+    async set() {
+      return "OK";
     },
   };
 }
@@ -146,6 +157,40 @@ describe("contar y materializar", () => {
     await contarEnAforo(r, { quien: "i:3f2a…hash", ubicacion: VALENCIA, ahora: AHORA });
     const todo = JSON.stringify([...r.claves.entries()].map(([k, v]) => [k, [...v]]));
     expect(todo).not.toMatch(/\d+\.\d+\.\d+\.\d+|@/);
+  });
+});
+
+describe("los VIP no forman parte del público de una zona", () => {
+  // El aforo es el público de la PUBLICIDAD y un VIP no la ve: se le excluye AL CONTAR, para que el
+  // dato guardado ya sea el bueno. Se prueba por la puerta del feed (`contarVisitaEnAforo`), que es la
+  // que decide, y no por `contarEnAforo`, que cuenta a quien le digan.
+  const vip = async (periodoFin: Date, estado = "ACTIVA") => {
+    const userId = await crearUsuario(prisma);
+    await prisma.subscription.create({
+      data: { userId, plan: "VIP_MYTHIC", estado, periodoFin },
+    });
+    return userId;
+  };
+  const visitar = async (r: ReturnType<typeof redisFalso>, userId: string) =>
+    contarVisitaEnAforo(prisma, { userId, ubicacion: VALENCIA }, { redis: r, ahora: AHORA });
+
+  it("la visita de un VIP no incrementa el aforo; la de quien no lo es, sí", async () => {
+    const r = redisFalso();
+    await visitar(r, await vip(new Date(AHORA.getTime() + 10 * DIA)));
+    await materializarAforo(prisma, r, AHORA);
+    expect(await filas()).toEqual([]);
+
+    await visitar(r, await crearUsuario(prisma));
+    await materializarAforo(prisma, r, AHORA);
+    expect((await filas()).find((f) => f.alcance === "GLOBAL")?.personas).toBe(1);
+  });
+
+  it("un VIP CANCELADO con el periodo por delante sigue sin contar; uno VENCIDO ya cuenta", async () => {
+    const r = redisFalso();
+    await visitar(r, await vip(new Date(AHORA.getTime() + DIA), "CANCELADA"));
+    await visitar(r, await vip(new Date(AHORA.getTime() - DIA)));
+    await materializarAforo(prisma, r, AHORA);
+    expect((await filas()).find((f) => f.alcance === "GLOBAL")?.personas).toBe(1);
   });
 });
 

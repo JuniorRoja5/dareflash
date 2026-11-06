@@ -110,3 +110,24 @@ ENV NODE_ENV=production
 # a node y el contenedor moria con 143).
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "--conditions=react-server", "--import", "tsx", "scripts/worker.ts"]
+
+# ---- geoip: actualiza el fichero de IP (one-off, servicio `geoip` del compose) ----
+# El guion mensual (scripts/actualizar-geoip.sh) necesita curl, gunzip, node y `maxmind` (el paso de
+# control abre el fichero nuevo y resuelve IP conocidas). Va en la imagen para que el host no tenga que
+# instalar NADA ni saber donde vive el volumen: `docker compose -f docker-compose.prod.yml run --rm
+# --build geoip`.
+#
+# Deriva de `base` y NO de `builder` a proposito: asi no depende del codigo de la app y reconstruirla
+# desde el cron no dispara nunca un `next build` (en 1 vCPU, minutos de CPU de madrugada). El COPY de
+# node_modules es el MISMO que el primer paso de `builder` sobre la misma `base`: BuildKit reutiliza esa
+# capa, no ocupa disco de mas. curl va DESPUES del COPY por eso mismo (antes, la capa ya no coincidiria).
+# gzip, date (GNU) y stat ya vienen en la imagen slim de Debian. Corre como root: escribe en el volumen,
+# y deja el fichero 644 para que `web` (nextjs) lo lea.
+FROM base AS geoip
+COPY --from=deps /app/node_modules ./node_modules
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+COPY scripts/actualizar-geoip.sh scripts/geoip-comprobar.mjs ./scripts/
+ENV GEOIP_FICHERO=/srv/geoip/dbip-city-lite.mmdb
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["bash", "scripts/actualizar-geoip.sh"]
