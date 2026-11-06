@@ -60,7 +60,7 @@ export default async function InicioPage() {
   // LOS DOS HUECOS DE PUBLICIDAD (Fase 9 · P7): Espacio 1 (global/país) y Espacio 2 (local). Se rellenan
   // siempre —una campaña o el anuncio de la casa— salvo para un VIP (null: no ve publicidad). En serie y
   // no a la vez: el tope de frecuencia tiene que ver la primera elección antes de la segunda. El rediseño
-  // completo de la portada es P13; aquí solo entran los huecos.
+  // completo de la portada es P14 (la última pieza de la fase); aquí solo entran los huecos.
   const { piezaDePortada } = await import("@/server/services/publicidad-entrega");
   const { headers } = await import("next/headers");
   // La IP solo hace falta para un INVITADO (con sesión, su ubicación sale de la fila de la sesión).

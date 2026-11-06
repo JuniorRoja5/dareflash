@@ -47,7 +47,8 @@ Tres decisiones de P1 que condicionan lo que viene:
 
 Lo siguiente es **P2**: el shell del portal, su navegacion y el CTA de la cuenta de empresa (hoy el
 CTA del shell le sigue diciendo "Subir video", que da 403 si lo pulsa). El plan completo por piezas
-—P1 a P13— vive fuera del repositorio, en el informe de diseno de la fase.
+—P1 a P14; la P13 es la factura, bloqueada, y la P14 la portada `/inicio`, la ultima— vive fuera
+del repositorio, en el informe de diseno de la fase.
 
 Pre-lanzamiento: el sitio sigue tras el pestillo (`robots: Disallow: /` + `X-Robots-Tag: noindex`).
 
