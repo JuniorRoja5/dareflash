@@ -103,6 +103,12 @@ export const DELETE_ORDER = [
   // como `ownerUserId` es UNIQUE, el siguiente registro fallaría por un duplicado que nadie pidió.
   // Sus créditos de publicidad (Fase 9 · P4) tienen FK a ella: van antes.
   "CreditoLedger",
+  // Sus campañas (Fase 9 · P6): la ocupación y el alcance desplegado cuelgan de la campaña, y la
+  // campaña de la empresa. En ese orden.
+  "ZonaOcupacion",
+  "PublicidadCiudad",
+  "PublicidadPais",
+  "Publicidad",
   "Empresa",
   "Report",
   "AuditLog",

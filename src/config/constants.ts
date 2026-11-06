@@ -2684,6 +2684,19 @@ export const ZONA_GLOBAL = "*";
  */
 export const AFORO_MEDIANA_DIAS = 7;
 
+/**
+ * DESDE QUÉ DÍA SE CONSIDERA QUE EL AFORO ESTABA MIDIENDO: el primer día UTC COMPLETO después del
+ * despliegue de P5 en producción (2026-11-06, a mitad de día). El 6 se deja fuera porque solo se midió
+ * una parte: contarlo hundiría la mediana con un día a medias.
+ *
+ * Un día cuenta como MEDIDO si es de esta fecha en adelante Y tiene fila en la zona GLOBAL (toda visita
+ * contada suma en GLOBAL, así que sin esa fila no se midió nada: Redis caído, worker parado). En un día
+ * medido, una zona sin fila es una zona sin visitas: cuenta como 0, no se salta. Saltarlo era el fallo
+ * que corrigió P6: una ciudad con una visita en siete días medidos salía con mediana 1, y esa cifra es
+ * la que ve una empresa antes de pagar.
+ */
+export const AFORO_MIDE_DESDE_ISO = "2026-11-07";
+
 /** Cada cuánto se materializa el aforo de Redis a `AforoZonaDia` (recuento absoluto: reejecutar converge). */
 export const AFORO_MATERIALIZAR_CADENCIA_MS = 60 * 60 * 1000;
 

@@ -27,6 +27,7 @@ import {
   contarEnAforo,
   materializarAforo,
   medianaAforo,
+  medianasAforo,
 } from "../src/server/services/aforo";
 import { estadoFicheroIp, revisarFicheroGeoIp } from "../src/server/services/geoip-caducidad";
 import type { RedisMemo } from "../src/server/geo/ubicacion";
@@ -195,41 +196,87 @@ describe("los VIP no forman parte del público de una zona", () => {
 });
 
 describe("la mediana y la cascada", () => {
+  // AHORA (2026-11-05) es anterior al despliegue de P5: estos casos fijan su propio «midiendo desde».
+  // El de producción tiene su test aparte, abajo.
+  const MIDE = { midiendoDesde: new Date("2026-10-01T00:00:00.000Z") };
   const sembrar = async (alcance: string, zona: string, porDia: Record<number, number>) => {
     for (const [hace, personas] of Object.entries(porDia)) {
       const dia = new Date(Date.UTC(2026, 10, 5) - Number(hace) * DIA);
       await prisma.aforoZonaDia.create({ data: { alcance, zona, dia, personas } });
     }
   };
+  /** Marca como MEDIDOS esos días (hace N días): la fila GLOBAL es la que dice que se midió. */
+  const medidos = (...hace: number[]) =>
+    sembrar("GLOBAL", "*", Object.fromEntries(hace.map((h) => [h, 1000])));
 
-  it("mediana de los 7 días COMPLETOS: hoy no cuenta, ni lo de hace más de 7 días", async () => {
+  it("mediana de los días COMPLETOS medidos: hoy no cuenta, ni lo de hace más de 7 días", async () => {
     // hace=0 es HOY (a medias): no entra. hace=8 es demasiado viejo: no entra.
+    await medidos(0, 1, 2, 3, 4, 8);
     await sembrar("CIUDAD", "2509954", { 0: 9999, 1: 10, 2: 50, 3: 20, 4: 30, 8: 9999 });
-    expect(await medianaAforo(prisma, { nivel: "CIUDAD", zona: "2509954" }, AHORA)).toBe(25);
+    expect(await medianaAforo(prisma, { nivel: "CIUDAD", zona: "2509954" }, AHORA, MIDE)).toBe(25);
   });
 
-  it("sin datos: null (no 0)", async () => {
-    expect(await medianaAforo(prisma, { nivel: "CIUDAD", zona: "1" }, AHORA)).toBeNull();
+  it("una zona con 1 visita en 7 días medidos da mediana 0 (los días sin fila cuentan como 0)", async () => {
+    // EL FALLO QUE SE CORRIGIÓ: antes solo contaban los días con fila, y esta ciudad salía con 1.
+    await medidos(1, 2, 3, 4, 5, 6, 7);
+    await sembrar("CIUDAD", "2509954", { 3: 1 });
+    expect(await medianaAforo(prisma, { nivel: "CIUDAD", zona: "2509954" }, AHORA, MIDE)).toBe(0);
   });
 
-  it("la cascada sube de nivel SOLO si no hay datos, y dice de qué nivel es la cifra", async () => {
+  it("un día SIN fila GLOBAL no se midió: no cuenta como 0, se salta", async () => {
+    // Redis caído los días 4-7: solo se midieron 1-3. La ciudad tuvo 10, 20 y 30 esos días.
+    await medidos(1, 2, 3);
+    await sembrar("CIUDAD", "2509954", { 1: 10, 2: 20, 3: 30 });
+    expect(await medianaAforo(prisma, { nivel: "CIUDAD", zona: "2509954" }, AHORA, MIDE)).toBe(20);
+  });
+
+  it("sin ningún día medido: null (no 0)", async () => {
+    expect(await medianaAforo(prisma, { nivel: "CIUDAD", zona: "1" }, AHORA, MIDE)).toBeNull();
+  });
+
+  it("antes del despliegue de P5 no se midió nada: ni un día anterior al 2026-11-07 cuenta", async () => {
+    // Filas sembradas el 2026-11-04..06 (incluido el día del despliegue, medido a medias): con el
+    // «midiendo desde» de producción, nada de eso es un día medido.
+    await medidos(1, 2, 3);
+    await sembrar("CIUDAD", "2509954", { 1: 10, 2: 20, 3: 30 });
+    expect(await medianaAforo(prisma, { nivel: "CIUDAD", zona: "2509954" }, AHORA)).toBeNull();
+    const dia8 = new Date("2026-11-08T12:00:00.000Z");
+    expect(
+      await medianaAforo(prisma, { nivel: "CIUDAD", zona: "2509954" }, dia8),
+      "el 2026-11-06 está medido a medias: tampoco entra",
+    ).toBeNull();
+  });
+
+  it("varias zonas a la vez dan lo mismo que una a una", async () => {
+    await medidos(1, 2, 3);
+    await sembrar("CIUDAD", "1", { 1: 5, 2: 7, 3: 9 });
+    await sembrar("CIUDAD", "2", { 2: 4 });
+    const m = await medianasAforo(prisma, "CIUDAD", ["1", "2", "3"], AHORA, MIDE);
+    expect(Object.fromEntries(m)).toEqual({ "1": 7, "2": 0, "3": 0 });
+  });
+
+  it("la cascada sube de nivel si no hay tráfico (null o 0), y dice de qué nivel es la cifra", async () => {
+    await medidos(1, 2, 3);
     await sembrar("PAIS", "CO", { 1: 300, 2: 310, 3: 290 });
     const local = [
       { nivel: "CIUDAD" as const, zona: "3674962" },
       { nivel: "ESTADO" as const, zona: "CO.02" },
       { nivel: "PAIS" as const, zona: "CO" },
     ];
-    expect(await aforoEnCascada(prisma, local, AHORA)).toEqual({
+    expect(await aforoEnCascada(prisma, local, AHORA, MIDE)).toEqual({
       nivel: "PAIS",
       zona: "CO",
       personas: 300,
     });
+    // Una visita en tres días medidos: mediana 0, y con 0 se sube igual que sin datos.
     await sembrar("CIUDAD", "3674962", { 1: 40 });
-    expect(await aforoEnCascada(prisma, local, AHORA)).toMatchObject({
+    expect(await aforoEnCascada(prisma, local, AHORA, MIDE)).toMatchObject({ nivel: "PAIS" });
+    await sembrar("CIUDAD", "3674962", { 2: 40, 3: 40 });
+    expect(await aforoEnCascada(prisma, local, AHORA, MIDE)).toMatchObject({
       nivel: "CIUDAD",
       personas: 40,
     });
-    expect(await aforoEnCascada(prisma, [{ nivel: "PAIS", zona: "XX" }], AHORA)).toBeNull();
+    expect(await aforoEnCascada(prisma, [{ nivel: "PAIS", zona: "XX" }], AHORA, MIDE)).toBeNull();
   });
 });
 
