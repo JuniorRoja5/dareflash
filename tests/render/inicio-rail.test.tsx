@@ -41,6 +41,10 @@ vi.mock("@/server/services/ranking", () => ({
 // toque la base de datos, porque la página la consulta de verdad.
 // La portada pide `portadaDestacados` (los de ESTA ventana de rotación), no la lista entera.
 vi.mock("@/server/services/boost-destacados", () => ({ portadaDestacados: async () => [] }));
+// Los huecos de publicidad de la portada (Fase 9 · P7) no son lo que este test mira (el rail): fuera,
+// igual que el resto de bloques. `headers` se simula porque la página lo lee para un invitado.
+vi.mock("@/server/services/publicidad-entrega", () => ({ piezaDePortada: async () => null }));
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("next/link", async () => {
   const { createElement } = await import("react");
   return { default: (props: Record<string, unknown>) => createElement("a", props) };

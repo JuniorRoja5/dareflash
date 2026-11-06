@@ -17,6 +17,9 @@ export const dynamic = "force-dynamic";
 const QuerySchema = z.object({
   cursor: z.string().min(1).max(80).optional(),
   limit: z.coerce.number().int().min(1).max(50).optional(),
+  // Cuántos vídeos se habían enseñado ya (Fase 9 · P7): decide dónde caen los huecos de publicidad
+  // de esta página. Lo manda el cliente y NO autoriza nada: mentir aquí solo mueve un hueco de sitio.
+  desde: z.coerce.number().int().min(0).max(100_000).optional(),
 });
 
 /**
@@ -29,6 +32,7 @@ export async function GET(req: Request) {
   const parsed = QuerySchema.safeParse({
     cursor: url.searchParams.get("cursor") ?? undefined,
     limit: url.searchParams.get("limit") ?? undefined,
+    desde: url.searchParams.get("desde") ?? undefined,
   });
   if (!parsed.success) return apiError("BAD_REQUEST", "Parámetros de feed inválidos.", 400);
 
@@ -49,7 +53,16 @@ export async function GET(req: Request) {
       firmar: firmarReproduccion,
       userId: usuario?.userId ?? null,
     });
-    return apiOk({ items, nextCursor });
+    // LA PUBLICIDAD DE ESTA PÁGINA (Fase 9 · P7). Nunca tumba el feed: si falla, la página sale sin
+    // huecos. Al VIP no le toca ninguno (`espectadorDeLaPeticion` devuelve null).
+    const { piezasDelFeed } = await import("@/server/services/publicidad-entrega");
+    const piezas = await piezasDelFeed(prisma, {
+      sesion: usuario,
+      ip: req.headers.get("x-real-ip"),
+      desde: parsed.data.desde ?? 0,
+      videoIds: items.map((p) => p.id),
+    });
+    return apiOk({ items, nextCursor, piezas });
   } catch (e) {
     console.error("[api/feed] fallo construyendo el feed:", sanearError(e));
     return apiError("FEED_FAILED", "No se pudo cargar el feed. Reintenta.", 502);

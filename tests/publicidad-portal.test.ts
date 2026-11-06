@@ -7,13 +7,14 @@
  *     un parámetro obligatorio no. Y ninguna página ni ruta de la publicidad saca el `empresaId` de
  *     la petición: todos vienen del ámbito del chokepoint. Se ENUMERAN los ficheros (no los que
  *     alguien recuerde), que es lo que falló con el auto-oculto.
- *  2. EL AVISO QUE CADUCA. En P6 las campañas no salen en el feed, y el portal lo dice
- *     (`MSG_PUBLICIDAD_AUN_NO_SALE`). El día que el feed empiece a servir publicidad (P7), la frase
- *     tiene que irse en esa misma pieza: si el feed ya usa la cascada del reparto y la frase sigue,
- *     esto se pone rojo. Un «todavía no» que sobrevive a su fase es una mentira con fecha.
+ *  2. LOS AVISOS QUE CADUCAN. En P6 el portal decía que la publicidad aún no salía
+ *     (`MSG_PUBLICIDAD_AUN_NO_SALE`); desde P7 el feed la sirve y esa frase se fue. Ahora dice que los
+ *     días no se cobran (`MSG_PUBLICIDAD_PERIODO_GRATIS`), y esa se va en cuanto exista el cobro diario
+ *     (motivo CONSUMO, P9). Un «todavía no» que sobrevive a su fase es una mentira con fecha.
  *
  * Para romperlo a propósito: hacer `empresaId?` en `pausarPublicidad` (rojo el censo); escribir
- * `body.empresaId` en la ruta (rojo); importar `elegiblesEnHueco` en el feed sin quitar la frase (rojo).
+ * `body.empresaId` en la ruta (rojo); volver a exportar MSG_PUBLICIDAD_AUN_NO_SALE (rojo); añadir
+ * "CONSUMO" a los motivos de crédito sin quitar el aviso del periodo gratis (rojo).
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -99,17 +100,20 @@ describe("el censo de aislamiento de la publicidad", () => {
   });
 });
 
-describe("el aviso de que la publicidad aún no sale", () => {
-  it("si el feed ya sirve publicidad (usa la cascada del reparto), la frase tiene que haberse ido", () => {
+describe("los avisos que caducan", () => {
+  const constantes = () => soloCodigo(leer("src", "config", "constants.ts"));
+
+  it("si el feed ya sirve publicidad, el aviso de «todavía no se muestra» tiene que haberse ido", () => {
     const feed = [
       ...ficheros(raiz("src", "app", "(app)", "feed")),
       ...ficheros(raiz("src", "components", "feed")),
       ...ficheros(raiz("src", "app", "api", "feed")),
     ];
-    const sirve = feed.some((f) => /elegiblesEnHueco/.test(soloCodigo(readFileSync(f, "utf8"))));
-    const constantes = soloCodigo(leer("src", "config", "constants.ts"));
-    const avisoVivo = /export const MSG_PUBLICIDAD_AUN_NO_SALE\b/.test(constantes);
-    // Hoy (P6): el feed no sirve y el aviso está. Cuando P7 sirva, el aviso se va con él.
+    // Servir = alguna superficie del feed pide piezas al servicio de entrega (P7).
+    const sirve = feed.some((f) =>
+      /services\/publicidad-entrega/.test(soloCodigo(readFileSync(f, "utf8"))),
+    );
+    const avisoVivo = /export const MSG_PUBLICIDAD_AUN_NO_SALE\b/.test(constantes());
     expect(
       sirve && avisoVivo,
       "el feed ya sirve publicidad: quita MSG_PUBLICIDAD_AUN_NO_SALE",
@@ -118,5 +122,20 @@ describe("el aviso de que la publicidad aún no sale", () => {
       sirve || avisoVivo,
       "ni se sirve ni se avisa: alguien quitó el aviso antes de tiempo",
     ).toBe(true);
+  });
+
+  it("el aviso del periodo gratis vive mientras no se cobre, y se va en cuanto exista el cobro (P9)", () => {
+    // El cobro diario es el motivo de crédito CONSUMO (P9). Mientras no exista, los días no se cobran
+    // y el portal tiene que decirlo; en cuanto exista, esa frase sería mentira y tiene que irse —y P9
+    // no puede cobrar los días de este periodo, ni con efecto retroactivo (lo dice la propia frase).
+    const c = constantes();
+    const razones = /RazonCreditoSchema = z\.enum\(\[([^\]]*)\]\)/.exec(c)?.[1] ?? "";
+    expect(razones, "no encuentro la unión de motivos de crédito").not.toBe("");
+    const cobra = /"CONSUMO"/.test(razones);
+    const avisoVivo = /export const MSG_PUBLICIDAD_PERIODO_GRATIS\b/.test(c);
+    expect(cobra && avisoVivo, "ya se cobra cada día: quita MSG_PUBLICIDAD_PERIODO_GRATIS").toBe(
+      false,
+    );
+    expect(cobra || avisoVivo, "ni se cobra ni se avisa del periodo gratis").toBe(true);
   });
 });

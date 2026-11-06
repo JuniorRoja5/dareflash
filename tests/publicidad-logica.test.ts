@@ -13,12 +13,16 @@ import type { Ubicacion } from "../src/lib/geo";
 import {
   type CampanaEnReparto,
   accionesPublicidad,
+  claveRotacion,
   destinoValido,
   diasSeguidos,
   elegiblesEnHueco,
+  elegirConRotacion,
+  espacioDelHueco,
   estadoVisiblePublicidad,
   estimacionDelCalendario,
   fraseSaldo,
+  huecosEnTramo,
   nivelesDeRespaldo,
   personasQueLeTocan,
   tarifaPorDia,
@@ -160,6 +164,63 @@ describe("la estimación", () => {
     expect(estimacionDelCalendario(propia, grupos, dias, porDia)).toBe(30);
     const raros = [{ ubicacion: enValencia, personas: 10 }];
     expect(estimacionDelCalendario(propia, raros, dias.slice(0, 1), () => [otra, otraDos])).toBe(3);
+  });
+});
+
+describe("el reparto (P7), simulado", () => {
+  const tres = [{ id: "c" }, { id: "a" }, { id: "b" }];
+
+  it("los huecos alternan espacio: el 1.º global, el 2.º local…", () => {
+    expect([0, 1, 2, 3].map(espacioDelHueco)).toEqual(["GLOBAL", "LOCAL", "GLOBAL", "LOCAL"]);
+  });
+
+  it("un hueco tras cada 8 vídeos, contados desde el principio del feed y no por página", () => {
+    // Página 1: vídeos 0..9 → hueco tras el 7 (k=0). Página 2: vídeos 10..19 → tras el 15 (k=1), que es
+    // el 5.º de esa página. Si se contara por página, el 2.º hueco caería en otro sitio.
+    expect(huecosEnTramo(0, 10, 8)).toEqual([{ k: 0, despuesDe: 7 }]);
+    expect(huecosEnTramo(10, 10, 8)).toEqual([{ k: 1, despuesDe: 5 }]);
+    expect(huecosEnTramo(0, 7, 8)).toEqual([]);
+    expect(huecosEnTramo(0, 24, 8).map((h) => h.k)).toEqual([0, 1, 2]);
+  });
+
+  it("100.000 impresiones entre 3 campañas: cada una un tercio, ±1", () => {
+    const cuenta = new Map<string, number>();
+    for (let n = 0; n < 100_000; n += 1) {
+      const c = elegirConRotacion(tres, n)!;
+      cuenta.set(c.id, (cuenta.get(c.id) ?? 0) + 1);
+    }
+    const valores = [...cuenta.values()];
+    expect(valores).toHaveLength(3);
+    expect(Math.max(...valores) - Math.min(...valores)).toBeLessThanOrEqual(1);
+    for (const v of valores) expect(Math.abs(v - 100_000 / 3)).toBeLessThanOrEqual(1);
+  });
+
+  it("con un número que no divide, la más y la menos servida se llevan como mucho 1", () => {
+    const cinco = ["a", "b", "c", "d", "e"].map((id) => ({ id }));
+    const cuenta = new Map<string, number>();
+    for (let n = 0; n < 1_003; n += 1) {
+      const c = elegirConRotacion(cinco, n)!;
+      cuenta.set(c.id, (cuenta.get(c.id) ?? 0) + 1);
+    }
+    const v = [...cuenta.values()];
+    expect(Math.max(...v) - Math.min(...v)).toBeLessThanOrEqual(1);
+  });
+
+  it("estable: el mismo contador da la misma campaña, se pidan en el orden que se pidan", () => {
+    expect(elegirConRotacion(tres, 4)?.id).toBe(elegirConRotacion([...tres].reverse(), 4)?.id);
+  });
+
+  it("tope de frecuencia: se salta lo recién visto; si todo lo es, ninguna (no se repite el cartel)", () => {
+    expect(elegirConRotacion(tres, 0, new Set(["a"]))?.id).toBe("b");
+    expect(elegirConRotacion([{ id: "a" }], 0, new Set(["a"]))).toBeNull();
+    expect(elegirConRotacion([], 0)).toBeNull();
+  });
+
+  it("la clave del contador es el nivel de la cascada en el sitio de quien mira", () => {
+    const deCiudad = campana("x", { alcance: "CIUDAD", ciudades: [VALENCIA] });
+    const global = campana("g", { alcance: "GLOBAL" });
+    expect(claveRotacion("LOCAL", enValencia, [deCiudad])).toBe(`LOCAL:CIUDAD:${VALENCIA}`);
+    expect(claveRotacion("GLOBAL", enValencia, [global])).toBe("GLOBAL:GLOBAL");
   });
 });
 

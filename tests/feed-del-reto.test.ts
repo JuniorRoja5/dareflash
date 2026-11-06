@@ -134,7 +134,9 @@ describe("deslizar no puede salir del reto", () => {
     const componente = src.slice(src.indexOf("export function FeedVertical"));
     // Un `fetch` cableado dentro sacaría al usuario del reto en cuanto pagine.
     expect(componente).not.toContain("/api/feed");
-    expect(componente).toContain("fuente.siguientePagina(cursor)");
+    // Desde P7 la fuente recibe también cuántos vídeos se han enseñado (para colocar los huecos de
+    // publicidad del feed global); lo que se fija sigue siendo lo mismo: pagina SOLO por su fuente.
+    expect(componente).toContain("fuente.siguientePagina(cursor, posts.length)");
   });
 
   it("el detalle abre el feed con la fuente del RETO, no con la global", () => {

@@ -2535,13 +2535,14 @@ export const ETIQUETA_ESTADO_PUBLICIDAD: Record<EstadoVisiblePublicidad, string>
 };
 
 /**
- * LA FRASE de cada estado. P6 deja las campañas OCUPANDO calendario pero todavía no se sirven (eso es
- * P7): por eso ninguna frase promete que «se está viendo». Cuando P7 sirva, esta tabla cambia con él.
+ * LA FRASE de cada estado. Desde P7 las campañas activas SE SIRVEN (feed y portada), así que ACTIVA ya
+ * puede decir que se está mostrando. Lo que no promete es CUÁNTO: eso es la estimación, y las métricas
+ * llegan en P10.
  */
 export const MSG_ESTADO_PUBLICIDAD: Record<EstadoVisiblePublicidad, string> = {
   BORRADOR: "Todavía no ocupa ningún día. Actívala o prográmala cuando quieras.",
-  PROGRAMADA: "Tiene sus días reservados y empieza en la fecha indicada.",
-  ACTIVA: "Está dentro de sus días contratados.",
+  PROGRAMADA: "Tiene sus días reservados y empieza a mostrarse en la fecha indicada.",
+  ACTIVA: "Se está mostrando en su zona, en el feed y en la portada.",
   FINALIZADA: "Ya pasaron sus días contratados.",
   PAUSADA: "La has pausado. Sus días por venir quedaron libres para otras campañas.",
   TERMINADA: "La terminaste antes de tiempo. Sus días por venir quedaron libres.",
@@ -2589,10 +2590,6 @@ export const PUBLICIDAD_IMAGEN_MAX_LADO = 1080;
 /** Página de la lista de campañas del portal. */
 export const PUBLICIDAD_PAGINA = 25;
 
-/**
- * LA LÍNEA QUE HACE HONESTA LA RESERVA: el saldo se COMPRUEBA al reservar, pero no se RETIENE —retener
- * sería un segundo saldo, y dos saldos acaban discrepando—. La consecuencia se dice, no se esconde.
- */
 export const ETIQUETA_ALCANCE_PUBLICIDAD: Record<AlcancePublicidad, string> = {
   CIUDAD: "Una ciudad y alrededores",
   ESTADO: "Una región entera",
@@ -2601,15 +2598,82 @@ export const ETIQUETA_ALCANCE_PUBLICIDAD: Record<AlcancePublicidad, string> = {
 };
 
 /**
- * LO QUE TODAVÍA NO PASA, DICHO. En P6 las campañas se crean y reservan sus días, pero el feed aún no
- * las enseña (P7) ni se cobra ningún día (P9). Prometer «tu anuncio ya se ve» sería mentir; callarlo
- * sería peor. Esta frase se quita EN LA MISMA PIEZA que haga salir la publicidad (lo vigila un test).
+ * EL PERIODO GRATIS, DICHO (de P7 a P9). Desde P7 las campañas se MUESTRAN, pero el cobro diario es P9:
+ * mientras tanto, ningún día se descuenta. Callarlo dejaría a la empresa sin saber qué pasa con su saldo.
+ *
+ * ┌─ Y LOS DÍAS DE ESTE PERIODO NO SE COBRAN NUNCA ─────────────────────────────────────────────────┐
+ * │ Tampoco con efecto retroactivo cuando llegue el cobro: P9 empieza a cobrar desde su despliegue, │
+ * │ y NO se «pone al día» descontando los días que ya se mostraron. Es la promesa que hace esta     │
+ * │ frase, y P9 tiene que cumplirla. Un test obliga a quitar la frase en cuanto exista el motivo de │
+ * │ crédito CONSUMO (P9), para que no sobreviva a su fase.                                          │
+ * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
  */
-export const MSG_PUBLICIDAD_AUN_NO_SALE =
-  "La publicidad todavía no se muestra en el feed: estamos terminando los espacios. Ya puedes preparar y reservar tus campañas, y no se descuenta ningún crédito hasta que empiecen a mostrarse.";
+export const MSG_PUBLICIDAD_PERIODO_GRATIS =
+  "Tus campañas ya se muestran. Mientras terminamos el cobro diario, los días no se descuentan de tu saldo, y los que se muestren en este tiempo no se cobrarán nunca.";
 
+/**
+ * LA LÍNEA QUE HACE HONESTA LA RESERVA: el saldo se COMPRUEBA al reservar, pero no se RETIENE —retener
+ * sería un segundo saldo, y dos saldos acaban discrepando—. Sin la parte de «se descuentan cada día»
+ * mientras dura el periodo gratis (sería falsa); P9 la recupera.
+ */
 export const MSG_SALDO_NO_RETENIDO =
-  "Comprobamos que tienes créditos de publicidad para todos los días, pero no los apartamos: se descuentan cada día de campaña. Si cuando llegue un día no te quedan, la campaña se pausa.";
+  "Comprobamos que tienes créditos de publicidad para todos los días de la campaña, pero no los apartamos: otra campaña puede contar con los mismos.";
+
+// ----------------------------------------------------------------------------
+// LA ENTREGA DE LA PUBLICIDAD (Fase 9 · P7): huecos, rotación y el anuncio de la casa.
+// ----------------------------------------------------------------------------
+
+/**
+ * UN HUECO DE PUBLICIDAD CADA N VÍDEOS del feed, alternando espacio (1.º global, 2.º local…). Es el
+ * parámetro que más se va a tocar, por eso es una constante y no un número en la consulta del feed.
+ */
+export const PUBLICIDAD_CADA_N_ITEMS = 8;
+
+/**
+ * TOPE DE FRECUENCIA: la misma campaña no sale dos veces en los N huecos siguientes al mismo espectador.
+ * Con una sola campaña elegible, el hueco se queda sin ella (mejor que repetir el cartel).
+ */
+export const PUBLICIDAD_TOPE_FRECUENCIA = 3;
+/** Cuánto recuerda Redis lo que alguien acaba de ver (por sesión: perderlo no rompe nada). */
+export const PUBLICIDAD_RECIENTES_TTL_S = 30 * 60;
+/** El anuncio de la casa en el FEED: como mucho una vez cada tanto por persona (≈ una sesión). */
+export const PUBLICIDAD_CASA_FEED_TTL_S = 12 * 60 * 60;
+/** Lo que se cachea en cada proceso la lista de campañas de hoy (pausar o suspender tarda esto, como mucho). */
+export const PUBLICIDAD_CACHE_HOY_MS = 60_000;
+
+/**
+ * LA ETIQUETA DE CADA PIEZA, SIEMPRE A LA VISTA. Una campaña es publicidad de un tercero: «Publicidad».
+ * El anuncio de la casa no lo es —lo pone DareFlash para sí mismo—: decir «Publicidad» ahí sería
+ * disfrazarlo, así que lleva «De DareFlash».
+ */
+export const ETIQUETA_PIEZA_CAMPANA = "Publicidad";
+export const ETIQUETA_PIEZA_CASA = "De DareFlash";
+
+/**
+ * EL ANUNCIO DE LA CASA: el hueco vacío sirve para llenarse a sí mismo. Invita a anunciarse, nunca vende
+ * VIP («quita los anuncios» dentro de un anuncio se lee como presión). A una empresa —que ya está
+ * registrada— la lleva a su sección de Publicidad, no al alta.
+ */
+export const ANUNCIO_CASA: Record<
+  EspacioPublicidad,
+  { titulo: string; texto: string; cta: string }
+> = {
+  LOCAL: {
+    titulo: "¿Tienes un negocio en tu ciudad?",
+    // La cifra sale de la tarifa: si el precio de una ciudad cambia, esta frase cambia con él.
+    texto: `Anúnciate aquí y te verá la gente de tu zona. Desde ${CREDITOS_POR_DIA.CIUDAD} ${CREDITOS_POR_DIA.CIUDAD === 1 ? "crédito" : "créditos"} de publicidad al día.`,
+    cta: "Anúnciate aquí",
+  },
+  GLOBAL: {
+    titulo: "Llega a gente de todo el país",
+    texto: "Tu marca, entre los vídeos de quienes compiten en DareFlash.",
+    cta: "Anúnciate aquí",
+  },
+};
+export const ANUNCIO_CASA_DESTINO = {
+  invitado: "/empezar/empresa",
+  empresa: "/empresa/publicidad",
+} as const;
 
 // ----------------------------------------------------------------------------
 // LA PANTALLA DE ELECCION (`/empezar`). Dos caminos, y el de participante es el

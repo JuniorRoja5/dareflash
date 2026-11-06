@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Boton } from "@/components/ui/boton";
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { Tarjeta } from "@/components/ui/tarjeta";
-import { ETIQUETA_ESTADO_PUBLICIDAD, MSG_PUBLICIDAD_AUN_NO_SALE } from "@/config/constants";
+import { ETIQUETA_ESTADO_PUBLICIDAD, MSG_PUBLICIDAD_PERIODO_GRATIS } from "@/config/constants";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 import { fraseSaldo } from "@/lib/publicidad";
 
@@ -97,7 +97,7 @@ export default async function PaginaPublicidad({
         role="status"
         className="max-w-prose rounded-sm border border-line bg-surface p-3 text-sm text-text"
       >
-        {MSG_PUBLICIDAD_AUN_NO_SALE}
+        {MSG_PUBLICIDAD_PERIODO_GRATIS}
       </p>
 
       {!verificada ? (

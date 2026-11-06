@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BotonCompartir } from "@/components/ui/boton-compartir";
 import { BotonLike } from "@/components/ui/boton-like";
@@ -11,9 +11,11 @@ import { AutorFeed } from "@/components/ui/marca-boost";
 import { PildoraCategoria } from "@/components/ui/pildora";
 import { ReproductorHls } from "@/components/ui/reproductor-hls";
 import type { PostFeed } from "@/server/services/feed";
+import type { PiezaEntregada } from "@/server/services/publicidad-entrega";
 
 import { ComentariosVideo } from "./comentarios-video";
 import { formatearContador } from "./feed-datos";
+import { PiezaFeed } from "./pieza-feed";
 
 /** Iconos de accion: trazo 1.8 px, currentColor (blanco sobre video; negro dentro del circulo de VOTA). */
 function IconoAccion({ children, bold = false }: { children: ReactNode; bold?: boolean }) {
@@ -556,16 +558,32 @@ function AvisoEntrada({ texto }: { texto: string }) {
  * (votos, instante, id). El componente solo lo guarda y lo devuelve — nunca lo interpreta, que es lo
  * que permite que las dos paginaciones sean keyset sin que él se entere de la diferencia.
  */
-export interface FuenteFeed {
-  siguientePagina(cursor: string): Promise<{ items: PostFeed[]; nextCursor: string | null }>;
+/** Una pieza de publicidad y el vídeo tras el que va (Fase 9 · P7). */
+export interface PiezaColocada {
+  despuesDe: string;
+  pieza: PiezaEntregada;
 }
 
-/** Fuente GLOBAL (`/api/feed`): el feed de inicio, todos los vídeos publicados. */
+export interface FuenteFeed {
+  /** `mostrados` = vídeos ya enseñados: decide dónde caen los huecos de publicidad de la página. */
+  siguientePagina(
+    cursor: string,
+    mostrados: number,
+  ): Promise<{ items: PostFeed[]; nextCursor: string | null; piezas?: PiezaColocada[] }>;
+}
+
+/** Fuente GLOBAL (`/api/feed`): el feed de inicio, todos los vídeos publicados, CON su publicidad. */
 export const fuenteGlobal: FuenteFeed = {
-  async siguientePagina(cursor) {
-    const res = await fetch(`/api/feed?cursor=${encodeURIComponent(cursor)}`);
+  async siguientePagina(cursor, mostrados) {
+    const res = await fetch(
+      `/api/feed?cursor=${encodeURIComponent(cursor)}&desde=${Math.max(0, Math.floor(mostrados))}`,
+    );
     if (!res.ok) throw new Error("feed");
-    return (await res.json()) as { items: PostFeed[]; nextCursor: string | null };
+    return (await res.json()) as {
+      items: PostFeed[];
+      nextCursor: string | null;
+      piezas?: PiezaColocada[];
+    };
   },
 };
 
@@ -609,6 +627,7 @@ export function fuenteReto(retoId: string): FuenteFeed {
  */
 export function FeedVertical({
   postsIniciales,
+  piezasIniciales = [],
   cursorInicial,
   haySesion = false,
   emailVerificado = false,
@@ -619,6 +638,11 @@ export function FeedVertical({
   soloMirar = false,
 }: {
   postsIniciales: PostFeed[];
+  /**
+   * LA PUBLICIDAD de la primera página (Fase 9 · P7), cada pieza con el vídeo tras el que va. Solo la trae
+   * el feed global; el de un reto no lleva publicidad (deslizar dentro de un reto no puede sacarte de él).
+   */
+  piezasIniciales?: PiezaColocada[];
   /**
    * ¿La sesión SOLO MIRA? (una cuenta de empresa; la decide `soloMirar` de `lib/solo-mirar` en el
    * servidor). Sin controles de participación: like y voto pasan a ser CIFRAS de solo lectura, no
@@ -652,6 +676,30 @@ export function FeedVertical({
 }) {
   const [posts, setPosts] = useState<PostFeed[]>(postsIniciales);
   const [cursor, setCursor] = useState<string | null>(cursorInicial);
+  // ┌─ LA PUBLICIDAD SE INTERCALA SIN TOCAR LA LISTA DE VÍDEOS (Fase 9 · P7) ──────────────────────┐
+  // │ `posts` sigue siendo SOLO vídeos: todo lo que va por id (quitar uno roto, el contador de        │
+  // │ comentarios, la hoja) no se entera de que existen piezas. Las piezas viven aparte, por el vídeo │
+  // │ tras el que van, y se intercalan al pintar en `filas`. El índice ACTIVO cuenta FILAS: cuando la │
+  // │ fila activa es una pieza, ningún vídeo es el activo (así ninguno suena detrás del anuncio) y el │
+  // │ panel de comentarios sigue en el último vídeo visto. El feed de un reto no trae piezas, así que │
+  // │ ahí filas = vídeos y nada cambia.                                                              │
+  // └─────────────────────────────────────────────────────────────────────────────────────────────────┘
+  const [piezas, setPiezas] = useState<ReadonlyMap<string, PiezaEntregada>>(
+    () => new Map(piezasIniciales.map((p) => [p.despuesDe, p.pieza])),
+  );
+  const filas = useMemo(
+    () =>
+      posts.flatMap((post) => {
+        const pieza = piezas.get(post.id);
+        return pieza
+          ? [
+              { tipo: "post" as const, post },
+              { tipo: "pieza" as const, pieza, tras: post },
+            ]
+          : [{ tipo: "post" as const, post }];
+      }),
+    [posts, piezas],
+  );
   // Arranca en el índice pedido, NO en 0: si se pusiera a 0 y luego se corrigiera, el vídeo 0
   // autoreproduciría un instante antes de saltar al que el usuario tocó.
   const [activo, setActivo] = useState(indiceInicial);
@@ -736,21 +784,30 @@ export function FeedVertical({
       },
       { root: columna.current, threshold: 0.6 },
     );
-    for (const s of secciones.current.slice(0, posts.length)) io.observe(s);
+    for (const s of secciones.current.slice(0, filas.length)) io.observe(s);
     return () => io.disconnect();
-  }, [posts.length]);
+  }, [filas.length]);
 
   // Paginacion: al acercarse al final (a <=2 del ultimo) y habiendo cursor, pide la siguiente pagina.
   useEffect(() => {
     if (cursor === null || cargandoRef.current) return;
-    if (activo < posts.length - 2) return;
+    if (activo < filas.length - 2) return;
     let vivo = true;
     cargandoRef.current = true;
     void (async () => {
       try {
-        const data = await fuente.siguientePagina(cursor);
+        // `posts.length` = vídeos ya enseñados: con eso el servidor sabe dónde caen los huecos.
+        const data = await fuente.siguientePagina(cursor, posts.length);
         if (!vivo) return;
         setPosts((prev) => [...prev, ...data.items]);
+        if (data.piezas && data.piezas.length > 0) {
+          const nuevas = data.piezas;
+          setPiezas((prev) => {
+            const m = new Map(prev);
+            for (const p of nuevas) m.set(p.despuesDe, p.pieza);
+            return m;
+          });
+        }
         setCursor(data.nextCursor);
       } catch {
         /* fallo de red: se reintentara al seguir desplazandose */
@@ -761,7 +818,7 @@ export function FeedVertical({
     return () => {
       vivo = false;
     };
-  }, [activo, cursor, posts.length, fuente]);
+  }, [activo, cursor, posts.length, filas.length, fuente]);
 
   // Un vídeo cuyo objeto ya no existe (404/410) se retira del scroll: no debe ocupar un slide roto.
   // Esto es robustez de cliente, NO moderación (Fase 5: el servidor filtra los REMOVED del feed).
@@ -803,7 +860,7 @@ export function FeedVertical({
   }, [videoAncla]);
 
   const irA = (i: number): void => {
-    const dest = Math.max(0, Math.min(posts.length - 1, i));
+    const dest = Math.max(0, Math.min(filas.length - 1, i));
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     secciones.current[dest]?.scrollIntoView({
       behavior: reduce ? "auto" : "smooth",
@@ -821,35 +878,45 @@ export function FeedVertical({
           ref={columna}
           className="h-[100svh] snap-y snap-mandatory overflow-y-auto overscroll-y-contain"
         >
-          {posts.map((post, i) => (
-            <PostInicio
-              key={post.id}
-              post={post}
-              alRef={(el) => {
-                if (el) secciones.current[i] = el;
-              }}
-              haySesion={haySesion}
-              emailVerificado={emailVerificado}
-              muted={mutedEfectivo}
-              mostrarHint={mostrarHintSonido}
-              esActivo={i === activo}
-              onToggleSilencio={(estabaMudo) => {
-                // Decide según el SNAPSHOT (lo que el usuario VEÍA al pulsar), no según el estado ya
-                // cambiado por el unlock: si estaba mudo, quiere sonido (desbloquea + preferencia = sonido);
-                // si sonaba, mutea (opt-in).
-                if (estabaMudo) {
-                  setAudioDesbloqueado(true);
-                  setSilenciado(false);
-                  activarSonidoVideoActivo(); // IN-STACK: suena ya, no espera al efecto async del player
-                } else {
-                  setSilenciado(true);
-                }
-              }}
-              onNoDisponible={() => quitarPost(post.id)}
-              onComentar={() => abrirComentarios(post.id)}
-              soloMirar={soloMirar}
-            />
-          ))}
+          {filas.map((fila, i) =>
+            fila.tipo === "pieza" ? (
+              <PiezaFeed
+                key={`pieza-${fila.tras.id}`}
+                pieza={fila.pieza}
+                alRef={(el) => {
+                  if (el) secciones.current[i] = el;
+                }}
+              />
+            ) : (
+              <PostInicio
+                key={fila.post.id}
+                post={fila.post}
+                alRef={(el) => {
+                  if (el) secciones.current[i] = el;
+                }}
+                haySesion={haySesion}
+                emailVerificado={emailVerificado}
+                muted={mutedEfectivo}
+                mostrarHint={mostrarHintSonido}
+                esActivo={i === activo}
+                onToggleSilencio={(estabaMudo) => {
+                  // Decide según el SNAPSHOT (lo que el usuario VEÍA al pulsar), no según el estado ya
+                  // cambiado por el unlock: si estaba mudo, quiere sonido (desbloquea + preferencia = sonido);
+                  // si sonaba, mutea (opt-in).
+                  if (estabaMudo) {
+                    setAudioDesbloqueado(true);
+                    setSilenciado(false);
+                    activarSonidoVideoActivo(); // IN-STACK: suena ya, no espera al efecto async del player
+                  } else {
+                    setSilenciado(true);
+                  }
+                }}
+                onNoDisponible={() => quitarPost(fila.post.id)}
+                onComentar={() => abrirComentarios(fila.post.id)}
+                soloMirar={soloMirar}
+              />
+            ),
+          )}
         </div>
 
         {/* Flechas de navegación — solo escritorio, ancladas al borde derecho de SU columna. */}
@@ -858,14 +925,22 @@ export function FeedVertical({
           <Flecha
             dir="down"
             onClick={() => irA(activo + 1)}
-            disabled={activo >= posts.length - 1}
+            disabled={activo >= filas.length - 1}
           />
         </div>
       </div>
 
       {posts.length > 0
         ? (() => {
-            const post = posts[activo] ?? posts[0]!;
+            // El vídeo de la fila activa; si la activa es una pieza, el vídeo tras el que va (el
+            // último que se vio): el panel no se queda vacío ni salta a otro vídeo.
+            const fila = filas[activo];
+            const post =
+              (fila?.tipo === "post"
+                ? fila.post
+                : fila?.tipo === "pieza"
+                  ? fila.tras
+                  : undefined) ?? posts[0]!;
             return (
               <PanelComentarios
                 post={post}

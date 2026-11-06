@@ -47,14 +47,15 @@ export default async function FeedPage({
   // EL AFORO POR ZONA (Fase 9 · P5): cuenta a esta persona en su ciudad, estado, país y global. SIN
   // `await` y sin poder lanzar: el feed no espera a contar. La IP solo de X-Real-IP (la fija Caddy).
   const { contarVisitaEnAforo } = await import("@/server/geo/visita");
+  // La IP solo hace falta para un INVITADO (con sesión, la ubicación ya está en la fila de la sesión).
+  const ip = usuario ? null : (await headers()).get("x-real-ip")?.trim() || null;
   if (usuario) {
     void contarVisitaEnAforo(prisma, {
       userId: usuario.userId,
       ubicacion: usuario.ubicacion ?? UBICACION_DESCONOCIDA,
     });
-  } else {
-    const ip = (await headers()).get("x-real-ip")?.trim();
-    if (ip) void contarVisitaEnAforo(prisma, { ip });
+  } else if (ip) {
+    void contarVisitaEnAforo(prisma, { ip });
   }
   const [pagina, destino] = await Promise.all([
     feedPublicado(prisma, { firmar: firmarReproduccion, userId }),
@@ -77,9 +78,20 @@ export default async function FeedPage({
     );
   }
 
+  // LA PUBLICIDAD DE LA PRIMERA PÁGINA (Fase 9 · P7): la misma puerta que las siguientes
+  // (`/api/feed`), desde el vídeo 0. Al VIP no le toca ninguna; si algo falla, la página sale sin ella.
+  const { piezasDelFeed } = await import("@/server/services/publicidad-entrega");
+  const piezas = await piezasDelFeed(prisma, {
+    sesion: usuario,
+    ip,
+    desde: 0,
+    videoIds: items.map((p) => p.id),
+  });
+
   return (
     <FeedVertical
       postsIniciales={items}
+      piezasIniciales={piezas}
       cursorInicial={pagina.nextCursor}
       haySesion={haySesion}
       emailVerificado={usuario?.emailVerified != null}

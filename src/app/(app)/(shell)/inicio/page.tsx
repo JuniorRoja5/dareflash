@@ -9,6 +9,7 @@ import {
 import { Boton } from "@/components/ui/boton";
 import { FilaPuesto } from "@/components/ui/fila-puesto";
 import { FondoVideo } from "@/components/ui/fondo-video";
+import { PiezaPortada } from "@/components/ui/pieza-portada";
 import { ctaPrincipal } from "@/lib/cta-principal";
 import { soloMirar } from "@/lib/solo-mirar";
 
@@ -55,6 +56,17 @@ export default async function InicioPage() {
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
   const cta = ctaPrincipal(sesion?.role ?? null, sesion?.esCuentaEmpresa ?? false);
+
+  // LOS DOS HUECOS DE PUBLICIDAD (Fase 9 · P7): Espacio 1 (global/país) y Espacio 2 (local). Se rellenan
+  // siempre —una campaña o el anuncio de la casa— salvo para un VIP (null: no ve publicidad). En serie y
+  // no a la vez: el tope de frecuencia tiene que ver la primera elección antes de la segunda. El rediseño
+  // completo de la portada es P13; aquí solo entran los huecos.
+  const { piezaDePortada } = await import("@/server/services/publicidad-entrega");
+  const { headers } = await import("next/headers");
+  // La IP solo hace falta para un INVITADO (con sesión, su ubicación sale de la fila de la sesión).
+  const ip = sesion ? null : (await headers()).get("x-real-ip");
+  const espacio1 = await piezaDePortada(prisma, { sesion, ip, espacio: "GLOBAL" });
+  const espacio2 = await piezaDePortada(prisma, { sesion, ip, espacio: "LOCAL" });
 
   return (
     <>
@@ -132,6 +144,13 @@ export default async function InicioPage() {
           <BoostDestacados perfiles={destacados} soloMirar={soloMirar(sesion)} />
         </div>
 
+        {/* ESPACIO 1 — publicidad global o de su país (o la casa). Ancho, entre bloques. */}
+        {espacio1 ? (
+          <div className="df-rise mt-12 lg:mt-16" style={{ animationDelay: "110ms" }}>
+            <PiezaPortada pieza={espacio1} />
+          </div>
+        ) : null}
+
         {/* MURO de retos + rail de ranking */}
         <div
           className="df-rise mt-12 grid gap-8 lg:mt-16 lg:grid-cols-3"
@@ -185,6 +204,12 @@ export default async function InicioPage() {
                 ))
               )}
             </div>
+            {/* ESPACIO 2 — publicidad de su ciudad o región (o la casa), en el rail. */}
+            {espacio2 ? (
+              <div className="mt-6">
+                <PiezaPortada pieza={espacio2} compacta />
+              </div>
+            ) : null}
           </aside>
         </div>
       </div>

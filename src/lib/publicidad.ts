@@ -208,6 +208,78 @@ export function elegiblesEnHueco<C extends CampanaEnReparto>(
 }
 
 // ---------------------------------------------------------------------------------------------------
+// El reparto (§3.1, §3.3, §3.6) — puro, para poder simularlo
+// ---------------------------------------------------------------------------------------------------
+
+/**
+ * EL ESPACIO DE CADA HUECO: alternan, el 1.º (k = 0) global, el 2.º local… Así cada espacio se lleva la
+ * mitad del inventario sea cual sea la demanda del otro, que es lo que hace que «dos espacios separados»
+ * signifique algo.
+ */
+export function espacioDelHueco(k: number): EspacioPublicidad {
+  return k % 2 === 0 ? "GLOBAL" : "LOCAL";
+}
+
+/**
+ * LOS HUECOS QUE CAEN EN UN TRAMO DEL FEED: un hueco después de cada `cadaN` vídeos, contando desde el
+ * principio del feed. `desde` es cuántos vídeos se habían enseñado antes de esta página y `cuantos` los
+ * de la página. Devuelve el número de hueco (para su espacio) y tras qué vídeo DE LA PÁGINA va.
+ */
+export function huecosEnTramo(
+  desde: number,
+  cuantos: number,
+  cadaN: number,
+): { k: number; despuesDe: number }[] {
+  const huecos: { k: number; despuesDe: number }[] = [];
+  const inicio = Math.max(0, Math.floor(desde));
+  for (let i = inicio; i < inicio + cuantos; i += 1) {
+    if ((i + 1) % cadaN === 0) huecos.push({ k: (i + 1) / cadaN - 1, despuesDe: i - inicio });
+  }
+  return huecos;
+}
+
+/**
+ * LA CLAVE DEL CONTADOR DE ROTACIÓN: el nivel de la cascada que dio las elegibles, en el sitio de quien
+ * mira. Todas las personas de la misma ciudad comparten contador para el hueco local, y por eso «de las
+ * 120 vistas locales de Medellín de ayer, 40 fueron de cada una» se puede afirmar, no estimar.
+ */
+export function claveRotacion(
+  espacio: EspacioPublicidad,
+  espectador: Ubicacion,
+  elegibles: readonly CampanaEnReparto[],
+): string {
+  const nivel = elegibles[0]?.alcance;
+  if (nivel === "CIUDAD") return `${espacio}:CIUDAD:${espectador.ciudadId}`;
+  if (nivel === "ESTADO") return `${espacio}:ESTADO:${espectador.estadoCodigo}`;
+  if (nivel === "PAIS") return `${espacio}:PAIS:${espectador.paisIso}`;
+  return `${espacio}:GLOBAL`;
+}
+
+/**
+ * ELIGE UNA CAMPAÑA DEL CONJUNTO ELEGIBLE: rotación estable con pesos iguales (todas pagaron lo mismo por
+ * ese día), con el contador del DÍA —no de una ventana corta: con menos de una impresión por ventana, el
+ * redondeo dominaría y el reparto no convergería nunca—. El conjunto se ordena por id para que el mismo
+ * contador dé siempre la misma campaña.
+ *
+ * TOPE DE FRECUENCIA: se salta lo que esta persona vio en sus últimos huecos (`recientes`), probando la
+ * siguiente de la rotación; si todas son recientes, ninguna (`null`: el hueco no repite cartel).
+ */
+export function elegirConRotacion<C extends { id: string }>(
+  elegibles: readonly C[],
+  contador: number,
+  recientes: ReadonlySet<string> = new Set(),
+): C | null {
+  if (elegibles.length === 0) return null;
+  const orden = [...elegibles].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const base = ((contador % orden.length) + orden.length) % orden.length;
+  for (let paso = 0; paso < orden.length; paso += 1) {
+    const c = orden[(base + paso) % orden.length]!;
+    if (!recientes.has(c.id)) return c;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------------------------------
 // La estimación (§3.5 bis)
 // ---------------------------------------------------------------------------------------------------
 
