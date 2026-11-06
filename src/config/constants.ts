@@ -2659,6 +2659,16 @@ export const CREDITOS_POR_DIA: Record<AlcancePublicidad, number> = {
 };
 
 /**
+ * QUÉ ES UN CRÉDITO, dicho junto al saldo (portal y panel). Antes ponía «cada crédito es un día de
+ * anuncio», que solo es cierto en una ciudad: desde que se cobra cada día (P9), al lado de un «−15» de
+ * una campaña global se leía como un error. Se CALCULA de la tabla: subir un precio no la deja mintiendo.
+ */
+export function fraseQueEsUnCredito(): string {
+  const { CIUDAD, GLOBAL } = CREDITOS_POR_DIA;
+  return `Un día de campaña cuesta ${CIUDAD} ${CIUDAD === 1 ? "crédito" : "créditos"} en una ciudad y ${GLOBAL} en todo el mundo, y se descuenta cada día que se muestra.`;
+}
+
+/**
  * Un negocio ONLINE puede comprar VARIOS países: `CREDITOS_POR_DIA.PAIS` por país y día, con TOPE en
  * el de Global (a partir de `PUBLICIDAD_PAISES_AVISO_GLOBAL` países, Global sale igual o mejor, y la
  * pantalla lo dice). El máximo de países existe para que una campaña no ocupe plaza en medio mundo

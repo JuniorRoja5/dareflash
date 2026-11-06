@@ -9,6 +9,7 @@ import {
   ETIQUETA_TIPO_NEGOCIO,
   MSG_ESTADO_EMPRESA,
   MSG_MOTIVO_RECHAZO_EMPRESA,
+  fraseQueEsUnCredito,
 } from "@/config/constants";
 import { nombrePais } from "@/lib/paises";
 
@@ -103,7 +104,7 @@ export default async function PaginaMiEmpresa() {
           }
           pie={
             <>
-              Cada crédito es un día de anuncio.
+              {fraseQueEsUnCredito()}
               <Link href="/empresa/creditos" className={`mt-1 block ${ENLACE}`}>
                 Ver movimientos
               </Link>

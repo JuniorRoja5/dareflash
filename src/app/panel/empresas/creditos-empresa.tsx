@@ -3,7 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { AJUSTE_CREDITOS_DELTA_MAX, AJUSTE_NOTA_MAX, AJUSTE_NOTA_MIN } from "@/config/constants";
+import {
+  AJUSTE_CREDITOS_DELTA_MAX,
+  AJUSTE_NOTA_MAX,
+  AJUSTE_NOTA_MIN,
+  fraseQueEsUnCredito,
+} from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import type { MovimientoCreditoPanel } from "@/server/services/creditos";
 
@@ -106,7 +111,7 @@ export function CreditosEmpresa({
           Saldo: <span className="font-semibold">{creditos(saldo)}</span>
         </p>
       </div>
-      <p className="mt-1 text-2xs text-text-dim">Cada crédito es un día de anuncio.</p>
+      <p className="mt-1 text-2xs text-text-dim">{fraseQueEsUnCredito()}</p>
 
       {movimientos.length > 0 ? (
         <ul className="mt-3 divide-y divide-line text-sm">

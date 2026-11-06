@@ -1,6 +1,7 @@
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { TarjetaMetrica } from "@/components/ui/tarjeta-metrica";
+import { fraseQueEsUnCredito } from "@/config/constants";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 
 import { ambitoDelPortal } from "../ambito-portal";
@@ -50,7 +51,7 @@ export default async function PaginaCreditos({
       <div>
         <h1 className="text-2xl text-text">Créditos de publicidad</h1>
         <p className="mt-1 max-w-prose text-sm text-text-dim">
-          Cada crédito es un día de anuncio. Aquí tienes todos tus movimientos.
+          {fraseQueEsUnCredito()} Aquí tienes todos tus movimientos.
         </p>
       </div>
 

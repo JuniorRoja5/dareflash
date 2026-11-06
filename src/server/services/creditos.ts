@@ -304,6 +304,20 @@ export async function saldoCreditosEmpresa(db: Db, empresaId: string): Promise<n
   return e?.creditosSaldo ?? 0;
 }
 
+/**
+ * EL CONCEPTO DE UN MOVIMIENTO: por su MOTIVO (nunca por la nota, que es del equipo) y, si es el cobro o
+ * la devolución de un día (P9), con el nombre de SU campaña: con varias en marcha, «Un día de campaña»
+ * a secas no le dice a la empresa cuál le ha costado ese día.
+ */
+function conceptoDe(
+  reason: string,
+  campana: string | null | undefined,
+  sinEtiqueta: string,
+): string {
+  const etiqueta = ETIQUETA_MOVIMIENTO_CREDITO[reason as RazonCredito] ?? sinEtiqueta;
+  return campana ? `${etiqueta} · «${campana}»` : etiqueta;
+}
+
 /** SUS créditos: el saldo y su historial por KEYSET. El `empresaId` sale del chokepoint. */
 export async function misCreditos(
   db: Db,
@@ -316,7 +330,13 @@ export async function misCreditos(
       where: conKeysetTiempo({ empresaId }, decodificarCursorTiempo(opciones.cursor)),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: CREDITOS_PAGINA + 1,
-      select: { id: true, delta: true, reason: true, createdAt: true },
+      select: {
+        id: true,
+        delta: true,
+        reason: true,
+        createdAt: true,
+        publicidad: { select: { nombre: true } },
+      },
     }),
   ]);
   const hayMas = filas.length > CREDITOS_PAGINA;
@@ -327,7 +347,7 @@ export async function misCreditos(
     movimientos: pagina.map((f) => ({
       id: f.id,
       delta: f.delta,
-      concepto: ETIQUETA_MOVIMIENTO_CREDITO[f.reason as RazonCredito] ?? "Movimiento",
+      concepto: conceptoDe(f.reason, f.publicidad?.nombre, "Movimiento"),
       creadoMs: f.createdAt.getTime(),
     })),
     nextCursor:
@@ -360,7 +380,14 @@ export async function creditosDeFicha(
       where: { empresaId },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 10,
-      select: { id: true, delta: true, reason: true, nota: true, createdAt: true },
+      select: {
+        id: true,
+        delta: true,
+        reason: true,
+        nota: true,
+        createdAt: true,
+        publicidad: { select: { nombre: true } },
+      },
     }),
   ]);
   return {
@@ -368,7 +395,7 @@ export async function creditosDeFicha(
     movimientos: filas.map((f) => ({
       id: f.id,
       delta: f.delta,
-      concepto: ETIQUETA_MOVIMIENTO_CREDITO[f.reason as RazonCredito] ?? f.reason,
+      concepto: conceptoDe(f.reason, f.publicidad?.nombre, f.reason),
       nota: f.nota,
       creadoMs: f.createdAt.getTime(),
     })),

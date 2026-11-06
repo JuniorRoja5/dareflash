@@ -142,6 +142,17 @@ describe("el barrido cobra HOY, una vez", () => {
     ]);
   });
 
+  it("en su historial, el cobro dice de QUÉ campaña es (con varias, «un día» a secas no sirve)", async () => {
+    const { misCreditos } = await import("../src/server/services/creditos");
+    const e = await unaEmpresa();
+    await unaCampana(e, { nombre: "Desayunos" });
+    await unaCampana(e, { nombre: "Meriendas" });
+    await barrer(DIA2);
+    const conceptos = (await misCreditos(prisma, e)).movimientos.map((m) => m.concepto);
+    expect(conceptos).toContain("Un día de campaña · «Desayunos»");
+    expect(conceptos).toContain("Un día de campaña · «Meriendas»");
+  });
+
   it("NUNCA UN ANUNCIO SERVIDO SIN COBRAR: hasta que el barrido cobra el día, no sale", async () => {
     const e = await unaEmpresa();
     const id = await unaCampana(e);
