@@ -813,12 +813,17 @@ async function nombresDeEstados(db: Db, codigos: readonly string[]): Promise<Map
   return new Map(filas.map((f) => [f.estadoCodigo ?? "", f.estadoNombre ?? f.estadoCodigo ?? ""]));
 }
 
+/**
+ * LA ZONA EN HUMANO, sin ambigüedad: en GeoNames la ciudad y su región se llaman a menudo igual
+ * («Valencia», «Valencia»), y una lista que dice «Valencia» en dos campañas distintas obliga a abrir las
+ * dos para saber cuál es la región. Por eso cada alcance lleva su apellido.
+ */
 function zonaLegible(f: FilaCampana, estados: Map<string, string>): string {
   switch (f.alcance as AlcancePublicidad) {
     case "CIUDAD":
-      return [f.ciudad?.nombre, f.ciudad?.estadoNombre].filter(Boolean).join(", ") + " · 100 km";
+      return `${f.ciudad?.nombre ?? "Ciudad"} y 100 km alrededor`;
     case "ESTADO":
-      return estados.get(f.estadoCodigo ?? "") ?? f.estadoCodigo ?? "";
+      return `${estados.get(f.estadoCodigo ?? "") ?? f.estadoCodigo ?? ""} (toda la región)`;
     case "PAIS":
       return f.paises.map((p) => nombrePais(p.paisIso)).join(", ");
     case "GLOBAL":

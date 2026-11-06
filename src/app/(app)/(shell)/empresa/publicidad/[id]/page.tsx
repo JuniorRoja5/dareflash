@@ -20,7 +20,9 @@ export const metadata = { title: "Campaña · DareFlash" };
 // Lee la sesión, la campaña y el aforo: por petición.
 export const dynamic = "force-dynamic";
 
-const FECHA = { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" } as const;
+const FECHA = { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" } as const;
+/** Sin año: el tramo «6 nov – 12 nov 2026» lo dice una vez y cabe en una línea a 390. */
+const SIN_ANO = { day: "numeric", month: "short", timeZone: "UTC" } as const;
 const fecha = (ms: number) => new Date(ms).toLocaleDateString("es-ES", FECHA);
 const CABECERA = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
 const ID_VALIDO = /^[a-z0-9]{10,40}$/;
@@ -176,7 +178,7 @@ export default async function PaginaCampana({ params }: { params: Promise<{ id: 
                 <dd className="text-text tabular-nums">
                   {c.estado === "BORRADOR" || c.finMs === null
                     ? `${fecha(c.inicioMs)} · ${c.diasContratados} días`
-                    : `${fecha(c.inicioMs)} – ${fecha(c.finMs)}`}
+                    : `${new Date(c.inicioMs).toLocaleDateString("es-ES", SIN_ANO)} – ${fecha(c.finMs)}`}
                 </dd>
               </div>
               <div>
