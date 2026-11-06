@@ -10,6 +10,7 @@
  */
 import {
   AFORO_MATERIALIZAR_CADENCIA_MS,
+  PUBLICIDAD_COBRO_CADENCIA_MS,
   CONFIRM_CADENCIA_ACTIVO_MS,
   CONFIRM_CADENCIA_REPOSO_MS,
   CONFIRM_WAKE_KEY,
@@ -561,6 +562,14 @@ export interface OpcionesBucle {
    */
   materializarAforo?: (now: Date) => Promise<{ filas: number; sinRedis: boolean }>;
   /**
+   * EL COBRO DIARIO DE LA PUBLICIDAD (Fase 9 · P9, `cobrarPublicidadDeHoy`): cobra HOY a cada campaña que
+   * lo ocupa y no lo ha pagado; sin saldo la pausa y avisa. Cada `PUBLICIDAD_COBRO_CADENCIA_MS`. Sin él
+   * no se cobra, y como la entrega exige el cobro del día, tampoco se sirve publicidad.
+   */
+  cobrarPublicidad?: (
+    now: Date,
+  ) => Promise<{ revisadas: number; cobradas: number; pausadas: number; fallos: number }>;
+  /**
    * EL FICHERO DE IP (Fase 9 · P5, `revisarFicheroGeoIp`): avisa al admin, con histéresis, si falta o
    * pasa de GEOIP_DIAS_CADUCA. Una vez al día. Sin él, no se revisa.
    */
@@ -593,6 +602,7 @@ export async function bucleWorker(
   let proximoBorrados = 0;
   let proximoLogos = 0;
   let proximoAforo = 0;
+  let proximoCobro = 0;
   let proximoGeoIp = 0;
   // Arranca en 0 igual que los demas: la primera vuelta del worker recoge lo que quedara vencido
   // mientras estaba parado, sin esperar una cadencia entera.
@@ -864,6 +874,24 @@ export async function bucleWorker(
         o.log?.(`[worker] aforo: materializacion fallo (${sanearError(e)}); reintento luego.`);
       }
       proximoAforo = t.getTime() + AFORO_MATERIALIZAR_CADENCIA_MS;
+    }
+
+    // EL COBRO DIARIO DE LA PUBLICIDAD (Fase 9 · P9). Cada pocos minutos, y no una vez al día: el primer
+    // barrido tras las 00:00 UTC cobra a todas, y los siguientes recogen lo que se escapó. Solo cobra
+    // HOY (un día pasado no se sirvió sin cobro, así que no hay nada que recuperar). Se loguea solo si
+    // hizo algo: un barrido vacío cada cinco minutos sería ruido.
+    if (o.cobrarPublicidad && t.getTime() >= proximoCobro) {
+      try {
+        const r = await o.cobrarPublicidad(t);
+        if (r.cobradas > 0 || r.pausadas > 0 || r.fallos > 0) {
+          o.log?.(
+            `[worker] publicidad: cobradas=${r.cobradas} pausadas sin saldo=${r.pausadas} fallos=${r.fallos}`,
+          );
+        }
+      } catch (e) {
+        o.log?.(`[worker] publicidad: cobro fallo (${sanearError(e)}); reintento luego.`);
+      }
+      proximoCobro = t.getTime() + PUBLICIDAD_COBRO_CADENCIA_MS;
     }
 
     // EL FICHERO DE IP (Fase 9 · P5): una vez al día, avisar si falta o se quedó viejo (histéresis en

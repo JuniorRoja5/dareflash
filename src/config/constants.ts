@@ -2494,7 +2494,14 @@ export function msgSocioFundador(): string {
  * en P11, el consumo diario en P9), como los tipos de notificación: un motivo que nadie emite sería
  * una promesa que el sistema no cumple.
  */
-export const RazonCreditoSchema = z.enum(["SOCIO_FUNDADOR", "AJUSTE_ADMIN"]);
+export const RazonCreditoSchema = z.enum([
+  "SOCIO_FUNDADOR",
+  "AJUSTE_ADMIN",
+  // P9: el cobro de UN día de campaña, al empezar ese día; y su devolución si ese mismo día la pausa
+  // el umbral de denuncias o la retira el admin (ese día no se cobra).
+  "CONSUMO",
+  "DEVOLUCION",
+]);
 export type RazonCredito = z.infer<typeof RazonCreditoSchema>;
 
 /**
@@ -2504,7 +2511,22 @@ export type RazonCredito = z.infer<typeof RazonCreditoSchema>;
 export const ETIQUETA_MOVIMIENTO_CREDITO: Record<RazonCredito, string> = {
   SOCIO_FUNDADOR: "Regalo de Socio Fundador",
   AJUSTE_ADMIN: "Ajuste del equipo de DareFlash",
+  CONSUMO: "Un día de campaña",
+  DEVOLUCION: "Devolución de un día de campaña",
 };
+
+/**
+ * Dónde guarda la BASE el primer día que se cobra (P9). Lo escribe la migración del cobro con el día
+ * SIGUIENTE al despliegue: los días mostrados antes de P9 no se cobran nunca (ver `inicioDelCobro`).
+ */
+export const CLAVE_INICIO_COBRO_PUBLICIDAD = "publicidad.cobro-desde";
+/**
+ * Cada cuánto busca el worker campañas que salen hoy sin haber pagado el día. El cobro es «al empezar el
+ * día»: a las 00:00 UTC el primer barrido cobra todas; los siguientes recogen lo que faltó (un worker
+ * caído, un reintento). Mientras una campaña no ha pagado hoy NO se sirve, así que esto es lo que tarda,
+ * como mucho, en salir al cambiar el día.
+ */
+export const PUBLICIDAD_COBRO_CADENCIA_MS = 5 * 60 * 1000;
 
 /**
  * Tope de un ajuste manual (en un sentido o en otro). Holgado —cubre una corrección de un trimestre
@@ -2672,26 +2694,13 @@ export const ETIQUETA_ALCANCE_PUBLICIDAD: Record<AlcancePublicidad, string> = {
 };
 
 /**
- * EL PERIODO GRATIS, DICHO (de P7 a P9). Desde P7 las campañas se MUESTRAN, pero el cobro diario es P9:
- * mientras tanto, ningún día se descuenta. Callarlo dejaría a la empresa sin saber qué pasa con su saldo.
- *
- * ┌─ Y LOS DÍAS DE ESTE PERIODO NO SE COBRAN NUNCA ─────────────────────────────────────────────────┐
- * │ Tampoco con efecto retroactivo cuando llegue el cobro: P9 empieza a cobrar desde su despliegue, │
- * │ y NO se «pone al día» descontando los días que ya se mostraron. Es la promesa que hace esta     │
- * │ frase, y P9 tiene que cumplirla. Un test obliga a quitar la frase en cuanto exista el motivo de │
- * │ crédito CONSUMO (P9), para que no sobreviva a su fase.                                          │
- * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
- */
-export const MSG_PUBLICIDAD_PERIODO_GRATIS =
-  "Tus campañas ya se muestran. Mientras terminamos el cobro diario, los días no se descuentan de tu saldo, y los que se muestren en este tiempo no se cobrarán nunca.";
-
-/**
  * LA LÍNEA QUE HACE HONESTA LA RESERVA: el saldo se COMPRUEBA al reservar, pero no se RETIENE —retener
- * sería un segundo saldo, y dos saldos acaban discrepando—. Sin la parte de «se descuentan cada día»
- * mientras dura el periodo gratis (sería falsa); P9 la recupera.
+ * sería un segundo saldo, y dos saldos acaban discrepando—: se descuenta cada día de campaña (P9). La
+ * frase del periodo gratis de P7 a P8 se fue con el cobro (la quitó el test atado al motivo CONSUMO), y
+ * su promesa la cumple `inicioDelCobro`: los días que se mostraron gratis no se cobran nunca.
  */
 export const MSG_SALDO_NO_RETENIDO =
-  "Comprobamos que tienes créditos de publicidad para todos los días de la campaña, pero no los apartamos: otra campaña puede contar con los mismos.";
+  "Comprobamos que tienes créditos de publicidad para todos los días, pero no los apartamos: se descuentan cada día de campaña. Si cuando llegue un día no te quedan, la campaña se pausa.";
 
 // ----------------------------------------------------------------------------
 // LA ENTREGA DE LA PUBLICIDAD (Fase 9 · P7): huecos, rotación y el anuncio de la casa.

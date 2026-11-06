@@ -1,7 +1,7 @@
 /**
  * LA PUBLICIDAD DE UNA EMPRESA (Fase 9 · P6): alta, activación o programación con OCUPACIÓN EXACTA,
- * máximo por zona, reserva, pausa, reanudación y fin. Las campañas ocupan calendario pero TODAVÍA NO
- * SE SIRVEN (P7) NI SE COBRAN (P9).
+ * máximo por zona, reserva, pausa, reanudación y fin. Se sirven desde P7 y se cobran por día desde P9
+ * (`publicidad-consumo.ts`): activar o reanudar una campaña que empieza HOY cobra hoy en el acto.
  *
  * ┌─ EL ÁMBITO ES UN PARÁMETRO OBLIGATORIO ─────────────────────────────────────────────────────────┐
  * │ Toda función que toca una campaña recibe `empresaId` como segundo argumento, obligatorio, y lo  │
@@ -19,11 +19,9 @@
  * │ que dos transacciones no se esperen en cruz.                                                     │
  * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
  *
- * ORDEN DE CERROJOS: `Empresa` (solo al comprometer saldo: activar, reanudar) → `Publicidad` → la
- * ocupación. NUNCA `User`. El saldo se comprueba contra lo DISPONIBLE (saldo menos lo comprometido en
- * sus otras campañas) y no se retiene (ver `MSG_SALDO_NO_RETENIDO`). El cobro diario de P9 debe seguir
- * el MISMO orden: Empresa primero y después la Publicidad (pausarla si no hay saldo); al revés,
- * cruzado con este, fabricaría un deadlock.
+ * ORDEN DE CERROJOS: el ÚNICO de la publicidad, escrito en `publicidad-cerrojos.ts` (Empresa → denuncias
+ * → Publicidad → ocupación → ledger). NUNCA `User`. El saldo se comprueba contra lo DISPONIBLE (saldo
+ * menos lo comprometido en sus otras campañas) y no se retiene (ver `MSG_SALDO_NO_RETENIDO`).
  *
  * REINTENTA ante el 1020 de MariaDB (conflicto de instantánea) y el 1213 (deadlock): la transacción
  * fallida se deshace entera y reintentar es repetir la misma intención. Si se agotan, el error sube.
@@ -85,6 +83,8 @@ import { ciudadesEnRadio } from "@/server/geo/ubicacion";
 
 import { aforoEnCascada, medianasAforo } from "./aforo";
 import { saldoCreditosEmpresa } from "./creditos";
+import { bloquearEmpresa, conReintentos } from "./publicidad-cerrojos";
+import { cobrarDiaEnTx, diaDevuelto, inicioDelCobro } from "./publicidad-consumo";
 
 // ---------------------------------------------------------------------------------------------------
 // Errores
@@ -417,30 +417,6 @@ export async function primeraFechaLibre(
 // Las acciones (activar, pausar, reanudar, terminar)
 // ---------------------------------------------------------------------------------------------------
 
-function esReintentable(e: unknown): boolean {
-  const texto = e instanceof Error ? e.message : String(e);
-  return (
-    texto.includes("Record has changed since last read") ||
-    texto.includes("Code: `1020`") ||
-    texto.includes("Deadlock found") ||
-    texto.includes("Code: `1213`")
-  );
-}
-
-/** Cuántas veces se reintenta ante un 1020/1213. Con 3 plazas por zona, sobra para una avalancha. */
-const REINTENTOS = 12;
-
-export async function conReintentos<T>(fn: () => Promise<T>): Promise<T> {
-  for (let intento = 0; ; intento += 1) {
-    try {
-      return await fn();
-    } catch (e) {
-      if (!esReintentable(e) || intento >= REINTENTOS) throw e;
-      await new Promise((r) => setTimeout(r, 5 * (intento + 1) + Math.floor(Math.random() * 5)));
-    }
-  }
-}
-
 const TX_OPCIONES = { maxWait: 10_000, timeout: 20_000 } as const;
 
 interface FilaBloqueada {
@@ -506,27 +482,15 @@ export type ResultadoOcupar =
   | { ok: false; code: "ZONA_LLENA"; diaLleno: Date; primeraLibre: Date | null };
 
 /**
- * BLOQUEA LA FILA DE LA EMPRESA (FOR UPDATE). Va lo PRIMERO de toda transacción que COMPROMETE saldo
- * (activar, reanudar): serializa a las activaciones de una misma empresa, y como es la primera
- * sentencia, la instantánea de la transacción se toma DESPUÉS de esperar a este cerrojo —la lectura de
- * lo comprometido ve lo que la otra activación acaba de confirmar—. Sin él, dos activaciones a la vez
- * leerían las dos «nada comprometido» y entrarían las dos con el saldo de una.
+ * LO COMPROMETIDO: lo que costarán los días que sus OTRAS campañas con intención de salir (ACTIVA:
+ * activas y programadas) tienen ocupados y TODAVÍA NO HAN PAGADO, cada una con SU tarifa congelada. Las
+ * pausadas y terminadas no comprometen nada: sus días por venir ya se liberaron.
  *
- * Y fija el orden de cerrojos: Empresa → Publicidad → ocupación. El cobro diario de P9 bloqueará también
- * la Empresa primero (el primitivo de créditos), así que los dos caminos van en el mismo sentido.
- */
-export async function bloquearEmpresa(tx: Db, empresaId: string): Promise<void> {
-  await tx.$queryRaw`SELECT \`id\` FROM \`Empresa\` WHERE \`id\` = ${empresaId} FOR UPDATE`;
-}
-
-/**
- * LO COMPROMETIDO: lo que costarán los días de HOY EN ADELANTE que ya tienen ocupados sus OTRAS campañas
- * con intención de salir (ACTIVA: activas y programadas), cada una con SU tarifa congelada. Las pausadas
- * y terminadas no comprometen nada: sus días por venir ya se liberaron.
- *
- * Hoy cuenta (conservador): P6 no cobra. Cuando P9 escriba el consumo al empezar el día, el de HOY ya
- * estará descontado del saldo y tendrá que dejar de contarse aquí, o se cobraría dos veces en la cuenta.
- * Días distintos (una campaña de varios países ocupa una fila por país y día, y paga una vez por día).
+ * P9: el día que ya se cobró está DESCONTADO del saldo; contarlo también aquí lo restaría dos veces. Por
+ * eso cuenta el día y no la fecha: HOY deja de contar en cuanto se cobra (al empezar el día), y no antes
+ * —entre las 00:00 y el barrido todavía no está en el saldo—. Y no cuentan los días anteriores al inicio
+ * del cobro (`inicioDelCobro`): esos no se cobran nunca. Días distintos (una campaña de varios países
+ * ocupa una fila por país y día, y paga una vez por día).
  */
 export async function compromisoDeEmpresa(
   db: Db,
@@ -534,13 +498,51 @@ export async function compromisoDeEmpresa(
   ahora: Date = new Date(),
   excluirPublicidadId: string | null = null,
 ): Promise<number> {
+  const inicio = await inicioDelCobro(db);
+  const hoy = diaDe(ahora);
+  const desde = inicio && inicio > hoy ? inicio : hoy;
   const filas = await db.$queryRaw<{ tarifa: number | bigint | null; dias: number | bigint }[]>`
     SELECT p.\`creditosPorDia\` AS tarifa, COUNT(DISTINCT z.\`dia\`) AS dias
     FROM \`ZonaOcupacion\` z JOIN \`Publicidad\` p ON p.\`id\` = z.\`publicidadId\`
     WHERE p.\`empresaId\` = ${empresaId} AND p.\`estado\` = 'ACTIVA'
-      AND p.\`id\` <> ${excluirPublicidadId ?? ""} AND z.\`dia\` >= ${diaDe(ahora)}
+      AND p.\`id\` <> ${excluirPublicidadId ?? ""} AND z.\`dia\` >= ${desde}
+      AND NOT EXISTS (
+        SELECT 1 FROM \`CreditoLedger\` c
+        WHERE c.\`publicidadId\` = p.\`id\` AND c.\`dia\` = z.\`dia\` AND c.\`reason\` = 'CONSUMO'
+      )
     GROUP BY p.\`id\`, p.\`creditosPorDia\``;
   return filas.reduce((s, f) => s + Number(f.tarifa ?? 0) * Number(f.dias), 0);
+}
+
+/**
+ * COBRA HOY si el tramo que se acaba de ocupar EMPIEZA hoy (activar, reanudar, la reanudación al
+ * absolver). Dentro de la transacción que ya bloqueó la Empresa, después de ocupar: el ledger va el
+ * último en el orden de cerrojos. Si no alcanza el saldo es que algo se saltó `exigirSaldo`: se lanza
+ * y se deshace todo, antes que ocupar una plaza sin pagarla.
+ */
+async function cobrarHoySiEmpieza(
+  tx: Db,
+  empresaId: string,
+  publicidadId: string,
+  inicio: Date,
+  tarifa: number,
+  ahora: Date,
+): Promise<void> {
+  const hoy = diaDe(ahora);
+  if (inicio.getTime() !== hoy.getTime()) return;
+  const r = await cobrarDiaEnTx(tx, {
+    empresaId,
+    publicidadId,
+    dia: hoy,
+    tarifa,
+    inicio: await inicioDelCobro(tx),
+  });
+  if (r === "SIN_SALDO") {
+    throw new PublicidadError(
+      "SALDO_INSUFICIENTE",
+      "No te quedan créditos de publicidad para el día de hoy.",
+    );
+  }
 }
 
 /**
@@ -564,7 +566,8 @@ function exigirSaldo(empresa: EmpresaParaOperar, coste: number, comprometido: nu
 /**
  * ACTIVA O PROGRAMA un borrador: congela la tarifa de hoy, comprueba el saldo del calendario ENTERO
  * (sin retenerlo), ocupa sus días y, si es de ciudad, despliega su radio de 100 km. Activa si empieza
- * hoy; queda PROGRAMADA (la reserva) si empieza después. No mueve ni un crédito: cobra cada día (P9).
+ * hoy —y entonces cobra hoy en el acto—; queda PROGRAMADA (la reserva) si empieza después, y cada día
+ * lo cobra el barrido al empezar el día (P9).
  *
  * `fechaInicio` permite aceptar la primera fecha libre que se ofreció; sin ella, la del borrador. Si la
  * zona está llena, no hace nada y devuelve el primer día lleno y la primera fecha libre.
@@ -632,6 +635,9 @@ export async function activarPublicidad(
             activadaEn: ahora,
           },
         });
+        // Si empieza HOY, HOY se cobra en el acto (P9): el barrido de la mañana ya pasó, y sin el cobro
+        // del día no se sirve. El saldo alcanza: se acaba de exigir para el calendario entero.
+        await cobrarHoySiEmpieza(tx, empresaId, publicidadId, inicio, tarifa, ahora);
         return { ok: true as const, inicio, dias };
       }, TX_OPCIONES),
     );
@@ -757,7 +763,10 @@ async function reanudarEnTx(
   const empresa = await empresaParaOperar(tx, empresaId);
   const cal = await calendarioDe(tx, publicidadId, ahora);
   intento.dias = Math.max(0, c.diasContratados - cal.diasTenidos);
-  const primerPosible = cal.ocupaHoy ? sumarDias(diaDe(ahora), 1) : diaDe(ahora);
+  // Mañana si hoy ya es suyo, o si HOY SE LE DEVOLVIÓ (P9): el umbral o la retirada le devolvieron el
+  // día, y servirle el resto sería servirlo gratis. Vuelve al siguiente, con ese día recuperado.
+  const hoyNo = cal.ocupaHoy || (await diaDevuelto(tx, publicidadId, diaDe(ahora)));
+  const primerPosible = hoyNo ? sumarDias(diaDe(ahora), 1) : diaDe(ahora);
   intento.inicio = fechaInicio ? diaDeTexto(fechaInicio) : primerPosible;
   if (intento.inicio < primerPosible || !dentroDePlazo(intento.inicio, ahora)) {
     throw new PublicidadError(
@@ -779,6 +788,16 @@ async function reanudarEnTx(
     where: { id: publicidadId },
     data: { estado: "ACTIVA", pausadaEn: null },
   });
+  if (intento.dias > 0) {
+    await cobrarHoySiEmpieza(
+      tx,
+      empresaId,
+      publicidadId,
+      intento.inicio,
+      c.creditosPorDia ?? 0,
+      ahora,
+    );
+  }
   return { ok: true as const, inicio: intento.inicio, dias: intento.dias };
 }
 

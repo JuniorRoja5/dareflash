@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Tarjeta } from "@/components/ui/tarjeta";
 import {
   CREDITOS_POR_DIA,
-  MSG_PUBLICIDAD_PERIODO_GRATIS,
   MSG_SALDO_NO_RETENIDO,
   PUBLICIDAD_MAX_POR_ZONA,
   PUBLICIDAD_RESERVA_MAX_DIAS,
@@ -95,12 +94,6 @@ export default async function PaginaNuevaCampana() {
   return (
     <div className="df-rise space-y-6">
       {cabecera}
-      <p
-        role="status"
-        className="max-w-prose rounded-sm border border-line bg-surface p-3 text-sm text-text"
-      >
-        {MSG_PUBLICIDAD_PERIODO_GRATIS}
-      </p>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8">
         <div className="min-w-0">
           <FormularioCampana

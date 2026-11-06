@@ -30,6 +30,7 @@ import { cruzaUmbralOculto } from "@/lib/umbral-ocultado";
 import type { Db } from "@/server/db/types";
 
 import { emitirAviso } from "./notificaciones";
+import { devolverDiaEnTx } from "./publicidad-consumo";
 
 /** Acción del rastro de auditoría. Sin actor: no lo decidió nadie, lo decidió el umbral. */
 export const ACCION_AUTO_OCULTO = "AUTO_OCULTO_UMBRAL";
@@ -196,9 +197,14 @@ export async function sellarDescarteEnTx(
  * desde dentro. El crédito se queda en el saldo (no se ha cobrado nada que devolver).
  *
  * Solo una ACTIVA se oculta (una pausada o terminada no se sirve: no hay nada que esconder), y el
- * `UPDATE ... WHERE ocultoAutoEn IS NULL` decide la carrera, como en el vídeo. Orden de cerrojos: la
- * fila de la campaña y después su ocupación, el mismo que usa el portal. Quien llama vacía la caché de
- * campañas servibles DESPUÉS de confirmar (dentro de la transacción se rellenaría con lo de antes).
+ * `UPDATE ... WHERE ocultoAutoEn IS NULL` decide la carrera, como en el vídeo. Quien llama vacía la
+ * caché de campañas servibles DESPUÉS de confirmar (dentro de la transacción se rellenaría con lo de
+ * antes).
+ *
+ * P9: ESE DÍA NO SE COBRA. Si ya se había cobrado (el cobro es al empezar el día), se DEVUELVE, y se
+ * libera también HOY: un día devuelto no es un día que tuvo, así que al reanudarla lo recupera. Orden de
+ * cerrojos (`publicidad-cerrojos.ts`): `denunciar` ya bloqueó la Empresa y la denuncia; aquí van la
+ * campaña, su ocupación y el ledger, en ese orden.
  */
 async function ocultarPublicidad(tx: Db, id: string, ahora: Date): Promise<boolean> {
   const r = await tx.publicidad.updateMany({
@@ -207,7 +213,9 @@ async function ocultarPublicidad(tx: Db, id: string, ahora: Date): Promise<boole
   });
   if (r.count === 0) return false;
   const hoy = new Date(`${ahora.toISOString().slice(0, 10)}T00:00:00.000Z`);
-  await tx.zonaOcupacion.deleteMany({ where: { publicidadId: id, dia: { gt: hoy } } });
+  await tx.zonaOcupacion.deleteMany({ where: { publicidadId: id, dia: { gte: hoy } } });
+  const p = await tx.publicidad.findUniqueOrThrow({ where: { id }, select: { empresaId: true } });
+  await devolverDiaEnTx(tx, { empresaId: p.empresaId, publicidadId: id, dia: hoy });
   return true;
 }
 

@@ -1652,8 +1652,15 @@ model CreditoLedger {
   empresaId String
   /// +N al regalar, comprar o ajustar a favor; -N al consumir o ajustar en contra. Nunca 0.
   delta     Int
-  /// SOCIO_FUNDADOR | AJUSTE_ADMIN (union en constants; COMPRA y CONSUMO llegaran con su pieza).
+  /// SOCIO_FUNDADOR | AJUSTE_ADMIN | CONSUMO | DEVOLUCION (union en constants; COMPRA llegara con
+  /// su pieza).
   reason    String
+
+  /// EL DIA DE CAMPANA que se cobra (CONSUMO) o se devuelve (DEVOLUCION), Fase 9 · P9. Vacios en el
+  /// resto de motivos. Con ellos la entrega pregunta «¿esta campana ha pagado hoy?» con un join, y la
+  /// UNIQUE de abajo hace que un dia se cobre UNA vez y se devuelva UNA vez, lo diga o no la clave.
+  publicidadId String?
+  dia          DateTime? @db.Date
 
   /// De que viene: el admin que ajusto (`ADMIN` + su id), la empresa del regalo... SIN clave ajena,
   /// como en el resto de ledgers: la traza no se va con la cuenta de quien la hizo.
@@ -1665,8 +1672,13 @@ model CreditoLedger {
   nota           String?  @db.VarChar(500)
   createdAt      DateTime @default(now())
 
-  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+  empresa    Empresa     @relation(fields: [empresaId], references: [id], onDelete: Restrict)
+  /// Restrict: una campana que ya cobro algun dia no se borra (solo se borran borradores, que nunca
+  /// cobran). El ledger no pierde de que era cada movimiento.
+  publicidad Publicidad? @relation(fields: [publicidadId], references: [id], onDelete: Restrict)
 
+  /// Un cobro y una devolucion, como mucho, por campana y dia. Las filas sin campana (NULL) no chocan.
+  @@unique([publicidadId, dia, reason])
   /// El historial de una empresa (portal y panel), por KEYSET sobre (createdAt, id).
   @@index([empresaId, createdAt, id])
 }
@@ -1724,9 +1736,9 @@ model Publicidad {
   /// MODERACIÓN POSTERIOR (Fase 9 · P8). `ocultoAutoEn`: el umbral de denuncias la pausó (EN REVISIÓN:
   /// la empresa no puede reanudarla hasta que un admin decida). Columna PROPIA, como en Video: si
   /// compartiera estado con la pausa de la empresa, absolver podría deshacer algo que no hizo el umbral.
-  ocultoAutoEn DateTime?
+  ocultoAutoEn   DateTime?
   /// Cuándo la absolvió un admin por última vez: durante la inmunidad, el umbral no la vuelve a ocultar.
-  descartadoEn DateTime?
+  descartadoEn   DateTime?
   /// LA RETIRADA DEL ADMIN. El MOTIVO es de una lista cerrada y SÍ se le cuenta a la empresa; la NOTA y
   /// QUIÉN la firmó son traza interna y no viajan nunca al portal (ni al correo).
   retiradaMotivo String?
@@ -1742,6 +1754,8 @@ model Publicidad {
   paises      PublicidadPais[]
   ciudades    PublicidadCiudad[]
   ocupaciones ZonaOcupacion[]
+  /// Sus cobros y devoluciones de cada dia (P9). La entrega sirve solo lo que ha pagado HOY.
+  movimientos CreditoLedger[]
 
   /// La lista del portal, por KEYSET sobre (createdAt, id). El índice del REPARTO es de P7: se diseña
   /// contra su consulta y se mide con EXPLAIN, no se adivina aquí.

@@ -28,6 +28,7 @@ import { objetivoDeViolacionUnica } from "@/server/db/errores";
 
 import { COMENTARIO_VISIBLE } from "./comentario-visible";
 import { ocultarSiCruzaEnTx } from "./ocultado-automatico";
+import { bloquearEmpresa, conReintentos } from "./publicidad-cerrojos";
 import { PUBLICIDAD_SERVIBLE } from "./publicidad-visible";
 import { VIDEO_VISIBLE } from "./video-visible";
 
@@ -160,30 +161,46 @@ export async function denunciar(
 
   const objeto = { targetType: entrada.targetType, targetId: entrada.targetId };
   const ahora = entrada.ahora ?? new Date();
+  // P9: si la denuncia de una CAMPAÑA cruza el umbral, se le devuelve el día ya cobrado, y eso mueve el
+  // saldo de su empresa. El orden único de la publicidad (`publicidad-cerrojos.ts`) pone la Empresa
+  // ANTES que la denuncia: se bloquea como primera sentencia, con su id leído fuera (no cambia).
+  const empresaId =
+    entrada.targetType === "PUBLICIDAD"
+      ? ((
+          await db.publicidad.findUnique({
+            where: { id: entrada.targetId },
+            select: { empresaId: true },
+          })
+        )?.empresaId ?? null)
+      : null;
 
   try {
     // UNA TRANSACCIÓN para la denuncia y el ocultado. El `catch` va FUERA: una denuncia repetida
     // choca con el UNIQUE, la transacción se deshace entera —no había nada más que deshacer— y se
-    // responde "ya nos habías avisado", que nunca fue un error.
-    const resultado = await db.$transaction(async (tx) => {
-      await tx.report.create({
-        data: {
-          reporterId: entrada.reporterId,
-          targetType: entrada.targetType,
-          targetId: entrada.targetId,
-          reason: entrada.reason,
-          // `status` lo pone la BD ("OPEN"): el estado inicial no lo elige quien denuncia.
-        },
-        select: { id: true },
-      });
-      // Se cuenta DESPUÉS de insertar y dentro de la misma transacción, así que la propia denuncia
-      // que se acaba de escribir entra en el recuento: la tercera se ve a sí misma cruzar.
-      const ocultado = await ocultarSiCruzaEnTx(tx, objeto, ahora);
-      if (ocultado && entrada.targetType === "PUBLICIDAD") {
-        await avisarAdminPublicidadEnTx(tx, entrada.targetId, ahora, entrada.avisoPublicidad);
-      }
-      return { estado: "registrada" as const, ocultado };
-    });
+    // responde "ya nos habías avisado", que nunca fue un error. Reintenta ante 1020/1213 (la repetida
+    // no es reintentable: sube al `catch`).
+    const resultado = await conReintentos(() =>
+      db.$transaction(async (tx) => {
+        if (empresaId !== null) await bloquearEmpresa(tx, empresaId);
+        await tx.report.create({
+          data: {
+            reporterId: entrada.reporterId,
+            targetType: entrada.targetType,
+            targetId: entrada.targetId,
+            reason: entrada.reason,
+            // `status` lo pone la BD ("OPEN"): el estado inicial no lo elige quien denuncia.
+          },
+          select: { id: true },
+        });
+        // Se cuenta DESPUÉS de insertar y dentro de la misma transacción, así que la propia denuncia
+        // que se acaba de escribir entra en el recuento: la tercera se ve a sí misma cruzar.
+        const ocultado = await ocultarSiCruzaEnTx(tx, objeto, ahora);
+        if (ocultado && entrada.targetType === "PUBLICIDAD") {
+          await avisarAdminPublicidadEnTx(tx, entrada.targetId, ahora, entrada.avisoPublicidad);
+        }
+        return { estado: "registrada" as const, ocultado };
+      }),
+    );
     // UNA CAMPAÑA OCULTA DEJA DE SERVIRSE AL MOMENTO: se vacía la caché de campañas servibles, y
     // DESPUÉS de confirmar (dentro de la transacción, otra petición podría volver a llenarla con lo
     // de antes y servirla 60 s más).

@@ -49,6 +49,7 @@ import {
 } from "@/lib/publicidad";
 import type { Db } from "@/server/db/types";
 
+import { filtroPagadoEl, inicioDelCobro, seCobra } from "./publicidad-consumo";
 import { PUBLICIDAD_SERVIBLE } from "./publicidad-visible";
 
 // ---------------------------------------------------------------------------------------------------
@@ -156,11 +157,15 @@ export function olvidarCacheDeHoy(): void {
 export async function campanasDeHoy(db: Db, ahora: Date = new Date()): Promise<CampanaEntrega[]> {
   const dia = claveDia(diaDe(ahora));
   if (cache && cache.dia === dia && cache.hasta > ahora.getTime()) return cache.campanas;
+  const hoy = diaDe(ahora);
+  // P9: NUNCA UN ANUNCIO SERVIDO SIN COBRAR. Un día que se cobra solo se sirve si la campaña lo ha
+  // pagado (y no se le ha devuelto); los anteriores al inicio del cobro se mostraron gratis.
+  const pagado = seCobra(hoy, await inicioDelCobro(db)) ? filtroPagadoEl(hoy) : {};
   const ocupadas = await db.zonaOcupacion.findMany({
     where: {
-      dia: diaDe(ahora),
+      dia: hoy,
       // La regla de qué se sirve, de su único sitio (la misma que decide qué se puede denunciar).
-      publicidad: PUBLICIDAD_SERVIBLE,
+      publicidad: { ...PUBLICIDAD_SERVIBLE, ...pagado },
     },
     distinct: ["publicidadId"],
     select: { publicidadId: true },

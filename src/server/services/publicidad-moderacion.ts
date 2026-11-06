@@ -44,13 +44,13 @@ import type { Db } from "@/server/db/types";
 import { levantarAutoOcultoEnTx, sellarDescarteEnTx } from "./ocultado-automatico";
 import {
   type ReanudacionTrasAbsolver,
-  bloquearEmpresa,
   calendarios,
-  conReintentos,
   nombresDeEstados,
   reanudarTrasAbsolverEnTx,
   zonaLegible,
 } from "./publicidad";
+import { bloquearEmpresa, conReintentos } from "./publicidad-cerrojos";
+import { devolverDiaEnTx } from "./publicidad-consumo";
 
 // ---------------------------------------------------------------------------------------------------
 // El listado y el contador
@@ -319,10 +319,20 @@ async function vaciarCache(): Promise<void> {
 
 /**
  * RETIRA UNA CAMPAÑA (solo ADMIN). Pasa a RETIRADA con su motivo —de la lista cerrada— y una nota
- * interna opcional; libera sus días por venir (si no, una campaña retirada seguiría bloqueando una de las
- * plazas de su zona); cierra sus denuncias como RESOLVED; deja traza en AuditLog; y le escribe a la
- * empresa con el MOTIVO (la nota no). Todo en la misma transacción. Los días ya mostrados no se
- * devuelven (acordado). Y deja de servirse AL MOMENTO: la caché se vacía al confirmar.
+ * interna opcional; libera sus días DESDE HOY (si no, una campaña retirada seguiría bloqueando una de
+ * las plazas de su zona); cierra sus denuncias como RESOLVED; deja traza en AuditLog; y le escribe a la
+ * empresa con el MOTIVO (la nota no). Todo en la misma transacción. Y deja de servirse AL MOMENTO: la
+ * caché se vacía al confirmar.
+ *
+ * DINERO (P9): el día de la retirada NO SE COBRA —si ya se había cobrado al empezar el día, se le
+ * devuelve—. Los días anteriores, que sí se mostraron, no se devuelven (acordado en P8); los de después
+ * no se llegan a cobrar.
+ *
+ * ORDEN DE CERROJOS, el único de la publicidad (`publicidad-cerrojos.ts`): Empresa → sus denuncias →
+ * la campaña → la ocupación → el ledger. Hasta P9 iba campaña → ocupación → denuncias, al revés que
+ * `denunciar`: una retirada y una denuncia de la misma campaña a la vez se esperaban la una a la otra.
+ * Las denuncias se BLOQUEAN antes de mirar la campaña (sin cambiarlas: si la retirada no procede, no
+ * se toca nada), y se cierran después.
  *
  * Se puede retirar lo que se sirve o podría volver a servirse: activa, programada, pausada o en
  * revisión. Un borrador no ha salido nunca, y una terminada o retirada ya no saldrá.
@@ -339,50 +349,73 @@ export async function retirarPublicidad(
   },
 ): Promise<ResultadoDecisionPublicidad> {
   const ahora = entrada.ahora ?? new Date();
-  const r = await db.$transaction(async (tx): Promise<ResultadoDecisionPublicidad> => {
-    const filas = await tx.$queryRaw<{ estado: string }[]>`
-      SELECT \`estado\` FROM \`Publicidad\` WHERE \`id\` = ${entrada.publicidadId} FOR UPDATE`;
-    const estado = filas[0]?.estado;
-    if (!estado) return { estado: "rechazado", motivo: "NO_EXISTE" };
-    if (estado === "RETIRADA") return { estado: "sin_cambios" };
-    if (estado !== "ACTIVA" && estado !== "PAUSADA") {
-      return { estado: "rechazado", motivo: "NO_SE_PUEDE" };
-    }
-    // Ya no está «en revisión»: está decidida. El auto-oculto se levanta por SU puerta, la única
-    // (`levantarAutoOcultoEnTx`), igual que hace la retirada de un vídeo; nunca con un `null` a mano.
-    await levantarAutoOcultoEnTx(tx, { targetType: "PUBLICIDAD", targetId: entrada.publicidadId });
-    await tx.publicidad.update({
-      where: { id: entrada.publicidadId },
-      data: {
-        estado: "RETIRADA",
-        retiradaMotivo: entrada.motivo,
-        retiradaNota: entrada.nota?.trim() || null,
-        retiradaPor: entrada.adminId,
-        retiradaEn: ahora,
-      },
-    });
-    await tx.zonaOcupacion.deleteMany({
-      where: { publicidadId: entrada.publicidadId, dia: { gt: diaDe(ahora) } },
-    });
-    const cerradas = await cerrarDenunciasPublicidad(tx, entrada.publicidadId, "RESOLVED");
-    await tx.auditLog.create({
-      data: {
-        actorId: entrada.adminId,
-        action: ACCION_RETIRAR_PUBLICIDAD,
+  const hoy = diaDe(ahora);
+  const fila = await db.publicidad.findUnique({
+    where: { id: entrada.publicidadId },
+    select: { empresaId: true },
+  });
+  if (!fila) return { estado: "rechazado", motivo: "NO_EXISTE" };
+
+  const r = await conReintentos(() =>
+    db.$transaction(async (tx): Promise<ResultadoDecisionPublicidad> => {
+      await bloquearEmpresa(tx, fila.empresaId);
+      await tx.$queryRaw`
+        SELECT \`id\` FROM \`Report\`
+        WHERE \`targetType\` = 'PUBLICIDAD' AND \`targetId\` = ${entrada.publicidadId} FOR UPDATE`;
+      const filas = await tx.$queryRaw<{ estado: string }[]>`
+        SELECT \`estado\` FROM \`Publicidad\` WHERE \`id\` = ${entrada.publicidadId} FOR UPDATE`;
+      const estado = filas[0]?.estado;
+      if (!estado) return { estado: "rechazado", motivo: "NO_EXISTE" };
+      if (estado === "RETIRADA") return { estado: "sin_cambios" };
+      if (estado !== "ACTIVA" && estado !== "PAUSADA") {
+        return { estado: "rechazado", motivo: "NO_SE_PUEDE" };
+      }
+      // Ya no está «en revisión»: está decidida. El auto-oculto se levanta por SU puerta, la única
+      // (`levantarAutoOcultoEnTx`), igual que hace la retirada de un vídeo; nunca con un `null` a mano.
+      await levantarAutoOcultoEnTx(tx, {
         targetType: "PUBLICIDAD",
         targetId: entrada.publicidadId,
-        metadata: { motivo: entrada.motivo, denunciasCerradas: cerradas },
-      },
-    });
-    await avisarEmpresaEnTx(tx, entrada.publicidadId, entrada.appUrl, ahora, {
-      clave: `publicidad-retirada:${entrada.publicidadId}`,
-      titulo: "Hemos retirado tu campaña",
-      cuerpo: (nombre) =>
-        `Hemos retirado «${nombre}» y ya no se muestra. ${MSG_MOTIVO_RETIRADA_PUBLICIDAD[entrada.motivo]}`,
-      nota: "Si crees que es un error, contesta a este correo y lo volvemos a mirar.",
-    });
-    return { estado: "hecho" };
-  });
+      });
+      await tx.publicidad.update({
+        where: { id: entrada.publicidadId },
+        data: {
+          estado: "RETIRADA",
+          retiradaMotivo: entrada.motivo,
+          retiradaNota: entrada.nota?.trim() || null,
+          retiradaPor: entrada.adminId,
+          retiradaEn: ahora,
+        },
+      });
+      await tx.zonaOcupacion.deleteMany({
+        where: { publicidadId: entrada.publicidadId, dia: { gte: hoy } },
+      });
+      const devuelto = await devolverDiaEnTx(tx, {
+        empresaId: fila.empresaId,
+        publicidadId: entrada.publicidadId,
+        dia: hoy,
+      });
+      const cerradas = await cerrarDenunciasPublicidad(tx, entrada.publicidadId, "RESOLVED");
+      await tx.auditLog.create({
+        data: {
+          actorId: entrada.adminId,
+          action: ACCION_RETIRAR_PUBLICIDAD,
+          targetType: "PUBLICIDAD",
+          targetId: entrada.publicidadId,
+          metadata: { motivo: entrada.motivo, denunciasCerradas: cerradas, diaDevuelto: devuelto },
+        },
+      });
+      await avisarEmpresaEnTx(tx, entrada.publicidadId, entrada.appUrl, ahora, {
+        clave: `publicidad-retirada:${entrada.publicidadId}`,
+        titulo: "Hemos retirado tu campaña",
+        cuerpo: (nombre) =>
+          `Hemos retirado «${nombre}» y ya no se muestra. ${MSG_MOTIVO_RETIRADA_PUBLICIDAD[entrada.motivo]}${
+            devuelto ? " Te hemos devuelto los créditos de publicidad de hoy." : ""
+          }`,
+        nota: "Si crees que es un error, contesta a este correo y lo volvemos a mirar.",
+      });
+      return { estado: "hecho" };
+    }),
+  );
   if (r.estado === "hecho") await vaciarCache();
   return r;
 }
@@ -447,7 +480,7 @@ export async function absolverPublicidad(
       if (reanudacion) {
         await avisarEmpresaEnTx(tx, entrada.publicidadId, entrada.appUrl, ahora, {
           clave: `publicidad-absuelta:${entrada.publicidadId}:${ahora.getTime()}`,
-          ...correoDeAbsolucion(reanudacion),
+          ...correoDeAbsolucion(reanudacion, diaDe(ahora)),
         });
       }
       return { estado: "hecho", reanudacion: reanudacion?.tipo ?? null };
@@ -467,7 +500,10 @@ const enDias = (n: number) => (n === 1 ? "el día que le queda" : `los ${n} día
  * EL CORREO DE LA ABSOLUCIÓN dice cuál de los casos ha pasado: que vuelve a mostrarse, o por qué sigue
  * pausada y qué puede hacer. Lo que se revisó está en orden en todos; lo que cambia es el final.
  */
-function correoDeAbsolucion(r: ReanudacionTrasAbsolver): {
+function correoDeAbsolucion(
+  r: ReanudacionTrasAbsolver,
+  hoy: Date,
+): {
   titulo: string;
   cuerpo: (nombre: string) => string;
   nota: string;
@@ -478,9 +514,11 @@ function correoDeAbsolucion(r: ReanudacionTrasAbsolver): {
   switch (r.tipo) {
     case "REANUDADA":
       return {
-        titulo: "Hemos revisado tu campaña: ya vuelve a mostrarse",
+        titulo: "Hemos revisado tu campaña: vuelve a mostrarse",
         cuerpo: (nombre) =>
-          `${enOrden(nombre)} Ya vuelve a mostrarse con ${enDias(r.dias)}, hasta el ${diaEnCorreo(sumarDias(r.inicio, r.dias - 1))}.`,
+          r.inicio.getTime() === hoy.getTime()
+            ? `${enOrden(nombre)} Ya vuelve a mostrarse con ${enDias(r.dias)}, hasta el ${diaEnCorreo(sumarDias(r.inicio, r.dias - 1))}.`
+            : `${enOrden(nombre)} Vuelve a mostrarse el ${diaEnCorreo(r.inicio)}, con ${enDias(r.dias)}, hasta el ${diaEnCorreo(sumarDias(r.inicio, r.dias - 1))}.`,
         nota: gratis,
       };
     case "SIN_DIAS":
@@ -503,7 +541,7 @@ function correoDeAbsolucion(r: ReanudacionTrasAbsolver): {
       return {
         titulo: "Hemos revisado tu campaña: está en orden",
         cuerpo: (nombre) =>
-          `${enOrden(nombre)} Sigue pausada porque tus créditos de publicidad no llegan para los días que le quedan. Cuando recargues, puedes reanudarla desde tu portal.`,
+          `${enOrden(nombre)} Sigue pausada porque tus créditos de publicidad no llegan para los días que le quedan. Cuando vuelvas a tener créditos, puedes reanudarla desde tu portal.`,
         nota: gratis,
       };
     case "EMPRESA_NO_OPERA":
@@ -517,7 +555,7 @@ function correoDeAbsolucion(r: ReanudacionTrasAbsolver): {
 }
 
 /** El correo a la empresa (un hecho, un correo, con su clave). Sin correo de la cuenta, no se encola. */
-async function avisarEmpresaEnTx(
+export async function avisarEmpresaEnTx(
   tx: Db,
   publicidadId: string,
   appUrl: string,

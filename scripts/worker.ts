@@ -44,6 +44,7 @@ import { recalcularScoresAutoridad } from "@/server/services/recalculo-scores";
 import { barrerPropuestas } from "@/server/services/retos-empresa";
 import { getRedis } from "@/server/cache/redis";
 import { materializarAforo } from "@/server/services/aforo";
+import { cobrarPublicidadDeHoy } from "@/server/services/publicidad-cobro";
 import { revisarFicheroGeoIp } from "@/server/services/geoip-caducidad";
 import { confirmarVideosPendientes } from "@/server/services/video-confirmacion";
 import { reconciliarVideosAbandonados } from "@/server/services/video-reconciliacion";
@@ -178,6 +179,14 @@ async function main(): Promise<void> {
         dir: env.PORTADAS_DIR,
         ahora: now,
         appUrl: env.APP_URL,
+        log: (m) => console.warn(m),
+      }),
+    // EL COBRO DIARIO DE LA PUBLICIDAD (Fase 9 · P9): cobra HOY a cada campaña que lo ocupa y aún no lo
+    // ha pagado; sin saldo, la pausa y avisa a la empresa. Sin pagar el día, la entrega no la sirve.
+    cobrarPublicidad: (now) =>
+      cobrarPublicidadDeHoy(prisma, {
+        appUrl: env.APP_URL,
+        ahora: now,
         log: (m) => console.warn(m),
       }),
     // Aforo por zona (Fase 9 · P5): los HyperLogLog de Redis -> AforoZonaDia, cada hora. Sin Redis no

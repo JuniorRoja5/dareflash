@@ -65,6 +65,9 @@ export interface EntradaCreditos {
   idempotencyKey: string;
   /** El POR QUÉ de un ajuste manual. Para el equipo: no viaja al portal. */
   nota?: string;
+  /** P9: el día de campaña que cobra (CONSUMO) o devuelve (DEVOLUCION). Los dos o ninguno. */
+  publicidadId?: string;
+  dia?: Date;
   /**
    * Efecto EXTRA en la misma transacción, con la empresa AÚN BLOQUEADA y solo si el movimiento se
    * aplicó de verdad (no en el no-op de idempotencia). Lo usa el ajuste del admin para su `AuditLog`.
@@ -124,6 +127,8 @@ export async function aplicarCreditosEnTx(
       refId: entrada.refId ?? null,
       idempotencyKey: entrada.idempotencyKey,
       nota: entrada.nota ?? null,
+      publicidadId: entrada.publicidadId ?? null,
+      dia: entrada.dia ?? null,
     },
     select: { id: true },
   });

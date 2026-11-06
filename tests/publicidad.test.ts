@@ -217,10 +217,23 @@ describe("la reserva y el precio congelado", () => {
     expect(await prisma.zonaOcupacion.count({ where: { publicidadId: id } })).toBe(10);
   });
 
-  it("activar HOY tampoco mueve créditos: cobra cada día (P9), no al activar", async () => {
+  it("activar HOY cobra HOY en el acto, y solo hoy: el resto, cada día (P9)", async () => {
+    // Hasta P9 este test decía que activar no movía créditos (no se cobraba nada). Desde P9 el día
+    // que empieza hoy se cobra al activar —el barrido de la mañana ya pasó, y sin el cobro del día no
+    // se sirve—, y los demás días los cobra el barrido cada mañana, no la activación.
     const e = await unaEmpresa({ creditos: 50 });
     await activarPublicidad(prisma, e, await unBorrador(e), { ahora: AHORA });
-    expect((await prisma.empresa.findUniqueOrThrow({ where: { id: e } })).creditosSaldo).toBe(50);
+    const tarifa = CREDITOS_POR_DIA.CIUDAD;
+    expect((await prisma.empresa.findUniqueOrThrow({ where: { id: e } })).creditosSaldo).toBe(
+      50 - tarifa,
+    );
+    // Y una reserva (empieza otro día) no cobra nada al activarse.
+    await activarPublicidad(prisma, e, await unBorrador(e, { fechaInicio: dentroDe(3) }), {
+      ahora: AHORA,
+    });
+    expect((await prisma.empresa.findUniqueOrThrow({ where: { id: e } })).creditosSaldo).toBe(
+      50 - tarifa,
+    );
   });
 
   it("cambiar el precio en constants no mueve una campaña activa ni una reserva", async () => {
@@ -530,12 +543,13 @@ describe("el saldo se comprueba contra lo comprometido en sus otras campañas", 
       dias: 3,
     });
     await activarPublicidad(prisma, online, dosPaises, { ahora: AHORA });
-    // 3 días × 10 créditos (2 países), no 6 filas × 10.
-    expect(await compromisoDeEmpresa(prisma, online, AHORA)).toBe(30);
+    // 2 días × 10 créditos (2 países), no 4 filas × 10. Dos y no tres: HOY se cobró al activar (P9) y
+    // ya está descontado del saldo; contarlo también como comprometido lo restaría dos veces.
+    expect(await compromisoDeEmpresa(prisma, online, AHORA)).toBe(20);
     const original = CREDITOS_POR_DIA.PAIS;
     try {
       CREDITOS_POR_DIA.PAIS = 99;
-      expect(await compromisoDeEmpresa(prisma, online, AHORA)).toBe(30);
+      expect(await compromisoDeEmpresa(prisma, online, AHORA)).toBe(20);
     } finally {
       CREDITOS_POR_DIA.PAIS = original;
     }

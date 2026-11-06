@@ -21,7 +21,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { ReportTargetModerableSchema } from "../src/config/constants";
+import { CREDITOS_POR_DIA, ReportTargetModerableSchema } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { aplicarCreditos } from "../src/server/services/creditos";
 import { denunciar } from "../src/server/services/denuncias";
@@ -154,11 +154,13 @@ describe("el umbral pausa la campaña (EN REVISIÓN)", () => {
     const [tercera] = await denunciada(c.id, 1);
     expect(tercera).toEqual({ estado: "registrada", ocultado: true });
     expect((await miPublicidad(prisma, c.empresaId, c.id, AHORA))?.estado).toBe("EN_REVISION");
-    // Sus días por venir, libres (hoy se queda: es el día en curso). El crédito, intacto.
-    expect(await prisma.zonaOcupacion.count({ where: { publicidadId: c.id } })).toBe(1);
+    // Sus días, libres DESDE HOY, y el día de hoy DEVUELTO (P9, regla 7: una campaña que ese día pasa a
+    // revisión no lo paga). El saldo vuelve a ser el de antes de activarla.
+    expect(await prisma.zonaOcupacion.count({ where: { publicidadId: c.id } })).toBe(0);
+    expect(await saldo(c.empresaId)).toBe(50);
     expect(
-      (await prisma.empresa.findUniqueOrThrow({ where: { id: c.empresaId } })).creditosSaldo,
-    ).toBe(50);
+      await prisma.creditoLedger.count({ where: { publicidadId: c.id, reason: "DEVOLUCION" } }),
+    ).toBe(1);
     // Deja de servirse AL MOMENTO: la caché se vació al confirmar (no hace falta esperar 60 s).
     expect(await seSirve(c.id)).toBe(false);
     // Y un correo al admin, uno.
@@ -220,12 +222,13 @@ describe("el umbral pausa la campaña (EN REVISIÓN)", () => {
 });
 
 describe("absolver: la campaña se reanuda sola (revisión de P8)", () => {
-  // La revisión dura dos días: se pausa el 1 (y conserva ese día) y se absuelve el 3.
+  // La revisión dura dos días: se pausa el 1 (y se le devuelve ese día, P9) y se absuelve el 3.
   const LUEGO = new Date("2026-12-03T10:00:00.000Z");
   const absolver = (id: string, admin: string, ahora = LUEGO) =>
     absolverPublicidad(prisma, { publicidadId: id, adminId: admin, appUrl: APP, ahora });
+  const TARIFA = CREDITOS_POR_DIA.CIUDAD;
 
-  it("con la zona libre: vuelve a servirse en la SIGUIENTE petición, con sus días, sin tocar el saldo", async () => {
+  it("con la zona libre: vuelve a servirse en la SIGUIENTE petición, con sus días, y la revisión no le cuesta nada", async () => {
     const admin = await crearUsuario(prisma);
     const c = await unaActiva();
     await denunciada(c.id, 3);
@@ -235,21 +238,39 @@ describe("absolver: la campaña se reanuda sola (revisión de P8)", () => {
     expect(await absolver(c.id, admin)).toEqual({ estado: "hecho", reanudacion: "REANUDADA" });
     expect(await seSirve(c.id, LUEGO)).toBe(true);
     expect((await miPublicidad(prisma, c.empresaId, c.id, LUEGO))?.estado).toBe("ACTIVA");
-    // Los 4 días que le faltaban, DESDE HOY (el 2 lo perdió en revisión y no se le cuenta).
+    // Sus 5 días, DESDE HOY: el 1 se le devolvió (no cuenta como tenido) y el 2 lo pasó en revisión.
     expect(await diasOcupados(c.id)).toEqual([
-      "2026-12-01",
       "2026-12-03",
       "2026-12-04",
       "2026-12-05",
       "2026-12-06",
+      "2026-12-07",
     ]);
-    expect(await saldo(c.empresaId)).toBe(50);
+    // Dinero: el 1 se cobró y se devolvió; el 3, que ya se sirve, se cobra. Uno solo, y ni uno de la
+    // revisión.
+    expect(await saldo(c.empresaId)).toBe(50 - TARIFA);
     expect(await prisma.report.count({ where: { targetId: c.id, status: "DISMISSED" } })).toBe(3);
     const [aviso] = await correos(`publicidad-absuelta:${c.id}`);
     const texto = JSON.stringify(aviso?.payload);
     expect(texto).toContain("vuelve a mostrarse");
-    expect(texto).toContain("hasta el 6 de diciembre");
+    expect(texto).toContain("hasta el 7 de diciembre");
     expect(texto).not.toContain(admin);
+  });
+
+  it("absuelta EL MISMO DÍA: vuelve mañana, porque hoy se le devolvió (no se sirve un día no pagado)", async () => {
+    const admin = await crearUsuario(prisma);
+    const c = await unaActiva();
+    await denunciada(c.id, 3);
+    expect(await absolver(c.id, admin, AHORA)).toEqual({
+      estado: "hecho",
+      reanudacion: "REANUDADA",
+    });
+    expect(await seSirve(c.id, AHORA)).toBe(false);
+    expect((await diasOcupados(c.id))[0]).toBe("2026-12-02");
+    // Ni un crédito movido en neto: hoy se cobró y se devolvió, y mañana lo cobrará el barrido.
+    expect(await saldo(c.empresaId)).toBe(50);
+    const [aviso] = await correos(`publicidad-absuelta:${c.id}`);
+    expect(JSON.stringify(aviso?.payload)).toContain("Vuelve a mostrarse el 2 de diciembre");
   });
 
   it("con la zona llena: queda pausada, nada a medias, y el correo trae la primera fecha libre", async () => {
@@ -267,8 +288,10 @@ describe("absolver: la campaña se reanuda sola (revisión de P8)", () => {
       reanudacion: "ZONA_LLENA",
     });
     expect((await miPublicidad(prisma, c.empresaId, c.id, AHORA))?.estado).toBe("PAUSADA");
-    // Ni un día a medias: el intento se deshizo entero (solo le queda el día 1, el que ya tenía).
-    expect(await diasOcupados(c.id)).toEqual(["2026-12-01"]);
+    // Ni un día a medias: el intento se deshizo entero. Y el día 1 tampoco: se le devolvió al pasar a
+    // revisión, así que intenta volver el 2 —escribe el 2 y el 3 y choca con el 4—.
+    expect(await diasOcupados(c.id)).toEqual([]);
+    // El día 1 se cobró al activar y se devolvió: en neto, nada.
     expect(await saldo(c.empresaId)).toBe(50);
     // La absolución sí se confirmó: denuncias descartadas y ya no está en revisión.
     expect(await prisma.report.count({ where: { targetId: c.id, status: "DISMISSED" } })).toBe(3);
@@ -356,11 +379,14 @@ describe("retirar", () => {
       ahora: AHORA,
     });
     expect(r).toEqual({ estado: "hecho" });
-    expect(await prisma.zonaOcupacion.count({ where: { publicidadId: c.id } })).toBe(1);
+    // Sus días, libres DESDE HOY, y el día de hoy DEVUELTO (P9, regla 7): el de la retirada no se cobra.
+    expect(await prisma.zonaOcupacion.count({ where: { publicidadId: c.id } })).toBe(0);
+    expect(await saldo(c.empresaId)).toBe(50);
     expect(await prisma.report.count({ where: { targetId: c.id, status: "RESOLVED" } })).toBe(2);
     const [correo] = await correos(`publicidad-retirada:${c.id}`);
     const texto = JSON.stringify(correo?.payload);
     expect(texto).toContain("El enlace lleva a un sitio que no es seguro");
+    expect(texto).toContain("Te hemos devuelto los créditos de publicidad de hoy");
     expect(texto).not.toContain("Traza interna");
     expect(texto).not.toContain(admin);
     // El portal: estado y motivo; la nota no existe en su DTO.

@@ -6,7 +6,6 @@ import {
   ETIQUETA_ALCANCE_PUBLICIDAD,
   ETIQUETA_ESTADO_PUBLICIDAD,
   MSG_ESTADO_PUBLICIDAD,
-  MSG_PUBLICIDAD_PERIODO_GRATIS,
   MSG_SALDO_NO_RETENIDO,
 } from "@/config/constants";
 import { accionesPublicidad, costeTotal, diasPorDelante, fraseSaldo } from "@/lib/publicidad";
@@ -222,8 +221,6 @@ export default async function PaginaCampana({ params }: { params: Promise<{ id: 
               ) : null}
             </Tarjeta>
           ) : null}
-
-          <p className="text-2xs text-text-dim">{MSG_PUBLICIDAD_PERIODO_GRATIS}</p>
         </div>
       </div>
     </div>
