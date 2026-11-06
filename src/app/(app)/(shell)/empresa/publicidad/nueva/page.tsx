@@ -108,7 +108,8 @@ export default async function PaginaNuevaCampana() {
             pais={empresa.paisIso}
             regiones={regiones}
             paises={paises}
-            saldo={saldo}
+            saldo={saldo.saldo}
+            comprometido={saldo.comprometido}
             hoy={claveDia(hoy)}
             ultimoInicio={claveDia(sumarDias(hoy, PUBLICIDAD_RESERVA_MAX_DIAS))}
           />

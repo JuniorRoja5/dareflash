@@ -9,7 +9,7 @@ import {
   MSG_PUBLICIDAD_AUN_NO_SALE,
   MSG_SALDO_NO_RETENIDO,
 } from "@/config/constants";
-import { accionesPublicidad, costeTotal } from "@/lib/publicidad";
+import { accionesPublicidad, costeTotal, fraseSaldo } from "@/lib/publicidad";
 import type { Estimacion } from "@/server/services/publicidad";
 
 import { ambitoDelPortal } from "../../ambito-portal";
@@ -83,7 +83,8 @@ export default async function PaginaCampana({ params }: { params: Promise<{ id: 
   const [c, estimacion, saldo] = await Promise.all([
     miPublicidad(prisma, ambito.empresaId, id),
     estimacionDeMiPublicidad(prisma, ambito.empresaId, id),
-    saldoCreditosDe(prisma, ambito.empresaId),
+    // Lo comprometido SIN esta campaña: es lo que se le restará al activarla o reanudarla.
+    saldoCreditosDe(prisma, ambito.empresaId, { excluirPublicidadId: id }),
   ]);
   if (!c) notFound();
 
@@ -192,8 +193,14 @@ export default async function PaginaCampana({ params }: { params: Promise<{ id: 
                   </dt>
                   <dd className="text-text tabular-nums">
                     <span className="font-semibold">{coste} créditos</span>
-                    {c.estado === "BORRADOR" ? "" : ` (${diasPorDelante} días)`} · tienes {saldo}
+                    {c.estado === "BORRADOR" ? "" : ` (${diasPorDelante} días)`}
                   </dd>
+                  {/* Antes de comprometer (borrador o pausada): contra lo DISPONIBLE se comprobará. */}
+                  {c.estado === "BORRADOR" || c.estado === "PAUSADA" ? (
+                    <dd className="mt-1 text-2xs text-text-dim">
+                      {fraseSaldo(saldo.saldo, saldo.comprometido)}
+                    </dd>
+                  ) : null}
                 </div>
               ) : null}
             </dl>

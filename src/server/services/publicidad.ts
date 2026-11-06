@@ -19,10 +19,11 @@
  * │ que dos transacciones no se esperen en cruz.                                                     │
  * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
  *
- * ORDEN DE CERROJOS: la fila de `Publicidad` (FOR UPDATE) y después la ocupación. NUNCA `User` ni
- * `Empresa` en exclusiva: el saldo se LEE (se comprueba, no se retiene, ver `MSG_SALDO_NO_RETENIDO`).
- * Cuando P9 cobre, el cierre del día bloqueará `Empresa` (el primitivo de créditos) y NO deberá tomar
- * después el cerrojo de una `Publicidad`: ese orden cruzado con este fabricaría un deadlock.
+ * ORDEN DE CERROJOS: `Empresa` (solo al comprometer saldo: activar, reanudar) → `Publicidad` → la
+ * ocupación. NUNCA `User`. El saldo se comprueba contra lo DISPONIBLE (saldo menos lo comprometido en
+ * sus otras campañas) y no se retiene (ver `MSG_SALDO_NO_RETENIDO`). El cobro diario de P9 debe seguir
+ * el MISMO orden: Empresa primero y después la Publicidad (pausarla si no hay saldo); al revés,
+ * cruzado con este, fabricaría un deadlock.
  *
  * REINTENTA ante el 1020 de MariaDB (conflicto de instantánea) y el 1213 (deadlock): la transacción
  * fallida se deshace entera y reintentar es repetir la misma intención. Si se agotan, el error sube.
@@ -499,11 +500,58 @@ export type ResultadoOcupar =
   | { ok: true; inicio: Date; dias: number }
   | { ok: false; code: "ZONA_LLENA"; diaLleno: Date; primeraLibre: Date | null };
 
-function exigirSaldo(empresa: EmpresaParaOperar, coste: number): void {
-  if (empresa.saldo < coste) {
+/**
+ * BLOQUEA LA FILA DE LA EMPRESA (FOR UPDATE). Va lo PRIMERO de toda transacción que COMPROMETE saldo
+ * (activar, reanudar): serializa a las activaciones de una misma empresa, y como es la primera
+ * sentencia, la instantánea de la transacción se toma DESPUÉS de esperar a este cerrojo —la lectura de
+ * lo comprometido ve lo que la otra activación acaba de confirmar—. Sin él, dos activaciones a la vez
+ * leerían las dos «nada comprometido» y entrarían las dos con el saldo de una.
+ *
+ * Y fija el orden de cerrojos: Empresa → Publicidad → ocupación. El cobro diario de P9 bloqueará también
+ * la Empresa primero (el primitivo de créditos), así que los dos caminos van en el mismo sentido.
+ */
+async function bloquearEmpresa(tx: Db, empresaId: string): Promise<void> {
+  await tx.$queryRaw`SELECT \`id\` FROM \`Empresa\` WHERE \`id\` = ${empresaId} FOR UPDATE`;
+}
+
+/**
+ * LO COMPROMETIDO: lo que costarán los días de HOY EN ADELANTE que ya tienen ocupados sus OTRAS campañas
+ * con intención de salir (ACTIVA: activas y programadas), cada una con SU tarifa congelada. Las pausadas
+ * y terminadas no comprometen nada: sus días por venir ya se liberaron.
+ *
+ * Hoy cuenta (conservador): P6 no cobra. Cuando P9 escriba el consumo al empezar el día, el de HOY ya
+ * estará descontado del saldo y tendrá que dejar de contarse aquí, o se cobraría dos veces en la cuenta.
+ * Días distintos (una campaña de varios países ocupa una fila por país y día, y paga una vez por día).
+ */
+export async function compromisoDeEmpresa(
+  db: Db,
+  empresaId: string,
+  ahora: Date = new Date(),
+  excluirPublicidadId: string | null = null,
+): Promise<number> {
+  const filas = await db.$queryRaw<{ tarifa: number | bigint | null; dias: number | bigint }[]>`
+    SELECT p.\`creditosPorDia\` AS tarifa, COUNT(DISTINCT z.\`dia\`) AS dias
+    FROM \`ZonaOcupacion\` z JOIN \`Publicidad\` p ON p.\`id\` = z.\`publicidadId\`
+    WHERE p.\`empresaId\` = ${empresaId} AND p.\`estado\` = 'ACTIVA'
+      AND p.\`id\` <> ${excluirPublicidadId ?? ""} AND z.\`dia\` >= ${diaDe(ahora)}
+    GROUP BY p.\`id\`, p.\`creditosPorDia\``;
+  return filas.reduce((s, f) => s + Number(f.tarifa ?? 0) * Number(f.dias), 0);
+}
+
+/**
+ * EL CALENDARIO NUEVO TIENE QUE CABER EN LO DISPONIBLE: el saldo menos lo que ya está comprometido en
+ * sus otras campañas. Comparar solo con el saldo dejaba a una empresa con 90 créditos activar varias
+ * campañas de 60 días en zonas distintas y ocupar plazas que nunca podría pagar —y con tres plazas por
+ * zona, eso bloquea zonas enteras con muy poco dinero—.
+ */
+function exigirSaldo(empresa: EmpresaParaOperar, coste: number, comprometido: number): void {
+  const disponible = empresa.saldo - comprometido;
+  if (disponible < coste) {
     throw new PublicidadError(
       "SALDO_INSUFICIENTE",
-      `Necesitas ${coste} créditos de publicidad y tienes ${empresa.saldo}.`,
+      comprometido > 0
+        ? `Esta campaña necesita ${coste} créditos de publicidad. Tienes ${empresa.saldo}, pero ${comprometido} ya están comprometidos en tus otras campañas: te quedan ${Math.max(0, disponible)}.`
+        : `Esta campaña necesita ${coste} créditos de publicidad y tienes ${empresa.saldo}.`,
     );
   }
 }
@@ -529,6 +577,7 @@ export async function activarPublicidad(
   try {
     return await conReintentos(() =>
       db.$transaction(async (tx) => {
+        await bloquearEmpresa(tx, empresaId);
         const c = await bloquear(tx, empresaId, publicidadId);
         if (c.estado !== "BORRADOR") {
           throw new PublicidadError("ESTADO_NO_PERMITE", "Esa campaña ya no es un borrador.");
@@ -555,7 +604,11 @@ export async function activarPublicidad(
         }
         dias = c.diasContratados;
         const tarifa = tarifaPorDia(c.alcance, c.paises.length);
-        exigirSaldo(empresa, costeTotal(tarifa, dias));
+        exigirSaldo(
+          empresa,
+          costeTotal(tarifa, dias),
+          await compromisoDeEmpresa(tx, empresaId, ahora, publicidadId),
+        );
         zonas = zonasDeCampana(c);
         await ocuparDias(tx, publicidadId, zonas, diasSeguidos(inicio, dias));
         if (c.alcance === "CIUDAD" && c.ciudadId !== null) {
@@ -647,6 +700,7 @@ export async function reanudarPublicidad(
   try {
     return await conReintentos(() =>
       db.$transaction(async (tx) => {
+        await bloquearEmpresa(tx, empresaId);
         const c = await bloquear(tx, empresaId, publicidadId);
         if (c.estado !== "PAUSADA") {
           throw new PublicidadError(
@@ -667,7 +721,11 @@ export async function reanudarPublicidad(
         }
         if (dias > 0) {
           // La tarifa CONGELADA al activar; un borrador nunca llega aquí, así que siempre la hay.
-          exigirSaldo(empresa, costeTotal(c.creditosPorDia ?? 0, dias));
+          exigirSaldo(
+            empresa,
+            costeTotal(c.creditosPorDia ?? 0, dias),
+            await compromisoDeEmpresa(tx, empresaId, ahora, publicidadId),
+          );
           zonas = zonasDeCampana(c);
           await ocuparDias(tx, publicidadId, zonas, diasSeguidos(inicio, dias));
         }
@@ -1248,6 +1306,19 @@ export async function estimacionDeMiPublicidad(
 }
 
 /** El saldo de créditos de la empresa (para las pantallas), por el lector del módulo de créditos. */
-export function saldoCreditosDe(db: Db, empresaId: string): Promise<number> {
-  return saldoCreditosEmpresa(db, empresaId);
+export async function saldoCreditosDe(
+  db: Db,
+  empresaId: string,
+  opciones: { ahora?: Date; excluirPublicidadId?: string } = {},
+): Promise<{ saldo: number; comprometido: number }> {
+  const [saldo, comprometido] = await Promise.all([
+    saldoCreditosEmpresa(db, empresaId),
+    compromisoDeEmpresa(
+      db,
+      empresaId,
+      opciones.ahora ?? new Date(),
+      opciones.excluirPublicidadId ?? null,
+    ),
+  ]);
+  return { saldo, comprometido };
 }

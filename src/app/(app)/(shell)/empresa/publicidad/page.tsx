@@ -5,6 +5,7 @@ import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { ETIQUETA_ESTADO_PUBLICIDAD, MSG_PUBLICIDAD_AUN_NO_SALE } from "@/config/constants";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
+import { fraseSaldo } from "@/lib/publicidad";
 
 import { ambitoDelPortal } from "../ambito-portal";
 import { AvisoVerificar } from "../aviso-verificar";
@@ -78,9 +79,10 @@ export default async function PaginaPublicidad({
         <div>
           <h1 className="text-2xl text-text">Publicidad</h1>
           <p className="mt-1 max-w-prose text-sm text-text-dim">
-            Tus campañas y los días que tiene reservados cada una. Tienes{" "}
-            <span className="font-semibold text-text tabular-nums">{saldo}</span> créditos de
-            publicidad.
+            Tus campañas y los días que tiene reservados cada una.
+          </p>
+          <p className="mt-1 max-w-prose text-sm text-text">
+            {fraseSaldo(saldo.saldo, saldo.comprometido, "todas")}
           </p>
         </div>
         {/* SECUNDARIO: el acento de la pantalla es el CTA del cromo, y uno solo por pantalla. */}

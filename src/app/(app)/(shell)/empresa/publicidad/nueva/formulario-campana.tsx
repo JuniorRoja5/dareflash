@@ -18,7 +18,7 @@ import {
   PUBLICIDAD_TEXTO_MAX,
 } from "@/config/constants";
 import { mensajeDe, obtenerCsrfToken } from "@/lib/cliente-http";
-import { costeTotal, destinoValido, tarifaPorDia } from "@/lib/publicidad";
+import { costeTotal, destinoValido, fraseSaldo, tarifaPorDia } from "@/lib/publicidad";
 
 import { BuscadorCiudad } from "./buscador-ciudad";
 
@@ -35,6 +35,8 @@ export interface PropsFormularioCampana {
   /** Países elegibles, ya ORDENADOS en el servidor (el orden de Intl no hidrata igual en el cliente). */
   paises: { iso: string; nombre: string }[];
   saldo: number;
+  /** Lo ya comprometido en sus otras campañas (días de hoy en adelante, a su tarifa congelada). */
+  comprometido: number;
   /** Hoy y el último día en que se puede empezar, en AAAA-MM-DD: los fija el servidor. */
   hoy: string;
   ultimoInicio: string;
@@ -70,6 +72,7 @@ export function FormularioCampana(props: PropsFormularioCampana) {
     Number.isInteger(nDias) && nDias >= PUBLICIDAD_DIAS_MIN && nDias <= PUBLICIDAD_DIAS_MAX;
   const tarifa = tarifaPorDia(alcance, Math.max(1, paises.length));
   const coste = diasValidos ? costeTotal(tarifa, nDias) : null;
+  const disponible = Math.max(0, props.saldo - props.comprometido);
   const nombreDePais = (iso: string) => props.paises.find((p) => p.iso === iso)?.nombre ?? iso;
 
   function zonaElegida(): string | null {
@@ -339,10 +342,19 @@ export function FormularioCampana(props: PropsFormularioCampana) {
               {coste !== null ? (
                 <>
                   <span className="font-semibold text-text">{coste} créditos</span> en total ·{" "}
-                  {tarifa} al día · tienes {props.saldo}
+                  {tarifa} al día ·{" "}
+                  {/* LO DISPONIBLE, no el saldo a secas: es contra lo que se comprobará al activar. */}
+                  {props.comprometido > 0
+                    ? `te quedan ${disponible} de ${props.saldo} (${props.comprometido} ya comprometidos)`
+                    : `tienes ${props.saldo}`}
+                  {coste > disponible ? (
+                    <span className="block text-alarm">
+                      No te llega para todos los días: acórtala o libera otra campaña.
+                    </span>
+                  ) : null}
                 </>
               ) : (
-                `Tienes ${props.saldo} créditos de publicidad`
+                fraseSaldo(props.saldo, props.comprometido)
               )}
             </p>
           )

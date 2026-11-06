@@ -43,6 +43,24 @@ export function costeTotal(creditosPorDia: number, dias: number): number {
   return creditosPorDia * dias;
 }
 
+/**
+ * EL SALDO EN HUMANO, con lo que ya está comprometido. Una sola frase para todo el portal (lista,
+ * formulario, ficha): si cada pantalla lo dijera a su manera, una diría «tienes 90» y otra «te quedan 30»
+ * sobre el mismo dinero, y las dos serían verdad a medias.
+ */
+export function fraseSaldo(
+  saldo: number,
+  comprometido: number,
+  /** «otras» en la ficha y el formulario (se habla de UNA campaña); «todas» en la lista. */
+  cuales: "otras" | "todas" = "otras",
+): string {
+  const s = saldo === 1 ? "crédito" : "créditos";
+  if (comprometido <= 0) return `Tienes ${saldo} ${s} de publicidad.`;
+  const quedan = Math.max(0, saldo - comprometido);
+  const donde = cuales === "otras" ? "tus otras campañas" : "tus campañas activas y programadas";
+  return `Tienes ${saldo} ${s} de publicidad; ${comprometido} ya están comprometidos en ${donde}, así que te quedan ${quedan} para nuevas.`;
+}
+
 // ---------------------------------------------------------------------------------------------------
 // Zonas
 // ---------------------------------------------------------------------------------------------------

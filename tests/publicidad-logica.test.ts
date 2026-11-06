@@ -18,6 +18,7 @@ import {
   elegiblesEnHueco,
   estadoVisiblePublicidad,
   estimacionDelCalendario,
+  fraseSaldo,
   nivelesDeRespaldo,
   personasQueLeTocan,
   tarifaPorDia,
@@ -159,6 +160,18 @@ describe("la estimación", () => {
     expect(estimacionDelCalendario(propia, grupos, dias, porDia)).toBe(30);
     const raros = [{ ubicacion: enValencia, personas: 10 }];
     expect(estimacionDelCalendario(propia, raros, dias.slice(0, 1), () => [otra, otraDos])).toBe(3);
+  });
+});
+
+describe("la frase del saldo", () => {
+  it("sin nada comprometido, el saldo a secas; con algo, cuánto queda para nuevas", () => {
+    expect(fraseSaldo(90, 0)).toBe("Tienes 90 créditos de publicidad.");
+    expect(fraseSaldo(90, 60)).toBe(
+      "Tienes 90 créditos de publicidad; 60 ya están comprometidos en tus otras campañas, así que te quedan 30 para nuevas.",
+    );
+    expect(fraseSaldo(1, 0)).toBe("Tienes 1 crédito de publicidad.");
+    // Nunca un disponible negativo (el saldo pudo bajar por un ajuste después de comprometer).
+    expect(fraseSaldo(10, 30, "todas")).toContain("te quedan 0 para nuevas");
   });
 });
 

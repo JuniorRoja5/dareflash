@@ -461,6 +461,88 @@ describe("las reglas", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------
+// Lo comprometido: el saldo se comprueba contra lo DISPONIBLE, no solo contra la campaña
+// ---------------------------------------------------------------------------------------------------
+
+describe("el saldo se comprueba contra lo comprometido en sus otras campañas", () => {
+  const MADRID = 3117735;
+  const SEVILLA = 2510911;
+  const BARCELONA = 3128760;
+  const BILBAO = 3128026;
+
+  it("dos campañas que por separado caben y juntas no: la segunda se rechaza", async () => {
+    const e = await unaEmpresa({ creditos: 90 });
+    const a = await unBorrador(e, { dias: 60 });
+    const b = await unBorrador(e, { ciudadId: MADRID, dias: 40 });
+    expect((await activarPublicidad(prisma, e, a, { ahora: AHORA })).ok).toBe(true);
+    // 90 de saldo − 60 comprometidos = 30 disponibles; B necesita 40.
+    expect(await codigoDe(activarPublicidad(prisma, e, b, { ahora: AHORA }))).toBe(
+      "SALDO_INSUFICIENTE",
+    );
+    expect(await prisma.zonaOcupacion.count({ where: { publicidadId: b } })).toBe(0);
+    // Y una que SÍ cabe en lo que queda entra (el compromiso resta, no bloquea todo).
+    const c = await unBorrador(e, { ciudadId: SEVILLA, dias: 30 });
+    expect((await activarPublicidad(prisma, e, c, { ahora: AHORA })).ok).toBe(true);
+  });
+
+  it("varias a la vez, en paralelo, con saldo para una sola: entra exactamente una", async () => {
+    const e = await unaEmpresa({ creditos: 90 });
+    const ids = await Promise.all(
+      [VALENCIA, MADRID, SEVILLA, BARCELONA, BILBAO].map((ciudadId) =>
+        unBorrador(e, { ciudadId, dias: 60 }),
+      ),
+    );
+    const r = await Promise.all(
+      ids.map((id) => codigoDe(activarPublicidad(prisma, e, id, { ahora: AHORA }))),
+    );
+    expect(r.filter((x) => x === "OK")).toHaveLength(1);
+    expect(r.filter((x) => x === "SALDO_INSUFICIENTE")).toHaveLength(4);
+    expect(await prisma.publicidad.count({ where: { empresaId: e, estado: "ACTIVA" } })).toBe(1);
+  });
+
+  it("pausar o terminar una libera su compromiso, y la otra ya cabe", async () => {
+    const e = await unaEmpresa({ creditos: 90 });
+    const a = await unBorrador(e, { dias: 60 });
+    const b = await unBorrador(e, { ciudadId: MADRID, dias: 60 });
+    await activarPublicidad(prisma, e, a, { ahora: AHORA });
+    expect(await codigoDe(activarPublicidad(prisma, e, b, { ahora: AHORA }))).toBe(
+      "SALDO_INSUFICIENTE",
+    );
+    // Pausada, A conserva solo el día de hoy (1 crédito): 90 − 1 = 89 ≥ 60.
+    await pausarPublicidad(prisma, e, a, AHORA);
+    expect((await activarPublicidad(prisma, e, b, { ahora: AHORA })).ok).toBe(true);
+    // Y reanudar A ahora no cabe (B compromete 60; A necesita sus 59 días restantes).
+    expect(await codigoDe(reanudarPublicidad(prisma, e, a, { ahora: AHORA }))).toBe(
+      "SALDO_INSUFICIENTE",
+    );
+    // Terminar B libera lo suyo, y entonces A sí vuelve.
+    await terminarPublicidad(prisma, e, b, AHORA);
+    expect((await reanudarPublicidad(prisma, e, a, { ahora: AHORA })).ok).toBe(true);
+  });
+
+  it("cada día cuenta con SU tarifa congelada, y una campaña de varios países paga una vez por día", async () => {
+    const { compromisoDeEmpresa } = await import("../src/server/services/publicidad");
+    const online = await unaEmpresa({ tipoNegocio: "ONLINE", creditos: 500 });
+    const dosPaises = await unBorrador(online, {
+      alcance: "PAIS",
+      ciudadId: undefined,
+      paises: ["ES", "CO"],
+      dias: 3,
+    });
+    await activarPublicidad(prisma, online, dosPaises, { ahora: AHORA });
+    // 3 días × 10 créditos (2 países), no 6 filas × 10.
+    expect(await compromisoDeEmpresa(prisma, online, AHORA)).toBe(30);
+    const original = CREDITOS_POR_DIA.PAIS;
+    try {
+      CREDITOS_POR_DIA.PAIS = 99;
+      expect(await compromisoDeEmpresa(prisma, online, AHORA)).toBe(30);
+    } finally {
+      CREDITOS_POR_DIA.PAIS = original;
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
 // La estimación, con el aforo medido
 // ---------------------------------------------------------------------------------------------------
 
