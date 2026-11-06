@@ -17,6 +17,8 @@ export const SECCIONES_PORTAL: readonly SeccionPortal[] = [
   { href: "/empresa", nombre: "Resumen" },
   // Fase 9 · P3: sus propuestas de reto patrocinado y su extracto. Entra con su página, como dice arriba.
   { href: "/empresa/retos", nombre: "Retos" },
+  // Fase 9 · P6: sus campañas de publicidad (crear, activar o programar, pausar, terminar).
+  { href: "/empresa/publicidad", nombre: "Publicidad" },
   // fase9-diseno: el historial entero de créditos de publicidad, paginado. El Resumen enseña el saldo.
   { href: "/empresa/creditos", nombre: "Créditos" },
   { href: "/empresa/cuenta", nombre: "Cuenta" },

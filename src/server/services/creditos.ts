@@ -286,6 +286,19 @@ export interface CreditosDeEmpresa {
   nextCursor: string | null;
 }
 
+/**
+ * EL SALDO de una empresa, solo para LEERLO (comprobarlo antes de activar una campaña, enseñarlo). Vive
+ * aquí para que este módulo siga siendo el único que nombra la columna: escribirla es del primitivo, y
+ * leerla desde cualquier sitio invitaría a escribirla también desde cualquier sitio.
+ */
+export async function saldoCreditosEmpresa(db: Db, empresaId: string): Promise<number> {
+  const e = await db.empresa.findUnique({
+    where: { id: empresaId },
+    select: { creditosSaldo: true },
+  });
+  return e?.creditosSaldo ?? 0;
+}
+
 /** SUS créditos: el saldo y su historial por KEYSET. El `empresaId` sale del chokepoint. */
 export async function misCreditos(
   db: Db,

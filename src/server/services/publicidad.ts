@@ -80,6 +80,7 @@ import type { Db } from "@/server/db/types";
 import { ciudadesEnRadio } from "@/server/geo/ubicacion";
 
 import { aforoEnCascada, medianasAforo } from "./aforo";
+import { saldoCreditosEmpresa } from "./creditos";
 
 // ---------------------------------------------------------------------------------------------------
 // Errores
@@ -180,13 +181,14 @@ interface EmpresaParaOperar {
   estado: EstadoEmpresa;
   tipoNegocio: TipoNegocio;
   paisIso: string;
-  creditosSaldo: number;
+  /** Los créditos de publicidad que tiene, LEÍDOS por el módulo de créditos (que es quien los escribe). */
+  saldo: number;
 }
 
 async function empresaParaOperar(db: Db, empresaId: string): Promise<EmpresaParaOperar> {
   const e = await db.empresa.findUnique({
     where: { id: empresaId },
-    select: { estado: true, tipoNegocio: true, paisIso: true, creditosSaldo: true },
+    select: { estado: true, tipoNegocio: true, paisIso: true },
   });
   if (!e || !puedeOperarEmpresa(e.estado as EstadoEmpresa)) {
     throw new PublicidadError("EMPRESA_NO_OPERA", MSG_NO_OPERA);
@@ -195,7 +197,7 @@ async function empresaParaOperar(db: Db, empresaId: string): Promise<EmpresaPara
     estado: e.estado as EstadoEmpresa,
     tipoNegocio: e.tipoNegocio as TipoNegocio,
     paisIso: e.paisIso,
-    creditosSaldo: e.creditosSaldo,
+    saldo: await saldoCreditosEmpresa(db, empresaId),
   };
 }
 
@@ -498,10 +500,10 @@ export type ResultadoOcupar =
   | { ok: false; code: "ZONA_LLENA"; diaLleno: Date; primeraLibre: Date | null };
 
 function exigirSaldo(empresa: EmpresaParaOperar, coste: number): void {
-  if (empresa.creditosSaldo < coste) {
+  if (empresa.saldo < coste) {
     throw new PublicidadError(
       "SALDO_INSUFICIENTE",
-      `Necesitas ${coste} créditos de publicidad y tienes ${empresa.creditosSaldo}.`,
+      `Necesitas ${coste} créditos de publicidad y tienes ${empresa.saldo}.`,
     );
   }
 }
@@ -908,6 +910,12 @@ export async function miPublicidad(
   return aDto(f, cals.get(f.id), estados);
 }
 
+/** Los países que tiene el catálogo (los únicos que `validarZona` acepta), para el formulario. */
+export async function paisesDelCatalogo(db: Db): Promise<Set<string>> {
+  const filas = await db.ciudad.findMany({ distinct: ["paisIso"], select: { paisIso: true } });
+  return new Set(filas.map((f) => f.paisIso));
+}
+
 /** Las regiones de un país, para el formulario (código y nombre), por nombre. */
 export async function regionesDePais(
   db: Db,
@@ -923,7 +931,7 @@ export async function regionesDePais(
       codigo: f.estadoCodigo as string,
       nombre: f.estadoNombre ?? (f.estadoCodigo as string),
     }))
-    .sort((a, b) => (a.nombre < b.nombre ? -1 : a.nombre > b.nombre ? 1 : 0));
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -1234,11 +1242,7 @@ export async function estimacionDeMiPublicidad(
   );
 }
 
-/** El saldo de créditos de la empresa (para la pantalla del borrador). */
-export async function saldoCreditosDe(db: Db, empresaId: string): Promise<number> {
-  const e = await db.empresa.findUnique({
-    where: { id: empresaId },
-    select: { creditosSaldo: true },
-  });
-  return e?.creditosSaldo ?? 0;
+/** El saldo de créditos de la empresa (para las pantallas), por el lector del módulo de créditos. */
+export function saldoCreditosDe(db: Db, empresaId: string): Promise<number> {
+  return saldoCreditosEmpresa(db, empresaId);
 }

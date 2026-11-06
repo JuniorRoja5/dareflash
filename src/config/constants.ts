@@ -2593,6 +2593,21 @@ export const PUBLICIDAD_PAGINA = 25;
  * LA LÍNEA QUE HACE HONESTA LA RESERVA: el saldo se COMPRUEBA al reservar, pero no se RETIENE —retener
  * sería un segundo saldo, y dos saldos acaban discrepando—. La consecuencia se dice, no se esconde.
  */
+export const ETIQUETA_ALCANCE_PUBLICIDAD: Record<AlcancePublicidad, string> = {
+  CIUDAD: "Una ciudad y alrededores",
+  ESTADO: "Una región entera",
+  PAIS: "Uno o varios países",
+  GLOBAL: "Todo el mundo",
+};
+
+/**
+ * LO QUE TODAVÍA NO PASA, DICHO. En P6 las campañas se crean y reservan sus días, pero el feed aún no
+ * las enseña (P7) ni se cobra ningún día (P9). Prometer «tu anuncio ya se ve» sería mentir; callarlo
+ * sería peor. Esta frase se quita EN LA MISMA PIEZA que haga salir la publicidad (lo vigila un test).
+ */
+export const MSG_PUBLICIDAD_AUN_NO_SALE =
+  "La publicidad todavía no se muestra en el feed: estamos terminando los espacios. Ya puedes preparar y reservar tus campañas, y no se descuenta ningún crédito hasta que empiecen a mostrarse.";
+
 export const MSG_SALDO_NO_RETENIDO =
   "Comprobamos que tienes créditos de publicidad para todos los días, pero no los apartamos: se descuentan cada día de campaña. Si cuando llegue un día no te quedan, la campaña se pausa.";
 

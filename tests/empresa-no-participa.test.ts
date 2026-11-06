@@ -157,6 +157,10 @@ const permiteEmpresa = (src: string) => permisos(src) > 0;
  *  - `empresa/retos` (Fase 9 · P3): PROPONER un reto patrocinado. No es participar —no sube, no
  *    vota, no compite—: es lo que una empresa viene a hacer. Dentro, el chokepoint exige que la
  *    sesión TENGA empresa (un participante recibe 404) y el servicio, que esté VERIFICADA.
+ *  - `empresa/publicidad` y `empresa/publicidad/[id]` (Fase 9 · P6): CREAR una campaña de publicidad
+ *    y gestionarla (activar, pausar, reanudar, terminar, borrar el borrador). Tampoco es participar:
+ *    es anunciarse, lo otro que una empresa viene a hacer. Mismas dos barreras dentro: sin empresa,
+ *    404; sin verificar, el servicio rechaza.
  *
  * LO QUE SIGUE CERRADO Y NO ES UN OLVIDO: `perfil` (PATCH) y `perfil/avatar`. Son el perfil PÚBLICO
  * del producto de participación; la identidad de una empresa es su fila `Empresa`, no un perfil de
@@ -164,7 +168,14 @@ const permiteEmpresa = (src: string) => permisos(src) > 0;
  *
  * Cada ruta nueva del portal entra aquí —y cada una con su línea—.
  */
-const PERMITEN = new Set(["auth/logout", "auth/change-password", "perfil/email", "empresa/retos"]);
+const PERMITEN = new Set([
+  "auth/logout",
+  "auth/change-password",
+  "perfil/email",
+  "empresa/retos",
+  "empresa/publicidad",
+  "empresa/publicidad/[id]",
+]);
 
 describe("el censo de rutas mutantes", () => {
   const MUTANTES = rutas().filter((r) => muta(r.src));

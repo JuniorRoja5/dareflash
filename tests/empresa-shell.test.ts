@@ -161,6 +161,10 @@ const COMPARTIDAS = [
   "/empresa/retos/nuevo",
   // fase9-diseno: el historial entero de sus créditos de publicidad (antes, una tarjeta del Resumen).
   "/empresa/creditos",
+  // Fase 9 · P6: sus campañas de publicidad, el formulario de crear una y la ficha de cada una.
+  "/empresa/publicidad",
+  "/empresa/publicidad/nueva",
+  "/empresa/publicidad/[id]",
 ];
 
 describe("el censo: toda página de (app) está clasificada", () => {
