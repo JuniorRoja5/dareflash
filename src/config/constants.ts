@@ -2660,7 +2660,7 @@ export const MSG_ESTADO_PUBLICIDAD: Record<EstadoVisiblePublicidad, string> = {
 };
 
 /**
- * CRÉDITOS POR DÍA de cada alcance (1 crédito = 1 día en su zona). En UN sitio: subir un precio es
+ * CRÉDITOS POR DÍA de cada alcance (lo que cuesta un día en esa zona). En UN sitio: subir un precio es
  * cambiar un número. Y lo vendido NO se mueve: al activar o programar, la tarifa se CONGELA en
  * `Publicidad.creditosPorDia` (la misma razón que `comisionBps` por reto). Hay un test que cambia esta
  * tabla y comprueba que una campaña activa y una reserva siguen con su precio (por eso el objeto no se

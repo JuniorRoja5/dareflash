@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { Tarjeta } from "@/components/ui/tarjeta";
-import { msgSocioFundador } from "@/config/constants";
+import { fraseQueEsUnCredito, msgSocioFundador } from "@/config/constants";
 import { paisesParaElegir } from "@/lib/paises";
 
 import { FormularioAlta } from "./formulario-alta";
@@ -71,7 +71,7 @@ export default async function PaginaAltaEmpresa() {
             <h2 className={CABECERA}>Qué te llevas</h2>
             <ul className="mt-3 space-y-2 text-sm text-text">
               <li>Patrocina retos con tu marca: tú pones el reto y el premio.</li>
-              <li>Créditos de publicidad: cada crédito es un día de anuncio.</li>
+              <li>Créditos de publicidad: {fraseQueEsUnCredito()}</li>
               <li className="text-text-dim">
                 Lo ves todo, pero no participas: ni subes vídeos ni votas.
               </li>

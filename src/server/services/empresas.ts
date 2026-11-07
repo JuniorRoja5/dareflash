@@ -25,6 +25,7 @@ import "server-only";
 
 import {
   EMPRESAS_PAGINA,
+  fraseQueEsUnCredito,
   EMPRESA_CIUDAD_MAX,
   EMPRESA_CONTACTO_MAX,
   EMPRESA_CONTACTO_MIN,
@@ -703,7 +704,7 @@ async function avisarDecision(
   // EL REGALO SE CUENTA EN EL MISMO CORREO: se le prometió en el alta («las empresas que verifiquemos
   // antes de… se llevan N días de publicidad»), y este es el momento en que se cumple.
   const regalo = entrada.regaloCreditos
-    ? ` Como Socio Fundador, te regalamos ${entrada.regaloCreditos} créditos de publicidad: cada uno es un día de anuncio.`
+    ? ` Como Socio Fundador, te regalamos ${entrada.regaloCreditos} créditos de publicidad. ${fraseQueEsUnCredito()}`
     : "";
   const cuerpo = verificada
     ? `Hemos revisado ${e.nombre} y está verificada. Ya puedes usar tu portal.${regalo}`

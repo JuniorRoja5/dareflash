@@ -1,5 +1,6 @@
 /**
- * CRÉDITOS DE PUBLICIDAD (Fase 9 · P4): el ledger de las empresas. 1 crédito = 1 día de anuncio.
+ * CRÉDITOS DE PUBLICIDAD (Fase 9 · P4): el ledger de las empresas. Un día de campaña cuesta los créditos
+ * de su zona (`CREDITOS_POR_DIA`).
  *
  * LAS MISMAS GARANTÍAS QUE `ledger.ts` (puntos, dinero, Boost), con un cambio de fila:
  *  - solo inserción: una fila de `CreditoLedger` por movimiento, nunca se edita ni se borra;

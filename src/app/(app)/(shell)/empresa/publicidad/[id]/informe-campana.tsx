@@ -12,7 +12,10 @@ const MINUTOS = Math.round(PUBLICIDAD_METRICAS_CADENCIA_MS / 60_000);
 const cifra = (n: number) => n.toLocaleString("es-ES");
 const porCien = (vistas: number, clics: number) => {
   const p = clicsPorCienVistas(vistas, clics);
-  return p === null ? "—" : p.toLocaleString("es-ES");
+  // Siempre con su decimal («2,0», no «2»): en una columna de cifras, uno sin decimal parece de otra cosa.
+  return p === null
+    ? "—"
+    : p.toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 };
 const dia = (iso: string) => new Date(`${iso}T00:00:00.000Z`).toLocaleDateString("es-ES", DIA);
 

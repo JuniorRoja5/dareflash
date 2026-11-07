@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Tarjeta } from "@/components/ui/tarjeta";
 import {
+  fraseQueEsUnCredito,
   CREDITOS_POR_DIA,
   MSG_SALDO_NO_RETENIDO,
   PUBLICIDAD_MAX_POR_ZONA,
@@ -53,7 +54,7 @@ export default async function PaginaNuevaCampana() {
       </Link>
       <h1 className="text-2xl text-text">Nueva campaña</h1>
       <p className="mt-1 max-w-prose text-sm text-text-dim">
-        1 crédito de publicidad es 1 día en tu zona. Sin revisión previa: la activas tú.
+        {fraseQueEsUnCredito()} Sin revisión previa: la activas tú.
       </p>
     </div>
   );

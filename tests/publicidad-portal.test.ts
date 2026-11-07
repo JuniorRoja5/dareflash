@@ -100,6 +100,20 @@ describe("el censo de aislamiento de la publicidad", () => {
   });
 });
 
+describe("qué es un crédito, sin la frase que mentía (P9-P10)", () => {
+  it("nadie vuelve a escribir que un crédito es un día: lo dice `fraseQueEsUnCredito`, de la tabla", () => {
+    // Era cierto solo en una ciudad (un día global cuesta 15) y, con el cobro diario, al lado de un
+    // «−15» se leía como un error. Se colaba en sitios sueltos: P9 arregló tres y P10 encontró dos más.
+    const culpables = ficheros(raiz("src"))
+      .filter((f) => !f.includes(`${path.sep}generated${path.sep}`))
+      .filter((f) =>
+        /cr[eé]dito[^.\n]{0,30}es (?:1|un) d[ií]a/i.test(soloCodigo(readFileSync(f, "utf8"))),
+      )
+      .map((f) => path.relative(raiz(), f));
+    expect(culpables).toEqual([]);
+  });
+});
+
 describe("los avisos que caducan", () => {
   const constantes = () => soloCodigo(leer("src", "config", "constants.ts"));
 
