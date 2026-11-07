@@ -25,7 +25,12 @@ const dia = (iso: string) => new Date(`${iso}T00:00:00.000Z`).toLocaleDateString
  * en el servidor (el `Intl` del navegador no siempre coincide y rompería la hidratación).
  *
  * TABLA EN ESCRITORIO y filas apiladas en móvil, como el historial de créditos. Qué es cada cifra va
- * escrito al lado: «vista» no es «persona», y una empresa no tiene por qué saberlo.
+ * escrito al lado.
+ *
+ * «VECES QUE SE MOSTRÓ», NO «VISTAS» (revisión de P10): la cifra cuenta ENTREGAS en un hueco (se suma en
+ * `elegirPieza` al elegir la campaña), no apariciones en pantalla: una página que se carga y no se baja
+ * hasta el hueco cuenta igual. «Vistas» prometería más de lo que mide. En el código sigue llamándose
+ * `vistas` (la columna, el campo de Redis); lo que cambia es lo que lee la empresa.
  */
 export function InformeCampana({
   informe,
@@ -44,15 +49,15 @@ export function InformeCampana({
           Resultados
         </h2>
         <p className="mt-1 max-w-prose text-sm text-text-dim">
-          Vistas: las veces que la mostramos en el feed o en la portada. Clics: las veces que
-          alguien la tocó para ir a tu web. Se actualizan cada {MINUTOS} minutos.
+          Veces que se mostró: las veces que la pusimos en el feed o en la portada. Clics: las veces
+          que alguien la tocó para ir a tu web. Se actualizan cada {MINUTOS} minutos.
         </p>
 
         <dl className="mt-4 grid grid-cols-3 gap-3">
           {[
-            ["Vistas", cifra(totales.vistas)],
+            ["Veces que se mostró", cifra(totales.vistas)],
             ["Clics", cifra(totales.clics)],
-            ["Clics por cada 100 vistas", porCien(totales.vistas, totales.clics)],
+            ["Clics por cada 100 veces que se mostró", porCien(totales.vistas, totales.clics)],
           ].map(([etiqueta, valor]) => (
             <div key={etiqueta} className="rounded-sm border border-line bg-surface p-3">
               <dt className="text-2xs text-text-dim">{etiqueta}</dt>
@@ -73,9 +78,9 @@ export function InformeCampana({
               <thead className="border-b border-line">
                 <tr>
                   <th className={`py-2 pr-4 ${CABECERA}`}>Día</th>
-                  <th className={`py-2 pr-4 text-right ${CABECERA}`}>Vistas</th>
+                  <th className={`py-2 pr-4 text-right ${CABECERA}`}>Veces que se mostró</th>
                   <th className={`py-2 pr-4 text-right ${CABECERA}`}>Clics</th>
-                  <th className={`py-2 text-right ${CABECERA}`}>Por cada 100 vistas</th>
+                  <th className={`py-2 text-right ${CABECERA}`}>Clics por cada 100 veces</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -103,8 +108,8 @@ export function InformeCampana({
                 <li key={d.dia} className="flex items-baseline justify-between gap-3 py-3">
                   <span className="text-sm text-text-dim tabular-nums">{dia(d.dia)}</span>
                   <span className="text-right text-sm text-text tabular-nums">
-                    {cifra(d.vistas)} {d.vistas === 1 ? "vista" : "vistas"} · {cifra(d.clics)}{" "}
-                    {d.clics === 1 ? "clic" : "clics"}
+                    se mostró {cifra(d.vistas)} {d.vistas === 1 ? "vez" : "veces"} ·{" "}
+                    {cifra(d.clics)} {d.clics === 1 ? "clic" : "clics"}
                   </span>
                 </li>
               ))}

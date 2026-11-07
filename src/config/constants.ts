@@ -2469,7 +2469,10 @@ export const PUBLICIDAD_MAX_POR_ZONA = 3;
  * el desplazamiento dentro, el instante es exacto y no depende de la zona del servidor.
  */
 export const SOCIO_FUNDADOR_HASTA_ISO = "2027-06-30T23:59:59.999+02:00";
-/** Cuantos creditos (= dias de publicidad) regala. Lo acredita P4. */
+/**
+ * Cuantos creditos de publicidad regala. Lo acredita P4. NO son dias: un dia cuesta los creditos de su
+ * zona (`CREDITOS_POR_DIA`); en una ciudad, uno. Lo que se promete lo dice `fraseRegaloSocioFundador`.
+ */
 export const SOCIO_FUNDADOR_CREDITOS = 90;
 
 /**
@@ -2484,7 +2487,18 @@ export function msgSocioFundador(): string {
     year: "numeric",
     timeZone: "Europe/Madrid",
   });
-  return `Socios Fundadores: las empresas que verifiquemos antes del ${hasta} se llevan ${SOCIO_FUNDADOR_CREDITOS} días de publicidad de regalo.`;
+  return `Socios Fundadores: las empresas que verifiquemos antes del ${hasta} se llevan ${fraseRegaloSocioFundador()}.`;
+}
+
+/**
+ * LO QUE SE REGALA, dicho sin prometer de más (P10): «N días de publicidad» solo era cierto en una
+ * ciudad (un día global cuesta 15 créditos). Se dice en créditos y, con la tarifa de la ciudad, cuántos
+ * días son allí. Lo usan el aviso de Socios Fundadores y el correo de la verificación: los dos prometen
+ * lo mismo. Se CALCULA de las constantes, como `fraseQueEsUnCredito`.
+ */
+export function fraseRegaloSocioFundador(): string {
+  const dias = Math.floor(SOCIO_FUNDADOR_CREDITOS / CREDITOS_POR_DIA.CIUDAD);
+  return `${SOCIO_FUNDADOR_CREDITOS} créditos de publicidad de regalo: hasta ${dias} ${dias === 1 ? "día" : "días"} anunciándote en tu ciudad`;
 }
 
 // ----------------------------------------------------------------------------

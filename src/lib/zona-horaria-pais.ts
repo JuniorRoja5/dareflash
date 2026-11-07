@@ -294,39 +294,56 @@ export const CAPITAL_DE_PAIS_CON_VARIAS_ZONAS: Readonly<Record<string, string>> 
 };
 
 /**
- * LA HORA LOCAL («19:00», «1:00», «5:30») a la que empieza el día UTC `dia` en el país, o `null` si no
- * se sabe la zona del país.
+ * CUÁNDO EMPIEZA, en local, el día UTC `dia` en el país: la hora («19:00», «1:00», «5:30») y si cae en
+ * el DÍA ANTERIOR (toda América: el «día 7» empieza el 6 por la tarde). `null` si no se sabe la zona.
+ * Con desfases de −12 a +14 h, las 00:00 UTC caen el mismo día o el anterior, nunca el siguiente.
  */
-export function horaLocalDeInicio(paisIso: string, dia: Date): string | null {
+export function inicioLocalDelDia(
+  paisIso: string,
+  dia: Date,
+): { hora: string; diaAnterior: boolean } | null {
   const zona = ZONA_HORARIA_PAIS[paisIso.trim().toUpperCase()];
   if (!zona) return null;
-  const inicio = new Date(`${dia.toISOString().slice(0, 10)}T00:00:00.000Z`);
+  const fecha = dia.toISOString().slice(0, 10);
+  const inicio = new Date(`${fecha}T00:00:00.000Z`);
   try {
     const partes = new Intl.DateTimeFormat("es-ES", {
       timeZone: zona,
+      day: "numeric",
       hour: "numeric",
       minute: "2-digit",
       hourCycle: "h23",
     }).formatToParts(inicio);
-    const hora = partes.find((p) => p.type === "hour")?.value;
-    const minuto = partes.find((p) => p.type === "minute")?.value;
-    if (hora === undefined || minuto === undefined) return null;
-    return `${Number(hora)}:${minuto}`;
+    const valor = (tipo: string) => partes.find((p) => p.type === tipo)?.value;
+    const [hora, minuto, diaLocal] = [valor("hour"), valor("minute"), valor("day")];
+    if (hora === undefined || minuto === undefined || diaLocal === undefined) return null;
+    return {
+      hora: `${Number(hora)}:${minuto}`,
+      diaAnterior: Number(diaLocal) !== inicio.getUTCDate(),
+    };
   } catch {
     return null;
   }
 }
 
+/** Solo la hora local a la que empieza el día (ver `inicioLocalDelDia`). */
+export function horaLocalDeInicio(paisIso: string, dia: Date): string | null {
+  return inicioLocalDelDia(paisIso, dia)?.hora ?? null;
+}
+
 /**
  * LA FRASE para el formulario y la ficha de la campaña, o `null` si no se sabe la zona del país (mejor
- * no decir nada que decir una hora inventada). «a la 1:00» y «a las 19:00»: la una es singular.
+ * no decir nada que decir una hora inventada). «a la 1:00» y «a las 19:00»: la una es singular. Y si
+ * cae en la víspera, se dice («del día anterior»): «empieza a las 19:00» a secas se leería como las 19:00
+ * del mismo día, y el anuncio ya llevaría cinco horas fuera.
  */
 export function fraseInicioDelDia(paisIso: string, dia: Date): string | null {
-  const hora = horaLocalDeInicio(paisIso, dia);
-  if (!hora) return null;
-  const articulo = hora.startsWith("1:") ? "a la" : "a las";
+  const inicio = inicioLocalDelDia(paisIso, dia);
+  if (!inicio) return null;
+  const articulo = inicio.hora.startsWith("1:") ? "a la" : "a las";
+  const cuando = `${articulo} ${inicio.hora}${inicio.diaAnterior ? " del día anterior" : ""}`;
   const capital = CAPITAL_DE_PAIS_CON_VARIAS_ZONAS[paisIso.trim().toUpperCase()];
   return capital
-    ? `Cada día de campaña empieza ${articulo} ${hora}, hora de ${capital}.`
-    : `Cada día de campaña empieza ${articulo} ${hora} en tu hora local.`;
+    ? `Cada día de campaña empieza ${cuando}, hora de ${capital}.`
+    : `Cada día de campaña empieza ${cuando}${inicio.diaAnterior ? "," : ""} en tu hora local.`;
 }

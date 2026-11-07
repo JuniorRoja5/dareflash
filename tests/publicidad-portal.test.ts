@@ -106,11 +106,44 @@ describe("qué es un crédito, sin la frase que mentía (P9-P10)", () => {
     // «−15» se leía como un error. Se colaba en sitios sueltos: P9 arregló tres y P10 encontró dos más.
     const culpables = ficheros(raiz("src"))
       .filter((f) => !f.includes(`${path.sep}generated${path.sep}`))
+      // Las dos formas: «un crédito es un día» y «N días de publicidad de regalo» (P10).
       .filter((f) =>
-        /cr[eé]dito[^.\n]{0,30}es (?:1|un) d[ií]a/i.test(soloCodigo(readFileSync(f, "utf8"))),
+        /cr[eé]dito[^.\n]{0,30}es (?:1|un) d[ií]a|d[ií]as de (?:publicidad|anuncio)[^.\n]{0,20}de regalo/i.test(
+          soloCodigo(readFileSync(f, "utf8")),
+        ),
       )
       .map((f) => path.relative(raiz(), f));
     expect(culpables).toEqual([]);
+  });
+});
+
+describe("el informe dice «veces que se mostró», no «vistas» (P10)", () => {
+  it("ningún texto visible del portal llama «vista» a lo que es una entrega en un hueco", () => {
+    // Se cuenta al ENTREGAR la campaña en un hueco, no al verse en pantalla: «vistas» promete más de
+    // lo que mide. Mira los textos (cadenas y texto de JSX), no los nombres del código (`d.vistas`).
+    const texto = /"[^"\n]*\bvistas?\b[^"\n]*"|>[^<{}\n]*\bvistas?\b[^<{}\n]*</i;
+    const culpables = ficheros(raiz("src", "app", "(app)", "(shell)", "empresa"))
+      .filter((f) => texto.test(soloCodigo(readFileSync(f, "utf8"))))
+      .map((f) => path.relative(raiz(), f));
+    expect(culpables).toEqual([]);
+  });
+});
+
+describe("el regalo de Socio Fundador promete créditos, no días (P10)", () => {
+  it("«N créditos de regalo: hasta N días en tu ciudad», calculado de la tarifa de la ciudad", async () => {
+    const c = await import("../src/config/constants");
+    const n = c.SOCIO_FUNDADOR_CREDITOS;
+    expect(c.fraseRegaloSocioFundador()).toBe(
+      `${n} créditos de publicidad de regalo: hasta ${n / c.CREDITOS_POR_DIA.CIUDAD} días anunciándote en tu ciudad`,
+    );
+    expect(c.msgSocioFundador()).toContain(c.fraseRegaloSocioFundador());
+    const original = c.CREDITOS_POR_DIA.CIUDAD;
+    try {
+      c.CREDITOS_POR_DIA.CIUDAD = 2;
+      expect(c.fraseRegaloSocioFundador()).toContain(`hasta ${Math.floor(n / 2)} días`);
+    } finally {
+      c.CREDITOS_POR_DIA.CIUDAD = original;
+    }
   });
 });
 
