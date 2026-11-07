@@ -124,9 +124,25 @@ memoria crece con cada pieza. En un despliegue de la Fase 9 esa construccion dej
 memoria y la web dejo de responder mientras compilaba. No es trafico: en reposo la app usa poco. El
 detalle del incidente y de la maquina es operacion y vive fuera del repositorio.
 
-**Mientras no exista:** cada despliegue que lleve build se hace dentro de una sesion persistente del
-servidor (para que una conexion perdida no deje el build a medias). No se empieza antes de cerrar la
-Fase 9.
+**Mientras no exista:** el servidor sigue compilando en cada despliegue. Desde 2026-11-07 ya no hace
+falta hacerlo dentro de una sesion persistente: el servidor tiene margen de memoria y el incidente fue
+puntual. No se empieza antes de cerrar la Fase 9.
+
+## Antes de abrir la compra de creditos (P11)
+
+La compra esta construida e INERTE sin claves: los paquetes se ven y el boton no se ofrece. Antes de
+encenderla:
+
+1. **Comprobar en el modo test de Stripe que el numero fiscal sale en el RECIBO.** Se recoge en el
+   Checkout (`tax_id_collection`, con direccion y cliente), pero sin claves no se pudo ver el
+   documento. Si no sale, la via de Stripe es generar una factura, y eso depende de la P13 (la
+   factura, bloqueada): no se abre la compra prometiendo un numero fiscal que no aparece.
+2. **Dar de alta el webhook** `/api/empresa/creditos/webhook` en Stripe, con los eventos
+   `checkout.session.completed` y `checkout.session.async_payment_succeeded`, y poner su secreto en
+   `STRIPE_WEBHOOK_SECRET_CREDITOS` (es SUYO: no el de Boost ni el de VIP).
+3. **Un reembolso hecho desde Stripe NO resta los creditos.** Es proceso, no codigo: quien reembolsa
+   quita a mano esos creditos desde la ficha de la empresa en el panel (ajuste del equipo, con su
+   nota). Sin ese paso, la empresa conserva lo que se le devolvio.
 
 ## 5. Piezas cortas pendientes
 
