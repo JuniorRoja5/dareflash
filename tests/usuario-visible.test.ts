@@ -129,6 +129,8 @@ const PRIVADAS: Record<string, string> = {
   "src/app/api/auth/change-password/route.ts#<módulo>": "autenticación",
   "src/app/api/auth/forgot-password/route.ts#POST": "autenticación",
   "src/app/api/auth/resend-verification/route.ts#POST": "autenticación",
+  // P11: el correo de la propia cuenta, para el Checkout y el recibo de Stripe.
+  "src/app/api/empresa/creditos/checkout/route.ts#<módulo>": "la propia sesión",
   "src/app/api/perfil/email/route.ts#<módulo>": "la propia sesión",
   "src/app/panel/layout.tsx#PanelLayout": "panel",
   "src/server/auth/account-unlock.ts#requestAccountUnlockEmail": "autenticación",

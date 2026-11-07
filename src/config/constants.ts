@@ -1407,6 +1407,8 @@ export const RATE_LIMITS = {
   // aqui es ruido en la cuenta de pagos, no solo en la nuestra. Nadie compra seis veces en un
   // cuarto de hora de buena fe.
   BOOST_CHECKOUT_PER_USER: { limit: 6, windowMs: 15 * 60 * 1000 }, // 6 / 15 min por usuario
+  // Abrir el pago de créditos de publicidad (P11), por EMPRESA: el mismo margen que Boost.
+  CREDITOS_CHECKOUT_PER_EMPRESA: { limit: 6, windowMs: 15 * 60 * 1000 }, // 6 / 15 min por empresa
   // Like (y quitarlo, MISMO cubo):es la accion mas barata del producto y la que mas se repite al
   // bajar por el feed, asi que el cubo es generoso. Lo que acota no es el fraude —el hito lo
   // protegen el UNIQUE y el no-autolike— sino que nadie martillee el endpoint.
@@ -2519,6 +2521,8 @@ export const RazonCreditoSchema = z.enum([
   // el umbral de denuncias o la retira el admin (ese día no se cobra).
   "CONSUMO",
   "DEVOLUCION",
+  // P11: la compra de un paquete de créditos con Stripe. Una por sesión de pago.
+  "COMPRA",
 ]);
 export type RazonCredito = z.infer<typeof RazonCreditoSchema>;
 
@@ -2531,7 +2535,41 @@ export const ETIQUETA_MOVIMIENTO_CREDITO: Record<RazonCredito, string> = {
   AJUSTE_ADMIN: "Ajuste del equipo de DareFlash",
   CONSUMO: "Un día de campaña",
   DEVOLUCION: "Devolución de un día de campaña",
+  COMPRA: "Compra de créditos",
 };
+
+/**
+ * LOS PAQUETES DE CRÉDITOS DE PUBLICIDAD (Fase 9 · P11), en USD (`DEFAULT_CURRENCY`). FUENTE ÚNICA para
+ * lo que se enseña en el portal, lo que se cobra en el Checkout y lo que se abona en el webhook: el
+ * navegador solo manda la CLAVE del paquete, y el importe se resuelve aquí en los dos extremos. Subir
+ * un precio es cambiar un número.
+ */
+export const PAQUETES_CREDITOS = {
+  creditos_10: { creditos: 10, precioCents: 500 },
+  creditos_30: { creditos: 30, precioCents: 1200 },
+  creditos_100: { creditos: 100, precioCents: 3000 },
+} as const;
+export const PaqueteCreditosSchema = z.enum(
+  Object.keys(PAQUETES_CREDITOS) as [
+    keyof typeof PAQUETES_CREDITOS,
+    ...(keyof typeof PAQUETES_CREDITOS)[],
+  ],
+);
+export type PaqueteCreditos = z.infer<typeof PaqueteCreditosSchema>;
+/** El `refType` de una compra en el ledger: el `refId` es el id de la SESIÓN de Checkout. */
+export const REF_CREDITOS_STRIPE = "STRIPE_CHECKOUT";
+
+/**
+ * SIN CLAVES, LA COMPRA NO PROMETE NADA (como Boost y VIP): los paquetes se ven, el botón no se ofrece
+ * y se dice por qué —y de dónde salen hoy los créditos—.
+ */
+export const MSG_CREDITOS_PAGO_NO_DISPONIBLE =
+  "La compra de créditos todavía no está disponible. Mientras tanto, los créditos llegan como regalo de Socio Fundador o del equipo de DareFlash.";
+export const MSG_CREDITOS_SIN_VERIFICAR =
+  "Podrás comprar créditos en cuanto verifiquemos tu empresa.";
+/** Las condiciones, junto al botón de compra: lo que de verdad pasa con lo que se compra. */
+export const MSG_CREDITOS_CONDICIONES =
+  "Los créditos de publicidad no caducan y no son reembolsables, salvo que la ley lo exija. Pagas con Stripe; puedes añadir tu número fiscal y descargar el recibo desde aquí.";
 
 /**
  * Dónde guarda la BASE el primer día que se cobra (P9). Lo escribe la migración del cobro con el día

@@ -31,6 +31,7 @@ import {
   ETIQUETA_MOVIMIENTO_CREDITO,
   type RazonCredito,
   SOCIO_FUNDADOR_CREDITOS,
+  REF_CREDITOS_STRIPE,
   claveRegaloSocioFundador,
 } from "@/config/constants";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
@@ -284,6 +285,11 @@ export interface MovimientoCreditoEmpresa {
   delta: number;
   concepto: string;
   creadoMs: number;
+  /**
+   * P11: el enlace a su RECIBO de Stripe si es una compra (la ruta comprueba el ámbito otra vez), o
+   * `null`. «Recibo», nunca «Factura».
+   */
+  recibo: string | null;
 }
 
 export interface CreditosDeEmpresa {
@@ -335,6 +341,7 @@ export async function misCreditos(
         id: true,
         delta: true,
         reason: true,
+        refType: true,
         createdAt: true,
         publicidad: { select: { nombre: true } },
       },
@@ -349,6 +356,10 @@ export async function misCreditos(
       id: f.id,
       delta: f.delta,
       concepto: conceptoDe(f.reason, f.publicidad?.nombre, "Movimiento"),
+      recibo:
+        f.reason === "COMPRA" && f.refType === REF_CREDITOS_STRIPE
+          ? `/api/empresa/creditos/${f.id}/recibo`
+          : null,
       creadoMs: f.createdAt.getTime(),
     })),
     nextCursor:

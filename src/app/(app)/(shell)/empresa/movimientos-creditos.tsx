@@ -3,6 +3,24 @@ import type { MovimientoCreditoEmpresa } from "@/server/services/creditos";
 const FECHA = { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" } as const;
 const CABECERA = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
 
+/**
+ * EL RECIBO DE UNA COMPRA (P11): enlace normal, no del router —la ruta lleva a la página del recibo de
+ * Stripe, otro origen—, y en pestaña nueva para no sacar a la empresa de su historial. «Recibo», nunca
+ * «Factura».
+ */
+function EnlaceRecibo({ href }: { href: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex min-h-[44px] items-center text-sm text-text underline underline-offset-2 hover:text-text-dim lg:min-h-0"
+    >
+      Recibo
+    </a>
+  );
+}
+
 const cantidad = (delta: number) => `${delta > 0 ? "+" : ""}${delta.toLocaleString("es-ES")}`;
 
 /**
@@ -36,7 +54,15 @@ export function MovimientosCreditos({ movimientos }: { movimientos: MovimientoCr
               <td className="py-2.5 pr-4 whitespace-nowrap text-text-dim tabular-nums">
                 {new Date(m.creadoMs).toLocaleDateString("es-ES", FECHA)}
               </td>
-              <td className="py-2.5 pr-4 text-text">{m.concepto}</td>
+              <td className="py-2.5 pr-4 text-text">
+                {m.concepto}
+                {m.recibo ? (
+                  <>
+                    {" · "}
+                    <EnlaceRecibo href={m.recibo} />
+                  </>
+                ) : null}
+              </td>
               <td className="py-2.5 text-right font-semibold whitespace-nowrap text-text tabular-nums">
                 {cantidad(m.delta)}
               </td>
@@ -52,6 +78,7 @@ export function MovimientosCreditos({ movimientos }: { movimientos: MovimientoCr
               <span className="block text-2xs text-text-dim tabular-nums">
                 {new Date(m.creadoMs).toLocaleDateString("es-ES", FECHA)}
               </span>
+              {m.recibo ? <EnlaceRecibo href={m.recibo} /> : null}
             </span>
             <span className="shrink-0 text-sm font-semibold text-text tabular-nums">
               {cantidad(m.delta)}

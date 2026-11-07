@@ -402,7 +402,8 @@ describe("lo que ve la empresa", () => {
     expect(c.saldo).toBe(80);
     expect(Object.keys(c).sort()).toEqual(["movimientos", "nextCursor", "saldo"]);
     for (const m of c.movimientos) {
-      expect(Object.keys(m).sort()).toEqual(["concepto", "creadoMs", "delta", "id"]);
+      // P11: `recibo` (null salvo en una compra). Ni nota ni quién: las claves, exactas.
+      expect(Object.keys(m).sort()).toEqual(["concepto", "creadoMs", "delta", "id", "recibo"]);
     }
     expect(c.movimientos.map((m) => m.concepto).sort()).toEqual(
       ["Ajuste del equipo de DareFlash", "Regalo de Socio Fundador"].sort(),
