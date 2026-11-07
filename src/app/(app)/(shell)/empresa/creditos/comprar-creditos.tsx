@@ -84,10 +84,18 @@ export function ComprarCreditos({
                 : undefined
             }
           >
-            <p className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
-              {p.mejorPrecio ? "Mejor precio" : " "}
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-text tabular-nums">
+            {/* La etiqueta solo en el recomendado. Los otros llevan un hueco de su altura SOLO en fila
+                (sm+), para que las tres se lean como una fila; apiladas en móvil, sobraría. */}
+            {p.mejorPrecio ? (
+              <p className="mb-2 text-2xs font-semibold tracking-widest text-text-dim uppercase">
+                Mejor precio
+              </p>
+            ) : (
+              <p aria-hidden className="mb-2 hidden text-2xs sm:block">
+                &nbsp;
+              </p>
+            )}
+            <p className="text-2xl font-semibold text-text tabular-nums">
               {p.creditos.toLocaleString("es-ES")}
               <span className="ml-1.5 text-sm font-medium text-text-dim">créditos</span>
             </p>
