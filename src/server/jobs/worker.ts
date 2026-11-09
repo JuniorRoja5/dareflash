@@ -573,6 +573,12 @@ export interface OpcionesBucle {
    * `PUBLICIDAD_METRICAS_CADENCIA_MS`. Sin él (o sin Redis), el informe del portal no avanza.
    */
   materializarMetricas?: (now: Date) => Promise<{ filas: number; sinRedis: boolean }>;
+  /**
+   * EL RESUMEN DIARIO DEL ADMIN y el aviso de la casa (Fase 9 · P12, `hacerResumenDiario`). Se le
+   * pregunta cada pocos minutos; él decide si toca (una vez por día de Madrid, desde las 5). Sin él, no
+   * hay resumen.
+   */
+  resumenDiario?: (now: Date) => Promise<{ estado: string }>;
   cobrarPublicidad?: (
     now: Date,
   ) => Promise<{ revisadas: number; cobradas: number; pausadas: number; fallos: number }>;
@@ -611,6 +617,7 @@ export async function bucleWorker(
   let proximoAforo = 0;
   let proximoCobro = 0;
   let proximoMetricas = 0;
+  let proximoResumen = 0;
   let proximoGeoIp = 0;
   // Arranca en 0 igual que los demas: la primera vuelta del worker recoge lo que quedara vencido
   // mientras estaba parado, sin esperar una cadencia entera.
@@ -911,6 +918,19 @@ export async function bucleWorker(
         o.log?.(`[worker] publicidad: cifras fallaron (${sanearError(e)}); reintento luego.`);
       }
       proximoMetricas = t.getTime() + PUBLICIDAD_METRICAS_CADENCIA_MS;
+    }
+
+    // EL RESUMEN DIARIO DEL ADMIN (Fase 9 · P12). Preguntar es barato (una lectura de SystemState): el
+    // servicio compara el DÍA de Madrid, así que un reinicio no lo repite y un worker caído a las 5 lo
+    // manda al volver.
+    if (o.resumenDiario && t.getTime() >= proximoResumen) {
+      try {
+        const r = await o.resumenDiario(t);
+        if (r.estado !== "no_toca") o.log?.(`[worker] resumen diario: ${JSON.stringify(r)}`);
+      } catch (e) {
+        o.log?.(`[worker] resumen diario: fallo (${sanearError(e)}); reintento luego.`);
+      }
+      proximoResumen = t.getTime() + 5 * 60 * 1000;
     }
 
     // EL FICHERO DE IP (Fase 9 · P5): una vez al día, avisar si falta o se quedó viejo (histéresis en

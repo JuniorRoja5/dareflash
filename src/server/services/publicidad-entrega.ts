@@ -50,7 +50,7 @@ import {
 import type { Db } from "@/server/db/types";
 
 import { filtroPagadoEl, inicioDelCobro, seCobra } from "./publicidad-consumo";
-import { type RedisContarMetricas, contarMetrica } from "./publicidad-metricas";
+import { type RedisContarMetricas, contarHueco, contarMetrica } from "./publicidad-metricas";
 import { PUBLICIDAD_SERVIBLE } from "./publicidad-visible";
 
 // ---------------------------------------------------------------------------------------------------
@@ -233,6 +233,22 @@ export type Superficie = "feed" | "portada";
  * todos—; el resto de veces, `null`: el hueco no se rellena.
  */
 export async function elegirPieza(
+  db: Db,
+  entrada: Parameters<typeof elegirPiezaSinContar>[1],
+): Promise<PiezaEntregada | null> {
+  const pieza = await elegirPiezaSinContar(db, entrada);
+  // EL HUECO (P12): uno más de su espacio, y si lo llenó una campaña. Lo lee el resumen diario y el
+  // aviso de «la casa cubre más del 80 %». Nunca lanza.
+  await contarHueco(
+    entrada.redis,
+    entrada.espacio,
+    pieza?.tipo === "campana",
+    entrada.ahora ?? new Date(),
+  );
+  return pieza;
+}
+
+async function elegirPiezaSinContar(
   db: Db,
   entrada: {
     espacio: EspacioPublicidad;

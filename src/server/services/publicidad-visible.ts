@@ -14,6 +14,13 @@
  */
 import type { Prisma } from "@/generated/prisma/client";
 
+/**
+ * LA QUE NO ESTÁ EN REVISIÓN (P12): el umbral de denuncias no la ha pausado. Lo usa el resumen diario
+ * para contar la publicidad denunciada que AÚN NO llega al umbral (la que ya llegó cuenta aparte, como
+ * «en revisión»). Una lectura, aquí junto a la regla de qué se sirve, por la misma razón que ella.
+ */
+export const PUBLICIDAD_SIN_REVISION = { ocultoAutoEn: null } satisfies Prisma.PublicidadWhereInput;
+
 export const PUBLICIDAD_SERVIBLE = {
   estado: "ACTIVA",
   ocultoAutoEn: null,

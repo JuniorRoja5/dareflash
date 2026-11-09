@@ -2596,6 +2596,25 @@ export const PUBLICIDAD_METRICAS_CADENCIA_MS = 10 * 60 * 1000;
 export const PUBLICIDAD_METRICAS_PAGINA = 14;
 
 /**
+ * EL RESUMEN DIARIO DEL ADMIN (Fase 9 · P12): a partir de esta hora de Europe/Madrid, una vez por DÍA
+ * de Madrid (se compara el día, no un intervalo de 24 h: un reinicio del worker no lo repite). Las 5 y
+ * no las 4: a las 4 corre el ANALYZE (`analizar-tablas`), y el plan los quiere separados.
+ */
+export const HORA_RESUMEN_ADMIN = 5;
+/** El último día de Madrid en que se hizo el resumen (enviado o no), en `SystemState`. */
+export const CLAVE_RESUMEN_ADMIN = "resumen-admin.ultimo-dia";
+
+/**
+ * EL AVISO DE LA CASA (P12, §6.5 del plan): «la casa cubre más del 80 % de los huecos» — o sea, casi
+ * nada se está vendiendo. Con histéresis: uno al cruzar, se rearma al bajar. Se mide sobre los huecos
+ * de AYER (un día completo), y solo si hubo al menos `HUECOS_MIN_AVISO_CASA`: con cuatro huecos, el 80 %
+ * no dice nada.
+ */
+export const CLAVE_AVISO_CASA = "aviso.publicidad-casa";
+export const UMBRAL_AVISO_CASA = 0.8;
+export const HUECOS_MIN_AVISO_CASA = 200;
+
+/**
  * Tope de un ajuste manual (en un sentido o en otro). Holgado —cubre una corrección de un trimestre
  * entero de publicidad— pero existe: un cero de más tecleado no puede regalar diez años de anuncios.
  */

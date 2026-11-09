@@ -32,6 +32,7 @@ import {
 import {
   type RedisContarMetricas,
   type RedisLeerMetricas,
+  claveHuecos,
   claveMetricas,
   clicEnCampana,
   informeDeMiCampana,
@@ -152,6 +153,26 @@ const hash = (r: ReturnType<typeof redisFalso>) =>
   Object.fromEntries(r.hashes.get(claveMetricas(new Date("2026-12-01T00:00:00.000Z"))) ?? []);
 
 describe("se cuentan donde pasan", () => {
+  it("cada HUECO decidido cuenta (P12): con campaña, total y con campaña; con la casa, solo total", async () => {
+    const redis = redisFalso();
+    const elegir = () =>
+      elegirPieza(prisma, {
+        espacio: "GLOBAL",
+        espectador,
+        superficie: "portada",
+        redis,
+        ahora: AHORA,
+      });
+    expect((await elegir())?.tipo).toBe("casa"); // aún no hay campañas
+    await unaActiva(await unaEmpresa());
+    olvidarCacheDeHoy(); // la caché de 60 s guardó la lista vacía de la primera vuelta
+    expect((await elegir())?.tipo).toBe("campana");
+    expect(Object.fromEntries(redis.hashes.get(claveHuecos(AHORA)) ?? [])).toEqual({
+      "GLOBAL:t": 2,
+      "GLOBAL:c": 1,
+    });
+  });
+
   it("una VISTA al entregar la campaña en un hueco", async () => {
     const id = await unaActiva(await unaEmpresa());
     const redis = redisFalso();

@@ -46,6 +46,7 @@ import { getRedis } from "@/server/cache/redis";
 import { materializarAforo } from "@/server/services/aforo";
 import { cobrarPublicidadDeHoy } from "@/server/services/publicidad-cobro";
 import { materializarMetricasPublicidad } from "@/server/services/publicidad-metricas";
+import { hacerResumenDiario } from "@/server/services/resumen-admin";
 import { revisarFicheroGeoIp } from "@/server/services/geoip-caducidad";
 import { confirmarVideosPendientes } from "@/server/services/video-confirmacion";
 import { reconciliarVideosAbandonados } from "@/server/services/video-reconciliacion";
@@ -184,6 +185,16 @@ async function main(): Promise<void> {
       }),
     // EL COBRO DIARIO DE LA PUBLICIDAD (Fase 9 · P9): cobra HOY a cada campaña que lo ocupa y aún no lo
     // ha pagado; sin saldo, la pausa y avisa a la empresa. Sin pagar el día, la entrega no la sirve.
+    // El resumen diario del admin y el aviso de la casa (Fase 9 · P12).
+    resumenDiario: (now) =>
+      hacerResumenDiario(prisma, {
+        redis: getRedis(),
+        adapter: emailAdapter,
+        adminEmail: env.ADMIN_EMAIL,
+        appUrl: env.APP_URL,
+        ahora: now,
+        log: (m) => console.warn(m),
+      }),
     // Las cifras de la publicidad (Fase 9 · P10): vistas y clics de Redis a la base, cada 10 minutos.
     materializarMetricas: (now) => materializarMetricasPublicidad(prisma, getRedis(), now),
     cobrarPublicidad: (now) =>

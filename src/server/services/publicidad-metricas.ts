@@ -112,6 +112,65 @@ export async function materializarMetricasPublicidad(
 }
 
 // ---------------------------------------------------------------------------------------------------
+// Los huecos (P12): cuántos hubo y cuántos llenó una campaña
+// ---------------------------------------------------------------------------------------------------
+
+/**
+ * LOS HUECOS DE UN DÍA, por espacio (Fase 9 · P12): cuántos se decidieron (`t`) y en cuántos salió una
+ * CAMPAÑA (`c`). El resto los cubrió la casa o quedaron vacíos (en el feed la casa sale una vez por
+ * sesión). Es lo que mide «¿se está vendiendo?»: el aviso de la casa por encima del 80 % y la línea del
+ * resumen diario. Un hash por día UTC (`pub:huecos:{dia}`), como las vistas; no necesita tabla: solo se
+ * lee el de ayer, y vive tres días.
+ */
+export const claveHuecos = (dia: Date) => `pub:huecos:${claveDia(dia)}`;
+
+/** Cuenta un hueco decidido de `espacio`, con campaña o sin ella. Nunca lanza. */
+export async function contarHueco(
+  redis: RedisContarMetricas | null,
+  espacio: string,
+  conCampana: boolean,
+  ahora: Date = new Date(),
+): Promise<void> {
+  if (!redis) return;
+  try {
+    const clave = claveHuecos(diaDe(ahora));
+    const n = await redis.hincrby(clave, `${espacio}:t`, 1);
+    if (n === 1) await redis.expire(clave, PUBLICIDAD_METRICAS_TTL_S);
+    if (conCampana) await redis.hincrby(clave, `${espacio}:c`, 1);
+  } catch {
+    // Se pierde esta cuenta: es una cifra de un resumen.
+  }
+}
+
+export interface HuecosDeEspacio {
+  total: number;
+  conCampana: number;
+}
+
+/** Los huecos de un día, por espacio. Sin Redis (o caído), `null`: no se sabe, que no es «cero». */
+export async function huecosDelDia(
+  redis: RedisLeerMetricas | null,
+  dia: Date,
+): Promise<Record<string, HuecosDeEspacio> | null> {
+  if (!redis) return null;
+  try {
+    const hash = await redis.hgetall(claveHuecos(dia));
+    const r: Record<string, HuecosDeEspacio> = {};
+    for (const [campo, valor] of Object.entries(hash ?? {})) {
+      const [espacio, tipo] = campo.split(":");
+      const n = Number.parseInt(valor, 10);
+      if (!espacio || !Number.isFinite(n)) continue;
+      const e = (r[espacio] ??= { total: 0, conCampana: 0 });
+      if (tipo === "t") e.total = n;
+      else if (tipo === "c") e.conCampana = n;
+    }
+    return r;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------
 // El clic
 // ---------------------------------------------------------------------------------------------------
 
