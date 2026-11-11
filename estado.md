@@ -1,7 +1,7 @@
 # DareFlash — Estado del codigo (LA PARTE QUE CADUCA)
 
-> **Foto del 2026-11-04, con la Fase 9 · P1 recien fusionada y PENDIENTE DE DESPLEGAR (lleva
-> migracion).** La foto describe el commit en el que se escribio: `git log` de este fichero da el
+> **Foto del 2026-11-11, con la Fase 9 CERRADA salvo la P13 (la P14, la portada, recien
+> fusionada).** La foto describe el commit en el que se escribio: `git log` de este fichero da el
 > SHA exacto, que es mas fiable que una cifra copiada a mano que nadie vuelve a tocar.
 >
 > Todo lo de este fichero **caduca**: el resto de la documentacion (CLAUDE.md, AGENTS.md, MARCA.md,
@@ -28,12 +28,17 @@ el dinero SALE del monedero al pedirlo y VUELVE entero si se rechaza; el envio e
 
 Quedan 4 fases (8–11): 8 VIP · 9 Brand Challenges · 10 1vs1 · 11 multiidioma/PWA.
 
-**FASE 9 EMPEZADA (portal de empresa y publicidad).** En `main` esta la **P1**: la cuenta de
-empresa, su alta DESDE CERO (crea cuenta y empresa juntas; un correo que ya tiene cuenta es un
-no-op silencioso, sin enumeracion) y la verificacion MANUAL desde `/panel/empresas`. **Pendiente de
-desplegar, y lleva migracion.**
+**FASE 9 (portal de empresa y publicidad) CERRADA, salvo la P13.** En `main` estan de la P1 a la
+P12 y la P14: cuenta y portal de empresa, retos de empresa con pago, campanas de publicidad con su
+reparto, cobro diario, moderacion, metricas, compra de creditos, el resumen diario del admin y la
+portada `/inicio` con datos reales y el reto destacado que elige el admin. **La P13 (la factura)
+sigue BLOQUEADA** y no se empieza sin su encargo. El plan por piezas vive fuera del repositorio, en
+el informe de diseno de la fase.
 
-Tres decisiones de P1 que condicionan lo que viene:
+**Lo siguiente es la prioridad de infraestructura** (construir la imagen fuera del servidor, mas
+abajo). **No se empieza sin su encargo.**
+
+Tres decisiones de P1 que siguen condicionando todo lo de empresa:
 
 - **Una cuenta de empresa MIRA Y NO PARTICIPA.** El candado esta en `mutatingRoute` —el chokepoint
   por el que pasa toda mutacion— y esta CERRADO POR DEFECTO: una ruta mutante nueva nace bloqueada
@@ -44,11 +49,6 @@ Tres decisiones de P1 que condicionan lo que viene:
   los servicios lo reciben como parametro OBLIGATORIO. Un filtro opcional se olvida y compila.
 - **La identificacion fiscal no se pinta: se pide**, y pedirla escribe en `AuditLog` sin copiar el
   valor. Mismo trato que el correo de una cuenta en `/panel/usuarios`.
-
-Lo siguiente es **P2**: el shell del portal, su navegacion y el CTA de la cuenta de empresa (hoy el
-CTA del shell le sigue diciendo "Subir video", que da 403 si lo pulsa). El plan completo por piezas
-—P1 a P14; la P13 es la factura, bloqueada, y la P14 la portada `/inicio`, la ultima— vive fuera
-del repositorio, en el informe de diseno de la fase.
 
 Pre-lanzamiento: el sitio sigue tras el pestillo (`robots: Disallow: /` + `X-Robots-Tag: noindex`).
 
@@ -112,7 +112,7 @@ Reglas que aplican desde el primer commit y no se renegocian:
   verificacion real la hace el proveedor de pagos al reclamar. Hay guard que lo vigila.
 - `WalletLedger`, `AuditLog` y `ChallengeResult` **ya existen** en el esquema.
 
-## Siguiente prioridad de infraestructura (tras la Fase 9, antes de la 11)
+## SIGUIENTE PRIORIDAD: infraestructura (Fase 9 cerrada salvo P13; antes de la 11)
 
 **Construir la imagen FUERA del servidor de produccion.** Un CI (GitHub Actions u otro) construye la
 imagen y la publica en un registro de imagenes; el servidor solo hace `pull` + `up`. **El servidor no
@@ -126,7 +126,8 @@ detalle del incidente y de la maquina es operacion y vive fuera del repositorio.
 
 **Mientras no exista:** el servidor sigue compilando en cada despliegue. Desde 2026-11-07 ya no hace
 falta hacerlo dentro de una sesion persistente: el servidor tiene margen de memoria y el incidente fue
-puntual. No se empieza antes de cerrar la Fase 9.
+puntual. La Fase 9 ya esta cerrada (salvo la P13), asi que es lo siguiente, pero **no se empieza
+hasta que llegue su encargo**.
 
 ## Antes de abrir la compra de creditos (P11)
 
@@ -235,6 +236,11 @@ la cache ahorraria como mucho las visitas de un mismo minuto.
 
 **CONDICION PARA RETOMARLO:** que una medicion nueva muestre que MariaDB se ha vuelto cara. El numero
 a vigilar esta en la tabla: hoy es **4,5 %** a 200 personas. No se retoma por costumbre.
+
+**No lo contradice la cache de la P14** (`datosPortadaCacheados`, 30 s, en memoria del proceso, sin
+Redis). Es otra cosa: la portada real paso de 5 a 11 consultas por visita y esa cache la devuelve a 5,
+lo que costaba antes de la P14. Marcar o quitar el destacado la vacia. La medicion esta en el commit de
+la P14.
 
 ### Techo de capacidad medido (4-nov-2026, `10cea40`)
 
