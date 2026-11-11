@@ -50,7 +50,14 @@ vi.mock("next/link", async () => {
   return { default: (props: Record<string, unknown>) => createElement("a", props) };
 });
 // Lo que no es el rail: fuera, para que el test mire solo lo que prueba.
-vi.mock("@/components/ui/fondo-video", () => ({ FondoVideo: () => null }));
+// La portada (P14): cifras, destacado y rejilla tienen sus tests; aquí, sin retos abiertos.
+vi.mock("@/server/services/portada", () => ({
+  datosPortadaCacheados: async () => ({
+    cifras: { categorias: 0, retosAbiertos: 0, premiosCents: 0 },
+    destacado: null,
+    rejilla: [],
+  }),
+}));
 vi.mock("@/app/(app)/(shell)/inicio/boost-destacados", () => ({ BoostDestacados: () => null }));
 vi.mock("@/app/(app)/(shell)/inicio/hero-destacado", () => ({ HeroDestacado: () => null }));
 vi.mock("@/app/(app)/(shell)/inicio/retos-destacados", () => ({ RetosDestacados: () => null }));

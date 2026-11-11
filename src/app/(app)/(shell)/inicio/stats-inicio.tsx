@@ -1,13 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { STATS_INICIO } from "./portada-datos";
+import { type CifraVisible, premioCorto } from "@/lib/portada";
 
 const REDUCE =
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/** Count-up de un valor (animacion SUTIL de interfaz). Respeta prefers-reduced-motion: sin animar. */
+/** Count-up de un valor (animación SUTIL de interfaz). Respeta prefers-reduced-motion: sin animar. */
 function useCountUp(target: number): number {
   const [v, setV] = useState(REDUCE ? target : 0);
   useEffect(() => {
@@ -26,43 +27,47 @@ function useCountUp(target: number): number {
   return v;
 }
 
-function Stat({ texto, etiqueta }: { texto: string; etiqueta: string }) {
+function Cifra({ c }: { c: CifraVisible }) {
+  const v = useCountUp(c.valor);
+  const esDinero = c.clave === "premios";
   return (
     <div>
       <p
-        className="text-2xl tabular-nums text-text"
+        className={`text-2xl tabular-nums ${esDinero ? "text-money" : "text-text"}`}
         style={{ fontFamily: "var(--font-display)", fontVariationSettings: '"wght" 780' }}
       >
-        {texto}
+        {esDinero ? premioCorto(v) : Math.round(v).toLocaleString("en-US")}
       </p>
-      <p className="mt-0.5 text-2xs tracking-widest text-text-dim uppercase">{etiqueta}</p>
+      <p className="mt-0.5 text-2xs tracking-widest text-text-dim uppercase">{c.etiqueta}</p>
     </div>
   );
 }
 
 /**
- * STATS del hero (brief v2) — agregados reales del producto (14 categorias, premios en juego, retos
- * abiertos) con COUNT-UP en el montaje: movimiento SUTIL de interfaz (no del video). Dinero en --df-money
- * (money), el resto neutro. Respeta prefers-reduced-motion.
+ * LAS CIFRAS DEL HERO (brief v2) — REALES: la suma de los premios de los retos abiertos, cuántos hay y en
+ * cuántas categorías (`cifrasPortada`), con el count-up sutil de siempre. Hasta P14 eran «$8.4k» y
+ * «2.310», escritos a mano en `portada-datos`.
+ *
+ * Qué cifras salen lo decide `cifrasVisibles` (ninguna se enseña para decir poco). SIN RETOS ABIERTOS no
+ * sale ninguna: en su sitio, una línea que dice lo que pasa y lleva a la lista.
  */
-export function StatsInicio() {
-  const cats = useCountUp(STATS_INICIO.categorias);
-  const dolares = useCountUp(STATS_INICIO.premiosActivosCents / 100);
-  const retos = useCountUp(STATS_INICIO.retosAbiertos);
-
+export function StatsInicio({ cifras }: { cifras: CifraVisible[] }) {
+  if (cifras.length === 0) {
+    return (
+      <p className="mt-8 max-w-prose text-sm text-text-dim">
+        Ahora mismo no hay retos abiertos.{" "}
+        <Link href="/retos" className="text-text underline underline-offset-2">
+          Mira los que vienen
+        </Link>
+        .
+      </p>
+    );
+  }
   return (
     <div className="mt-8 flex flex-wrap gap-x-8 gap-y-4">
-      <Stat texto={String(Math.round(cats))} etiqueta="categorías" />
-      <div>
-        <p
-          className="text-2xl tabular-nums text-money"
-          style={{ fontFamily: "var(--font-display)", fontVariationSettings: '"wght" 780' }}
-        >
-          ${(dolares / 1000).toFixed(1)}k
-        </p>
-        <p className="mt-0.5 text-2xs tracking-widest text-text-dim uppercase">en premios ahora</p>
-      </div>
-      <Stat texto={Math.round(retos).toLocaleString("en-US")} etiqueta="retos abiertos" />
+      {cifras.map((c) => (
+        <Cifra key={c.clave} c={c} />
+      ))}
     </div>
   );
 }

@@ -1267,8 +1267,6 @@ export const SPONSOR_NOMBRE_MAX = 60;
  */
 export const SPONSOR_LOGO_MAX_LADO = 512;
 
-export const VIDEO_FONDO_HOME = "https://dareflash-assets.b-cdn.net/fondo-home.mp4";
-
 /**
  * Copy de los rechazos de la ruta de voto. Aqui, y no dentro de la ruta, por la misma razon que el de
  * arriba: el servidor emite copy humano ya listo (`error.message`), nunca un codigo crudo, y la Pieza 3
@@ -2613,6 +2611,27 @@ export const CLAVE_RESUMEN_ADMIN = "resumen-admin.ultimo-dia";
 export const CLAVE_AVISO_CASA = "aviso.publicidad-casa";
 export const UMBRAL_AVISO_CASA = 0.8;
 export const HUECOS_MIN_AVISO_CASA = 200;
+
+/**
+ * EL RETO DESTACADO DE LA PORTADA (Fase 9 · P14): el id del reto que el ADMIN eligió, en UN valor de
+ * `SystemState`. Un solo valor y no un booleano por reto: dos destacados a la vez son imposibles por
+ * construcción (marcar otro SUSTITUYE). Sin valor —o si el elegido ya no está abierto—, la portada usa
+ * el automático (el abierto de mayor premio).
+ */
+export const CLAVE_RETO_DESTACADO = "portada.reto-destacado";
+/** Retos en la rejilla de la portada (además del destacado del hero). */
+export const REJILLA_PORTADA_N = 6;
+/**
+ * «Cierra pronto» en la rejilla: los que cierran en menos de esto van primero (por premio), y después
+ * el resto (por premio). Así la rejilla junta las dos razones para entrar ya: mucho premio y poco plazo.
+ */
+export const REJILLA_CIERRE_PRONTO_MS = 72 * 60 * 60 * 1000;
+/**
+ * LA CACHÉ DE LA PORTADA (P14): lo que es igual para todos —cifras, destacado, rejilla— se guarda 30 s en
+ * el proceso. Medido: sin ella, la portada pasa de 5 a 11 consultas por visita. Marcar o quitar el
+ * destacado la vacía al momento.
+ */
+export const PORTADA_CACHE_MS = 30_000;
 
 /**
  * Tope de un ajuste manual (en un sentido o en otro). Holgado —cubre una corrección de un trimestre

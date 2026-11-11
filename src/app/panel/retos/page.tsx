@@ -33,7 +33,11 @@ export default async function RetosPanelPage({
 
   const { prisma } = await import("@/server/db/client");
   const { listarRetosAdmin } = await import("@/server/services/retos-admin");
-  const pagina = await listarRetosAdmin(prisma, { cursor: aqui.cursor });
+  const { estadoDestacadoPanel } = await import("@/server/services/portada");
+  const [pagina, portada] = await Promise.all([
+    listarRetosAdmin(prisma, { cursor: aqui.cursor }),
+    estadoDestacadoPanel(prisma),
+  ]);
 
   return (
     <div className="df-rise space-y-8">
@@ -52,6 +56,25 @@ export default async function RetosPanelPage({
           listo.
         </p>
       </div>
+
+      {/* EL DESTACADO DE LA PORTADA (P14), visible sin entrar en ningún reto. Si el elegido CADUCÓ
+          (se cerró, se retiró o se borró), se dice aquí: la portada ya ha vuelto al automático. */}
+      <p
+        role={portada.caducado ? "status" : undefined}
+        className={`max-w-prose rounded-sm border p-3 text-sm ${
+          portada.caducado ? "border-alarm/40 text-text" : "border-line text-text-dim"
+        }`}
+      >
+        {portada.caducado && portada.elegido
+          ? `El reto destacado de la portada, «${portada.elegido.titulo}», ya no está abierto: la portada ha vuelto a elegir sola${
+              portada.enPortada ? ` («${portada.enPortada.titulo}»)` : ""
+            }. Elige otro desde su ficha.`
+          : portada.elegido
+            ? `Destacado en la portada: «${portada.elegido.titulo}». Se cambia desde la ficha de cada reto.`
+            : portada.enPortada
+              ? `La portada elige sola el reto destacado (ahora, «${portada.enPortada.titulo}»). Puedes fijar uno desde su ficha.`
+              : "No hay ningún reto abierto: la portada no enseña reto destacado."}
+      </p>
 
       <RetosPanel
         retos={pagina.filas}

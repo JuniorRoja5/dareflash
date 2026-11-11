@@ -1,16 +1,12 @@
 import Link from "next/link";
 
-import {
-  CAMINO_EMPRESA,
-  CTA_NEGOCIO,
-  VIDEO_FONDO_HOME,
-  msgSocioFundador,
-} from "@/config/constants";
+import { CAMINO_EMPRESA, CTA_NEGOCIO, msgSocioFundador } from "@/config/constants";
 import { Boton } from "@/components/ui/boton";
 import { FilaPuesto } from "@/components/ui/fila-puesto";
-import { FondoVideo } from "@/components/ui/fondo-video";
 import { PiezaPortada } from "@/components/ui/pieza-portada";
+import { TelonPortada } from "@/components/ui/telon-portada";
 import { ctaPrincipal } from "@/lib/cta-principal";
+import { cifrasVisibles, pintarPiezaEnPortada } from "@/lib/portada";
 import { soloMirar } from "@/lib/solo-mirar";
 
 import { BoostDestacados } from "./boost-destacados";
@@ -21,70 +17,78 @@ import { StatsInicio } from "./stats-inicio";
 export const metadata = { title: "Inicio · DareFlash" };
 
 /**
- * INICIO — portada real con el BRIEF v2 (dirección aprobada, mockup E2). Impacto con NUESTRA paleta
- * (acción/dinero/oscuros): glow, sombras suaves, glass y movimiento vía los tokens `--df-*` de v2 en
- * globals.css. CTA principal PLANO (relleno de acción sólido) = el ÚNICO acento de la pantalla, por ROL (ver
- * `ctaPrincipal`); semántica intacta (dinero en --df-money, puntos neutro, oro/plata/bronce solo podio). Sin foto
- * de stock, sin monigotes (vídeo real con Bunny). Copy en voz de usuario. Respeta prefers-reduced-motion.
+ * INICIO — la portada (Fase 9 · P14). La página más vista, y la que más cambia según quién mira.
  *
- * Coherencia de modelos: hero y muro = Challenge (+ Submission para el vídeo, 14 categorías válidas);
- * "Destacados" = BoostActivation (perfiles pagados, ≠ ranking); stats = agregados; nivel derivado.
+ * ┌─ SOLO DATOS REALES ────────────────────────────────────────────────────────────────────────────┐
+ * │ Hasta P14 la mitad era MAQUETA en producción: el reto del hero, sus «247 participantes», las     │
+ * │ cifras («$8.4k», «2.310») y la rejilla salían de `RETOS_SEED`. Ahora todo sale de `datosPortada`  │
+ * │ (cifras, destacado, rejilla) y de los servicios de ranking, Boost y publicidad. Si algo no hay,  │
+ * │ se dice —sin retos abiertos no hay cifras ni reto en el hero—, nunca se inventa. El censo        │
+ * │ `portada-sin-maqueta` falla si un fichero de /inicio vuelve a importar la maqueta.               │
+ * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * EL ORDEN DE LOS BLOQUES, y por qué:
+ *  1. HERO: qué es esto y la acción de quien mira (el ÚNICO acento, `ctaPrincipal`), las cifras de hoy y
+ *     el reto destacado (el que eligió el admin o el de mayor premio): la razón para entrar ahora.
+ *  2. PERFILES DESTACADOS (Boost): es lo que alguien PAGÓ por estar en la portada, así que va arriba,
+ *     justo después del hero —bajarlo sería devaluar lo que se vendió—.
+ *  3. RETOS + RANKING: la rejilla (lo que se puede hacer) con el top del mes al lado (quién gana). El
+ *     Espacio 2 (publicidad LOCAL) va en el carril, bajo el ranking: es estrecho y local, como él.
+ *  4. ESPACIO 1 (publicidad GLOBAL/PAÍS), a lo ancho, después del contenido: no corta el camino del hero
+ *     a los retos y sigue a la vista de quien baja.
+ *  5. ¿TIENES UN NEGOCIO? —solo INVITADOS—, el final: la portada es del participante, y quien viene a
+ *     anunciarse lo busca como se busca un pie de «para empresas». Es la ÚNICA invitación a negocios
+ *     (el anuncio de la casa no se le pinta: ver `pintarPiezaEnPortada`).
+ *
+ * POR QUIÉN MIRA: el INVITADO ve todo y la invitación a negocios; el PARTICIPANTE, lo mismo sin ella y con
+ * su CTA («Subir vídeo»); el VIP, sin publicidad (`piezaDePortada` le devuelve null); la EMPRESA, la
+ * variante de solo mirar (sin acciones de participante) con el hero diciéndoselo y su CTA a su portal.
+ *
+ * SIN VÍDEO DE FONDO desde P14: el telón (`TelonPortada`) es el fondo para todos.
  */
 export const dynamic = "force-dynamic";
 
 export default async function InicioPage() {
-  // RAIL DEL TOP: datos REALES del MISMO servicio que la pagina de Ranking. Antes salian de
-  // `ranking-datos.ts` —usuarios y cifras inventados— en produccion. Leer de dos sitios distintos
-  // garantizaria que el rail y la pagina se contradigan en cuanto uno de los dos cambie.
   const { prisma } = await import("@/server/db/client");
   const { rankingMensual } = await import("@/server/services/ranking");
-  // DESTACADOS REALES: `BoostActivation` vigentes, del último en activar al primero. Antes esta fila
-  // la pintaba `PERFILES_BOOST`, cinco usuarios inventados, en producción.
-  // LA PORTADA ROTA: `portadaDestacados` elige los 5 de ESTA ventana de reloj, no los 5 más
-  // recientes. Ver su docblock — con más de 5 vigentes, "los más recientes" era una pila que
-  // desplazaba para siempre a quien había comprado antes.
   const { portadaDestacados } = await import("@/server/services/boost-destacados");
+  const { datosPortadaCacheados } = await import("@/server/services/portada");
 
-  const [{ filas: topRanking }, destacados] = await Promise.all([
+  const [{ filas: topRanking }, destacados, portada] = await Promise.all([
     rankingMensual(prisma, { limite: 5 }),
     portadaDestacados(prisma),
+    datosPortadaCacheados(prisma),
   ]);
 
-  // CTA del hero POR ROL, de la misma fuente que el de la barra: "Crear reto" es del admin; el resto
-  // sube un vídeo; una empresa va a su portal. `getCurrentUser` está memoizado por petición: el
-  // layout del shell ya lo resolvió.
+  // CTA del hero POR ROL, de la misma fuente que el de la barra. `getCurrentUser` está memoizado por
+  // petición: el layout del shell ya lo resolvió.
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
   const cta = ctaPrincipal(sesion?.role ?? null, sesion?.esCuentaEmpresa ?? false);
+  const esEmpresa = soloMirar(sesion);
 
-  // LOS DOS HUECOS DE PUBLICIDAD (Fase 9 · P7): Espacio 1 (global/país) y Espacio 2 (local). Se rellenan
-  // siempre —una campaña o el anuncio de la casa— salvo para un VIP (null: no ve publicidad). En serie y
-  // no a la vez: el tope de frecuencia tiene que ver la primera elección antes de la segunda. El rediseño
-  // completo de la portada es P14 (la última pieza de la fase); aquí solo entran los huecos.
+  // LOS DOS HUECOS DE PUBLICIDAD (P7): en serie y no a la vez —el tope de frecuencia tiene que ver la
+  // primera elección antes de la segunda—. El reparto no se toca; lo que decide la portada es si pinta
+  // la pieza (`pintarPiezaEnPortada`: la casa, solo a una empresa).
   const { piezaDePortada } = await import("@/server/services/publicidad-entrega");
   const { headers } = await import("next/headers");
-  // La IP solo hace falta para un INVITADO (con sesión, su ubicación sale de la fila de la sesión).
   const ip = sesion ? null : (await headers()).get("x-real-ip");
-  const espacio1 = await piezaDePortada(prisma, { sesion, ip, espacio: "GLOBAL" });
-  const espacio2 = await piezaDePortada(prisma, { sesion, ip, espacio: "LOCAL" });
-  // P8: denunciar una campaña, con la misma regla que un vídeo; nada para quien solo mira (empresa).
-  const denunciaPortada = soloMirar(sesion)
+  const pieza1 = await piezaDePortada(prisma, { sesion, ip, espacio: "GLOBAL" });
+  const pieza2 = await piezaDePortada(prisma, { sesion, ip, espacio: "LOCAL" });
+  const espacio1 = pieza1 && pintarPiezaEnPortada(pieza1, esEmpresa) ? pieza1 : null;
+  const espacio2 = pieza2 && pintarPiezaEnPortada(pieza2, esEmpresa) ? pieza2 : null;
+  const denunciaPortada = esEmpresa
     ? null
     : { haySesion: sesion !== null, emailVerificado: sesion?.emailVerified != null };
 
   return (
     <>
-      {/* FONDO: hermano del contenedor de pagina, NUNCA dentro. Ese contenedor lleva `overflow-x-clip`
-          y el hero `df-rise` (anima transform): cualquiera de los dos le crearia bloque contenedor a un
-          `position: fixed` y el fondo dejaria de cubrir el viewport. */}
-      <FondoVideo src={VIDEO_FONDO_HOME} />
+      {/* EL TELÓN: hermano del contenedor de página, nunca dentro (es `fixed`: ver su docblock). */}
+      <TelonPortada />
       <div className="mx-auto w-full max-w-7xl overflow-x-clip px-4 py-8 lg:px-8 lg:py-12">
-        {/* HERO */}
+        {/* 1 · HERO */}
         <section className="df-rise grid gap-8 lg:grid-cols-2 lg:items-center">
           <div>
-            {/* Titular hero: display Archivo Expanded pesado = impacto, pero por TOKENS de la escala
-              (NADA de rem arbitrario ni pasarse del tope deliberado): text-3xl (36px) en movil,
-              text-hero (64px) en escritorio. Peso/ancho por font-variation-settings. */}
             <h1
               className="text-3xl text-balance text-text lg:text-hero"
               style={{
@@ -95,11 +99,12 @@ export default async function InicioPage() {
               Reta al mundo. Gana de verdad.
             </h1>
             <p className="mt-4 max-w-prose text-base text-text-dim">
-              Sube tu reto, la comunidad vota y los mejores se llevan premios de verdad. Aquí gana
-              lo que haces, no a quién conoces.
+              {esEmpresa
+                ? "Estás viendo DareFlash como empresa: aquí los retos se miran, no se participa. Desde tu portal propones retos y lanzas tu publicidad."
+                : "Sube tu reto, la comunidad vota y los mejores se llevan premios de verdad. Aquí gana lo que haces, no a quién conoces."}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              {/* UNICO acento de accion — PLANO (sin degradado), realzado con --df-cta-lift */}
+              {/* ÚNICO acento de acción — PLANO, realzado con --df-cta-lift */}
               <Boton href={cta.href} variante="principal" className="shadow-[var(--df-cta-lift)]">
                 {cta.crea ? <span className="text-lg font-bold leading-none">+</span> : null}
                 <span>{cta.texto}</span>
@@ -108,61 +113,25 @@ export default async function InicioPage() {
                 Explorar retos
               </Boton>
             </div>
-            <StatsInicio />
+            <StatsInicio cifras={cifrasVisibles(portada.cifras)} />
           </div>
 
-          <HeroDestacado />
+          <HeroDestacado destacado={portada.destacado} />
         </section>
 
-        {/* ┌─ ¿TIENES UN NEGOCIO? — SOLO PARA INVITADOS ──────────────────────────────────────────┐
-            │ Antes era una línea de texto pequeño dentro del hero, y el alta de empresa seguía     │
-            │ escondida. Ahora es un bloque propio, con el aviso de Socios Fundadores y su botón,   │
-            │ DEBAJO del hero: la portada sigue siendo del participante (el hero lleva el único     │
-            │ acento) y quien viene a anunciarse lo encuentra sin tener que adivinarlo.             │
-            │                                                                                        │
-            │ Solo para INVITADOS: quien ya tiene cuenta de participante no puede convertirla, y    │
-            │ una cuenta de empresa aterriza en su portal. A ninguno de los dos le sirve.           │
-            └────────────────────────────────────────────────────────────────────────────────────────┘ */}
-        {sesion ? null : (
-          <section
-            aria-labelledby="para-negocios"
-            className="df-rise mt-10 rounded-sm border border-line bg-surface/80 p-6 backdrop-blur-sm lg:mt-12 lg:flex lg:items-center lg:gap-8"
-            style={{ animationDelay: "40ms" }}
-          >
-            <div className="min-w-0 flex-1">
-              <h2 id="para-negocios" className="text-xl text-text">
-                ¿Tienes un negocio?
-              </h2>
-              <p className="mt-2 max-w-prose text-sm text-text-dim">{CAMINO_EMPRESA.cuerpo}</p>
-              {/* Construido con sus constantes: si la fecha o la cifra se mueven, esto se mueve. */}
-              <p className="mt-2 max-w-prose text-sm text-text">{msgSocioFundador()}</p>
-            </div>
-            <Boton href={CTA_NEGOCIO.href} variante="secundario" className="mt-4 shrink-0 lg:mt-0">
-              Registrar mi empresa
-            </Boton>
-          </section>
-        )}
-
-        {/* PERFILES DESTACADOS (Boost) */}
-        <div className="df-rise mt-12 lg:mt-16" style={{ animationDelay: "80ms" }}>
+        {/* 2 · PERFILES DESTACADOS (Boost) */}
+        <div className="df-rise mt-12 lg:mt-16" style={{ animationDelay: "60ms" }}>
           <BoostDestacados perfiles={destacados} soloMirar={soloMirar(sesion)} />
         </div>
 
-        {/* ESPACIO 1 — publicidad global o de su país (o la casa). Ancho, entre bloques. */}
-        {espacio1 ? (
-          <div className="df-rise mt-12 lg:mt-16" style={{ animationDelay: "110ms" }}>
-            <PiezaPortada pieza={espacio1} denuncia={denunciaPortada} />
-          </div>
-        ) : null}
-
-        {/* MURO de retos + rail de ranking */}
+        {/* 3 · RETOS + RANKING (con el Espacio 2 en el carril) */}
         <div
           className="df-rise mt-12 grid gap-8 lg:mt-16 lg:grid-cols-3"
-          style={{ animationDelay: "140ms" }}
+          style={{ animationDelay: "100ms" }}
         >
           <section className="lg:col-span-2">
             <div className="flex items-baseline justify-between gap-4">
-              <h2 className="text-xl font-semibold text-text">Retos destacados</h2>
+              <h2 className="text-xl font-semibold text-text">Retos abiertos</h2>
               <Link
                 href="/retos"
                 className="shrink-0 text-sm font-medium text-text-dim hover:text-text"
@@ -171,7 +140,7 @@ export default async function InicioPage() {
               </Link>
             </div>
             <div className="mt-4">
-              <RetosDestacados />
+              <RetosDestacados retos={portada.rejilla} hayDestacado={portada.destacado !== null} />
             </div>
           </section>
 
@@ -187,8 +156,7 @@ export default async function InicioPage() {
             </div>
             <div className="mt-4 overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md">
               {topRanking.length === 0 ? (
-                // VACÍO HONESTO: nadie ha ganado todavía. Rellenar el rail con gente inventada para
-                // que "no se vea vacío" es justo lo que había antes.
+                // VACÍO HONESTO: nadie ha ganado todavía este mes.
                 <p className="px-4 py-6 text-center text-sm text-text-dim">
                   Todavía no ha ganado nadie este mes. Sé el primero.
                 </p>
@@ -208,7 +176,7 @@ export default async function InicioPage() {
                 ))
               )}
             </div>
-            {/* ESPACIO 2 — publicidad de su ciudad o región (o la casa), en el rail. */}
+            {/* ESPACIO 2 — publicidad de su ciudad o región, en el carril. */}
             {espacio2 ? (
               <div className="mt-6">
                 <PiezaPortada pieza={espacio2} compacta denuncia={denunciaPortada} />
@@ -216,6 +184,33 @@ export default async function InicioPage() {
             ) : null}
           </aside>
         </div>
+
+        {/* 4 · ESPACIO 1 — publicidad global o de su país, a lo ancho, después del contenido. */}
+        {espacio1 ? (
+          <div className="df-rise mt-12 lg:mt-16" style={{ animationDelay: "140ms" }}>
+            <PiezaPortada pieza={espacio1} denuncia={denunciaPortada} />
+          </div>
+        ) : null}
+
+        {/* 5 · ¿TIENES UN NEGOCIO? — SOLO INVITADOS, la única invitación a negocios de la portada. */}
+        {sesion ? null : (
+          <section
+            aria-labelledby="para-negocios"
+            className="df-rise mt-12 rounded-sm border border-line bg-surface/80 p-6 backdrop-blur-sm lg:mt-16 lg:flex lg:items-center lg:gap-8"
+            style={{ animationDelay: "180ms" }}
+          >
+            <div className="min-w-0 flex-1">
+              <h2 id="para-negocios" className="text-xl text-text">
+                ¿Tienes un negocio?
+              </h2>
+              <p className="mt-2 max-w-prose text-sm text-text-dim">{CAMINO_EMPRESA.cuerpo}</p>
+              <p className="mt-2 max-w-prose text-sm text-text">{msgSocioFundador()}</p>
+            </div>
+            <Boton href={CTA_NEGOCIO.href} variante="secundario" className="mt-4 shrink-0 lg:mt-0">
+              Registrar mi empresa
+            </Boton>
+          </section>
+        )}
       </div>
     </>
   );

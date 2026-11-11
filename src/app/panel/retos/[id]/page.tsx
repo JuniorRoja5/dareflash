@@ -11,6 +11,7 @@ import { TarjetaMetrica } from "../../tarjetas";
 import { TarjetaInteraccion } from "./interaccion-participacion";
 import { ParticipacionesPanel, type ParticipacionPanelUI } from "./participaciones-panel";
 import { RendimientoTiempo } from "./rendimiento-tiempo";
+import { DestacarPortada } from "./destacar-portada";
 import { ResolverEmpate } from "./resolver-empate";
 
 export const metadata = { title: "Gestionar reto · Panel" };
@@ -58,6 +59,13 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
 
   const reto = await retoAdminPorId(prisma, id);
   if (!reto) notFound();
+  // P14: el destacado de la portada (cuál es, si caducó, y si ESTE reto puede serlo: abierto ahora).
+  const { estadoDestacadoPanel, retoAbiertoWhere } = await import("@/server/services/portada");
+  const [portada, esteAbierto] = await Promise.all([
+    estadoDestacadoPanel(prisma),
+    prisma.challenge.count({ where: { ...retoAbiertoWhere(new Date()), id: reto.id } }),
+  ]);
+  const esElDestacado = portada.elegido?.id === reto.id;
 
   const [metricas, interaccion, serie, pagina, denuncias, colaReto] = await Promise.all([
     metricasReto(prisma, reto.id),
@@ -168,6 +176,38 @@ export default async function GestionRetoPage({ params }: { params: Promise<{ id
             <FechaLocal fecha={reto.deadline} />
           </Dato>
         </dl>
+
+        {/* LA PORTADA (P14): si este reto es el destacado del hero de /inicio, y el botón para
+            serlo o dejar de serlo. Solo se ofrece «destacar» si el reto está abierto: la ruta lo
+            exige igual, pero un botón no ofrece lo que el servidor va a rechazar. */}
+        <section aria-labelledby="portada" className="mt-6 rounded-sm border border-line p-4">
+          <h2
+            id="portada"
+            className="text-2xs font-semibold tracking-widest text-text-dim uppercase"
+          >
+            Portada
+          </h2>
+          <p className="mt-2 max-w-prose text-sm text-text">
+            {esElDestacado && !portada.caducado
+              ? "Este reto es el destacado de la portada."
+              : esElDestacado && portada.caducado
+                ? "Este reto era el destacado, pero ya no está abierto: la portada ha vuelto a elegir sola."
+                : portada.elegido && !portada.caducado
+                  ? `El destacado de la portada es «${portada.elegido.titulo}».`
+                  : portada.enPortada
+                    ? `La portada elige sola: ahora sale «${portada.enPortada.titulo}», el abierto de mayor premio.`
+                    : "No hay ningún reto abierto: la portada no enseña ningún reto destacado."}
+          </p>
+          {esElDestacado || esteAbierto > 0 ? (
+            <div className="mt-3">
+              <DestacarPortada id={reto.id} esElDestacado={esElDestacado} />
+            </div>
+          ) : (
+            <p className="mt-2 text-2xs text-text-dim">
+              Solo se puede destacar un reto publicado y abierto.
+            </p>
+          )}
+        </section>
 
         {reto.rules ? (
           <section className="mt-6">

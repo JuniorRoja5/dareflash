@@ -21,21 +21,19 @@ import { describe, expect, it } from "vitest";
 const SRC = join(process.cwd(), "src");
 
 /** Módulos de maqueta retirados. Si vuelve alguno con este nombre, esto lo nombra. */
-const MODULOS_RETIRADOS = ["ranking-datos", "usuario-demo"];
+const MODULOS_RETIRADOS = ["ranking-datos", "usuario-demo", "portada-datos"];
 
 /** Nombres inventados que llegaron a estar en producción. Que reaparezcan es la señal. */
 const NOMBRES_INVENTADOS = ["lucia.voz", "nico_skate", "usuario_demo", "entrenador_dani"];
 
 /**
  * MAQUETA QUE SIGUE VIVA, enumerada a propósito. Al escribir este test aparecieron TRES módulos más
- * de datos inventados que nadie tenía en la cabeza. No son de esta pieza —cada uno pertenece a una
- * funcionalidad que aún no existe— pero tampoco pueden quedarse invisibles:
+ * de datos inventados que nadie tenía en la cabeza. Se fueron pagando: hoy la lista está VACÍA.
  *
- *  - `retos-datos.ts`     `RETOS_SEED`. El fichero es MIXTO: también exporta el catálogo de
- *                         categorías, que sí es real y lo usa la subida. Solo se va la semilla.
- *  - `portada-datos.ts`   hero, rejilla y stats de la portada, derivados de esa semilla. (Los
- *                         perfiles de Boost ya NO: `PERFILES_BOOST` se fue al construir la
- *                         activacion, y los pinta `destacadosVigentes` con datos reales.)
+ *  - `retos-datos.ts` (`RETOS_SEED`) y `portada-datos.ts` (hero, rejilla y cifras de la portada,
+ *    derivados de esa semilla) se fueron con P14 (Fase 9): la portada ya es real (`datosPortada`).
+ *    `retos-datos` sigue, solo con lo real (el catálogo de categorías y el filtro del feed).
+ *  - `PERFILES_BOOST` se fue al construir la activación de Boost.
  *
  * (`feed-datos.ts` estuvo aquí por `COMENTARIOS_FEED`, los comentarios de mentira del panel de
  * escritorio. Se fue con los comentarios reales, y `SIMBOLOS_RETIRADOS` impide que vuelva.)
@@ -44,16 +42,22 @@ const NOMBRES_INVENTADOS = ["lucia.voz", "nico_skate", "usuario_demo", "entrenad
  * inventa y por qué sigue. Fuera de ella, cualquier dato falso nuevo se pone rojo. Al construir cada
  * funcionalidad, quitar su línea de aquí es parte del trabajo.
  */
-const MAQUETA_PENDIENTE = [
-  "app/(app)/(shell)/retos/retos-datos.ts",
-  "app/(app)/(shell)/inicio/portada-datos.ts",
-];
+const MAQUETA_PENDIENTE: string[] = [];
 
 /**
  * Maqueta retirada que vivía DENTRO de un fichero que sigue (no un módulo entero): se vigila por su
  * nombre. `COMENTARIOS_FEED` compartía fichero con `formatearContador`, que es real.
  */
-const SIMBOLOS_RETIRADOS = ["COMENTARIOS_FEED", "PERFILES_BOOST"];
+const SIMBOLOS_RETIRADOS = [
+  "COMENTARIOS_FEED",
+  "PERFILES_BOOST",
+  // P14: la maqueta de la portada y de los retos.
+  "RETOS_SEED",
+  "RetoSemilla",
+  "STATS_INICIO",
+  "RETO_HERO",
+  "RETOS_REJILLA",
+];
 
 /** Ficheros de código bajo src/, EXCLUIDA la guía de estilo (que es un catálogo de ejemplos). */
 function ficherosDeCodigo(dir: string): string[] {

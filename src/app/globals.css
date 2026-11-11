@@ -668,13 +668,6 @@
   html {
     background-color: var(--color-void);
   }
-  /* En CLARO la portada va en BLANCO: el vídeo de fondo no se pinta (decisión de Sergio). El servidor
-     ya no lo monta cuando la cookie dice claro; esta regla cubre el cambio de tema SIN recargar, que
-     si no dejaría un vídeo oscuro detrás de una página blanca. */
-  [data-theme="light"] .df-fondo-video video {
-    display: none;
-  }
-
   /* EL PUESTO 1/2/3 de una fila de ranking. En OSCURO va en oro, como siempre. En CLARO el oro
      metálico no llega a contraste como texto pequeño (3,25:1 sobre blanco), así que el número va
      SOBRE el oro: mismo significado —el podio se distingue del resto por el oro— y legible (6,5:1).

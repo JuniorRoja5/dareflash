@@ -85,7 +85,7 @@ export interface RetoPublicoDetalle extends RetoPublicoVista {
   nivelMinimo: string;
 }
 
-const SELECT_VISTA = {
+export const SELECT_VISTA = {
   publicCode: true,
   slug: true,
   title: true,
@@ -117,7 +117,7 @@ type FilaVista = {
   sponsorLogo: string | null;
 };
 
-function aVista(f: FilaVista): RetoPublicoVista {
+export function aVista(f: FilaVista): RetoPublicoVista {
   return {
     publicCode: f.publicCode,
     slug: f.slug,
