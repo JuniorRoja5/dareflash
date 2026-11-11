@@ -55,7 +55,10 @@ export function RetosPanel({
         />
       </div>
 
-      <section>
+      {/* `min-w-0`: una celda de rejilla no baja de lo que mide su contenido, y la tabla mide 720 px.
+          Sin esto, entre `md` y `lg` (una sola columna) la tabla ensanchaba la página entera en vez
+          de desplazarse en su contenedor. */}
+      <section className="min-w-0">
         <h2 className="mb-3 text-sm font-semibold tracking-widest text-text-dim uppercase">
           Retos existentes
         </h2>

@@ -274,10 +274,64 @@ function Reabrir({ id, onHecho }: { id: string; onHecho: () => void }) {
 }
 
 /**
- * Lista de retos del panel como TABLA a ancho completo (pensada para muchos retos, no filas estrechas):
- * columnas Reto, Categoría, Premio (en --df-money), Cierre, Estado y Acciones (Editar siempre; Publicar en los
- * borradores). En pantallas estrechas la tabla scrollea en su propio contenedor (`overflow-x-auto`), sin
- * romper el layout de la página. Editar delega en el padre (`onEditar`), que precarga el formulario.
+ * LOS BOTONES DE UN RETO, una sola vez para las dos vistas (tabla y tarjeta): lo que se ofrece en cada
+ * estado lo decide este bloque, y si cada vista tuviera su copia acabarían ofreciendo cosas distintas.
+ */
+function AccionesReto({
+  r,
+  estado,
+  onEditar,
+  onCambio,
+  className,
+}: {
+  r: RetoAdminFila;
+  estado: EstadoRetoAdmin;
+  onEditar: () => void;
+  onCambio: () => void;
+  className: string;
+}) {
+  return (
+    <div className={className}>
+      {/* Gestionar = moderar sus participaciones y ver sus estadísticas. Va PRIMERO
+          porque es lo que más se hace con un reto ya creado. */}
+      <Link
+        href={`/panel/retos/${r.id}`}
+        className="inline-flex min-h-[36px] items-center rounded-sm border border-line px-3 text-sm font-medium text-text transition-colors duration-150 ease-mechanical hover:bg-raised"
+      >
+        Gestionar
+      </Link>
+      <BotonEditar onEditar={onEditar} />
+      {r.status === "DRAFT" && r.eliminaEnMs === null && r.borradoMs === null ? (
+        <Publicar id={r.id} pagoPendiente={r.empresaId !== null && r.pagoRecibidoMs === null} />
+      ) : null}
+      {/* REABRIR, solo donde puede servir de algo: un reto CERRADO que no está en
+          camino de borrarse. Que de verdad se pueda lo decide el servidor —aquí no se
+          sabe si tiene ganador, y preguntarlo sería una consulta por fila—, así que el
+          botón se ofrece y el motivo del rechazo se pinta debajo si lo hay.
+          El estado "empate-pendiente" NO entra: ese se resuelve desde su ficha. */}
+      {estado === "cerrado" && r.eliminaEnMs === null && r.borradoMs === null ? (
+        <Reabrir id={r.id} onHecho={onCambio} />
+      ) : null}
+      {/* Un reto EN GRACIA se puede recuperar; uno ya borrado, no: el admin tuvo su plazo
+          y deshacerlo sería otra decisión, con otras consecuencias. */}
+      {r.eliminaEnMs !== null ? (
+        <Restaurar id={r.id} onHecho={onCambio} />
+      ) : r.borradoMs === null ? (
+        <Borrar id={r.id} onHecho={onCambio} />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Lista de retos del panel: TABLA desde `md` y TARJETAS en móvil (la regla de diseño, como las colas
+ * de empresas y propuestas). Columnas Reto, Categoría, Premio (en --df-money), Apertura, Cierre, Estado
+ * y Acciones. Editar delega en el padre (`onEditar`), que precarga el formulario.
+ *
+ * Hasta P14 la tabla iba también en móvil, «scrolleando en su propio contenedor». No lo hacía: en la
+ * columna única del panel, el `min-w-[720px]` de la tabla ensanchaba la celda de la rejilla y la página
+ * ENTERA se desplazaba en horizontal (medido a 390: 1174 px de documento). Lo vigila
+ * `panel-retos-movil.test`.
  */
 export function ListaRetos({
   retos,
@@ -307,99 +361,131 @@ export function ListaRetos({
     );
   }
   return (
-    <div className="overflow-x-auto rounded-sm border border-line bg-surface/60">
-      <table className="w-full min-w-[720px] border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-line text-left text-2xs tracking-widest text-text-dim uppercase">
-            <th className="px-4 py-3 font-semibold">Reto</th>
-            <th className="px-4 py-3 font-semibold">Categoría</th>
-            <th className="px-4 py-3 text-right font-semibold">Premio</th>
-            {/* LA APERTURA TAMBIÉN, y con su hora: era el dato que el admin tecleaba y que luego
+    <>
+      <div className="hidden overflow-x-auto rounded-sm border border-line bg-surface/60 md:block">
+        <table className="w-full min-w-[720px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-line text-left text-2xs tracking-widest text-text-dim uppercase">
+              <th className="px-4 py-3 font-semibold">Reto</th>
+              <th className="px-4 py-3 font-semibold">Categoría</th>
+              <th className="px-4 py-3 text-right font-semibold">Premio</th>
+              {/* LA APERTURA TAMBIÉN, y con su hora: era el dato que el admin tecleaba y que luego
                 no podía ver en ninguna parte de la lista. Un reto que abre mañana y uno que abrió
                 ayer se veían exactamente igual. */}
-            <th className="px-4 py-3 font-semibold">Apertura</th>
-            <th className="px-4 py-3 font-semibold">Cierre</th>
-            <th className="px-4 py-3 font-semibold">Estado</th>
-            <th className="px-4 py-3 text-right font-semibold">Acciones</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-line">
-          {retos.map((r) => (
-            <tr key={r.id} className="align-middle transition-colors hover:bg-raised/40">
-              <td className="max-w-[28ch] px-4 py-3">
-                <p className="truncate font-medium text-text">{r.title}</p>
-                <p className="mt-0.5 flex items-center gap-2 font-mono text-2xs tracking-wider text-text-dim">
-                  {r.publicCode}
-                  {/* LA MARCA DE EXCLUSIVO TAMBIÉN AQUÍ: el admin tiene que poder VER de un vistazo
+              <th className="px-4 py-3 font-semibold">Apertura</th>
+              <th className="px-4 py-3 font-semibold">Cierre</th>
+              <th className="px-4 py-3 font-semibold">Estado</th>
+              <th className="px-4 py-3 text-right font-semibold">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {retos.map((r) => (
+              <tr key={r.id} className="align-middle transition-colors hover:bg-raised/40">
+                <td className="max-w-[28ch] px-4 py-3">
+                  <p className="truncate font-medium text-text">{r.title}</p>
+                  <p className="mt-0.5 flex items-center gap-2 font-mono text-2xs tracking-wider text-text-dim">
+                    {r.publicCode}
+                    {/* LA MARCA DE EXCLUSIVO TAMBIÉN AQUÍ: el admin tiene que poder VER de un vistazo
                       cuáles lo son. Sin esto, la única forma de saberlo sería abrir la edición de
                       cada uno — y un reto exclusivo por error es un reto en el que casi nadie
                       puede participar. Es la MISMA pieza que pinta la tarjeta pública. */}
-                  {r.soloVip ? <MarcaVip /> : null}
-                </p>
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-text-dim">
-                {NOMBRE_CATEGORIA.get(r.category) ?? r.category}
-              </td>
-              <td className="px-4 py-3 text-right font-semibold whitespace-nowrap tabular-nums text-money">
-                {centimosAImporte(r.prizeAmountCents)} {r.prizeCurrency}
-              </td>
-              {/* EN HORA LOCAL, la misma en la que el formulario las captura (ver `FechaLocal`).
+                    {r.soloVip ? <MarcaVip /> : null}
+                  </p>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-text-dim">
+                  {NOMBRE_CATEGORIA.get(r.category) ?? r.category}
+                </td>
+                <td className="px-4 py-3 text-right font-semibold whitespace-nowrap tabular-nums text-money">
+                  {centimosAImporte(r.prizeAmountCents)} {r.prizeCurrency}
+                </td>
+                {/* EN HORA LOCAL, la misma en la que el formulario las captura (ver `FechaLocal`).
                   La etiqueta "· tu hora" va una sola vez, en el cierre: repetirla en las dos
                   columnas de cada fila es ruido, y están pegadas. */}
-              <td className="px-4 py-3 text-text-dim">
-                <FechaLocal fecha={r.startsAt} etiqueta={false} />
-              </td>
-              <td className="px-4 py-3 text-text-dim">
-                <FechaLocal fecha={r.deadline} />
-              </td>
-              <td className="px-4 py-3">
-                <PildoraEstado estado={estadoRetoAdmin(fila(r))} />
-                {r.eliminaEnMs !== null ? (
-                  <p className="mt-1 text-2xs text-text-dim">
-                    {diasRestantes(r.eliminaEnMs)} d para deshacer
-                  </p>
-                ) : null}
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center justify-end gap-2">
-                  {/* Gestionar = moderar sus participaciones y ver sus estadísticas. Va PRIMERO
-                      porque es lo que más se hace con un reto ya creado. */}
-                  <Link
-                    href={`/panel/retos/${r.id}`}
-                    className="inline-flex min-h-[36px] items-center rounded-sm border border-line px-3 text-sm font-medium text-text transition-colors duration-150 ease-mechanical hover:bg-raised"
-                  >
-                    Gestionar
-                  </Link>
-                  <BotonEditar onEditar={() => onEditar(r)} />
-                  {r.status === "DRAFT" && r.eliminaEnMs === null && r.borradoMs === null ? (
-                    <Publicar
-                      id={r.id}
-                      pagoPendiente={r.empresaId !== null && r.pagoRecibidoMs === null}
-                    />
-                  ) : null}
-                  {/* REABRIR, solo donde puede servir de algo: un reto CERRADO que no está en
-                      camino de borrarse. Que de verdad se pueda lo decide el servidor —aquí no se
-                      sabe si tiene ganador, y preguntarlo sería una consulta por fila—, así que el
-                      botón se ofrece y el motivo del rechazo se pinta debajo si lo hay.
-                      El estado "empate-pendiente" NO entra: ese se resuelve desde su ficha. */}
-                  {estadoRetoAdmin(fila(r)) === "cerrado" &&
-                  r.eliminaEnMs === null &&
-                  r.borradoMs === null ? (
-                    <Reabrir id={r.id} onHecho={onCambio} />
-                  ) : null}
-                  {/* Un reto EN GRACIA se puede recuperar; uno ya borrado, no: el admin tuvo su plazo
-                      y deshacerlo sería otra decisión, con otras consecuencias. */}
+                <td className="px-4 py-3 text-text-dim">
+                  <FechaLocal fecha={r.startsAt} etiqueta={false} />
+                </td>
+                <td className="px-4 py-3 text-text-dim">
+                  <FechaLocal fecha={r.deadline} />
+                </td>
+                <td className="px-4 py-3">
+                  <PildoraEstado estado={estadoRetoAdmin(fila(r))} />
                   {r.eliminaEnMs !== null ? (
-                    <Restaurar id={r.id} onHecho={onCambio} />
-                  ) : r.borradoMs === null ? (
-                    <Borrar id={r.id} onHecho={onCambio} />
+                    <p className="mt-1 text-2xs text-text-dim">
+                      {diasRestantes(r.eliminaEnMs)} d para deshacer
+                    </p>
                   ) : null}
+                </td>
+                <td className="px-4 py-3">
+                  <AccionesReto
+                    r={r}
+                    estado={estadoRetoAdmin(fila(r))}
+                    onEditar={() => onEditar(r)}
+                    onCambio={onCambio}
+                    className="flex items-center justify-end gap-2"
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* MÓVIL: una tarjeta por reto. Lo que en la tabla son columnas aquí son líneas: título y
+        estado arriba, categoría y premio, las dos fechas, y los botones con `flex-wrap` (en la
+        tabla iban en fila y eran lo que más ancho pedía). */}
+      <ul className="space-y-3 md:hidden">
+        {retos.map((r) => {
+          const estado = estadoRetoAdmin(fila(r));
+          return (
+            <li
+              key={r.id}
+              data-reto-movil={r.id}
+              className="rounded-sm border border-line bg-surface/60 p-4"
+            >
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium break-words text-text">{r.title}</p>
+                  <p className="mt-0.5 flex items-center gap-2 font-mono text-2xs tracking-wider text-text-dim">
+                    {r.publicCode}
+                    {r.soloVip ? <MarcaVip /> : null}
+                  </p>
                 </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+                <PildoraEstado estado={estado} />
+              </div>
+              <p className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+                <span className="text-text-dim">
+                  {NOMBRE_CATEGORIA.get(r.category) ?? r.category}
+                </span>
+                <span className="font-semibold tabular-nums text-money">
+                  {centimosAImporte(r.prizeAmountCents)} {r.prizeCurrency}
+                </span>
+              </p>
+              <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-2xs text-text-dim">
+                <dt className="tracking-widest uppercase">Apertura</dt>
+                <dd>
+                  <FechaLocal fecha={r.startsAt} etiqueta={false} />
+                </dd>
+                <dt className="tracking-widest uppercase">Cierre</dt>
+                <dd>
+                  <FechaLocal fecha={r.deadline} />
+                </dd>
+              </dl>
+              {r.eliminaEnMs !== null ? (
+                <p className="mt-1 text-2xs text-text-dim">
+                  {diasRestantes(r.eliminaEnMs)} d para deshacer
+                </p>
+              ) : null}
+              <AccionesReto
+                r={r}
+                estado={estado}
+                onEditar={() => onEditar(r)}
+                onCambio={onCambio}
+                className="mt-3 flex flex-wrap items-center gap-2"
+              />
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
