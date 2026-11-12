@@ -23,3 +23,6 @@ tests
 # Material de seguridad (las auditorias estan en .gitignore; esto cubre una construccion de emergencia
 # desde una copia que las tenga). Las imagenes son PUBLICAS: nada de esto debe poder acabar dentro.
 security
+
+# Originales de los objetos 3D (ver .gitignore): tampoco en la imagen.
+recursos

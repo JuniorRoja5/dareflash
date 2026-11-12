@@ -54,3 +54,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Originales de Junior (objetos 3D en alta resolucion, PNG 2048 px): NO se versionan. El repositorio es
+# publico y redistribuir los originales puede violar su licencia. Lo que se sirve son las versiones
+# optimizadas que genera scripts/ en public/img/3d/ (esas si se versionan).
+/recursos/

@@ -53,7 +53,30 @@
   --ease-mechanical: cubic-bezier(0.2, 0, 0, 1);
 }
 
-/* Las fuentes vienen de next/font como variables en <html> (ver layout.tsx). */
+/* Las fuentes vienen de next/font/local como variables en <html> (ver src/app/fuentes). */
+
+/* LOS RESPALDOS MIENTRAS CARGA LA FUENTE: Arial reescalada para que ocupe lo mismo y no salte la
+   maquetación al llegar la de verdad. Escritos aquí, y no calculados por `next/font/local`, a propósito:
+   son EXACTAMENTE los que generaba `next/font/google` (sale de una base de métricas de Google). El que
+   calcula `next/font/local` midiendo el fichero daba otro para Archivo (102,8 % frente a 98,7 %), y eso
+   habría cambiado el salto del primer pintado. Los nombres los usa la pila de `src/app/fuentes`. */
+@font-face {
+  font-family: "DareFlash Archivo Respaldo";
+  src: local("Arial");
+  ascent-override: 88.96%;
+  descent-override: 21.28%;
+  line-gap-override: 0%;
+  size-adjust: 98.7%;
+}
+@font-face {
+  font-family: "DareFlash Plex Respaldo";
+  src: local("Arial");
+  ascent-override: 101.32%;
+  descent-override: 27.18%;
+  line-gap-override: 0%;
+  size-adjust: 101.17%;
+}
+
 @theme inline {
   --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-archivo), ui-sans-serif, sans-serif;

@@ -46,7 +46,11 @@ COPY . .
 # nunca la reutiliza. `runner` no la copia, pero `worker` y `migrate` heredan de esta etapa y se la
 # llevarian (+90 MB de imagen). Va en el MISMO RUN: en uno aparte, la capa del build ya la contendria
 # y la imagen pesaria igual.
-RUN npx prisma generate && npm run build && rm -rf .next/cache
+# `--network=none`: el build NO tiene red, a proposito. Las dependencias ya estan (etapa `deps`) y las
+# fuentes van en el repositorio (src/app/fuentes). Antes `next/font/google` las descargaba aqui, y esa
+# descarga fallaba a veces y tumbaba el build (los rojos de docker-build del 2026-11-06). Sin red, si
+# algo vuelve a querer descargar durante el build, falla SIEMPRE y en el acto, no de vez en cuando.
+RUN --network=none npx prisma generate && npm run build && rm -rf .next/cache
 
 # ---- Imagen final (runtime) ----
 FROM base AS runner
