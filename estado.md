@@ -313,6 +313,12 @@ que 300. El sesgo va en contra del margen, que es el lado seguro.
   arreglo que el portal de empresas en P10 (`fraseInicioDelDia`): la hora LOCAL de quien lee, con su
   horario de verano. Para participantes, la zona sale de su ubicacion o de su navegador, no del pais
   de una empresa. No se hace antes de la Fase 11 (Boost esta fuera de lo que se toca ahora).
+- **Para la Fase 11: el barrido `df-sheen` en `/retos` y `/puntos`.** Es un brillo que recorre las
+  cajas de video en bucle infinito animando `background-position`, y MARCA.md §7 dice que en un bucle
+  solo se animan `opacity` y `transform`. En la portada ya no se mueve (rediseno de /inicio: habia una
+  docena a la vez); en `/retos` (cada tarjeta) y `/puntos` (el hero de nivel) sigue igual. Arreglo:
+  rehacerlo con `transform` (una capa que se desplaza) o quitarlo donde haya mas de uno o dos a la
+  vez. Con Save-Data ya se para en todas partes.
 - El texto legal dice 30 s y la regla real es 90 s. Corregir antes de lanzar.
 - Anonimizacion real de cuenta: hoy solo hay tombstone `del_<aleatorio>`.
 - Bloquear la indexacion del dominio temporal antiguo.
