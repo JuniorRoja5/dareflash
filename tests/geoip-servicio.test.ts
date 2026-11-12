@@ -11,10 +11,11 @@
  *    discreparan, el guión escribiría donde la app no lee, y el aviso diría «no hay fichero» para siempre.
  *  - La etapa deriva de `base`, no de `builder`: reconstruirla desde el cron no puede disparar un
  *    `next build` en una máquina de 1 vCPU. Y lleva lo que el guión necesita (curl, los dos guiones y
- *    node_modules para `maxmind`).
+ *    `maxmind` con SUS dependencias, y nada más del `node_modules` de la app).
  *
  * Para romperlo a propósito: quitar el `:ro` de `web` (rojo); cambiar `FROM base AS geoip` por
- * `FROM builder AS geoip` (rojo); quitar `profiles` del servicio (rojo).
+ * `FROM builder AS geoip` (rojo); quitar `profiles` del servicio (rojo); volver a copiar el
+ * `node_modules` entero, o quitar una dependencia de `maxmind` de la lista (rojo).
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -83,10 +84,42 @@ describe("la etapa `geoip` del Dockerfile", () => {
     expect(etapa()).not.toMatch(/npm run build|COPY \. \./);
   });
 
-  it("lleva lo que el guión necesita: curl, node_modules (maxmind) y los dos guiones", () => {
+  it("lleva lo que el guión necesita: curl, `maxmind` y los dos guiones", () => {
     expect(etapa()).toMatch(/apt-get install[^\n]*\bcurl\b/);
-    expect(etapa()).toMatch(/^COPY --from=deps \/app\/node_modules \.\/node_modules\s*$/m);
     expect(etapa()).toMatch(/COPY scripts\/actualizar-geoip\.sh scripts\/geoip-comprobar\.mjs/);
     expect(etapa()).toMatch(/CMD \["bash", "scripts\/actualizar-geoip\.sh"\]/);
+  });
+
+  /**
+   * SOLO `maxmind` Y SUS DEPENDENCIAS (2026-11-12): la etapa copiaba el `node_modules` ENTERO de la app
+   * para usar un paquete de 54 KB, y la imagen pesaba ~1,8 GB (ahora, ~350 MB). Lo que se copia tiene que
+   * ser EXACTAMENTE el árbol de `maxmind` según el `package-lock.json`: si una versión nueva trae otra
+   * dependencia, el script fallaría DENTRO de la imagen el día del cron, y esto lo dice antes.
+   */
+  it("copia SOLO el árbol de `maxmind` del package-lock, ni más ni menos (no el node_modules entero)", () => {
+    const lock = JSON.parse(
+      readFileSync(path.resolve(__dirname, "..", "package-lock.json"), "utf8"),
+    ).packages as Record<string, { dependencies?: Record<string, string> }>;
+    const arbol = new Set<string>();
+    const visitar = (nombre: string) => {
+      if (arbol.has(nombre)) return;
+      const p = lock[`node_modules/${nombre}`];
+      expect(p, `${nombre} no está en el package-lock`).toBeDefined();
+      arbol.add(nombre);
+      for (const dep of Object.keys(p!.dependencies ?? {})) visitar(dep);
+    };
+    visitar("maxmind");
+
+    const copiados = [
+      ...etapa().matchAll(
+        /^COPY --from=deps \/app\/node_modules\/(\S+) \.\/node_modules\/(\S+)\s*$/gm,
+      ),
+    ].map((m) => {
+      expect(m[1], "se copia a la misma ruta").toBe(m[2]);
+      return m[1]!;
+    });
+    expect(copiados.sort()).toEqual([...arbol].sort());
+    // Y nunca el node_modules entero.
+    expect(etapa()).not.toMatch(/COPY --from=deps \/app\/node_modules \.\/node_modules/);
   });
 });

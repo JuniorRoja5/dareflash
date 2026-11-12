@@ -55,6 +55,18 @@ for s in "${SERVICIOS[@]}"; do
   [ -z "$encontrados" ] || fallo "$img: ficheros de entorno dentro de la imagen: $encontrados"
 done
 
+# GEOIP: lo que su guion necesita CARGA dentro de la imagen (lleva solo `maxmind` y sus dependencias, no
+# el node_modules de la app), y la imagen no vuelve a hincharse: llego a pesar ~1,8 GB por copiar el
+# node_modules entero para usar un paquete de 54 KB.
+GEOIP="$REGISTRO/dareflash-geoip:$SHA"
+docker run --rm --entrypoint node "$GEOIP" \
+  -e 'import("maxmind").then((m) => { if (typeof m.Reader !== "function") process.exit(1); })' \
+  || fallo "$GEOIP: maxmind no carga dentro de la imagen (¿falta una de sus dependencias?)"
+TOPE_GEOIP_MB=500
+tam=$(docker image inspect --format '{{.Size}}' "$GEOIP")
+[ "$tam" -le $((TOPE_GEOIP_MB * 1024 * 1024)) ] \
+  || fallo "$GEOIP: pesa $((tam / 1024 / 1024)) MB (tope $TOPE_GEOIP_MB): ¿ha vuelto el node_modules entero?"
+
 gs=$(docker image inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \
   "$REGISTRO/dareflash-web:$SHA" | sed -n 's/^GIT_SHA=//p')
 [ "$gs" = "$SHA" ] || fallo "web: GIT_SHA es '$gs', no el SHA del commit (el health mentiría)"

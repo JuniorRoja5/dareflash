@@ -118,19 +118,25 @@ CMD ["node", "--conditions=react-server", "--import", "tsx", "scripts/worker.ts"
 # ---- geoip: actualiza el fichero de IP (one-off, servicio `geoip` del compose) ----
 # El guion mensual (scripts/actualizar-geoip.sh) necesita curl, gunzip, node y `maxmind` (el paso de
 # control abre el fichero nuevo y resuelve IP conocidas). Va en la imagen para que el host no tenga que
-# instalar NADA ni saber donde vive el volumen: `docker compose -f docker-compose.prod.yml run --rm
-# geoip` (la imagen la construye CI y deploy.sh la deja como `desplegada`).
+# instalar NADA ni saber donde vive el volumen: `./scripts/geoip-mensual.sh` (la imagen la construye CI).
 #
 # Deriva de `base` y NO de `builder` a proposito: asi no depende del codigo de la app (y, si alguna vez
-# se construye en el servidor, nunca dispara un `next build`: en 1 vCPU, minutos de CPU). El COPY de
-# node_modules es el MISMO que el primer paso de `builder` sobre la misma `base`: BuildKit reutiliza esa
-# capa, no ocupa disco de mas. curl va DESPUES del COPY por eso mismo (antes, la capa ya no coincidiria).
+# se construye en el servidor, nunca dispara un `next build`: en 1 vCPU, minutos de CPU).
+#
+# SOLO `maxmind` Y SUS DOS DEPENDENCIAS, no el `node_modules` entero. Antes copiaba todo el de la app
+# (con Next, Prisma, sharp…) para usar un paquete de 54 KB: la imagen pesaba ~1,8 GB, y desde que las
+# imagenes se publican por SHA ya no compartia capas con `builder` (son paquetes distintos del registro).
+# Ahora pesa lo que `base` mas curl. Si `maxmind` cambia de dependencias, el test `geoip-servicio`
+# compara esta lista con el `package-lock.json` y se pone rojo; y `ci-revisar-imagenes.sh` carga el
+# paquete DENTRO de la imagen antes de publicar.
 # gzip, date (GNU) y stat ya vienen en la imagen slim de Debian. Corre como root: escribe en el volumen,
 # y deja el fichero 644 para que `web` (nextjs) lo lea.
 FROM base AS geoip
-COPY --from=deps /app/node_modules ./node_modules
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
+COPY --from=deps /app/node_modules/maxmind ./node_modules/maxmind
+COPY --from=deps /app/node_modules/mmdb-lib ./node_modules/mmdb-lib
+COPY --from=deps /app/node_modules/tiny-lru ./node_modules/tiny-lru
 COPY scripts/actualizar-geoip.sh scripts/geoip-comprobar.mjs ./scripts/
 ENV GEOIP_FICHERO=/srv/geoip/dbip-city-lite.mmdb
 ENTRYPOINT ["/usr/bin/tini", "--"]
