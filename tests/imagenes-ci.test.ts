@@ -205,6 +205,39 @@ describe("cada imagen, de su etapa, con el SHA completo", () => {
   it("y el registro es el mismo en CI, en los dos compose y en los scripts", () => {
     expect(WORKFLOW).toMatch(/REGISTRO: ghcr\.io\/juniorroja5\s*$/m);
     expect(leer("scripts", "deploy.sh")).toMatch(/^REGISTRO="ghcr\.io\/juniorroja5"$/m);
-    expect(leer("scripts", "migrate-prod.sh")).toMatch(/ghcr\.io\/juniorroja5\/dareflash-migrate:/);
+    // migrate-prod.sh, geoip-mensual.sh y limpiar.sh lo toman de imagenes-comun.sh.
+    expect(leer("scripts", "imagenes-comun.sh")).toMatch(/^REGISTRO="ghcr\.io\/juniorroja5"$/m);
+    for (const f of ["migrate-prod.sh", "geoip-mensual.sh", "limpiar.sh"]) {
+      expect(leer("scripts", f), f).toMatch(/source scripts\/imagenes-comun\.sh/);
+    }
+  });
+});
+
+describe("la limpieza y el cron de geoip (2026-11-12: un `prune -a` borró las imágenes de un solo uso)", () => {
+  const scripts = ["deploy.sh", "limpiar.sh", "geoip-mensual.sh", "migrate-prod.sh"].map((f) => [
+    f,
+    leer("scripts", f),
+  ]);
+
+  it("ningún script borra imágenes con `prune -a` (solo la caché de build)", () => {
+    for (const [f, s] of scripts) {
+      expect(s, f).not.toMatch(/docker (image|system) prune[^\n]*\s-a\b/);
+    }
+    expect(leer("scripts", "limpiar.sh")).toMatch(/docker builder prune -a -f/);
+  });
+
+  it("el runbook dice que `limpiar.sh` es la ÚNICA forma, y avisa contra el `prune -a`", () => {
+    const estado = leer("estado.md");
+    expect(estado).toMatch(/Limpiar disco: SOLO `\.\/scripts\/limpiar\.sh`/);
+    expect(estado).toMatch(/Nunca `docker image prune -a` ni `docker system prune -a`/);
+  });
+
+  it("el cron de geoip es `geoip-mensual.sh` (no depende de la etiqueta local `desplegada`)", () => {
+    expect(leer("estado.md")).toMatch(/`\.\/scripts\/geoip-mensual\.sh`/);
+    // En un comentario del compose: se lee el fichero tal cual (PROD va sin comentarios).
+    expect(readFileSync(path.resolve(__dirname, "..", "docker-compose.prod.yml"), "utf8")).toMatch(
+      /Linea del cron mensual: {2}\.\/scripts\/geoip-mensual\.sh/,
+    );
+    expect(leer("scripts", "geoip-mensual.sh")).toMatch(/SHA=\$\(sha_en_marcha\)/);
   });
 });

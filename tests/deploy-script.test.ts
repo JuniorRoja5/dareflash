@@ -43,11 +43,23 @@ echo "docker $*" >> "$FAKE_LOG"
 case "$1" in
   manifest) [ "\${FAKE_IMAGEN_EXISTE:-1}" = 1 ]; exit $? ;;
   image)
-    # La etiqueta revision de la imagen: la de su tag (así migrate-prod ve el SHA que se despliega).
-    if [ "$2" = "inspect" ]; then img="\${@: -1}"; echo "\${img##*:}"; fi
+    if [ "$2" = "inspect" ]; then
+      img="\${@: -1}"
+      # Con --format, la etiqueta revision: la de su tag (así migrate-prod ve el SHA que se despliega).
+      if [ "$3" = "--format" ]; then echo "\${img##*:}"; exit 0; fi
+      # Sin --format, «¿existe en local?»: sin FAKE_LOCALES, todas; con, solo las de la lista.
+      [ -z "\${FAKE_LOCALES+x}" ] && exit 0
+      for x in $FAKE_LOCALES; do [ "$x" = "$img" ] && exit 0; done
+      exit 1
+    fi
     exit 0 ;;
+  images) for x in \${FAKE_IMAGENES:-}; do echo "$x"; done; exit 0 ;;
+  # La etiqueta revision del contenedor web en marcha.
+  inspect) echo "\${FAKE_SHA_WEB:-}"; exit 0 ;;
   compose)
+    echo "IMAGE_TAG=\${IMAGE_TAG:-}" >> "$FAKE_LOG"
     case "$*" in
+      *" ps -q web"*) [ -n "\${FAKE_SHA_WEB:-}" ] && echo cont-web; exit 0 ;;
       *" exec "*)
         if grep -q " up -d" "$FAKE_LOG"; then h="\${FAKE_HEALTH_DESPUES:-}"; else h="\${FAKE_HEALTH_ANTES:-}"; fi
         [ -n "$h" ] && { echo "$h"; exit 0; }
@@ -108,14 +120,14 @@ const ci = (status: string, conclusion: string | null) =>
   JSON.stringify({ total_count: 1, workflow_runs: [{ id: 1, status, conclusion }] }, null, 2);
 
 let n = 0;
-function desplegar(args: string[], env: Record<string, string>) {
+/** Ejecuta un script de scripts/ con los falsos delante. El historial va a un fichero de la prueba. */
+function ejecutar(script: string, args: string[], env: Record<string, string>) {
   const log = path.join(FALSOS, `log-${++n}.txt`);
   writeFileSync(log, "");
   // Los falsos se anteponen DENTRO de bash: el bash de Git en Windows es un lanzador que pone su propio
   // /mingw64/bin (con el git de verdad) delante de lo que le llegue en PATH.
-  const lanzar =
-    'PATH="$(cygpath -u "$FAKE_DIR" 2>/dev/null || echo "$FAKE_DIR"):$PATH" exec bash scripts/deploy.sh "$@"';
-  const r = spawnSync(bash(), ["-c", lanzar, "deploy.sh", ...args], {
+  const lanzar = `PATH="$(cygpath -u "$FAKE_DIR" 2>/dev/null || echo "$FAKE_DIR"):$PATH" exec bash scripts/${script} "$@"`;
+  const r = spawnSync(bash(), ["-c", lanzar, script, ...args], {
     cwd: RAIZ,
     encoding: "utf8",
     // Un script que se queda en bucle (p.ej. si alguien quita el tope de espera) tiene que FALLAR, no
@@ -132,12 +144,15 @@ function desplegar(args: string[], env: Record<string, string>) {
       DEPLOY_ESPERA_PASO_S: "0",
       DEPLOY_HEALTH_MAX_S: "0",
       DEPLOY_HEALTH_PASO_S: "0",
+      // Nunca en el repositorio: cada ejecución, su historial.
+      DEPLOY_HISTORIAL: path.join(FALSOS, `historial-${n}.txt`),
       ...env,
     },
   });
   const llamadas = readFileSync(log, "utf8").split("\n").filter(Boolean);
   return { codigo: r.status, salida: `${r.stdout}\n${r.stderr}`, llamadas };
 }
+const desplegar = (args: string[], env: Record<string, string>) => ejecutar("deploy.sh", args, env);
 
 /** Lo que de verdad cambia producción: descargar, migrar o arrancar. */
 const TOCA_PRODUCCION = /^docker (pull|tag)|compose[^\n]* (run|up)\b/;
@@ -281,5 +296,126 @@ describe("deploy.sh: volver atrás", () => {
     expect(r.codigo).toBe(0);
     expect(r.llamadas.some((l) => / run --rm -T migrate$/.test(l))).toBe(false);
     expect(r.llamadas.some((l) => / up -d$/.test(l))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------
+// El cron de geoip y la limpieza (2026-11-12: un `docker image prune -a` borró las imágenes de geoip y
+// migrate y su etiqueta `desplegada`; el cron habría fallado en diciembre)
+// ---------------------------------------------------------------------------------------------------
+
+const R = "ghcr.io/juniorroja5";
+const SERV = ["web", "worker", "migrate", "geoip"];
+const imagenesDe = (sha: string) => SERV.map((s) => `${R}/dareflash-${s}:${sha}`);
+const ANTIGUO = "d".repeat(40);
+
+describe("el cron de geoip NO depende de la etiqueta local `desplegada`", () => {
+  it("sin la etiqueta ni la imagen en local: resuelve el SHA EN MARCHA, la descarga y la usa", () => {
+    const r = ejecutar("geoip-mensual.sh", [], { FAKE_SHA_WEB: NUEVO, FAKE_LOCALES: "" });
+    expect(r.codigo).toBe(0);
+    const i = (re: RegExp) => r.llamadas.findIndex((l) => re.test(l));
+    expect(i(new RegExp(`^docker pull --quiet ${R}/dareflash-geoip:${NUEVO}$`))).toBeGreaterThan(
+      -1,
+    );
+    expect(i(/compose[^\n]* run --rm -T geoip$/)).toBeGreaterThan(i(/^docker pull/));
+    // Y corre con la imagen de ESE SHA, no con `desplegada`.
+    const run = i(/compose[^\n]* run --rm -T geoip$/);
+    // (el falso apunta el IMAGE_TAG justo DESPUÉS de cada llamada a compose)
+    expect(r.llamadas[run + 1]).toBe(`IMAGE_TAG=${NUEVO}`);
+  });
+
+  it("si la imagen ya está, no descarga nada", () => {
+    const r = ejecutar("geoip-mensual.sh", [], {
+      FAKE_SHA_WEB: NUEVO,
+      FAKE_LOCALES: imagenesDe(NUEVO).join(" "),
+    });
+    expect(r.codigo).toBe(0);
+    expect(r.llamadas.some((l) => l.startsWith("docker pull"))).toBe(false);
+  });
+
+  it("con web parado no adivina: lo dice y no ejecuta nada", () => {
+    const r = ejecutar("geoip-mensual.sh", [], { FAKE_SHA_WEB: "" });
+    expect(r.codigo).not.toBe(0);
+    expect(r.salida).toMatch(/el contenedor web no está en marcha/);
+    expect(r.llamadas.some((l) => / run /.test(l))).toBe(false);
+  });
+});
+
+describe("la limpieza (scripts/limpiar.sh): conserva lo desplegado y lo anterior, borra el resto", () => {
+  it("se quedan las cuatro de la versión en marcha y las cuatro de la anterior", () => {
+    const historial = path.join(FALSOS, "historial-limpieza.txt");
+    writeFileSync(historial, `${ANTIGUO}\n${VIEJO}\n${NUEVO}\n`);
+    const todas = [
+      ...imagenesDe(NUEVO),
+      ...imagenesDe(VIEJO),
+      ...imagenesDe(ANTIGUO),
+      ...SERV.map((s) => `${R}/dareflash-${s}:desplegada`),
+      "dareflash-web:latest", // construida en el servidor antes de CI
+      "mariadb:11.8",
+      "caddy:2",
+      "<none>:<none>",
+    ];
+    const r = ejecutar("limpiar.sh", [], {
+      FAKE_SHA_WEB: NUEVO,
+      FAKE_LOCALES: todas.join(" "),
+      FAKE_IMAGENES: todas.join(" "),
+      DEPLOY_HISTORIAL: historial,
+    });
+    expect(r.codigo).toBe(0);
+    const borradas = r.llamadas.filter((l) => l.startsWith("docker rmi ")).map((l) => l.slice(11));
+    expect(borradas.sort()).toEqual([...imagenesDe(ANTIGUO), "dareflash-web:latest"].sort());
+    // Nada de lo que hay que conservar, ni lo de terceros.
+    for (const img of [...imagenesDe(NUEVO), ...imagenesDe(VIEJO), "mariadb:11.8", "caddy:2"]) {
+      expect(borradas, img).not.toContain(img);
+    }
+    // Las colgantes y la caché de build, sí; un `prune -a` de IMÁGENES, nunca.
+    expect(r.llamadas).toContain("docker image prune -f");
+    expect(r.llamadas).toContain("docker builder prune -a -f");
+    expect(r.llamadas.some((l) => /^docker (image|system) prune .*-a/.test(l))).toBe(false);
+  });
+
+  it("si falta alguna de la versión en marcha (p.ej. tras un prune), la descarga y le pone `desplegada`", () => {
+    const sinGeoipNiMigrate = [`${R}/dareflash-web:${NUEVO}`, `${R}/dareflash-worker:${NUEVO}`];
+    const r = ejecutar("limpiar.sh", [], {
+      FAKE_SHA_WEB: NUEVO,
+      FAKE_LOCALES: sinGeoipNiMigrate.join(" "),
+      FAKE_IMAGENES: sinGeoipNiMigrate.join(" "),
+    });
+    expect(r.codigo).toBe(0);
+    for (const s of ["migrate", "geoip"]) {
+      expect(r.llamadas).toContain(`docker pull --quiet ${R}/dareflash-${s}:${NUEVO}`);
+    }
+    for (const s of SERV) {
+      expect(r.llamadas).toContain(
+        `docker tag ${R}/dareflash-${s}:${NUEVO} ${R}/dareflash-${s}:desplegada`,
+      );
+    }
+  });
+
+  it("y DESPUÉS de limpiar, el cron de geoip sigue funcionando", () => {
+    // Tras la limpieza las cuatro del SHA en marcha están (las garantiza `limpiar.sh`).
+    const r = ejecutar("geoip-mensual.sh", [], {
+      FAKE_SHA_WEB: NUEVO,
+      FAKE_LOCALES: imagenesDe(NUEVO).join(" "),
+    });
+    expect(r.codigo).toBe(0);
+    expect(r.llamadas.some((l) => / run --rm -T geoip$/.test(l))).toBe(true);
+  });
+});
+
+describe("deploy.sh deja el historial y limpia con limpiar.sh", () => {
+  it("apunta el SHA desplegado (de ahí sale «la anterior») y llama a la limpieza", () => {
+    const historial = path.join(FALSOS, "historial-deploy.txt");
+    writeFileSync(historial, `${VIEJO}\n`);
+    const r = desplegar([NUEVO], {
+      FAKE_HEALTH_ANTES: `${VIEJO} ok`,
+      FAKE_HEALTH_DESPUES: `${NUEVO} ok`,
+      FAKE_ANCESTROS: `${VIEJO}>${NUEVO}`,
+      FAKE_SHA_WEB: NUEVO,
+      DEPLOY_HISTORIAL: historial,
+    });
+    expect(r.codigo).toBe(0);
+    expect(readFileSync(historial, "utf8").trim().split("\n")).toEqual([VIEJO, NUEVO]);
+    expect(r.llamadas).toContain("docker builder prune -a -f");
   });
 });

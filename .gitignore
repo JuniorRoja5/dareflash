@@ -59,3 +59,6 @@ next-env.d.ts
 # publico y redistribuir los originales puede violar su licencia. Lo que se sirve son las versiones
 # optimizadas que genera scripts/ en public/img/3d/ (esas si se versionan).
 /recursos/
+
+# Historial de despliegues que escribe scripts/deploy.sh en el servidor (lo lee scripts/limpiar.sh).
+/.despliegues

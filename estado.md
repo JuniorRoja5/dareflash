@@ -139,8 +139,16 @@ Desde el directorio del repositorio en el servidor:
 git pull && ./scripts/deploy.sh           # desplegar main (espera a CI si no ha terminado)
 ./scripts/deploy.sh <sha>                 # volver atras a ese commit de main
 docker compose -f docker-compose.prod.yml logs -f --tail=100 web    # logs (o worker)
+./scripts/limpiar.sh                      # LIBERAR DISCO: la UNICA forma (ver abajo)
 ./scripts/deploy.sh --construir-aqui      # EMERGENCIA, sin CI ni registro: construye aqui
 ```
+
+**Limpiar disco: SOLO `./scripts/limpiar.sh`** (deploy.sh ya lo ejecuta al final de cada despliegue).
+Conserva las cuatro imagenes de la version EN MARCHA y las de la ANTERIOR (para volver atras sin
+descargar; si falta alguna, la descarga) y borra el resto de imagenes de DareFlash, las colgantes y la
+cache de build. **Nunca `docker image prune -a` ni `docker system prune -a`**: borran toda imagen sin
+contenedor en marcha, y `geoip` y `migrate` nunca lo tienen. Paso el 2026-11-12 (se perdieron sus
+imagenes y la etiqueta `desplegada`, y el cron de geoip habria fallado en diciembre).
 
 `deploy.sh`: comprueba que el SHA es de main → mira que version esta en marcha → espera a las cuatro
 imagenes (si CI fallo, lo dice y no despliega; si no ha terminado, espera hasta 25 min) → descarga →
@@ -153,19 +161,18 @@ default o NULL, indices). No lo es si alguna borro o renombro algo que el codigo
 una columna obligatoria sin default. Al volver atras, `deploy.sh` NO migra, lista las migraciones
 posteriores y no sigue sin `--acepto-esquema-nuevo`.
 
-**El cron mensual de geoip** usa la imagen `desplegada`: `docker compose -f docker-compose.prod.yml
-run --rm geoip` (una linea vieja con `--build` sigue funcionando: ya no hay nada que construir).
+**El cron mensual de geoip**: `./scripts/geoip-mensual.sh` desde el directorio del repositorio. Usa la
+imagen de la version EN MARCHA (la del contenedor `web`, por su etiqueta `revision`) y la descarga si
+falta: no depende de la etiqueta local `desplegada`.
 
-### Configuracion de UNA vez (PENDIENTE de Junior hasta el primer despliegue con esto)
+### Configuracion de UNA vez (hecha el 2026-11-12, salvo lo marcado)
 
-1. Tras el primer push a `main` con este workflow: en GitHub, Paquetes, poner los cuatro
-   `dareflash-*` en **Public** (si no salen ya publicos) y comprobar que estan enlazados al repo.
+1. Los cuatro paquetes `dareflash-*` son publicos (comprobado con un token anonimo).
 2. Si algun dia son privados: un token _classic_ con solo `read:packages` y, en el servidor, una vez:
    `docker login ghcr.io -u <usuario>` (pega el token). Sin eso, `deploy.sh` no ve las imagenes.
-3. Cambiar la linea del cron de geoip a la de arriba (sin `--build`).
-4. Primer despliegue: `git pull && ./scripts/deploy.sh`.
-5. Despues de comprobarlo, liberar disco: las imagenes viejas construidas en el servidor
-   (`dareflash-web`, `-worker`, `-migrate`, `-geoip` sin registro delante) y la cache de build.
+3. **PENDIENTE:** la linea del cron de geoip pasa a ser `./scripts/geoip-mensual.sh` (la de arriba).
+4. Primer despliegue con `deploy.sh`: hecho (`8764c52`).
+5. Liberar disco: con `./scripts/limpiar.sh`, y nada mas (ver arriba).
 
 ## Antes de abrir la compra de creditos (P11)
 

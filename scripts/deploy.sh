@@ -249,18 +249,20 @@ while :; do
   sleep "$HEALTH_PASO_S"
 done
 
-# --- Limpieza: en disco, solo lo desplegado y lo anterior (para volver atrás sin descargar) -----------
-for img in $(docker images --format '{{.Repository}}:{{.Tag}}' | grep "^$REGISTRO/dareflash-" || true); do
-  etiqueta="${img##*:}"
-  case "$etiqueta" in
-    desplegada | "$SHA" | "${ACTUAL:-ninguna}") ;;
-    *) docker rmi "$img" >/dev/null 2>&1 || true ;;
-  esac
-done
-docker image prune -f >/dev/null 2>&1 || true
+# --- Historial: una línea por despliegue con éxito. Es de donde `limpiar.sh` saca la versión ANTERIOR
+#     (lo único que no se le puede preguntar a Docker). Sin repetir la última si se vuelve a aplicar. ---
+HISTORIAL="${DEPLOY_HISTORIAL:-.despliegues}"
+if [ "$(tail -1 "$HISTORIAL" 2>/dev/null || true)" != "$SHA" ]; then
+  echo "$SHA" >>"$HISTORIAL"
+fi
 
 echo
 echo "DESPLEGADO $SHA (el health responde ok con ese commit)."
 if [ -n "$ACTUAL" ] && [ "$ACTUAL" != "$SHA" ]; then
   echo "Para volver a la versión anterior: ./scripts/deploy.sh $ACTUAL"
 fi
+
+# --- Limpieza: la ÚNICA forma de limpiar (`limpiar.sh`): conserva lo desplegado y lo anterior. Si falla,
+#     el despliegue YA está hecho y comprobado: se avisa, no se deshace nada. ------------------------------
+paso "Limpieza de disco"
+./scripts/limpiar.sh || echo "AVISO: la limpieza no terminó; el despliegue está bien. Repítela con ./scripts/limpiar.sh" >&2

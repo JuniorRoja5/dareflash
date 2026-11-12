@@ -12,13 +12,21 @@
 #   dice ser (su etiqueta `revision`). Antes había que compararla a ojo.
 #
 # Uso normal: lo llama deploy.sh.
-# A mano:     IMAGE_TAG=<sha> ./scripts/migrate-prod.sh      (sin IMAGE_TAG: la imagen `desplegada`)
+# A mano:     IMAGE_TAG=<sha> ./scripts/migrate-prod.sh      (sin IMAGE_TAG: la de la versión en marcha)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-export IMAGE_TAG="${IMAGE_TAG:-desplegada}"
-IMAGEN="ghcr.io/juniorroja5/dareflash-migrate:$IMAGE_TAG"
-COMPOSE=(docker compose -f docker-compose.prod.yml)
+# shellcheck source=imagenes-comun.sh
+source scripts/imagenes-comun.sh
+
+# Sin IMAGE_TAG (a mano): la versión EN MARCHA, no la etiqueta local `desplegada`, que un `prune` puede
+# haber borrado (le pasa a `migrate`, que nunca tiene contenedor). Si su imagen falta, se descarga.
+if [ -z "${IMAGE_TAG:-}" ]; then
+  IMAGE_TAG=$(sha_en_marcha)
+  asegurar_imagen migrate "$IMAGE_TAG"
+fi
+export IMAGE_TAG
+IMAGEN="$REGISTRO/dareflash-migrate:$IMAGE_TAG"
 
 morir() {
   echo "ERROR: $*" >&2

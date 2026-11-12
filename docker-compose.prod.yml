@@ -160,10 +160,10 @@ services:
   # dentro lo que necesita el guion (curl, gunzip, node, maxmind): el host no instala nada ni necesita
   # saber donde vive el volumen. El perfil `geoip` evita que arranque con `up -d`.
   #
-  #   Uso (y linea del cron mensual):  docker compose -f docker-compose.prod.yml run --rm geoip
-  #   (sin `--build`: la imagen es la `desplegada`, que deploy.sh renueva con cada despliegue; asi el
-  #    cron nunca usa la imagen del primer dia ni construye nada. Una linea vieja con `--build` sigue
-  #    funcionando: sin seccion `build`, compose no tiene nada que construir.)
+  #   Linea del cron mensual:  ./scripts/geoip-mensual.sh   (desde el directorio del repositorio)
+  #   Ejecuta este servicio con la imagen de la version EN MARCHA (la del contenedor `web`) y, si falta,
+  #   la descarga. NO depende de la etiqueta local `desplegada`: un `prune -a` la borra en cuanto `geoip`
+  #   no tiene contenedor (siempre), y el cron habria fallado (paso el 2026-11-12).
   #
   # Si algo falla NO toca el fichero vivo y sale con codigo distinto de cero; el registro queda en
   # /srv/geoip/actualizar-geoip.log, dentro del volumen.
