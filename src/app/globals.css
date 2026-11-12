@@ -525,6 +525,92 @@
     animation-range: 0 80vh;
   }
 }
+/**
+ * EL RAYO VIVO (`RayoHero`): sensación de movimiento y un brillo, en capas del MISMO objeto.
+ *  - `.df-rayo-flota`: flota y se balancea despacio (siempre, aunque no se baje la página). Va DENTRO de
+ *    `.df-rayo`, así que su `transform` se suma al giro con el scroll en vez de pisarlo.
+ *  - `::before` de la flota: un HALO de la acción detrás del rayo que late (solo `opacity`).
+ *  - `.df-rayo-destello`: una franja de luz que cruza el rayo cada pocos segundos (solo `transform`),
+ *    recortada con la silueta del rayo (`mask-image`, en el componente): la luz no sale del rayo.
+ * El color de la luz sale de los tokens: `--df-text` en oscuro (casi blanco) y `--df-surface` en claro
+ * (blanco; el texto del claro es oscuro y mancharía el rayo).
+ */
+@keyframes df-rayo-flota {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg) scale(1);
+  }
+  50% {
+    transform: translateY(-7px) rotate(3deg) scale(1.03);
+  }
+}
+@keyframes df-rayo-halo {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+@keyframes df-rayo-destello {
+  0% {
+    transform: translateX(-160%) skewX(-18deg);
+  }
+  /* Cruza en el primer tercio y descansa el resto: un destello, no un barrido continuo. */
+  32%,
+  100% {
+    transform: translateX(260%) skewX(-18deg);
+  }
+}
+.df-rayo-flota {
+  isolation: isolate;
+  animation: df-rayo-flota var(--df-dur-float) ease-in-out infinite;
+}
+.df-rayo-flota::before {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  z-index: -1;
+  border-radius: 9999px;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--df-action) 55%, transparent),
+    transparent
+  );
+  opacity: 0.35;
+  animation: df-rayo-halo var(--df-dur-float) ease-in-out infinite;
+}
+.df-rayo-brillo {
+  --df-rayo-luz: var(--df-text);
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+}
+[data-theme="light"] .df-rayo-brillo {
+  --df-rayo-luz: var(--df-surface);
+}
+.df-rayo-destello {
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: 0;
+  width: 45%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--df-rayo-luz) 85%, transparent),
+    transparent
+  );
+  transform: translateX(-160%) skewX(-18deg);
+  animation: df-rayo-destello 3600ms ease-in-out infinite;
+}
+
 /* La moneda y el trofeo, QUIETOS, con el glow de su token (dinero y podio). */
 .df-glow-moneda {
   filter: var(--df-glow-dinero);
@@ -535,6 +621,9 @@
 /* SAVE-DATA: la página marca `data-ahorro` si el navegador pide ahorrar datos, y entonces nada se mueve
    (como con reduced-motion, que ya lo apaga la regla global de más abajo). */
 [data-ahorro] .df-rayo,
+[data-ahorro] .df-rayo-flota,
+[data-ahorro] .df-rayo-flota::before,
+[data-ahorro] .df-rayo-destello,
 [data-ahorro] .df-rise,
 [data-ahorro] .df-float,
 [data-ahorro] .df-sheen::after {
@@ -830,8 +919,11 @@
   }
   /* EL RAYO DE LA PORTADA, aparte y de forma EXPLÍCITA: acortar la duración no para una animación
      atada al SCROLL (no tiene duración: avanza con el scroll), así que seguiría girando para quien ha
-     pedido que no se mueva nada. */
-  .df-rayo {
+     pedido que no se mueva nada. Sus capas (flotar, halo, destello), también: quietas y sin destello. */
+  .df-rayo,
+  .df-rayo-flota,
+  .df-rayo-flota::before,
+  .df-rayo-destello {
     animation: none !important;
   }
 }

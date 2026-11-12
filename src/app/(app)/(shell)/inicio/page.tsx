@@ -3,7 +3,6 @@ import Link from "next/link";
 import { CAMINO_EMPRESA, CTA_NEGOCIO, msgSocioFundador } from "@/config/constants";
 import { Boton } from "@/components/ui/boton";
 import { FilaPuesto } from "@/components/ui/fila-puesto";
-import { Imagen3d } from "@/components/ui/imagen-3d";
 import { PiezaPortada } from "@/components/ui/pieza-portada";
 import { TelonPortada } from "@/components/ui/telon-portada";
 import { ctaPrincipal } from "@/lib/cta-principal";
@@ -17,6 +16,7 @@ import { CierrePortada } from "./cierre-portada";
 import { ComoFunciona } from "./como-funciona";
 import { HeroDestacado } from "./hero-destacado";
 import { ProximosRetos } from "./proximos-retos";
+import { RayoHero } from "./rayo-hero";
 import { RetosDestacados } from "./retos-destacados";
 import { StatsInicio } from "./stats-inicio";
 import { UltimosGanadores } from "./ultimos-ganadores";
@@ -142,15 +142,10 @@ export default async function InicioPage() {
               {/* EL RAYO de la marca: decorativo (el titular ya dice lo que hay que decir), con el glow
                   de la acción y su movimiento con el scroll (`.df-rayo`). Nunca más de 176 px CSS: el
                   original es de 512. */}
-              {/* CON PRIORIDAD, y es la ÚNICA de la página: medido, el rayo ES el elemento LCP en
-                  escritorio (y a veces en móvil). Perezoso, retrasaba el LCP de 100 a 132 ms. */}
-              <Imagen3d
-                pieza="rayo"
-                tema={tema}
-                tamano={176}
-                prioridad
-                className="df-rayo pointer-events-none w-20 sm:w-28 lg:w-44"
-              />
+              {/* Con su brillo y su movimiento (ver `RayoHero`). La imagen va CON PRIORIDAD, y es la
+                  ÚNICA de la página: medido, el rayo ES el elemento LCP en escritorio (y a veces en
+                  móvil). Perezoso, retrasaba el LCP de 100 a 132 ms. */}
+              <RayoHero tema={tema} />
             </div>
             <p className="mt-4 max-w-prose text-base text-text-dim lg:text-lg">
               {esEmpresa

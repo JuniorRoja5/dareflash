@@ -89,7 +89,10 @@ describe("el movimiento", () => {
     const i = css.indexOf("@media (prefers-reduced-motion: reduce)");
     const bloque = css.slice(i, css.indexOf("\n}", i));
     expect(bloque).toMatch(/\*,/);
-    expect(bloque).toMatch(/\.df-rayo \{\s*animation: none !important;/);
+    // El rayo Y sus capas (flotar, halo, destello), en la misma regla explícita.
+    expect(bloque).toMatch(
+      /\.df-rayo,\s*\.df-rayo-flota,\s*\.df-rayo-flota::before,\s*\.df-rayo-destello \{\s*animation: none !important;/,
+    );
     expect(css.split("@media (prefers-reduced-motion: reduce)")).toHaveLength(2);
   });
 
@@ -97,7 +100,25 @@ describe("el movimiento", () => {
     const pagina = leer("src", "app", "(app)", "(shell)", "inicio", "page.tsx");
     expect(pagina).toMatch(/get\("save-data"\)/);
     expect(pagina).toMatch(/data-ahorro=\{ahorro \? "1" : undefined\}/);
-    expect(css).toMatch(/\[data-ahorro\] \.df-rayo,\s*\[data-ahorro\] \.df-rise,/);
+    for (const capa of [
+      ".df-rayo",
+      ".df-rayo-flota",
+      ".df-rayo-flota::before",
+      ".df-rayo-destello",
+    ]) {
+      expect(css, capa).toContain(`[data-ahorro] ${capa},`);
+    }
+  });
+
+  it("el destello del rayo va RECORTADO con su silueta (la luz no sale del rayo)", () => {
+    const rayo = sinComentarios(leer("src", "app", "(app)", "(shell)", "inicio", "rayo-hero.tsx"));
+    expect(rayo).toMatch(/maskImage: "url\(\/img\/3d\/rayo-[a-z]+-352\.webp\)"/);
+    expect(rayo).toMatch(/WebkitMaskImage: "url\(\/img\/3d\/rayo-[a-z]+-352\.webp\)"/);
+    expect(rayo).toMatch(/<span className="df-rayo-destello" \/>/);
+    // Y la página monta el rayo vivo, no la imagen suelta.
+    expect(leer("src", "app", "(app)", "(shell)", "inicio", "page.tsx")).toMatch(
+      /<RayoHero tema=\{tema\} \/>/,
+    );
   });
 
   it("el barrido `df-sheen` no se mueve en la portada (había una docena a la vez), ni con Save-Data", () => {
