@@ -255,3 +255,113 @@ describe("la caché corta de la portada", () => {
     expect(a12s.destacado?.reto.premioCents).toBe(1_000);
   });
 });
+
+// ---------------------------------------------------------------------------------------------------
+// Rediseño de /inicio: categorías, próximos y últimos ganadores (todo real, todo en la caché)
+// ---------------------------------------------------------------------------------------------------
+
+/** Un ganador (puesto 1, o el que se diga) de un reto CERRADO, dado `haceHoras` antes de AHORA. */
+async function unGanador(
+  userId: string,
+  o: { premio?: number; rank?: number; haceHoras?: number; retoOculto?: boolean } = {},
+) {
+  const reto = await unReto({ empiezaHaceDias: 20, cierraEnDias: -1 });
+  await prisma.challenge.update({
+    where: { id: reto },
+    data: {
+      status: "CLOSED",
+      ...(o.retoOculto ? { deletedAt: new Date(AHORA.getTime() - DIA) } : {}),
+    },
+  });
+  await prisma.challengeResult.create({
+    data: {
+      challengeId: reto,
+      userId,
+      submissionId: `sub-${reto}`,
+      rank: o.rank ?? 1,
+      prizeAmountCents: o.premio ?? 5_000,
+      currency: "USD",
+      createdAt: new Date(AHORA.getTime() - (o.haceHoras ?? 1) * 3_600_000),
+    },
+  });
+  return reto;
+}
+
+describe("las categorías de la portada", () => {
+  it("cuántos ABIERTOS hay en cada una (de la misma agrupación que las cifras)", async () => {
+    await unReto({ categoria: "humor" });
+    await unReto({ categoria: "humor" });
+    await unReto({ categoria: "fitness" });
+    await unReto({ categoria: "baile", status: "DRAFT" });
+    await unReto({ categoria: "arte", cierraEnDias: -1 });
+    const d = await datosPortada(prisma, AHORA);
+    expect(d.porCategoria).toEqual({ humor: 2, fitness: 1 });
+    expect(d.cifras.categorias).toBe(2);
+  });
+});
+
+describe("los próximos retos de la portada", () => {
+  it("los que aún no abren, el más cercano primero; con la MISMA regla que «abierto»", async () => {
+    const pronto = await unReto({ empiezaHaceDias: -1, cierraEnDias: 10 });
+    const despues = await unReto({ empiezaHaceDias: -3, cierraEnDias: 10 });
+    await unReto({ empiezaHaceDias: -2, cierraEnDias: 10, status: "DRAFT" });
+    await unReto({ empiezaHaceDias: -2, cierraEnDias: 10, empresaSinPagar: true });
+    await unReto(); // abierto: no es «próximo»
+    const codigos = async (id: string) =>
+      (await prisma.challenge.findUniqueOrThrow({ where: { id }, select: { publicCode: true } }))
+        .publicCode;
+    const d = await datosPortada(prisma, AHORA);
+    expect(d.proximos.map((r) => r.publicCode)).toEqual([
+      await codigos(pronto),
+      await codigos(despues),
+    ]);
+  });
+
+  it("uno que ABRE dentro de la ventana de la caché sale de «próximos» al servirla", async () => {
+    const r = await unReto({ empiezaHaceDias: -1, cierraEnDias: 10 });
+    await prisma.challenge.update({
+      where: { id: r },
+      data: { startsAt: new Date(AHORA.getTime() + 5_000) },
+    });
+    expect((await datosPortadaCacheados(prisma, AHORA)).proximos).toHaveLength(1);
+    expect(
+      (await datosPortadaCacheados(prisma, new Date(AHORA.getTime() + 7_000))).proximos,
+    ).toEqual([]);
+  });
+});
+
+describe("los últimos ganadores de la portada", () => {
+  it("los puestos 1 reales, el más reciente primero, con el premio OTORGADO", async () => {
+    const ana = await crearUsuario(prisma, { username: "ana_gana" });
+    const bea = await crearUsuario(prisma, { username: "bea_gana" });
+    await unGanador(ana, { premio: 7_500, haceHoras: 30 });
+    await unGanador(bea, { premio: 12_000, haceHoras: 2 });
+    await unGanador(ana, { rank: 2, haceHoras: 1 }); // un segundo puesto: no es «ganador» aquí
+    const g = (await datosPortada(prisma, AHORA)).ganadores;
+    expect(g.map((x) => [x.username, x.premioCents])).toEqual([
+      ["bea_gana", 12_000],
+      ["ana_gana", 7_500],
+    ]);
+    expect(g[0]!.retoHref).toMatch(/^\/retos\/PORT\d+-reto-\d+$/);
+  });
+
+  it("SOLO lo que se puede enseñar: ni cuentas baneadas o de empresa, ni retos ocultos", async () => {
+    const visible = await crearUsuario(prisma, { username: "se_ve" });
+    const baneada = await crearUsuario(prisma, { username: "baneada" });
+    await prisma.user.update({ where: { id: baneada }, data: { bannedAt: AHORA } });
+    const empresa = await crearUsuario(prisma, { username: "es_empresa" });
+    await prisma.user.update({ where: { id: empresa }, data: { esCuentaEmpresa: true } });
+    const conRetoOculto = await crearUsuario(prisma, { username: "reto_oculto" });
+    await unGanador(visible);
+    await unGanador(baneada);
+    await unGanador(empresa);
+    await unGanador(conRetoOculto, { retoOculto: true });
+    const g = (await datosPortada(prisma, AHORA)).ganadores;
+    expect(g.map((x) => x.username)).toEqual(["se_ve"]);
+  });
+
+  it("sin ningún resultado, la lista sale vacía (la portada no pinta el bloque)", async () => {
+    await unReto();
+    expect((await datosPortada(prisma, AHORA)).ganadores).toEqual([]);
+  });
+});

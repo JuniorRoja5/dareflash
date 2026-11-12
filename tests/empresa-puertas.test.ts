@@ -81,7 +81,14 @@ describe("la portada", () => {
 
   it("SOLO para invitados: a quien ya tiene cuenta no le sirve", () => {
     // Un participante no puede convertir su cuenta y una empresa aterriza en su portal.
-    expect(portada).toMatch(/\{sesion \? null : \(\s*<section\s+aria-labelledby="para-negocios"/);
+    // Desde el rediseño, lo decide `bloquesPortada` (solo el INVITADO tiene `invitacionNegocio`; lo fija
+    // `portada-logica` para las cuatro variantes) y la página pinta el bloque solo con eso.
+    expect(portada).toMatch(
+      /\{bloques\.invitacionNegocio \? \(\s*<section\s+aria-labelledby="para-negocios"/,
+    );
+    expect(portada).toMatch(
+      /bloquesPortada\(\s*esEmpresa \? "empresa" : sesion \? "participante" : "invitado"/,
+    );
   });
 });
 

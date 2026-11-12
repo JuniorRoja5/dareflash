@@ -20,7 +20,14 @@
  */
 import "server-only";
 
-import { CLAVE_RETO_DESTACADO, PORTADA_CACHE_MS, REJILLA_PORTADA_N } from "@/config/constants";
+import {
+  CLAVE_RETO_DESTACADO,
+  GANADORES_PORTADA_LECTURA,
+  GANADORES_PORTADA_N,
+  PORTADA_CACHE_MS,
+  PROXIMOS_PORTADA_N,
+  REJILLA_PORTADA_N,
+} from "@/config/constants";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { type CifrasPortada, ordenarRejilla } from "@/lib/portada";
 import type { Db } from "@/server/db/types";
@@ -28,6 +35,8 @@ import type { Db } from "@/server/db/types";
 import { conReintentos } from "./publicidad-cerrojos";
 import { NO_BORRADO, type RetoPublicoVista, SELECT_VISTA, aVista } from "./retos-publico";
 import { escribirEstado, leerEstado } from "./system-state";
+import { USUARIO_VISIBLE } from "./usuario-visible";
+import { vipsActivosEntre } from "./vip";
 
 /** LA REGLA DE «ABIERTO» de la portada (ver la cabecera). */
 export function retoAbiertoWhere(ahora: Date): Prisma.ChallengeWhereInput {
@@ -46,26 +55,165 @@ export interface RetoPortada extends RetoPublicoVista {
   votos: number;
 }
 
+/** Un ganador REAL de la portada: el puesto 1 de un reto cerrado, con lo que cobró. */
+export interface GanadorPortada {
+  userId: string;
+  username: string;
+  displayName: string | null;
+  image: string | null;
+  /** Para el anillo de NIVEL del avatar, como en el ranking. */
+  puntos: number;
+  esVip: boolean;
+  colorNombre: string | null;
+  retoTitulo: string;
+  /** `/retos/<publicCode>-<slug>`: el reto donde ganó. */
+  retoHref: string;
+  /** El premio OTORGADO (congelado en el resultado), no el del reto hoy. */
+  premioCents: number;
+  moneda: string;
+  /** Cuándo se dio el resultado (el cierre). */
+  cuandoMs: number;
+}
+
 export interface DatosPortada {
   cifras: CifrasPortada;
   /** El reto del hero, o `null` si no hay ninguno abierto. `elegido` = lo marcó el admin. */
   destacado: { reto: RetoPortada; elegido: boolean } | null;
   /** La rejilla, sin el destacado. */
   rejilla: RetoPublicoVista[];
+  /** Retos ABIERTOS por categoría (clave de `CATEGORIES` -> cuántos). Solo las que tienen alguno. */
+  porCategoria: Record<string, number>;
+  /** Los que abren pronto (con la misma regla que «abierto», salvo la fecha de apertura). */
+  proximos: RetoPublicoVista[];
+  /** Los últimos ganadores reales, solo los que se pueden enseñar. */
+  ganadores: GanadorPortada[];
+}
+
+/**
+ * Las cifras del hero (retos abiertos, la suma de sus premios y en cuántas categorías) y, de la MISMA
+ * agrupación, cuántos abiertos hay en cada categoría: el bloque de categorías no añade consulta.
+ */
+async function cifrasYCategoriasPortada(
+  db: Db,
+  ahora: Date,
+): Promise<{ cifras: CifrasPortada; porCategoria: Record<string, number> }> {
+  const where = retoAbiertoWhere(ahora);
+  const [agregado, categorias] = await Promise.all([
+    db.challenge.aggregate({ where, _count: { _all: true }, _sum: { prizeAmountCents: true } }),
+    db.challenge.groupBy({ by: ["category"], where, _count: { _all: true } }),
+  ]);
+  return {
+    cifras: {
+      retosAbiertos: agregado._count._all,
+      premiosCents: agregado._sum.prizeAmountCents ?? 0,
+      categorias: categorias.length,
+    },
+    porCategoria: Object.fromEntries(categorias.map((c) => [c.category, c._count._all])),
+  };
 }
 
 /** Las cifras del hero: retos abiertos, la suma de sus premios y en cuántas categorías. */
 export async function cifrasPortada(db: Db, ahora: Date): Promise<CifrasPortada> {
-  const where = retoAbiertoWhere(ahora);
-  const [agregado, categorias] = await Promise.all([
-    db.challenge.aggregate({ where, _count: { _all: true }, _sum: { prizeAmountCents: true } }),
-    db.challenge.groupBy({ by: ["category"], where }),
+  return (await cifrasYCategoriasPortada(db, ahora)).cifras;
+}
+
+/**
+ * LOS PRÓXIMOS: publicados que todavía no han abierto. La MISMA regla que «abierto» salvo la apertura
+ * —un reto de empresa, solo con el pago recibido—, así que lo que sale aquí es exactamente lo que
+ * pasará a la rejilla cuando abra. El que abre antes, primero.
+ */
+export async function proximosPortada(
+  db: Db,
+  ahora: Date,
+  limite = PROXIMOS_PORTADA_N,
+): Promise<RetoPublicoVista[]> {
+  const filas = await db.challenge.findMany({
+    where: {
+      ...NO_BORRADO,
+      status: "PUBLISHED",
+      startsAt: { gt: ahora },
+      deadline: { gt: ahora },
+      OR: [{ empresaId: null }, { pagoRecibidoEn: { not: null } }],
+    },
+    orderBy: [{ startsAt: "asc" }, { id: "asc" }],
+    take: limite,
+    select: SELECT_VISTA,
+  });
+  return filas.map(aVista);
+}
+
+/**
+ * LOS ÚLTIMOS GANADORES REALES: el puesto 1 de los resultados más recientes, con el premio que se
+ * OTORGÓ. Nada se inventa: sin resultados, la lista sale vacía y la portada no pinta el bloque.
+ *
+ * ┌─ QUIÉN SE PUEDE ENSEÑAR ───────────────────────────────────────────────────────────────────────┐
+ * │ Es un listado PÚBLICO de personas, así que pasa por `USUARIO_VISIBLE` (ni borrada, ni baneada,  │
+ * │ ni cuenta de empresa) —como el ranking: un ganador que ya no es visible se cae, no sale con su  │
+ * │ nombre y un enlace a un perfil que da 404—. Y el reto, por `NO_BORRADO`: uno ocultado por el    │
+ * │ admin tampoco se anuncia. Lo vigila el censo de `usuario-visible`.                              │
+ * │                                                                                                 │
+ * │ `ChallengeResult.userId` no tiene FK (como los ledgers), así que las personas se traen en UNA   │
+ * │ consulta aparte para todos los ids, no una por fila. Se lee con margen                          │
+ * │ (`GANADORES_PORTADA_LECTURA`) porque algunos se caen por el camino.                              │
+ * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+export async function ganadoresPortada(
+  db: Db,
+  ahora: Date,
+  limite = GANADORES_PORTADA_N,
+): Promise<GanadorPortada[]> {
+  const resultados = await db.challengeResult.findMany({
+    where: { rank: 1, challenge: { is: NO_BORRADO } },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: GANADORES_PORTADA_LECTURA,
+    select: {
+      userId: true,
+      prizeAmountCents: true,
+      currency: true,
+      createdAt: true,
+      challenge: { select: { title: true, publicCode: true, slug: true } },
+    },
+  });
+  const ids = [...new Set(resultados.map((r) => r.userId))];
+  if (ids.length === 0) return [];
+  const [usuarios, vips] = await Promise.all([
+    db.user.findMany({
+      where: { id: { in: ids }, ...USUARIO_VISIBLE },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        image: true,
+        colorNombre: true,
+        pointsBalance: true,
+      },
+    }),
+    vipsActivosEntre(db, ids, ahora),
   ]);
-  return {
-    retosAbiertos: agregado._count._all,
-    premiosCents: agregado._sum.prizeAmountCents ?? 0,
-    categorias: categorias.length,
-  };
+  const porId = new Map(usuarios.map((u) => [u.id, u]));
+  return resultados
+    .flatMap((r) => {
+      const u = porId.get(r.userId);
+      return u
+        ? [
+            {
+              userId: r.userId,
+              username: u.username,
+              displayName: u.displayName,
+              image: u.image,
+              puntos: u.pointsBalance,
+              esVip: vips.has(r.userId),
+              colorNombre: u.colorNombre,
+              retoTitulo: r.challenge.title,
+              retoHref: `/retos/${r.challenge.publicCode}-${r.challenge.slug}`,
+              premioCents: r.prizeAmountCents,
+              moneda: r.currency,
+              cuandoMs: r.createdAt.getTime(),
+            },
+          ]
+        : [];
+    })
+    .slice(0, limite);
 }
 
 /** Participantes (participaciones publicadas, con su vídeo publicado) y votos de un reto. */
@@ -156,7 +304,13 @@ export async function datosPortadaCacheados(
   const t = ahora.getTime();
   if (cache && cache.hasta > t && (cache.datos.destacado?.reto.deadlineMs ?? Infinity) > t) {
     const d = cache.datos;
-    return { ...d, rejilla: d.rejilla.filter((r) => r.deadlineMs > t) };
+    // Lo que cambia de bloque DENTRO de la ventana se quita al servir: un reto de la rejilla que
+    // cierra, y un próximo que ya ha abierto (ya no es «próximo»; entra en la rejilla en la siguiente).
+    return {
+      ...d,
+      rejilla: d.rejilla.filter((r) => r.deadlineMs > t),
+      proximos: d.proximos.filter((r) => r.startsAtMs > t),
+    };
   }
   const datos = await datosPortada(db, ahora);
   cache = { hasta: t + PORTADA_CACHE_MS, datos };
@@ -165,15 +319,20 @@ export async function datosPortadaCacheados(
 
 /** Todo lo que la portada enseña igual a quien sea. */
 export async function datosPortada(db: Db, ahora: Date = new Date()): Promise<DatosPortada> {
-  const [cifras, destacado] = await Promise.all([
-    cifrasPortada(db, ahora),
+  const [{ cifras, porCategoria }, destacado, proximos, ganadores] = await Promise.all([
+    cifrasYCategoriasPortada(db, ahora),
     retoDestacadoPortada(db, ahora),
+    proximosPortada(db, ahora),
+    ganadoresPortada(db, ahora),
   ]);
   const rejilla = await rejillaPortada(db, ahora, destacado?.id ?? null);
   return {
     cifras,
     destacado: destacado ? { reto: destacado.reto, elegido: destacado.elegido } : null,
     rejilla,
+    porCategoria,
+    proximos,
+    ganadores,
   };
 }
 

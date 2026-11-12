@@ -87,3 +87,49 @@ export function pintarPiezaEnPortada(
 ): boolean {
   return pieza.tipo === "campana" || esEmpresa;
 }
+
+/** Quién mira la portada. El VIP no es una variante aparte de BLOQUES: es un participante sin anuncios,
+ * y eso ya lo decide el reparto (`piezaDePortada` no le da pieza). */
+export type VariantePortada = "invitado" | "participante" | "empresa";
+
+export interface BloquesPortada {
+  /** «Cómo funciona», en 3 pasos. */
+  comoFunciona: boolean;
+  /** La franja final: invitar a participar, llevar a su portal (empresa), o nada. */
+  cierre: "participar" | "portal" | null;
+  /** «¿Tienes un negocio?»: la ÚNICA invitación a negocios de la portada (ver `pintarPiezaEnPortada`). */
+  invitacionNegocio: boolean;
+}
+
+/**
+ * QUÉ BLOQUES VE CADA UNO (propuesta aprobada, rediseño de /inicio):
+ *  - INVITADO: todo — «Cómo funciona», el cierre que invita a participar y la invitación a negocios.
+ *  - PARTICIPANTE (y VIP): sin la invitación a negocios; «Cómo funciona» DESAPARECE en cuanto ha
+ *    participado alguna vez (ya sabe cómo funciona: es ruido entre él y los retos).
+ *  - EMPRESA: solo mira — sin «Cómo funciona» (no puede participar) y el cierre lleva a SU portal.
+ */
+export function bloquesPortada(variante: VariantePortada, haParticipado: boolean): BloquesPortada {
+  if (variante === "empresa") {
+    return { comoFunciona: false, cierre: "portal", invitacionNegocio: false };
+  }
+  if (variante === "invitado") {
+    return { comoFunciona: true, cierre: "participar", invitacionNegocio: true };
+  }
+  return { comoFunciona: !haParticipado, cierre: "participar", invitacionNegocio: false };
+}
+
+/**
+ * LAS CATEGORÍAS DEL BLOQUE: TODAS las del catálogo (son puertas a `/retos?categoria=`), cada una con su
+ * número de retos abiertos SOLO si tiene alguno —un «0 retos» al lado de cada categoría vacía hace la
+ * portada más pobre, no más honesta—. Las que tienen abiertos van primero (más abiertos, antes); el resto
+ * conserva el orden del catálogo.
+ */
+export function categoriasDeLaPortada<C extends { key: string }>(
+  catalogo: readonly C[],
+  porCategoria: Record<string, number>,
+): (C & { abiertos: number })[] {
+  // `sort` es estable: a igualdad de abiertos, se conserva el orden del catálogo.
+  return catalogo
+    .map((c) => ({ ...c, abiertos: porCategoria[c.key] ?? 0 }))
+    .sort((a, b) => b.abiertos - a.abiertos);
+}

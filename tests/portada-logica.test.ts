@@ -9,6 +9,8 @@ import { describe, expect, it } from "vitest";
 
 import { REJILLA_CIERRE_PRONTO_MS } from "../src/config/constants";
 import {
+  bloquesPortada,
+  categoriasDeLaPortada,
   cifrasVisibles,
   ordenarRejilla,
   pintarPiezaEnPortada,
@@ -82,5 +84,51 @@ describe("qué pieza de publicidad pinta la portada (la doble invitación)", () 
     expect(pintarPiezaEnPortada({ tipo: "campana" }, true)).toBe(true);
     expect(pintarPiezaEnPortada({ tipo: "casa" }, false)).toBe(false);
     expect(pintarPiezaEnPortada({ tipo: "casa" }, true)).toBe(true);
+  });
+});
+
+describe("qué bloques ve cada uno (las cuatro variantes del rediseño)", () => {
+  it("INVITADO: todo — cómo funciona, el cierre que invita a participar y la invitación a negocios", () => {
+    expect(bloquesPortada("invitado", false)).toEqual({
+      comoFunciona: true,
+      cierre: "participar",
+      invitacionNegocio: true,
+    });
+  });
+
+  it("PARTICIPANTE (y VIP): sin invitación a negocios; «cómo funciona» se va en cuanto ha participado", () => {
+    expect(bloquesPortada("participante", false)).toEqual({
+      comoFunciona: true,
+      cierre: "participar",
+      invitacionNegocio: false,
+    });
+    expect(bloquesPortada("participante", true).comoFunciona).toBe(false);
+  });
+
+  it("EMPRESA: solo mira — sin «cómo funciona» y el cierre lleva a SU portal", () => {
+    for (const ha of [false, true]) {
+      expect(bloquesPortada("empresa", ha)).toEqual({
+        comoFunciona: false,
+        cierre: "portal",
+        invitacionNegocio: false,
+      });
+    }
+  });
+});
+
+describe("las categorías del bloque", () => {
+  const CAT = [{ key: "a" }, { key: "b" }, { key: "c" }, { key: "d" }];
+
+  it("TODAS, las que tienen abiertos primero (más, antes) y el resto en el orden del catálogo", () => {
+    expect(categoriasDeLaPortada(CAT, { c: 1, b: 4 }).map((c) => [c.key, c.abiertos])).toEqual([
+      ["b", 4],
+      ["c", 1],
+      ["a", 0],
+      ["d", 0],
+    ]);
+  });
+
+  it("sin ningún reto abierto, el catálogo tal cual (puertas, sin cifras)", () => {
+    expect(categoriasDeLaPortada(CAT, {}).map((c) => c.key)).toEqual(["a", "b", "c", "d"]);
   });
 });

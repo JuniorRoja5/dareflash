@@ -99,6 +99,7 @@ const PUBLICAS: Record<string, string> = {
   "src/app/api/perfiles/[username]/videos/route.ts#GET": "la rejilla de vídeos de un perfil",
   "src/server/services/buscar.ts#filasDeUsuarios": "el buscador (en modo público)",
   "src/server/services/ranking.ts#rankingMensual": "el ranking del mes (y el Top de la portada)",
+  "src/server/services/portada.ts#ganadoresPortada": "los últimos ganadores de la portada",
   "src/server/services/boost-destacados.ts#destacadosVigentes": "la vitrina de destacados",
   "src/server/services/toque.ts#darToque": "a quién se le puede dar un toque",
   "src/server/services/referidos.ts#referentePorCodigo": "el código de un enlace de invitación",

@@ -2632,6 +2632,19 @@ export const REJILLA_CIERRE_PRONTO_MS = 72 * 60 * 60 * 1000;
  * destacado la vacía al momento.
  */
 export const PORTADA_CACHE_MS = 30_000;
+/**
+ * Retos que ABREN pronto, en el bloque «Próximos retos» de la portada (el que llena la página cuando
+ * hay pocos abiertos). Los más cercanos primero.
+ */
+export const PROXIMOS_PORTADA_N = 3;
+/** Ganadores en «Últimos ganadores» de la portada: los ganadores reales (puesto 1) más recientes. */
+export const GANADORES_PORTADA_N = 6;
+/**
+ * Cuántos resultados recientes se leen para llenar `GANADORES_PORTADA_N`: algunos se caen por el
+ * camino (la cuenta ya no es visible o el reto se ocultó), así que se lee con margen. Acotado: la
+ * tabla de resultados crece con cada cierre.
+ */
+export const GANADORES_PORTADA_LECTURA = 30;
 
 /**
  * Tope de un ajuste manual (en un sentido o en otro). Holgado —cubre una corrección de un trimestre

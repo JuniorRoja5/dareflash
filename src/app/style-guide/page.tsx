@@ -125,7 +125,12 @@ export default function StyleGuide() {
     <main className="mx-auto w-full max-w-[900px] px-6 pb-24">
       {/* Cabecera */}
       <header className="flex flex-wrap items-end justify-between gap-4 pt-14 pb-2">
-        <h1 style={displayExpanded(850)} className="text-hero leading-none tracking-tight">
+        {/* A 390 px el tamaño de héroe, en ancho expandido, no cabía: la página entera se desplazaba en
+            horizontal (572 px). En móvil, más pequeño; desde sm, el de siempre. */}
+        <h1
+          style={displayExpanded(850)}
+          className="text-5xl leading-none tracking-tight sm:text-hero"
+        >
           DAREFLASH
         </h1>
         <p className="text-2xs uppercase tracking-[0.2em] text-text-dim">
@@ -140,12 +145,12 @@ export default function StyleGuide() {
       {/* EL MARCADOR — elemento firma */}
       <Seccion etiqueta="Elemento firma · el marcador">
         <div className="flex flex-wrap items-center gap-x-10 gap-y-6">
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center gap-6">
             <div>
               <p className="mb-1 text-2xs uppercase tracking-widest text-text-dim">Premio</p>
               <p style={displayExpanded(850)} className="text-money" data-size="hero">
                 <span className="align-top text-2xl">$</span>
-                <span className="text-[64px] leading-none">1,250</span>
+                <span className="text-[48px] leading-none sm:text-[64px]">1,250</span>
                 <span className="text-2xl">.00</span>
               </p>
             </div>
@@ -449,7 +454,7 @@ export default function StyleGuide() {
             offsetMs={6 * 24 * 3_600_000 + 4 * 3_600_000}
             tamano="tarjeta"
           />
-          <MarcadorEnVivo cents={125000} offsetMs={18 * 3_600_000} tamano="heroe" />
+          <MarcadorEnVivo cents={125000} offsetMs={18 * 3_600_000} tamano="heroe" apilarEnMovil />
         </div>
         <p className="mt-7 max-w-prose text-sm text-text-dim">
           Misma estructura de la tarjeta pequeña al héroe: filete de 1 px, sin fondo ni caja. El de
@@ -555,7 +560,7 @@ export default function StyleGuide() {
           </Tarjeta>
           {/* LOS CINCO NIVELES, para poder mirarlos juntos en los dos temas: es lo que hace útil una
               guía de estilo. Rookie no lleva anillo (es el estándar); los demás, el suyo y su glifo. */}
-          <div className="flex items-end gap-4">
+          <div className="flex flex-wrap items-end gap-4">
             {NIVELES.map((n) => (
               <span key={n.clave} className="flex flex-col items-center gap-2">
                 <Avatar nombre={n.nombre} tamano="lg" puntos={n.minimo} />

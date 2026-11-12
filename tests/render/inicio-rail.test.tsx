@@ -1,5 +1,5 @@
 /**
- * EL RAIL "Top Ranking" DE LA PORTADA pinta el avatar de verdad.
+ * EL RAIL "Top del mes" DE LA PORTADA pinta el avatar de verdad.
  *
  * Es el otro sitio (además de /ranking) que usa `FilaPuesto`, y el que ve cualquiera que entra: el
  * servicio le daba la foto y la fila la tiraba. Se renderiza la PÁGINA real (componente de servidor,
@@ -44,7 +44,10 @@ vi.mock("@/server/services/boost-destacados", () => ({ portadaDestacados: async 
 // Los huecos de publicidad de la portada (Fase 9 · P7) no son lo que este test mira (el rail): fuera,
 // igual que el resto de bloques. `headers` se simula porque la página lo lee para un invitado.
 vi.mock("@/server/services/publicidad-entrega", () => ({ piezaDePortada: async () => null }));
-vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers(),
+  cookies: async () => ({ get: () => undefined }),
+}));
 vi.mock("next/link", async () => {
   const { createElement } = await import("react");
   return { default: (props: Record<string, unknown>) => createElement("a", props) };
@@ -56,6 +59,9 @@ vi.mock("@/server/services/portada", () => ({
     cifras: { categorias: 0, retosAbiertos: 0, premiosCents: 0 },
     destacado: null,
     rejilla: [],
+    porCategoria: {},
+    proximos: [],
+    ganadores: [],
   }),
 }));
 vi.mock("@/app/(app)/(shell)/inicio/boost-destacados", () => ({ BoostDestacados: () => null }));
@@ -65,10 +71,10 @@ vi.mock("@/app/(app)/(shell)/inicio/stats-inicio", () => ({ StatsInicio: () => n
 
 import InicioPage from "@/app/(app)/(shell)/inicio/page";
 
-describe("rail Top Ranking de la portada", () => {
+describe("rail Top del mes de la portada", () => {
   it("pinta la foto de quien la tiene y la inicial de quien no", async () => {
     render(await InicioPage());
-    const rail = screen.getByRole("heading", { name: "Top Ranking" }).closest("aside")!;
+    const rail = screen.getByRole("heading", { name: "Top del mes" }).closest("aside")!;
 
     const imgs = [...rail.querySelectorAll("img")];
     expect(imgs.map((i) => i.getAttribute("src"))).toEqual([FOTO]);

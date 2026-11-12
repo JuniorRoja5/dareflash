@@ -458,6 +458,94 @@
 .df-float {
   animation: df-float var(--df-dur-float) ease-in-out infinite;
 }
+
+/**
+ * PROFUNDIDAD SUTIL de la portada (rediseño de /inicio). `<Inclinable>` escribe las variables; aquí está
+ * todo lo demás. La inclinación y el brillo SOLO existen cuando el componente se ha encendido
+ * (`data-inclina`: puntero fino que puede pasar por encima, sin reduced-motion, sin Save-Data); en táctil
+ * la tarjeta se queda quieta. Se anima `transform` y `opacity`, nada más (MARCA.md §7).
+ */
+.df-inclinable {
+  position: relative;
+  isolation: isolate;
+  transform: perspective(900px) rotateX(var(--df-inc-x, 0deg)) rotateY(var(--df-inc-y, 0deg));
+  transition: transform var(--df-dur-fast) var(--ease-mechanical);
+}
+.df-brillo {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  border-radius: inherit;
+  opacity: 0;
+  background: radial-gradient(
+    260px circle at var(--df-brillo-x, 50%) var(--df-brillo-y, 50%),
+    color-mix(in srgb, var(--df-text) 13%, transparent),
+    transparent 62%
+  );
+  transition: opacity var(--df-dur-fast) var(--ease-mechanical);
+}
+.df-inclinable[data-inclina]:hover .df-brillo {
+  opacity: 1;
+}
+
+/**
+ * EL RAYO DEL HERO: se mueve con el SCROLL (gira unos grados y sube un poco mientras se baja por la
+ * página) donde el navegador sabe atar una animación al scroll; donde no, flota despacio. Sin JavaScript
+ * en ninguno de los dos casos. Es UNO de los dos elementos animados de la vista (el otro, el recuento de
+ * las cifras). Su glow lo pone el token de acción, no la imagen.
+ */
+@keyframes df-rayo-flota {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-3deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(2deg);
+  }
+}
+.df-rayo {
+  animation: df-rayo-flota var(--df-dur-float) ease-in-out infinite;
+  filter: drop-shadow(0 0 22px color-mix(in srgb, var(--df-action) 45%, transparent));
+}
+/* Los fotogramas, FUERA del `@supports` (son válidos en cualquier sitio, y así se leen como los demás:
+   solo `transform`). Dentro, solo lo que ata la animación al scroll. */
+@keyframes df-rayo-scroll {
+  from {
+    transform: rotate(-6deg);
+  }
+  to {
+    transform: translateY(-18px) rotate(9deg);
+  }
+}
+@supports (animation-timeline: scroll()) {
+  .df-rayo {
+    animation: df-rayo-scroll linear both;
+    animation-timeline: scroll(root block);
+    animation-range: 0 80vh;
+  }
+}
+/* La moneda y el trofeo, QUIETOS, con el glow de su token (dinero y podio). */
+.df-glow-moneda {
+  filter: var(--df-glow-dinero);
+}
+.df-glow-podio {
+  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--df-rank) 40%, transparent));
+}
+/* SAVE-DATA: la página marca `data-ahorro` si el navegador pide ahorrar datos, y entonces nada se mueve
+   (como con reduced-motion, que ya lo apaga la regla global de más abajo). */
+[data-ahorro] .df-rayo,
+[data-ahorro] .df-rise,
+[data-ahorro] .df-float,
+[data-ahorro] .df-sheen::after {
+  animation: none !important;
+}
+/* EL BARRIDO `df-sheen` NO SE MUEVE EN LA PORTADA: está en cada caja de vídeo, y en la portada había una
+   docena a la vez (el presupuesto es 1 o 2 cosas moviéndose por vista). Lo que queda de él aquí es la
+   tarjeta de «Próximos retos», que es la de /retos: en la portada se queda quieta; en /retos, no se toca. */
+[data-portada] .df-sheen::after {
+  animation: none;
+}
 /**
  * HALO DE NIVEL — la luz de color detras del medallon de /puntos.
  *
@@ -739,6 +827,12 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  /* EL RAYO DE LA PORTADA, aparte y de forma EXPLÍCITA: acortar la duración no para una animación
+     atada al SCROLL (no tiene duración: avanza con el scroll), así que seguiría girando para quien ha
+     pedido que no se mueva nada. */
+  .df-rayo {
+    animation: none !important;
   }
 }
 

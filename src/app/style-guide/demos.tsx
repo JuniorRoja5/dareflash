@@ -32,17 +32,22 @@ export function MarcadorEnVivo({
   cents,
   offsetMs,
   tamano,
+  apilarEnMovil = false,
 }: {
   cents: number;
   offsetMs: number;
   tamano?: TamanoMarcador;
+  /** El de héroe no cabe en fila a 390 px: en móvil, apilado (la misma opción que usa la app). */
+  apilarEnMovil?: boolean;
 }) {
   const [deadlineMs, setDeadlineMs] = useState<number | null>(null);
   useEffect(() => {
     const fijarPlazo = (): void => setDeadlineMs(Date.now() + offsetMs);
     fijarPlazo();
   }, [offsetMs]);
-  return <Marcador cents={cents} deadlineMs={deadlineMs} tamano={tamano} />;
+  return (
+    <Marcador cents={cents} deadlineMs={deadlineMs} tamano={tamano} apilarEnMovil={apilarEnMovil} />
+  );
 }
 
 /**

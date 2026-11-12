@@ -3,16 +3,18 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { Imagen3d } from "@/components/ui/imagen-3d";
 import { type CifraVisible, premioCorto } from "@/lib/portada";
+import type { Tema } from "@/lib/tema";
 
 const REDUCE =
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Count-up de un valor (animación SUTIL de interfaz). Respeta prefers-reduced-motion: sin animar. */
-function useCountUp(target: number): number {
-  const [v, setV] = useState(REDUCE ? target : 0);
+function useCountUp(target: number, quieto: boolean): number {
+  const [v, setV] = useState(REDUCE || quieto ? target : 0);
   useEffect(() => {
-    if (REDUCE) return;
+    if (REDUCE || quieto) return;
     let raf = 0;
     let t0 = 0;
     const paso = (ts: number): void => {
@@ -23,22 +25,35 @@ function useCountUp(target: number): number {
     };
     raf = requestAnimationFrame(paso);
     return () => cancelAnimationFrame(raf);
-  }, [target]);
+  }, [target, quieto]);
   return v;
 }
 
-function Cifra({ c }: { c: CifraVisible }) {
-  const v = useCountUp(c.valor);
+function Cifra({ c, tema, quieto }: { c: CifraVisible; tema: Tema; quieto: boolean }) {
+  const v = useCountUp(c.valor, quieto);
   const esDinero = c.clave === "premios";
   return (
-    <div>
-      <p
-        className={`text-2xl tabular-nums ${esDinero ? "text-money" : "text-text"}`}
-        style={{ fontFamily: "var(--font-display)", fontVariationSettings: '"wght" 780' }}
-      >
-        {esDinero ? premioCorto(v) : Math.round(v).toLocaleString("en-US")}
-      </p>
-      <p className="mt-0.5 text-2xs tracking-widest text-text-dim uppercase">{c.etiqueta}</p>
+    <div className="flex items-center gap-2.5">
+      {/* La MONEDA, solo junto al dinero (MARCA: --df-money es dinero y solo dinero), quieta y con el
+          glow del dinero. */}
+      {esDinero ? (
+        <Imagen3d
+          pieza="moneda"
+          tema={tema}
+          tamano={40}
+          primeraPantalla
+          className="df-glow-moneda w-9 lg:w-10"
+        />
+      ) : null}
+      <div>
+        <p
+          className={`text-2xl tabular-nums ${esDinero ? "text-money" : "text-text"}`}
+          style={{ fontFamily: "var(--font-display)", fontVariationSettings: '"wght" 780' }}
+        >
+          {esDinero ? premioCorto(v) : Math.round(v).toLocaleString("en-US")}
+        </p>
+        <p className="mt-0.5 text-2xs tracking-widest text-text-dim uppercase">{c.etiqueta}</p>
+      </div>
     </div>
   );
 }
@@ -51,7 +66,16 @@ function Cifra({ c }: { c: CifraVisible }) {
  * Qué cifras salen lo decide `cifrasVisibles` (ninguna se enseña para decir poco). SIN RETOS ABIERTOS no
  * sale ninguna: en su sitio, una línea que dice lo que pasa y lleva a la lista.
  */
-export function StatsInicio({ cifras }: { cifras: CifraVisible[] }) {
+export function StatsInicio({
+  cifras,
+  tema,
+  quieto = false,
+}: {
+  cifras: CifraVisible[];
+  tema: Tema;
+  /** Save-Data: las cifras salen ya puestas, sin recuento (reduced-motion ya lo hacía). */
+  quieto?: boolean;
+}) {
   if (cifras.length === 0) {
     return (
       <p className="mt-8 max-w-prose text-sm text-text-dim">
@@ -66,7 +90,7 @@ export function StatsInicio({ cifras }: { cifras: CifraVisible[] }) {
   return (
     <div className="mt-8 flex flex-wrap gap-x-8 gap-y-4">
       {cifras.map((c) => (
-        <Cifra key={c.clave} c={c} />
+        <Cifra key={c.clave} c={c} tema={tema} quieto={quieto} />
       ))}
     </div>
   );

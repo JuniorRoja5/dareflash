@@ -23,7 +23,7 @@ import type { PerfilDestacado } from "@/server/services/boost-destacados";
  * VACÍO HONESTO. Si no hay nadie destacado no se rellena con gente: se invita a destacar. Rellenar
  * un hueco con usuarios de ejemplo es exactamente lo que había antes, y mentía a todo el mundo.
  *
- * Son usuarios DISTINTOS del Top Ranking por naturaleza: el Boost es visibilidad comprada, el
+ * Son usuarios DISTINTOS del Top del mes por naturaleza: el Boost es visibilidad comprada, el
  * ranking se gana. Y aquí NO hay acento: el único de la portada es el CTA del hero.
  *
  * `soloMirar` — UNA CUENTA DE EMPRESA ve la fila, pero sin sus dos puertas (Fase 9, P2): /destacados y

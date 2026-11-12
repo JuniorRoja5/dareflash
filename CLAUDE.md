@@ -267,6 +267,12 @@ borran para "limpiar"**:
 - `imagenes-ci` — sin tests verdes no hay imagen (el job que publica depende de `tests` y nada lo
   salta), publicar es solo de `main` y después de revisar la imagen, y cada imagen sale de SU etapa en
   CI, en el compose de producción y en el de emergencia.
+- `fuentes-locales` — ninguna fuente de Google: los mismos nueve `.woff2` en `src/app/fuentes` con su
+  `unicode-range`, los respaldos con las métricas de antes, y el build del Dockerfile **sin red**.
+- `portada-3d-movimiento` — las imágenes 3D de la portada (por tema, ≤ 80 KB, color desde los tokens,
+  originales fuera del repo) y el movimiento: la inclinación solo con puntero fino, el rayo parado con
+  reduced-motion de forma explícita (atado al scroll, la regla global no lo para), Save-Data lo apaga
+  todo y la profundidad es luminosidad, no sombra.
 - `deploy-script` — `deploy.sh` ejecutado de verdad con `docker`/`git`/`curl` falsos: no despliega si
   CI falló o no ha terminado, se para si el health responde con otro commit, y volver atrás con
   migraciones posteriores exige `--acepto-esquema-nuevo`.
