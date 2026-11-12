@@ -5,10 +5,15 @@
 # host `mariadb`, APP_URL, AUTH_SECRET, CRON_SECRET, SMTP_*, etc.). Ningun secreto
 # vive en el repositorio.
 #
-#   Levantar:   GIT_SHA=$(git rev-parse HEAD) docker compose -f docker-compose.prod.yml up -d --build
-#               (sin GIT_SHA el build de `web` se detiene; la version en marcha sigue sirviendo)
-#   Migrar:     ./scripts/migrate-prod.sh
+#   Desplegar:  git pull && ./scripts/deploy.sh        (volver atras: ./scripts/deploy.sh <sha>)
 #   Logs:       docker compose -f docker-compose.prod.yml logs -f web
+#
+# LAS IMAGENES NO SE CONSTRUYEN AQUI. Las construye CI (.github/workflows/imagenes.yml) y las publica
+# en ghcr.io con el SHA del commit; deploy.sh las descarga y las etiqueta en local como `desplegada`.
+# Por eso `web`, `worker`, `migrate` y `geoip` usan `${IMAGE_TAG:-desplegada}`: cualquier comando de este
+# compose sin IMAGE_TAG (logs, un `up -d` a mano, el cron de geoip) usa LO DESPLEGADO, y no lo ultimo
+# que haya en el registro. Construir en el servidor queda como plan de EMERGENCIA, con
+# docker-compose.construir.yml (ver ahi y en deploy.sh --construir-aqui).
 #
 # Solo `caddy` publica puertos al exterior (80/443). mariadb y redis NO se exponen.
 
@@ -57,24 +62,14 @@ services:
       - internal
 
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runner # EXPLICITO: sin esto, Docker construye la ULTIMA etapa del Dockerfile
-      #                (hoy `worker`), y `web` arrancaria la cola en vez del servidor -> 502.
-      args:
-        # SHA del commit que se despliega, para /api/health. Lo pasa quien construye:
-        #   GIT_SHA=$(git rev-parse HEAD) docker compose -f docker-compose.prod.yml up -d --build
-        # Default VACIO a proposito, no `:?`: con `:?` fallaria CUALQUIER comando de este compose
-        # sin la variable (logs, migrate-prod.sh...). Quien se niega a construir sin un SHA valido
-        # es la etapa `runner` del Dockerfile, que es la unica que lo necesita.
-        GIT_SHA: ${GIT_SHA:-}
+    # Etapa `runner` del Dockerfile (la construye CI; en emergencia, docker-compose.construir.yml).
+    image: ghcr.io/juniorroja5/dareflash-web:${IMAGE_TAG:-desplegada}
     restart: unless-stopped
     mem_limit: 1024m
     mem_reservation: 256m
     cpu_shares: 1024 # prioridad alta (sirve las peticiones)
     env_file:
-      - ${HOME}/dareflash-config/.env # DATABASE_URL=mysql://user:pass@mariadb:3306/db, APP_URL, AUTH_SECRET, ...
+      - ${HOME}/dareflash-config/.env # DATABASE_URL (host `mariadb`, puerto 3306), APP_URL, AUTH_SECRET, ...
     depends_on:
       mariadb:
         condition: service_healthy
@@ -99,15 +94,14 @@ services:
   # usuario no-root en /app/.npm). El perfil `tools` evita que arranque con `up -d`;
   # solo se ejecuta puntualmente con `run --rm`.
   #
-  #   Migrar:       ./scripts/migrate-prod.sh
-  #                 (reconstruye la imagen ANTES de `run --rm migrate`; no ejecutes el crudo sin
-  #                  rebuild o puedes usar una imagen vieja y ver un "No pending" FALSO)
+  #   Migrar:       lo hace deploy.sh (con la imagen del SHA que despliega). A mano:
+  #                 IMAGE_TAG=<sha> ./scripts/migrate-prod.sh  (compara las migraciones de la imagen con
+  #                 las de ese commit antes de aplicar: el "No pending" FALSO de agosto de 2026 era una
+  #                 imagen vieja, y con imagenes etiquetadas por SHA esa comparacion lo caza)
   #   Crear admin:  ver scripts/create-admin.ts (necesita ADMIN_EMAIL y ADMIN_PASSWORD).
   migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: builder
+    # Etapa `builder` del Dockerfile.
+    image: ghcr.io/juniorroja5/dareflash-migrate:${IMAGE_TAG:-desplegada}
     profiles: ["tools"]
     env_file:
       - ${HOME}/dareflash-config/.env
@@ -129,10 +123,8 @@ services:
   # + desconexion; NO lote x timeout (por eso se comprueba parar() entre trabajos). 90 s cubre
   # ese peor caso con margen. Si se sube JOB_TIMEOUT_MS, subir tambien esto.
   worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: worker
+    # Etapa `worker` del Dockerfile.
+    image: ghcr.io/juniorroja5/dareflash-worker:${IMAGE_TAG:-desplegada}
     restart: unless-stopped
     mem_limit: 640m
     mem_reservation: 128m
@@ -168,17 +160,16 @@ services:
   # dentro lo que necesita el guion (curl, gunzip, node, maxmind): el host no instala nada ni necesita
   # saber donde vive el volumen. El perfil `geoip` evita que arranque con `up -d`.
   #
-  #   Uso (y linea del cron mensual):  docker compose -f docker-compose.prod.yml run --rm --build geoip
-  #   (`--build`: la etapa no depende del codigo de la app, asi que reconstruirla es casi siempre la
-  #    cache; sin el flag, el contenedor usaria para siempre la imagen del primer dia.)
+  #   Uso (y linea del cron mensual):  docker compose -f docker-compose.prod.yml run --rm geoip
+  #   (sin `--build`: la imagen es la `desplegada`, que deploy.sh renueva con cada despliegue; asi el
+  #    cron nunca usa la imagen del primer dia ni construye nada. Una linea vieja con `--build` sigue
+  #    funcionando: sin seccion `build`, compose no tiene nada que construir.)
   #
   # Si algo falla NO toca el fichero vivo y sale con codigo distinto de cero; el registro queda en
   # /srv/geoip/actualizar-geoip.log, dentro del volumen.
   geoip:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: geoip
+    # Etapa `geoip` del Dockerfile.
+    image: ghcr.io/juniorroja5/dareflash-geoip:${IMAGE_TAG:-desplegada}
     profiles: ["geoip"]
     restart: "no"
     environment:

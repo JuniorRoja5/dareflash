@@ -13,6 +13,7 @@
  *    purga. Quitarlo del bucle deja este test en rojo — y con él, el sistema en el estado de antes.
  *  - idempotente: la segunda pasada no hace nada.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { VOTO_IPHASH_RETENCION_MS } from "../src/config/constants";
@@ -162,7 +163,7 @@ describe("está CABLEADO al worker (no es una función que nadie llama)", () => 
       prisma,
       {},
       {
-        workerToken: "w-retencion",
+        workerToken: falso("w-retencion"),
         limit: 1,
         intervaloMs: 1,
         parar: () => parar,
@@ -187,7 +188,7 @@ describe("está CABLEADO al worker (no es una función que nadie llama)", () => 
       prisma,
       {},
       {
-        workerToken: "w-retencion-2",
+        workerToken: falso("w-retencion-2"),
         limit: 1,
         intervaloMs: 1,
         parar: () => parar,

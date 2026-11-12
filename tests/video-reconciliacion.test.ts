@@ -4,6 +4,7 @@
  * forward-only e idempotencia, deja PENDING ante error de RED (no 404) y —lo que importa— NO toca las
  * PENDING recientes (territorio del confirm). Bunny SIEMPRE via doble; ningun test lo toca de verdad.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -12,7 +13,7 @@ import { reconciliarVideosAbandonados } from "../src/server/services/video-recon
 
 import { createTestPrisma, crearUsuario, resetDb } from "./helpers/db";
 
-const CONFIG = { libraryId: "12345", apiKey: "APIKEY_FALSA_no_real" };
+const CONFIG = { libraryId: "12345", apiKey: falso("api-bunnyno_real") };
 const MAX_SEG = 90;
 const UMBRAL = 2 * 60 * 60 * 1000; // 2 h en el test (en prod: UMBRAL_ABANDONO_MS = TTL + 15 min)
 

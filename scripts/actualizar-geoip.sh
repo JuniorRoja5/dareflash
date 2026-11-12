@@ -3,7 +3,8 @@
 #
 # Pensado para el cron MENSUAL del host, que lo ejecuta DENTRO del servicio `geoip` del compose (la
 # imagen trae curl, gunzip, node y maxmind, y monta el volumen en escritura):
-#   docker compose -f docker-compose.prod.yml run --rm --build geoip
+#   docker compose -f docker-compose.prod.yml run --rm geoip
+# (con la imagen `desplegada`, que construye CI y deja en el servidor scripts/deploy.sh)
 # Vive en el repositorio porque no lleva credenciales ni nada secreto (DB-IP Lite se descarga sin
 # cuenta ni clave).
 #

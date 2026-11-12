@@ -4,6 +4,7 @@
  * idempotencia, promocion, fallo de red, acotado por edad. Bunny SIEMPRE via doble (ningun test lo
  * toca de verdad). El invariante critico es FORWARD-ONLY: el poller solo promueve desde PENDING.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -17,7 +18,7 @@ import {
 
 import { createTestPrisma, crearUsuario, resetDb } from "./helpers/db";
 
-const CONFIG = { libraryId: "12345", apiKey: "APIKEY_FALSA_no_real" };
+const CONFIG = { libraryId: "12345", apiKey: falso("api-bunnyno_real") };
 const MAX_SEG = 90;
 
 /** Doble de Bunny: `getVideo` devuelve lo configurado; `crearVideo` no se usa aqui. */

@@ -17,6 +17,7 @@
  * La firma se construye DE VERDAD con el SDK (`generateTestHeaderString`): un doble de la
  * verificación dejaría sin probar lo único que protege esta ruta.
  */
+import { falso } from "./helpers/valores-falsos";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -33,14 +34,18 @@ import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
  * secreto del otro" pasaría en verde aunque la ruta volviera a usar el de Boost — que es
  * exactamente el fallo que llegó a producción.
  */
-const SECRETO_WEBHOOK = "whsec_TEST_FIXTURE_vip_webhook";
-const SECRETO_DE_BOOST = "whsec_TEST_FIXTURE_boost_webhook";
+const SECRETO_WEBHOOK = falso("vip_webhook");
+const SECRETO_DE_BOOST = falso("boost_webhook");
 
-const H = vi.hoisted(() => ({
-  prisma: null as unknown as PrismaClient,
-  /** `undefined` simula el raíl inerte: el secreto de VIP sin poner en el entorno. */
-  secretoVip: "whsec_TEST_FIXTURE_vip_webhook" as string | undefined,
-}));
+// `vi.hoisted` corre ANTES que los imports: el helper de valores falsos se carga dentro.
+const H = await vi.hoisted(async () => {
+  const { falso } = await import("./helpers/valores-falsos");
+  return {
+    prisma: null as unknown as PrismaClient,
+    /** `undefined` simula el raíl inerte: el secreto de VIP sin poner en el entorno. */
+    secretoVip: falso("vip_webhook") as string | undefined,
+  };
+});
 vi.mock("@/server/db/client", () => ({
   get prisma() {
     return H.prisma;
@@ -48,10 +53,10 @@ vi.mock("@/server/db/client", () => ({
 }));
 vi.mock("@/config/env", () => ({
   env: {
-    AUTH_SECRET: "TEST-FIXTURE-auth-secret-vip",
+    AUTH_SECRET: falso("auth-secret-vip"),
     APP_URL: "https://x.test",
-    STRIPE_SECRET_KEY: "sk_test_FIXTURE",
-    STRIPE_WEBHOOK_SECRET: "whsec_TEST_FIXTURE_boost_webhook",
+    STRIPE_SECRET_KEY: falso("clave-stripe"),
+    STRIPE_WEBHOOK_SECRET: falso("boost_webhook"),
     get STRIPE_WEBHOOK_SECRET_VIP() {
       return H.secretoVip;
     },

@@ -17,13 +17,14 @@
  * `MetodoPagoPropio` (rojo), o cambiar el `deleteMany` por `delete` del id a secas (rojo: se borra
  * el de otra persona).
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 import type { DestinoRetirada } from "../src/lib/retirada";
 
 vi.mock("@/config/env", () => ({
-  env: { PAGOS_SECRET: "y".repeat(40), AUTH_SECRET: "TEST-FIXTURE-auth-secret-metodos" },
+  env: { PAGOS_SECRET: "y".repeat(40), AUTH_SECRET: falso("auth-secret-metodos") },
 }));
 
 import {

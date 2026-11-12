@@ -1,0 +1,96 @@
+# ESCÁNER DE SECRETOS (gitleaks v8.30.1). Corre en CI antes que los tests (.github/workflows/imagenes.yml)
+# y en el pre-commit local (.husky/pre-commit, sobre lo que se va a confirmar).
+#
+# REGLA DEL PROYECTO: CERO alertas, también de escáneres externos (GitGuardian). El repositorio es
+# PÚBLICO, y un escáner no distingue una clave de juguete de una de verdad: si algo TIENE FORMA de
+# credencial, lo marca y alguien tiene que mirarlo. Por eso no basta con «es de test»:
+#   - lo que necesita una clave de verdad la lee del entorno (un `.env` local sin versionar, CI);
+#   - un valor FALSO de un test no se escribe: se GENERA al ejecutarse (tests/helpers/valores-falsos.ts).
+# Ni marcas como «TEST-FIXTURE» (solo las entendería este fichero) ni prefijos de proveedores reales.
+#
+# Las reglas por defecto de gitleaks cazan claves con forma conocida y claves genéricas de mucha
+# entropía. NO cazan una contraseña corta escrita en un YAML ni una URL con usuario y clave, que es lo
+# que marcó GitGuardian la primera vez; ni un valor de test asignado a una clave `password`. Por eso las
+# reglas de abajo, más estrictas que las de un escáner genérico: aquí no se pide entropía.
+title = "DareFlash"
+
+[extend]
+useDefault = true
+
+# 1. Una clave con nombre de secreto y un valor ENTRE COMILLAS (TS, JSON, YAML con comillas), con
+#    cualquier contenido. La clave empieza tras un separador: así una RUTA que termina en
+#    `#resetPassword` (una clave de mapa que nombra una función) no cuenta. `password`, `secret` y
+#    `contraseña` cuentan en cualquier parte del nombre (`passwordHash`); `token` y `api_key` solo al
+#    FINAL (`csrfToken` sí; `tokenColor`, que es un token de DISEÑO, no). Igual `auth_key`, `access_key`,
+#    `signing_key` (`BUNNY_TOKEN_AUTH_KEY`), pero no cualquier `…Key`: `idempotencyKey` o `ipKey` son
+#    identificadores, no credenciales.
+[[rules]]
+id = "dareflash-clave-literal"
+description = "Clave con nombre de secreto y valor literal entre comillas"
+regex = '''(?i)(?:^|[\s{(,"'])[\w.-]*(?:(?:password|passwd|pwd|secret|pass|contrase[nñ]a)[\w.-]*|(?:token|(?:api|private|auth|access|signing)_?key))["']?[ \t]*[:=][ \t]*["']([^"'\s`$]{3,})["']'''
+secretGroup = 1
+keywords = ["password", "passwd", "pwd", "secret", "pass", "token", "key", "contrase"]
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = [
+  # El NOMBRE de una variable (p.ej. nombreSecreto = "STRIPE_WEBHOOK_SECRET"), no su valor.
+  '''^[A-Z][A-Z0-9_]*$''',
+]
+
+# 2. Lo mismo SIN comillas, en ficheros de configuración. Anclada al PRINCIPIO de línea (sangría, `- ` de
+#    lista YAML o `export ` permitidos): un comentario («AUTH_SECRET: rotar la de…») o el nombre dentro
+#    de una sustitución (`${DEV_MARIADB_PASSWORD:?…}`) no cuentan. `[ \t]*` y no `\s*`: una clave VACÍA
+#    no puede tomar como valor la línea siguiente.
+[[rules]]
+id = "dareflash-clave-literal-config"
+description = "Clave con nombre de secreto y valor literal en un fichero de configuración"
+path = '''(?i)(\.ya?ml|\.toml|\.ini|\.properties|(^|/)\.env[\w.-]*)$'''
+regex = '''(?im)^[ \t]*(?:-[ \t]*)?(?:export[ \t]+)?[\w.-]*(?:(?:password|passwd|pwd|secret|pass)[\w.-]*|(?:token|(?:api|private|auth|access|signing)_?key))[ \t]*[:=][ \t]*([^\s"'$#{}<>]{3,})'''
+secretGroup = 1
+keywords = ["password", "passwd", "pwd", "secret", "pass", "token", "key"]
+[[rules.allowlists]]
+regexTarget = "secret"
+regexes = ['''^[A-Z][A-Z0-9_]*$''']
+
+# 3. Una URL con usuario y clave.
+[[rules]]
+id = "dareflash-url-con-clave"
+description = "URL con usuario y contraseña"
+regex = '''[a-zA-Z][a-zA-Z0-9+.-]*://[^/\s:@'"$]+:([^/\s@'"$]+)@'''
+secretGroup = 1
+keywords = ["://"]
+
+# 4. PREFIJOS DE PROVEEDORES REALES seguidos de algo (Stripe, AWS, GitHub, Slack). Un escáner externo
+#    los marca por la forma, aunque el resto sea inventado. Mencionar el prefijo SOLO (en una expresión
+#    que comprueba que no se filtra, p.ej.) no es esto: hace falta contenido detrás.
+[[rules]]
+id = "dareflash-prefijo-de-proveedor"
+description = "Valor con el prefijo de una credencial de un proveedor real"
+regex = '''\b((?:whsec|(?:sk|pk|rk)_(?:live|test))_[A-Za-z0-9_]+|AKIA[0-9A-Z]{8,}|gh[pousr]_[A-Za-z0-9]{8,}|github_pat_[A-Za-z0-9_]+|xox[abposr]-[A-Za-z0-9-]+)'''
+secretGroup = 1
+keywords = ["whsec", "_live_", "_test_", "akia", "ghp_", "gho_", "ghu_", "ghs_", "ghr_", "github_pat", "xox"]
+
+# 5. Un literal pasado DIRECTAMENTE a una función de contraseñas (hashPassword("…"), argon2.hash("…")):
+#    no lleva una clave con nombre de secreto delante, pero es una contraseña igual.
+[[rules]]
+id = "dareflash-contrasena-en-llamada"
+description = "Literal pasado a una función de contraseñas"
+regex = '''(?i)(?:hashPassword|verifyPassword\w*|changePassword|argon2\.(?:hash|verify))\([^)]*?["']([^"'\s]{3,})["']'''
+secretGroup = 1
+keywords = ["password", "argon2"]
+[[rules.allowlists]]
+# La ETIQUETA que se pasa al generador de valores falsos (tests/helpers/valores-falsos.ts), p.ej.
+# `changePassword(…, contrasenaFalsa("nueva"))`: es un nombre, no una contraseña.
+regexTarget = "match"
+regexes = ['''(?:falso|contrasenaFalsa)\(["'][^"']*["']$''']
+
+# LISTA BLANCA, solo lo que no se puede evitar, justificado uno a uno:
+[allowlist]
+description = "Material de terceros y hashes de integridad"
+paths = [
+  # Material de terceros (skills de Trail of Bits) que ENSEÑA defaults inseguros con ejemplos inventados.
+  # No es configuración de nada; reescribirlo lo desviaría del original.
+  '''^security/trailofbits-skills/''',
+  # Hashes de integridad de npm (sha512-…): mucha entropía, ningún secreto.
+  '''^package-lock\.json$''',
+]

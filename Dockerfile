@@ -53,12 +53,12 @@ FROM base AS runner
 ENV NODE_ENV=production
 
 # COMMIT del artefacto, para /api/health. `.git` no entra en el contexto de build (.dockerignore),
-# asi que el SHA llega como ARGUMENTO desde fuera:
-#   GIT_SHA=$(git rev-parse HEAD) docker compose -f docker-compose.prod.yml up -d --build
+# asi que el SHA llega como ARGUMENTO desde fuera: en CI, `github.sha` (.github/workflows/imagenes.yml);
+# en el plan de emergencia, `git rev-parse HEAD` (scripts/deploy.sh --construir-aqui).
 # Sin un SHA valido el build FALLA aqui a proposito: una imagen que no sabe que version es obliga a
-# adivinar si "main = desplegado". Y falla ANTES de sustituir el contenedor en marcha, asi que
-# olvidarlo no tumba produccion: la version anterior sigue sirviendo. Solo esta etapa lo exige
-# (`builder` y `worker` no), para que `migrate-prod.sh` y el worker no dependan de el.
+# adivinar si "main = desplegado" (y deploy.sh no podria comprobar que el health es el SHA desplegado).
+# Falla ANTES de publicar o sustituir nada, asi que la version en marcha sigue sirviendo. Solo esta
+# etapa lo exige (`builder` y `worker` no): las otras imagenes no lo necesitan para funcionar.
 ARG GIT_SHA
 RUN echo "$GIT_SHA" | grep -Eq '^[0-9a-f]{40}$' \
     || { echo "ERROR: falta GIT_SHA o no es un SHA de 40 hex. Construye con GIT_SHA=\$(git rev-parse HEAD)" >&2; exit 1; }
@@ -115,10 +115,10 @@ CMD ["node", "--conditions=react-server", "--import", "tsx", "scripts/worker.ts"
 # El guion mensual (scripts/actualizar-geoip.sh) necesita curl, gunzip, node y `maxmind` (el paso de
 # control abre el fichero nuevo y resuelve IP conocidas). Va en la imagen para que el host no tenga que
 # instalar NADA ni saber donde vive el volumen: `docker compose -f docker-compose.prod.yml run --rm
-# --build geoip`.
+# geoip` (la imagen la construye CI y deploy.sh la deja como `desplegada`).
 #
-# Deriva de `base` y NO de `builder` a proposito: asi no depende del codigo de la app y reconstruirla
-# desde el cron no dispara nunca un `next build` (en 1 vCPU, minutos de CPU de madrugada). El COPY de
+# Deriva de `base` y NO de `builder` a proposito: asi no depende del codigo de la app (y, si alguna vez
+# se construye en el servidor, nunca dispara un `next build`: en 1 vCPU, minutos de CPU). El COPY de
 # node_modules es el MISMO que el primer paso de `builder` sobre la misma `base`: BuildKit reutiliza esa
 # capa, no ocupa disco de mas. curl va DESPUES del COPY por eso mismo (antes, la capa ya no coincidiria).
 # gzip, date (GNU) y stat ya vienen en la imagen slim de Debian. Corre como root: escribe en el volumen,

@@ -5,6 +5,7 @@
  * no se ve afectada (topes independientes). El `registerUser` real (argon2 + encolado de correo) se
  * mockea: esta prueba mide el GATE de rate-limit, no el alta en si.
  */
+import { contrasenaFalsa, falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -18,7 +19,7 @@ vi.mock("@/server/db/client", () => ({
   },
 }));
 vi.mock("@/config/env", () => ({
-  env: { AUTH_SECRET: "TEST-FIXTURE-auth-secret-register-ratelimit", APP_URL: "https://x.test" },
+  env: { AUTH_SECRET: falso("auth-secret-register-ratelimit"), APP_URL: "https://x.test" },
 }));
 // El alta real (argon2 + correo) no se ejecuta: solo importa que el gate de rate-limit se consuma.
 vi.mock("@/server/auth/registration", () => ({
@@ -41,7 +42,7 @@ beforeEach(async () => {
 });
 
 // Contraseña que SÍ pasa la política fuerte (para no caer por validación antes del alta).
-const PASS = "TEST-FIXTURE-cordillera-tejado-ambar-79";
+const PASS = contrasenaFalsa("frase-larga");
 const BIRTH = "2000-01-01";
 
 function reqRegister(email: string): Request {

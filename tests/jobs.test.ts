@@ -1,3 +1,4 @@
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -31,8 +32,8 @@ describe("cola de trabajos (claimJobs, patron lockedBy)", () => {
 
     // Dos "workers" con tokens distintos, cada uno intentando coger todo el lote.
     const [a, b] = await Promise.all([
-      claimJobs(prisma, { workerToken: "worker-A", limit: N }),
-      claimJobs(prisma, { workerToken: "worker-B", limit: N }),
+      claimJobs(prisma, { workerToken: falso("worker-A"), limit: N }),
+      claimJobs(prisma, { workerToken: falso("worker-B"), limit: N }),
     ]);
 
     const idsA = a.map((j) => j.id);

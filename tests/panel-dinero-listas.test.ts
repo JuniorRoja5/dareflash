@@ -19,6 +19,7 @@
  * `lte` (rojo: repite filas), o leer el historial del ledger en vez de la auditoría (rojo: se queda
  * sin motivo).
  */
+import { falso } from "./helpers/valores-falsos";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -27,7 +28,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { PrismaClient } from "../src/generated/prisma/client";
 
 vi.mock("@/config/env", () => ({
-  env: { PAGOS_SECRET: "l".repeat(40), AUTH_SECRET: "TEST-FIXTURE-auth-secret-listas" },
+  env: { PAGOS_SECRET: "l".repeat(40), AUTH_SECRET: falso("auth-secret-listas") },
 }));
 
 import { listarAjustesMonedero } from "../src/server/services/monedero-admin";

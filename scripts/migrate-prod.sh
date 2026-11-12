@@ -1,34 +1,49 @@
 #!/usr/bin/env bash
 #
-# Aplica las migraciones en PRODUCCIÓN (VPS) de forma REPRODUCIBLE y sin el fallo del "No pending" falso.
+# Aplica las migraciones en PRODUCCIÓN con la imagen `migrate` YA DESCARGADA. No construye nada: la
+# imagen la construye CI y la descarga scripts/deploy.sh, que es quien llama a este script.
 #
-# POR QUÉ EXISTE ESTE SCRIPT (bug real, agosto 2026):
-#   `docker compose run migrate` REUSA la imagen `dareflash-migrate` si ya existe; NO la reconstruye
-#   salvo que se pase `--build`. Y `up -d --build` NO reconstruye `migrate` (está en `profiles: [tools]`,
-#   fuera de `up`). Resultado: tras el primer deploy la imagen de migrate queda CONGELADA y no contiene
-#   las carpetas de migración nuevas -> `migrate deploy` dice "N migrations found ... No pending" en
-#   FALSO y `migrate resolve` falla con P3017 ("migration could not be found"), porque la carpeta ni
-#   siquiera está en la imagen. El Dockerfile es correcto (el `builder` hace `COPY . .`, recursivo): el
-#   fallo era construir de menos, no copiar de menos.
+# POR QUÉ COMPARA ANTES DE APLICAR (bug real, agosto 2026):
+#   `migrate deploy` con una imagen VIEJA no ve las carpetas de migración nuevas y dice
+#   "N migrations found ... No pending" en FALSO (y `migrate resolve` falla con P3017). Entonces la
+#   causa era que `docker compose run` reutilizaba una imagen construida en un despliegue anterior.
+#   Con imágenes etiquetadas por SHA eso ya no puede pasar sin querer, pero la comprobación es barata
+#   y ahora es AUTOMÁTICA: la lista de la imagen tiene que ser EXACTAMENTE la del commit que la imagen
+#   dice ser (su etiqueta `revision`). Antes había que compararla a ojo.
 #
-# ESTE SCRIPT reconstruye SIEMPRE la imagen `migrate` desde el contexto actual, VERIFICA que ve todas
-# las migraciones del repo y sólo entonces aplica. Úsalo en cada despliegue que traiga migraciones.
-#
-# Uso:  ./scripts/migrate-prod.sh
+# Uso normal: lo llama deploy.sh.
+# A mano:     IMAGE_TAG=<sha> ./scripts/migrate-prod.sh      (sin IMAGE_TAG: la imagen `desplegada`)
 set -euo pipefail
+cd "$(dirname "$0")/.."
 
+export IMAGE_TAG="${IMAGE_TAG:-desplegada}"
+IMAGEN="ghcr.io/juniorroja5/dareflash-migrate:$IMAGE_TAG"
 COMPOSE=(docker compose -f docker-compose.prod.yml)
 
-echo "==> [1/3] Reconstruyendo la imagen 'migrate' desde el contexto actual (evita reusar una vieja)…"
-"${COMPOSE[@]}" build migrate
+morir() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
 
-echo "==> [2/3] Verificación: migraciones que la imagen VE (deben ser TODAS las del repo):"
-# --no-deps: no arranca mariadb sólo para listar ficheros. Entrypoint a sh para hacer el ls.
-"${COMPOSE[@]}" run --rm --no-deps --entrypoint sh migrate -c "ls -1 prisma/migrations"
-echo "    (compáralo con: ls -1 prisma/migrations en el repo — deben coincidir)"
+REV=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
+  "$IMAGEN" 2>/dev/null) || morir "no está la imagen $IMAGEN en este servidor. Despliega con ./scripts/deploy.sh."
+[[ "$REV" =~ ^[0-9a-f]{40}$ ]] || morir "la imagen $IMAGEN no dice de qué commit es (revision='$REV')."
 
-echo "==> [3/3] Aplicando migraciones pendientes (prisma migrate deploy)…"
-"${COMPOSE[@]}" run --rm migrate
+echo "==> [1/3] Migraciones que VE la imagen, frente a las del commit ${REV:0:12}…"
+# Solo nombres de carpeta (migration_lock.toml no es una migración). `-T`: sin TTY, sin \r en la salida.
+EN_IMAGEN=$("${COMPOSE[@]}" run --rm -T --no-deps --entrypoint sh migrate -c "ls -1 prisma/migrations" \
+  | tr -d '\r' | grep -v '^migration_lock\.toml$' | sort)
+EN_COMMIT=$(git ls-tree --name-only "$REV" prisma/migrations/ \
+  | sed 's#^prisma/migrations/##' | grep -v '^migration_lock\.toml$' | sort)
+if [ "$EN_IMAGEN" != "$EN_COMMIT" ]; then
+  echo "La imagen y el commit NO ven las mismas migraciones:" >&2
+  diff <(echo "$EN_COMMIT") <(echo "$EN_IMAGEN") >&2 || true
+  morir "no se aplica nada (una imagen que no ve todas las migraciones da un 'No pending' FALSO)."
+fi
+echo "    $(echo "$EN_IMAGEN" | grep -c .) migraciones, las mismas en la imagen y en el commit."
 
-echo "==> Hecho. Estado del esquema:"
-"${COMPOSE[@]}" run --rm --no-deps migrate npx prisma migrate status
+echo "==> [2/3] Aplicando las pendientes (prisma migrate deploy)…"
+"${COMPOSE[@]}" run --rm -T migrate
+
+echo "==> [3/3] Estado del esquema:"
+"${COMPOSE[@]}" run --rm -T --no-deps migrate npx prisma migrate status

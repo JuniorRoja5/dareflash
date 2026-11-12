@@ -15,6 +15,7 @@
  * que abrir el pago no escribe nada), o comprobar "ya es VIP" mirando el estado (rojo: el caso de
  * la suscripción con el periodo vencido, que SÍ tiene que poder volver a suscribirse).
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MSG_VIP_PAGO_NO_DISPONIBLE } from "@/config/constants";
@@ -39,7 +40,7 @@ vi.mock("@/server/db/client", () => ({
 }));
 vi.mock("@/config/env", () => ({
   env: {
-    AUTH_SECRET: "TEST-FIXTURE-auth-secret-vip-checkout",
+    AUTH_SECRET: falso("auth-secret-vip-checkout"),
     APP_URL: "https://x.test",
     get STRIPE_SECRET_KEY() {
       return H.claveStripe;
@@ -102,7 +103,7 @@ describe("el raíl está inerte", () => {
 
   it("y abrir el pago NUNCA escribe la suscripción: eso lo hace el webhook", async () => {
     // Activar aquí sería regalar el VIP a quien abre el formulario y lo cierra.
-    H.claveStripe = "sk_test_FIXTURE";
+    H.claveStripe = falso("clave-stripe");
     await pedir().catch(() => null);
     expect(await prisma.subscription.count()).toBe(0);
   });

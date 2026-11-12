@@ -7,6 +7,7 @@
  *  - El `targetType` se valida contra la unión de lo denunciable: no se modera "lo que diga el cliente".
  *  - Y ninguna respuesta enseña REMOVED / RESOLVED / DISMISSED.
  */
+import { falso } from "./helpers/valores-falsos";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -18,7 +19,7 @@ import {
 } from "../src/config/constants";
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
-const SECRET = "TEST-FIXTURE-cola-secret-suficientemente-largo-de-verdad";
+const SECRET = falso("cola-secret-suficientemente-largo-de-verdad");
 const APP_URL = "http://test.local";
 
 const mocks = vi.hoisted(() => ({

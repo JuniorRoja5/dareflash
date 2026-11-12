@@ -35,8 +35,9 @@ portada `/inicio` con datos reales y el reto destacado que elige el admin. **La 
 sigue BLOQUEADA** y no se empieza sin su encargo. El plan por piezas vive fuera del repositorio, en
 el informe de diseno de la fase.
 
-**Lo siguiente es la prioridad de infraestructura** (construir la imagen fuera del servidor, mas
-abajo). **No se empieza sin su encargo.**
+**Infraestructura: las imagenes se construyen en CI** y el servidor solo las descarga (mas abajo,
+con el runbook). **Desde que esto esta en main, el flujo viejo (`up -d --build`) ya no construye
+nada**: el primer despliegue y todos los siguientes son con `deploy.sh`.
 
 Tres decisiones de P1 que siguen condicionando todo lo de empresa:
 
@@ -112,22 +113,59 @@ Reglas que aplican desde el primer commit y no se renegocian:
   verificacion real la hace el proveedor de pagos al reclamar. Hay guard que lo vigila.
 - `WalletLedger`, `AuditLog` y `ChallengeResult` **ya existen** en el esquema.
 
-## SIGUIENTE PRIORIDAD: infraestructura (Fase 9 cerrada salvo P13; antes de la 11)
+## Despliegue: las imagenes se construyen FUERA del servidor
 
-**Construir la imagen FUERA del servidor de produccion.** Un CI (GitHub Actions u otro) construye la
-imagen y la publica en un registro de imagenes; el servidor solo hace `pull` + `up`. **El servidor no
-vuelve a compilar Next.** `migrate` entra en el mismo esquema: su imagen (la etapa `builder`) tambien
-llega construida y el servidor solo la ejecuta.
+**El servidor no compila.** En cada push a `main`, CI ([imagenes.yml](.github/workflows/imagenes.yml))
+pasa typecheck, lint y la suite contra MariaDB 11.8 y, **solo si pasan**, construye las cuatro
+imagenes (`web`, `worker`, `migrate`, `geoip`), las revisa (ningun `.env`, solo variables conocidas,
+el SHA correcto) y las publica en `ghcr.io/juniorroja5/dareflash-<servicio>` con el **SHA completo**
+como etiqueta (y `main`). El servidor solo descarga, con [scripts/deploy.sh](scripts/deploy.sh). En
+una rama, CI hace lo mismo menos publicar.
 
 **Motivo (2026-11-06):** `next build` se hacia en la misma maquina que sirve la web, y su pico de
 memoria crece con cada pieza. En un despliegue de la Fase 9 esa construccion dejo la maquina sin
-memoria y la web dejo de responder mientras compilaba. No es trafico: en reposo la app usa poco. El
-detalle del incidente y de la maquina es operacion y vive fuera del repositorio.
+memoria y la web dejo de responder mientras compilaba. El detalle es operacion y vive fuera.
 
-**Mientras no exista:** el servidor sigue compilando en cada despliegue. Desde 2026-11-07 ya no hace
-falta hacerlo dentro de una sesion persistente: el servidor tiene margen de memoria y el incidente fue
-puntual. La Fase 9 ya esta cerrada (salvo la P13), asi que es lo siguiente, pero **no se empieza
-hasta que llegue su encargo**.
+**Las imagenes son PUBLICAS**, como el repositorio: llevan su codigo, dependencias publicas de npm y
+el resultado del build, que se hace SIN variables. Ningun secreto entra en el build y CI lo comprueba
+antes de publicar. Si el repositorio se cierra, los paquetes pasan a privados a la vez y el servidor
+necesita el `docker login` de abajo.
+
+### Runbook (comandos genericos; lo especifico del servidor, fuera)
+
+Desde el directorio del repositorio en el servidor:
+
+```bash
+git pull && ./scripts/deploy.sh           # desplegar main (espera a CI si no ha terminado)
+./scripts/deploy.sh <sha>                 # volver atras a ese commit de main
+docker compose -f docker-compose.prod.yml logs -f --tail=100 web    # logs (o worker)
+./scripts/deploy.sh --construir-aqui      # EMERGENCIA, sin CI ni registro: construye aqui
+```
+
+`deploy.sh`: comprueba que el SHA es de main → mira que version esta en marcha → espera a las cuatro
+imagenes (si CI fallo, lo dice y no despliega; si no ha terminado, espera hasta 25 min) → descarga →
+migra con la imagen `migrate` de ESE SHA → etiqueta en local como `desplegada` y `up -d` → espera al
+health y **comprueba que responde ese commit** (si responde otro, sale con error y lo dice).
+
+**Volver atras y las migraciones.** Prisma no deshace: volver a un SHA anterior cambia el codigo, no
+el esquema. Es seguro si las migraciones posteriores fueron ADITIVAS (tablas o columnas nuevas con
+default o NULL, indices). No lo es si alguna borro o renombro algo que el codigo viejo usa, o anadio
+una columna obligatoria sin default. Al volver atras, `deploy.sh` NO migra, lista las migraciones
+posteriores y no sigue sin `--acepto-esquema-nuevo`.
+
+**El cron mensual de geoip** usa la imagen `desplegada`: `docker compose -f docker-compose.prod.yml
+run --rm geoip` (una linea vieja con `--build` sigue funcionando: ya no hay nada que construir).
+
+### Configuracion de UNA vez (PENDIENTE de Junior hasta el primer despliegue con esto)
+
+1. Tras el primer push a `main` con este workflow: en GitHub, Paquetes, poner los cuatro
+   `dareflash-*` en **Public** (si no salen ya publicos) y comprobar que estan enlazados al repo.
+2. Si algun dia son privados: un token _classic_ con solo `read:packages` y, en el servidor, una vez:
+   `docker login ghcr.io -u <usuario>` (pega el token). Sin eso, `deploy.sh` no ve las imagenes.
+3. Cambiar la linea del cron de geoip a la de arriba (sin `--build`).
+4. Primer despliegue: `git pull && ./scripts/deploy.sh`.
+5. Despues de comprobarlo, liberar disco: las imagenes viejas construidas en el servidor
+   (`dareflash-web`, `-worker`, `-migrate`, `-geoip` sin registro delante) y la cache de build.
 
 ## Antes de abrir la compra de creditos (P11)
 
@@ -149,6 +187,12 @@ encenderla:
 
 Trabajo acotado y listo para instruir.
 
+- **Fuentes en el repositorio, sin Google (SIGUIENTE, tras fusionar la de imagenes).** `next build`
+  descarga las fuentes de `next/font/google` al construir, y esa descarga falla a veces: fue la causa
+  de los dos rojos de `docker-build` del 2026-11-06 (`199c1d8` y `29c9a1d`; el mismo SHA paso en otra
+  ejecucion ese dia). Pasar a `next/font/local` con los ficheros de fuente en el repositorio, CON sus
+  licencias, para que el build no descargue nada y la web no pida fuentes a Google. Las fuentes son las
+  de MARCA.md: no cambia cual, solo de donde salen.
 - **`likeCount` en la reconciliacion.** Falta el barrido que lo cuadre contra el `COUNT` real, como
   ya tiene `voteCount`. Con el cerrojo no deberia descuadrarse, pero es la red que los otros
   contadores si tienen.

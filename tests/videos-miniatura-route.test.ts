@@ -3,12 +3,13 @@
  * construcción (vídeo ajeno/inexistente -> 404 y NO llama a Bunny); sin CSRF -> 403; sin imagen -> 400;
  * imagen válida -> procesa a JPEG y llama a Bunny Set Thumbnail con el GUID; fallo de Bunny -> 502.
  */
+import { falso } from "./helpers/valores-falsos";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
-const SECRET = "TEST-FIXTURE-miniatura-secret-suficientemente-largo-de-verdad";
+const SECRET = falso("miniatura-secret-suficientemente-largo-de-verdad");
 const APP_URL = "http://test.local";
 
 const mocks = vi.hoisted(() => ({
@@ -23,7 +24,7 @@ vi.mock("@/config/env", () => ({
     APP_URL,
     AUTH_SECRET: SECRET,
     BUNNY_STREAM_LIBRARY_ID: "lib1",
-    BUNNY_STREAM_API_KEY: "APIKEY",
+    BUNNY_STREAM_API_KEY: falso("bunny-api"),
   },
 }));
 vi.mock("@/server/auth/current-user", () => ({ getCurrentUser: mocks.getCurrentUser }));

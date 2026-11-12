@@ -13,12 +13,13 @@
  * Se ejecuta la RUTA REAL (con su envoltorio, su BD y Bunny doblado), no se escriben las filas a mano:
  * un test que simula el camino prueba el ayudante, no la aplicación.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 
 const APP_URL = "http://test.local";
-const SECRET = "secreto-de-test-suficientemente-largo-para-hmac";
+const SECRET = falso("secreto-largo-para-hmac-de-test");
 
 const mocks = vi.hoisted(() => ({
   prisma: null as PrismaClient | null,
@@ -32,7 +33,7 @@ vi.mock("@/config/env", () => ({
     APP_URL,
     AUTH_SECRET: SECRET,
     BUNNY_STREAM_LIBRARY_ID: "lib",
-    BUNNY_STREAM_API_KEY: "key",
+    BUNNY_STREAM_API_KEY: falso("key"),
   },
 }));
 vi.mock("@/server/db/client", () => ({

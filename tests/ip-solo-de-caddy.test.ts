@@ -19,6 +19,7 @@
  * │ copia de internet, es leer exactamente lo que escribió el atacante.                           │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
+import { falso } from "./helpers/valores-falsos";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
@@ -27,7 +28,7 @@ import { describe, expect, it } from "vitest";
 import { clientIp, clientIpKey } from "../src/server/http/api";
 
 const RAIZ = process.cwd();
-const SECRETO = "TEST-FIXTURE-secreto-para-el-hmac-de-ip";
+const SECRETO = falso("hmac-de-ip");
 
 function fuentesDe(dir: string): string[] {
   const out: string[] = [];

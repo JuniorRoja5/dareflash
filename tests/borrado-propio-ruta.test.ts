@@ -6,12 +6,13 @@
  * probando mi ayudante, no la aplicación. Esto ejecuta `DELETE /api/videos/[id]` de verdad —con el
  * `mutatingRoute` real y la BD real— y comprueba que deja al usuario libre para volver a participar.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 
 const APP_URL = "http://test.local";
-const SECRET = "secreto-de-test-suficientemente-largo-para-hmac";
+const SECRET = falso("secreto-largo-para-hmac-de-test");
 
 const mocks = vi.hoisted(() => ({ prisma: null as PrismaClient | null, getCurrentUser: vi.fn() }));
 

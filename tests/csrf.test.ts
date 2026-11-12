@@ -1,8 +1,9 @@
+import { falso } from "./helpers/valores-falsos";
 import { describe, expect, it } from "vitest";
 
 import { issueCsrfToken, verifyCsrfToken } from "../src/server/auth/csrf";
 
-const SECRET = "TEST-FIXTURE-auth-secret-0123456789abcdef";
+const SECRET = falso("auth-secret-0123456789abcdef");
 const SESSION_A = "hash-de-sesion-A";
 const SESSION_B = "hash-de-sesion-B";
 
@@ -26,6 +27,6 @@ describe("CSRF (HMAC atado a la sesion)", () => {
 
   it("firmado con OTRO secreto -> invalido", () => {
     const token = issueCsrfToken(SECRET, SESSION_A);
-    expect(verifyCsrfToken("TEST-FIXTURE-otro-secret-abcdef", SESSION_A, token)).toBe(false);
+    expect(verifyCsrfToken(falso("otro-secret"), SESSION_A, token)).toBe(false);
   });
 });

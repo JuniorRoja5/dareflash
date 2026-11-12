@@ -19,6 +19,9 @@
  * │ se puede comprobar de verdad. Si se añade un caso de visibilidad, va allí, no aquí.             │
  * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
  */
+import { createHash } from "node:crypto";
+
+import { falso } from "./helpers/valores-falsos";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "../src/app/api/videos/[id]/reproduccion/route";
@@ -31,32 +34,47 @@ import { firmarUrlHls, reproduccionFirmada } from "../src/server/services/bunny"
 // visibilidad —con relaciones y un OR— y por eso no cabe en `findUnique`.
 const mocks = vi.hoisted(() => ({ findFirst: vi.fn() }));
 vi.mock("@/server/db/client", () => ({ prisma: { video: { findFirst: mocks.findFirst } } }));
-vi.mock("@/config/env", () => ({
-  env: { BUNNY_CDN_HOSTNAME: "cdn.test.b-cdn.net", BUNNY_TOKEN_AUTH_KEY: "clave-test-xyz" },
-}));
+// La factoría se iza por encima de los imports: el helper se carga dentro, con import dinámico.
+vi.mock("@/config/env", async () => {
+  const { falso: valorFalso } = await import("./helpers/valores-falsos");
+  return {
+    env: {
+      BUNNY_CDN_HOSTNAME: "cdn.test.b-cdn.net",
+      BUNNY_TOKEN_AUTH_KEY: valorFalso("bunny-firma"),
+    },
+  };
+});
 
 const tokenDe = (url: string): string | null => new URL(url).searchParams.get("token");
 
 describe("firmarUrlHls (puro)", () => {
-  it("VECTOR CONOCIDO: clave+videoId+expiración fijos -> token esperado (url-safe)", () => {
+  it("FÓRMULA DE BUNNY: clave+videoId+expiración fijos -> el token que da su fórmula (url-safe)", () => {
+    const clave = falso("bunny-vector");
     const { src, poster } = firmarUrlHls({
       hostname: "cdn.ejemplo",
       videoId: "video-abc-123",
-      claveToken: "clave-de-firma-de-prueba",
+      claveToken: clave,
       expiraEnSeg: 7200,
       ahoraMs: 0,
     });
-    const TOKEN = "Hf1SBQkt8PjjJLdAmdZcfzD_33UT0CaRGTRGBxr7kqs";
-    const cola = `?token=${TOKEN}&token_path=%2Fvideo-abc-123%2F&expires=7200`;
+    // LA REFERENCIA, escrita aparte y tal como la documenta Bunny: SHA-256 de clave + ruta + expiración
+    // + parámetros, en base64 url-safe sin relleno. Antes era un literal (el resultado de una clave fija),
+    // y un literal con la entropía de un hash es justo lo que un escáner de secretos marca. Calculado
+    // aquí con su propia expresión, sigue fijando el algoritmo: si `firmarUrlHls` cambia la fórmula, el
+    // orden de los campos o la codificación, deja de coincidir.
+    const esperado = createHash("sha256")
+      .update(`${clave}/video-abc-123/7200token_path=/video-abc-123/`)
+      .digest("base64url");
+    const cola = `?token=${esperado}&token_path=%2Fvideo-abc-123%2F&expires=7200`;
     expect(src).toBe(`https://cdn.ejemplo/video-abc-123/playlist.m3u8${cola}`);
     expect(poster).toBe(`https://cdn.ejemplo/video-abc-123/thumbnail.jpg${cola}`);
-    expect(TOKEN).not.toMatch(/[+/=]/); // base64 URL-SAFE (sin +, /, =)
+    expect(tokenDe(src)).not.toMatch(/[+/=]/); // base64 URL-SAFE (sin +, /, =)
   });
 
   it("cambiar la CLAVE cambia el token (la firma depende de la clave)", () => {
     const base = { hostname: "h", videoId: "v", expiraEnSeg: 60, ahoraMs: 0 };
-    const a = firmarUrlHls({ ...base, claveToken: "clave-A" });
-    const b = firmarUrlHls({ ...base, claveToken: "clave-B" });
+    const a = firmarUrlHls({ ...base, claveToken: falso("clave-A") });
+    const b = firmarUrlHls({ ...base, claveToken: falso("clave-B") });
     expect(tokenDe(a.src)).not.toBe(tokenDe(b.src));
   });
 
@@ -64,7 +82,7 @@ describe("firmarUrlHls (puro)", () => {
     const { src, poster } = firmarUrlHls({
       hostname: "h",
       videoId: "vid9",
-      claveToken: "k",
+      claveToken: falso("k"),
       expiraEnSeg: 60,
       ahoraMs: 0,
     });
@@ -74,7 +92,7 @@ describe("firmarUrlHls (puro)", () => {
 });
 
 describe("reproduccionFirmada (guardarrail puro)", () => {
-  const CFG = { hostname: "cdn.test", claveToken: "k", expiraEnSeg: 7200, ahoraMs: 0 };
+  const CFG = { hostname: "cdn.test", claveToken: falso("k"), expiraEnSeg: 7200, ahoraMs: 0 };
 
   it("SOLO PUBLISHED es reproducible; el resto (y sin fila) -> null (sin URL)", () => {
     for (const status of ["PENDING", "FAILED", "REJECTED", "REMOVED"]) {

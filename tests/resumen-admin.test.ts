@@ -13,6 +13,7 @@
  * intervalo en vez de con el día, o quitar la clave del correo (rojo el de dos veces); llamar al aviso
  * sin histéresis (rojo el de seguir arriba).
  */
+import { contrasenaFalsa } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { CLAVE_RESUMEN_ADMIN } from "../src/config/constants";
@@ -82,7 +83,7 @@ async function unaEmpresaPendiente(email = "panaderia@test.test") {
     prisma,
     {
       email,
-      password: "Un4-Contrasena-Larga-Y-Buena!",
+      password: contrasenaFalsa("Contrasena-Larga-Y-Buena-"),
       terminosAceptadosEn: new Date(),
       nombre: "Panadería La Espiga",
       tipoCuenta: "EMPRESA",

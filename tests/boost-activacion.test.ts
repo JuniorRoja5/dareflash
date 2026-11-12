@@ -17,6 +17,7 @@
  *    el token generado en servidor, un doble clic cuesta dos boosts.
  *  - SIN SALDO NO SE ESCRIBE NADA, y se devuelve un resultado, no una excepción.
  */
+import { falso } from "./helpers/valores-falsos";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -212,7 +213,7 @@ describe("el límite diario", () => {
     for (let i = 0; i < BOOST_DAILY_LIMIT; i += 1) {
       await activarBoost(prisma, { userId: otra, token: `o${i}`, ahora: MEDIODIA });
     }
-    const r = await activarBoost(prisma, { userId, token: "mio", ahora: MEDIODIA });
+    const r = await activarBoost(prisma, { userId, token: falso("mio"), ahora: MEDIODIA });
     expect(r.estado).toBe("activado");
   });
 });
@@ -232,7 +233,7 @@ describe("el día es UTC", () => {
     );
 
     // …y dos minutos después, con el día 16, el contador vuelve a empezar.
-    const r = await activarBoost(prisma, { userId, token: "d16", ahora: pasadaMedianoche });
+    const r = await activarBoost(prisma, { userId, token: falso("d16"), ahora: pasadaMedianoche });
     expect(r, "el día no se corta en la medianoche UTC").toMatchObject({
       estado: "activado",
       usadasHoy: 1,
@@ -284,8 +285,8 @@ describe("el débito y la aparición son atómicos", () => {
 
 describe("idempotencia por INTENCIÓN", () => {
   it("el mismo token dos veces: una activación y un débito", async () => {
-    const a = await activarBoost(prisma, { userId, token: "mismo", ahora: MEDIODIA });
-    const b = await activarBoost(prisma, { userId, token: "mismo", ahora: MEDIODIA });
+    const a = await activarBoost(prisma, { userId, token: falso("mismo"), ahora: MEDIODIA });
+    const b = await activarBoost(prisma, { userId, token: falso("mismo"), ahora: MEDIODIA });
 
     expect(a.estado).toBe("activado");
     expect(b).toEqual({ estado: "repetida" });
@@ -296,8 +297,8 @@ describe("idempotencia por INTENCIÓN", () => {
 
   it("y en PARALELO también (el doble clic de verdad)", async () => {
     const [a, b] = await Promise.all([
-      activarBoost(prisma, { userId, token: "doble", ahora: MEDIODIA }, { holdMs: 40 }),
-      activarBoost(prisma, { userId, token: "doble", ahora: MEDIODIA }, { holdMs: 40 }),
+      activarBoost(prisma, { userId, token: falso("doble"), ahora: MEDIODIA }, { holdMs: 40 }),
+      activarBoost(prisma, { userId, token: falso("doble"), ahora: MEDIODIA }, { holdMs: 40 }),
     ]);
 
     expect([a.estado, b.estado].sort()).toEqual(["activado", "repetida"]);
@@ -306,8 +307,8 @@ describe("idempotencia por INTENCIÓN", () => {
   });
 
   it("tokens DISTINTOS son intenciones distintas: dos activaciones", async () => {
-    await activarBoost(prisma, { userId, token: "uno", ahora: MEDIODIA });
-    await activarBoost(prisma, { userId, token: "dos", ahora: MEDIODIA });
+    await activarBoost(prisma, { userId, token: falso("uno"), ahora: MEDIODIA });
+    await activarBoost(prisma, { userId, token: falso("dos"), ahora: MEDIODIA });
     expect(await apariciones()).toHaveLength(2);
     expect(await saldo()).toBe(3);
   });
@@ -318,8 +319,8 @@ describe("idempotencia por INTENCIÓN", () => {
     const otra = await crearUsuario(prisma, { username: "la_del_token", boostBalance: 2 });
     expect(claveActivacion(userId, "x")).not.toBe(claveActivacion(otra, "x"));
 
-    await activarBoost(prisma, { userId: otra, token: "compartido", ahora: MEDIODIA });
-    const mia = await activarBoost(prisma, { userId, token: "compartido", ahora: MEDIODIA });
+    await activarBoost(prisma, { userId: otra, token: falso("compartido"), ahora: MEDIODIA });
+    const mia = await activarBoost(prisma, { userId, token: falso("compartido"), ahora: MEDIODIA });
 
     expect(mia.estado).toBe("activado");
   });

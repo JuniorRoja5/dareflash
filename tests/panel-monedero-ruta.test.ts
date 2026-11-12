@@ -9,6 +9,7 @@
  *  - UN ESTADO DESTINO QUE NO EXISTE no llega al servicio: la unión es cerrada en el esquema.
  *  - LOS DATOS DE PAGO NO VUELVEN en la respuesta.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_CURRENCY } from "@/config/constants";
@@ -30,7 +31,7 @@ vi.mock("@/server/db/client", () => ({
   },
 }));
 vi.mock("@/config/env", () => ({
-  env: { PAGOS_SECRET: "r".repeat(40), AUTH_SECRET: "TEST-FIXTURE-auth-secret-ruta-retiradas" },
+  env: { PAGOS_SECRET: "r".repeat(40), AUTH_SECRET: falso("auth-secret-ruta-retiradas") },
 }));
 vi.mock("@/server/auth/mutating-route", () => ({
   mutatingRoute:

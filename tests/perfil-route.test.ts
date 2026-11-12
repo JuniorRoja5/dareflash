@@ -9,12 +9,13 @@
  * El token CSRF se FORJA con la misma función real del servidor (issueCsrfToken) y el mismo secreto:
  * el test ejercita el CSRF de verdad, no un mock que siempre dice sí.
  */
+import { falso } from "./helpers/valores-falsos";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { issueCsrfToken } from "../src/server/auth/csrf";
 import { Prisma } from "../src/generated/prisma/client";
 
-const SECRET = "TEST-FIXTURE-auth-secret-suficientemente-largo-1";
+const SECRET = falso("auth-secret-suficientemente-largo-1");
 const APP_URL = "http://test.local";
 
 const mocks = vi.hoisted(() => ({

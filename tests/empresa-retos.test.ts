@@ -20,6 +20,7 @@
  * `empresaId` de `misSolicitudesReto` o del extracto (rojo el 4); añadir `notaInterna` al DTO del
  * dueño (rojo la igualdad de claves); quitar `cuentaEmpresa: "permite"` de la ruta (rojo el 5).
  */
+import { falso } from "./helpers/valores-falsos";
 import {
   existsSync,
   mkdtempSync,
@@ -39,7 +40,7 @@ import { issueCsrfToken } from "../src/server/auth/csrf";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
-const SECRET = "TEST-FIXTURE-empresa-retos-secret-suficientemente-largo";
+const SECRET = falso("empresa-retos-secret-suficientemente-largo");
 const APP_URL = "http://test.local";
 const PORTADAS_DIR = mkdtempSync(path.join(tmpdir(), "df-propuestas-"));
 

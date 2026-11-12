@@ -8,6 +8,7 @@
  * La ruta consume env/BD por import DINAMICO en tiempo de llamada; vitest iza los vi.mock por encima
  * de los imports, asi que las llamadas a POST() ven los dobles (mismo patron que reproduccion-firmada).
  */
+import { contrasenaFalsa, falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
@@ -26,7 +27,7 @@ vi.mock("@/server/db/client", () => ({
   },
 }));
 vi.mock("@/config/env", () => ({
-  env: { AUTH_SECRET: "forgot-test-secret-xyz", APP_URL: "https://x.test" },
+  env: { AUTH_SECRET: falso("forgot-secret-xyz"), APP_URL: "https://x.test" },
 }));
 
 // Import tras los mocks (la ruta usa imports dinamicos, pero el import estatico del handler es seguro).
@@ -46,8 +47,8 @@ beforeEach(async () => {
 });
 
 const TTL = 30 * 60 * 1000;
-const HASH_ORIGINAL = "TEST-FIXTURE-hash-original";
-const NUEVA = "TEST-FIXTURE-password-nueva-larga-1";
+const HASH_ORIGINAL = falso("hash-original");
+const NUEVA = contrasenaFalsa("nueva-larga");
 
 async function crearUsuario(email: string): Promise<string> {
   const u = await prisma.user.create({
@@ -143,10 +144,10 @@ describe("resetPassword: consumo del token", () => {
     const email = "user@test.com";
     const userId = await crearUsuario(email);
     await prisma.session.create({
-      data: { sessionToken: "sess-1", userId, expires: new Date(Date.now() + 1_000_000) },
+      data: { sessionToken: falso("sess-1"), userId, expires: new Date(Date.now() + 1_000_000) },
     });
     await prisma.session.create({
-      data: { sessionToken: "sess-2", userId, expires: new Date(Date.now() + 1_000_000) },
+      data: { sessionToken: falso("sess-2"), userId, expires: new Date(Date.now() + 1_000_000) },
     });
 
     const { rawToken } = await createEmailToken(prisma, {
@@ -183,12 +184,16 @@ describe("resetPassword: consumo del token", () => {
 
     // Una sesion NUEVA creada despues del reset legitimo NO debe morir en un re-uso fallido.
     await prisma.session.create({
-      data: { sessionToken: "sess-nueva", userId, expires: new Date(Date.now() + 1_000_000) },
+      data: {
+        sessionToken: falso("sess-nueva"),
+        userId,
+        expires: new Date(Date.now() + 1_000_000),
+      },
     });
 
     const segunda = await resetPassword(prisma, {
       rawToken,
-      newPassword: "TEST-FIXTURE-password-otra-distinta-2",
+      newPassword: contrasenaFalsa("password-otra-distinta-2"),
     });
     expect(segunda).toEqual({ ok: false, reason: "INVALID" });
 
@@ -201,7 +206,7 @@ describe("resetPassword: consumo del token", () => {
     const email = "user@test.com";
     const userId = await crearUsuario(email);
     await prisma.session.create({
-      data: { sessionToken: "sess-1", userId, expires: new Date(Date.now() + 1_000_000) },
+      data: { sessionToken: falso("sess-1"), userId, expires: new Date(Date.now() + 1_000_000) },
     });
     // Emitido en el pasado con TTL corto -> ya caducado respecto a "ahora".
     const { rawToken } = await createEmailToken(prisma, {

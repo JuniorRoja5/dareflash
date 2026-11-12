@@ -15,6 +15,7 @@
  * │ tiene que acordarse del `.env` — que es justo lo que el rojo le va a recordar.                │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
+import { contrasenaFalsa } from "./helpers/valores-falsos";
 import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
@@ -29,7 +30,7 @@ const COMPLETA = {
   SMTP_HOST: "mail.example.test",
   SMTP_PORT: 465,
   SMTP_USER: "noreply@example.test",
-  SMTP_PASSWORD: "secreto",
+  SMTP_PASSWORD: contrasenaFalsa("smtp"),
   EMAIL_FROM: "noreply@example.test",
 };
 
@@ -85,7 +86,7 @@ describe("la lectura de la configuración", () => {
     if (cfg.ok) {
       expect(cfg.host).toBe("mail.example.test");
       expect(cfg.port).toBe(465);
-      expect(cfg.password).toBe("secreto");
+      expect(cfg.password).toBe(contrasenaFalsa("smtp"));
     }
   });
 

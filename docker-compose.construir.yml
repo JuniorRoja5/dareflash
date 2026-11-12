@@ -1,0 +1,49 @@
+# PLAN DE EMERGENCIA: CONSTRUIR LAS IMAGENES EN EL SERVIDOR.
+#
+# El camino normal NO pasa por aqui: CI construye y publica las imagenes, y scripts/deploy.sh las
+# descarga. Esto existe para cuando ese camino no esta (GitHub caido, CI roto y un arreglo urgente).
+# Construir en el servidor es justo lo que se quiso dejar de hacer (en 1 vCPU el `next build` colgo la
+# maquina una vez y carga la web mientras dura), asi que es la ultima opcion, no una alternativa.
+#
+# Se usa a traves del script, que ademas migra, arranca y comprueba el health:
+#   ./scripts/deploy.sh --construir-aqui
+# Por debajo hace (las imagenes salen con el MISMO nombre que las de CI, etiquetadas con el SHA):
+#   GIT_SHA=$(git rev-parse HEAD) IMAGE_TAG=$(git rev-parse HEAD) \
+#     docker compose -f docker-compose.prod.yml -f docker-compose.construir.yml build web worker migrate geoip
+#
+# El `target` de cada servicio es EXPLICITO: sin el, Docker construye la ULTIMA etapa del Dockerfile
+# (hoy `geoip`) y `web` arrancaria otra cosa -> 502. Ya paso una vez. Y tiene que coincidir con el de
+# CI (lo vigila tests/imagenes-ci.test.ts).
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        # La etapa `runner` se niega a terminar sin un SHA de 40 hex (lo expone /api/health). Default
+        # VACIO, no `:?`: con `:?` fallaria cualquier comando con este fichero sin la variable.
+        GIT_SHA: ${GIT_SHA:-}
+      labels:
+        org.opencontainers.image.revision: ${GIT_SHA:-}
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+      labels:
+        org.opencontainers.image.revision: ${GIT_SHA:-}
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+      labels:
+        org.opencontainers.image.revision: ${GIT_SHA:-}
+  geoip:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: geoip
+      labels:
+        org.opencontainers.image.revision: ${GIT_SHA:-}

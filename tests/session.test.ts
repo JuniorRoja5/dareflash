@@ -1,3 +1,4 @@
+import { contrasenaFalsa, falso } from "./helpers/valores-falsos";
 import { createHash } from "node:crypto";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -35,7 +36,7 @@ async function crearUsuario(email: string, over: Record<string, unknown> = {}): 
     data: {
       email,
       emailVerified: new Date(),
-      passwordHash: "TEST-FIXTURE-hash-viejo",
+      passwordHash: falso("hash-viejo"),
       username: generarHandle(),
       referralCode: generarCodigoReferido(),
       ...over,
@@ -121,7 +122,7 @@ describe("sesiones en base de datos", () => {
     const s2 = await createSession(prisma, userId);
     const sOtro = await createSession(prisma, otro);
 
-    await changePassword(prisma, { userId, newPassword: "TEST-FIXTURE-pass-nueva-larga" });
+    await changePassword(prisma, { userId, newPassword: contrasenaFalsa("pass-nueva-larga") });
 
     // Las dos del usuario, muertas.
     expect(await validateSession(prisma, s1.rawToken)).toBeNull();
@@ -133,7 +134,7 @@ describe("sesiones en base de datos", () => {
       where: { id: userId },
       select: { passwordHash: true },
     });
-    expect(u.passwordHash).not.toBe("TEST-FIXTURE-hash-viejo");
+    expect(u.passwordHash).not.toBe(falso("hash-viejo"));
   });
 
   it("revokeAllUserSessions borra todas las de un usuario", async () => {
@@ -177,7 +178,7 @@ describe("sesiones en base de datos", () => {
 
     const nueva = await changePassword(prisma, {
       userId,
-      newPassword: "TEST-FIXTURE-pass-nueva-larga",
+      newPassword: contrasenaFalsa("pass-nueva-larga"),
     });
 
     expect(await validateSession(prisma, vieja.rawToken)).toBeNull(); // la del atacante muere

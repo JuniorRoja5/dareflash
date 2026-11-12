@@ -3,11 +3,12 @@
  * Con dientes: un USER recibe 403 y el servicio NO se llama (no puede retirar la participación de otro);
  * el ADMIN retira; sin CSRF -> 403; id inexistente -> 404.
  */
+import { falso } from "./helpers/valores-falsos";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
-const SECRET = "TEST-FIXTURE-retirar-secret-suficientemente-largo-de-verdad";
+const SECRET = falso("retirar-secret-suficientemente-largo-de-verdad");
 const APP_URL = "http://test.local";
 
 const mocks = vi.hoisted(() => ({

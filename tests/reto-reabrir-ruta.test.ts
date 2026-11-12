@@ -11,11 +11,12 @@
  *  - SE AUDITA, y solo cuando de verdad se reabrió: una traza de algo que no ocurrió ensucia el
  *    registro que tiene que ser fiable.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
-const SECRET = "TEST-FIXTURE-reabrir-secret-suficientemente-largo-para-hmac";
+const SECRET = falso("reabrir-secret-suficientemente-largo-para-hmac");
 const APP_URL = "http://test.local";
 
 const mocks = vi.hoisted(() => ({

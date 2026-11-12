@@ -8,6 +8,7 @@
  *   - Idempotente: un segundo DELETE sobre un vídeo ya REMOVED -> 200 y NO duplica el job.
  * El CSRF se forja con la funcion real (issueCsrfToken) y el mismo secreto: se ejercita de verdad.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
@@ -17,7 +18,7 @@ import { generarHandle } from "../src/server/auth/handle";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
 
-const SECRET = "TEST-FIXTURE-auth-secret-borrar-video-largo-1";
+const SECRET = falso("auth-secret-borrar-video-largo-1");
 const APP_URL = "http://test.local";
 
 const H = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient }));

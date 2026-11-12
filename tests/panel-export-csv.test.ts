@@ -18,6 +18,7 @@
  * respuesta (rojo: el caso del 403 que no debe dejar línea), o meter el destino en el `metadata`
  * del AuditLog (rojo).
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -38,7 +39,7 @@ vi.mock("@/server/db/client", () => ({
   },
 }));
 vi.mock("@/config/env", () => ({
-  env: { PAGOS_SECRET: "e".repeat(40), AUTH_SECRET: "TEST-FIXTURE-auth-secret-export" },
+  env: { PAGOS_SECRET: "e".repeat(40), AUTH_SECRET: falso("auth-secret-export") },
 }));
 vi.mock("@/server/auth/mutating-route", () => ({
   mutatingRoute:

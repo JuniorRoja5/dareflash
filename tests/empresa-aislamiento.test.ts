@@ -21,6 +21,7 @@
  * conveniencia (rojo el censo); leer `empresaId` del cuerpo de una ruta del portal (rojo el del
  * chokepoint).
  */
+import { contrasenaFalsa } from "./helpers/valores-falsos";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -57,7 +58,7 @@ const AVISO = {
   urlPanel: "https://dareflash.com/panel/empresas",
   appUrl: "https://dareflash.com",
 };
-const PASS = "Un4-Contrasena-Larga-Y-Buena!";
+const PASS = contrasenaFalsa("larga-y-buena");
 
 /** Da de alta una empresa desde cero y devuelve (id de la empresa, id de su cuenta). */
 async function altaDe(

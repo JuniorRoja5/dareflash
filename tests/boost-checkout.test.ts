@@ -14,6 +14,7 @@
  *  - LA `metadata` ES EL PUENTE con el webhook: sin ella no se sabría a quién acreditar.
  *  - SIN CLAVE DE STRIPE no revienta: responde copy humano y manda el detalle al log.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MSG_BOOST_PAGO_NO_DISPONIBLE, PAQUETES_BOOST } from "../src/config/constants";
@@ -21,12 +22,16 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
-const H = vi.hoisted(() => ({
-  prisma: null as unknown as PrismaClient,
-  user: { userId: "", sessionId: "s1", emailVerified: new Date() as Date | null },
-  crearSesion: vi.fn(),
-  claveStripe: "sk_test_FIXTURE" as string | undefined,
-}));
+// `vi.hoisted` corre ANTES que los imports: el helper de valores falsos se carga dentro.
+const H = await vi.hoisted(async () => {
+  const { falso } = await import("./helpers/valores-falsos");
+  return {
+    prisma: null as unknown as PrismaClient,
+    user: { userId: "", sessionId: "s1", emailVerified: new Date() as Date | null },
+    crearSesion: vi.fn(),
+    claveStripe: falso("clave-stripe") as string | undefined,
+  };
+});
 
 vi.mock("@/server/db/client", () => ({
   get prisma() {
@@ -35,7 +40,7 @@ vi.mock("@/server/db/client", () => ({
 }));
 vi.mock("@/config/env", () => ({
   env: {
-    AUTH_SECRET: "TEST-FIXTURE-auth-secret-checkout",
+    AUTH_SECRET: falso("auth-secret-checkout"),
     APP_URL: "https://x.test",
     get STRIPE_SECRET_KEY() {
       return H.claveStripe;
@@ -53,7 +58,7 @@ vi.mock("@/server/auth/mutating-route", () => ({
         {
           user: H.user,
           env: {
-            AUTH_SECRET: "TEST-FIXTURE-auth-secret-checkout",
+            AUTH_SECRET: falso("auth-secret-checkout"),
             APP_URL: "https://x.test",
             STRIPE_SECRET_KEY: H.claveStripe,
           },
@@ -90,7 +95,7 @@ beforeEach(async () => {
   await resetDb(prisma);
   H.user.userId = await crearUsuario(prisma, { username: "la_compradora" });
   H.user.emailVerified = new Date();
-  H.claveStripe = "sk_test_FIXTURE";
+  H.claveStripe = falso("clave-stripe");
   H.crearSesion
     .mockReset()
     .mockResolvedValue({ id: "cs_test_1", url: "https://stripe.test/pagar" });

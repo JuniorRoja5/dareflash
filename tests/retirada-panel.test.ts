@@ -13,13 +13,14 @@
  * Para romperlo a propósito: permitir PENDING -> PAID (rojo), hacer que aceptar mueva saldo (rojo),
  * o derivar la clave del reembolso del momento en vez de la retirada (rojo: devuelve dos veces).
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_CURRENCY } from "@/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 
 vi.mock("@/config/env", () => ({
-  env: { PAGOS_SECRET: "p".repeat(40), AUTH_SECRET: "TEST-FIXTURE-auth-secret-panel-retiradas" },
+  env: { PAGOS_SECRET: "p".repeat(40), AUTH_SECRET: falso("auth-secret-panel-retiradas") },
 }));
 
 import { listarRetiradas, transicionarRetirada } from "../src/server/services/retirada-admin";

@@ -7,6 +7,7 @@
  *  - denunciar dos veces lo mismo responde 200 con copy amable: NO es un 409 ni un error;
  *  - sin CSRF no se escribe nada.
  */
+import { falso } from "./helpers/valores-falsos";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -18,7 +19,7 @@ import {
 } from "../src/config/constants";
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
-const SECRET = "TEST-FIXTURE-denuncias-secret-suficientemente-largo-de-verdad";
+const SECRET = falso("denuncias-secret-suficientemente-largo-de-verdad");
 const APP_URL = "http://test.local";
 
 const mocks = vi.hoisted(() => ({

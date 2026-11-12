@@ -7,6 +7,7 @@
  * tras un login correcto. Rompe la condicion (quita el rehasheo, o hazlo incondicional) y estos
  * tests lo cazan.
  */
+import { contrasenaFalsa } from "./helpers/valores-falsos";
 import argon2 from "argon2";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
@@ -54,7 +55,7 @@ async function crearUsuario(email: string, passwordHash: string): Promise<string
 
 describe("rehasheo oportunista en login", () => {
   it("hash con parametros VIEJOS (p=4): se REGRABA tras un login correcto", async () => {
-    const pwd = "TEST-FIXTURE-pass-correcta-1234";
+    const pwd = contrasenaFalsa("pass-correcta-1234");
     const viejo = await argon2.hash(pwd, PARAMS_VIEJOS);
     const id = await crearUsuario("a@test.com", viejo);
     expect(needsRehash(viejo)).toBe(true); // precondicion: el hash es viejo
@@ -72,7 +73,7 @@ describe("rehasheo oportunista en login", () => {
   });
 
   it("hash con parametros ACTUALES (p=1): NO se toca", async () => {
-    const pwd = "TEST-FIXTURE-pass-correcta-1234";
+    const pwd = contrasenaFalsa("pass-correcta-1234");
     const actual = await hashPassword(pwd); // ya p=1
     const id = await crearUsuario("b@test.com", actual);
     expect(needsRehash(actual)).toBe(false); // precondicion: ya esta al dia
@@ -88,10 +89,13 @@ describe("rehasheo oportunista en login", () => {
   });
 
   it("login con contrasena INCORRECTA no regraba nada (aunque el hash sea viejo)", async () => {
-    const viejo = await argon2.hash("TEST-FIXTURE-pass-la-correcta-1234", PARAMS_VIEJOS);
+    const viejo = await argon2.hash(contrasenaFalsa("la-correcta"), PARAMS_VIEJOS);
     const id = await crearUsuario("c@test.com", viejo);
 
-    const r = await login(prisma, { email: "c@test.com", password: "TEST-FIXTURE-pass-la-mala" });
+    const r = await login(prisma, {
+      email: "c@test.com",
+      password: contrasenaFalsa("pass-la-mala"),
+    });
     expect(r.ok).toBe(false);
 
     const u = await prisma.user.findUniqueOrThrow({

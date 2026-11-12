@@ -3,11 +3,12 @@
  * tope por usuario; leer es público. Con dientes: el autor sale de la SESIÓN, nunca del cuerpo; sin
  * CSRF o con el tope agotado no se escribe nada; los rechazos del servicio son 404/400.
  */
+import { falso } from "./helpers/valores-falsos";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
-const SECRET = "TEST-FIXTURE-comentarios-secret-suficientemente-largo-de-verdad";
+const SECRET = falso("comentarios-secret-suficientemente-largo-de-verdad");
 const APP_URL = "http://test.local";
 
 const mocks = vi.hoisted(() => ({

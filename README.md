@@ -19,12 +19,17 @@ repositorio.
 ## Arranque local
 
 ```bash
-cp .env.example .env     # y rellena los valores
+cp .env.example .env     # y rellena los valores (incluidas las claves de la BD de desarrollo
+                         # y TEST_DATABASE_URL: el repositorio no lleva ninguna contraseña)
 docker compose -f docker-compose.dev.yml up -d
 npm ci
 npx prisma migrate dev
 npm run dev              # http://localhost:3000
 ```
+
+El pre-commit pasa un escáner de secretos (gitleaks, en Docker) sobre lo que vas a confirmar. Un
+valor falso de un test (contraseña, secreto, token) no se escribe: se genera con
+`tests/helpers/valores-falsos.ts`. Detalle en [CLAUDE.md](CLAUDE.md).
 
 ### Scripts
 

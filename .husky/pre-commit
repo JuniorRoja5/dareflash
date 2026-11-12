@@ -1,5 +1,10 @@
 set -e
 
+# 0) Ningún secreto en lo que se va a confirmar (gitleaks, reglas en .gitleaks.toml). PRIMERO: el
+#    repositorio es público y lo que entra en un commit no se des-publica borrándolo después. Corre en
+#    Docker (el mismo que la BD de desarrollo); si no responde, el commit se para y lo dice.
+bash scripts/escanear-secretos.sh preparado
+
 # 1) Lint + formato SOLO sobre lo staged
 npx lint-staged
 

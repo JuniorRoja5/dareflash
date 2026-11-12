@@ -16,6 +16,7 @@
  *  - aviso de vídeo fuera de `aplicarTransicion` (solo en el sondeo) -> el rescate no avisa (rojo);
  *  - aviso de nivel en cada otorgamiento, no al cruzar -> sumar sin subir avisa (rojo).
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { POINTS } from "@/config/constants";
@@ -362,7 +363,7 @@ describe("VOTO_RECIBIDO, en la transacción del voto", () => {
 });
 
 describe("VIDEO_LISTO / VIDEO_FALLIDO, dentro de aplicarTransicion", () => {
-  const CONFIG = { libraryId: "12345", apiKey: "APIKEY_FALSA_no_real" };
+  const CONFIG = { libraryId: "12345", apiKey: falso("api-bunnyno_real") };
   function dobleBunny(getVideo: ClienteBunny["getVideo"]): ClienteBunny {
     return {
       crearVideo: async () => ({ guid: "no-usado" }),

@@ -20,6 +20,7 @@
  * (rojo el tercero); escribir `verificadaEn` siempre (rojo el quinto); añadir `fiscalId` al listado
  * o al DTO del dueño (rojo el de las claves).
  */
+import { contrasenaFalsa, falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -43,7 +44,7 @@ let admin: string;
 const ADMIN_EMAIL = "admin@dareflash.com";
 const URL_PANEL = "https://dareflash.com/panel/empresas";
 const APP_URL = "https://dareflash.com";
-const PASS = "Un4-Contrasena-Larga-Y-Buena!";
+const PASS = contrasenaFalsa("larga-y-buena");
 
 beforeAll(() => {
   prisma = createTestPrisma();
@@ -167,7 +168,7 @@ describe("un participante NO se convierte en empresa", () => {
     const yaExiste = await crearUsuario(prisma, { username: "participante" });
     await prisma.user.update({
       where: { id: yaExiste },
-      data: { email: "yo@participante.test", passwordHash: "hash-de-antes" },
+      data: { email: "yo@participante.test", passwordHash: falso("hash-de-antes") },
     });
 
     const r = await alta("yo@participante.test");
@@ -178,7 +179,7 @@ describe("un participante NO se convierte en empresa", () => {
 
     const intacto = await prisma.user.findUniqueOrThrow({ where: { id: yaExiste } });
     expect(intacto.esCuentaEmpresa).toBe(false);
-    expect(intacto.passwordHash).toBe("hash-de-antes");
+    expect(intacto.passwordHash).toBe(falso("hash-de-antes"));
 
     // Antes aquí ponía «cero correos», y era el fallo petrificado: la pantalla decía que habíamos
     // enviado algo y no era verdad (Junior, en producción). Ahora: exactamente UN aviso «ya tienes

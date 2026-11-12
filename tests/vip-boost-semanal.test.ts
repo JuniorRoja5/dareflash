@@ -14,6 +14,7 @@
  * vez), cambiar el chokepoint por un `estado === "ACTIVA"` (rojo: la vencida cobra), o poner
  * `amountCents` en la fila (rojo: el regalo pasaría a ser una compra).
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { RAZON_BOOST_VIP_SEMANAL, REF_BOOST_VIP, VIP_BOOST_SEMANAL } from "../src/config/constants";
@@ -342,7 +343,7 @@ describe("DE PUNTA A PUNTA: por la cola de verdad", () => {
           deleteVideo: async () => {},
           setThumbnail: async () => {},
         },
-        config: { libraryId: "lib", apiKey: "key" },
+        config: { libraryId: "lib", apiKey: falso("key") },
       },
     });
 

@@ -5,6 +5,7 @@
  *  - El token es LOGIN_UNLOCK (no sirve para verificar; ver email-token.test).
  *  - El enlace resetea SOLO el cubo de CUENTA, JAMAS el de IP (guardian de CPU).
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
@@ -27,7 +28,7 @@ vi.mock("@/server/db/client", () => ({
   },
 }));
 vi.mock("@/config/env", () => ({
-  env: { AUTH_SECRET: "TEST-FIXTURE-auth-secret-unlock", APP_URL: "https://x.test" },
+  env: { AUTH_SECRET: falso("auth-secret-unlock"), APP_URL: "https://x.test" },
 }));
 
 let prisma: PrismaClient;
@@ -49,7 +50,7 @@ async function crearUsuario(email: string): Promise<void> {
       referralCode: generarCodigoReferido(),
       email,
       username: generarHandle(),
-      passwordHash: "TEST-FIXTURE-hash",
+      passwordHash: falso("hash"),
     },
   });
 }

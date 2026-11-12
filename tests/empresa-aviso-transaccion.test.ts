@@ -15,6 +15,7 @@
  *
  * Para romperlo a propósito: pasar `db` en vez de `tx` en `registrarEmpresa` -> rojo.
  */
+import { contrasenaFalsa } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -49,7 +50,7 @@ const alta = (email: string, adminEmail: string | null) =>
     prisma,
     {
       email,
-      password: "Un4-Contrasena-Larga-Y-Buena!",
+      password: contrasenaFalsa("Contrasena-Larga-Y-Buena-"),
       terminosAceptadosEn: new Date(),
       nombre: "Bar de la Transacción",
       tipoCuenta: "EMPRESA",

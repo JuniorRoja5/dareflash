@@ -10,6 +10,7 @@
  *
  * Y que `ADMIN` no sea expresable por la API se comprueba contra Zod, no contra el servicio.
  */
+import { falso } from "./helpers/valores-falsos";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -22,7 +23,7 @@ import {
 } from "../src/config/constants";
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
-const SECRET = "TEST-FIXTURE-cuentas-secret-suficientemente-largo-de-verdad";
+const SECRET = falso("cuentas-secret-suficientemente-largo-de-verdad");
 const APP_URL = "http://test.local";
 
 const mocks = vi.hoisted(() => ({

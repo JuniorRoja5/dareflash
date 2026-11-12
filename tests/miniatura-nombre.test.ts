@@ -9,6 +9,7 @@
  *
  * Estos tests fijan las cuatro cosas que hacen que eso no pueda repetirse.
  */
+import { falso } from "./helpers/valores-falsos";
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -28,7 +29,12 @@ import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
 const CDN = "mi-zona.b-cdn.net";
 const GUID = "guid-abc-123";
-const FIRMA = { hostname: CDN, videoId: GUID, claveToken: "clave", expiraEnSeg: 3600 } as const;
+const FIRMA = {
+  hostname: CDN,
+  videoId: GUID,
+  claveToken: falso("clave"),
+  expiraEnSeg: 3600,
+} as const;
 
 /** Nombre del fichero que pide una URL de póster (sin la query de la firma). */
 function ficheroDelPoster(poster: string): string {
@@ -59,7 +65,7 @@ describe("el póster apunta al fichero real", () => {
   it("`reproduccionFirmada` propaga el nombre guardado en la fila", () => {
     const urls = reproduccionFirmada(
       { bunnyVideoId: GUID, status: "PUBLISHED", thumbnailFileName: "thumbnail_zz.jpg" },
-      { hostname: CDN, claveToken: "clave", expiraEnSeg: 3600 },
+      { hostname: CDN, claveToken: falso("clave"), expiraEnSeg: 3600 },
     );
     expect(ficheroDelPoster(urls!.poster)).toBe("thumbnail_zz.jpg");
   });

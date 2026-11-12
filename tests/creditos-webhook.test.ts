@@ -8,6 +8,7 @@
  * moneda distinta → nada abonado aunque el importe cuadre; el mismo evento dos veces (y los dos tipos de
  * evento de una misma sesión) → un solo abono; un pago aún no cobrado no abona.
  */
+import { falso } from "./helpers/valores-falsos";
 import Stripe from "stripe";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -16,8 +17,8 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
-const SECRETO = "whsec_TEST_FIXTURE_creditos_webhook";
-const SECRETO_DE_BOOST = "whsec_TEST_FIXTURE_boost_webhook";
+const SECRETO = falso("creditos_webhook");
+const SECRETO_DE_BOOST = falso("boost_webhook");
 
 const H = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient }));
 vi.mock("@/server/db/client", () => ({
@@ -27,11 +28,11 @@ vi.mock("@/server/db/client", () => ({
 }));
 vi.mock("@/config/env", () => ({
   env: {
-    AUTH_SECRET: "TEST-FIXTURE-auth-secret-creditos",
+    AUTH_SECRET: falso("auth-secret-creditos"),
     APP_URL: "https://x.test",
-    STRIPE_SECRET_KEY: "sk_test_FIXTURE",
-    STRIPE_WEBHOOK_SECRET: "whsec_TEST_FIXTURE_boost_webhook",
-    STRIPE_WEBHOOK_SECRET_CREDITOS: "whsec_TEST_FIXTURE_creditos_webhook",
+    STRIPE_SECRET_KEY: falso("clave-stripe"),
+    STRIPE_WEBHOOK_SECRET: falso("boost_webhook"),
+    STRIPE_WEBHOOK_SECRET_CREDITOS: falso("creditos_webhook"),
   },
 }));
 

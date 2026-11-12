@@ -16,6 +16,7 @@
  * caso de que la fila no se toca), o comprobar "es VIP" mirando `estado === "ACTIVA"` (rojo: el
  * caso de la vencida, que NO se puede cancelar aunque su estado siga en ACTIVA).
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -25,19 +26,23 @@ import {
 } from "@/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 
-const H = vi.hoisted(() => ({
-  prisma: null as unknown as PrismaClient,
-  user: {
-    userId: "",
-    sessionId: "s1",
-    role: "USER" as const,
-    emailVerified: new Date() as Date | null,
-  },
-  /** Las claves del entorno simulado. `undefined` = raíl inerte, que es el estado de hoy. */
-  claveStripe: "sk_test_FIXTURE" as string | undefined,
-  /** Lo que Stripe recibe. Es lo que de verdad importa comprobar de esta ruta. */
-  update: vi.fn(),
-}));
+// `vi.hoisted` corre ANTES que los imports: el helper de valores falsos se carga dentro.
+const H = await vi.hoisted(async () => {
+  const { falso } = await import("./helpers/valores-falsos");
+  return {
+    prisma: null as unknown as PrismaClient,
+    user: {
+      userId: "",
+      sessionId: "s1",
+      role: "USER" as const,
+      emailVerified: new Date() as Date | null,
+    },
+    /** Las claves del entorno simulado. `undefined` = raíl inerte, que es el estado de hoy. */
+    claveStripe: falso("clave-stripe") as string | undefined,
+    /** Lo que Stripe recibe. Es lo que de verdad importa comprobar de esta ruta. */
+    update: vi.fn(),
+  };
+});
 
 vi.mock("@/server/db/client", () => ({
   get prisma() {
@@ -46,7 +51,7 @@ vi.mock("@/server/db/client", () => ({
 }));
 vi.mock("@/config/env", () => ({
   env: {
-    AUTH_SECRET: "TEST-FIXTURE-auth-secret-vip-cancelar",
+    AUTH_SECRET: falso("auth-secret-vip-cancelar"),
     APP_URL: "https://x.test",
     get STRIPE_SECRET_KEY() {
       return H.claveStripe;
@@ -96,7 +101,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await resetDb(prisma);
   H.user.userId = await crearUsuario(prisma, { username: "la_que_se_va" });
-  H.claveStripe = "sk_test_FIXTURE";
+  H.claveStripe = falso("clave-stripe");
   H.update.mockReset().mockResolvedValue({ id: "sub_X", cancel_at_period_end: true });
 });
 

@@ -54,11 +54,15 @@ describe("el volumen del fichero de IP", () => {
     expect(s.get("geoip")).toMatch(/^\s+- geoip_data:\/srv\/geoip\s*$/m);
   });
 
-  it("`geoip` es de un solo uso: perfil propio, sin reinicio, y construye SU etapa", () => {
+  it("`geoip` es de un solo uso: perfil propio, sin reinicio, y usa SU imagen", () => {
     const g = servicios().get("geoip")!;
     expect(g).toMatch(/profiles: \["geoip"\]/);
     expect(g).toMatch(/restart: "no"/);
-    expect(g).toMatch(/target: geoip\s*$/m);
+    // La imagen de SU etapa la construye CI (y la de emergencia, docker-compose.construir.yml): que
+    // cada nombre corresponda a su etapa lo vigila `imagenes-ci.test`.
+    expect(g).toMatch(
+      /^\s+image: ghcr\.io\/juniorroja5\/dareflash-geoip:\$\{IMAGE_TAG:-desplegada\}\s*$/m,
+    );
   });
 
   it("las tres rutas del fichero son la misma", () => {

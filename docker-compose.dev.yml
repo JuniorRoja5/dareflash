@@ -5,6 +5,13 @@
 #   docker compose -f docker-compose.dev.yml down        # conserva los datos
 #   docker compose -f docker-compose.dev.yml down -v     # borra tambien los datos
 #
+# LAS CLAVES NO ESTAN AQUI: salen del `.env` local del proyecto (sin versionar), que compose lee solo
+# para sustituir variables. El repositorio es publico y no lleva contraseñas, ni de desarrollo. Si
+# faltan, compose se para y dice cual (`:?`). Las dos que hacen falta (ver .env.example):
+#   DEV_MARIADB_ROOT_PASSWORD=...   DEV_MARIADB_PASSWORD=...
+# OJO: MariaDB solo las aplica al CREAR el volumen. Con un volumen que ya existe, las claves son las
+# que tenia: pon en el .env las de tu volumen (o `down -v` para empezar de cero, perdiendo los datos).
+#
 # CHARSET: utf8mb4 / utf8mb4_unicode_ci, forzado a nivel de SERVIDOR para que la
 # base de datos que crea el entrypoint (MARIADB_DATABASE) los herede. No es un
 # detalle estetico: nombres de usuario, titulos de video y categorias llevan
@@ -21,10 +28,10 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
     environment:
-      MARIADB_ROOT_PASSWORD: dareflash_root_dev
+      MARIADB_ROOT_PASSWORD: ${DEV_MARIADB_ROOT_PASSWORD:?Falta DEV_MARIADB_ROOT_PASSWORD en el .env local (ver .env.example)}
       MARIADB_DATABASE: dareflash
       MARIADB_USER: dareflash
-      MARIADB_PASSWORD: dareflash_dev
+      MARIADB_PASSWORD: ${DEV_MARIADB_PASSWORD:?Falta DEV_MARIADB_PASSWORD en el .env local (ver .env.example)}
     ports:
       # Puerto 3307 en el HOST (dentro del contenedor sigue siendo 3306).
       # El 3306 del host lo ocupa otra instalacion de MySQL de la maquina

@@ -8,6 +8,7 @@
  *   2) `aPerfilPublico` copia solo lo público aunque la fila venga "contaminada".
  *   3) Extremo a extremo contra la BD real: el DTO de un usuario con datos privados no los expone.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
@@ -106,13 +107,13 @@ describe("aPerfilPublico (mapeo puro, barrera de propagación)", () => {
       pointsBalance: 5,
       // Ruido privado que NO debe propagarse:
       email: "secreto@ejemplo.com",
-      passwordHash: "argon2-hash-secreto",
+      passwordHash: falso("argon2-hash"),
       walletBalanceCents: 4242,
     };
     const dto = aPerfilPublico(contaminada as never, 0, []);
     const serializado = JSON.stringify(dto);
     expect(serializado).not.toContain("secreto@ejemplo.com");
-    expect(serializado).not.toContain("argon2-hash-secreto");
+    expect(serializado).not.toContain(falso("argon2-hash"));
     expect(serializado).not.toContain("4242");
     for (const campo of CAMPOS_PRIVADOS) expect(campo in dto).toBe(false);
   });
@@ -130,7 +131,7 @@ describe("perfil público contra la BD real", () => {
         // Datos privados sembrados a propósito:
         email: "privado@ejemplo.com",
         birthDate: new Date("2000-01-01T00:00:00Z"),
-        passwordHash: "argon2-hash-secreto",
+        passwordHash: falso("argon2-hash"),
         walletBalanceCents: 4242,
         boostBalance: 7,
       },
@@ -147,7 +148,7 @@ describe("perfil público contra la BD real", () => {
       const serializado = JSON.stringify(perfil);
       // Secretos que no colisionan con ids: comprobación por contenido.
       expect(serializado).not.toContain("privado@ejemplo.com");
-      expect(serializado).not.toContain("argon2-hash-secreto");
+      expect(serializado).not.toContain(falso("argon2-hash"));
       expect(serializado).not.toContain("2000-01-01");
       // Y ninguna CLAVE privada presente (cubre también los saldos numéricos).
       for (const campo of CAMPOS_PRIVADOS) expect(campo in perfil!).toBe(false);

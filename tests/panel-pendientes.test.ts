@@ -16,6 +16,7 @@
  * estructural); quitar el filtro de rol (rojo el del moderador); quitar `avisarDecision` de
  * verificar (rojo el de la promesa).
  */
+import { contrasenaFalsa } from "./helpers/valores-falsos";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -57,7 +58,7 @@ async function unaPendiente(email = "panaderia@test.test"): Promise<string> {
     prisma,
     {
       email,
-      password: "Un4-Contrasena-Larga-Y-Buena!",
+      password: contrasenaFalsa("Contrasena-Larga-Y-Buena-"),
       terminosAceptadosEn: new Date(),
       nombre: "Panadería La Espiga",
       tipoCuenta: "EMPRESA",

@@ -9,6 +9,7 @@
  *   - idempotencia: procesar dos veces el mismo GUID -> DONE ambas, sin efectos raros.
  * Romper cada rama (quitar el throw, subir maxAttempts, etc.) hace caer el test.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EmailAdapter } from "../src/server/email/adapter";
@@ -33,7 +34,7 @@ function registroCon(deleteVideo: (input: { videoId: string }) => Promise<void>)
         deleteVideo,
         setThumbnail: async () => {},
       },
-      config: { libraryId: "lib", apiKey: "key" },
+      config: { libraryId: "lib", apiKey: falso("key") },
     },
   });
 }

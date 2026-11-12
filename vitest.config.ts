@@ -1,8 +1,27 @@
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { parse } from "dotenv";
 import { defineConfig } from "vitest/config";
 
 import { NUM_WORKER_DBS } from "./tests/helpers/workers";
+
+/**
+ * LA CONFIGURACIÓN DE LOS TESTS SALE DEL ENTORNO, no del código: `TEST_DATABASE_URL` no tiene valor por
+ * defecto (el repositorio es público y no lleva contraseñas, ni de desarrollo). En local se lee del
+ * `.env` sin versionar; en CI la fija el workflow.
+ *
+ * SOLO las `TEST_*`: cargar el `.env` entero metería en los tests DATABASE_URL, AUTH_SECRET y compañía,
+ * y los tests que comprueban qué pasa cuando falta una variable dejarían de probarlo. Y nunca pisa una
+ * que ya venga del entorno. Se hace aquí, en el proceso principal, para que la vean el globalSetup y los
+ * workers (que la heredan).
+ */
+const ENV_LOCAL = fileURLToPath(new URL("./.env", import.meta.url));
+if (existsSync(ENV_LOCAL)) {
+  for (const [clave, valor] of Object.entries(parse(readFileSync(ENV_LOCAL)))) {
+    if (clave.startsWith("TEST_") && process.env[clave] === undefined) process.env[clave] = valor;
+  }
+}
 
 /** Mismos alias que tsconfig, compartidos por los dos proyectos (uno solo los tendría a medias). */
 const alias = {

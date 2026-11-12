@@ -23,6 +23,7 @@
  * La VALIDACIÓN del destino ya no vive en este camino: vive donde el dato entra en claro, o sea al
  * guardar el método. Sus casos están en `metodos-pago.test.ts`.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_CURRENCY, RETIRADA_MINIMA_CENTS } from "@/config/constants";
@@ -30,7 +31,7 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 import { claveRetirada, type DestinoRetirada } from "../src/lib/retirada";
 
 vi.mock("@/config/env", () => ({
-  env: { PAGOS_SECRET: "x".repeat(40), AUTH_SECRET: "TEST-FIXTURE-auth-secret-retiradas" },
+  env: { PAGOS_SECRET: "x".repeat(40), AUTH_SECRET: falso("auth-secret-retiradas") },
 }));
 
 import { guardarMetodoPago } from "../src/server/services/metodos-pago";

@@ -1,3 +1,4 @@
+import { falso } from "./helpers/valores-falsos";
 import { createHash } from "node:crypto";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -63,7 +64,7 @@ describe("verificacion de email", () => {
   });
 
   it("token inexistente: INVALID", async () => {
-    const r = await confirmEmailVerification(prisma, { rawToken: "no-existe" });
+    const r = await confirmEmailVerification(prisma, { rawToken: falso("no-existe") });
     expect(r).toEqual({ verified: false, reason: "INVALID" });
   });
 

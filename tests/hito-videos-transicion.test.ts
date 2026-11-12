@@ -8,6 +8,7 @@
  *
  * Para romperlo: devolver la llamada a `otorgarHitosDeVideos` al sondeo -> el rescate no da puntos.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { POINTS, VIDEOS_POR_HITO } from "@/config/constants";
@@ -34,7 +35,7 @@ beforeEach(async () => {
   userId = await crearUsuario(prisma);
 });
 
-const CONFIG = { libraryId: "12345", apiKey: "APIKEY_FALSA_no_real" };
+const CONFIG = { libraryId: "12345", apiKey: falso("api-bunnyno_real") };
 /** Bunny dice "terminado, 30 s" para todo: la transición será PUBLISHED. */
 const BUNNY_LISTO: ClienteBunny = {
   crearVideo: async () => ({ guid: "no-usado" }),

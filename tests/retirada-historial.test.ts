@@ -19,6 +19,7 @@
  * filas en ese orden. Esa mitad se fija leyendo el código, que es lo honesto cuando el resultado no
  * distingue.
  */
+import { falso } from "./helpers/valores-falsos";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -27,7 +28,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import type { PrismaClient } from "../src/generated/prisma/client";
 
 vi.mock("@/config/env", () => ({
-  env: { PAGOS_SECRET: "h".repeat(40), AUTH_SECRET: "TEST-FIXTURE-auth-secret-historial" },
+  env: { PAGOS_SECRET: "h".repeat(40), AUTH_SECRET: falso("auth-secret-historial") },
 }));
 
 import { misRetiradas } from "../src/server/services/retirada";

@@ -13,6 +13,7 @@
  * `terminosAceptadosEn` (rojo); aceptar un `aceptaTerminos: false` (rojo); volver a `z.coerce.date()`
  * (rojo en el 30 de febrero).
  */
+import { contrasenaFalsa, falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EDAD_MIN_USO } from "../src/config/constants";
@@ -30,7 +31,7 @@ vi.mock("@/server/db/client", () => ({
   },
 }));
 vi.mock("@/config/env", () => ({
-  env: { AUTH_SECRET: "TEST-FIXTURE-auth-secret-registro-edad", APP_URL: "https://x.test" },
+  env: { AUTH_SECRET: falso("auth-secret-registro-edad"), APP_URL: "https://x.test" },
 }));
 
 import { POST as registerPOST } from "../src/app/api/auth/register/route";
@@ -48,7 +49,7 @@ beforeEach(async () => {
   await resetDb(prisma);
 });
 
-const PASS = "TEST-FIXTURE-cordillera-tejado-ambar-79";
+const PASS = contrasenaFalsa("frase-larga");
 
 /** `AAAA-MM-DD` de quien cumple EXACTAMENTE `anios` hoy. */
 function naceHace(anios: number): string {

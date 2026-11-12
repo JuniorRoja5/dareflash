@@ -15,10 +15,27 @@ import { generarCodigoReferido } from "../../src/server/auth/codigo-referido";
 import { generarHandle } from "../../src/server/auth/handle";
 import { PrismaClient } from "../../src/generated/prisma/client";
 
-/** URL BASE (servidor + BD base). Se puede sobreescribir con TEST_DATABASE_URL (p.ej. en CI). */
-export const TEST_DATABASE_URL_BASE =
-  process.env["TEST_DATABASE_URL"] ??
-  "mysql://dareflash:dareflash_dev@127.0.0.1:3307/dareflash_test";
+/**
+ * URL BASE (servidor + BD base) de la BD de tests, OBLIGATORIA: `TEST_DATABASE_URL`.
+ *
+ * Antes tenía un valor por defecto con la clave de desarrollo escrita aquí. El repositorio es público y
+ * la regla es CERO contraseñas literales (aunque sean de desarrollo), así que ahora sale del entorno:
+ * en local, del `.env` sin versionar (vitest.config.ts carga de él SOLO las `TEST_*`); en CI, del
+ * workflow. Sin ella, falla aquí con un mensaje que dice qué poner, en vez de un error de conexión.
+ */
+export const TEST_DATABASE_URL_BASE = urlBaseDeTests();
+
+function urlBaseDeTests(): string {
+  const url = process.env["TEST_DATABASE_URL"];
+  if (!url) {
+    throw new Error(
+      "Falta TEST_DATABASE_URL. Ponla en tu .env local (no versionado), p.ej. " +
+        "TEST_DATABASE_URL=mysql://<usuario>@127.0.0.1:3307/dareflash_test con la clave de tu BD de " +
+        "desarrollo. Ver «Entorno de desarrollo y tests» en CLAUDE.md.",
+    );
+  }
+  return url;
+}
 
 /** Datos de conexión al SERVIDOR de tests (sin BD concreta): para crear las BDs por worker. */
 export function hostBdTest(): { host: string; port: number; user: string; password: string } {

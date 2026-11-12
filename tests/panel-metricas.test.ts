@@ -19,6 +19,7 @@
  * Para romperlo a propósito: contar `report.count()` en vez de agrupar (rojo), meter `PAID` en los
  * estados en curso (rojo), o quitar el filtro de `deletedAt` del conteo de abiertos (rojo).
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -26,7 +27,7 @@ import { estadoRetoAdmin } from "../src/lib/estado-reto";
 import { ESTADOS_RETIRADA, ESTADOS_RETIRADA_EN_CURSO } from "../src/lib/retirada";
 
 vi.mock("@/config/env", () => ({
-  env: { PAGOS_SECRET: "m".repeat(40), AUTH_SECRET: "TEST-FIXTURE-auth-secret-metricas" },
+  env: { PAGOS_SECRET: "m".repeat(40), AUTH_SECRET: falso("auth-secret-metricas") },
 }));
 
 import { metricasDinero, metricasPanel } from "../src/server/services/panel-metricas";

@@ -10,6 +10,7 @@
  *  4. La route RECHAZA al anonimo -> lo garantiza `mutatingRoute`, verificado en route-csrf.test.ts
  *     (romperlo -desenvolver mutatingRoute- pone ESE test en rojo; no se duplica aqui).
  */
+import { falso } from "./helpers/valores-falsos";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -25,7 +26,7 @@ import {
 } from "../src/server/services/bunny";
 
 // Clave de API FALSA y bien distinguible: si se colase en la respuesta, el test la caza.
-const CONFIG = { libraryId: "12345", apiKey: "APIKEY_FALSA_DE_PRUEBA_no_real_xyz" };
+const CONFIG = { libraryId: "12345", apiKey: falso("api-bunnyDE_PRUEBA_no_real_xyz") };
 
 describe("credencialSubidaTus", () => {
   const now = new Date("2026-08-05T00:00:00.000Z");

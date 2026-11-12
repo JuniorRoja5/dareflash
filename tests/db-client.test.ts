@@ -4,7 +4,7 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 import { generarHandle } from "../src/server/auth/handle";
 
-import { resetDb } from "./helpers/db";
+import { resetDb, TEST_DATABASE_URL_BASE } from "./helpers/db";
 
 /**
  * Prueba el SINGLETON `prisma` de src/server/db/client.ts (el Proxy perezoso), no un
@@ -15,9 +15,8 @@ import { resetDb } from "./helpers/db";
  *  3) consulta cruda (prisma.$queryRaw)
  * `server-only` esta stubbeado en vitest.config; DATABASE_URL apunta a la BD de tests.
  */
-const TEST_DB_URL =
-  process.env["TEST_DATABASE_URL"] ??
-  "mysql://dareflash:dareflash_dev@127.0.0.1:3307/dareflash_test";
+// La de tests, OBLIGATORIA y sin valor por defecto (ver `TEST_DATABASE_URL_BASE`).
+const TEST_DB_URL = TEST_DATABASE_URL_BASE;
 
 const BIRTH = new Date("2000-01-01T00:00:00.000Z");
 const savedEnv = { ...process.env };

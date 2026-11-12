@@ -9,6 +9,9 @@
  *    aquí haría que la pantalla dijera "ha fallado algo" cuando lo que pasa es que no quedan.
  *  - NO TOCA STRIPE: esto gasta crédito interno.
  */
+import { randomUUID } from "node:crypto";
+
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -32,7 +35,7 @@ vi.mock("@/server/db/client", () => ({
   },
 }));
 vi.mock("@/config/env", () => ({
-  env: { AUTH_SECRET: "TEST-FIXTURE-auth-secret-activar", APP_URL: "https://x.test" },
+  env: { AUTH_SECRET: falso("auth-secret-activar"), APP_URL: "https://x.test" },
 }));
 // `mutatingRoute` tiene sus propios tests (Origin/sesión/CSRF): aquí se sustituye por un paso que
 // inyecta lo mismo, para probar LO QUE ESTA RUTA decide sin montar una sesión real.
@@ -64,7 +67,8 @@ beforeEach(async () => {
   H.user.emailVerified = new Date();
 });
 
-const TOKEN = "11111111-2222-4333-8444-555555555555";
+// Un UUID válido cualquiera (la ruta exige forma de UUID), generado: el mismo en todo el fichero.
+const TOKEN = randomUUID();
 
 const pedir = (cuerpo: unknown) =>
   activar(
@@ -171,7 +175,7 @@ describe("sin saldo y límite son 200, con su copy", () => {
 });
 
 describe("el cuerpo se valida", () => {
-  it.each([{}, { token: "" }, { token: "no-es-uuid" }, { token: 7 }, null])(
+  it.each([{}, { token: "" }, { token: falso("no-es-uuid", 10) }, { token: 7 }, null])(
     "«%s» no activa nada",
     async (cuerpo) => {
       const res = await pedir(cuerpo);

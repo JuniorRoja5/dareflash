@@ -16,6 +16,7 @@
  *  - "no existe" y "no publicada" responden EXACTAMENTE lo mismo (status, code y texto): si divergen,
  *    la ruta se convierte en un oráculo para enumerar participaciones ocultas.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -28,7 +29,7 @@ import {
 import type { ModerationStatus, PrismaClient } from "../src/generated/prisma/client";
 
 const APP_URL = "http://test.local";
-const SECRET = "secreto-de-test-suficientemente-largo-para-hmac";
+const SECRET = falso("secreto-largo-para-hmac-de-test");
 
 /** Redis falso: un Map con TTL. Solo lo que usa `services/visto` (`set … EX` y `exists`). */
 const mocks = vi.hoisted(() => {

@@ -1,3 +1,4 @@
+import { contrasenaFalsa } from "./helpers/valores-falsos";
 import { performance } from "node:perf_hooks";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -48,7 +49,7 @@ beforeEach(async () => {
 const BIRTH = new Date("2000-01-01T00:00:00.000Z");
 /** Sello de consentimiento: lo pone el servidor en el alta real, aqui basta un instante fijo. */
 const ACEPTO = new Date("2026-01-01T00:00:00.000Z");
-const PASS = "TEST-FIXTURE-pass-suficientemente-larga";
+const PASS = contrasenaFalsa("suficientemente-larga");
 
 function median(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
@@ -58,9 +59,9 @@ function median(xs: number[]): number {
 
 /** Coste de un argon2 (referencia para el umbral), tras un warmup del modulo nativo. */
 async function costeArgon2(): Promise<number> {
-  await hashPassword("warmup"); // el primer hash paga la inicializacion del modulo nativo
+  await hashPassword(contrasenaFalsa("calentar")); // el primer hash paga la inicializacion del modulo nativo
   const t0 = performance.now();
-  await hashPassword("medicion-de-coste");
+  await hashPassword(contrasenaFalsa("medir-coste"));
   return performance.now() - t0;
 }
 

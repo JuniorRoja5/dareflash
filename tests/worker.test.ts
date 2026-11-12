@@ -1,3 +1,4 @@
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { CONFIRM_WAKE_KEY } from "../src/config/constants";
@@ -61,7 +62,7 @@ function registroFake(adapter: EmailAdapter): Registro {
           deleteVideo: async () => {},
           setThumbnail: async () => {},
         },
-        config: { libraryId: "lib", apiKey: "key" },
+        config: { libraryId: "lib", apiKey: falso("key") },
       },
     }),
     LEDGER_TEST: { reaper: "REQUEUE", async handler() {} },

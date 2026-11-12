@@ -9,6 +9,7 @@
  *  - portada nueva -> la sanea, sobrescribe {publicCode}.webp y actualiza coverImage.
  * `status` NO se toca aquí: el endpoint no lo envía (editar ≠ publicar), atado en retos-admin.test.ts (BD).
  */
+import { falso } from "./helpers/valores-falsos";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -18,7 +19,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
-const SECRET = "TEST-FIXTURE-panel-retos-editar-secret-suficientemente-largo";
+const SECRET = falso("panel-retos-editar-secret-suficientemente-largo");
 const APP_URL = "http://test.local";
 const PORTADAS_DIR = mkdtempSync(join(tmpdir(), "df-portadas-edit-"));
 

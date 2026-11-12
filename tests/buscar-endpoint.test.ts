@@ -3,6 +3,7 @@
  * privados (email); el rate-limit por IP corta; el keyset funciona A TRAVÉS del endpoint (paginar cubre
  * todo sin repetir). La caché va en modo NULO (sin REDIS_URL) -> aquí se ejercita la ruta contra la BD.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
@@ -10,7 +11,7 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
 
-const SECRET = "TEST-FIXTURE-buscar-endpoint-secret-largo-1";
+const SECRET = falso("buscar-endpoint-secret-largo-1");
 
 const H = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient }));
 vi.mock("@/server/db/client", () => ({

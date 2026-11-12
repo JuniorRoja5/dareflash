@@ -4,6 +4,7 @@
  * con un doble de cliente (deleteVideo espiado) + BD: en dry-run NO borra NADA; en borrar solo borra
  * los candidatos, jamas los conservados.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -120,7 +121,7 @@ describe("limpiarHuerfanosBunny (BD + doble)", () => {
     await resetDb(prisma);
   });
 
-  const CONFIG = { libraryId: "12345", apiKey: "APIKEY_FALSA_no_real" };
+  const CONFIG = { libraryId: "12345", apiKey: falso("api-bunnyno_real") };
   const now = new Date();
   const opts = (modo: "dry-run" | "borrar") => ({
     now,

@@ -3,11 +3,12 @@
  * además pasa por `mutatingRoute`. Con dientes: un USER recibe 403 y el servicio NO se llama; quién
  * envía sale de la SESIÓN; los filtros del inspector llegan validados.
  */
+import { falso } from "./helpers/valores-falsos";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
-const SECRET = "TEST-FIXTURE-anuncios-secret-suficientemente-largo-de-verdad";
+const SECRET = falso("anuncios-secret-suficientemente-largo-de-verdad");
 const APP_URL = "http://test.local";
 
 const mocks = vi.hoisted(() => ({

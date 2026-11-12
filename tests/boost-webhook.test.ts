@@ -19,6 +19,7 @@
  * La firma se construye DE VERDAD con el SDK de Stripe (`generateTestHeaderString`), no se mockea:
  * un doble de la verificación dejaría sin probar justamente lo único que protege esta ruta.
  */
+import { falso } from "./helpers/valores-falsos";
 import Stripe from "stripe";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -27,9 +28,9 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
-const SECRETO_WEBHOOK = "whsec_TEST_FIXTURE_boost_webhook";
+const SECRETO_WEBHOOK = falso("boost_webhook");
 /** El del OTRO endpoint. En Stripe cada webhook se da de alta aparte y firma con el suyo. */
-const SECRETO_DE_VIP = "whsec_TEST_FIXTURE_vip_webhook";
+const SECRETO_DE_VIP = falso("vip_webhook");
 
 const H = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient }));
 vi.mock("@/server/db/client", () => ({
@@ -39,11 +40,11 @@ vi.mock("@/server/db/client", () => ({
 }));
 vi.mock("@/config/env", () => ({
   env: {
-    AUTH_SECRET: "TEST-FIXTURE-auth-secret-boost",
+    AUTH_SECRET: falso("auth-secret-boost"),
     APP_URL: "https://x.test",
-    STRIPE_SECRET_KEY: "sk_test_FIXTURE",
-    STRIPE_WEBHOOK_SECRET: "whsec_TEST_FIXTURE_boost_webhook",
-    STRIPE_WEBHOOK_SECRET_VIP: "whsec_TEST_FIXTURE_vip_webhook",
+    STRIPE_SECRET_KEY: falso("clave-stripe"),
+    STRIPE_WEBHOOK_SECRET: falso("boost_webhook"),
+    STRIPE_WEBHOOK_SECRET_VIP: falso("vip_webhook"),
   },
 }));
 
@@ -183,7 +184,7 @@ describe("la firma es la puerta", () => {
     const cuerpo = cuerpoEvento({});
     const firmaAjena = Stripe.webhooks.generateTestHeaderString({
       payload: cuerpo,
-      secret: "whsec_OTRO_SECRETO",
+      secret: falso("otro"),
     });
     const res = await webhook(peticion(cuerpo, firmaAjena));
     expect(res.status).toBe(400);

@@ -15,6 +15,7 @@
  * Para romperlo: quitar el `requireRole` (rojo), auditar antes del guard (rojo: el caso del 403
  * sin línea), o sacar la ruta de `mutatingRoute` (rojo en `route-csrf`).
  */
+import { falso } from "./helpers/valores-falsos";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -38,7 +39,7 @@ vi.mock("@/server/db/client", () => ({
   },
 }));
 vi.mock("@/config/env", () => ({
-  env: { AUTH_SECRET: "TEST-FIXTURE-auth-secret-sponsor-export" },
+  env: { AUTH_SECRET: falso("auth-secret-sponsor-export") },
 }));
 vi.mock("@/server/auth/mutating-route", () => ({
   mutatingRoute:

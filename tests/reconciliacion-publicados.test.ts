@@ -7,6 +7,7 @@
  *    aborta "actuar" si los candidatos lo superan. CURSOR ROTATORIO: avanza y persiste entre barridos,
  *    ACOTA el sondeo por ciclo y hace WRAP (cobertura completa del catalogo a lo largo de barridos).
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
@@ -22,7 +23,7 @@ import { leerEstado } from "../src/server/services/system-state";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
 
-const CONFIG = { libraryId: "lib", apiKey: "key" };
+const CONFIG = { libraryId: "lib", apiKey: falso("key") };
 
 /** Cliente Bunny falso: getVideo se comporta por bunnyVideoId segun el mapa; registra las llamadas. */
 function clienteFake(

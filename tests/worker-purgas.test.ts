@@ -10,6 +10,7 @@
  * proposito (quita el filtro de windowStart o usa `now` en vez de `now - retener`) y este test
  * lo caza.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
@@ -94,17 +95,25 @@ describe("purga de sesiones caducadas", () => {
       })
     ).id;
     await prisma.session.create({
-      data: { sessionToken: "hash-caducada", userId, expires: new Date(now.getTime() - 1000) },
+      data: {
+        sessionToken: falso("hash-caducada"),
+        userId,
+        expires: new Date(now.getTime() - 1000),
+      },
     });
     await prisma.session.create({
-      data: { sessionToken: "hash-viva", userId, expires: new Date(now.getTime() + 60_000) },
+      data: { sessionToken: falso("hash-viva"), userId, expires: new Date(now.getTime() + 60_000) },
     });
 
     const { total: borradas } = await purgeExpiredSessions(prisma, now);
 
     expect(borradas).toBe(1);
-    expect(await prisma.session.findFirst({ where: { sessionToken: "hash-viva" } })).not.toBeNull();
-    expect(await prisma.session.findFirst({ where: { sessionToken: "hash-caducada" } })).toBeNull();
+    expect(
+      await prisma.session.findFirst({ where: { sessionToken: falso("hash-viva") } }),
+    ).not.toBeNull();
+    expect(
+      await prisma.session.findFirst({ where: { sessionToken: falso("hash-caducada") } }),
+    ).toBeNull();
   });
 });
 

@@ -9,6 +9,7 @@
  *  - INERTE SIN CLAVES: 503 con copy humano, sin llamar a Stripe; sin verificar, 403.
  *  - El RECIBO de otra empresa es un 404, sin preguntar a Stripe; el suyo, una redirección a Stripe.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -21,17 +22,21 @@ import { acreditarCompraCreditos } from "../src/server/services/creditos-compra"
 
 import { createTestPrisma, crearUsuario, resetDb } from "./helpers/db";
 
-const H = vi.hoisted(() => ({
-  prisma: null as unknown as PrismaClient,
-  ambito: {
-    user: { userId: "", sessionId: "s1", emailVerified: new Date() },
-    empresaId: "",
-    estado: "VERIFICADA",
-  },
-  crearSesion: vi.fn(),
-  recuperar: vi.fn(),
-  claveStripe: "sk_test_FIXTURE" as string | undefined,
-}));
+// `vi.hoisted` corre ANTES que los imports: el helper de valores falsos se carga dentro.
+const H = await vi.hoisted(async () => {
+  const { falso } = await import("./helpers/valores-falsos");
+  return {
+    prisma: null as unknown as PrismaClient,
+    ambito: {
+      user: { userId: "", sessionId: "s1", emailVerified: new Date() },
+      empresaId: "",
+      estado: "VERIFICADA",
+    },
+    crearSesion: vi.fn(),
+    recuperar: vi.fn(),
+    claveStripe: falso("clave-stripe") as string | undefined,
+  };
+});
 
 vi.mock("@/server/db/client", () => ({
   get prisma() {
@@ -40,7 +45,7 @@ vi.mock("@/server/db/client", () => ({
 }));
 vi.mock("@/config/env", () => ({
   env: {
-    AUTH_SECRET: "TEST-FIXTURE-auth-secret-creditos",
+    AUTH_SECRET: falso("auth-secret-creditos"),
     APP_URL: "https://x.test",
     get STRIPE_SECRET_KEY() {
       return H.claveStripe;
@@ -56,7 +61,7 @@ vi.mock("@/server/auth/mutating-route", () => ({
         {
           user: H.ambito.user,
           env: {
-            AUTH_SECRET: "TEST-FIXTURE-auth-secret-creditos",
+            AUTH_SECRET: falso("auth-secret-creditos"),
             APP_URL: "https://x.test",
             STRIPE_SECRET_KEY: H.claveStripe,
           },
@@ -121,7 +126,7 @@ beforeEach(async () => {
   H.ambito.user.userId = e.owner;
   H.ambito.empresaId = e.id;
   H.ambito.estado = "VERIFICADA";
-  H.claveStripe = "sk_test_FIXTURE";
+  H.claveStripe = falso("clave-stripe");
   H.crearSesion
     .mockReset()
     .mockResolvedValue({ id: "cs_test_1", url: "https://stripe.test/pagar" });

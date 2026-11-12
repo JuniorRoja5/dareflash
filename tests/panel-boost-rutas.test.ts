@@ -9,6 +9,7 @@
  *    "corta esta fila", que es el fallo mudo que esta pieza evita.
  *  - LOS RECHAZOS SON HUMANOS: motivo corto, saldo insuficiente, cantidad imposible.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AJUSTE_BOOST_DELTA_MAX, AJUSTE_NOTA_MIN } from "../src/config/constants";
@@ -32,7 +33,7 @@ vi.mock("@/server/db/client", () => ({
   },
 }));
 vi.mock("@/config/env", () => ({
-  env: { AUTH_SECRET: "TEST-FIXTURE-auth-secret-panel-boost", APP_URL: "https://x.test" },
+  env: { AUTH_SECRET: falso("auth-secret-panel-boost"), APP_URL: "https://x.test" },
 }));
 vi.mock("@/server/auth/mutating-route", () => ({
   mutatingRoute:

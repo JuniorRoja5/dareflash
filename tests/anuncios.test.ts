@@ -10,6 +10,7 @@
  * (rojo: re-ejecución, repartos a la vez, reanudación); quitar el corte de audiencia (rojo); una clave
  * de tramo sin cursor (rojo); ordenar el keyset al revés (rojo).
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { ANUNCIO_TEXTO_MAX } from "../src/config/constants";
@@ -92,7 +93,7 @@ const registro = () =>
         deleteVideo: async () => {},
         setThumbnail: async () => {},
       },
-      config: { libraryId: "lib", apiKey: "key" },
+      config: { libraryId: "lib", apiKey: falso("key") },
     },
   });
 

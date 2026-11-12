@@ -8,6 +8,7 @@
  * Y fija el límite: consumar un borrado no puede tocar los vídeos de los participantes. La decisión
  * cerrada es que borrar un reto lo OCULTA; el contenido es de sus autores.
  */
+import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -61,7 +62,7 @@ async function unaVuelta(): Promise<void> {
     prisma,
     {},
     {
-      workerToken: "test",
+      workerToken: falso("test"),
       limit: 1,
       intervaloMs: 0,
       parar: () => vueltas > 0,

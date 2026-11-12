@@ -110,14 +110,18 @@ describe("el artefacto construido lleva el SHA (estructural)", () => {
     expect(dockerfileSinComentarios().match(/ARG GIT_SHA/g)).toHaveLength(1);
   });
 
-  it("el compose se lo pasa a `web`, con default vacío (no `:?`)", () => {
-    const compose = leer("docker-compose.prod.yml");
+  it("el compose de EMERGENCIA se lo pasa a `web`, con default vacío (no `:?`)", () => {
+    // Desde que CI construye las imágenes, el compose de producción no construye nada: quien construye
+    // en el servidor (el plan de emergencia) es docker-compose.construir.yml.
+    const compose = leer("docker-compose.construir.yml");
     expect(compose).toMatch(/^\s+GIT_SHA: \$\{GIT_SHA:-\}\s*$/m);
     // Con `:?` fallaría CUALQUIER comando del compose sin la variable, `logs` incluido.
     expect(compose).not.toMatch(/\$\{GIT_SHA:\?/);
   });
 
-  it("el CI construye con el SHA del push (si no, su build fallaría en la guarda)", () => {
-    expect(leer(".github/workflows/docker-build.yml")).toMatch(/GIT_SHA: \$\{\{ github\.sha \}\}/);
+  it("el CI construye `web` con el SHA del push (si no, su build fallaría en la guarda)", () => {
+    expect(leer(".github/workflows/imagenes.yml")).toMatch(
+      /build-args: GIT_SHA=\$\{\{ github\.sha \}\}/,
+    );
   });
 });

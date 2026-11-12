@@ -3,11 +3,12 @@
  * `mutatingRoute` (Origin/sesión/CSRF). Con dientes: un USER recibe 403 y el servicio NO se llama;
  * QUIÉN ajusta sale de la SESIÓN, nunca del cuerpo; sin motivo no hay ajuste.
  */
+import { falso } from "./helpers/valores-falsos";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
-const SECRET = "TEST-FIXTURE-dareup-secret-suficientemente-largo-de-verdad";
+const SECRET = falso("dareup-secret-suficientemente-largo-de-verdad");
 const APP_URL = "http://test.local";
 
 const mocks = vi.hoisted(() => ({

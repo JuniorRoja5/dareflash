@@ -1,0 +1,190 @@
+# LAS IMÁGENES DE PRODUCCIÓN SE CONSTRUYEN AQUÍ, NO EN EL SERVIDOR (infraestructura, 2026-11).
+#
+# El servidor compilaba Next en cada despliegue, en la misma máquina de 1 vCPU que sirve la web: el pico
+# de memoria del build la colgó una vez y, en cada despliegue, cargaba la web mientras compilaba. Ahora:
+#
+#   push a cualquier rama -> tests -> construir las CUATRO imágenes y revisarlas
+#   push a main           -> lo mismo y, SOLO si todo lo anterior pasó, publicarlas en ghcr.io
+#
+# El servidor solo descarga (scripts/deploy.sh). Cada imagen lleva como etiqueta el SHA COMPLETO del
+# commit (inmutable: desplegar o volver atrás a un SHA es pedir esa etiqueta) y, además, `main`.
+#
+# Sustituye a `docker-build.yml` (Fase 2 · M1), que construía la imagen real en cada push para cazar lo
+# que un `next build` local no ve (p.ej. `tests/` fuera del contexto por `.dockerignore`). Esa red sigue
+# aquí: las ramas construyen igual que main, solo que no publican.
+name: imagenes
+
+on:
+  push:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: imagenes-${{ github.ref }}
+  # En una rama, un push nuevo deja sin sentido el anterior. En main NO se cancela: cada commit de main
+  # necesita SU imagen, porque desplegar o volver atrás a ese SHA la busca por SHA.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+env:
+  # En minúsculas: un nombre de imagen no admite mayúsculas (el dueño del repositorio las tiene).
+  REGISTRO: ghcr.io/juniorroja5
+
+jobs:
+  # LO PRIMERO, antes que los tests: ningún secreto en el árbol (reglas en .gitleaks.toml). El
+  # repositorio es público: lo que entre en un commit lo lee cualquiera, y borrarlo después no lo
+  # des-publica. Si esto falla, ni se prueba ni se construye nada.
+  secretos:
+    name: Secretos (gitleaks sobre el árbol)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/escanear-secretos.sh arbol
+
+  tests:
+    name: Tests (typecheck, lint y vitest contra MariaDB)
+    needs: secretos
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mariadb:
+        image: mariadb:11.8
+        env:
+          # SIN CONTRASEÑA, a propósito, y no un secreto de Actions: esta BD vive solo dentro del runner
+          # y muere con el job, y su puerto no es alcanzable desde fuera. Una clave no protegería nada
+          # y obligaría a dar de alta un secreto. Lo que sí importa es que NO haya un literal en el
+          # repositorio (público): la regla es cero contraseñas escritas, aunque sean de juguete.
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "1"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    env:
+      # El globalSetup crea y BORRA una BD por worker: necesita un usuario que pueda hacerlo (root).
+      TEST_DATABASE_URL: mysql://root@127.0.0.1:3306/dareflash_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npx vitest run
+
+  imagenes:
+    name: Imágenes (construir, revisar y, en main, publicar)
+    # SIN TESTS VERDES NO HAY IMAGEN: si `tests` falla, este job ni empieza, y en el registro no aparece
+    # la etiqueta de ese SHA. deploy.sh lo detecta y no despliega.
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    env:
+      GIT_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: El SHA tiene forma de SHA (la misma guarda que la etapa runner)
+        run: |
+          echo "$GIT_SHA" | grep -Eq '^[0-9a-f]{40}$' \
+            || { echo "::error::GIT_SHA no es un SHA de 40 hex: '$GIT_SHA'"; exit 1; }
+
+      - uses: docker/setup-buildx-action@v3
+
+      # CUATRO imágenes, cada una con su etapa EXPLÍCITA (sin `target`, Docker construye la ÚLTIMA etapa
+      # del Dockerfile; ya pasó una vez que `web` arrancó la cola y devolvió 502). Se construyen y se
+      # CARGAN en el runner (`load`), sin publicar todavía: primero se revisan.
+      # Caché de buildx en el propio Actions, un ámbito por imagen (comparten las capas de `deps` y
+      # `builder`, que el almacén guarda una sola vez por contenido).
+      - name: Construir web (etapa runner)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runner
+          platforms: linux/amd64
+          load: true
+          push: false
+          build-args: GIT_SHA=${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          tags: ${{ env.REGISTRO }}/dareflash-web:${{ github.sha }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
+      - name: Construir worker (etapa worker)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: worker
+          platforms: linux/amd64
+          load: true
+          push: false
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          tags: ${{ env.REGISTRO }}/dareflash-worker:${{ github.sha }}
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,mode=max,scope=worker
+
+      - name: Construir migrate (etapa builder)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: builder
+          platforms: linux/amd64
+          load: true
+          push: false
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          tags: ${{ env.REGISTRO }}/dareflash-migrate:${{ github.sha }}
+          cache-from: type=gha,scope=migrate
+          cache-to: type=gha,mode=max,scope=migrate
+
+      - name: Construir geoip (etapa geoip)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: geoip
+          platforms: linux/amd64
+          load: true
+          push: false
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          tags: ${{ env.REGISTRO }}/dareflash-geoip:${{ github.sha }}
+          cache-from: type=gha,scope=geoip
+          cache-to: type=gha,mode=max,scope=geoip
+
+      # Antes de publicar: ningún fichero de entorno dentro, ninguna variable que no sea de las
+      # conocidas, el SHA correcto en `web` y en las etiquetas. Las imágenes son PÚBLICAS: lo que lleven
+      # dentro lo puede leer cualquiera.
+      - name: Revisar las imágenes (sin secretos, con su SHA)
+        run: bash scripts/ci-revisar-imagenes.sh "$REGISTRO" "$GIT_SHA"
+
+      - name: Entrar en ghcr.io (solo main)
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # `web` la ÚLTIMA: deploy.sh espera a ver las cuatro, pero así una subida a medias nunca deja la
+      # imagen principal de un SHA sin sus compañeras.
+      - name: Publicar (solo main)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          for s in geoip migrate worker web; do
+            docker push "$REGISTRO/dareflash-$s:$GIT_SHA"
+            docker tag "$REGISTRO/dareflash-$s:$GIT_SHA" "$REGISTRO/dareflash-$s:main"
+            docker push "$REGISTRO/dareflash-$s:main"
+          done

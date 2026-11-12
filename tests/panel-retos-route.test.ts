@@ -4,6 +4,7 @@
  * SIN imagen funciona (coverImage no se toca); crear CON imagen la sanea, la escribe en el volumen y
  * apunta coverImage. CSRF forjado con la función real.
  */
+import { falso } from "./helpers/valores-falsos";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,7 +14,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
-const SECRET = "TEST-FIXTURE-panel-retos-secret-suficientemente-largo";
+const SECRET = falso("panel-retos-secret-suficientemente-largo");
 const APP_URL = "http://test.local";
 const PORTADAS_DIR = mkdtempSync(join(tmpdir(), "df-portadas-"));
 

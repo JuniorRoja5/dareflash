@@ -31,6 +31,36 @@ Un solo test: `npx vitest run tests/vote.test.ts` — o `npx vitest run -t "nomb
 [tests/helpers/workers.ts](tests/helpers/workers.ts) y `maxWorkers` en
 [vitest.config.ts](vitest.config.ts) **deben coincidir** — si no, un worker se queda sin BD.
 
+### Entorno de desarrollo y tests
+
+**Cero contraseñas escritas en el repositorio, ni de desarrollo** (es público, y un escáner externo no
+distingue una clave de juguete). Todas viven en tu `.env` local, que no se versiona; la plantilla es
+[.env.example](.env.example):
+
+- `DEV_MARIADB_ROOT_PASSWORD` y `DEV_MARIADB_PASSWORD`: las lee `docker-compose.dev.yml` (si faltan,
+  compose se para y dice cuál). MariaDB solo las aplica al CREAR el volumen: con uno existente, pon
+  las que tenía.
+- `DATABASE_URL`: la de la app, con esa clave.
+- `TEST_DATABASE_URL`: la de los tests, **obligatoria y sin valor por defecto**. `vitest.config.ts`
+  carga del `.env` **solo** las `TEST_*` (cargarlo entero cambiaría los tests que prueban qué pasa
+  cuando falta una variable). Sin ella, los tests de BD fallan con un mensaje que dice qué poner.
+  En CI la fija el workflow, contra un MariaDB del runner sin contraseña.
+
+**Ningún valor con forma de credencial se ESCRIBE, tampoco en un test**: la regla es cero alertas,
+también de escáneres externos (GitGuardian), y un escáner no sabe que una contraseña es de mentira.
+Un test que necesita una contraseña, un secreto, un token o una clave la pide a
+[tests/helpers/valores-falsos.ts](tests/helpers/valores-falsos.ts): `falso("etiqueta")` /
+`contrasenaFalsa("etiqueta")`, deterministas (misma etiqueta, mismo valor: sirve para registrar y
+luego entrar, o firmar y verificar). Prohibidos los prefijos de proveedores (`whsec_`, `sk_test_`…).
+Dentro de un `vi.hoisted` o de una factoría de `vi.mock` el helper se carga con `await import(...)`
+(corren antes que los imports).
+
+El escáner de secretos ([.gitleaks.toml](.gitleaks.toml), gitleaks v8.30.1 en Docker) corre en el
+**pre-commit** sobre lo que se va a confirmar y en **CI antes de los tests** sobre el árbol entero:
+`bash scripts/escanear-secretos.sh preparado|arbol`. Sus reglas propias son MÁS estrictas que las de
+un escáner genérico (no piden entropía). Un hallazgo para el commit o el CI; la lista blanca es solo
+lo que no se puede evitar (material de terceros, hashes de `package-lock`), justificado en el `.toml`.
+
 Base de datos en local: `npx prisma migrate dev`, `npx prisma db seed`. `postinstall` ejecuta
 `prisma generate` (el cliente vive en `src/generated/`, gitignoreado).
 
@@ -62,8 +92,10 @@ las rutas lo cargan con **import dinámico dentro del handler** (`depsRuta()`, o
 `mutatingRoute`), nunca con import estático en ámbito de módulo.
 
 `npm run test:build-sin-env` vigila esa propiedad; el workflow
-[docker-build.yml](.github/workflows/docker-build.yml) construye la imagen real (la que respeta
-`.dockerignore`) en cada push.
+[imagenes.yml](.github/workflows/imagenes.yml) pasa los tests y construye las imágenes reales (las
+que respetan `.dockerignore`) en cada push, y en `main` las publica en ghcr.io. **El servidor no
+compila**: [scripts/deploy.sh](scripts/deploy.sh) descarga la imagen del SHA y comprueba que el
+health responde con ese commit. Una imagen se publica PÚBLICA: nada secreto puede entrar en el build.
 
 Promover una variable a **obligatoria** en `env.ts` obliga a añadirla al `.env` del servidor **en
 el mismo paso**: si falta, el proceso muere al arrancar (fail-fast deliberado, ver
@@ -232,6 +264,12 @@ borran para "limpiar"**:
 - `marca-v3-firmada` — los valores de marca **firmados**, clavados con cifras escritas (no leyendo el
   token, que estaría siempre verde), el contraste del CTA sobre el verde, y que no sobreviva ningún
   magenta ni morado. Los de paleta miden cualquier paleta; este clava la que hay.
+- `imagenes-ci` — sin tests verdes no hay imagen (el job que publica depende de `tests` y nada lo
+  salta), publicar es solo de `main` y después de revisar la imagen, y cada imagen sale de SU etapa en
+  CI, en el compose de producción y en el de emergencia.
+- `deploy-script` — `deploy.sh` ejecutado de verdad con `docker`/`git`/`curl` falsos: no despliega si
+  CI falló o no ha terminado, se para si el health responde con otro commit, y volver atrás con
+  migraciones posteriores exige `--acepto-esquema-nuevo`.
 
 Al tocar uno de estos, la comprobación no es que pase en verde: es **romper el invariante a
 propósito y confirmar que se pone rojo**.

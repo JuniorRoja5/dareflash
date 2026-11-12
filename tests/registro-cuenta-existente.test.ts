@@ -20,6 +20,7 @@
  * clave del aviso (rojo el del día siguiente) o la clave entera (rojo el del tope); mirar si el
  * correo existe ANTES de hashear (rojo el del tiempo).
  */
+import { contrasenaFalsa, falso } from "./helpers/valores-falsos";
 import { performance } from "node:perf_hooks";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -37,7 +38,7 @@ vi.mock("@/server/db/client", () => ({
 }));
 vi.mock("@/config/env", () => ({
   env: {
-    AUTH_SECRET: "TEST-FIXTURE-auth-secret-cuenta-existente",
+    AUTH_SECRET: falso("auth-secret-cuenta-existente"),
     APP_URL: "https://x.test",
     ADMIN_EMAIL: "admin@dareflash.test",
   },
@@ -50,7 +51,7 @@ const { avisarCuentaExistente } = await import("../src/server/services/aviso-cue
 const { hashPassword } = await import("../src/server/auth/password");
 
 let prisma: PrismaClient;
-const PASS = "Un4-Contrasena-Larga-Y-Buena!";
+const PASS = contrasenaFalsa("larga-y-buena");
 
 beforeAll(() => {
   prisma = createTestPrisma();
@@ -210,9 +211,9 @@ describe("mismo tiempo de respuesta en el alta de empresa", () => {
   };
 
   it("correo nuevo y existente tardan casi igual: el argon2 se paga en los dos caminos", async () => {
-    await hashPassword("warmup");
+    await hashPassword(contrasenaFalsa("calentar"));
     const t0 = performance.now();
-    await hashPassword("medicion");
+    await hashPassword(contrasenaFalsa("medir"));
     const argon2 = performance.now() - t0;
 
     await yaTieneCuenta("existe@test.test");
