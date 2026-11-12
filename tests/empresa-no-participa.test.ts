@@ -21,7 +21,8 @@
  *
  * Para romperlo a propósito: cambiar el defecto a «permite» (rojo el behavioural y el censo);
  * poner `cuentaEmpresa: "permite"` en una ruta de participación (rojo el censo); comprobar
- * `esCuentaEmpresa` a mano en una ruta en vez de en el chokepoint (rojo el de «un solo sitio»).
+ * `esCuentaEmpresa` a mano en una ruta en vez de en el chokepoint (rojo el de «un solo sitio»);
+ * crear una ruta mutante bajo `api/empresa/` sin «permite» (rojo el del portal).
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -161,6 +162,10 @@ const permiteEmpresa = (src: string) => permisos(src) > 0;
  *    y gestionarla (activar, pausar, reanudar, terminar, borrar el borrador). Tampoco es participar:
  *    es anunciarse, lo otro que una empresa viene a hacer. Mismas dos barreras dentro: sin empresa,
  *    404; sin verificar, el servicio rechaza.
+ *  - `empresa/creditos/checkout` (Fase 9 · P11): COMPRAR créditos de publicidad. Pagar su propia
+ *    publicidad no es participar; mismas barreras dentro (sin empresa, 404; sin verificar, 403).
+ *    Llegó a producción SIN el permiso y bloqueaba a la empresa que iba a pagar: de ahí el censo de
+ *    abajo, «toda ruta mutante del portal está aquí».
  *
  * LO QUE SIGUE CERRADO Y NO ES UN OLVIDO: `perfil` (PATCH) y `perfil/avatar`. Son el perfil PÚBLICO
  * del producto de participación; la identidad de una empresa es su fila `Empresa`, no un perfil de
@@ -175,6 +180,7 @@ const PERMITEN = new Set([
   "empresa/retos",
   "empresa/publicidad",
   "empresa/publicidad/[id]",
+  "empresa/creditos/checkout",
 ]);
 
 describe("el censo de rutas mutantes", () => {
@@ -204,6 +210,23 @@ describe("el censo de rutas mutantes", () => {
         `${ruta}: ${envoltorios(r!.src)} métodos envueltos pero ${permisos(r!.src)} con permiso`,
       ).toBe(envoltorios(r!.src));
     }
+  });
+
+  it("toda ruta mutante del PORTAL DE EMPRESA (api/empresa/**) está abierta a empresas", () => {
+    // Una ruta del portal cerrada a las cuentas de empresa es, por definición, un fallo: el portal es
+    // de ellas y de nadie más (un participante recibe 404 en `requireEmpresa`). El defecto «bloquea»
+    // de `mutatingRoute` es el correcto para el producto de participación, pero en el portal cada
+    // ruta nueva nace rota. Pasó con `empresa/creditos/checkout`: la suite en verde y la empresa
+    // verificada sin poder pagar. Si esto falla, a la ruta le falta `cuentaEmpresa: "permite"` y
+    // su línea en PERMITEN.
+    const delPortal = MUTANTES.filter(
+      (r) => (r.ruta === "empresa" || r.ruta.startsWith("empresa/")) && envoltorios(r.src) > 0,
+    );
+    expect(delPortal.length, "el recorrido no ve el portal").toBeGreaterThanOrEqual(4);
+    const olvidadas = delPortal
+      .filter((r) => !PERMITEN.has(r.ruta) || permisos(r.src) !== envoltorios(r.src))
+      .map((r) => r.ruta);
+    expect(olvidadas).toEqual([]);
   });
 
   it("el censo mira el CÓDIGO, no el comentario que explica la regla", () => {

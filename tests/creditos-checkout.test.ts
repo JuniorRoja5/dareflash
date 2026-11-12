@@ -8,6 +8,12 @@
  *  - Se pide el número fiscal en el Checkout (`tax_id_collection`), con dirección y cliente.
  *  - INERTE SIN CLAVES: 503 con copy humano, sin llamar a Stripe; sin verificar, 403.
  *  - El RECIBO de otra empresa es un 404, sin preguntar a Stripe; el suyo, una redirección a Stripe.
+ *  - QUIEN COMPRA ES UNA CUENTA DE EMPRESA DE VERDAD (`esCuentaEmpresa = true`), con una sesión creada
+ *    y validada como la del login, y la petición pasa por el `mutatingRoute` y el `requireEmpresa`
+ *    REALES (Origin, sesión, CSRF y el candado de la cuenta de empresa). Antes los dos estaban
+ *    doblados y el dueño era un usuario normal: la ruta llegó a producción bloqueando a la empresa
+ *    que iba a pagar con esta suite en verde. Para romperlo: quitar `cuentaEmpresa: "permite"` de la
+ *    ruta (rojo: la empresa recibe CUENTA_EMPRESA).
  */
 import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,6 +24,8 @@ import {
   PAQUETES_CREDITOS,
 } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
+import { issueCsrfToken } from "../src/server/auth/csrf";
+import { createSession, validateSession } from "../src/server/auth/session";
 import { acreditarCompraCreditos } from "../src/server/services/creditos-compra";
 
 import { createTestPrisma, crearUsuario, resetDb } from "./helpers/db";
@@ -27,16 +35,16 @@ const H = await vi.hoisted(async () => {
   const { falso } = await import("./helpers/valores-falsos");
   return {
     prisma: null as unknown as PrismaClient,
-    ambito: {
-      user: { userId: "", sessionId: "s1", emailVerified: new Date() },
-      empresaId: "",
-      estado: "VERIFICADA",
-    },
+    /** El token CRUDO de la cookie de sesión: lo que el navegador manda tras el login. */
+    token: "" as string,
     crearSesion: vi.fn(),
     recuperar: vi.fn(),
     claveStripe: falso("clave-stripe") as string | undefined,
   };
 });
+
+const SECRETO = falso("auth-secret-creditos");
+const APP_URL = "https://x.test";
 
 vi.mock("@/server/db/client", () => ({
   get prisma() {
@@ -52,29 +60,11 @@ vi.mock("@/config/env", () => ({
     },
   },
 }));
-vi.mock("@/server/auth/mutating-route", () => ({
-  mutatingRoute:
-    (handler: (req: Request, ctx: unknown, rc: unknown) => Promise<Response>) =>
-    (req: Request, rc: unknown) =>
-      handler(
-        req,
-        {
-          user: H.ambito.user,
-          env: {
-            AUTH_SECRET: falso("auth-secret-creditos"),
-            APP_URL: "https://x.test",
-            STRIPE_SECRET_KEY: H.claveStripe,
-          },
-          prisma: H.prisma,
-        },
-        rc,
-      ),
-}));
-vi.mock("@/server/auth/empresa-actual", async () => {
-  const real = await vi.importActual<typeof import("@/server/auth/empresa-actual")>(
-    "@/server/auth/empresa-actual",
-  );
-  return { ...real, requireEmpresa: async () => H.ambito };
+// Solo se dobla LEER LA COOKIE (`next/headers` no existe fuera de una petición de Next). La sesión se
+// valida de verdad contra la BD, con la misma función que usa la app: misma forma que tras el login.
+vi.mock("@/server/auth/current-user", async () => {
+  const { validateSession } = await import("../src/server/auth/session");
+  return { getCurrentUser: () => validateSession(H.prisma, H.token) };
 });
 vi.mock("@/server/pagos/stripe", async () => {
   const real =
@@ -101,10 +91,17 @@ afterAll(async () => {
 });
 
 let n = 0;
+let empresaId = "";
+let sessionId = "";
 async function unaEmpresa(): Promise<{ id: string; owner: string }> {
   n += 1;
   const owner = await crearUsuario(prisma);
-  await prisma.user.update({ where: { id: owner }, data: { email: `compra${n}@empresa.test` } });
+  // UNA CUENTA DE EMPRESA REAL: la marca que lee el candado de `mutatingRoute`, y el correo
+  // verificado que exige `requireEmpresa`.
+  await prisma.user.update({
+    where: { id: owner },
+    data: { email: `compra${n}@empresa.test`, esCuentaEmpresa: true, emailVerified: new Date() },
+  });
   const e = await prisma.empresa.create({
     data: {
       ownerUserId: owner,
@@ -123,9 +120,10 @@ async function unaEmpresa(): Promise<{ id: string; owner: string }> {
 beforeEach(async () => {
   await resetDb(prisma);
   const e = await unaEmpresa();
-  H.ambito.user.userId = e.owner;
-  H.ambito.empresaId = e.id;
-  H.ambito.estado = "VERIFICADA";
+  empresaId = e.id;
+  const s = await createSession(prisma, e.owner);
+  H.token = s.rawToken;
+  sessionId = s.sessionId;
   H.claveStripe = falso("clave-stripe");
   H.crearSesion
     .mockReset()
@@ -139,7 +137,11 @@ const pedir = (cuerpo: unknown) =>
   checkout(
     new Request("http://test/api/empresa/creditos/checkout", {
       method: "POST",
-      headers: { "content-type": "application/json", origin: "http://test" },
+      headers: {
+        "content-type": "application/json",
+        origin: APP_URL,
+        "x-csrf-token": issueCsrfToken(SECRETO, sessionId),
+      },
       body: JSON.stringify(cuerpo),
     }),
     undefined,
@@ -154,6 +156,39 @@ type Args = {
 const args = () => H.crearSesion.mock.calls[0]?.[0] as Args;
 
 describe("abrir el pago", () => {
+  it("la sesión es la de una CUENTA DE EMPRESA, y el candado real la deja pasar", async () => {
+    // El control: si la sesión no llevara la marca, el test de abajo no probaría el candado.
+    expect((await validateSession(prisma, H.token))?.esCuentaEmpresa).toBe(true);
+    const res = await pedir({ packageId: "creditos_10" });
+    const cuerpo = await res.json();
+    expect(cuerpo).not.toMatchObject({ error: { code: "CUENTA_EMPRESA" } });
+    expect(res.status).toBe(200);
+    expect(cuerpo).toMatchObject({ url: "https://stripe.test/pagar" });
+  });
+
+  it("y las barreras de fuera siguen: sin CSRF no se abre nada", async () => {
+    const res = await checkout(
+      new Request("http://test/api/empresa/creditos/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: APP_URL },
+        body: JSON.stringify({ packageId: "creditos_10" }),
+      }),
+      undefined,
+    );
+    expect(res.status).toBe(403);
+    expect(H.crearSesion).not.toHaveBeenCalled();
+  });
+
+  it("un participante (sin empresa) recibe 404, no un pago", async () => {
+    const u = await crearUsuario(prisma);
+    await prisma.user.update({ where: { id: u }, data: { emailVerified: new Date() } });
+    const s = await createSession(prisma, u);
+    H.token = s.rawToken;
+    sessionId = s.sessionId;
+    expect((await pedir({ packageId: "creditos_10" })).status).toBe(404);
+    expect(H.crearSesion).not.toHaveBeenCalled();
+  });
+
   it.each(Object.keys(PAQUETES_CREDITOS) as (keyof typeof PAQUETES_CREDITOS)[])(
     "%s se cobra por su importe del catálogo, en USD",
     async (packageId) => {
@@ -168,7 +203,7 @@ describe("abrir el pago", () => {
   it("el precio y la empresa del cliente se IGNORAN: manda el catálogo y el chokepoint", async () => {
     await pedir({ packageId: "creditos_100", precioCents: 1, empresaId: "la_de_otro" });
     expect(args().line_items[0]?.price_data.unit_amount).toBe(3000);
-    expect(args().metadata).toEqual({ empresaId: H.ambito.empresaId, packageId: "creditos_100" });
+    expect(args().metadata).toEqual({ empresaId, packageId: "creditos_100" });
   });
 
   it("pide el número fiscal (con dirección y cliente), para que conste en sus documentos", async () => {
@@ -196,7 +231,7 @@ describe("abrir el pago", () => {
   });
 
   it("una empresa sin verificar no compra", async () => {
-    H.ambito.estado = "PENDIENTE";
+    await prisma.empresa.update({ where: { id: empresaId }, data: { estado: "PENDIENTE" } });
     const res = await pedir({ packageId: "creditos_10" });
     expect(res.status).toBe(403);
     expect(JSON.stringify(await res.json())).toContain(MSG_CREDITOS_SIN_VERIFICAR);
@@ -212,7 +247,7 @@ describe("el recibo", () => {
 
   it("el SUYO: redirige a la página del recibo de Stripe", async () => {
     await acreditarCompraCreditos(prisma, {
-      empresaId: H.ambito.empresaId,
+      empresaId,
       packageId: "creditos_10",
       sessionId: "cs_propia",
       pagadoCents: 500,

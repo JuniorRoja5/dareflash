@@ -176,8 +176,10 @@ falta: no depende de la etiqueta local `desplegada`.
 
 ## Antes de abrir la compra de creditos (P11)
 
-La compra esta construida e INERTE sin claves: los paquetes se ven y el boton no se ofrece. Antes de
-encenderla:
+La compra NO depende de un interruptor: funciona en cuanto existe `STRIPE_SECRET_KEY` (el boton se
+ofrece y el pago se abre), y los creditos solo se abonan si ademas existe
+`STRIPE_WEBHOOK_SECRET_CREDITOS` (sin el, Stripe cobra y aqui no se acredita nada). Sin la primera,
+los paquetes se ven y el boton no se ofrece. Antes de abrirla a empresas reales:
 
 1. **Comprobar en el modo test de Stripe que el numero fiscal sale en el RECIBO.** Se recoge en el
    Checkout (`tax_id_collection`, con direccion y cliente), pero sin claves no se pudo ver el
