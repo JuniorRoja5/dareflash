@@ -277,5 +277,17 @@ borran para "limpiar"**:
   CI falló o no ha terminado, se para si el health responde con otro commit, y volver atrás con
   migraciones posteriores exige `--acepto-esquema-nuevo`.
 
+- `reloj-rate-limit` — todo test que lleva una ruta real hasta el 429 congela el reloj
+  (`congelarReloj()` de [tests/helpers/reloj.ts](tests/helpers/reloj.ts)). Ver la trampa de abajo.
+
+**Trampa: un test que depende de la HORA en que corre.** El rate-limit (y cualquier clave «por día»)
+es una ventana fija alineada al reloj. Un test que llena un cubo real con N llamadas y espera el 429
+en la N+1 falla si entre ellas cae un borde (`:00` de minuto, de hora, medianoche UTC): la última abre
+una ventana vacía. Pasó en CI de main con el mismo SHA que había salido verde en la rama y en local.
+Ni el entorno ni el código eran distintos; solo el segundo. Por eso un verde local no lo descarta, y
+repetir la suite tampoco: se congela el reloj. CI corre exactamente `npm ci`, `npm run typecheck`,
+`npm run lint` y `npx vitest run` contra un MariaDB sin contraseña; reproducirlo en local es lanzar
+esos mismos cuatro.
+
 Al tocar uno de estos, la comprobación no es que pase en verde: es **romper el invariante a
 propósito y confirmar que se pone rojo**.

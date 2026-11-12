@@ -23,11 +23,12 @@
 import { contrasenaFalsa, falso } from "./helpers/valores-falsos";
 import { performance } from "node:perf_hooks";
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
+import { congelarReloj, soltarReloj } from "./helpers/reloj";
 
 const H = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient }));
 
@@ -62,6 +63,9 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   await resetDb(prisma);
+});
+afterEach(() => {
+  soltarReloj();
 });
 
 let ip = 0;
@@ -151,6 +155,9 @@ describe.each([
   });
 
   it("el aviso tiene TOPE: tres intentos el mismo día, UN correo; y el cuarto choca con el rate-limit", async () => {
+    // RELOJ QUIETO: «el mismo día» (la clave del aviso) y «3 por hora» (el rate-limit) son ventanas
+    // alineadas al reloj; cruzar medianoche o un `:00:00` entre intentos rompería las dos cuentas.
+    congelarReloj();
     await yaTieneCuenta("victima@test.test");
     for (let i = 0; i < 3; i += 1) {
       expect((await pedir(ruta(), cuerpo("victima@test.test"))).status).toBe(200);

@@ -6,11 +6,12 @@
  * mockea: esta prueba mide el GATE de rate-limit, no el alta en si.
  */
 import { contrasenaFalsa, falso } from "./helpers/valores-falsos";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
+import { congelarReloj, soltarReloj } from "./helpers/reloj";
 
 const H = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient }));
 vi.mock("@/server/db/client", () => ({
@@ -39,6 +40,12 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   await resetDb(prisma);
+  // RELOJ QUIETO: el tope es una ventana de UNA HORA alineada al reloj; si las llamadas cruzaran un
+  // `:00:00`, la cuarta caería en una ventana vacía y daría 200. Ver helpers/reloj.ts.
+  congelarReloj();
+});
+afterEach(() => {
+  soltarReloj();
 });
 
 // Contraseña que SÍ pasa la política fuerte (para no caer por validación antes del alta).

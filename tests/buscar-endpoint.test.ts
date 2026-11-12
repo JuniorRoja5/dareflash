@@ -4,12 +4,13 @@
  * todo sin repetir). La caché va en modo NULO (sin REDIS_URL) -> aquí se ejercita la ruta contra la BD.
  */
 import { falso } from "./helpers/valores-falsos";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
+import { congelarReloj, soltarReloj } from "./helpers/reloj";
 
 const SECRET = falso("buscar-endpoint-secret-largo-1");
 
@@ -36,6 +37,9 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   await resetDb(prisma);
+});
+afterEach(() => {
+  soltarReloj();
 });
 
 async function crearUsuario(o: {
@@ -105,6 +109,9 @@ describe("GET /api/buscar", () => {
   });
 
   it("rate-limit por IP: agotado el cubo -> 429", async () => {
+    // RELOJ QUIETO: la ventana es de un minuto alineado al reloj; si las 61 llamadas cruzan un `:00`,
+    // la de la ruta cae en una ventana vacía y da 200 (pasó en CI de main). Ver helpers/reloj.ts.
+    congelarReloj();
     const ip = "198.51.100.7";
     const { clientIpKey } = await import("../src/server/http/api");
     const { rateLimit } = await import("../src/server/security/rate-limit");
