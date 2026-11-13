@@ -93,9 +93,15 @@ describe("1 · un solo sitio formatea", () => {
 // 2. «UTC» no se le dice a un usuario ni a una empresa
 // ---------------------------------------------------------------------------------------------------
 
-/** «UTC» dentro de un TEXTO: una cadena, una plantilla o el texto de JSX. No el código (`ZONA_UTC`). */
+/**
+ * «UTC» dentro de un TEXTO: una cadena, una plantilla o el texto de JSX. No el código (`ZONA_UTC`,
+ * `Date.UTC`). El texto de JSX puede empezar tras una etiqueta (`>`) o tras una expresión (`}`) y
+ * acabar en otra etiqueta (`<`) o en otra expresión (`{`): la primera versión de este detector solo
+ * miraba `>…<` y dejó pasar «…no caducan. Se cuenta en UTC.» detrás de un `{cuandoSeReinicia(...)}`
+ * (lo cazó el diente).
+ */
 const UTC_EN_TEXTO =
-  /(["'`])(?:(?!\1)[^\\\n]|\\.)*\bUTC\b(?:(?!\1)[^\\\n]|\\.)*\1|>[^<{}]*\bUTC\b[^<{}]*</;
+  /(["'`])(?:(?!\1)[^\\\n]|\\.)*(?<![.\w])UTC\b(?:(?!\1)[^\\\n]|\\.)*\1|[>}][^<>{}"'`]*(?<![.\w])UTC\b[^<>{}"'`]*[<{]/;
 
 /** Lo que ve un usuario o una empresa: sus pantallas, sus componentes, sus rutas y el copy. */
 const DE_USUARIO = (r: string) =>
@@ -111,8 +117,11 @@ describe("2 · a un usuario o una empresa no se le dice «UTC»", () => {
   it("el detector distingue texto de código", () => {
     expect(UTC_EN_TEXTO.test('"se reinicia a medianoche UTC."')).toBe(true);
     expect(UTC_EN_TEXTO.test("<p>Hasta (UTC)</p>")).toBe(true);
+    // Texto de JSX DETRÁS de una expresión: el caso que se escapaba.
+    expect(UTC_EN_TEXTO.test("{cuando(x)}. Se cuenta en UTC.\n      </p>")).toBe(true);
     expect(UTC_EN_TEXTO.test("formatearFecha(x, idioma, ZONA_UTC, estilo)")).toBe(false);
     expect(UTC_EN_TEXTO.test("Date.UTC(2026, 0, 1)")).toBe(false);
+    expect(UTC_EN_TEXTO.test("}\n  const d = Date.UTC(a, b, c);\n  if (d) {")).toBe(false);
   });
 
   it("ninguna pantalla, componente, ruta o copy de usuario/empresa contiene «UTC» en un texto", () => {
