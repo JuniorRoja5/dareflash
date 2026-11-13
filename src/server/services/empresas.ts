@@ -694,7 +694,7 @@ async function avisarDecision(
 ): Promise<void> {
   const e = await tx.empresa.findUnique({
     where: { id: entrada.empresaId },
-    select: { nombre: true, user: { select: { email: true } } },
+    select: { nombre: true, tipoNegocio: true, user: { select: { email: true } } },
   });
   // Una cuenta sin correo (anonimizada) no tiene a quién avisar. No es un error de la decisión.
   if (!e?.user.email) return;
@@ -705,7 +705,8 @@ async function avisarDecision(
   // EL REGALO SE CUENTA EN EL MISMO CORREO: se le prometió en el alta («las empresas que verifiquemos
   // antes de… se llevan N créditos de publicidad de regalo»), y este es el momento en que se cumple.
   const regalo = entrada.regaloCreditos
-    ? ` Como Socio Fundador, te llevas ${fraseRegaloSocioFundador()}. ${fraseQueEsUnCredito()}`
+    ? // Con SU tipo de negocio: a quien vende online no se le promete «tu ciudad», que no puede comprar.
+      ` Como Socio Fundador, te llevas ${fraseRegaloSocioFundador(e.tipoNegocio as TipoNegocio)}. ${fraseQueEsUnCredito(e.tipoNegocio as TipoNegocio)}`
     : "";
   const cuerpo = verificada
     ? `Hemos revisado ${e.nombre} y está verificada. Ya puedes usar tu portal.${regalo}`

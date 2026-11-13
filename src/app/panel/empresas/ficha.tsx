@@ -134,6 +134,7 @@ export function FichaEmpresa({
           <CreditosEmpresa
             empresaId={ficha.id}
             nombre={ficha.nombre}
+            tipoNegocio={ficha.tipoNegocio}
             saldo={creditos.saldo}
             movimientos={creditos.movimientos}
           />

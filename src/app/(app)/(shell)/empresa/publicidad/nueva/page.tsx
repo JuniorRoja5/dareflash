@@ -44,6 +44,12 @@ const PASOS = [
 export default async function PaginaNuevaCampana() {
   const ambito = await ambitoDelPortal();
 
+  const { prisma } = await import("@/server/db/client");
+  const { miEmpresa } = await import("@/server/services/empresas");
+  // SU tipo de negocio, ANTES de la cabecera: la tarifa que se le cuenta es solo la de lo que puede
+  // comprar. Sin correo confirmado (`ambito === null`) aún no se sabe, y va la horquilla general.
+  const empresa = ambito ? await miEmpresa(prisma, ambito.empresaId) : null;
+
   const cabecera = (
     <div>
       <Link
@@ -54,7 +60,7 @@ export default async function PaginaNuevaCampana() {
       </Link>
       <h1 className="text-2xl text-text">Nueva campaña</h1>
       <p className="mt-1 max-w-prose text-sm text-text-dim">
-        {fraseQueEsUnCredito()} Sin revisión previa: la activas tú.
+        {fraseQueEsUnCredito(empresa?.tipoNegocio)} Sin revisión previa: la activas tú.
       </p>
     </div>
   );
@@ -76,12 +82,9 @@ export default async function PaginaNuevaCampana() {
     );
   }
 
-  const { prisma } = await import("@/server/db/client");
-  const { miEmpresa } = await import("@/server/services/empresas");
   const { paisesDelCatalogo, regionesDePais, saldoCreditosDe } =
     await import("@/server/services/publicidad");
 
-  const empresa = await miEmpresa(prisma, ambito.empresaId);
   if (!empresa) return null;
   const alcances = alcancesPermitidos(empresa.tipoNegocio);
   const local = alcances.includes("CIUDAD") || alcances.includes("ESTADO");

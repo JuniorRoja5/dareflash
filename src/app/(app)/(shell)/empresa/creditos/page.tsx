@@ -60,7 +60,12 @@ export default async function PaginaCreditos({
 
   const { prisma } = await import("@/server/db/client");
   const { misCreditos } = await import("@/server/services/creditos");
-  const creditos = await misCreditos(prisma, ambito.empresaId, { cursor: aqui.cursor });
+  const { miEmpresa } = await import("@/server/services/empresas");
+  // SU tipo de negocio: la tarifa que se le cuenta es solo la de lo que puede comprar.
+  const [creditos, empresa] = await Promise.all([
+    misCreditos(prisma, ambito.empresaId, { cursor: aqui.cursor }),
+    miEmpresa(prisma, ambito.empresaId),
+  ]);
 
   // P11: LA COMPRA. Sin claves de Stripe (o sin verificar) se ven los paquetes pero no se ofrece el
   // botón, y se dice por qué. `env` se lee aquí, por petición (nunca en ámbito de módulo).
@@ -87,7 +92,7 @@ export default async function PaginaCreditos({
       <div>
         <h1 className="text-2xl text-text">Créditos de publicidad</h1>
         <p className="mt-1 max-w-prose text-sm text-text-dim">
-          {fraseQueEsUnCredito()} Aquí tienes todos tus movimientos.
+          {fraseQueEsUnCredito(empresa?.tipoNegocio)} Aquí tienes todos tus movimientos.
         </p>
       </div>
 

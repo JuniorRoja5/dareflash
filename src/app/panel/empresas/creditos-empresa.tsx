@@ -8,6 +8,7 @@ import {
   AJUSTE_NOTA_MAX,
   AJUSTE_NOTA_MIN,
   fraseQueEsUnCredito,
+  type TipoNegocio,
 } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import type { MovimientoCreditoPanel } from "@/server/services/creditos";
@@ -34,11 +35,14 @@ const creditos = (x: number) => `${n(x)} ${Math.abs(x) === 1 ? "cr√©dito" : "cr√
 export function CreditosEmpresa({
   empresaId,
   nombre,
+  tipoNegocio,
   saldo,
   movimientos,
 }: {
   empresaId: string;
   nombre: string;
+  /** Para contar SOLO las tarifas de lo que este negocio puede comprar. */
+  tipoNegocio: TipoNegocio;
   saldo: number;
   movimientos: MovimientoCreditoPanel[];
 }) {
@@ -111,7 +115,7 @@ export function CreditosEmpresa({
           Saldo: <span className="font-semibold">{creditos(saldo)}</span>
         </p>
       </div>
-      <p className="mt-1 text-2xs text-text-dim">{fraseQueEsUnCredito()}</p>
+      <p className="mt-1 text-2xs text-text-dim">{fraseQueEsUnCredito(tipoNegocio)}</p>
 
       {movimientos.length > 0 ? (
         <ul className="mt-3 divide-y divide-line text-sm">

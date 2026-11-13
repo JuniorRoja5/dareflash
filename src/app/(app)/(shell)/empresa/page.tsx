@@ -104,7 +104,7 @@ export default async function PaginaMiEmpresa() {
           }
           pie={
             <>
-              {fraseQueEsUnCredito()}
+              {fraseQueEsUnCredito(empresa.tipoNegocio)}
               <Link href="/empresa/creditos" className={`mt-1 block ${ENLACE}`}>
                 Ver movimientos
               </Link>

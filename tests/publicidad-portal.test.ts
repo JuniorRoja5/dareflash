@@ -130,17 +130,18 @@ describe("el informe dice «veces que se mostró», no «vistas» (P10)", () => 
 });
 
 describe("el regalo de Socio Fundador promete créditos, no días (P10)", () => {
-  it("«N créditos de regalo: hasta N días en tu ciudad», calculado de la tarifa de la ciudad", async () => {
+  it("«N créditos de regalo: hasta N días en tu ciudad» (local), calculado de la tarifa de la ciudad", async () => {
     const c = await import("../src/config/constants");
     const n = c.SOCIO_FUNDADOR_CREDITOS;
-    expect(c.fraseRegaloSocioFundador()).toBe(
+    expect(c.fraseRegaloSocioFundador("FISICO")).toBe(
       `${n} créditos de publicidad de regalo: hasta ${n / c.CREDITOS_POR_DIA.CIUDAD} días anunciándote en tu ciudad`,
     );
+    // El aviso PÚBLICO (sin tipo) usa la frase sin tipo, que cuenta los dos casos.
     expect(c.msgSocioFundador()).toContain(c.fraseRegaloSocioFundador());
     const original = c.CREDITOS_POR_DIA.CIUDAD;
     try {
       c.CREDITOS_POR_DIA.CIUDAD = 2;
-      expect(c.fraseRegaloSocioFundador()).toContain(`hasta ${Math.floor(n / 2)} días`);
+      expect(c.fraseRegaloSocioFundador("FISICO")).toContain(`hasta ${Math.floor(n / 2)} días`);
     } finally {
       c.CREDITOS_POR_DIA.CIUDAD = original;
     }
