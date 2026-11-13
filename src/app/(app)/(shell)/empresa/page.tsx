@@ -6,11 +6,12 @@ import { TarjetaMetrica } from "@/components/ui/tarjeta-metrica";
 import {
   ETIQUETA_ESTADO_EMPRESA,
   ETIQUETA_TIPO_CUENTA,
-  ETIQUETA_TIPO_NEGOCIO,
   MSG_ESTADO_EMPRESA,
   MSG_MOTIVO_RECHAZO_EMPRESA,
+  fraseCreditoPublica,
   fraseQueEsUnCredito,
 } from "@/config/constants";
+import { etiquetaTipoNegocio } from "@/lib/empresa";
 import { nombrePais } from "@/lib/paises";
 
 import { AvisoVerificar } from "./aviso-verificar";
@@ -85,7 +86,7 @@ export default async function PaginaMiEmpresa() {
     <div className="df-rise">
       <h1 className="text-2xl text-text">{empresa.nombre}</h1>
       <p className="mt-1 text-sm text-text-dim">
-        {ETIQUETA_TIPO_CUENTA[empresa.tipoCuenta]} · {ETIQUETA_TIPO_NEGOCIO[empresa.tipoNegocio]}
+        {ETIQUETA_TIPO_CUENTA[empresa.tipoCuenta]} · {etiquetaTipoNegocio(empresa.tipoNegocio)}
       </p>
 
       {/* ┌─ TRES CIFRAS ARRIBA, EN REJILLA ─────────────────────────────────────────────────────┐
@@ -104,7 +105,10 @@ export default async function PaginaMiEmpresa() {
           }
           pie={
             <>
-              {fraseQueEsUnCredito(empresa.tipoNegocio)}
+              {/* Con un tipo fuera del catálogo, la horquilla pública: decidido, no por defecto. */}
+              {empresa.tipoNegocio
+                ? fraseQueEsUnCredito(empresa.tipoNegocio)
+                : fraseCreditoPublica()}
               <Link href="/empresa/creditos" className={`mt-1 block ${ENLACE}`}>
                 Ver movimientos
               </Link>
@@ -147,7 +151,7 @@ export default async function PaginaMiEmpresa() {
           <dl className="mt-3 grid gap-4 sm:grid-cols-2">
             <Dato etiqueta="Nombre" valor={empresa.nombre} />
             <Dato etiqueta="Tipo de cuenta" valor={ETIQUETA_TIPO_CUENTA[empresa.tipoCuenta]} />
-            <Dato etiqueta="Tipo de negocio" valor={ETIQUETA_TIPO_NEGOCIO[empresa.tipoNegocio]} />
+            <Dato etiqueta="Tipo de negocio" valor={etiquetaTipoNegocio(empresa.tipoNegocio)} />
             <Dato etiqueta="País" valor={nombrePais(empresa.paisIso)} />
             <Dato etiqueta="Contacto" valor={empresa.personaContacto} />
             <Dato

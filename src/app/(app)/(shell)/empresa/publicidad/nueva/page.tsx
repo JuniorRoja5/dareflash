@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Tarjeta } from "@/components/ui/tarjeta";
 import {
+  fraseCreditoPublica,
   fraseQueEsUnCredito,
   CREDITOS_POR_DIA,
   MSG_SALDO_NO_RETENIDO,
@@ -60,7 +61,11 @@ export default async function PaginaNuevaCampana() {
       </Link>
       <h1 className="text-2xl text-text">Nueva campaña</h1>
       <p className="mt-1 max-w-prose text-sm text-text-dim">
-        {fraseQueEsUnCredito(empresa?.tipoNegocio)} Sin revisión previa: la activas tú.
+        {/* DECIDIDO, no por defecto: sin empresa resuelta (correo sin confirmar) o con un tipo fuera
+            del catálogo no se sabe qué puede comprar, y va la horquilla pública, que es verdad para
+            cualquiera. Con tipo, solo sus alcances. */}
+        {empresa?.tipoNegocio ? fraseQueEsUnCredito(empresa.tipoNegocio) : fraseCreditoPublica()}{" "}
+        Sin revisión previa: la activas tú.
       </p>
     </div>
   );
@@ -86,6 +91,21 @@ export default async function PaginaNuevaCampana() {
     await import("@/server/services/publicidad");
 
   if (!empresa) return null;
+  // UN TIPO DE NEGOCIO FUERA DEL CATÁLOGO (no debería pasar: el alta lo valida) deja la pantalla sin
+  // saber qué alcances ofrecer. Se dice, en vez de pintar un formulario sin opciones o romper.
+  if (!empresa.tipoNegocio) {
+    return (
+      <div className="df-rise space-y-6">
+        {cabecera}
+        <Tarjeta className="max-w-prose p-5">
+          <p className="text-sm text-text-dim">
+            No podemos ofrecerte campañas hasta revisar el tipo de negocio de tu empresa. Escríbenos
+            contestando a cualquiera de nuestros correos y lo arreglamos.
+          </p>
+        </Tarjeta>
+      </div>
+    );
+  }
   const alcances = alcancesPermitidos(empresa.tipoNegocio);
   const local = alcances.includes("CIUDAD") || alcances.includes("ESTADO");
   const [regiones, catalogo, saldo] = await Promise.all([

@@ -2487,7 +2487,7 @@ export function msgSocioFundador(): string {
     year: "numeric",
     timeZone: "Europe/Madrid",
   });
-  return `Socios Fundadores: las empresas que verifiquemos antes del ${hasta} se llevan ${fraseRegaloSocioFundador()}.`;
+  return `Socios Fundadores: las empresas que verifiquemos antes del ${hasta} se llevan ${fraseRegaloPublico()}.`;
 }
 
 /**
@@ -2497,24 +2497,32 @@ export function msgSocioFundador(): string {
  * casos. Lo usan el aviso de Socios Fundadores y el correo de la verificación. Se CALCULA de las
  * constantes, como `fraseQueEsUnCredito`.
  */
-export function fraseRegaloSocioFundador(tipoNegocio?: TipoNegocio): string {
-  const regalo = `${SOCIO_FUNDADOR_CREDITOS} créditos de publicidad de regalo`;
-  const dias = (a: AlcancePublicidad) => Math.floor(SOCIO_FUNDADOR_CREDITOS / CREDITOS_POR_DIA[a]);
-  const enDias = (n: number) => `${n} ${n === 1 ? "día" : "días"}`;
-  if (tipoNegocio) {
-    // CON TIPO CONOCIDO (el correo de la verificación, el portal): los días se cuentan en el alcance
-    // MÁS BARATO que ESE negocio puede comprar. A un negocio online no se le promete «tu ciudad»:
-    // no puede comprarla (`ALCANCES_POR_NEGOCIO`), y pasó en producción.
-    const a = alcanceMasBarato(tipoNegocio);
-    return `${regalo}: hasta ${enDias(dias(a))} ${REGALO_EN_ALCANCE[a]}`;
-  }
-  // SIN TIPO (el aviso público, antes de registrarse): quien lo lee puede ser cualquiera de los dos,
-  // así que se dicen LOS DOS casos. Prometer solo «tu ciudad» se lo prometería también a quien vende
-  // online, que es justo la promesa que no se puede cumplir.
+export function fraseRegaloSocioFundador(tipoNegocio: TipoNegocio): string {
+  // EL TIPO ES OBLIGATORIO, y no es un detalle: con un parámetro opcional, olvidarlo compilaba y
+  // devolvía la frase genérica en silencio (el «filtro opcional que se olvida», el que `requireEmpresa`
+  // prohíbe para `empresaId`). Quien NO conoce el tipo lo dice llamando a `fraseRegaloPublico()`.
+  // Los días se cuentan en el alcance MÁS BARATO que ESE negocio puede comprar: a un negocio online no
+  // se le promete «tu ciudad», que no puede comprar (`ALCANCES_POR_NEGOCIO`). Pasó en producción.
+  const a = alcanceMasBarato(tipoNegocio);
+  return `${REGALO}: hasta ${enDias(diasDeRegalo(a))} ${REGALO_EN_ALCANCE[a]}`;
+}
+
+/**
+ * EL REGALO DICHO A QUIEN AÚN NO SABEMOS QUÉ NEGOCIO TIENE: el aviso público de Socios Fundadores
+ * (`msgSocioFundador`, antes de registrarse). Quien lo lee puede ser cualquiera de los dos, así que se
+ * dicen LOS DOS casos: prometer solo «tu ciudad» se lo prometería también a quien vende online.
+ * Un censo exige que solo lo usen las superficies anónimas (y el respaldo del correo con un tipo roto).
+ */
+export function fraseRegaloPublico(): string {
   const local = alcanceMasBarato("FISICO");
   const fuera = alcanceMasBarato("ONLINE");
-  return `${regalo}: hasta ${enDias(dias(local))} ${REGALO_EN_ALCANCE[local]} si tienes un local, o ${enDias(dias(fuera))} ${REGALO_EN_ALCANCE[fuera]} si vendes online o eres una marca`;
+  return `${REGALO}: hasta ${enDias(diasDeRegalo(local))} ${REGALO_EN_ALCANCE[local]} si tienes un local, o ${enDias(diasDeRegalo(fuera))} ${REGALO_EN_ALCANCE[fuera]} si vendes online o eres una marca`;
 }
+
+const REGALO = `${SOCIO_FUNDADOR_CREDITOS} créditos de publicidad de regalo`;
+const diasDeRegalo = (a: AlcancePublicidad) =>
+  Math.floor(SOCIO_FUNDADOR_CREDITOS / CREDITOS_POR_DIA[a]);
+const enDias = (n: number) => `${n} ${n === 1 ? "día" : "días"}`;
 
 /**
  * Cómo se dice «anunciándote ahí» para cada alcance, en la frase del regalo. Un Record CERRADO: un
@@ -2814,25 +2822,32 @@ export const CREDITOS_POR_DIA: Record<AlcancePublicidad, number> = {
  * anuncio», que solo es cierto en una ciudad: desde que se cobra cada día (P9), al lado de un «−15» de
  * una campaña global se leía como un error. Se CALCULA de la tabla: subir un precio no la deja mintiendo.
  */
-export function fraseQueEsUnCredito(tipoNegocio?: TipoNegocio): string {
-  const coletilla = "y se descuenta cada día que se muestra.";
-  if (tipoNegocio) {
-    // CON TIPO CONOCIDO (portal, panel, correo): SOLO los alcances que ese negocio puede comprar
-    // (`ALCANCES_POR_NEGOCIO`), con su tarifa. Antes la cabecera de «Nueva campaña» le hablaba de
-    // «una ciudad» a un negocio online, que no puede comprarla.
-    const tramos = ALCANCES_POR_NEGOCIO[tipoNegocio].map((a, i) => {
-      const n = CREDITOS_POR_DIA[a];
-      // La unidad solo en el primero («1 crédito en una ciudad y 2 en una región»).
-      return `${n}${i === 0 ? ` ${n === 1 ? "crédito" : "créditos"}` : ""} ${TARIFA_EN_ALCANCE[a]}`;
-    });
-    const lista =
-      tramos.length === 1 ? tramos[0] : `${tramos.slice(0, -1).join(", ")} y ${tramos.at(-1)}`;
-    return `Un día de campaña cuesta ${lista}, ${coletilla}`;
-  }
-  // SIN TIPO (el alta pública, antes de saber qué negocio es): la horquilla del catálogo entero.
-  const { CIUDAD, GLOBAL } = CREDITOS_POR_DIA;
-  return `Un día de campaña cuesta ${CIUDAD} ${CIUDAD === 1 ? "crédito" : "créditos"} en una ciudad y ${GLOBAL} en todo el mundo, ${coletilla}`;
+export function fraseQueEsUnCredito(tipoNegocio: TipoNegocio): string {
+  // EL TIPO ES OBLIGATORIO (ver `fraseRegaloSocioFundador`): quien no lo conoce llama a
+  // `fraseCreditoPublica()`, y esa elección se lee en el código. SOLO los alcances que ese negocio
+  // puede comprar (`ALCANCES_POR_NEGOCIO`), con su tarifa. Antes la cabecera de «Nueva campaña» le
+  // hablaba de «una ciudad» a un negocio online, que no puede comprarla.
+  const tramos = ALCANCES_POR_NEGOCIO[tipoNegocio].map((a, i) => {
+    const n = CREDITOS_POR_DIA[a];
+    // La unidad solo en el primero («1 crédito en una ciudad y 2 en una región»).
+    return `${n}${i === 0 ? ` ${n === 1 ? "crédito" : "créditos"}` : ""} ${TARIFA_EN_ALCANCE[a]}`;
+  });
+  const lista =
+    tramos.length === 1 ? tramos[0] : `${tramos.slice(0, -1).join(", ")} y ${tramos.at(-1)}`;
+  return `Un día de campaña cuesta ${lista}, ${COLETILLA_CREDITO}`;
 }
+
+/**
+ * LA TARIFA DICHA A QUIEN AÚN NO SABEMOS QUÉ NEGOCIO TIENE (el alta pública de empresa; y el portal
+ * cuando el correo aún no está confirmado y no se sabe qué empresa es): la horquilla del catálogo
+ * entero, que es verdad para cualquiera.
+ */
+export function fraseCreditoPublica(): string {
+  const { CIUDAD, GLOBAL } = CREDITOS_POR_DIA;
+  return `Un día de campaña cuesta ${CIUDAD} ${CIUDAD === 1 ? "crédito" : "créditos"} en una ciudad y ${GLOBAL} en todo el mundo, ${COLETILLA_CREDITO}`;
+}
+
+const COLETILLA_CREDITO = "y se descuenta cada día que se muestra.";
 
 /** Cómo se dice dónde, al dar la tarifa de cada alcance. Record CERRADO, como `REGALO_EN_ALCANCE`. */
 const TARIFA_EN_ALCANCE: Record<AlcancePublicidad, string> = {

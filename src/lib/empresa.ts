@@ -20,8 +20,27 @@ import {
   type AlcancePublicidad,
   type EspacioPublicidad,
   type EstadoEmpresa,
+  ETIQUETA_TIPO_NEGOCIO,
   type TipoNegocio,
+  TipoNegocioSchema,
 } from "@/config/constants";
+
+/**
+ * LEE EL TIPO DE NEGOCIO GUARDADO. La columna es un `String`: un valor fuera del catálogo da `null`, y
+ * quien lee DECIDE qué hacer (frase pública, un aviso, un «sin clasificar»). Sustituye al
+ * `as TipoNegocio`, que se lo creía todo: con un valor raro, `ALCANCES_POR_NEGOCIO[x]` era `undefined`
+ * y lo primero que lo tocaba —la frase del correo de verificación— lanzaba DENTRO de la transacción y
+ * deshacía la verificación entera por culpa de una frase.
+ */
+export function tipoNegocioDe(valor: string): TipoNegocio | null {
+  const r = TipoNegocioSchema.safeParse(valor);
+  return r.success ? r.data : null;
+}
+
+/** Cómo se llama el tipo de negocio en pantalla; uno fuera del catálogo se dice, no se inventa. */
+export function etiquetaTipoNegocio(tipo: TipoNegocio | null): string {
+  return tipo ? ETIQUETA_TIPO_NEGOCIO[tipo] : "Tipo de negocio sin clasificar";
+}
 
 /** Los alcances que este negocio puede comprar. Nunca vacío: todo tipo compra algo. */
 export function alcancesPermitidos(tipoNegocio: TipoNegocio): readonly AlcancePublicidad[] {

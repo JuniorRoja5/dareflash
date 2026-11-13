@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import {
   ETIQUETA_ESTADO_EMPRESA,
-  ETIQUETA_TIPO_NEGOCIO,
   EstadoEmpresaSchema,
   type EstadoEmpresa,
 } from "@/config/constants";
@@ -13,6 +12,7 @@ import {
   siguiente,
   type Paginacion,
 } from "@/lib/paginacion-pila";
+import { etiquetaTipoNegocio } from "@/lib/empresa";
 import { nombrePais } from "@/lib/paises";
 
 import { requireSeccion } from "../panel-guard";
@@ -221,7 +221,7 @@ export default async function PaginaEmpresas({
                         {e.personaContacto}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-text-dim">
-                        {ETIQUETA_TIPO_NEGOCIO[e.tipoNegocio]}
+                        {etiquetaTipoNegocio(e.tipoNegocio)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-text-dim">
                         {nombrePais(e.paisIso)}
@@ -255,7 +255,7 @@ export default async function PaginaEmpresas({
                       <span className={PILDORA}>{ETIQUETA_ESTADO_EMPRESA[e.estado]}</span>
                     </span>
                     <span className="mt-1 block text-2xs text-text-dim">
-                      {ETIQUETA_TIPO_NEGOCIO[e.tipoNegocio]} · {nombrePais(e.paisIso)} ·{" "}
+                      {etiquetaTipoNegocio(e.tipoNegocio)} · {nombrePais(e.paisIso)} ·{" "}
                       {e.personaContacto} ·{" "}
                       <span className="tabular-nums">
                         {new Date(e.creadaMs).toLocaleDateString("es-ES", FECHA)}

@@ -1,10 +1,9 @@
 import {
   ETIQUETA_ESTADO_EMPRESA,
   ETIQUETA_TIPO_CUENTA,
-  ETIQUETA_TIPO_NEGOCIO,
   MSG_MOTIVO_RECHAZO_EMPRESA,
 } from "@/config/constants";
-import { alcancesPermitidos } from "@/lib/empresa";
+import { alcancesPermitidos, etiquetaTipoNegocio } from "@/lib/empresa";
 import { nombrePais } from "@/lib/paises";
 import type { MovimientoCreditoPanel } from "@/server/services/creditos";
 import type { FichaEmpresa as DatosFicha } from "@/server/services/empresas";
@@ -64,7 +63,7 @@ export function FichaEmpresa({
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <span className={PILDORA}>{ETIQUETA_TIPO_CUENTA[ficha.tipoCuenta]}</span>
-            <span className={PILDORA}>{ETIQUETA_TIPO_NEGOCIO[ficha.tipoNegocio]}</span>
+            <span className={PILDORA}>{etiquetaTipoNegocio(ficha.tipoNegocio)}</span>
             <span className={PILDORA}>{ETIQUETA_ESTADO_EMPRESA[ficha.estado]}</span>
           </div>
         </div>
@@ -78,9 +77,11 @@ export function FichaEmpresa({
             </span>
           </Dato>
           <Dato etiqueta="Puede comprar">
-            {alcancesPermitidos(ficha.tipoNegocio)
-              .map((a) => a.toLowerCase())
-              .join(", ")}
+            {ficha.tipoNegocio
+              ? alcancesPermitidos(ficha.tipoNegocio)
+                  .map((a) => a.toLowerCase())
+                  .join(", ")
+              : "— (tipo de negocio sin clasificar)"}
           </Dato>
           <Dato etiqueta="Web">{ficha.webUrl ?? "—"}</Dato>
           <Dato etiqueta="Redes">{ficha.redes ?? "—"}</Dato>

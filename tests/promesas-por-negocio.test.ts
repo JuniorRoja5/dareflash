@@ -13,22 +13,25 @@
  *  2. Las cifras salen de `CREDITOS_POR_DIA` y `SOCIO_FUNDADOR_CREDITOS`: se cambia la tabla y la frase
  *     cambia con ella.
  *  3. EL CORREO DE VERDAD (verificarEmpresa contra la BD), para un negocio de cada tipo.
- *  4. El censo: ninguna superficie que CONOCE el tipo de negocio (portal, panel, servicio del correo)
- *     llama a las frases sin él.
+ *  4. Olvidar el tipo NO COMPILA (parámetro obligatorio); las frases públicas, con su propio nombre,
+ *     solo donde se ha decidido usarlas (censo de abajo).
+ *  5. Un tipo guardado FUERA DEL CATÁLOGO (la columna es un String) no deshace la verificación: se
+ *     completa con las frases públicas, queda en el log saneado, y el DTO lo da como `null`.
  *
  * Para romperlo a propósito: volver a «en tu ciudad» fijo en el regalo (rojo el 1 y el 3 para ONLINE);
- * quitar el `tipoNegocio` del correo o de la cabecera de «Nueva campaña» (rojo el 3 o el 4).
+ * quitar el `tipoNegocio` del correo (rojo el 3); volver a `as TipoNegocio` sin validar en el correo
+ * (rojo el 5); usar `fraseCreditoPublica()` en otra pantalla del portal (rojo el censo).
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as c from "../src/config/constants";
 import type { AlcancePublicidad, TipoNegocio } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
-import { alcancesPermitidos } from "../src/lib/empresa";
-import { verificarEmpresa } from "../src/server/services/empresas";
+import { alcancesPermitidos, tipoNegocioDe } from "../src/lib/empresa";
+import { fichaEmpresa, miEmpresa, verificarEmpresa } from "../src/server/services/empresas";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
@@ -107,11 +110,16 @@ describe("la tarifa y el regalo, por tipo de negocio", () => {
   });
 
   it("el aviso PÚBLICO (sin tipo, antes del alta) cuenta los dos casos, no solo «tu ciudad»", () => {
-    const frase = c.fraseRegaloSocioFundador();
+    const frase = c.fraseRegaloPublico();
     expect(frase).toMatch(NOMBRA.CIUDAD);
     expect(frase).toMatch(NOMBRA.PAIS);
     expect(frase).toMatch(/online/i);
     expect(c.msgSocioFundador()).toContain(frase);
+  });
+
+  it("leer el tipo guardado: lo del catálogo pasa; lo de fuera es `null`, no se cree", () => {
+    for (const t of TIPOS) expect(tipoNegocioDe(t)).toBe(t);
+    for (const raro of ["XYZ", "", "fisico", "ONLINE "]) expect(tipoNegocioDe(raro)).toBeNull();
   });
 });
 
@@ -165,6 +173,79 @@ describe("el correo de la verificación (con el regalo), por tipo de negocio", (
     expect(promesasDeMas(text, t), text).toEqual([]);
     expect(promesasDeMas(html, t)).toEqual([]);
   });
+
+  it("un tipo FUERA DEL CATÁLOGO no deshace la verificación: se completa y el correo lleva las frases públicas", async () => {
+    // Antes: `as TipoNegocio` lo daba por bueno, `ALCANCES_POR_NEGOCIO["XYZ"]` era `undefined` y la
+    // frase lanzaba DENTRO de la transacción: la empresa se quedaba sin verificar por culpa de un texto.
+    const admin = await crearUsuario(prisma);
+    const dueno = await crearUsuario(prisma);
+    await prisma.user.update({
+      where: { id: dueno },
+      data: { email: "promesas-raro@empresa.test", esCuentaEmpresa: true },
+    });
+    const e = await prisma.empresa.create({
+      data: {
+        ownerUserId: dueno,
+        nombre: "Tienda rara",
+        tipoCuenta: "EMPRESA",
+        tipoNegocio: "XYZ",
+        estado: "PENDIENTE",
+        paisIso: "ES",
+        personaContacto: "Lucía",
+      },
+      select: { id: true },
+    });
+    const avisos: string[] = [];
+    const espia = vi.spyOn(console, "warn").mockImplementation((m: unknown) => {
+      avisos.push(String(m));
+    });
+    try {
+      await verificarEmpresa(prisma, {
+        empresaId: e.id,
+        actorId: admin,
+        appUrl: "https://dareflash.test",
+        ahora: new Date("2026-11-05T12:00:00.000Z"),
+      });
+    } finally {
+      espia.mockRestore();
+    }
+    // La verificación se COMPLETÓ: estado, regalo y correo.
+    const fila = await prisma.empresa.findUniqueOrThrow({ where: { id: e.id } });
+    expect(fila.estado).toBe("VERIFICADA");
+    expect(fila.creditosSaldo).toBe(c.SOCIO_FUNDADOR_CREDITOS);
+    const [job] = await prisma.job.findMany({
+      where: { idempotencyKey: { startsWith: "empresa-decision:" } },
+    });
+    const { text } = job!.payload as { text: string };
+    expect(text).toContain(c.fraseRegaloPublico());
+    expect(text).toContain(c.fraseCreditoPublica());
+    // Y queda apuntado en el log, SANEADO: el id, no el valor.
+    expect(avisos.some((a) => a.includes(e.id))).toBe(true);
+    expect(avisos.join("\n")).not.toContain("XYZ");
+  });
+
+  it("y el DTO del portal (y del panel) lo da como `null`, para que quien pinta decida", async () => {
+    const dueno = await crearUsuario(prisma);
+    const e = await prisma.empresa.create({
+      data: {
+        ownerUserId: dueno,
+        nombre: "Tienda rara",
+        tipoCuenta: "EMPRESA",
+        tipoNegocio: "XYZ",
+        estado: "VERIFICADA",
+        paisIso: "ES",
+        personaContacto: "Lucía",
+      },
+      select: { id: true },
+    });
+    const espia = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect((await miEmpresa(prisma, e.id))?.tipoNegocio).toBeNull();
+      expect((await fichaEmpresa(prisma, e.id))?.tipoNegocio).toBeNull();
+    } finally {
+      espia.mockRestore();
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------------------------------
@@ -181,41 +262,52 @@ function ficheros(dir: string): string[] {
 }
 const soloCodigo = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
-describe("el censo: donde se conoce el tipo, se pasa", () => {
-  it("portal, panel de empresas y el servicio del correo no llaman a las frases sin tipo", () => {
-    const donde = [
-      ...ficheros(path.join(RAIZ, "src", "app", "(app)", "(shell)", "empresa")),
-      ...ficheros(path.join(RAIZ, "src", "app", "panel", "empresas")),
-      path.join(RAIZ, "src", "server", "services", "empresas.ts"),
-    ];
-    expect(donde.length).toBeGreaterThan(10);
-    const sinTipo = donde
-      .filter((f) =>
-        /(?:fraseQueEsUnCredito|fraseRegaloSocioFundador)\(\s*\)/.test(
-          soloCodigo(readFileSync(f, "utf8")),
-        ),
-      )
-      .map((f) => path.relative(RAIZ, f));
-    expect(sinTipo).toEqual([]);
+/**
+ * OLVIDAR EL TIPO YA NO COMPILA: `fraseQueEsUnCredito` y `fraseRegaloSocioFundador` lo exigen, así que
+ * ese censo lo hace `tsc` (en el pre-commit). Lo que queda por vigilar es lo contrario: que las frases
+ * PÚBLICAS —las de quien no sabe qué negocio es— no se cuelen donde sí se sabe. Cada sitio que las usa
+ * está aquí con su motivo; uno nuevo se pone rojo y obliga a decidirlo.
+ */
+const PUBLICAS_PERMITIDAS: Record<string, string> = {
+  // Donde se definen (y `msgSocioFundador`, el aviso público, las compone).
+  "src/config/constants.ts": "las define",
+  // Superficie ANÓNIMA: el alta de empresa, antes de saber qué negocio es.
+  "src/app/(app)/(shell)/empezar/empresa/page.tsx": "alta pública",
+  // RESPALDOS DECIDIDOS: sin empresa resuelta (correo sin confirmar) o con un tipo fuera del catálogo.
+  "src/app/(app)/(shell)/empresa/page.tsx": "respaldo: tipo fuera del catálogo",
+  "src/app/(app)/(shell)/empresa/creditos/page.tsx": "respaldo: sin empresa o tipo raro",
+  "src/app/(app)/(shell)/empresa/publicidad/nueva/page.tsx": "respaldo: sin empresa o tipo raro",
+  "src/app/panel/empresas/creditos-empresa.tsx": "respaldo: tipo fuera del catálogo",
+  "src/server/services/empresas.ts": "respaldo del correo: tipo fuera del catálogo",
+};
+
+/** El aviso de Socios Fundadores con los dos casos: SOLO en las superficies anónimas. */
+const AVISO_PUBLICO_PERMITIDO = [
+  "src/config/constants.ts",
+  "src/app/(app)/(shell)/empezar/page.tsx",
+  "src/app/(app)/(shell)/empezar/empresa/page.tsx",
+  "src/app/(app)/(shell)/inicio/page.tsx",
+];
+
+describe("el censo de las frases PÚBLICAS", () => {
+  const todos = ficheros(path.join(RAIZ, "src"))
+    .filter((f) => !f.includes(`${path.sep}generated${path.sep}`))
+    .map((f) => ({
+      rel: path.relative(RAIZ, f).split(path.sep).join("/"),
+      codigo: soloCodigo(readFileSync(f, "utf8")),
+    }));
+
+  it("las frases sin tipo solo donde se ha decidido usarlas", () => {
+    const usan = todos
+      .filter((f) => /\b(?:fraseCreditoPublica|fraseRegaloPublico)\(/.test(f.codigo))
+      .map((f) => f.rel);
+    expect(usan.length).toBeGreaterThanOrEqual(3);
+    expect(usan.filter((r) => !(r in PUBLICAS_PERMITIDAS))).toEqual([]);
   });
 
-  it("y la cabecera de «Nueva campaña» la cuenta con SU tipo", () => {
-    const pagina = soloCodigo(
-      readFileSync(
-        path.join(
-          RAIZ,
-          "src",
-          "app",
-          "(app)",
-          "(shell)",
-          "empresa",
-          "publicidad",
-          "nueva",
-          "page.tsx",
-        ),
-        "utf8",
-      ),
-    );
-    expect(pagina).toMatch(/fraseQueEsUnCredito\(empresa\?\.tipoNegocio\)/);
+  it("el aviso público de Socios Fundadores, solo en /empezar, /empezar/empresa e /inicio", () => {
+    const usan = todos.filter((f) => /\bmsgSocioFundador\(/.test(f.codigo)).map((f) => f.rel);
+    expect(usan.length).toBeGreaterThanOrEqual(3);
+    expect(usan.filter((r) => !AVISO_PUBLICO_PERMITIDO.includes(r))).toEqual([]);
   });
 });

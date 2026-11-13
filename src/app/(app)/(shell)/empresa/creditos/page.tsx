@@ -5,6 +5,7 @@ import { formatearImporte } from "@/components/ui/logic";
 import {
   MSG_CREDITOS_PAGO_NO_DISPONIBLE,
   MSG_CREDITOS_SIN_VERIFICAR,
+  fraseCreditoPublica,
   fraseQueEsUnCredito,
 } from "@/config/constants";
 import { paquetesCreditosEnVenta } from "@/lib/creditos-precio";
@@ -92,7 +93,11 @@ export default async function PaginaCreditos({
       <div>
         <h1 className="text-2xl text-text">Créditos de publicidad</h1>
         <p className="mt-1 max-w-prose text-sm text-text-dim">
-          {fraseQueEsUnCredito(empresa?.tipoNegocio)} Aquí tienes todos tus movimientos.
+          {/* DECIDIDO: sin tipo conocido (o fuera del catálogo), la horquilla pública. */}
+          {empresa?.tipoNegocio
+            ? fraseQueEsUnCredito(empresa.tipoNegocio)
+            : fraseCreditoPublica()}{" "}
+          Aquí tienes todos tus movimientos.
         </p>
       </div>
 

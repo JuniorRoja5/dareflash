@@ -7,6 +7,7 @@ import {
   AJUSTE_CREDITOS_DELTA_MAX,
   AJUSTE_NOTA_MAX,
   AJUSTE_NOTA_MIN,
+  fraseCreditoPublica,
   fraseQueEsUnCredito,
   type TipoNegocio,
 } from "@/config/constants";
@@ -42,7 +43,7 @@ export function CreditosEmpresa({
   empresaId: string;
   nombre: string;
   /** Para contar SOLO las tarifas de lo que este negocio puede comprar. */
-  tipoNegocio: TipoNegocio;
+  tipoNegocio: TipoNegocio | null;
   saldo: number;
   movimientos: MovimientoCreditoPanel[];
 }) {
@@ -115,7 +116,9 @@ export function CreditosEmpresa({
           Saldo: <span className="font-semibold">{creditos(saldo)}</span>
         </p>
       </div>
-      <p className="mt-1 text-2xs text-text-dim">{fraseQueEsUnCredito(tipoNegocio)}</p>
+      <p className="mt-1 text-2xs text-text-dim">
+        {tipoNegocio ? fraseQueEsUnCredito(tipoNegocio) : fraseCreditoPublica()}
+      </p>
 
       {movimientos.length > 0 ? (
         <ul className="mt-3 divide-y divide-line text-sm">

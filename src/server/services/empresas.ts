@@ -25,7 +25,9 @@ import "server-only";
 
 import {
   EMPRESAS_PAGINA,
+  fraseCreditoPublica,
   fraseQueEsUnCredito,
+  fraseRegaloPublico,
   fraseRegaloSocioFundador,
   EMPRESA_CIUDAD_MAX,
   EMPRESA_CONTACTO_MAX,
@@ -55,7 +57,7 @@ import {
   conKeysetTiempo,
   decodificarCursorTiempo,
 } from "@/lib/cursor-tiempo";
-import { puedeDecidirEmpresa } from "@/lib/empresa";
+import { puedeDecidirEmpresa, tipoNegocioDe } from "@/lib/empresa";
 import { esPaisIso } from "@/lib/paises";
 import { generarCodigoReferido } from "@/server/auth/codigo-referido";
 import { generarHandle, HANDLE_MAX_INTENTOS } from "@/server/auth/handle";
@@ -334,7 +336,8 @@ export interface MiEmpresa {
   id: string;
   nombre: string;
   tipoCuenta: TipoCuentaEmpresa;
-  tipoNegocio: TipoNegocio;
+  /** `null`: el valor guardado está fuera del catálogo (`tipoNegocioDe`); quien pinta decide qué decir. */
+  tipoNegocio: TipoNegocio | null;
   estado: EstadoEmpresa;
   paisIso: string;
   ciudadTexto: string | null;
@@ -378,7 +381,7 @@ export async function miEmpresa(db: Db, empresaId: string): Promise<MiEmpresa | 
     id: e.id,
     nombre: e.nombre,
     tipoCuenta: e.tipoCuenta as TipoCuentaEmpresa,
-    tipoNegocio: e.tipoNegocio as TipoNegocio,
+    tipoNegocio: tipoNegocioLeido(e.tipoNegocio, e.id),
     estado: e.estado as EstadoEmpresa,
     paisIso: e.paisIso,
     ciudadTexto: e.ciudadTexto,
@@ -405,7 +408,8 @@ export interface EmpresaPanel {
   id: string;
   nombre: string;
   tipoCuenta: TipoCuentaEmpresa;
-  tipoNegocio: TipoNegocio;
+  /** `null`: el valor guardado está fuera del catálogo (`tipoNegocioDe`); quien pinta decide qué decir. */
+  tipoNegocio: TipoNegocio | null;
   estado: EstadoEmpresa;
   paisIso: string;
   ciudadTexto: string | null;
@@ -506,7 +510,7 @@ export async function listarEmpresas(
       id: e.id,
       nombre: e.nombre,
       tipoCuenta: e.tipoCuenta as TipoCuentaEmpresa,
-      tipoNegocio: e.tipoNegocio as TipoNegocio,
+      tipoNegocio: tipoNegocioLeido(e.tipoNegocio, e.id),
       estado: e.estado as EstadoEmpresa,
       paisIso: e.paisIso,
       ciudadTexto: e.ciudadTexto,
@@ -579,7 +583,7 @@ export async function fichaEmpresa(db: Db, empresaId: string): Promise<FichaEmpr
     id: e.id,
     nombre: e.nombre,
     tipoCuenta: e.tipoCuenta as TipoCuentaEmpresa,
-    tipoNegocio: e.tipoNegocio as TipoNegocio,
+    tipoNegocio: tipoNegocioLeido(e.tipoNegocio, e.id),
     estado: e.estado as EstadoEmpresa,
     paisIso: e.paisIso,
     ciudadTexto: e.ciudadTexto,
@@ -679,6 +683,18 @@ async function anotar(
  * EL MOTIVO SÍ, LA NOTA NO: el correo de rechazo lleva el motivo de la lista cerrada (es lo que ve en
  * su portal) y jamás la nota interna. Tampoco quién lo decidió.
  */
+/**
+ * El tipo de negocio guardado, VALIDADO (`tipoNegocioDe`). Fuera del catálogo da `null` y lo apunta en
+ * el log, SANEADO: el id de la empresa, nunca el valor (que no sabemos qué contiene).
+ */
+function tipoNegocioLeido(valor: string, empresaId: string): TipoNegocio | null {
+  const t = tipoNegocioDe(valor);
+  if (t === null) {
+    console.warn(`[empresas] tipo de negocio fuera del catálogo en la empresa ${empresaId}`);
+  }
+  return t;
+}
+
 async function avisarDecision(
   tx: Db,
   entrada: {
@@ -704,9 +720,15 @@ async function avisarDecision(
   const titulo = verificada ? "Tu empresa está verificada" : "No hemos podido verificar tu empresa";
   // EL REGALO SE CUENTA EN EL MISMO CORREO: se le prometió en el alta («las empresas que verifiquemos
   // antes de… se llevan N créditos de publicidad de regalo»), y este es el momento en que se cumple.
+  // Con SU tipo de negocio: a quien vende online no se le promete «tu ciudad», que no puede comprar.
+  // Y el tipo se VALIDA, no se convierte con `as`: esto corre DENTRO de la transacción de la
+  // verificación, y un valor fuera del catálogo hacía lanzar a la frase y deshacía la verificación
+  // entera. Con un tipo raro van las frases públicas, que son verdad para cualquier negocio.
+  const tipo = entrada.regaloCreditos ? tipoNegocioLeido(e.tipoNegocio, entrada.empresaId) : null;
   const regalo = entrada.regaloCreditos
-    ? // Con SU tipo de negocio: a quien vende online no se le promete «tu ciudad», que no puede comprar.
-      ` Como Socio Fundador, te llevas ${fraseRegaloSocioFundador(e.tipoNegocio as TipoNegocio)}. ${fraseQueEsUnCredito(e.tipoNegocio as TipoNegocio)}`
+    ? tipo
+      ? ` Como Socio Fundador, te llevas ${fraseRegaloSocioFundador(tipo)}. ${fraseQueEsUnCredito(tipo)}`
+      : ` Como Socio Fundador, te llevas ${fraseRegaloPublico()}. ${fraseCreditoPublica()}`
     : "";
   const cuerpo = verificada
     ? `Hemos revisado ${e.nombre} y está verificada. Ya puedes usar tu portal.${regalo}`
