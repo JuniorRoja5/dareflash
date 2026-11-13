@@ -32,6 +32,7 @@ import type { AlcancePublicidad, TipoNegocio } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { alcancesPermitidos, tipoNegocioDe } from "../src/lib/empresa";
 import { fichaEmpresa, miEmpresa, verificarEmpresa } from "../src/server/services/empresas";
+import { campanaSchema, crearBorrador, PublicidadError } from "../src/server/services/publicidad";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
@@ -271,6 +272,52 @@ describe("el correo de la verificación (con el regalo), por tipo de negocio", (
     expect(text).not.toMatch(/NaN|undefined/);
   });
 
+  it("crear una campaña con un tipo FUERA DEL CATÁLOGO es un rechazo claro, no un 500", async () => {
+    const dueno = await crearUsuario(prisma);
+    const e = await prisma.empresa.create({
+      data: {
+        ownerUserId: dueno,
+        nombre: "Tienda rara",
+        tipoCuenta: "EMPRESA",
+        tipoNegocio: "XYZ",
+        estado: "VERIFICADA",
+        paisIso: "ES",
+        personaContacto: "Lucía",
+      },
+      select: { id: true },
+    });
+    const datos = campanaSchema.parse({
+      nombre: "Otoño",
+      alcance: "PAIS",
+      paises: "ES",
+      texto: "Zapatillas para correr",
+      destinoUrl: "https://tienda.example",
+      fechaInicio: new Date().toISOString().slice(0, 10),
+      dias: 3,
+    });
+    const avisos: string[] = [];
+    const espia = vi.spyOn(console, "warn").mockImplementation((m: unknown) => {
+      avisos.push(String(m));
+    });
+    let error: unknown;
+    try {
+      await crearBorrador(prisma, e.id, datos);
+    } catch (x) {
+      error = x;
+    } finally {
+      espia.mockRestore();
+    }
+    // Un rechazo ESPERABLE (la ruta lo traduce a 4xx con su frase), no un TypeError sin capturar.
+    expect(error).toBeInstanceOf(PublicidadError);
+    expect(error).toMatchObject({
+      code: "TIPO_NEGOCIO_DESCONOCIDO",
+      message: c.MSG_TIPO_NEGOCIO_DESCONOCIDO,
+    });
+    expect(await prisma.publicidad.count()).toBe(0);
+    expect(avisos.some((a) => a.includes(e.id))).toBe(true);
+    expect(avisos.join("\n")).not.toContain("XYZ");
+  });
+
   it("el DTO del portal (y del panel) da un tipo fuera del catálogo como `null`, para que quien pinta decida", async () => {
     const dueno = await crearUsuario(prisma);
     const e = await prisma.empresa.create({
@@ -350,6 +397,13 @@ describe("el censo de las frases PÚBLICAS", () => {
       .map((f) => f.rel);
     expect(usan.length).toBeGreaterThanOrEqual(3);
     expect(usan.filter((r) => !(r in PUBLICAS_PERMITIDAS))).toEqual([]);
+  });
+
+  it("el tipo de negocio leído de la BD se valida en UN sitio: ningún `as TipoNegocio` en src/", () => {
+    // La columna es un String; `tipoNegocioDe` es la única puerta. Un `as` se lo cree todo, y con un
+    // valor raro dejó una verificación deshecha (el correo) y un 500 (crear una campaña).
+    const conAs = todos.filter((f) => /\bas\s+TipoNegocio\b/.test(f.codigo)).map((f) => f.rel);
+    expect(conAs).toEqual([]);
   });
 
   it("el aviso público de Socios Fundadores, solo en /empezar, /empezar/empresa e /inicio", () => {

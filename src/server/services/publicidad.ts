@@ -39,6 +39,7 @@ import {
   type EstadoPublicidad,
   type EstadoVisiblePublicidad,
   MSG_MOTIVO_RETIRADA_PUBLICIDAD,
+  MSG_TIPO_NEGOCIO_DESCONOCIDO,
   MotivoRetiradaPublicidadSchema,
   PUBLICIDAD_DESTINO_MAX,
   PUBLICIDAD_DIAS_MAX,
@@ -59,7 +60,7 @@ import {
   conKeysetTiempo,
   decodificarCursorTiempo,
 } from "@/lib/cursor-tiempo";
-import { puedeComprarAlcance, puedeOperarEmpresa } from "@/lib/empresa";
+import { puedeComprarAlcance, puedeOperarEmpresa, tipoNegocioDe } from "@/lib/empresa";
 import type { Ubicacion } from "@/lib/geo";
 import { nombrePais } from "@/lib/paises";
 import {
@@ -98,7 +99,8 @@ export type CodigoPublicidad =
   | "FECHA_FUERA_DE_PLAZO"
   | "SIN_IMAGEN"
   | "SALDO_INSUFICIENTE"
-  | "ESTADO_NO_PERMITE";
+  | "ESTADO_NO_PERMITE"
+  | "TIPO_NEGOCIO_DESCONOCIDO";
 
 /** Un rechazo ESPERABLE, con su frase para la empresa. La ruta lo traduce a 4xx. */
 export class PublicidadError extends Error {
@@ -197,9 +199,17 @@ async function empresaParaOperar(db: Db, empresaId: string): Promise<EmpresaPara
   if (!e || !puedeOperarEmpresa(e.estado as EstadoEmpresa)) {
     throw new PublicidadError("EMPRESA_NO_OPERA", MSG_NO_OPERA);
   }
+  // EL TIPO SE VALIDA (`tipoNegocioDe`), no se convierte con `as`: con un valor fuera del catálogo,
+  // `ALCANCES_POR_NEGOCIO[x]` era `undefined` y crear o activar una campaña daba un 500. Ahora es un
+  // rechazo claro, con la misma frase que el aviso de «Nueva campaña». Al log, el id; nunca el valor.
+  const tipoNegocio = tipoNegocioDe(e.tipoNegocio);
+  if (!tipoNegocio) {
+    console.warn(`[publicidad] tipo de negocio fuera del catálogo en la empresa ${empresaId}`);
+    throw new PublicidadError("TIPO_NEGOCIO_DESCONOCIDO", MSG_TIPO_NEGOCIO_DESCONOCIDO);
+  }
   return {
     estado: e.estado as EstadoEmpresa,
-    tipoNegocio: e.tipoNegocio as TipoNegocio,
+    tipoNegocio,
     paisIso: e.paisIso,
     saldo: await saldoCreditosEmpresa(db, empresaId),
   };

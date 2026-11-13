@@ -6,6 +6,7 @@ import {
   fraseQueEsUnCredito,
   CREDITOS_POR_DIA,
   MSG_SALDO_NO_RETENIDO,
+  MSG_TIPO_NEGOCIO_DESCONOCIDO,
   PUBLICIDAD_MAX_POR_ZONA,
   PUBLICIDAD_RESERVA_MAX_DIAS,
 } from "@/config/constants";
@@ -98,10 +99,7 @@ export default async function PaginaNuevaCampana() {
       <div className="df-rise space-y-6">
         {cabecera}
         <Tarjeta className="max-w-prose p-5">
-          <p className="text-sm text-text-dim">
-            No podemos ofrecerte campañas hasta revisar el tipo de negocio de tu empresa. Escríbenos
-            contestando a cualquiera de nuestros correos y lo arreglamos.
-          </p>
+          <p className="text-sm text-text-dim">{MSG_TIPO_NEGOCIO_DESCONOCIDO}</p>
         </Tarjeta>
       </div>
     );

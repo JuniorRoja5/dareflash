@@ -2930,6 +2930,13 @@ export const PUBLICIDAD_CACHE_HOY_MS = 60_000;
  */
 export const ETIQUETA_PIEZA_CAMPANA = "Publicidad";
 export const ETIQUETA_PIEZA_CASA = "De DareFlash";
+/**
+ * UN TIPO DE NEGOCIO GUARDADO FUERA DEL CATÁLOGO (no debería pasar: el alta lo valida). La MISMA frase
+ * en el aviso de «Nueva campaña» y en el rechazo del servicio (`TIPO_NEGOCIO_DESCONOCIDO`): la
+ * pantalla y la ruta dicen lo mismo.
+ */
+export const MSG_TIPO_NEGOCIO_DESCONOCIDO =
+  "No podemos ofrecerte campañas hasta revisar el tipo de negocio de tu empresa. Escríbenos contestando a cualquiera de nuestros correos y lo arreglamos.";
 
 /**
  * EL ANUNCIO DE LA CASA: el hueco vacío sirve para llenarse a sí mismo. Invita a anunciarse, nunca vende
