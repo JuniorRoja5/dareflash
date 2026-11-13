@@ -57,7 +57,7 @@ import {
   conKeysetTiempo,
   decodificarCursorTiempo,
 } from "@/lib/cursor-tiempo";
-import { puedeDecidirEmpresa, tipoNegocioDe } from "@/lib/empresa";
+import { alcancesPermitidos, puedeDecidirEmpresa, tipoNegocioDe } from "@/lib/empresa";
 import { esPaisIso } from "@/lib/paises";
 import { generarCodigoReferido } from "@/server/auth/codigo-referido";
 import { generarHandle, HANDLE_MAX_INTENTOS } from "@/server/auth/handle";
@@ -724,7 +724,10 @@ async function avisarDecision(
   // Y el tipo se VALIDA, no se convierte con `as`: esto corre DENTRO de la transacción de la
   // verificación, y un valor fuera del catálogo hacía lanzar a la frase y deshacía la verificación
   // entera. Con un tipo raro van las frases públicas, que son verdad para cualquier negocio.
-  const tipo = entrada.regaloCreditos ? tipoNegocioLeido(e.tipoNegocio, entrada.empresaId) : null;
+  const leido = entrada.regaloCreditos ? tipoNegocioLeido(e.tipoNegocio, entrada.empresaId) : null;
+  // Un tipo válido SIN alcances en el catálogo no lanza, pero la frase saldría «hasta NaN días
+  // anunciándote undefined»: se trata igual que uno desconocido.
+  const tipo = leido && alcancesPermitidos(leido).length > 0 ? leido : null;
   const regalo = entrada.regaloCreditos
     ? tipo
       ? ` Como Socio Fundador, te llevas ${fraseRegaloSocioFundador(tipo)}. ${fraseQueEsUnCredito(tipo)}`

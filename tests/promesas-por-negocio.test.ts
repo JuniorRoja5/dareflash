@@ -117,6 +117,10 @@ describe("la tarifa y el regalo, por tipo de negocio", () => {
     expect(c.msgSocioFundador()).toContain(frase);
   });
 
+  it("el catálogo: todo tipo de negocio compra ALGO (una lista vacía dejaría sin frase ni producto)", () => {
+    for (const t of TIPOS) expect(alcancesPermitidos(t).length, t).toBeGreaterThan(0);
+  });
+
   it("leer el tipo guardado: lo del catálogo pasa; lo de fuera es `null`, no se cree", () => {
     for (const t of TIPOS) expect(tipoNegocioDe(t)).toBe(t);
     for (const raro of ["XYZ", "", "fisico", "ONLINE "]) expect(tipoNegocioDe(raro)).toBeNull();
@@ -224,7 +228,50 @@ describe("el correo de la verificación (con el regalo), por tipo de negocio", (
     expect(avisos.join("\n")).not.toContain("XYZ");
   });
 
-  it("y el DTO del portal (y del panel) lo da como `null`, para que quien pinta decida", async () => {
+  it("un tipo VÁLIDO con su lista de alcances vacía tampoco deshace nada ni dice «NaN días»", async () => {
+    const catalogo = c.ALCANCES_POR_NEGOCIO as Record<TipoNegocio, readonly AlcancePublicidad[]>;
+    const antes = catalogo.MARCA_O_DIGITAL;
+    const admin = await crearUsuario(prisma);
+    const dueno = await crearUsuario(prisma);
+    await prisma.user.update({
+      where: { id: dueno },
+      data: { email: "promesas-vacio@empresa.test", esCuentaEmpresa: true },
+    });
+    const e = await prisma.empresa.create({
+      data: {
+        ownerUserId: dueno,
+        nombre: "Una marca",
+        tipoCuenta: "EMPRESA",
+        tipoNegocio: "MARCA_O_DIGITAL",
+        estado: "PENDIENTE",
+        paisIso: "ES",
+        personaContacto: "Lucía",
+      },
+      select: { id: true },
+    });
+    try {
+      catalogo.MARCA_O_DIGITAL = [];
+      await verificarEmpresa(prisma, {
+        empresaId: e.id,
+        actorId: admin,
+        appUrl: "https://dareflash.test",
+        ahora: new Date("2026-11-05T12:00:00.000Z"),
+      });
+    } finally {
+      catalogo.MARCA_O_DIGITAL = antes;
+    }
+    expect((await prisma.empresa.findUniqueOrThrow({ where: { id: e.id } })).estado).toBe(
+      "VERIFICADA",
+    );
+    const [job] = await prisma.job.findMany({
+      where: { idempotencyKey: { startsWith: "empresa-decision:" } },
+    });
+    const { text } = job!.payload as { text: string };
+    expect(text).toContain(c.fraseRegaloPublico());
+    expect(text).not.toMatch(/NaN|undefined/);
+  });
+
+  it("el DTO del portal (y del panel) da un tipo fuera del catálogo como `null`, para que quien pinta decida", async () => {
     const dueno = await crearUsuario(prisma);
     const e = await prisma.empresa.create({
       data: {
