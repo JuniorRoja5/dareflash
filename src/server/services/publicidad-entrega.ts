@@ -10,8 +10,9 @@
  * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
  *
  * ┌─ EL DTO DE ENTREGA ES MÍNIMO Y CERRADO ─────────────────────────────────────────────────────────┐
- * │ Lo pide cualquiera, anónimo, así que su defensa es lo que devuelve: imagen, texto, enlace y la   │
- * │ etiqueta. Ni la empresa, ni el calendario, ni la tarifa, ni el saldo. Un test exige IGUALDAD     │
+ * │ Lo pide cualquiera, anónimo, así que su defensa es lo que devuelve: imagen, texto, enlace, la    │
+ * │ etiqueta y el DOMINIO de destino como texto (el sitio, no la dirección; el enlace sigue por      │
+ * │ `/ir`). Ni la empresa, ni el calendario, ni la tarifa, ni el saldo. Un test exige IGUALDAD       │
  * │ exacta de claves: el hueco típico no es una consulta sin filtro, es un select que creció.        │
  * └─────────────────────────────────────────────────────────────────────────────────────────────────┘
  *
@@ -42,6 +43,7 @@ import {
   claveDia,
   claveRotacion,
   diaDe,
+  dominioDe,
   elegiblesEnHueco,
   elegirConRotacion,
   espacioDelHueco,
@@ -70,6 +72,11 @@ export interface PiezaEntregada {
   enlace: string;
   /** Si el enlace sale de DareFlash (pestaña nueva, `rel="sponsored noopener"`). */
   externo: boolean;
+  /**
+   * ADÓNDE LLEVA, como TEXTO («tienda.es»): solo el nombre del sitio (`dominioDe`), nunca la dirección
+   * entera ni un enlace —el enlace es `enlace`, que pasa por `/ir` y cuenta el clic—. La casa: `null`.
+   */
+  dominio: string | null;
 }
 
 /**
@@ -90,7 +97,17 @@ interface CampanaEntrega extends CampanaEnReparto {
   destinoUrl: string;
 }
 
-function piezaDeCampana(c: CampanaEntrega): PiezaEntregada {
+/**
+ * LA PIEZA DE UNA CAMPAÑA. La usan el reparto (lo que se sirve) y la vista previa «Así se verá» del
+ * portal: lo que la empresa ve antes de activar es EXACTAMENTE lo que se publica, porque sale de esta
+ * misma función y se pinta con el mismo componente (`TarjetaAnuncio`). Un test lo exige.
+ */
+export function piezaDeCampana(c: {
+  id: string;
+  imagen: string | null;
+  texto: string;
+  destinoUrl: string;
+}): PiezaEntregada {
   return {
     tipo: "campana",
     id: c.id,
@@ -101,6 +118,7 @@ function piezaDeCampana(c: CampanaEntrega): PiezaEntregada {
     cta: CTA_CAMPANA,
     enlace: enlaceDeCampana(c),
     externo: true,
+    dominio: dominioDe(c.destinoUrl),
   };
 }
 
@@ -117,6 +135,7 @@ export function piezaDeLaCasa(espacio: EspacioPublicidad, esEmpresa: boolean): P
     cta: casa.cta,
     enlace: esEmpresa ? ANUNCIO_CASA_DESTINO.empresa : ANUNCIO_CASA_DESTINO.invitado,
     externo: false,
+    dominio: null,
   };
 }
 

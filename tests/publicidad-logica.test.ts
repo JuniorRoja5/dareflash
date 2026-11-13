@@ -18,6 +18,7 @@ import {
   clicsPorCienVistas,
   diasPorDelante,
   diasSeguidos,
+  dominioDe,
   elegiblesEnHueco,
   elegirConRotacion,
   espacioDelHueco,
@@ -279,5 +280,18 @@ describe("clics por cada 100 vistas (Fase 9 · P10)", () => {
     expect(clicsPorCienVistas(3, 1)).toBe(33.3);
     expect(clicsPorCienVistas(0, 0)).toBeNull();
     expect(clicsPorCienVistas(0, 2)).toBeNull();
+  });
+});
+
+describe("el dominio que se enseña en la tarjeta (`dominioDe`)", () => {
+  it("solo el sitio: sin esquema, ruta, consulta ni `www.`", () => {
+    expect(dominioDe("https://www.Tienda.example/otono?utm=df#x")).toBe("tienda.example");
+    expect(dominioDe("https://tienda.zapatillas.example/trail")).toBe("tienda.zapatillas.example");
+    expect(dominioDe("http://tienda.example:8080/")).toBe("tienda.example");
+  });
+
+  it("lo que no se entiende es `null` (la tarjeta no pinta la línea)", () => {
+    expect(dominioDe("no es una url")).toBeNull();
+    expect(dominioDe("")).toBeNull();
   });
 });

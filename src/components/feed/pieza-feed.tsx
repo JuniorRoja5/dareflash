@@ -75,6 +75,12 @@ export function PiezaFeed({
 
         <div className="space-y-3 border-t border-line bg-surface p-5 pb-24 lg:pb-5">
           <p className="text-base break-words text-text">{pieza.texto}</p>
+          {/* Adónde lleva, como texto (el enlace sigue por `/ir`): lo mismo que dice la tarjeta. */}
+          {pieza.dominio ? (
+            <p className="truncate text-sm text-text-dim" data-dominio-anuncio>
+              {pieza.dominio}
+            </p>
+          ) : null}
           <a
             href={pieza.enlace}
             {...(pieza.externo ? { target: "_blank", rel: "sponsored noopener noreferrer" } : {})}

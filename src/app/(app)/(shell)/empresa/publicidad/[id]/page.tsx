@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Tarjeta } from "@/components/ui/tarjeta";
+import { TarjetaAnuncio } from "@/components/ui/tarjeta-anuncio";
 import {
   ETIQUETA_ALCANCE_PUBLICIDAD,
   ETIQUETA_ESTADO_PUBLICIDAD,
@@ -93,6 +94,7 @@ export default async function PaginaCampana({
     await import("@/server/services/publicidad");
   const { miEmpresa } = await import("@/server/services/empresas");
   const { informeDeMiCampana } = await import("@/server/services/publicidad-metricas");
+  const { piezaDeCampana } = await import("@/server/services/publicidad-entrega");
   const [c, estimacion, saldo, empresa, informe] = await Promise.all([
     miPublicidad(prisma, ambito.empresaId, id),
     estimacionDeMiPublicidad(prisma, ambito.empresaId, id),
@@ -140,33 +142,21 @@ export default async function PaginaCampana({
         ) : null}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start lg:gap-8">
-        {/* LA PIEZA, como se verá: imagen, texto y a dónde lleva. Con la marca «Publicidad». */}
-        <section aria-labelledby="pieza" className="space-y-2">
-          <h2 id="pieza" className={CABECERA}>
-            Así se verá
-          </h2>
-          <Tarjeta className="overflow-hidden p-0">
-            {c.imagen ? (
-              // eslint-disable-next-line @next/next/no-img-element -- fichero del volumen, servido por Caddy
-              <img
-                src={c.imagen}
-                alt=""
-                className="block max-h-[28rem] w-full bg-raised object-contain"
-              />
-            ) : (
-              <div className="grid h-48 place-items-center bg-raised text-sm text-text-dim">
-                Sin imagen
-              </div>
-            )}
-            <div className="space-y-2 p-4">
-              <span className="text-2xs tracking-widest text-text-dim uppercase">Publicidad</span>
-              <p className="text-sm break-words text-text">{c.texto}</p>
-              <p className="truncate text-2xs text-text-dim">{c.destinoUrl}</p>
-            </div>
-          </Tarjeta>
-        </section>
+      {/* LA PIEZA, como se verá. NO es un dibujo aparte: es `TarjetaAnuncio` con la pieza que hace
+          `piezaDeCampana`, las dos mismas que usa el reparto. Lo que la empresa ve es lo que se publica
+          (un test lo exige). A todo el ancho: así se ve la disposición de escritorio de la portada, y
+          en móvil, la de móvil. `previa`: «Visitar» no navega ni cuenta un clic. */}
+      <section aria-labelledby="pieza" className="space-y-2">
+        <h2 id="pieza" className={CABECERA}>
+          Así se verá
+        </h2>
+        <TarjetaAnuncio pieza={piezaDeCampana(c)} previa />
+        <p className="max-w-prose text-2xs break-words text-text-dim">
+          Lleva a <span className="text-text">{c.destinoUrl}</span>
+        </p>
+      </section>
 
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
         <div className="min-w-0 space-y-6">
           {est ? (
             <Tarjeta className="p-5">
@@ -229,7 +219,9 @@ export default async function PaginaCampana({
             </dl>
             {inicioDelDia ? <p className="mt-3 text-2xs text-text-dim">{inicioDelDia}</p> : null}
           </Tarjeta>
+        </div>
 
+        <div className="min-w-0 space-y-6">
           {acciones.length > 0 ? (
             <Tarjeta className="p-5">
               <h2 className={CABECERA}>Qué quieres hacer</h2>

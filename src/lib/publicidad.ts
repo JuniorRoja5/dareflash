@@ -25,6 +25,25 @@ import type { Ubicacion } from "./geo";
 const DIA_MS = 24 * 60 * 60 * 1000;
 
 // ---------------------------------------------------------------------------------------------------
+// El dominio que se enseña en la tarjeta
+// ---------------------------------------------------------------------------------------------------
+
+/**
+ * EL DOMINIO DE DESTINO, como TEXTO para la tarjeta («tienda.es»): quien ve un anuncio tiene derecho a
+ * saber adónde le lleva antes de pulsar. SOLO el nombre del sitio —sin esquema, ruta ni consulta— y
+ * nunca como enlace: el enlace sigue siendo `/ir/{id}`, que cuenta el clic (P10). Sin `www.` (no dice
+ * nada). Una dirección que no se entiende da `null`, y la tarjeta no pinta la línea.
+ */
+export function dominioDe(url: string): string | null {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host.replace(/^www\./, "") || null;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------
 // Precio
 // ---------------------------------------------------------------------------------------------------
 

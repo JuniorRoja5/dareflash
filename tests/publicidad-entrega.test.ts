@@ -268,6 +268,7 @@ describe("el anuncio de la casa", () => {
 describe("el DTO de entrega", () => {
   const CLAVES = [
     "cta",
+    "dominio",
     "enlace",
     "etiqueta",
     "externo",
@@ -292,8 +293,12 @@ describe("el DTO de entrega", () => {
     });
     const casa = await elegir("GLOBAL", enValencia, "portada");
     expect(Object.keys(casa!).sort()).toEqual(CLAVES);
-    const crudo = JSON.stringify(campana);
-    // Ni el destino: viaja dentro del redirector, no en la pieza (un enlace directo no contaría el clic).
+    // EL DOMINIO, como texto, para que quien mira sepa adónde va (la tarjeta lo pinta). Solo el sitio.
+    expect(campana!.dominio).toBe("panaderia.example.com");
+    expect(casa!.dominio).toBeNull();
+    // Fuera del campo `dominio`, el sitio no aparece en NINGÚN otro: el ENLACE es `/ir`, y la dirección
+    // de destino no viaja (un enlace directo no contaría el clic).
+    const crudo = JSON.stringify({ ...campana, dominio: undefined });
     for (const prohibido of [
       "empresa",
       "creditos",
@@ -301,6 +306,7 @@ describe("el DTO de entrega", () => {
       "fechaInicio",
       "nombre",
       "panaderia.example.com",
+      "https://",
     ]) {
       expect(crudo).not.toContain(prohibido);
     }

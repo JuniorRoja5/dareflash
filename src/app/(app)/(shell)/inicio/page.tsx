@@ -3,7 +3,7 @@ import Link from "next/link";
 import { CAMINO_EMPRESA, CTA_NEGOCIO, msgSocioFundador } from "@/config/constants";
 import { Boton } from "@/components/ui/boton";
 import { FilaPuesto } from "@/components/ui/fila-puesto";
-import { PiezaPortada } from "@/components/ui/pieza-portada";
+import { TarjetaAnuncio } from "@/components/ui/tarjeta-anuncio";
 import { TelonPortada } from "@/components/ui/telon-portada";
 import { ctaPrincipal } from "@/lib/cta-principal";
 import { bloquesPortada, cifrasVisibles, pintarPiezaEnPortada } from "@/lib/portada";
@@ -235,7 +235,7 @@ export default async function InicioPage() {
             {/* ESPACIO 2 — publicidad de su ciudad o región, en el carril. */}
             {espacio2 ? (
               <div className="mt-6">
-                <PiezaPortada pieza={espacio2} compacta denuncia={denunciaPortada} />
+                <TarjetaAnuncio pieza={espacio2} denuncia={denunciaPortada} />
               </div>
             ) : null}
           </aside>
@@ -263,7 +263,7 @@ export default async function InicioPage() {
         {/* 8 · ESPACIO 1 — publicidad global o de su país, a lo ancho, después del contenido. */}
         {espacio1 ? (
           <div className="mt-14 lg:mt-20">
-            <PiezaPortada pieza={espacio1} denuncia={denunciaPortada} />
+            <TarjetaAnuncio pieza={espacio1} denuncia={denunciaPortada} />
           </div>
         ) : null}
 
