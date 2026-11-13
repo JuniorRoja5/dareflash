@@ -4,20 +4,19 @@ import { PUBLICIDAD_METRICAS_CADENCIA_MS } from "@/config/constants";
 import type { Paginacion } from "@/lib/paginacion-pila";
 import { clicsPorCienVistas } from "@/lib/publicidad";
 import type { InformeDeCampana } from "@/server/services/publicidad-metricas";
+import { formatearNumero, formatearDecimal, formatearDiaClave, type Idioma } from "@/lib/formato";
 
 const CABECERA = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
-const DIA = { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" } as const;
 const MINUTOS = Math.round(PUBLICIDAD_METRICAS_CADENCIA_MS / 60_000);
 
-const cifra = (n: number) => n.toLocaleString("es-ES");
-const porCien = (vistas: number, clics: number) => {
+const cifra = (n: number, idioma: Idioma) => formatearNumero(n, idioma);
+const porCien = (vistas: number, clics: number, idioma: Idioma) => {
   const p = clicsPorCienVistas(vistas, clics);
   // Siempre con su decimal («2,0», no «2»): en una columna de cifras, uno sin decimal parece de otra cosa.
-  return p === null
-    ? "—"
-    : p.toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return p === null ? "—" : formatearDecimal(p, idioma, 1);
 };
-const dia = (iso: string) => new Date(`${iso}T00:00:00.000Z`).toLocaleDateString("es-ES", DIA);
+/** Un día de métricas es una CLAVE de día UTC: etiqueta de calendario, sin zona (Fase 11). */
+const dia = (iso: string, idioma: Idioma) => formatearDiaClave(iso, idioma, "diaMesAno");
 
 /**
  * LOS RESULTADOS DE UNA CAMPAÑA (Fase 9 · P10): los totales y el desglose por día, del más reciente al
@@ -36,10 +35,13 @@ export function InformeCampana({
   informe,
   aqui,
   base,
+  idioma,
 }: {
   informe: InformeDeCampana;
   aqui: Paginacion;
   base: string;
+  /** El de quien mira (Fase 11): cifras y días salen de `lib/formato`. */
+  idioma: Idioma;
 }) {
   const { totales, dias } = informe;
   return (
@@ -55,9 +57,12 @@ export function InformeCampana({
 
         <dl className="mt-4 grid grid-cols-3 gap-3">
           {[
-            ["Veces que se mostró", cifra(totales.vistas)],
-            ["Clics", cifra(totales.clics)],
-            ["Clics por cada 100 veces que se mostró", porCien(totales.vistas, totales.clics)],
+            ["Veces que se mostró", cifra(totales.vistas, idioma)],
+            ["Clics", cifra(totales.clics, idioma)],
+            [
+              "Clics por cada 100 veces que se mostró",
+              porCien(totales.vistas, totales.clics, idioma),
+            ],
           ].map(([etiqueta, valor]) => (
             <div key={etiqueta} className="rounded-sm border border-line bg-surface p-3">
               <dt className="text-2xs text-text-dim">{etiqueta}</dt>
@@ -87,16 +92,16 @@ export function InformeCampana({
                 {dias.map((d) => (
                   <tr key={d.dia} data-dia-metricas={d.dia}>
                     <td className="py-2.5 pr-4 whitespace-nowrap text-text-dim tabular-nums">
-                      {dia(d.dia)}
+                      {dia(d.dia, idioma)}
                     </td>
                     <td className="py-2.5 pr-4 text-right text-text tabular-nums">
-                      {cifra(d.vistas)}
+                      {cifra(d.vistas, idioma)}
                     </td>
                     <td className="py-2.5 pr-4 text-right text-text tabular-nums">
-                      {cifra(d.clics)}
+                      {cifra(d.clics, idioma)}
                     </td>
                     <td className="py-2.5 text-right text-text-dim tabular-nums">
-                      {porCien(d.vistas, d.clics)}
+                      {porCien(d.vistas, d.clics, idioma)}
                     </td>
                   </tr>
                 ))}
@@ -106,10 +111,10 @@ export function InformeCampana({
             <ul className="mt-4 divide-y divide-line md:hidden">
               {dias.map((d) => (
                 <li key={d.dia} className="flex items-baseline justify-between gap-3 py-3">
-                  <span className="text-sm text-text-dim tabular-nums">{dia(d.dia)}</span>
+                  <span className="text-sm text-text-dim tabular-nums">{dia(d.dia, idioma)}</span>
                   <span className="text-right text-sm text-text tabular-nums">
-                    se mostró {cifra(d.vistas)} {d.vistas === 1 ? "vez" : "veces"} ·{" "}
-                    {cifra(d.clics)} {d.clics === 1 ? "clic" : "clics"}
+                    se mostró {cifra(d.vistas, idioma)} {d.vistas === 1 ? "vez" : "veces"} ·{" "}
+                    {cifra(d.clics, idioma)} {d.clics === 1 ? "clic" : "clics"}
                   </span>
                 </li>
               ))}

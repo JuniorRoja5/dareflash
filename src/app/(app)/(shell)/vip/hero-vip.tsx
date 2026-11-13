@@ -1,3 +1,4 @@
+import type { Idioma } from "@/lib/formato";
 import type { CSSProperties } from "react";
 
 import { EmblemaVipGrande } from "@/components/ui/identidad-usuario";
@@ -34,7 +35,7 @@ import { DEFAULT_CURRENCY, VIP_PRECIO_CENTS } from "@/config/constants";
  * EL TÍTULO VA EN ORO, y eso está medido: `--vip-gold` sobre la superficie da 12,8:1 en oscuro y
  * 4,7:1 en claro (ver `MarcaVip`), de sobra para un texto de este tamaño en los dos temas.
  */
-export function HeroVip() {
+export function HeroVip({ idioma }: { idioma: Idioma }) {
   return (
     <section
       aria-labelledby="vip-mythic"
@@ -81,7 +82,12 @@ export function HeroVip() {
             después de haber dudado. */}
         <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 lg:flex-col lg:items-end lg:text-right">
           <span className="flex items-baseline gap-x-2">
-            <ImportePremio cents={VIP_PRECIO_CENTS} currency={DEFAULT_CURRENCY} tamano="tarjeta" />
+            <ImportePremio
+              idioma={idioma}
+              cents={VIP_PRECIO_CENTS}
+              currency={DEFAULT_CURRENCY}
+              tamano="tarjeta"
+            />
             <span className="text-sm text-text-dim">al mes</span>
           </span>
           <span className="text-xs text-text-dim">

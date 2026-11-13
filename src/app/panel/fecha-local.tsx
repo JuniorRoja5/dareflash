@@ -2,6 +2,11 @@
 
 import { useSyncExternalStore } from "react";
 
+import { useFormato } from "@/components/formato-provider";
+import { formatearFecha, ZONA_UTC, type ZonaHoraria, zonaDelNavegador } from "@/lib/formato";
+
+import { IDIOMA_PANEL } from "./formato-panel";
+
 /**
  * UNA FECHA QUE EL ADMIN TECLEÓ, DEVUELTA EN SU MISMA ZONA.
  *
@@ -41,12 +46,13 @@ import { useSyncExternalStore } from "react";
 /** No hay nada a lo que suscribirse: la zona del navegador no cambia mientras la página vive. */
 const SIN_CAMBIOS = () => () => {};
 
-function formatear(fecha: Date, conHora: boolean, zona?: string): string {
-  return fecha.toLocaleString("es-ES", {
-    ...(zona ? { timeZone: zona } : {}),
-    dateStyle: "medium",
-    ...(conHora ? { timeStyle: "short" as const } : {}),
-  });
+/**
+ * Desde la Fase 11 sale de `lib/formato` con la zona EXPLÍCITA: la del proveedor (la cookie, que el
+ * servidor ya conoce) y, si aún no está, la del navegador tras hidratar. Sin ninguna de las dos, UTC
+ * —lo de siempre: el texto del servidor—.
+ */
+function formatear(fecha: Date, conHora: boolean, zona: ZonaHoraria): string {
+  return formatearFecha(fecha, IDIOMA_PANEL, zona, conHora ? "medioHora" : "medio");
 }
 
 export function FechaLocal({
@@ -62,11 +68,14 @@ export function FechaLocal({
 }) {
   // Las dos devuelven CADENAS, que se comparan por valor: no hace falta memorizarlas para que
   // React no entre en bucle (que es la trampa de este hook cuando se devuelven objetos).
-  const enUtc = formatear(fecha, conHora, "UTC");
+  // La zona de quien mira: la que el servidor ya conoce (cookie) pinta local desde el primer HTML; sin
+  // ella, el servidor pinta UTC y el cliente pasa a la del navegador al hidratar, como antes.
+  const { zona } = useFormato();
+  const enServidor = formatear(fecha, conHora, zona ?? ZONA_UTC);
   const texto = useSyncExternalStore(
     SIN_CAMBIOS,
-    () => formatear(fecha, conHora),
-    () => enUtc,
+    () => formatear(fecha, conHora, zona ?? zonaDelNavegador() ?? ZONA_UTC),
+    () => enServidor,
   );
 
   return (

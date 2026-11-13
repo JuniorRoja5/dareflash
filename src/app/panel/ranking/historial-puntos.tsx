@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { getJson } from "@/lib/cliente-http";
+import { numeroPanel, fechaPanel } from "@/app/panel/formato-panel";
 // El copy de los motivos se fue a `lib/razones-puntos` cuando el usuario estrenó su propio historial
 // en /puntos: con una copia en cada pantalla, añadir una razón dejaba a la otra enseñando el código
 // crudo sin que nada fallase. Aquí se usa el juego en TERCERA persona: el panel mira la cuenta de otro.
@@ -10,12 +11,9 @@ import { razonHumana } from "@/lib/razones-puntos";
 import type { MovimientoPuntos } from "@/server/services/dareup-admin";
 
 /** Fecha en UTC (el proyecto trabaja en UTC de punta a punta). */
+/** En UTC y diciéndolo (`fechaPanel`, Fase 11). */
 function fecha(ms: number): string {
-  return new Date(ms).toLocaleString("es-ES", {
-    timeZone: "UTC",
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  return fechaPanel(ms, "medioHora");
 }
 
 // A QUÉ APUNTA ya no se compone aquí: llega hecho del servicio (`MovimientoPuntos.referencia`), que
@@ -93,7 +91,7 @@ export function HistorialPuntos({
                 <td className="px-4 py-2.5 text-text">{razonHumana(m.razon)}</td>
                 <td className="px-4 py-2.5 text-right font-semibold whitespace-nowrap text-text tabular-nums">
                   {m.delta > 0 ? "+" : "−"}
-                  {Math.abs(m.delta).toLocaleString("es-ES")}
+                  {numeroPanel(Math.abs(m.delta))}
                 </td>
                 <td className="max-w-[16rem] truncate px-4 py-2.5 text-text-dim">{m.referencia}</td>
                 <td className="px-4 py-2.5 text-text-dim">{m.nota ?? "—"}</td>

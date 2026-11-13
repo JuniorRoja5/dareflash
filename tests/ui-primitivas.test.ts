@@ -13,7 +13,6 @@ import {
   destinosDe,
   esCuentaAtrasCritica,
   formatearCuentaAtras,
-  formatearImporte,
   NAV_DESTINOS,
   NAV_ESCRITORIO,
   NAV_MOVIL,
@@ -21,6 +20,7 @@ import {
   tokenPuesto,
   UMBRAL_ALARMA_MS,
 } from "../src/components/ui/logic";
+import { formatearImporte } from "../src/lib/formato";
 import { CTA_USUARIO } from "../src/lib/cta-principal";
 
 const H = 60 * 60 * 1000;
@@ -71,9 +71,9 @@ describe("fila de puesto: el oro (--df-rank) SOLO en el podio", () => {
 
 describe("importe: money en USD, formato en-US", () => {
   it("centimos -> $ con miles por coma y dos decimales", () => {
-    expect(formatearImporte(125000)).toBe("$1,250.00");
-    expect(formatearImporte(2500)).toBe("$25.00");
-    expect(formatearImporte(0)).toBe("$0.00");
+    expect(formatearImporte(125000, "es")).toBe("$1,250.00");
+    expect(formatearImporte(2500, "es")).toBe("$25.00");
+    expect(formatearImporte(0, "es")).toBe("$0.00");
   });
 });
 

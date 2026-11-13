@@ -5,6 +5,7 @@ import { CajaVideo } from "@/components/ui/caja-video";
 import { Inclinable } from "@/components/ui/inclinable";
 import { Marcador } from "@/components/ui/marcador";
 import { PildoraCategoria } from "@/components/ui/pildora";
+import { formatearNumero, type Idioma } from "@/lib/formato";
 import type { RetoPortada } from "@/server/services/portada";
 
 import { nombreCategoria } from "../retos/retos-datos";
@@ -18,8 +19,6 @@ function IconoPlay() {
     </span>
   );
 }
-
-const cifra = (n: number) => n.toLocaleString("es-ES");
 
 /**
  * EL RETO DESTACADO DEL HERO (brief v2) — un reto REAL y ABIERTO: el que eligió el admin desde el
@@ -39,8 +38,11 @@ const cifra = (n: number) => n.toLocaleString("es-ES");
  */
 export function HeroDestacado({
   destacado,
+  idioma,
 }: {
   destacado: { reto: RetoPortada; elegido: boolean } | null;
+  /** El de quien mira (Fase 11): cifras e importe salen de `lib/formato`. */
+  idioma: Idioma;
 }) {
   if (!destacado) {
     return (
@@ -95,10 +97,11 @@ export function HeroDestacado({
                     <p className="mt-0.5 text-2xs tabular-nums text-text-dim">
                       {reto.participantes === 0
                         ? "Todavía nadie ha participado: puedes ser el primero"
-                        : `${cifra(reto.participantes)} ${reto.participantes === 1 ? "participante" : "participantes"} · ${cifra(reto.votos)} ${reto.votos === 1 ? "voto" : "votos"}`}
+                        : `${formatearNumero(reto.participantes, idioma)} ${reto.participantes === 1 ? "participante" : "participantes"} · ${formatearNumero(reto.votos, idioma)} ${reto.votos === 1 ? "voto" : "votos"}`}
                     </p>
                     <div className="mt-2" style={{ filter: "var(--df-glow-dinero)" }}>
                       <Marcador
+                        idioma={idioma}
                         cents={reto.premioCents}
                         deadlineMs={reto.deadlineMs}
                         tamano="tarjeta"

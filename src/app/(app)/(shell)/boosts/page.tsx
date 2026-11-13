@@ -8,6 +8,7 @@ import {
   MSG_BOOST_PAGO_NO_DISPONIBLE,
   MSG_BOOST_SIN_VERIFICAR,
 } from "@/config/constants";
+import { formatearNumero } from "@/lib/formato";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 
 import { AvisoCompra, type EstadoVuelta } from "./aviso-compra";
@@ -80,6 +81,9 @@ export default async function BoostsPage({
   ]);
 
   const saldo = yo?.boostBalance ?? 0;
+  // El idioma y la zona de quien mira (Fase 11): las cifras, las fechas y la hora del reinicio.
+  const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
+  const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
   const pagosConfigurados = Boolean(env.STRIPE_SECRET_KEY);
   const correoVerificado = sesion.emailVerified !== null;
   const puedeComprar = pagosConfigurados && correoVerificado;
@@ -112,6 +116,7 @@ export default async function BoostsPage({
 
       <HeroBoosts
         saldo={saldo}
+        idioma={idioma}
         usadasHoy={estado.usadasHoy}
         vigenteHastaMs={estado.vigenteHastaMs}
         cupo={{ lleno: cupo.lleno, minutosParaHueco: cupo.minutosParaHueco }}
@@ -120,14 +125,14 @@ export default async function BoostsPage({
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <TarjetaMetrica
           etiqueta="Boosts disponibles"
-          valor={saldo.toLocaleString("es-ES")}
+          valor={formatearNumero(saldo, idioma)}
           pie={saldo === 0 ? "Compra uno para destacar" : "No caducan"}
         />
         {/* LA TARJETA DEL LÍMITE ENSEÑA LO QUE QUEDA, no el tope: el tope ya lo dice el hero, y lo
             que alguien necesita saber aquí es si puede destacar otra vez hoy. */}
         <TarjetaMetrica
           etiqueta="Te quedan hoy"
-          valor={Math.max(BOOST_DAILY_LIMIT - estado.usadasHoy, 0).toLocaleString("es-ES")}
+          valor={formatearNumero(Math.max(BOOST_DAILY_LIMIT - estado.usadasHoy, 0), idioma)}
           pie={`De ${BOOST_DAILY_LIMIT} apariciones al día`}
         />
         {/* COMPRADOS EN TOTAL, no "movimientos": el número sale de un `SUM` sobre las filas de
@@ -135,7 +140,7 @@ export default async function BoostsPage({
             página que se está viendo — que habría cambiado al pulsar "Siguiente". */}
         <TarjetaMetrica
           etiqueta="Comprados en total"
-          valor={comprados > 0 ? comprados.toLocaleString("es-ES") : "—"}
+          valor={comprados > 0 ? formatearNumero(comprados, idioma) : "—"}
           pie={comprados > 0 ? "Desde que tienes la cuenta" : "Todavía ninguno"}
         />
       </div>
@@ -152,7 +157,7 @@ export default async function BoostsPage({
           lado de la lista larga. En móvil se apilan en este orden — primero se entiende qué compras
           y luego se mira lo que ya compraste. */}
       <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:gap-10">
-        <ComoFunciona />
+        <ComoFunciona idioma={idioma} zona={zona} />
 
         <section aria-labelledby="historial">
           <h2
@@ -161,7 +166,7 @@ export default async function BoostsPage({
           >
             Tus movimientos de Boosts
           </h2>
-          <HistorialBoosts items={pagina.items} />
+          <HistorialBoosts items={pagina.items} idioma={idioma} zona={zona} />
           {/* FUERA del `if` de la lista: si una página posterior se queda vacía, "Anterior" tiene
               que seguir ahí o el usuario se queda encerrado. */}
           <PasosKeyset base="/boosts" aqui={aqui} proximoCursor={pagina.proximoCursor} />

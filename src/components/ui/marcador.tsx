@@ -1,3 +1,5 @@
+import type { Idioma } from "@/lib/formato";
+
 import { CuentaAtras, type TamanoCuenta } from "./cuenta-atras";
 import { ImportePremio, type TamanoImporte } from "./importe-premio";
 import type { CuentaHacia } from "./logic";
@@ -17,6 +19,7 @@ export type TamanoMarcador = keyof typeof TAMANOS;
  */
 export function Marcador({
   cents,
+  idioma,
   currency = "USD",
   deadlineMs,
   tamano = "tarjeta",
@@ -25,6 +28,8 @@ export function Marcador({
   className = "",
 }: {
   cents: number;
+  /** El de quien mira (Fase 11): el importe sale de `lib/formato`. */
+  idioma: Idioma;
   currency?: string;
   /** El instante al que se cuenta. En un reto que aún no abre es su APERTURA (ver `hacia`). */
   deadlineMs: number | null;
@@ -54,7 +59,12 @@ export function Marcador({
     : `w-px ${t.filete} shrink-0 bg-line`;
   return (
     <div className={`${contenedor} ${className}`}>
-      <ImportePremio cents={cents} currency={currency} tamano={t.importe as TamanoImporte} />
+      <ImportePremio
+        idioma={idioma}
+        cents={cents}
+        currency={currency}
+        tamano={t.importe as TamanoImporte}
+      />
       <span className={filete} aria-hidden />
       {/* "Abre en" SOLO cuando la cuenta va hacia la apertura. El número por sí solo es ambiguo
           —son los mismos dígitos en los dos casos— y la ambigüedad aquí cambia el significado

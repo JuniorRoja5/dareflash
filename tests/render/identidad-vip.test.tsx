@@ -185,6 +185,7 @@ describe("una sola marca por fila, y es la de junto al nombre", () => {
       color: "diamante",
       nodo: (
         <FilaPuesto
+          idioma="es"
           puesto={7}
           username="ana"
           imagen={null}
@@ -240,14 +241,31 @@ describe("una sola marca por fila, y es la de junto al nombre", () => {
   it("la marca va DENTRO del nombre, no suelta al lado del avatar", () => {
     // Si alguien la vuelve a montar aparte, este caso cae aunque siga habiendo exactamente una.
     render(
-      <FilaPuesto puesto={7} username="ana" imagen={null} cifra={3} unidad="victorias" esVip />,
+      <FilaPuesto
+        idioma="es"
+        puesto={7}
+        username="ana"
+        imagen={null}
+        cifra={3}
+        unidad="victorias"
+        esVip
+      />,
     );
     const nombre = nombreVip()!;
     expect(nombre.parentElement!.contains(marcas()[0]!)).toBe(true);
   });
 
   it("la fila de un NO VIP se pinta exactamente como antes", () => {
-    render(<FilaPuesto puesto={7} username="ana" imagen={null} cifra={3} unidad="victorias" />);
+    render(
+      <FilaPuesto
+        idioma="es"
+        puesto={7}
+        username="ana"
+        imagen={null}
+        cifra={3}
+        unidad="victorias"
+      />,
+    );
     expect(marcas()).toEqual([]);
     expect(screen.getByText("@ana").className).toContain("flex-1");
   });

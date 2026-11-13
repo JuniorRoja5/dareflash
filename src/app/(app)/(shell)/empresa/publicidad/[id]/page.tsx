@@ -18,15 +18,17 @@ import { ambitoDelPortal } from "../../ambito-portal";
 import { AvisoVerificar } from "../../aviso-verificar";
 import { AccionesCampana } from "./acciones-campana";
 import { InformeCampana } from "./informe-campana";
+import { formatearNumero, formatearDiaClave, type Idioma } from "@/lib/formato";
 
 export const metadata = { title: "Campaña · DareFlash" };
 // Lee la sesión, la campaña y el aforo: por petición.
 export const dynamic = "force-dynamic";
 
-const FECHA = { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" } as const;
+/** Los días de una campaña son CLAVES de día UTC: etiquetas de calendario, sin zona (Fase 11). */
+const fecha = (ms: number, idioma: Idioma) => formatearDiaClave(new Date(ms), idioma, "diaMesAno");
 /** Sin año: el tramo «6 nov – 12 nov 2026» lo dice una vez y cabe en una línea a 390. */
-const SIN_ANO = { day: "numeric", month: "short", timeZone: "UTC" } as const;
-const fecha = (ms: number) => new Date(ms).toLocaleDateString("es-ES", FECHA);
+const fechaSinAno = (ms: number, idioma: Idioma) =>
+  formatearDiaClave(new Date(ms), idioma, "diaMes");
 const CABECERA = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
 const ID_VALIDO = /^[a-z0-9]{10,40}$/;
 
@@ -35,18 +37,18 @@ const ID_VALIDO = /^[a-z0-9]{10,40}$/;
  * medido, la cifra de un nivel más amplio DICIENDO DE CUÁL; y si tampoco, se dice. Nunca un 0 sin
  * explicar: «menos de una persona al día» es lo que significa un 0 con datos.
  */
-function fraseEstimacion(e: Estimacion): { cifra: string | null; frase: string } {
+function fraseEstimacion(e: Estimacion, idioma: Idioma): { cifra: string | null; frase: string } {
   if (e.tipo === "zona") {
     return e.personas === 0
       ? { cifra: null, frase: "Con el tráfico de estos días, menos de una persona al día." }
       : {
-          cifra: `unas ${e.personas.toLocaleString("es-ES")}`,
+          cifra: `unas ${formatearNumero(e.personas, idioma)}`,
           frase: "personas al día la verían, contando con las demás campañas de esas fechas.",
         };
   }
   if (e.tipo === "respaldo") {
     return {
-      cifra: `unas ${e.personas.toLocaleString("es-ES")}`,
+      cifra: `unas ${formatearNumero(e.personas, idioma)}`,
       frase: `personas al día ven publicidad en ${e.nivelNombre}. Todavía no tenemos tráfico medido en ${e.zonaSinDatos}.`,
     };
   }
@@ -73,6 +75,8 @@ export default async function PaginaCampana({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const ambito = await ambitoDelPortal();
+  const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
+  const idioma = await idiomaDeLaPeticion();
   if (ambito === null) {
     return (
       <div className="df-rise">
@@ -114,7 +118,7 @@ export default async function PaginaCampana({
     new Date().getUTCMonth(),
     new Date().getUTCDate(),
   );
-  const est = estimacion ? fraseEstimacion(estimacion) : null;
+  const est = estimacion ? fraseEstimacion(estimacion, idioma) : null;
   // A qué hora de SU país empieza cada día (los días son UTC; decir «UTC» a una empresa es jerga).
   const inicioDelDia = empresa ? fraseInicioDelDia(empresa.paisIso, new Date()) : null;
 
@@ -191,8 +195,8 @@ export default async function PaginaCampana({
                 </dt>
                 <dd className="text-text tabular-nums">
                   {c.estado === "BORRADOR" || c.finMs === null
-                    ? `${fecha(c.inicioMs)} · ${c.diasContratados} días`
-                    : `${new Date(c.inicioMs).toLocaleDateString("es-ES", SIN_ANO)} – ${fecha(c.finMs)}`}
+                    ? `${fecha(c.inicioMs, idioma)} · ${c.diasContratados} días`
+                    : `${fechaSinAno(c.inicioMs, idioma)} – ${fecha(c.finMs, idioma)}`}
                 </dd>
               </div>
               <div>
@@ -237,7 +241,12 @@ export default async function PaginaCampana({
       </div>
 
       {informe && c.estado !== "BORRADOR" ? (
-        <InformeCampana informe={informe} aqui={aqui} base={`/empresa/publicidad/${c.id}`} />
+        <InformeCampana
+          informe={informe}
+          aqui={aqui}
+          base={`/empresa/publicidad/${c.id}`}
+          idioma={idioma}
+        />
       ) : null}
     </div>
   );

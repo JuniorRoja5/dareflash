@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { Imagen3d } from "@/components/ui/imagen-3d";
 import { type CifraVisible, premioCorto } from "@/lib/portada";
 import type { Tema } from "@/lib/tema";
+import { formatearMarcador } from "@/lib/formato";
+import { useFormato } from "@/components/formato-provider";
 
 const REDUCE =
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -30,6 +32,7 @@ function useCountUp(target: number, quieto: boolean): number {
 }
 
 function Cifra({ c, tema, quieto }: { c: CifraVisible; tema: Tema; quieto: boolean }) {
+  const { idioma } = useFormato();
   const v = useCountUp(c.valor, quieto);
   const esDinero = c.clave === "premios";
   return (
@@ -50,7 +53,7 @@ function Cifra({ c, tema, quieto }: { c: CifraVisible; tema: Tema; quieto: boole
           className={`text-2xl tabular-nums ${esDinero ? "text-money" : "text-text"}`}
           style={{ fontFamily: "var(--font-display)", fontVariationSettings: '"wght" 780' }}
         >
-          {esDinero ? premioCorto(v) : Math.round(v).toLocaleString("en-US")}
+          {esDinero ? premioCorto(v) : formatearMarcador(Math.round(v), idioma)}
         </p>
         <p className="mt-0.5 text-2xs tracking-widest text-text-dim uppercase">{c.etiqueta}</p>
       </div>

@@ -11,6 +11,7 @@ import { EscaleraNiveles } from "./escalera-niveles";
 import { HeroNivel } from "./hero-nivel";
 import { HistorialMisPuntos } from "./historial-mis-puntos";
 import { TablaPuntos } from "./tabla-puntos";
+import { formatearNumero } from "@/lib/formato";
 
 export const metadata = { title: "Mis puntos · DareFlash" };
 // Lee la sesión y consulta por cursor: por petición, nunca cacheada.
@@ -39,6 +40,9 @@ export default async function PuntosPage({
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
   if (!sesion) redirect("/entrar?siguiente=%2Fpuntos");
+  // El idioma y la zona de quien mira (Fase 11): cifras y fechas salen de `lib/formato`.
+  const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
+  const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
 
   const sp = await searchParams;
   const aqui: Paginacion = {
@@ -69,11 +73,11 @@ export default async function PuntosPage({
 
   return (
     <div className="df-rise mx-auto w-full max-w-6xl px-4 py-8 lg:px-8 lg:py-12">
-      <HeroNivel puntos={puntos} racha={racha} />
+      <HeroNivel puntos={puntos} racha={racha} idioma={idioma} />
 
       {/* LAS CIFRAS EXACTAS, debajo del hero. El hero dice quién eres; estas dicen cuánto. */}
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <TarjetaMetrica etiqueta="Puntos totales" valor={puntos.toLocaleString("es-ES")} />
+        <TarjetaMetrica etiqueta="Puntos totales" valor={formatearNumero(puntos, idioma)} />
         <TarjetaMetrica
           etiqueta="Nivel actual"
           valor={nivel.nombre}
@@ -84,7 +88,7 @@ export default async function PuntosPage({
           pie={
             nivel.minimo === 0
               ? "El punto de partida"
-              : `Desde ${nivel.minimo.toLocaleString("es-ES")} puntos`
+              : `Desde ${formatearNumero(nivel.minimo, idioma)} puntos`
           }
         />
         <TarjetaMetrica
@@ -94,7 +98,7 @@ export default async function PuntosPage({
           pie={
             esMaximo
               ? "Ya estás en el nivel más alto"
-              : `Faltan ${faltan.toLocaleString("es-ES")} para ${siguiente?.nombre}`
+              : `Faltan ${formatearNumero(faltan, idioma)} para ${siguiente?.nombre}`
           }
         />
       </div>
@@ -104,7 +108,7 @@ export default async function PuntosPage({
           llevaba casi todo el ancho y la escalera quedaba como una tira. Las dos arriba
           (`items-start`), cada una con su alto. En móvil se apilan en este mismo orden. */}
       <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-10">
-        <EscaleraNiveles puntos={puntos} />
+        <EscaleraNiveles puntos={puntos} idioma={idioma} />
         <TablaPuntos />
       </div>
 
@@ -115,7 +119,7 @@ export default async function PuntosPage({
         >
           Tu historial de puntos
         </h2>
-        <HistorialMisPuntos items={pagina.items} />
+        <HistorialMisPuntos items={pagina.items} idioma={idioma} zona={zona} />
         <PasosKeyset base="/puntos" aqui={aqui} proximoCursor={pagina.nextCursor} />
       </section>
     </div>

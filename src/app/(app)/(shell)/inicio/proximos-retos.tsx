@@ -1,3 +1,4 @@
+import type { Idioma } from "@/lib/formato";
 import Link from "next/link";
 
 import type { RetoPublicoVista } from "@/server/services/retos-publico";
@@ -10,7 +11,7 @@ import { TarjetaReto } from "../retos/tarjeta-reto";
  * Es el bloque que más llena la portada cuando hay pocos abiertos, y la anticipación es parte del
  * producto. Sin ninguno, no se pinta (no hay nada que anunciar).
  */
-export function ProximosRetos({ retos }: { retos: RetoPublicoVista[] }) {
+export function ProximosRetos({ retos, idioma }: { retos: RetoPublicoVista[]; idioma: Idioma }) {
   if (retos.length === 0) return null;
   return (
     <section aria-labelledby="proximos-retos">
@@ -27,7 +28,7 @@ export function ProximosRetos({ retos }: { retos: RetoPublicoVista[] }) {
       <ul className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
         {retos.map((r) => (
           <li key={r.publicCode} className="min-w-0">
-            <TarjetaReto reto={r} />
+            <TarjetaReto reto={r} idioma={idioma} />
           </li>
         ))}
       </ul>

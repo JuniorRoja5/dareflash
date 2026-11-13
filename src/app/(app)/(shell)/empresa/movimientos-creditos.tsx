@@ -1,6 +1,11 @@
 import type { MovimientoCreditoEmpresa } from "@/server/services/creditos";
+import {
+  formatearNumero,
+  formatearFechaParaQuienMira,
+  type Idioma,
+  type ZonaHoraria,
+} from "@/lib/formato";
 
-const FECHA = { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" } as const;
 const CABECERA = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
 
 /**
@@ -21,7 +26,8 @@ function EnlaceRecibo({ href }: { href: string }) {
   );
 }
 
-const cantidad = (delta: number) => `${delta > 0 ? "+" : ""}${delta.toLocaleString("es-ES")}`;
+const cantidad = (delta: number, idioma: Idioma) =>
+  `${delta > 0 ? "+" : ""}${formatearNumero(delta, idioma)}`;
 
 /**
  * LOS MOVIMIENTOS DE CRÉDITOS DE PUBLICIDAD QUE VE LA EMPRESA. Cada uno por su CONCEPTO: la nota de un
@@ -30,7 +36,15 @@ const cantidad = (delta: number) => `${delta > 0 ? "+" : ""}${delta.toLocaleStri
  * TABLA EN ESCRITORIO (fecha · concepto · créditos, la cifra alineada a la derecha para que se lean
  * en columna) y FILAS APILADAS EN MÓVIL, donde tres columnas no caben con el concepto entero.
  */
-export function MovimientosCreditos({ movimientos }: { movimientos: MovimientoCreditoEmpresa[] }) {
+export function MovimientosCreditos({
+  movimientos,
+  idioma,
+  zona,
+}: {
+  movimientos: MovimientoCreditoEmpresa[];
+  idioma: Idioma;
+  zona: ZonaHoraria | null;
+}) {
   if (movimientos.length === 0) {
     return (
       <p className="text-sm text-text-dim">
@@ -52,7 +66,7 @@ export function MovimientosCreditos({ movimientos }: { movimientos: MovimientoCr
           {movimientos.map((m) => (
             <tr key={m.id}>
               <td className="py-2.5 pr-4 whitespace-nowrap text-text-dim tabular-nums">
-                {new Date(m.creadoMs).toLocaleDateString("es-ES", FECHA)}
+                {formatearFechaParaQuienMira(m.creadoMs, idioma, zona, "diaMesAno")}
               </td>
               <td className="py-2.5 pr-4 text-text">
                 {m.concepto}
@@ -64,7 +78,7 @@ export function MovimientosCreditos({ movimientos }: { movimientos: MovimientoCr
                 ) : null}
               </td>
               <td className="py-2.5 text-right font-semibold whitespace-nowrap text-text tabular-nums">
-                {cantidad(m.delta)}
+                {cantidad(m.delta, idioma)}
               </td>
             </tr>
           ))}
@@ -76,12 +90,12 @@ export function MovimientosCreditos({ movimientos }: { movimientos: MovimientoCr
             <span className="min-w-0">
               <span className="block text-sm text-text">{m.concepto}</span>
               <span className="block text-2xs text-text-dim tabular-nums">
-                {new Date(m.creadoMs).toLocaleDateString("es-ES", FECHA)}
+                {formatearFechaParaQuienMira(m.creadoMs, idioma, zona, "diaMesAno")}
               </span>
               {m.recibo ? <EnlaceRecibo href={m.recibo} /> : null}
             </span>
             <span className="shrink-0 text-sm font-semibold text-text tabular-nums">
-              {cantidad(m.delta)}
+              {cantidad(m.delta, idioma)}
             </span>
           </li>
         ))}

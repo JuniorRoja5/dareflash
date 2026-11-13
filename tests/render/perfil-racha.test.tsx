@@ -27,7 +27,7 @@ afterEach(cleanup);
 
 /** El perfil propio tiene que RENDERIZAR de verdad; si no, las aserciones de ausencia mienten. */
 function pintar(props: Parameters<typeof PerfilVista>[0]): HTMLElement {
-  const c = render(<PerfilVista {...props} />).container;
+  const c = render(<PerfilVista idioma="es" {...props} />).container;
   expect(c.textContent, "el perfil no renderizó: las aserciones de ausencia no valdrían").toContain(
     props.handle,
   );

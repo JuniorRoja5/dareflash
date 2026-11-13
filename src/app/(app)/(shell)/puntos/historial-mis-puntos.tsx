@@ -1,16 +1,7 @@
 import type { MovimientoPuntos } from "@/server/services/dareup-admin";
 
+import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "@/lib/formato";
 import { razonHumanaPropia } from "@/lib/razones-puntos";
-
-/** Fecha en UTC, como todo el producto (la zona horaria solo al presentar). */
-function fecha(ms: number): string {
-  return new Date(ms).toLocaleDateString("es-ES", {
-    timeZone: "UTC",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 /**
  * MI HISTORIAL DE PUNTOS — de dónde salió cada punto, del más nuevo al más viejo.
@@ -23,7 +14,15 @@ function fecha(ms: number): string {
  * siempre y en tono normal —sin verde ni rojo—: un color aquí diría "bueno/malo" sobre una cifra que
  * solo es un movimiento. El único color de esta pantalla es el del nivel, arriba.
  */
-export function HistorialMisPuntos({ items }: { items: MovimientoPuntos[] }) {
+export function HistorialMisPuntos({
+  items,
+  idioma,
+  zona,
+}: {
+  items: MovimientoPuntos[];
+  idioma: Idioma;
+  zona: ZonaHoraria | null;
+}) {
   if (items.length === 0) {
     return (
       <p className="mt-4 rounded-sm border border-line bg-surface/40 p-6 text-sm text-text-dim">
@@ -56,7 +55,7 @@ export function HistorialMisPuntos({ items }: { items: MovimientoPuntos[] }) {
             {items.map((m) => (
               <tr key={m.id} data-movimiento={m.id} className="align-middle">
                 <td className="py-3 pr-4 pl-4 whitespace-nowrap text-text-dim tabular-nums">
-                  {fecha(m.creadoEnMs)}
+                  {formatearFechaParaQuienMira(m.creadoEnMs, idioma, zona, "diaFijoMesAno")}
                 </td>
                 {/* El importe viaja con el motivo: un ajuste del equipo se lee distinto si suma o
                     si resta, y el usuario no tiene por qué deducirlo del número de al lado. */}
@@ -86,7 +85,7 @@ export function HistorialMisPuntos({ items }: { items: MovimientoPuntos[] }) {
                   {razonHumanaPropia(m.razon, m.delta)}
                 </span>
                 <span className="block text-2xs break-words text-text-dim">
-                  {fecha(m.creadoEnMs)}
+                  {formatearFechaParaQuienMira(m.creadoEnMs, idioma, zona, "diaFijoMesAno")}
                   {ref ? ` · ${ref}` : ""}
                 </span>
               </span>

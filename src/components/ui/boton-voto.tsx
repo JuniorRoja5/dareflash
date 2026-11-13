@@ -14,6 +14,7 @@ import {
 } from "@/lib/voto-cliente";
 
 import { ContadorVotos } from "./contador-votos";
+import { navegarDuro } from "@/lib/navegacion-dura";
 
 /**
  * BOTÓN DE VOTAR + RECUENTO — ÚNICO componente, montado donde hay reproductor (el rail del feed y el
@@ -163,7 +164,9 @@ export function BotonVoto({
       // La vuelta se lee AQUÍ, no de una prop: es la ruta en la que el usuario está de verdad, y
       // ninguna pantalla puede equivocarse al pasarla. Siempre local, así que no abre open-redirect.
       const vuelta = window.location.pathname + window.location.search;
-      window.location.href = `/entrar?siguiente=${encodeURIComponent(vuelta)}`;
+      // EN DURO, con `navegarDuro` (la misma puerta que el login y el logout): el router de cliente
+      // guardaría lo pre-cargado como invitado. Era también el último aviso de lint del proyecto.
+      navegarDuro(`/entrar?siguiente=${encodeURIComponent(vuelta)}`);
       return;
     }
     if (estado !== "votar" && estado !== "votado") return;

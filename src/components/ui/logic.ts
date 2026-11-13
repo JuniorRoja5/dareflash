@@ -64,11 +64,6 @@ export function tokenPuesto(puesto: number): "rank" | "neutral" {
   return Number.isInteger(puesto) && puesto >= 1 && puesto <= 3 ? "rank" : "neutral";
 }
 
-/** Importe en centimos -> texto de moneda (USD por defecto), formato en-US: 125000 -> "$1,250.00". */
-export function formatearImporte(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
-}
-
 // ---------------------------------------------------------------------------
 // BOTON — mapa variante -> tokens de color. Fuente de verdad, extraida para atarla: un boton con
 // RELLENO semantico lleva SIEMPRE texto negro (--df-void), nunca blanco. Romper el mapa (p. ej.

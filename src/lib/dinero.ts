@@ -3,6 +3,7 @@
  * dos conversiones PURAS entre el importe humano ("20", "20,50") y los céntimos enteros, hechas con
  * ARITMÉTICA ENTERA sobre las partes (parte entera y decimales), sin `* 100` en float que redondee mal.
  */
+import { formatearImporte, type Idioma } from "./formato";
 
 /**
  * "20" / "20.5" / "20,50" -> céntimos enteros (2000 / 2050 / 2050). Acepta coma o punto y hasta 2
@@ -23,8 +24,9 @@ export function importeACentimos(entrada: string): number | null {
  * la pantalla (Archivo Expanded, `--df-money`, el entero mandando). Esto es para cuando el importe
  * va DENTRO de una frase —"el mínimo son $50.00"— y poner ahí la primitiva rompería el renglón.
  */
-export function importeConMoneda(centimos: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(centimos / 100);
+export function importeConMoneda(centimos: number, idioma: Idioma, currency = "USD"): string {
+  // El formato sale del módulo único (Fase 11): «$50.00», el de siempre.
+  return formatearImporte(centimos, idioma, currency);
 }
 
 /** Céntimos enteros -> importe con 2 decimales ("2000" -> "20.00"). Para MOSTRAR el premio. */

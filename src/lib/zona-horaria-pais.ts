@@ -1,3 +1,4 @@
+import { componentesEnZona, zonaHoraria } from "./formato";
 /**
  * LA HORA LOCAL A LA QUE EMPIEZA UN DÍA DE CAMPAÑA (Fase 9 · P10) — puro.
  *
@@ -302,28 +303,18 @@ export function inicioLocalDelDia(
   paisIso: string,
   dia: Date,
 ): { hora: string; diaAnterior: boolean } | null {
-  const zona = ZONA_HORARIA_PAIS[paisIso.trim().toUpperCase()];
+  // La zona de la tabla, VALIDADA (`zonaHoraria`): una entrada rara no llega a `Intl`.
+  const zona = zonaHoraria(ZONA_HORARIA_PAIS[paisIso.trim().toUpperCase()]);
   if (!zona) return null;
   const fecha = dia.toISOString().slice(0, 10);
   const inicio = new Date(`${fecha}T00:00:00.000Z`);
-  try {
-    const partes = new Intl.DateTimeFormat("es-ES", {
-      timeZone: zona,
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      hourCycle: "h23",
-    }).formatToParts(inicio);
-    const valor = (tipo: string) => partes.find((p) => p.type === tipo)?.value;
-    const [hora, minuto, diaLocal] = [valor("hour"), valor("minute"), valor("day")];
-    if (hora === undefined || minuto === undefined || diaLocal === undefined) return null;
-    return {
-      hora: `${Number(hora)}:${minuto}`,
-      diaAnterior: Number(diaLocal) !== inicio.getUTCDate(),
-    };
-  } catch {
-    return null;
-  }
+  // Las CIFRAS del instante en esa zona salen del formateador único (Fase 11), y la frase se compone
+  // aquí: «19:00», «1:00», «5:30» (hora sin cero, minutos con él), como siempre.
+  const c = componentesEnZona(inicio, zona);
+  return {
+    hora: `${c.hora}:${String(c.minuto).padStart(2, "0")}`,
+    diaAnterior: c.dia !== inicio.getUTCDate(),
+  };
 }
 
 /** Solo la hora local a la que empieza el día (ver `inicioLocalDelDia`). */

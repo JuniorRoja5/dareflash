@@ -34,7 +34,14 @@ function celdaPuesto(contenedor: HTMLElement, puesto: number): HTMLElement {
 describe("FilaPuesto pinta lo que dice pintar", () => {
   it("muestra el puesto, el handle y la cifra", () => {
     render(
-      <FilaPuesto puesto={4} username="lucia" imagen={null} cifra={1234} unidad="victorias" />,
+      <FilaPuesto
+        idioma="es"
+        puesto={4}
+        username="lucia"
+        imagen={null}
+        cifra={1234}
+        unidad="victorias"
+      />,
     );
     expect(screen.getByText("4")).toBeDefined();
     expect(screen.getByText("@lucia")).toBeDefined();
@@ -46,7 +53,14 @@ describe("FilaPuesto pinta lo que dice pintar", () => {
     // Es una regla de marca, y la clase de cosa que se rompe sin que falle nada más.
     for (const puesto of [1, 2, 3]) {
       const { container, unmount } = render(
-        <FilaPuesto puesto={puesto} username="x" imagen={null} cifra={1} unidad="victorias" />,
+        <FilaPuesto
+          idioma="es"
+          puesto={puesto}
+          username="x"
+          imagen={null}
+          cifra={1}
+          unidad="victorias"
+        />,
       );
       // El oro ya no se escribe como color inline: va por `df-puesto-podio`, que en tema CLARO lo
       // convierte en chip (el oro metálico no se lee como texto pequeño). Qué pinta esa clase en cada
@@ -55,14 +69,21 @@ describe("FilaPuesto pinta lo que dice pintar", () => {
       unmount();
     }
     const { container } = render(
-      <FilaPuesto puesto={4} username="x" imagen={null} cifra={1} unidad="victorias" />,
+      <FilaPuesto idioma="es" puesto={4} username="x" imagen={null} cifra={1} unidad="victorias" />,
     );
     expect(celdaPuesto(container, 4).className).not.toContain("df-puesto-podio");
   });
 
   it("los puntos NUNCA van en lima: la lima es dinero y los puntos no lo son", () => {
     const { container } = render(
-      <FilaPuesto puesto={1} username="x" imagen={null} cifra={999} unidad="victorias" />,
+      <FilaPuesto
+        idioma="es"
+        puesto={1}
+        username="x"
+        imagen={null}
+        cifra={999}
+        unidad="victorias"
+      />,
     );
     const cifra = [...container.querySelectorAll<HTMLElement>("span")].find((s) =>
       s.textContent?.includes("999"),
@@ -74,11 +95,12 @@ describe("FilaPuesto pinta lo que dice pintar", () => {
 
   it("la insignia es un slot OPCIONAL: sin pasarla, la fila no la inventa", () => {
     const { container: sin } = render(
-      <FilaPuesto puesto={1} username="x" imagen={null} cifra={1} unidad="victorias" />,
+      <FilaPuesto idioma="es" puesto={1} username="x" imagen={null} cifra={1} unidad="victorias" />,
     );
     const antes = sin.querySelectorAll("span").length;
     const { container: con } = render(
       <FilaPuesto
+        idioma="es"
         puesto={1}
         username="x"
         imagen={null}
@@ -96,7 +118,7 @@ describe("FilaPuesto pinta lo que dice pintar", () => {
     // ordenado por victorias enseñaba puntos: alguien con 1 victoria y 4.000 puntos aparecía debajo
     // de otro con 3 victorias y 90, y el número visible contradecía el orden.
     const { container } = render(
-      <FilaPuesto puesto={1} username="x" imagen={null} cifra={3} unidad="victorias" />,
+      <FilaPuesto idioma="es" puesto={1} username="x" imagen={null} cifra={3} unidad="victorias" />,
     );
     expect(container.textContent).toContain("3 victorias");
     expect(container.textContent).not.toContain("pts");
@@ -105,6 +127,7 @@ describe("FilaPuesto pinta lo que dice pintar", () => {
   it("un handle larguísimo no desborda: se trunca", () => {
     const { container } = render(
       <FilaPuesto
+        idioma="es"
         puesto={1}
         username="usuario_con_un_handle_absurdamente_largo_2026"
         imagen={null}
@@ -126,7 +149,14 @@ describe("el avatar de la fila es el de verdad", () => {
 
   it("con foto: la pinta, y en PEREZOSO (las filas son listas largas)", () => {
     const { container } = render(
-      <FilaPuesto puesto={4} username="lucia" imagen={FOTO} cifra={2} unidad="victorias" />,
+      <FilaPuesto
+        idioma="es"
+        puesto={4}
+        username="lucia"
+        imagen={FOTO}
+        cifra={2}
+        unidad="victorias"
+      />,
     );
     const img = container.querySelector("img");
     expect(img?.getAttribute("src")).toBe(FOTO);
@@ -137,7 +167,14 @@ describe("el avatar de la fila es el de verdad", () => {
 
   it("sin foto: sale la INICIAL, no un círculo vacío", () => {
     const { container } = render(
-      <FilaPuesto puesto={4} username="lucia" imagen={null} cifra={2} unidad="victorias" />,
+      <FilaPuesto
+        idioma="es"
+        puesto={4}
+        username="lucia"
+        imagen={null}
+        cifra={2}
+        unidad="victorias"
+      />,
     );
     expect(container.querySelector("img")).toBeNull();
     expect(screen.getByText("L")).toBeDefined();
@@ -145,7 +182,14 @@ describe("el avatar de la fila es el de verdad", () => {
 
   it("si la foto no carga, cae a la inicial en vez de dejar un icono roto", () => {
     const { container } = render(
-      <FilaPuesto puesto={4} username="lucia" imagen={FOTO} cifra={2} unidad="victorias" />,
+      <FilaPuesto
+        idioma="es"
+        puesto={4}
+        username="lucia"
+        imagen={FOTO}
+        cifra={2}
+        unidad="victorias"
+      />,
     );
     fireEvent.error(container.querySelector("img")!);
     expect(container.querySelector("img")).toBeNull();

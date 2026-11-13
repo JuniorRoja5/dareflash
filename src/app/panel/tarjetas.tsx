@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { ImportePremio } from "@/components/ui/importe-premio";
 
+import { IDIOMA_PANEL, numeroPanel } from "./formato-panel";
+
 /**
  * TARJETAS de métrica del panel. Fuente ÚNICA: las usan el Resumen y la gestión de un reto, para que
  * "dato real" y "todavía no hay dato" se lean EXACTAMENTE igual en todo el panel.
@@ -44,7 +46,7 @@ export function TarjetaMetrica({
   const cuerpo = (
     <>
       <p className="text-3xl leading-none tabular-nums text-text" style={ESTILO_CIFRA}>
-        {valor.toLocaleString("es-ES")}
+        {numeroPanel(valor)}
       </p>
       <p className="mt-2 text-2xs font-semibold tracking-widest text-text-dim uppercase">
         {etiqueta}
@@ -85,7 +87,7 @@ export function TarjetaDinero({
 }) {
   return (
     <div className="rounded-sm border border-line bg-surface/60 p-5 shadow-[var(--df-shadow-md)]">
-      <ImportePremio cents={cents} tamano="tarjeta" className="block" />
+      <ImportePremio idioma={IDIOMA_PANEL} cents={cents} tamano="tarjeta" className="block" />
       <p className="mt-2 text-2xs font-semibold tracking-widest text-text-dim uppercase">
         {etiqueta}
       </p>

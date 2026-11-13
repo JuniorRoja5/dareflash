@@ -51,6 +51,9 @@ export default async function VipPage({
   await apartarCuentaEmpresa();
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
+  // El idioma y la zona de quien mira (Fase 11): importes y fechas salen de `lib/formato`.
+  const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
+  const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
   if (!sesion) redirect("/entrar?siguiente=%2Fvip");
 
   const sp = await searchParams;
@@ -85,13 +88,13 @@ export default async function VipPage({
         </div>
       ) : null}
 
-      <HeroVip />
+      <HeroVip idioma={idioma} />
 
       <BeneficiosVip />
 
       {/* LA ÚNICA DECISIÓN DE ESTADO DE LA PÁGINA, y la toma el chokepoint. Ver la cabecera. */}
       {vip.activo ? (
-        <TarjetaEresVip vip={vip} />
+        <TarjetaEresVip vip={vip} idioma={idioma} zona={zona} />
       ) : (
         <CtaVip puedeSuscribirse={puedeSuscribirse} motivoBloqueo={motivoBloqueo} />
       )}

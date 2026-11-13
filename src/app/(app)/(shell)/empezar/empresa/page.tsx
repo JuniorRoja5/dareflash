@@ -54,6 +54,8 @@ function DespuesDeEnviar({ className }: { className: string }) {
 export default async function PaginaAltaEmpresa() {
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
+  const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
+  const idioma = await idiomaDeLaPeticion();
   if (sesion?.esCuentaEmpresa) redirect("/empresa");
 
   return (
@@ -83,7 +85,7 @@ export default async function PaginaAltaEmpresa() {
           {/* Sin cabecera propia: el texto ya empieza por «Socios Fundadores:» y repetirlo encima
               era leer lo mismo dos veces. */}
           <Tarjeta className="border-text/40 p-5">
-            <p className="text-sm font-medium text-text">{msgSocioFundador()}</p>
+            <p className="text-sm font-medium text-text">{msgSocioFundador(idioma)}</p>
           </Tarjeta>
 
           <DespuesDeEnviar className="hidden lg:block" />

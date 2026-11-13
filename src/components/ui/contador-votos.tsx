@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { useFormato } from "@/components/formato-provider";
+import { formatearMarcador } from "@/lib/formato";
+
 const prefiereMenosMovimiento = (): boolean =>
   typeof window !== "undefined" &&
   window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
@@ -13,6 +16,8 @@ const prefiereMenosMovimiento = (): boolean =>
  * animacion mona. Bajo `prefers-reduced-motion` el numero salta sin tween.
  */
 export function ContadorVotos({ votos, className = "" }: { votos: number; className?: string }) {
+  // El idioma de quien mira, del proveedor del layout (Fase 11): el número sale de `lib/formato`.
+  const { idioma } = useFormato();
   const [mostrado, setMostrado] = useState(votos);
   const [golpe, setGolpe] = useState(false);
   const prev = useRef(votos);
@@ -46,9 +51,9 @@ export function ContadorVotos({ votos, className = "" }: { votos: number; classN
   return (
     <span
       className={`inline-block tabular-nums transition-transform duration-150 ease-mechanical ${golpe ? "scale-110" : "scale-100"} ${className}`}
-      aria-label={`${votos.toLocaleString("en-US")} votos`}
+      aria-label={`${formatearMarcador(votos, idioma)} votos`}
     >
-      {mostrado.toLocaleString("en-US")}
+      {formatearMarcador(mostrado, idioma)}
     </span>
   );
 }

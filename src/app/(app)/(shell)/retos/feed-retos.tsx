@@ -9,6 +9,7 @@ import type { RetoPublicoVista } from "@/server/services/retos-publico";
 
 import { CATEGORIAS, CATEGORIA_TODOS, filtrarRetos } from "./retos-datos";
 import { TarjetaReto } from "./tarjeta-reto";
+import { useFormato } from "@/components/formato-provider";
 
 /**
  * FEED de retos (cliente) con datos REALES. Pestaña ACTIVOS (con filtro por categoría) | CERRADOS.
@@ -42,6 +43,7 @@ export function FeedRetos({
   cerradosCursor?: string | null;
   categoriaInicial?: string | null;
 }) {
+  const { idioma } = useFormato();
   const [pestana, setPestana] = useState<"activos" | "proximos" | "cerrados">("activos");
   const [categoria, setCategoria] = useState<string>(categoriaInicial ?? CATEGORIA_TODOS);
   const [masCerrados, setMasCerrados] = useState<RetoPublicoVista[]>([]);
@@ -136,7 +138,7 @@ export function FeedRetos({
         <ul role="list" className="df-rise mt-4 grid grid-cols-2 gap-3 sm:gap-4">
           {visibles.map((reto) => (
             <li key={reto.publicCode} className="grid">
-              <TarjetaReto reto={reto} />
+              <TarjetaReto reto={reto} idioma={idioma} />
             </li>
           ))}
         </ul>

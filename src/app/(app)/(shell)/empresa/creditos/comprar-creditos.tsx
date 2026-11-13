@@ -10,6 +10,8 @@ import {
   MSG_CREDITOS_PAGO_NO_DISPONIBLE,
 } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
+import { useFormato } from "@/components/formato-provider";
+import { formatearNumero } from "@/lib/formato";
 
 export interface PaqueteEnVenta {
   clave: string;
@@ -41,6 +43,7 @@ export function ComprarCreditos({
   puedeComprar: boolean;
   motivoBloqueo: string | null;
 }) {
+  const { idioma } = useFormato();
   const [comprando, setComprando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,11 +99,16 @@ export function ComprarCreditos({
               </p>
             )}
             <p className="text-2xl font-semibold text-text tabular-nums">
-              {p.creditos.toLocaleString("es-ES")}
+              {formatearNumero(p.creditos, idioma)}
               <span className="ml-1.5 text-sm font-medium text-text-dim">créditos</span>
             </p>
             <p className="mt-3">
-              <ImportePremio cents={p.precioCents} currency={DEFAULT_CURRENCY} tamano="tarjeta" />
+              <ImportePremio
+                idioma={idioma}
+                cents={p.precioCents}
+                currency={DEFAULT_CURRENCY}
+                tamano="tarjeta"
+              />
             </p>
             <p className="mt-1 text-2xs text-text-dim">{p.porCredito} por crédito</p>
             {puedeComprar ? (

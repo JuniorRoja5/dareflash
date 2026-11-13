@@ -15,6 +15,7 @@ import { VideoFailureReasonSchema, type VideoFailureReason } from "@/config/cons
 
 import { enlaceComentario } from "./enlace-comentario";
 import { COPY_SUBIDA } from "./estado-subida";
+import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "./formato";
 import { NIVELES, type ClaveNivel } from "./niveles";
 
 const Id = z.string().min(1).max(191);
@@ -419,7 +420,12 @@ export interface ContextoTexto {
  * "Hace cuánto", en castellano y sin librería. Grueso a propósito: en una bandeja importa el orden de
  * magnitud, no el minuto exacto. Más de una semana -> la fecha.
  */
-export function haceCuanto(ms: number, ahoraMs: number): string {
+export function haceCuanto(
+  ms: number,
+  ahoraMs: number,
+  idioma: Idioma,
+  zona: ZonaHoraria | null,
+): string {
   const s = Math.max(0, Math.floor((ahoraMs - ms) / 1000));
   if (s < 60) return "Ahora";
   const min = Math.floor(s / 60);
@@ -428,7 +434,8 @@ export function haceCuanto(ms: number, ahoraMs: number): string {
   if (h < 24) return `Hace ${h} h`;
   const d = Math.floor(h / 24);
   if (d < 7) return `Hace ${d} d`;
-  return new Date(ms).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+  // Más de una semana: el DÍA, en la zona de quien mira (Fase 11).
+  return formatearFechaParaQuienMira(ms, idioma, zona, "diaMes");
 }
 
 /** Contador del badge: "99+" por encima del tope; `null` si no hay nada que pintar. */

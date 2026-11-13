@@ -11,10 +11,10 @@ import type { FichaEmpresa as DatosFicha } from "@/server/services/empresas";
 import { AccionesEmpresa } from "./acciones-empresa";
 import { CreditosEmpresa } from "./creditos-empresa";
 import { VerFiscal } from "./ver-fiscal";
+import { fechaPanel } from "@/app/panel/formato-panel";
 
 const DATO = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
 const PILDORA = "rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim";
-const FECHA = { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" } as const;
 
 function Dato({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) {
   return (
@@ -72,9 +72,7 @@ export function FichaEmpresa({
           <Dato etiqueta="País">{nombrePais(ficha.paisIso)}</Dato>
           <Dato etiqueta="Ciudad">{ficha.ciudadTexto ?? "—"}</Dato>
           <Dato etiqueta="Alta">
-            <span className="tabular-nums">
-              {new Date(ficha.creadaMs).toLocaleDateString("es-ES", FECHA)}
-            </span>
+            <span className="tabular-nums">{fechaPanel(ficha.creadaMs, "numericaFija")}</span>
           </Dato>
           <Dato etiqueta="Puede comprar">
             {ficha.tipoNegocio
@@ -97,9 +95,7 @@ export function FichaEmpresa({
           </Dato>
           {ficha.verificadaMs !== null ? (
             <Dato etiqueta="Verificada">
-              <span className="tabular-nums">
-                {new Date(ficha.verificadaMs).toLocaleDateString("es-ES", FECHA)}
-              </span>
+              <span className="tabular-nums">{fechaPanel(ficha.verificadaMs, "numericaFija")}</span>
               {ficha.verificadaPor ? ` · @${ficha.verificadaPor}` : ""}
             </Dato>
           ) : null}

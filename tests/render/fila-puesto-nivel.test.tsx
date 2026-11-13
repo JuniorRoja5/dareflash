@@ -19,6 +19,7 @@ afterEach(cleanup);
 const pintar = (puesto: number, puntos?: number) =>
   render(
     <FilaPuesto
+      idioma="es"
       puesto={puesto}
       username="yuyu"
       imagen={null}

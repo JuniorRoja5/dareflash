@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { ImportePremio } from "@/components/ui/importe-premio";
 import { MSG_RETIRADA_SIN_MINIMO, RETIRADA_MINIMA_CENTS } from "@/config/constants";
 import { importeConMoneda } from "@/lib/dinero";
+import type { Idioma } from "@/lib/formato";
 
 /**
  * EL HERO DEL MONEDERO — el saldo como figura de la pantalla.
@@ -30,10 +31,13 @@ import { importeConMoneda } from "@/lib/dinero";
  */
 export function HeroMonedero({
   saldoCents,
+  idioma,
   enRevisionCents,
   cobradoCents,
 }: {
   saldoCents: number;
+  /** El de quien mira (Fase 11): los importes salen de `lib/formato`. */
+  idioma: Idioma;
   /** Lo pedido que aún no es final (en revisión, aceptado o en camino). */
   enRevisionCents: number;
   cobradoCents: number;
@@ -56,7 +60,7 @@ export function HeroMonedero({
         </p>
         <h1 id="mi-saldo" className="mt-1 leading-none">
           <span className="sr-only">Saldo disponible: </span>
-          <ImportePremio cents={saldoCents} tamano="heroe" className="block" />
+          <ImportePremio idioma={idioma} cents={saldoCents} tamano="heroe" className="block" />
         </h1>
 
         <p className="mt-3 max-w-prose text-sm text-text-dim">
@@ -69,17 +73,17 @@ export function HeroMonedero({
         <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
           <span className="inline-flex items-center rounded-full border border-line px-3 py-1 text-text-dim">
             {llegaAlMinimo
-              ? `Puedes cobrar desde ${importeConMoneda(RETIRADA_MINIMA_CENTS)}`
-              : `Te faltan ${importeConMoneda(RETIRADA_MINIMA_CENTS - saldoCents)} para el mínimo`}
+              ? `Puedes cobrar desde ${importeConMoneda(RETIRADA_MINIMA_CENTS, idioma)}`
+              : `Te faltan ${importeConMoneda(RETIRADA_MINIMA_CENTS - saldoCents, idioma)} para el mínimo`}
           </span>
           {enRevisionCents > 0 ? (
             <span className="inline-flex items-center rounded-full border border-line px-3 py-1 text-text-dim">
-              {importeConMoneda(enRevisionCents)} en curso
+              {importeConMoneda(enRevisionCents, idioma)} en curso
             </span>
           ) : null}
           {cobradoCents > 0 ? (
             <span className="inline-flex items-center rounded-full border border-line px-3 py-1 text-text-dim">
-              {importeConMoneda(cobradoCents)} cobrados
+              {importeConMoneda(cobradoCents, idioma)} cobrados
             </span>
           ) : null}
         </div>

@@ -3,9 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
+import { useFormato } from "@/components/formato-provider";
 import { Boton } from "@/components/ui/boton";
 import {
+  fraseReinicioDiario,
   msgBoostAgotado,
+  msgBoostLimiteDiario,
   msgBoostQueRecibes,
   BOOST_DAILY_LIMIT,
   BOOST_DURACION_MIN,
@@ -59,6 +62,7 @@ export function ActivarBoost({
   cupo: { lleno: boolean; minutosParaHueco: number | null };
 }) {
   const router = useRouter();
+  const { idioma, zona } = useFormato();
   const [token, setToken] = useState(() => crypto.randomUUID());
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
@@ -136,9 +140,9 @@ export function ActivarBoost({
         </div>
       ) : limiteGastado ? (
         <p id="boost-limite" className="mt-2.5 text-2xs text-text-dim">
-          {/* La cifra sale de la constante, como en todas partes. */}
-          Ya has destacado tu perfil {BOOST_DAILY_LIMIT} veces hoy. El contador se reinicia a
-          medianoche UTC.
+          {/* La misma frase que devuelve la ruta: la cifra de la constante y la hora del reinicio en
+              la de quien mira (Fase 11), con la zona que el layout comparte con el servidor. */}
+          {msgBoostLimiteDiario(fraseReinicioDiario(new Date(), idioma, zona))}
         </p>
       ) : vigenteHastaMs !== null ? (
         <p className="mt-2.5 text-2xs text-text-dim">

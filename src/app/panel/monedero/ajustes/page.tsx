@@ -5,6 +5,7 @@ import { importeConMoneda } from "@/lib/dinero";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 
 import { requireSeccion } from "../../panel-guard";
+import { IDIOMA_PANEL, fechaPanel } from "@/app/panel/formato-panel";
 
 export const metadata = { title: "Ajustes de saldo · Panel" };
 export const dynamic = "force-dynamic";
@@ -14,15 +15,9 @@ const ESTILO_TITULO = {
   fontVariationSettings: '"wght" 720, "wdth" 112',
 } as const;
 
+/** En UTC y diciéndolo (`fechaPanel`, Fase 11): el « UTC» lo pone él, no cada fila. */
 function cuando(fecha: Date): string {
-  return fecha.toLocaleString("es-ES", {
-    timeZone: "UTC",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return fechaPanel(fecha, "diaFijoMesAnoHora");
 }
 
 /**
@@ -96,7 +91,7 @@ export default async function Pagina({
                       className={`text-base font-medium tabular-nums ${entra ? "text-money" : "text-text"}`}
                     >
                       {entra ? "+" : "−"}
-                      {importeConMoneda(Math.abs(a.deltaCents))}
+                      {importeConMoneda(Math.abs(a.deltaCents), IDIOMA_PANEL)}
                     </span>
                     <span className="ml-2 text-sm text-text-dim">
                       a @{a.usuarioUsername ?? "(cuenta borrada)"}
@@ -104,7 +99,7 @@ export default async function Pagina({
                   </span>
                   <span className="text-2xs tracking-widest text-text-dim uppercase">
                     {a.adminUsername ? `por @${a.adminUsername}` : "por (cuenta borrada)"} ·{" "}
-                    {cuando(a.createdAt)} UTC
+                    {cuando(a.createdAt)}
                   </span>
                 </div>
 
@@ -112,7 +107,8 @@ export default async function Pagina({
                     sin ellos hay que recomponer el ledger entero para saber sobre qué se aplicó. */}
                 {a.antesCents !== null && a.despuesCents !== null ? (
                   <p className="text-xs tabular-nums text-text-dim">
-                    {importeConMoneda(a.antesCents)} → {importeConMoneda(a.despuesCents)}
+                    {importeConMoneda(a.antesCents, IDIOMA_PANEL)} →{" "}
+                    {importeConMoneda(a.despuesCents, IDIOMA_PANEL)}
                   </p>
                 ) : null}
 

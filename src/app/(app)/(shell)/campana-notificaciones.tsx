@@ -10,6 +10,7 @@ import { haceCuanto, textoBadge } from "@/lib/notificaciones";
 
 import { useNoLeidas } from "../avisos-contexto";
 import { useCerrarDesplegable } from "./usar-desplegable";
+import { useFormato } from "@/components/formato-provider";
 
 /** Icono campana inline (trazo 1.6 px, currentColor), misma familia severa que la barra. */
 function IconoCampana() {
@@ -58,6 +59,7 @@ type Carga =
  * Solo se monta con sesión: un invitado no tiene avisos, y enseñarle una campana sería maqueta.
  */
 export function CampanaNotificaciones() {
+  const { idioma, zona } = useFormato();
   const { noLeidas, fijar } = useNoLeidas();
   const [abierto, setAbierto] = useState(false);
   const [carga, setCarga] = useState<Carga>({ estado: "cargando" });
@@ -161,7 +163,7 @@ export function CampanaNotificaciones() {
                         {i.texto}
                       </span>
                       <span className="mt-0.5 block text-2xs text-text-dim">
-                        {haceCuanto(i.creadaMs, carga.ahoraMs)}
+                        {haceCuanto(i.creadaMs, carga.ahoraMs, idioma, zona)}
                       </span>
                     </span>
                   </Link>

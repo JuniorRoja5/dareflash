@@ -6,14 +6,12 @@ import { getJson } from "@/lib/cliente-http";
 import type { NotificacionInspector } from "@/server/services/anuncios";
 
 import { ETIQUETA_TIPO } from "./etiquetas";
+import { fechaPanel } from "@/app/panel/formato-panel";
 
 /** Fecha en UTC (el proyecto trabaja en UTC de punta a punta). */
+/** En UTC y diciéndolo (`fechaPanel`, Fase 11). */
 function fecha(ms: number): string {
-  return new Date(ms).toLocaleString("es-ES", {
-    timeZone: "UTC",
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  return fechaPanel(ms, "medioHora");
 }
 
 /**

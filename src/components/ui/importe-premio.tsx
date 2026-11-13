@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 
+import { type Idioma, partesDeImporte } from "@/lib/formato";
+
 /** Tamaños del ENTERO del importe (px). Escala de lista a heroe SIN cambiar de estructura. */
 const TAMANO_PX = { lista: 20, tarjeta: 34, heroe: 64 } as const;
 export type TamanoImporte = keyof typeof TAMANO_PX;
@@ -12,19 +14,20 @@ export type TamanoImporte = keyof typeof TAMANO_PX;
  */
 export function ImportePremio({
   cents,
+  idioma,
   currency = "USD",
   tamano = "tarjeta",
   className = "",
 }: {
   cents: number;
+  /** El de quien mira (Fase 11): el formato sale de `lib/formato`, como el de todo importe. */
+  idioma: Idioma;
   currency?: string;
   tamano?: TamanoImporte;
   className?: string;
 }) {
   const px = TAMANO_PX[tamano];
-  const partes = new Intl.NumberFormat("en-US", { style: "currency", currency }).formatToParts(
-    cents / 100,
-  );
+  const partes = partesDeImporte(cents, idioma, currency);
   const estilo: CSSProperties = {
     fontFamily: "var(--font-display)",
     fontVariationSettings: '"wght" 850, "wdth" 125',

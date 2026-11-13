@@ -3,7 +3,8 @@ import { z } from "zod";
 import {
   MSG_TOQUE_A_TI_MISMO,
   MSG_TOQUE_ENVIADO,
-  MSG_TOQUE_LIMITE_DIARIO,
+  fraseReinicioDiario,
+  msgToqueLimiteDiario,
   MSG_TOQUE_REPETIDO,
   MSG_TOQUE_SIN_VERIFICAR,
   MSG_TOQUE_SOLO_VIP,
@@ -58,7 +59,16 @@ export const POST = mutatingRoute(async (req, { prisma, user }) => {
     key: `toque:user:${user.userId}`,
     ...RATE_LIMITS.TOQUE_PER_USER,
   });
-  if (!rl.allowed) return apiOk({ estado: "limite", mensaje: MSG_TOQUE_LIMITE_DIARIO });
+  if (!rl.allowed) {
+    // La hora del reinicio, en la de quien pide (Fase 11): el día se sigue contando en UTC.
+    const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
+    const reinicio = fraseReinicioDiario(
+      new Date(),
+      await idiomaDeLaPeticion(),
+      await zonaDeLaPeticion(),
+    );
+    return apiOk({ estado: "limite", mensaje: msgToqueLimiteDiario(reinicio) });
+  }
 
   const r = await darToque(prisma, {
     emisorId: user.userId,

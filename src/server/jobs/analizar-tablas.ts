@@ -33,6 +33,7 @@
 import "server-only";
 
 import type { PrismaClient } from "@/generated/prisma/client";
+import { componentesEnZona, ZONA_MADRID } from "@/lib/formato";
 
 /**
  * Las tablas del plan del feed. Son las que salen en el `EXPLAIN`: `Video` conduce, `User` es
@@ -66,16 +67,9 @@ export function tocaAnalizar(ahora: Date, ultimoDiaHecho: string | null): boolea
  * año — justo en la ventana que se quería evitar.
  */
 export function diaYHoraEnMadrid(ahora: Date): { dia: string; hora: number } {
-  const partes = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Madrid",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    hour12: false,
-  }).formatToParts(ahora);
-  const v = (t: string) => partes.find((p) => p.type === t)?.value ?? "";
-  return { dia: `${v("year")}-${v("month")}-${v("day")}`, hora: Number(v("hour")) };
+  const c = componentesEnZona(ahora, ZONA_MADRID);
+  const dos = (n: number) => String(n).padStart(2, "0");
+  return { dia: `${c.ano}-${dos(c.mes)}-${dos(c.dia)}`, hora: c.hora };
 }
 
 /** Recalcula las estadísticas. Devuelve cuánto tardó, para el log. */

@@ -1,5 +1,6 @@
 import { EmblemaDeNivel } from "@/components/ui/emblema-nivel";
 import { NIVELES, nivelPorPuntos } from "@/lib/niveles";
+import { formatearNumero, type Idioma } from "@/lib/formato";
 
 /**
  * LA ESCALERA — los cinco niveles y el umbral de cada uno, con el tuyo marcado.
@@ -13,7 +14,7 @@ import { NIVELES, nivelPorPuntos } from "@/lib/niveles";
  *
  * Los umbrales salen de `NIVELES`: mover uno mueve esta lista sin tocar este fichero.
  */
-export function EscaleraNiveles({ puntos }: { puntos: number }) {
+export function EscaleraNiveles({ puntos, idioma }: { puntos: number; idioma: Idioma }) {
   const actual = nivelPorPuntos(puntos);
 
   return (
@@ -59,7 +60,7 @@ export function EscaleraNiveles({ puntos }: { puntos: number }) {
                 <span className="block text-2xs text-text-dim">
                   {n.minimo === 0
                     ? "Desde el primer día"
-                    : `Desde ${n.minimo.toLocaleString("es-ES")} puntos`}
+                    : `Desde ${formatearNumero(n.minimo, idioma)} puntos`}
                 </span>
               </span>
               {esActual ? (

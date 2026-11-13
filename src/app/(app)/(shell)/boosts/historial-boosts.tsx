@@ -1,16 +1,7 @@
 import { ImportePremio } from "@/components/ui/importe-premio";
+import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "@/lib/formato";
 import { razonBoostPropia } from "@/lib/razones-boost";
 import type { MovimientoBoost } from "@/server/services/boost-historial";
-
-/** Fecha en UTC, como todo el producto (la zona horaria solo al presentar). */
-function fecha(ms: number): string {
-  return new Date(ms).toLocaleDateString("es-ES", {
-    timeZone: "UTC",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 /**
  * MI HISTORIAL DE BOOSTS — qué entró y qué salió, del más nuevo al más viejo.
@@ -25,7 +16,15 @@ function fecha(ms: number): string {
  * SIN IDS Y SIN NOMBRES: el servicio no trae ni `refType` ni `refId` (ver su cabecera), así que esta
  * vista no puede filtrar un cuid de Stripe ni el handle del admin que ajustó aunque se descuide.
  */
-export function HistorialBoosts({ items }: { items: MovimientoBoost[] }) {
+export function HistorialBoosts({
+  items,
+  idioma,
+  zona,
+}: {
+  items: MovimientoBoost[];
+  idioma: Idioma;
+  zona: ZonaHoraria | null;
+}) {
   if (items.length === 0) {
     return (
       <p className="mt-4 rounded-sm border border-line bg-surface/40 p-6 text-sm text-text-dim">
@@ -47,7 +46,7 @@ export function HistorialBoosts({ items }: { items: MovimientoBoost[] }) {
                 si resta, y el usuario no tiene por qué deducirlo del número de al lado. */}
             <span className="block text-sm text-text">{razonBoostPropia(m.razon, m.delta)}</span>
             <span className="flex flex-wrap items-center gap-x-1.5 text-2xs text-text-dim">
-              {fecha(m.creadoEnMs)}
+              {formatearFechaParaQuienMira(m.creadoEnMs, idioma, zona, "diaFijoMesAno")}
               {/* LOS DOS O NINGUNO. Una cifra de dinero sin su moneda no es un importe, y el
                   servicio devuelve `moneda: null` cuando el código de la fila no es ISO (ver su
                   DTO): ahí se calla, en vez de ponerle el símbolo que nos parezca. */}
@@ -55,6 +54,7 @@ export function HistorialBoosts({ items }: { items: MovimientoBoost[] }) {
                 <>
                   <span aria-hidden>·</span>
                   <ImportePremio
+                    idioma={idioma}
                     cents={m.importeCents}
                     currency={m.moneda}
                     tamano="lista"

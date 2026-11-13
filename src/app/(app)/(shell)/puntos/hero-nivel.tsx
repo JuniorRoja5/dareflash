@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { EmblemaDeNivel } from "@/components/ui/emblema-nivel";
 import { TOTAL_TIERS } from "@/lib/niveles";
 import { progresoNivel } from "@/lib/progreso-nivel";
+import { formatearNumero, type Idioma } from "@/lib/formato";
 
 /**
  * HERO DE NIVEL — quién eres, en grande.
@@ -30,7 +31,15 @@ import { progresoNivel } from "@/lib/progreso-nivel";
  * va el medidor de barras y el halo cae en gris neutro: sigue teniendo cuerpo, sin inventarle una
  * insignia que no ha ganado.
  */
-export function HeroNivel({ puntos, racha }: { puntos: number; racha: number }) {
+export function HeroNivel({
+  puntos,
+  racha,
+  idioma,
+}: {
+  puntos: number;
+  racha: number;
+  idioma: Idioma;
+}) {
   const { nivel, siguiente, faltan, porcentaje, esMaximo } = progresoNivel(puntos);
   const color = nivel.tokenColor ? `var(${nivel.tokenColor})` : "var(--df-line)";
   // Legend no tiene color propio: usa el oro del podio, y el halo va con él (ver `lib/niveles`).
@@ -93,7 +102,7 @@ export function HeroNivel({ puntos, racha }: { puntos: number; racha: number }) 
             }}
           >
             <span className="sr-only">Tus puntos: </span>
-            {puntos.toLocaleString("es-ES")}
+            {formatearNumero(puntos, idioma)}
           </h1>
 
           {/* El nombre del nivel, en su color y con su emblema: el chip es donde el color de nivel
@@ -153,7 +162,7 @@ export function HeroNivel({ puntos, racha }: { puntos: number; racha: number }) 
               <p className="mt-2.5 text-sm text-text-dim">
                 <span className="font-medium tabular-nums text-text">{porcentaje}%</span> · faltan{" "}
                 <span className="font-medium tabular-nums text-text">
-                  {faltan.toLocaleString("es-ES")}
+                  {formatearNumero(faltan, idioma)}
                 </span>{" "}
                 {faltan === 1 ? "punto" : "puntos"} para {siguiente?.nombre}
               </p>

@@ -31,6 +31,9 @@ import {
   TITULO_BOOST_AGOTADO,
 } from "@/config/constants";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
+import { zonaHoraria } from "@/lib/formato";
+
+import { formatoDePrueba } from "../helpers/formato-prueba";
 
 const ok = (data: unknown, status = 200) => ({ ok: status < 400, status, code: "", data });
 
@@ -152,9 +155,18 @@ describe("qué se ve según el estado", () => {
     expect(id).toBeTruthy();
     const motivo = document.getElementById(id!)?.textContent ?? "";
     expect(motivo).toContain(String(BOOST_DAILY_LIMIT));
-    // Y dice la verdad del corte: medianoche UTC, no "mañana".
-    expect(motivo).toMatch(/UTC/);
-    expect(motivo).not.toMatch(/mañana/i);
+    // Y dice la verdad del corte sin «UTC» (Fase 11) ni «mañana». Sin la zona de quien mira, no se
+    // inventa una hora: se dice que es cada día.
+    expect(motivo).toContain("El contador se reinicia cada día.");
+    expect(motivo).not.toMatch(/UTC|mañana/i);
+  });
+
+  it("con su zona, el motivo dice la hora del reinicio en SU hora (las 00:00 UTC en Tokio: 09:00)", () => {
+    formatoDePrueba.zona = zonaHoraria("Asia/Tokyo");
+    montar({ usadasHoy: BOOST_DAILY_LIMIT });
+    const motivo = document.getElementById(boton().getAttribute("aria-describedby")!)?.textContent;
+    expect(motivo).toContain("El contador se reinicia a las 09:00.");
+    expect(motivo).not.toMatch(/UTC/);
   });
 
   it("y pulsarlo con el límite gastado no llama a nada", () => {
@@ -243,7 +255,13 @@ describe("un solo magenta en la pantalla, y el que toca", () => {
   const pantalla = (saldo: number) =>
     render(
       <>
-        <HeroBoosts saldo={saldo} usadasHoy={0} vigenteHastaMs={null} cupo={CUPO_LIBRE} />
+        <HeroBoosts
+          idioma="es"
+          saldo={saldo}
+          usadasHoy={0}
+          vigenteHastaMs={null}
+          cupo={CUPO_LIBRE}
+        />
         <PaquetesBoost puedeComprar cedeElAcento={saldo > 0} />
       </>,
     );

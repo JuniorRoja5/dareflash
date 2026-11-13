@@ -6,6 +6,8 @@ import { getJson } from "@/lib/cliente-http";
 import { importeConMoneda } from "@/lib/dinero";
 import { ETIQUETA_ESTADO, nombreDeMetodo, pasosDe, type EstadoRetirada } from "@/lib/retirada";
 import type { RetiradaPropia } from "@/server/services/retirada";
+import { useFormato } from "@/components/formato-provider";
+import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "@/lib/formato";
 
 /**
  * TUS SOLICITUDES — una por fila, y cada una se despliega para contar por dónde va.
@@ -48,28 +50,19 @@ function destinoDe(r: RetiradaPropia): string {
   return `${nombreDeMetodo(r)} ····${r.pista}`;
 }
 
-const FECHA = new Intl.DateTimeFormat("es-ES", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
-/** Las fechas se formatean en el CLIENTE, en la zona de quien mira: un cobro es suyo y de su día. */
-function cuando(valor: Date | string): string {
-  return FECHA.format(new Date(valor));
+/**
+ * Las fechas, en la zona de quien mira: un cobro es suyo y de su día. Antes se formateaban con la zona
+ * IMPLÍCITA del entorno —la del navegador al hidratar, la del contenedor (UTC) al pintar en el
+ * servidor—, y las dos cadenas podían no coincidir. Ahora la zona llega del layout (la misma a los dos
+ * lados) y la política sin zona es la de `formatearFechaParaQuienMira` (Fase 11).
+ */
+function cuando(valor: Date | string, idioma: Idioma, zona: ZonaHoraria | null): string {
+  return formatearFechaParaQuienMira(valor, idioma, zona, "diaMesAnoHora");
 }
 
-const FECHA_CORTA = new Intl.DateTimeFormat("es-ES", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
-
 /** La de la columna «Fecha» de la fila: sin la hora, que ya está en el detalle desplegado. */
-function cuandoCorto(valor: Date | string): string {
-  return FECHA_CORTA.format(new Date(valor));
+function cuandoCorto(valor: Date | string, idioma: Idioma, zona: ZonaHoraria | null): string {
+  return formatearFechaParaQuienMira(valor, idioma, zona, "diaMesAno");
 }
 
 /**
@@ -135,6 +128,7 @@ function Recorrido({ estado }: { estado: EstadoRetirada }) {
 }
 
 function Fila({ r }: { r: RetiradaPropia }) {
+  const { idioma, zona } = useFormato();
   const estado = r.status as EstadoRetirada;
   const rechazada = estado === "REJECTED";
 
@@ -147,10 +141,10 @@ function Fila({ r }: { r: RetiradaPropia }) {
         className={`flex cursor-pointer list-none items-center gap-3 p-4 md:grid md:gap-3 ${COLUMNAS} [&::-webkit-details-marker]:hidden`}
       >
         <span className="hidden text-sm text-text-dim tabular-nums md:block">
-          {cuandoCorto(r.createdAt)}
+          {cuandoCorto(r.createdAt, idioma, zona)}
         </span>
         <span className="min-w-[5.5rem] text-sm font-semibold tabular-nums text-text md:order-3 md:min-w-0 md:text-right">
-          {importeConMoneda(r.amountCents, r.currency)}
+          {importeConMoneda(r.amountCents, idioma, r.currency)}
         </span>
         <span className="min-w-0 flex-1 truncate text-xs text-text-dim md:order-2 md:text-sm md:whitespace-normal">
           {destinoDe(r)}
@@ -176,20 +170,20 @@ function Fila({ r }: { r: RetiradaPropia }) {
           <Dato etiqueta="Importe">
             {rechazada ? (
               <>
-                {importeConMoneda(r.amountCents, r.currency)}{" "}
+                {importeConMoneda(r.amountCents, idioma, r.currency)}{" "}
                 <span className="text-text-dim">· devuelto a tu saldo</span>
               </>
             ) : (
-              importeConMoneda(r.amountCents, r.currency)
+              importeConMoneda(r.amountCents, idioma, r.currency)
             )}
           </Dato>
           <Dato etiqueta="Método">{destinoDe(r)}</Dato>
-          <Dato etiqueta="Pedida el">{cuando(r.createdAt)}</Dato>
+          <Dato etiqueta="Pedida el">{cuando(r.createdAt, idioma, zona)}</Dato>
           {/* UNA SOLA FECHA DE MOVIMIENTO, no una por paso: la fila guarda `procesadaEn`, que es
               cuándo se movió POR ÚLTIMA VEZ. Pintar "aceptada el X" y "pagada el Y" con un solo
               dato sería inventar una de las dos. */}
           <Dato etiqueta={rechazada ? "Rechazada el" : "Última actualización"}>
-            {r.actualizadaEn ? cuando(r.actualizadaEn) : "—"}
+            {r.actualizadaEn ? cuando(r.actualizadaEn, idioma, zona) : "—"}
           </Dato>
         </div>
 

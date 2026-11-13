@@ -19,6 +19,7 @@ import { seccionPorHref } from "../secciones";
 
 import { ETIQUETA_SOLICITUD_PANEL as ETIQUETA } from "./etiquetas";
 import { FichaPropuesta } from "./ficha-propuesta";
+import { IDIOMA_PANEL, fechaPanel } from "@/app/panel/formato-panel";
 
 const S = seccionPorHref("/panel/propuestas")!;
 
@@ -35,8 +36,7 @@ const ESTILO_TITULO = {
   fontVariationSettings: '"wght" 720, "wdth" 112',
 } as const;
 /** Las fechas en UTC y diciéndolo: la propuesta se escribió en la hora local de la empresa. */
-const FECHA = { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" } as const;
-const fecha = (ms: number) => new Date(ms).toLocaleDateString("es-ES", FECHA);
+const fecha = (ms: number) => fechaPanel(ms, "numericaFija");
 const PILDORA =
   "inline-block whitespace-nowrap rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim";
 const TH = `px-4 py-3 whitespace-nowrap ${CABECERA}`;
@@ -210,7 +210,7 @@ export default async function PaginaPropuestas({
                       </td>
                       <td className="max-w-[20ch] truncate px-4 py-3 text-text-dim">{s.empresa}</td>
                       <td className="px-4 py-3 text-right whitespace-nowrap text-text tabular-nums">
-                        {importeConMoneda(s.premioCents, DEFAULT_CURRENCY)}
+                        {importeConMoneda(s.premioCents, IDIOMA_PANEL, DEFAULT_CURRENCY)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-text-dim tabular-nums">
                         {fecha(s.cierreMs)}
@@ -245,7 +245,8 @@ export default async function PaginaPropuestas({
                       <span className={PILDORA}>{ETIQUETA[s.estado]}</span>
                     </span>
                     <span className="mt-1 block text-2xs text-text-dim tabular-nums">
-                      {s.empresa} · {importeConMoneda(s.premioCents, DEFAULT_CURRENCY)} · cierra{" "}
+                      {s.empresa} ·{" "}
+                      {importeConMoneda(s.premioCents, IDIOMA_PANEL, DEFAULT_CURRENCY)} · cierra{" "}
                       {fecha(s.cierreMs)} (UTC)
                     </span>
                   </Link>

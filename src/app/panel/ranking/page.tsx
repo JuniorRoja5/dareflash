@@ -9,6 +9,7 @@ import { requireSeccion } from "../panel-guard";
 import { AjustarPuntos } from "./ajustar-puntos";
 import { HistorialPuntos } from "./historial-puntos";
 import { RankingMesPanel } from "./ranking-mes-panel";
+import { numeroPanel } from "@/app/panel/formato-panel";
 
 export const metadata = { title: "DareUp y ranking · Panel" };
 export const dynamic = "force-dynamic";
@@ -169,7 +170,7 @@ export default async function DareUpPage({
                     className="text-3xl leading-none text-text tabular-nums"
                     style={ESTILO_CIFRA}
                   >
-                    {ficha.puntos.toLocaleString("es-ES")}
+                    {numeroPanel(ficha.puntos)}
                   </span>{" "}
                   <span className="text-2xs font-semibold tracking-widest uppercase">puntos</span>
                 </p>

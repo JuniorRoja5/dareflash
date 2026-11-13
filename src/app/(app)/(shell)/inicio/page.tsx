@@ -86,6 +86,9 @@ export default async function InicioPage() {
   // ahorrar datos, nada se anima (`data-ahorro`).
   const tema = temaDesdeCookie((await cookies()).get(TEMA_COOKIE)?.value);
   const ahorro = cabeceras.get("save-data")?.toLowerCase() === "on";
+  // El idioma de quien mira (Fase 11): cifras e importes salen de `lib/formato`.
+  const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
+  const idioma = await idiomaDeLaPeticion();
 
   // ¿HA PARTICIPADO ALGUNA VEZ? Solo para un participante (el invitado no tiene, y a la empresa no le
   // sale «Cómo funciona»): una consulta corta, que se para en la primera fila.
@@ -165,7 +168,7 @@ export default async function InicioPage() {
             <StatsInicio cifras={cifrasVisibles(portada.cifras)} tema={tema} quieto={ahorro} />
           </div>
 
-          <HeroDestacado destacado={portada.destacado} />
+          <HeroDestacado destacado={portada.destacado} idioma={idioma} />
         </section>
 
         {/* 2 · CÓMO FUNCIONA */}
@@ -196,7 +199,11 @@ export default async function InicioPage() {
               </Link>
             </div>
             <div className="mt-4">
-              <RetosDestacados retos={portada.rejilla} hayDestacado={portada.destacado !== null} />
+              <RetosDestacados
+                retos={portada.rejilla}
+                hayDestacado={portada.destacado !== null}
+                idioma={idioma}
+              />
             </div>
           </section>
 
@@ -219,6 +226,7 @@ export default async function InicioPage() {
               ) : (
                 topRanking.map((fila, i) => (
                   <FilaPuesto
+                    idioma={idioma}
                     key={fila.userId}
                     puesto={i + 1}
                     username={fila.username}
@@ -249,7 +257,7 @@ export default async function InicioPage() {
         {/* 6 · PRÓXIMOS RETOS (si hay alguno) */}
         {portada.proximos.length > 0 ? (
           <div className="mt-14 lg:mt-20">
-            <ProximosRetos retos={portada.proximos} />
+            <ProximosRetos retos={portada.proximos} idioma={idioma} />
           </div>
         ) : null}
 
@@ -285,7 +293,7 @@ export default async function InicioPage() {
                 ¿Tienes un negocio?
               </h2>
               <p className="mt-2 max-w-prose text-sm text-text-dim">{CAMINO_EMPRESA.cuerpo}</p>
-              <p className="mt-2 max-w-prose text-sm text-text">{msgSocioFundador()}</p>
+              <p className="mt-2 max-w-prose text-sm text-text">{msgSocioFundador(idioma)}</p>
             </div>
             <Boton href={CTA_NEGOCIO.href} variante="secundario" className="mt-4 shrink-0 lg:mt-0">
               Registrar mi empresa

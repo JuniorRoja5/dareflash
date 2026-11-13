@@ -41,7 +41,7 @@ const BASE: RetoPublicoVista = {
 };
 
 const pintar = (over: Partial<RetoPublicoVista> = {}) =>
-  render(<TarjetaReto reto={{ ...BASE, ...over }} />).container;
+  render(<TarjetaReto idioma="es" reto={{ ...BASE, ...over }} />).container;
 
 const marcaSponsor = (c: HTMLElement) => c.querySelector("[data-reto-sponsor]");
 const chapaVip = (c: HTMLElement) => c.querySelector("[data-reto-chapa-vip]");

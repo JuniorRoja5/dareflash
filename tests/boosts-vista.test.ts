@@ -116,7 +116,8 @@ describe("cero cifras inventadas", () => {
 
   it("el saldo del hero es el DATO, no un número de maqueta", () => {
     const hero = leer("hero-boosts.tsx");
-    expect(hero).toMatch(/\{saldo\.toLocaleString/);
+    // Sale del formateador único (Fase 11), con el dato: `formatearNumero(saldo, idioma)`.
+    expect(hero).toMatch(/\{formatearNumero\(saldo, idioma\)\}/);
     // La cifra grande no puede ser un literal: una maqueta con "12" se queda puesta.
     expect(hero).not.toMatch(/>\s*\d+\s*</);
   });

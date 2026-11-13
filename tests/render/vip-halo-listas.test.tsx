@@ -47,6 +47,7 @@ function tarjeta(esVip: boolean): HTMLElement {
 function fila(esVip: boolean): HTMLElement {
   const { container } = render(
     <FilaPuesto
+      idioma="es"
       puesto={4}
       username="alex"
       imagen={null}
@@ -70,7 +71,14 @@ describe("un NO-VIP no lleva halo en ninguna superficie", () => {
 
   it("y sin pasar `esVip` tampoco (el defecto NO puede ser llevarlo)", () => {
     const { container } = render(
-      <FilaPuesto puesto={9} username="nadie" imagen={null} cifra={1} unidad="victorias" />,
+      <FilaPuesto
+        idioma="es"
+        puesto={9}
+        username="nadie"
+        imagen={null}
+        cifra={1}
+        unidad="victorias"
+      />,
     );
     expect((container.firstElementChild as HTMLElement).className).not.toContain("df-vip-halo");
   });
@@ -158,7 +166,7 @@ describe("los selectores que se afirman existen de verdad", () => {
     const { container } = render(
       <div>
         <TarjetaDestacado username="a" displayName="A" imagen={null} puntos={100} esVip />
-        <FilaPuesto puesto={5} username="b" imagen={null} cifra={1} unidad="v" esVip />
+        <FilaPuesto idioma="es" puesto={5} username="b" imagen={null} cifra={1} unidad="v" esVip />
       </div>,
     );
     expect(container.querySelector(HALO_TARJETA), "no hay ninguna tarjeta con halo").toBeTruthy();

@@ -9,6 +9,7 @@ import { requireSeccion } from "../panel-guard";
 
 import { AjustarCreditos } from "./ajustar-creditos";
 import { RetirarDestacado } from "./retirar-destacado";
+import { fechaPanel } from "@/app/panel/formato-panel";
 
 export const metadata = { title: "Boost · Panel" };
 export const dynamic = "force-dynamic";
@@ -20,15 +21,9 @@ const ESTILO_TITULO = {
 
 const TITULO_SECCION = "mb-3 text-sm font-semibold tracking-widest text-text-dim uppercase";
 
-/** Fecha y hora en UTC, como todos los plazos del producto (la zona solo al presentar). */
+/** En UTC y diciéndolo (`fechaPanel`, Fase 11). */
 function cuando(ms: number): string {
-  return new Date(ms).toLocaleString("es-ES", {
-    timeZone: "UTC",
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return fechaPanel(ms, "diaFijoMesHora");
 }
 
 /**
@@ -132,7 +127,7 @@ export default async function BoostPanelPage({
                     <span data-apariciones={d.apariciones} className="tabular-nums text-text">
                       {d.apariciones} {d.apariciones === 1 ? "aparición" : "apariciones"}
                     </span>{" "}
-                    · desde {cuando(d.desdeMs)} · se le ve hasta {cuando(d.hastaMs)} (UTC)
+                    · desde {cuando(d.desdeMs)} · se le ve hasta {cuando(d.hastaMs)}
                   </p>
                   {d.visible ? null : (
                     <p data-oculto className="text-2xs" style={{ color: "var(--df-time)" }}>

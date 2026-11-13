@@ -10,6 +10,7 @@ import { NombreUsuario } from "@/components/ui/identidad-usuario";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 
 import { HeroInvitacion } from "./hero-invitacion";
+import { formatearNumero, formatearFechaParaQuienMira } from "@/lib/formato";
 
 export const metadata = { title: "Mis referidos · DareFlash" };
 // Lee la sesión y consulta por cursor: por petición, nunca cacheada.
@@ -37,6 +38,9 @@ export default async function ReferidosPage({
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
   if (!sesion) redirect("/entrar?siguiente=%2Freferidos");
+  // El idioma y la zona de quien mira (Fase 11): cifras y fechas salen de `lib/formato`.
+  const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
+  const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
 
   const sp = await searchParams;
   // MISMO patrón que el resto de listados: el cursor de la página que se ve, y la PILA de los que se
@@ -68,15 +72,15 @@ export default async function ReferidosPage({
       <HeroInvitacion enlace={enlace} codigo={yo?.referralCode ?? null} />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <TarjetaMetrica etiqueta="Invitados" valor={resumen.invitados.toLocaleString("es-ES")} />
+        <TarjetaMetrica etiqueta="Invitados" valor={formatearNumero(resumen.invitados, idioma)} />
         <TarjetaMetrica
           etiqueta="Puntos ganados"
-          valor={resumen.puntosGanados.toLocaleString("es-ES")}
+          valor={formatearNumero(resumen.puntosGanados, idioma)}
           pie="Por invitaciones que ya verificaron"
         />
         <TarjetaMetrica
           etiqueta="Pendientes de verificar"
-          valor={resumen.pendientes.toLocaleString("es-ES")}
+          valor={formatearNumero(resumen.pendientes, idioma)}
           pie={resumen.pendientes > 0 ? "Todavía no te han dado puntos" : undefined}
         />
       </div>
@@ -124,8 +128,7 @@ export default async function ReferidosPage({
                       clase="block truncate text-sm font-medium text-text"
                     />
                     <span className="block truncate text-2xs text-text-dim">
-                      Se unió el{" "}
-                      {new Date(r.altaMs).toLocaleDateString("es-ES", { timeZone: "UTC" })}
+                      Se unió el {formatearFechaParaQuienMira(r.altaMs, idioma, zona, "numerica")}
                     </span>
                   </span>
                   {/* EL ESTADO SALE DEL LEDGER, no de si verificó: lo que se pinta al lado de una

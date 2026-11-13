@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { ANUNCIO_TEXTO_MAX, ANUNCIO_TEXTO_MIN } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
+import { numeroPanel } from "@/app/panel/formato-panel";
 
 type Fase = "editar" | "confirmar" | "enviando";
 
@@ -27,7 +28,7 @@ export function EnviarAnuncio({ audiencia }: { audiencia: number }) {
 
   const limpio = texto.trim();
   const valido = limpio.length >= ANUNCIO_TEXTO_MIN && limpio.length <= ANUNCIO_TEXTO_MAX;
-  const cuentas = audiencia.toLocaleString("es-ES");
+  const cuentas = numeroPanel(audiencia);
 
   /** Cambiar el texto es OTRA intención: otra clave. */
   function cambiar(valor: string): void {
@@ -49,7 +50,7 @@ export function EnviarAnuncio({ audiencia }: { audiencia: number }) {
         setAviso({
           tipo: "ok",
           texto: r.data.creado
-            ? `Enviado. Se está repartiendo a ${(r.data.targetCount ?? audiencia).toLocaleString("es-ES")} cuentas: el progreso, abajo.`
+            ? `Enviado. Se está repartiendo a ${numeroPanel(r.data.targetCount ?? audiencia)} cuentas: el progreso, abajo.`
             : "Ese anuncio ya estaba enviado: no se ha repetido.",
         });
         setTexto("");

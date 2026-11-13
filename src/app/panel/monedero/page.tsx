@@ -12,6 +12,7 @@ import { requireSeccion } from "../panel-guard";
 import { AccionesRetirada } from "./acciones-retirada";
 import { AjustarSaldo } from "./ajustar-saldo";
 import { ExportarCsv } from "./exportar-csv";
+import { IDIOMA_PANEL, fechaPanel } from "@/app/panel/formato-panel";
 
 /**
  * LOS FILTROS DE LA COLA. "Pendientes" PRIMERO y es el que se usa: es lo que espera una decisión.
@@ -44,14 +45,9 @@ const ESTILO_TITULO = {
  */
 const ESTADO_HUMANO = ETIQUETA_ESTADO;
 
+/** En UTC y diciéndolo (`fechaPanel`, Fase 11): el « UTC» lo pone él, no cada fila. */
 function cuando(fecha: Date): string {
-  return fecha.toLocaleString("es-ES", {
-    timeZone: "UTC",
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return fechaPanel(fecha, "diaFijoMesHora");
 }
 
 /**
@@ -178,14 +174,14 @@ export default async function Pagina({
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <span className="min-w-0">
                   <span className="text-base font-medium text-text">
-                    {importeConMoneda(r.amountCents, r.currency)}
+                    {importeConMoneda(r.amountCents, IDIOMA_PANEL, r.currency)}
                   </span>
                   <span className="ml-2 text-sm text-text-dim">
                     {nombreMostrado(r.displayName, r.username)} · @{r.username}
                   </span>
                 </span>
                 <span className="text-2xs uppercase tracking-widest text-text-dim">
-                  {ESTADO_HUMANO[r.estado] ?? r.estado} · {cuando(r.createdAt)} UTC
+                  {ESTADO_HUMANO[r.estado] ?? r.estado} · {cuando(r.createdAt)}
                 </span>
               </div>
 
@@ -209,7 +205,7 @@ export default async function Pagina({
               <AccionesRetirada
                 retiradaId={r.id}
                 siguientes={r.siguientes}
-                importe={importeConMoneda(r.amountCents, r.currency)}
+                importe={importeConMoneda(r.amountCents, IDIOMA_PANEL, r.currency)}
               />
             </li>
           ))}
@@ -294,7 +290,10 @@ export default async function Pagina({
           <div className="mt-6">
             <p className="mb-3 text-sm text-text-dim">
               @{ficha.username} tiene ahora mismo{" "}
-              <span className="tabular-nums text-text">{importeConMoneda(ficha.saldoCents)}</span>.
+              <span className="tabular-nums text-text">
+                {importeConMoneda(ficha.saldoCents, IDIOMA_PANEL)}
+              </span>
+              .
             </p>
             <AjustarSaldo
               // La clave incluye el saldo: tras un ajuste, el formulario se rehace limpio en vez de

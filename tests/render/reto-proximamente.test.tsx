@@ -41,7 +41,7 @@ const BASE: RetoPublicoVista = {
 };
 
 const pintar = (over: Partial<RetoPublicoVista> = {}) =>
-  render(<TarjetaReto reto={{ ...BASE, ...over }} />).container;
+  render(<TarjetaReto idioma="es" reto={{ ...BASE, ...over }} />).container;
 
 /** Un reto que abre dentro de un día y cierra dentro de siete. */
 const FUTURO: Partial<RetoPublicoVista> = {
@@ -123,9 +123,11 @@ describe("la cuenta a la apertura no es una alarma", () => {
 
   it("el marcador antepone «Abre en» solo cuando cuenta a la apertura", () => {
     const abre = render(
-      <Marcador cents={1000} deadlineMs={Date.now() + DIA} hacia="apertura" />,
+      <Marcador idioma="es" cents={1000} deadlineMs={Date.now() + DIA} hacia="apertura" />,
     ).container;
-    const cierra = render(<Marcador cents={1000} deadlineMs={Date.now() + DIA} />).container;
+    const cierra = render(
+      <Marcador idioma="es" cents={1000} deadlineMs={Date.now() + DIA} />,
+    ).container;
 
     expect(abre.textContent).toContain("Abre en");
     expect(cierra.textContent).not.toContain("Abre en");

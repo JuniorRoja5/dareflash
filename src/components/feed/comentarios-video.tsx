@@ -11,6 +11,7 @@ import { delCsrf, getJson, mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { limpiarComentario } from "@/lib/comentarios";
 import { haceCuanto } from "@/lib/notificaciones";
 import type { ComentarioVista } from "@/server/services/comentarios";
+import { useFormato } from "@/components/formato-provider";
 
 type Carga = { estado: "cargando" } | { estado: "error" } | { estado: "listo" };
 
@@ -55,6 +56,7 @@ export function ComentariosVideo({
   /** Comentario al que llega el DEEP-LINK de un aviso: se resalta y se lleva al usuario hasta él. */
   anclaId?: string;
 }) {
+  const { idioma, zona } = useFormato();
   const ruta = usePathname();
   const [items, setItems] = useState<ComentarioVista[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -244,7 +246,7 @@ export function ComentariosVideo({
                       clase="font-medium text-text"
                     />{" "}
                     <span className="text-2xs text-text-dim">
-                      {haceCuanto(c.creadoMs, ahoraMs)}
+                      {haceCuanto(c.creadoMs, ahoraMs, idioma, zona)}
                     </span>
                   </p>
                   <p className="text-sm break-words whitespace-pre-line text-text-dim">{c.texto}</p>

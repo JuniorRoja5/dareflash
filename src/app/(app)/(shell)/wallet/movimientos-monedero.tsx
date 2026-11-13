@@ -1,6 +1,7 @@
 import { CONCEPTO_MOVIMIENTO, CONCEPTO_MOVIMIENTO_OTRO } from "@/config/constants";
 import { importeConMoneda } from "@/lib/dinero";
 import type { MovimientoMonedero } from "@/server/services/retirada";
+import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "@/lib/formato";
 
 /**
  * ÚLTIMOS MOVIMIENTOS — de dónde sale y a dónde va el saldo.
@@ -28,8 +29,8 @@ const CAJA =
 const TH =
   "py-3 pr-4 text-2xs font-semibold tracking-widest whitespace-nowrap text-text-dim uppercase";
 
-const fecha = (d: Date) =>
-  d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+const fecha = (d: Date, idioma: Idioma, zona: ZonaHoraria | null) =>
+  formatearFechaParaQuienMira(d, idioma, zona, "diaMesAno");
 const concepto = (m: MovimientoMonedero) =>
   (m.concepto && CONCEPTO_MOVIMIENTO[m.concepto]) ?? CONCEPTO_MOVIMIENTO_OTRO;
 
@@ -37,17 +38,25 @@ const concepto = (m: MovimientoMonedero) =>
  * EL SIGNO SIEMPRE, también en lo que entra: en una lista donde hay de los dos, un importe sin signo
  * obliga a deducir la dirección por el concepto.
  */
-function Importe({ m }: { m: MovimientoMonedero }) {
+function Importe({ m, idioma }: { m: MovimientoMonedero; idioma: Idioma }) {
   const entra = m.amountCents > 0;
   return (
     <span className={`tabular-nums ${entra ? "text-money" : "text-text-dim"}`}>
       {entra ? "+" : "−"}
-      {importeConMoneda(Math.abs(m.amountCents), m.currency)}
+      {importeConMoneda(Math.abs(m.amountCents), idioma, m.currency)}
     </span>
   );
 }
 
-export function MovimientosMonedero({ movimientos }: { movimientos: MovimientoMonedero[] }) {
+export function MovimientosMonedero({
+  movimientos,
+  idioma,
+  zona,
+}: {
+  movimientos: MovimientoMonedero[];
+  idioma: Idioma;
+  zona: ZonaHoraria | null;
+}) {
   return (
     <section aria-labelledby="movimientos">
       <h2 id="movimientos" className="font-medium text-text">
@@ -74,11 +83,11 @@ export function MovimientosMonedero({ movimientos }: { movimientos: MovimientoMo
                 {movimientos.map((m) => (
                   <tr key={m.id} data-movimiento={m.id}>
                     <td className="py-3 pr-4 pl-4 whitespace-nowrap text-text-dim tabular-nums">
-                      {fecha(m.createdAt)}
+                      {fecha(m.createdAt, idioma, zona)}
                     </td>
                     <td className="py-3 pr-4 text-text">{concepto(m)}</td>
                     <td className="py-3 pr-4 text-right whitespace-nowrap">
-                      <Importe m={m} />
+                      <Importe m={m} idioma={idioma} />
                     </td>
                   </tr>
                 ))}
@@ -96,10 +105,12 @@ export function MovimientosMonedero({ movimientos }: { movimientos: MovimientoMo
               >
                 <span className="min-w-0">
                   <span className="block text-text">{concepto(m)}</span>
-                  <span className="block text-2xs text-text-dim">{fecha(m.createdAt)}</span>
+                  <span className="block text-2xs text-text-dim">
+                    {fecha(m.createdAt, idioma, zona)}
+                  </span>
                 </span>
                 <span className="shrink-0">
-                  <Importe m={m} />
+                  <Importe m={m} idioma={idioma} />
                 </span>
               </li>
             ))}

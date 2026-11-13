@@ -1,5 +1,6 @@
-import { BOOST_DAILY_LIMIT, BOOST_DURACION_MIN } from "@/config/constants";
+import { BOOST_DAILY_LIMIT, BOOST_DURACION_MIN, cuandoSeReinicia } from "@/config/constants";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
+import type { Idioma, ZonaHoraria } from "@/lib/formato";
 
 /**
  * CÓMO FUNCIONA UN BOOST — las tres cosas que hay que saber antes de pagar.
@@ -21,7 +22,7 @@ import { duracionBoostHumana } from "@/lib/boost-duracion";
  * │ obligaba a hacer, en vez de dejarlo puesto mintiendo al revés.                                 │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
-export function ComoFunciona() {
+export function ComoFunciona({ idioma, zona }: { idioma: Idioma; zona: ZonaHoraria | null }) {
   const pasos = [
     {
       titulo: "Compras Boosts",
@@ -66,8 +67,9 @@ export function ComoFunciona() {
       </ol>
 
       <p className="mt-5 border-t border-line pt-4 text-2xs text-text-dim">
-        El contador de {BOOST_DAILY_LIMIT} al día se reinicia a medianoche UTC. Los Boosts sin
-        gastar no caducan.
+        {/* La hora del reinicio, en la de quien mira (Fase 11); el día se sigue contando en UTC. */}
+        El contador de {BOOST_DAILY_LIMIT} al día se reinicia{" "}
+        {cuandoSeReinicia(new Date(), idioma, zona)}. Los Boosts sin gastar no caducan.
       </p>
     </section>
   );

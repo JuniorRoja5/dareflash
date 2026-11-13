@@ -44,7 +44,7 @@ const base = {
 
 /** Tiene que RENDERIZAR de verdad; si no, las aserciones de ausencia mienten. */
 function pintar(props: Parameters<typeof PerfilVista>[0]): HTMLElement {
-  const c = render(<PerfilVista {...props} />).container;
+  const c = render(<PerfilVista idioma="es" {...props} />).container;
   expect(c.textContent, "el perfil no renderizó: lo de abajo no mediría nada").toContain(
     props.handle,
   );
@@ -196,7 +196,7 @@ describe("cero UI muerta: el control del toque solo donde se puede dar", () => {
       { ...base, esPropio: false, esVip: true },
       { ...base, esPropio: true },
     ]) {
-      const { container, unmount } = render(<PerfilVista {...props} />);
+      const { container, unmount } = render(<PerfilVista idioma="es" {...props} />);
       expect(controlesDeToque(container), "un botón que no hace nada").toEqual([]);
       unmount();
     }

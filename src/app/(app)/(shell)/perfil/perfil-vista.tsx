@@ -18,6 +18,7 @@ import type { EstadoVideo } from "./perfil-logic";
 import { RejillaVideos } from "./rejilla-videos";
 
 import { CerrarSesion } from "../cerrar-sesion";
+import { formatearMarcador, type Idioma } from "@/lib/formato";
 
 /**
  * Celda de la rejilla. `poster` firmado cuando el vídeo está PUBLICADO; "" cuando no (aún no se
@@ -57,12 +58,20 @@ function hostnameDe(url: string): string {
   }
 }
 
-function Estadistica({ valor, etiqueta }: { valor: number; etiqueta: string }) {
+function Estadistica({
+  valor,
+  etiqueta,
+  idioma,
+}: {
+  valor: number;
+  etiqueta: string;
+  idioma: Idioma;
+}) {
   return (
     <div className="flex-1 px-2 py-3 text-center">
       {/* cifras tabulares y NEUTRAS: los puntos NO llevan el color del dinero */}
       <p className="text-xl font-semibold tabular-nums text-text">
-        {valor.toLocaleString("en-US")}
+        {formatearMarcador(valor, idioma)}
       </p>
       <p className="mt-0.5 text-2xs tracking-widest text-text-dim uppercase">{etiqueta}</p>
     </div>
@@ -166,6 +175,7 @@ export function PerfilVista({
   puntos,
   retosGanados,
   totalVideos,
+  idioma,
   videos,
   videosCursor = null,
   videosUrl,
@@ -188,6 +198,8 @@ export function PerfilVista({
   retosGanados: number;
   /** CUÁNTOS HAY, contados en la base. NO es `videos.length`: la rejilla viene paginada. */
   totalVideos: number;
+  /** El de quien mira (Fase 11): las cifras del perfil salen de `lib/formato` (marcador). */
+  idioma: Idioma;
   /** La PRIMERA página de la rejilla. */
   videos: VideoCelda[];
   /** Cursor de la segunda página, o `null` si no hay más. */
@@ -312,9 +324,9 @@ export function PerfilVista({
 
             {/* stats NEUTRAS (panel recesado: profundidad por luminosidad, sin sombra) */}
             <div className="mt-6 flex divide-x divide-line rounded-sm border border-line bg-void">
-              <Estadistica valor={retosGanados} etiqueta="Retos ganados" />
-              <Estadistica valor={puntos} etiqueta="Puntos" />
-              <Estadistica valor={totalVideos} etiqueta="Vídeos" />
+              <Estadistica idioma={idioma} valor={retosGanados} etiqueta="Retos ganados" />
+              <Estadistica idioma={idioma} valor={puntos} etiqueta="Puntos" />
+              <Estadistica idioma={idioma} valor={totalVideos} etiqueta="Vídeos" />
             </div>
 
             {/* LO QUE INCLUYE EL PLAN. Son ETIQUETAS, no controles: dicen qué trae ser Mythic, y

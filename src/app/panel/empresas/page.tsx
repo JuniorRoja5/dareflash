@@ -19,6 +19,7 @@ import { requireSeccion } from "../panel-guard";
 import { seccionPorHref } from "../secciones";
 
 import { FichaEmpresa } from "./ficha";
+import { fechaPanel } from "@/app/panel/formato-panel";
 
 const S = seccionPorHref("/panel/empresas")!;
 
@@ -34,7 +35,6 @@ const ESTILO_TITULO = {
   fontFamily: "var(--font-display)",
   fontVariationSettings: '"wght" 720, "wdth" 112',
 } as const;
-const FECHA = { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" } as const;
 const PILDORA =
   "inline-block whitespace-nowrap rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim";
 const TH = `px-4 py-3 whitespace-nowrap ${CABECERA}`;
@@ -227,7 +227,7 @@ export default async function PaginaEmpresas({
                         {nombrePais(e.paisIso)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-text-dim tabular-nums">
-                        {new Date(e.creadaMs).toLocaleDateString("es-ES", FECHA)}
+                        {fechaPanel(e.creadaMs, "numericaFija")}
                       </td>
                       <td className="px-4 py-3">
                         <span className={PILDORA}>{ETIQUETA_ESTADO_EMPRESA[e.estado]}</span>
@@ -257,9 +257,7 @@ export default async function PaginaEmpresas({
                     <span className="mt-1 block text-2xs text-text-dim">
                       {etiquetaTipoNegocio(e.tipoNegocio)} · {nombrePais(e.paisIso)} ·{" "}
                       {e.personaContacto} ·{" "}
-                      <span className="tabular-nums">
-                        {new Date(e.creadaMs).toLocaleDateString("es-ES", FECHA)}
-                      </span>
+                      <span className="tabular-nums">{fechaPanel(e.creadaMs, "numericaFija")}</span>
                     </span>
                   </Link>
                 </li>

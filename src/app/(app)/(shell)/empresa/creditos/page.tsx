@@ -1,7 +1,6 @@
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { TarjetaMetrica } from "@/components/ui/tarjeta-metrica";
-import { formatearImporte } from "@/components/ui/logic";
 import {
   MSG_CREDITOS_PAGO_NO_DISPONIBLE,
   MSG_CREDITOS_SIN_VERIFICAR,
@@ -16,6 +15,7 @@ import { ambitoDelPortal } from "../ambito-portal";
 import { AvisoVerificar } from "../aviso-verificar";
 import { MovimientosCreditos } from "../movimientos-creditos";
 import { ComprarCreditos } from "./comprar-creditos";
+import { formatearNumero, formatearImporte } from "@/lib/formato";
 
 export const metadata = { title: "Créditos de publicidad · DareFlash" };
 // Lee la sesión y el ledger de la empresa: por petición, nunca cacheada.
@@ -46,6 +46,9 @@ export default async function PaginaCreditos({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const ambito = await ambitoDelPortal();
+  // El idioma y la zona de la empresa que mira (Fase 11): cifras y fechas salen de `lib/formato`.
+  const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
+  const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
   if (ambito === null) {
     return (
       <div className="df-rise">
@@ -83,7 +86,7 @@ export default async function PaginaCreditos({
     creditos: p.creditos,
     precioCents: p.precioCents,
     // El precio por crédito se escribe AQUÍ: Intl en el servidor, para que no difiera al hidratar.
-    porCredito: formatearImporte(p.porCreditoCents),
+    porCredito: formatearImporte(p.porCreditoCents, idioma),
     mejorPrecio: p.mejorPrecio,
   }));
   const aviso = AVISOS[texto(sp["compra"]) || texto(sp["recibo"])] ?? null;
@@ -116,7 +119,7 @@ export default async function PaginaCreditos({
         <div className="lg:sticky lg:top-24">
           <TarjetaMetrica
             etiqueta="Saldo"
-            valor={creditos.saldo.toLocaleString("es-ES")}
+            valor={formatearNumero(creditos.saldo, idioma)}
             pie={creditos.saldo === 1 ? "crédito de publicidad" : "créditos de publicidad"}
           />
         </div>
@@ -136,7 +139,11 @@ export default async function PaginaCreditos({
                 Movimientos
               </h2>
               <div className="mt-3">
-                <MovimientosCreditos movimientos={creditos.movimientos} />
+                <MovimientosCreditos
+                  movimientos={creditos.movimientos}
+                  idioma={idioma}
+                  zona={zona}
+                />
               </div>
             </Tarjeta>
             {/* Fuera del `if` de la lista: una página posterior vacía no encierra a nadie. */}

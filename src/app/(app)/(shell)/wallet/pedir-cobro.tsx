@@ -10,6 +10,7 @@ import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { importeACentimos, importeConMoneda } from "@/lib/dinero";
 import { evaluarImporte, nombreDeMetodo } from "@/lib/retirada";
 import type { MetodoPagoPropio } from "@/server/services/metodos-pago";
+import { useFormato } from "@/components/formato-provider";
 
 /**
  * PEDIR UN COBRO. El importe y A CUÁL de tus métodos guardados.
@@ -32,6 +33,7 @@ export function PedirCobro({
   saldoCents: number;
   metodos: MetodoPagoPropio[];
 }) {
+  const { idioma } = useFormato();
   const router = useRouter();
   const [importe, setImporte] = useState("");
   const [metodoId, setMetodoId] = useState(metodos[0]?.id ?? "");
@@ -88,8 +90,8 @@ export function PedirCobro({
           inputMode="decimal"
         />
         <p className="mt-1.5 text-xs text-text-dim">
-          Mínimo {importeConMoneda(RETIRADA_MINIMA_CENTS)} · disponible{" "}
-          {importeConMoneda(saldoCents)}
+          Mínimo {importeConMoneda(RETIRADA_MINIMA_CENTS, idioma)} · disponible{" "}
+          {importeConMoneda(saldoCents, idioma)}
         </p>
       </div>
 

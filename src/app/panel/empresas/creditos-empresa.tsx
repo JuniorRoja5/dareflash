@@ -13,14 +13,14 @@ import {
 } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import type { MovimientoCreditoPanel } from "@/server/services/creditos";
+import { numeroPanel, fechaPanel } from "@/app/panel/formato-panel";
 
 type Fase = "editar" | "confirmar" | "enviando";
 
 /** Una cantidad escrita a mano: entero con signo opcional ("+30", "-5", "10"). */
 const ENTERO = /^[+-]?\d+$/;
 
-const FECHA = { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" } as const;
-const n = (x: number) => x.toLocaleString("es-ES");
+const n = (x: number) => numeroPanel(x);
 const creditos = (x: number) => `${n(x)} ${Math.abs(x) === 1 ? "crédito" : "créditos"}`;
 
 /**
@@ -130,7 +130,7 @@ export function CreditosEmpresa({
               </span>
               <span className="min-w-0 flex-1 text-text">{m.concepto}</span>
               <span className="text-2xs text-text-dim tabular-nums">
-                {new Date(m.creadoMs).toLocaleDateString("es-ES", FECHA)}
+                {fechaPanel(m.creadoMs, "numericaFija")}
               </span>
               {m.nota ? <span className="w-full text-2xs text-text-dim">«{m.nota}»</span> : null}
             </li>

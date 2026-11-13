@@ -8,6 +8,7 @@ import type { FichaCuenta } from "@/server/services/cuentas-panel";
 import { AccionesCuenta } from "./acciones-cuenta";
 import { ETIQUETA_ACTIVA, ETIQUETA_ROL, ETIQUETA_SUSPENDIDA } from "./etiquetas";
 import { VerEmail } from "./ver-email";
+import { numeroPanel, fechaPanel } from "@/app/panel/formato-panel";
 
 const DATO = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
 
@@ -59,22 +60,18 @@ export function Ficha({ ficha, rolMira }: { ficha: FichaCuenta; rolMira: string 
       <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div>
           <dt className={DATO}>Alta</dt>
-          <dd className="mt-1 text-sm text-text tabular-nums">
-            {c.alta.toLocaleDateString("es-ES", { timeZone: "UTC" })}
-          </dd>
+          <dd className="mt-1 text-sm text-text tabular-nums">{fechaPanel(c.alta, "numerica")}</dd>
         </div>
         <div>
           <dt className={DATO}>Puntos</dt>
           <dd className="mt-1 flex items-center gap-2 text-sm text-text tabular-nums">
-            {ficha.puntos.toLocaleString("es-ES")}
+            {numeroPanel(ficha.puntos)}
             <InsigniaNivel puntos={ficha.puntos} />
           </dd>
         </div>
         <div>
           <dt className={DATO}>Retos ganados</dt>
-          <dd className="mt-1 text-sm text-text tabular-nums">
-            {c.victorias.toLocaleString("es-ES")}
-          </dd>
+          <dd className="mt-1 text-sm text-text tabular-nums">{numeroPanel(c.victorias)}</dd>
         </div>
         {/* La casilla del correo NI SE PINTA para quien no puede pedirlo: ofrecer un botón que la
             API va a rechazar hace quedar mal a la pantalla. La autoridad es la ruta, que exige

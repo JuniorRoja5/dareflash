@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { InsigniaNivel } from "@/components/ui/insignia-nivel";
 import { getJson } from "@/lib/cliente-http";
+import { numeroPanel } from "@/app/panel/formato-panel";
 
 /** Una fila del ranking del mes, tal cual la da `rankingMensual` (y `/api/ranking`). */
 export interface FilaRankingPanel {
@@ -93,10 +94,10 @@ export function RankingMesPanel({
                   </Link>
                 </td>
                 <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-text">
-                  {f.victorias.toLocaleString("es-ES")}
+                  {numeroPanel(f.victorias)}
                 </td>
                 <td className="px-4 py-2.5 text-right tabular-nums text-text-dim">
-                  {f.puntos.toLocaleString("es-ES")}
+                  {numeroPanel(f.puntos)}
                 </td>
                 <td className="px-4 py-2.5">
                   <InsigniaNivel puntos={f.puntos} />

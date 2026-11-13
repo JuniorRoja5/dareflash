@@ -1,5 +1,6 @@
 import { nombreMostrado } from "@/lib/identidad";
 import type { InteraccionParticipacion } from "@/server/services/panel-metricas";
+import { numeroPanel } from "@/app/panel/formato-panel";
 
 /**
  * INTERACCIÓN POR PARTICIPACIÓN (Fase 3). Ocupa el hueco que tenía su tarjeta "próximamente" en la
@@ -50,7 +51,7 @@ export function TarjetaInteraccion({
                     </span>
                   </span>
                   <span className="shrink-0 font-semibold tabular-nums text-text">
-                    {f.votos.toLocaleString("es-ES")}{" "}
+                    {numeroPanel(f.votos)}{" "}
                     <span className="font-normal text-text-dim">
                       {f.votos === 1 ? "voto" : "votos"}
                     </span>

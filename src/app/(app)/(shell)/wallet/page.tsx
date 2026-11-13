@@ -56,6 +56,10 @@ export default async function WalletPage() {
     throw e;
   }
 
+  // El idioma y la zona de quien mira (Fase 11): importes y fechas salen de `lib/formato`.
+  const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
+  const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
+
   const usuario = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
     select: { walletBalanceCents: true },
@@ -99,6 +103,7 @@ export default async function WalletPage() {
       <div className="min-w-0 space-y-8">
         <HeroMonedero
           saldoCents={saldo}
+          idioma={idioma}
           // DERIVADO de la máquina de estados (`en curso` = lo que no es final), no una lista escrita
           // aquí: una segunda lista de estados es una lista libre de discrepar, y lo que contaría mal
           // es dinero.
@@ -119,7 +124,7 @@ export default async function WalletPage() {
       </div>
 
       <div className="mt-10 min-w-0 space-y-10 xl:mt-0">
-        <InformacionCobro />
+        <InformacionCobro idioma={idioma} />
 
         <section aria-labelledby="tus-solicitudes">
           <h2 id="tus-solicitudes" className="font-medium text-text">
@@ -130,7 +135,7 @@ export default async function WalletPage() {
           <HistorialRetiradas inicial={historial.items} cursorInicial={historial.nextCursor} />
         </section>
 
-        <MovimientosMonedero movimientos={movimientos} />
+        <MovimientosMonedero movimientos={movimientos} idioma={idioma} zona={zona} />
       </div>
     </div>
   );

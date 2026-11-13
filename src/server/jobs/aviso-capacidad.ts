@@ -47,6 +47,7 @@ import {
 import type { EmailAdapter } from "@/server/email/adapter";
 
 import { avisarConHisteresis } from "./aviso-histeresis";
+import { formatearFecha, IDIOMA_DEL_EQUIPO, ZONA_MADRID } from "@/lib/formato";
 
 /** Claves de histéresis. Una por umbral: ver el docblock de arriba. */
 const CLAVE_PREPARATE = "aviso:cpu_preparate";
@@ -130,11 +131,7 @@ const pct = (x: number) => `${x.toFixed(1)} %`;
 
 /** La hora que lee quien recibe el correo, no UTC: el aviso lo abre una persona en España. */
 function horaLocal(now: Date): string {
-  return new Intl.DateTimeFormat("es-ES", {
-    timeZone: "Europe/Madrid",
-    dateStyle: "short",
-    timeStyle: "medium",
-  }).format(now);
+  return formatearFecha(now, IDIOMA_DEL_EQUIPO, ZONA_MADRID, "cortaHoraSegundos");
 }
 
 /**

@@ -50,6 +50,8 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
   const reto = r.reto;
 
   const usuario = await getCurrentUser();
+  const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
+  const idioma = await idiomaDeLaPeticion();
   const { instanteDeCuenta, retoEstaAbierto } = await import("@/lib/reto-ventana");
   // Reto abierto: la MISMA regla que aplica el servidor al votar (`lib/reto-ventana`). Antes aquí se
   // miraba solo el cierre, así que un reto publicado pero aún sin empezar se pintaba abierto y el voto
@@ -166,6 +168,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
                 empezado a correr. Cerrado ya, no hay nada que contar y el plazo queda vacío. */}
             <div className="mt-4 lg:mt-5">
               <Marcador
+                idioma={idioma}
                 cents={reto.premioCents}
                 deadlineMs={cuenta.objetivoMs}
                 hacia={cuenta.fase === "proximamente" ? "apertura" : "cierre"}

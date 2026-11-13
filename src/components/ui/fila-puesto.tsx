@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { formatearMarcador, type Idioma } from "@/lib/formato";
 import { anilloSePisaConPuesto, nivelPorPuntos } from "@/lib/niveles";
 
 import { Avatar } from "./avatar";
@@ -34,6 +35,7 @@ export function FilaPuesto({
   username,
   imagen,
   cifra,
+  idioma,
   unidad,
   activo = false,
   insignia,
@@ -47,6 +49,8 @@ export function FilaPuesto({
   imagen: string | null;
   /** El valor POR EL QUE SE ORDENA la lista. */
   cifra: number;
+  /** El de quien mira (Fase 11): la cifra sale de `lib/formato` como MARCADOR. */
+  idioma: Idioma;
   /** Que es esa cifra ("victorias", "pts"...). Se pinta atenuado, junto al numero. */
   unidad: string;
   activo?: boolean;
@@ -106,7 +110,7 @@ export function FilaPuesto({
       {insignia ? <span className="shrink-0">{insignia}</span> : null}
       {/* la cifra: NEUTRO, jamas --df-money (ni victorias ni puntos son dinero) */}
       <span className="shrink-0 text-sm tabular-nums text-text-dim">
-        {cifra.toLocaleString("en-US")} {unidad}
+        {formatearMarcador(cifra, idioma)} {unidad}
       </span>
     </div>
   );

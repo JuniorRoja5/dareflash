@@ -43,6 +43,8 @@ export default async function NotificacionesPage({
     limite: NOTIF_PAGINA,
   });
   const ahoraMs = instante();
+  const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
+  const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
   const sinLeer = pagina.items.filter((i) => !i.leida).map((i) => i.id);
 
   return (
@@ -93,7 +95,7 @@ export default async function NotificacionesPage({
                     {i.texto}
                   </span>
                   <span className="mt-1 block text-2xs text-text-dim">
-                    {haceCuanto(i.creadaMs, ahoraMs)}
+                    {haceCuanto(i.creadaMs, ahoraMs, idioma, zona)}
                   </span>
                 </span>
               </Link>

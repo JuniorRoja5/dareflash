@@ -137,7 +137,7 @@ describe("el regalo de Socio Fundador promete créditos, no días (P10)", () => 
       `${n} créditos de publicidad de regalo: hasta ${n / c.CREDITOS_POR_DIA.CIUDAD} días anunciándote en tu ciudad`,
     );
     // El aviso PÚBLICO (sin tipo) usa la frase sin tipo, que cuenta los dos casos.
-    expect(c.msgSocioFundador()).toContain(c.fraseRegaloPublico());
+    expect(c.msgSocioFundador("es")).toContain(c.fraseRegaloPublico());
     const original = c.CREDITOS_POR_DIA.CIUDAD;
     try {
       c.CREDITOS_POR_DIA.CIUDAD = 2;

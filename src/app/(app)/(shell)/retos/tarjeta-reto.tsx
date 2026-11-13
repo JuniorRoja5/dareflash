@@ -1,3 +1,4 @@
+import type { Idioma } from "@/lib/formato";
 import Link from "next/link";
 
 import { Boton } from "@/components/ui/boton";
@@ -47,7 +48,7 @@ const CLASES_HOVER =
  * todas las pantallas del producto; lo que marca la exclusividad son el marco y la chapa, que son
  * forma y no color sobre una cifra.
  */
-export function TarjetaReto({ reto }: { reto: RetoPublicoVista }) {
+export function TarjetaReto({ reto, idioma }: { reto: RetoPublicoVista; idioma: Idioma }) {
   const href = `/retos/${reto.publicCode}-${reto.slug}`;
   /**
    * LA FASE Y A QUÉ INSTANTE SE CUENTA, con la MISMA regla que el servidor (`lib/reto-ventana`).
@@ -121,6 +122,7 @@ export function TarjetaReto({ reto }: { reto: RetoPublicoVista }) {
                 "te queda esto para participar" — justo lo contrario de lo que pasaba. La fase y el
                 instante los decide `instanteDeCuenta`, la misma regla que usa el servidor. */}
             <Marcador
+              idioma={idioma}
               cents={reto.premioCents}
               deadlineMs={cuenta.objetivoMs}
               hacia={cuenta.fase === "proximamente" ? "apertura" : "cierre"}

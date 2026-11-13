@@ -42,6 +42,7 @@ import { pendientesPanel } from "./pendientes-panel";
 import { type HuecosDeEspacio, type RedisLeerMetricas, huecosDelDia } from "./publicidad-metricas";
 import { PUBLICIDAD_SIN_REVISION } from "./publicidad-visible";
 import { escribirEstado, leerEstado } from "./system-state";
+import { formatearDiaClave, formatearNumero, IDIOMA_DEL_EQUIPO } from "@/lib/formato";
 
 // ---------------------------------------------------------------------------------------------------
 // Puro: cuándo toca y qué se dice
@@ -87,7 +88,7 @@ export function parteSinCampana(h: HuecosDeEspacio): number | null {
 }
 
 const NOMBRE_ESPACIO: Record<string, string> = { LOCAL: "local", GLOBAL: "global" };
-const cifra = (n: number) => n.toLocaleString("es-ES");
+const cifra = (n: number) => formatearNumero(n, IDIOMA_DEL_EQUIPO);
 const plural = (n: number, uno: string, varios: string) => `${cifra(n)} ${n === 1 ? uno : varios}`;
 const porCiento = (x: number) => `${Math.round(x * 100)} %`;
 
@@ -101,11 +102,7 @@ export function componerResumen(
   ayer: Date,
 ): { asunto: string; intro: string; lineas: string[]; enlacePanel: string } {
   const url = (ruta: string) => new URL(ruta, appUrl).toString();
-  const fecha = ayer.toLocaleDateString("es-ES", {
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  });
+  const fecha = formatearDiaClave(ayer, IDIOMA_DEL_EQUIPO, "diaMesLargo");
   const lineas: string[] = [];
   const p = d.pendientes;
   if (p.empresas > 0) {
@@ -318,11 +315,7 @@ async function evaluarAvisoCasa(
   if (total < HUECOS_MIN_AVISO_CASA) return false;
   const con = Object.values(huecos).reduce((s, h) => s + h.conCampana, 0);
   const sin = (total - con) / total;
-  const fecha = ayer.toLocaleDateString("es-ES", {
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  });
+  const fecha = formatearDiaClave(ayer, IDIOMA_DEL_EQUIPO, "diaMesLargo");
   const enlace = new URL("/panel/publicidad?filtro=ACTIVAS", o.appUrl).toString();
   return avisarConHisteresis(db, {
     clave: CLAVE_AVISO_CASA,

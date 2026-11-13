@@ -3,7 +3,8 @@ import { z } from "zod";
 import {
   msgBoostAgotado,
   MSG_BOOST_ACTIVAR_SIN_VERIFICAR,
-  MSG_BOOST_LIMITE_DIARIO,
+  fraseReinicioDiario,
+  msgBoostLimiteDiario,
   MSG_BOOST_SIN_SALDO,
 } from "@/config/constants";
 import { mutatingRoute } from "@/server/auth/mutating-route";
@@ -54,7 +55,14 @@ export const POST = mutatingRoute(async (req, { prisma }) => {
 
   if (r.estado === "sin-saldo") return apiOk({ estado: r.estado, mensaje: MSG_BOOST_SIN_SALDO });
   if (r.estado === "limite") {
-    return apiOk({ estado: r.estado, mensaje: MSG_BOOST_LIMITE_DIARIO });
+    // La hora del reinicio, en la de quien pide (Fase 11): el día se sigue contando en UTC.
+    const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
+    const reinicio = fraseReinicioDiario(
+      new Date(),
+      await idiomaDeLaPeticion(),
+      await zonaDeLaPeticion(),
+    );
+    return apiOk({ estado: r.estado, mensaje: msgBoostLimiteDiario(reinicio) });
   }
   // AGOTADO sale por `apiOk` y no por `apiError`, como los otros dos rechazos esperables: no ha
   // fallado nada, es el producto diciendo que ahora mismo no hay sitio. Y lo importante para quien

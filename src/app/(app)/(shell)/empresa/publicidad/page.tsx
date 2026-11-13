@@ -9,14 +9,14 @@ import { fraseSaldo } from "@/lib/publicidad";
 
 import { ambitoDelPortal } from "../ambito-portal";
 import { AvisoVerificar } from "../aviso-verificar";
+import { formatearDiaClave, type Idioma } from "@/lib/formato";
 
 export const metadata = { title: "Publicidad · DareFlash" };
 // Lee la sesión y las campañas de la empresa: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 
-/** Fechas en UTC y diciéndolo: los días de una campaña son días UTC. */
-const FECHA = { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" } as const;
-const fecha = (ms: number) => new Date(ms).toLocaleDateString("es-ES", FECHA);
+/** Los días de una campaña son CLAVES de día UTC: etiquetas de calendario, sin zona (Fase 11). */
+const fecha = (ms: number, idioma: Idioma) => formatearDiaClave(new Date(ms), idioma, "diaMesAno");
 const CABECERA = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
 const PILDORA =
   "inline-block whitespace-nowrap rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim";
@@ -27,16 +27,14 @@ const texto = (v: string | string[] | undefined): string =>
   typeof v === "string" ? v.trim().slice(0, 80) : "";
 
 /** El calendario en una línea: «1 dic – 7 dic 2026» o, en un borrador, desde cuándo y cuántos días. */
-function calendario(c: {
-  estado: string;
-  inicioMs: number;
-  finMs: number | null;
-  diasContratados: number;
-}) {
+function calendario(
+  c: { estado: string; inicioMs: number; finMs: number | null; diasContratados: number },
+  idioma: Idioma,
+) {
   if (c.estado === "BORRADOR" || c.finMs === null) {
-    return `Desde ${fecha(c.inicioMs)} · ${c.diasContratados} ${c.diasContratados === 1 ? "día" : "días"}`;
+    return `Desde ${fecha(c.inicioMs, idioma)} · ${c.diasContratados} ${c.diasContratados === 1 ? "día" : "días"}`;
   }
-  return `${fecha(c.inicioMs)} – ${fecha(c.finMs)}`;
+  return `${fecha(c.inicioMs, idioma)} – ${fecha(c.finMs, idioma)}`;
 }
 
 /**
@@ -52,6 +50,8 @@ export default async function PaginaPublicidad({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const ambito = await ambitoDelPortal();
+  const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
+  const idioma = await idiomaDeLaPeticion();
   if (ambito === null) {
     return (
       <div className="df-rise">
@@ -141,7 +141,7 @@ export default async function PaginaPublicidad({
                         {c.zona}
                       </td>
                       <td className="py-3 pr-4 whitespace-nowrap text-text-dim tabular-nums">
-                        {calendario(c)}
+                        {calendario(c, idioma)}
                       </td>
                       <td className="py-3 pr-4 text-right text-text tabular-nums">
                         {c.creditosPorDia}
@@ -168,7 +168,7 @@ export default async function PaginaPublicidad({
                       </div>
                       <p className="mt-1 text-2xs break-words text-text-dim">{c.zona}</p>
                       <p className="mt-1 text-2xs text-text-dim tabular-nums">
-                        {calendario(c)} · {c.creditosPorDia} cr./día
+                        {calendario(c, idioma)} · {c.creditosPorDia} cr./día
                       </p>
                     </Tarjeta>
                   </Link>

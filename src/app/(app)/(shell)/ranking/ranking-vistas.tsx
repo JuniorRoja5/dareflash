@@ -8,6 +8,7 @@ import { getJson } from "@/lib/cliente-http";
 import { primerPuestoDeLista } from "@/lib/podio";
 
 import { type FilaPodio, PodioRanking } from "./podio-ranking";
+import { useFormato } from "@/components/formato-provider";
 
 /** Una fila del ranking mensual tal y como llega del servidor. */
 export interface FilaRanking extends FilaPodio {
@@ -76,6 +77,7 @@ export function cabeceraReto(titulo: string): string {
  * que dice lo mismo sin contradecir el orden.
  */
 export function RankingVistas({ datos }: { datos: DatosRanking }) {
+  const { idioma } = useFormato();
   const [vista, setVista] = useState<Vista>("mensual");
   const [filas, setFilas] = useState<FilaRanking[]>(datos.mensual);
   const [cursor, setCursor] = useState<string | null>(datos.cursorInicial);
@@ -158,6 +160,7 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
               >
                 {enLista.map((fila, i) => (
                   <FilaPuesto
+                    idioma={idioma}
                     key={fila.userId}
                     puesto={desde + i}
                     username={fila.username}
@@ -204,6 +207,7 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
             ) : (
               reto.top.map((f) => (
                 <FilaPuesto
+                  idioma={idioma}
                   key={f.submissionId}
                   puesto={f.puesto}
                   username={f.username}

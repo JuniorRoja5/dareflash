@@ -6,6 +6,7 @@ import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 import { requireSeccion } from "../panel-guard";
 
 import { ExportarContabilidad } from "./exportar-contabilidad";
+import { fechaPanel } from "@/app/panel/formato-panel";
 
 export const metadata = { title: "Patrocinios · Panel" };
 export const dynamic = "force-dynamic";
@@ -15,13 +16,9 @@ const ESTILO_TITULO = {
   fontVariationSettings: '"wght" 720, "wdth" 112',
 } as const;
 
+/** En UTC (`fechaPanel`, Fase 11): sin hora, un día no tiene zona que leer. */
 function cuando(ms: number): string {
-  return new Date(ms).toLocaleDateString("es-ES", {
-    timeZone: "UTC",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return fechaPanel(ms, "diaFijoMesAno");
 }
 
 /**

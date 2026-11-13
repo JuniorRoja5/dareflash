@@ -1,3 +1,4 @@
+import type { Idioma } from "@/lib/formato";
 import Link from "next/link";
 
 import { Boton } from "@/components/ui/boton";
@@ -34,7 +35,7 @@ function IconoPlay() {
  * Solo retos ABIERTOS: la portada no enseña ni próximos ni cerrados, así que la cuenta va al cierre. El
  * plazo viaja ABSOLUTO (`deadlineMs`): el marcador cuenta en el cliente, sin `Date.now()` en el render.
  */
-export function TarjetaVertical({ reto }: { reto: RetoPublicoVista }) {
+export function TarjetaVertical({ reto, idioma }: { reto: RetoPublicoVista; idioma: Idioma }) {
   const href = `/retos/${reto.publicCode}-${reto.slug}`;
   return (
     // PROFUNDIDAD SUTIL (rediseño de /inicio): inclinación hacia el puntero y brillo que lo sigue
@@ -73,6 +74,7 @@ export function TarjetaVertical({ reto }: { reto: RetoPublicoVista }) {
                   ) : null}
                   <span className="block" style={{ filter: "var(--df-glow-dinero)" }}>
                     <Marcador
+                      idioma={idioma}
                       cents={reto.premioCents}
                       deadlineMs={reto.deadlineMs}
                       tamano="lista"

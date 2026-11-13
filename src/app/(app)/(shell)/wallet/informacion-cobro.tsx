@@ -1,5 +1,6 @@
 import { REDES_CRIPTO } from "@/config/constants";
 import { importeConMoneda } from "@/lib/dinero";
+import { type Idioma } from "@/lib/formato";
 
 /**
  * INFORMACIÓN — las tres cosas que hay que saber antes de pedir un cobro.
@@ -16,7 +17,7 @@ import { importeConMoneda } from "@/lib/dinero";
  * `<details>` NATIVO: abre y cierra sin JavaScript, y por tanto funciona en el primer pintado y con
  * el teclado sin que nadie tenga que implementarlo. Es un bloque de texto, no un widget.
  */
-export function InformacionCobro() {
+export function InformacionCobro({ idioma }: { idioma: Idioma }) {
   return (
     <section aria-labelledby="info-cobro">
       <h2 id="info-cobro" className="sr-only">
@@ -60,7 +61,8 @@ export function InformacionCobro() {
             <p className="mt-1.5 max-w-prose leading-relaxed">
               Las comisiones de la red (cripto) o del banco corren por tu cuenta, no por la de
               DareFlash. Recibirás el importe solicitado menos esas comisiones: si pides{" "}
-              {importeConMoneda(5000)}, pueden llegarte, por ejemplo, {importeConMoneda(4890)}.
+              {importeConMoneda(5000, idioma)}, pueden llegarte, por ejemplo,{" "}
+              {importeConMoneda(4890, idioma)}.
             </p>
           </div>
         </div>

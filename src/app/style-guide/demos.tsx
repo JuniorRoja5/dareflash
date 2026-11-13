@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { ContadorVotos } from "@/components/ui/contador-votos";
 import { CuentaAtras, type TamanoCuenta } from "@/components/ui/cuenta-atras";
 import { Marcador, type TamanoMarcador } from "@/components/ui/marcador";
+import { useFormato } from "@/components/formato-provider";
 
 /**
  * Wrappers EN VIVO solo para la hoja de estilo (dev-only). Las primitivas reciben un `deadlineMs`
@@ -40,13 +41,20 @@ export function MarcadorEnVivo({
   /** El de héroe no cabe en fila a 390 px: en móvil, apilado (la misma opción que usa la app). */
   apilarEnMovil?: boolean;
 }) {
+  const { idioma } = useFormato();
   const [deadlineMs, setDeadlineMs] = useState<number | null>(null);
   useEffect(() => {
     const fijarPlazo = (): void => setDeadlineMs(Date.now() + offsetMs);
     fijarPlazo();
   }, [offsetMs]);
   return (
-    <Marcador cents={cents} deadlineMs={deadlineMs} tamano={tamano} apilarEnMovil={apilarEnMovil} />
+    <Marcador
+      idioma={idioma}
+      cents={cents}
+      deadlineMs={deadlineMs}
+      tamano={tamano}
+      apilarEnMovil={apilarEnMovil}
+    />
   );
 }
 

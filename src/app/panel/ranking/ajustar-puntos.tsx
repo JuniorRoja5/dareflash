@@ -6,6 +6,7 @@ import { useState } from "react";
 import { AJUSTE_DELTA_MAX, AJUSTE_NOTA_MAX, AJUSTE_NOTA_MIN } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { nivelPorPuntos } from "@/lib/niveles";
+import { numeroPanel } from "@/app/panel/formato-panel";
 
 type Fase = "editar" | "confirmar" | "enviando";
 
@@ -69,7 +70,7 @@ export function AjustarPuntos({
         setAviso({
           tipo: "ok",
           texto: r.data.aplicado
-            ? `Hecho: @${username} tiene ahora ${(r.data.saldo ?? quedaria).toLocaleString("es-ES")} puntos.`
+            ? `Hecho: @${username} tiene ahora ${numeroPanel(r.data.saldo ?? quedaria)} puntos.`
             : "Ese ajuste ya estaba aplicado: no se ha repetido.",
         });
         setCantidad("");
@@ -132,8 +133,8 @@ export function AjustarPuntos({
       {deltaValido ? (
         <p className="mt-2 text-2xs text-text-dim tabular-nums">
           {negativo
-            ? `No puede quedar en negativo: tiene ${puntos.toLocaleString("es-ES")} puntos.`
-            : `Quedaría en ${quedaria.toLocaleString("es-ES")} puntos · ${nivelPorPuntos(quedaria).nombre}`}
+            ? `No puede quedar en negativo: tiene ${numeroPanel(puntos)} puntos.`
+            : `Quedaría en ${numeroPanel(quedaria)} puntos · ${nivelPorPuntos(quedaria).nombre}`}
         </p>
       ) : null}
 
@@ -153,8 +154,8 @@ export function AjustarPuntos({
           className="mt-4 flex flex-wrap items-center gap-2 text-sm"
         >
           <span className="text-text">
-            ¿{delta > 0 ? "Sumar" : "Restar"} {Math.abs(delta).toLocaleString("es-ES")} puntos a @
-            {username}? Motivo: «{notaLimpia}»
+            ¿{delta > 0 ? "Sumar" : "Restar"} {numeroPanel(Math.abs(delta))} puntos a @{username}?
+            Motivo: «{notaLimpia}»
           </span>
           <button
             type="button"

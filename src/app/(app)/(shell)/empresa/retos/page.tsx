@@ -17,21 +17,18 @@ import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 
 import { ambitoDelPortal } from "../ambito-portal";
 import { AvisoVerificar } from "../aviso-verificar";
+import { formatearFechaParaQuienMira } from "@/lib/formato";
 
 export const metadata = { title: "Mis retos · DareFlash" };
 // Lee la sesión y las filas de la empresa: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 
-/** Fechas en UTC y diciéndolo: el servidor no sabe en qué zona está quien mira. */
-const FECHA = { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" } as const;
 const CABECERA = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
 const PILDORA =
   "inline-block whitespace-nowrap rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim";
 /** La caja de una tabla: la de `Tarjeta`, sin su relleno (la tabla pone el suyo por celda). */
 const CAJA_TABLA = "rounded-sm border border-line bg-surface";
 
-const dinero = (cents: number, moneda = DEFAULT_CURRENCY) => importeConMoneda(cents, moneda);
-const fecha = (ms: number) => new Date(ms).toLocaleDateString("es-ES", FECHA);
 const texto = (v: string | string[] | undefined): string =>
   typeof v === "string" ? v.trim().slice(0, 80) : "";
 const ENLACE = "text-sm font-medium text-text underline underline-offset-2 hover:no-underline";
@@ -64,6 +61,14 @@ export default async function PaginaMisRetos({
       </div>
     );
   }
+  // El idioma y la zona de la empresa que mira (Fase 11). La apertura y el cierre son INSTANTES: se
+  // dicen en su hora, no en UTC (antes salían en UTC sin decirlo).
+  const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
+  const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
+  const dinero = (cents: number, moneda = DEFAULT_CURRENCY) =>
+    importeConMoneda(cents, idioma, moneda);
+  const fecha = (ms: number) => formatearFechaParaQuienMira(ms, idioma, zona, "diaMesAno");
+
   const sp = await searchParams;
   const enviada = sp["enviada"] === "1";
   const aqui: Paginacion = { cursor: texto(sp["cursor"]) || null, pila: leerPila(sp["pila"]) };

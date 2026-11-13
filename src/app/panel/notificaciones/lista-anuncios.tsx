@@ -6,19 +6,17 @@ import { useSondeoVisible } from "@/components/usar-sondeo";
 import { ANUNCIOS_SONDEO_MIN_ENTRE_MS, ANUNCIOS_SONDEO_MS } from "@/config/constants";
 import { getJson } from "@/lib/cliente-http";
 import type { AnuncioRevision, EstadoAnuncio } from "@/server/services/anuncios";
+import { numeroPanel, fechaPanel } from "@/app/panel/formato-panel";
 
 /** Fecha en UTC (el proyecto trabaja en UTC de punta a punta). */
+/** En UTC y diciéndolo (`fechaPanel`, Fase 11). */
 function fecha(ms: number): string {
-  return new Date(ms).toLocaleString("es-ES", {
-    timeZone: "UTC",
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  return fechaPanel(ms, "medioHora");
 }
 
 /** Qué le pasa al reparto, en copy humano. Ninguno promete lo que no se sabe. */
 function textoEstado(a: AnuncioRevision): string {
-  const faltan = (a.targetCount - a.entregadas).toLocaleString("es-ES");
+  const faltan = numeroPanel(a.targetCount - a.entregadas);
   const COPY: Record<EstadoAnuncio, string> = {
     entregado: "Entregado",
     repartiendo: "Repartiendo…",
@@ -124,8 +122,7 @@ export function ListaAnuncios({
             </p>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-2xs text-text-dim">
               <span className="tabular-nums">
-                {a.entregadas.toLocaleString("es-ES")} / {a.targetCount.toLocaleString("es-ES")}{" "}
-                entregados
+                {numeroPanel(a.entregadas)} / {numeroPanel(a.targetCount)} entregados
               </span>
               <span className={a.estado === "entregado" ? "text-text" : ""}>{textoEstado(a)}</span>
             </div>

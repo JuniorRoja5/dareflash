@@ -5,6 +5,7 @@ import { protegerPanel, requireSeccion } from "./panel-guard";
 import { ICONO_SECCION } from "./panel-iconos";
 import { primeraSeccionPara, seccionesPara } from "./secciones";
 import { TarjetaDinero, TarjetaMetrica } from "./tarjetas";
+import { numeroPanel } from "@/app/panel/formato-panel";
 
 export const metadata = { title: "Panel · DareFlash" };
 export const dynamic = "force-dynamic";
@@ -123,7 +124,7 @@ export default async function ResumenPage() {
           <TarjetaDinero
             cents={dinero.retiradasEnCursoCents}
             etiqueta="Por transferir"
-            nota={`${dinero.retiradasEnCurso.toLocaleString("es-ES")} retiradas en curso`}
+            nota={`${numeroPanel(dinero.retiradasEnCurso)} retiradas en curso`}
           />
           <TarjetaDinero
             cents={dinero.monederosCents}

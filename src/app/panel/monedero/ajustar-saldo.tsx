@@ -6,6 +6,7 @@ import { useState } from "react";
 import { AJUSTE_NOTA_MAX, AJUSTE_NOTA_MIN, AJUSTE_SALDO_CENTS_MAX } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { importeACentimos, importeConMoneda } from "@/lib/dinero";
+import { IDIOMA_PANEL } from "@/app/panel/formato-panel";
 
 type Fase = "editar" | "confirmar" | "enviando";
 
@@ -84,7 +85,7 @@ export function AjustarSaldo({
         setAviso({
           tipo: "ok",
           texto: r.data.aplicado
-            ? `Hecho: @${username} tiene ahora ${importeConMoneda(r.data.saldoCents ?? quedaria)}.`
+            ? `Hecho: @${username} tiene ahora ${importeConMoneda(r.data.saldoCents ?? quedaria, IDIOMA_PANEL)}.`
             : "Ese ajuste ya estaba aplicado: no se ha repetido.",
         });
         setImporte("");
@@ -148,8 +149,8 @@ export function AjustarSaldo({
       {deltaValido ? (
         <p className="mt-2 text-2xs tabular-nums text-text-dim">
           {negativo
-            ? `No puede quedar en negativo: tiene ${importeConMoneda(saldoCents)}.`
-            : `Quedaría en ${importeConMoneda(quedaria)}`}
+            ? `No puede quedar en negativo: tiene ${importeConMoneda(saldoCents, IDIOMA_PANEL)}.`
+            : `Quedaría en ${importeConMoneda(quedaria, IDIOMA_PANEL)}`}
         </p>
       ) : null}
 
@@ -169,8 +170,9 @@ export function AjustarSaldo({
           className="mt-4 flex flex-wrap items-center gap-2 text-sm"
         >
           <span className="text-text">
-            ¿{(delta ?? 0) > 0 ? "Acreditar" : "Descontar"} {importeConMoneda(Math.abs(delta ?? 0))}{" "}
-            a @{username}? Motivo: «{notaLimpia}»
+            ¿{(delta ?? 0) > 0 ? "Acreditar" : "Descontar"}{" "}
+            {importeConMoneda(Math.abs(delta ?? 0), IDIOMA_PANEL)} a @{username}? Motivo: «
+            {notaLimpia}»
           </span>
           <button
             type="button"

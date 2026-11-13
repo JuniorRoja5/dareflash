@@ -1,13 +1,12 @@
 import type { DiaActividad } from "@/lib/serie-diaria";
 import type { SerieReto } from "@/server/services/panel-metricas";
+import { numeroPanel, IDIOMA_PANEL } from "@/app/panel/formato-panel";
+import { formatearDiaClave } from "@/lib/formato";
 
 /** "3 sept" de un día "YYYY-MM-DD" (UTC: el mismo día que contó la BD, no el de la zona de quien mira). */
+/** Una CLAVE de día UTC de la serie: etiqueta de calendario, sin zona (`formatearDiaClave`). */
 function fechaCorta(dia: string): string {
-  return new Date(`${dia}T00:00:00Z`).toLocaleDateString("es-ES", {
-    timeZone: "UTC",
-    day: "numeric",
-    month: "short",
-  });
+  return formatearDiaClave(dia, IDIOMA_PANEL, "diaMes");
 }
 
 /**
@@ -79,8 +78,8 @@ function Barras({
       <figcaption className="flex items-baseline justify-between gap-3 text-2xs text-text-dim">
         <span className="font-semibold tracking-widest uppercase">{titulo}</span>
         <span className="tabular-nums">
-          {serie.total[clave].toLocaleString("es-ES")} en total
-          {maximo > 0 ? ` · máx. ${maximo.toLocaleString("es-ES")} en un día` : ""}
+          {numeroPanel(serie.total[clave])} en total
+          {maximo > 0 ? ` · máx. ${numeroPanel(maximo)} en un día` : ""}
         </span>
       </figcaption>
       <div className="mt-2 flex h-20 items-end gap-px border-b border-line">
@@ -90,7 +89,7 @@ function Barras({
             data-serie={clave}
             data-dia={d.dia}
             data-valor={d[clave]}
-            title={`${fechaCorta(d.dia)}: ${d[clave].toLocaleString("es-ES")}`}
+            title={`${fechaCorta(d.dia)}: ${numeroPanel(d[clave])}`}
             className="min-w-0 flex-1 rounded-t-[1px] bg-text-dim/60"
             style={{ height: `${altura(d[clave], maximo)}%` }}
           />

@@ -24,7 +24,10 @@ export const metadata = { title: "Empezar · DareFlash" };
  *
  * ESTÁTICA a propósito: no lee sesión ni base de datos, así que no necesita `force-dynamic`.
  */
-export default function PaginaEmpezar() {
+export default async function PaginaEmpezar() {
+  // El idioma de quien mira (Fase 11): la fecha del aviso sale de `lib/formato`.
+  const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
+  const idioma = await idiomaDeLaPeticion();
   return (
     <div className="df-rise mx-auto w-full max-w-5xl px-4 py-10 lg:px-8 lg:py-16">
       <h1 className="text-3xl text-text lg:text-4xl">{TITULO_EMPEZAR}</h1>
@@ -53,7 +56,7 @@ export default function PaginaEmpezar() {
               mueven, la promesa se mueve con ellas. En su recuadro, para que no se pierda como una
               línea más del cuerpo: es la razón para registrarse AHORA. */}
           <p className="mt-4 rounded-sm border border-text/40 px-3 py-2 text-sm text-text">
-            {msgSocioFundador()}
+            {msgSocioFundador(idioma)}
           </p>
           <span className="flex-1" aria-hidden />
           <Boton

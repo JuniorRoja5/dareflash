@@ -18,7 +18,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import {
   MSG_TOQUE_A_TI_MISMO,
-  MSG_TOQUE_LIMITE_DIARIO,
   MSG_TOQUE_REPETIDO,
   MSG_TOQUE_SIN_VERIFICAR,
   MSG_TOQUE_SOLO_VIP,
@@ -40,6 +39,12 @@ vi.mock("@/server/db/client", () => ({
   get prisma() {
     return H.prisma;
   },
+}));
+// El idioma y la zona de la petición salen de una cookie (`next/headers`), que fuera de Next no
+// existe: se dobla SOLO eso. Tokio: UTC+9, sin horario de verano (la hora esperada no depende del día).
+vi.mock("@/server/formato-peticion", () => ({
+  idiomaDeLaPeticion: async () => "es",
+  zonaDeLaPeticion: async () => "Asia/Tokyo",
 }));
 vi.mock("@/server/auth/mutating-route", () => ({
   mutatingRoute:
@@ -188,7 +193,11 @@ describe("el tope POR EMISOR corta el megáfono", () => {
     expect(pasado.status).toBe(200);
     const cuerpo = await pasado.json();
     expect(cuerpo.estado).toBe("limite");
-    expect(cuerpo.mensaje).toBe(MSG_TOQUE_LIMITE_DIARIO);
+    // La hora del reinicio en la de quien pide (Fase 11): las 00:00 UTC son las 09:00 en Tokio.
+    expect(cuerpo.mensaje).toBe(
+      `Ya has dado ${TOQUE_MAX_DIA} toques hoy. El contador se reinicia a las 09:00.`,
+    );
+    expect(cuerpo.mensaje).not.toMatch(/UTC/);
     // Y lo que importa de verdad: el que pasó del tope NO escribió.
     expect(await cuantos()).toBe(TOQUE_MAX_DIA);
   });

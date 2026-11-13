@@ -115,7 +115,7 @@ describe("la tarifa y el regalo, por tipo de negocio", () => {
     expect(frase).toMatch(NOMBRA.CIUDAD);
     expect(frase).toMatch(NOMBRA.PAIS);
     expect(frase).toMatch(/online/i);
-    expect(c.msgSocioFundador()).toContain(frase);
+    expect(c.msgSocioFundador("es")).toContain(frase);
   });
 
   it("el catálogo: todo tipo de negocio compra ALGO (una lista vacía dejaría sin frase ni producto)", () => {

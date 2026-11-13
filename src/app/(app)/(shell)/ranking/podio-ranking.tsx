@@ -10,6 +10,8 @@ import {
   ordenVisualPodio,
   type PuestoPodio,
 } from "@/lib/podio";
+import { formatearMarcador } from "@/lib/formato";
+import { useFormato } from "@/components/formato-provider";
 
 /** Una posición del podio, con datos REALES del ranking. */
 export interface FilaPodio {
@@ -177,6 +179,7 @@ function AvatarMedalla({
  * aquí — irían contra el orden, y para el nivel ya está la insignia justo debajo.
  */
 function Victorias({ valor, tam }: { valor: number; tam: string }) {
+  const { idioma } = useFormato();
   return (
     <p
       className="tabular-nums text-text"
@@ -186,7 +189,7 @@ function Victorias({ valor, tam }: { valor: number; tam: string }) {
         fontSize: tam,
       }}
     >
-      {valor.toLocaleString("en-US")}
+      {formatearMarcador(valor, idioma)}
       <span className="ml-1 text-text-dim" style={{ fontSize: "0.62em" }}>
         {valor === 1 ? "victoria" : "victorias"}
       </span>

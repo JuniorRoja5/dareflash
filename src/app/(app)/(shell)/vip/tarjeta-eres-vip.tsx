@@ -1,16 +1,7 @@
+import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "@/lib/formato";
 import type { VipResuelto } from "@/lib/vip";
 
 import { CancelarVip } from "./cancelar-vip";
-
-/** Fecha en UTC, como todo el producto (la zona horaria solo al presentar). */
-function fecha(d: Date): string {
-  return d.toLocaleDateString("es-ES", {
-    timeZone: "UTC",
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-}
 
 /**
  * YA ERES MYTHIC — el estado de tu suscripción, y la puerta para darte de baja.
@@ -38,8 +29,19 @@ function fecha(d: Date): string {
  * │ diría el emblema.                                                                            │
  * └──────────────────────────────────────────────────────────────────────────────────────────────┘
  */
-export function TarjetaEresVip({ vip }: { vip: VipResuelto }) {
-  const hasta = vip.hasta ? fecha(vip.hasta) : null;
+export function TarjetaEresVip({
+  vip,
+  idioma,
+  zona,
+}: {
+  vip: VipResuelto;
+  idioma: Idioma;
+  zona: ZonaHoraria | null;
+}) {
+  // El fin del periodo es un INSTANTE: en la zona de quien mira (Fase 11).
+  const hasta = vip.hasta
+    ? formatearFechaParaQuienMira(vip.hasta, idioma, zona, "diaFijoMesLargoAno")
+    : null;
 
   return (
     <section

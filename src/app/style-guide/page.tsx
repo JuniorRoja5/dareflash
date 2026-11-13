@@ -117,7 +117,10 @@ const RADIOS = [
 
 const ESPACIOS = [1, 2, 3, 4, 6, 8, 12, 16] as const; // × 4px
 
-export default function StyleGuide() {
+export default async function StyleGuide() {
+  // La guía enseña las primitivas como las ve quien la mira (Fase 11): con su idioma.
+  const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
+  const idioma = await idiomaDeLaPeticion();
   // DEV-ONLY: en produccion (NODE_ENV != "development") la ruta no existe -> 404. Ver visibility.ts.
   if (styleGuideHidden(process.env.NODE_ENV)) notFound();
 
@@ -409,7 +412,7 @@ export default function StyleGuide() {
           {(["lista", "tarjeta", "heroe"] as const).map((t, i) => (
             <div key={t}>
               <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">{t}</p>
-              <ImportePremio cents={[2000, 25000, 125000][i]!} tamano={t} />
+              <ImportePremio idioma={idioma} cents={[2000, 25000, 125000][i]!} tamano={t} />
             </div>
           ))}
         </div>
@@ -474,16 +477,39 @@ export default function StyleGuide() {
         <div className="max-w-md rounded-sm border border-line bg-surface">
           {/* Sin foto (`imagen={null}`): la guía no tiene avatares de nadie; enseña la inicial. */}
           <FilaPuesto
+            idioma={idioma}
             puesto={1}
             username="campeona_del_barrio_2026"
             imagen={null}
             cifra={9}
             unidad="victorias"
           />
-          <FilaPuesto puesto={2} username="leo" imagen={null} cifra={7} unidad="victorias" />
-          <FilaPuesto puesto={3} username="maria_fit" imagen={null} cifra={4} unidad="victorias" />
-          <FilaPuesto puesto={4} username="dancer_xx" imagen={null} cifra={2} unidad="victorias" />
           <FilaPuesto
+            idioma={idioma}
+            puesto={2}
+            username="leo"
+            imagen={null}
+            cifra={7}
+            unidad="victorias"
+          />
+          <FilaPuesto
+            idioma={idioma}
+            puesto={3}
+            username="maria_fit"
+            imagen={null}
+            cifra={4}
+            unidad="victorias"
+          />
+          <FilaPuesto
+            idioma={idioma}
+            puesto={4}
+            username="dancer_xx"
+            imagen={null}
+            cifra={2}
+            unidad="victorias"
+          />
+          <FilaPuesto
+            idioma={idioma}
             puesto={7}
             username="un_nombre_de_usuario_larguisimo_2026"
             imagen={null}

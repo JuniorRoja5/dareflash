@@ -1,3 +1,4 @@
+import type { Idioma } from "@/lib/formato";
 import Link from "next/link";
 
 import type { RetoPublicoVista } from "@/server/services/retos-publico";
@@ -14,9 +15,11 @@ import { TarjetaVertical } from "../retos/tarjeta-vertical";
 export function RetosDestacados({
   retos,
   hayDestacado,
+  idioma,
 }: {
   retos: RetoPublicoVista[];
   hayDestacado: boolean;
+  idioma: Idioma;
 }) {
   if (retos.length === 0) {
     return (
@@ -33,7 +36,7 @@ export function RetosDestacados({
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
       {retos.map((reto) => (
-        <TarjetaVertical key={reto.publicCode} reto={reto} />
+        <TarjetaVertical key={reto.publicCode} reto={reto} idioma={idioma} />
       ))}
     </div>
   );

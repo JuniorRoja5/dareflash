@@ -6,6 +6,14 @@
  */
 import { z } from "zod";
 
+import {
+  formatearFecha,
+  horaDelReinicioDiario,
+  type Idioma,
+  ZONA_MADRID,
+  type ZonaHoraria,
+} from "@/lib/formato";
+
 /**
  * Limite POR DEFECTO de conexiones del pool contra MariaDB (se puede sobreescribir con la variable
  * DB_CONNECTION_LIMIT, ver env.ts, para afinar en produccion SIN recompilar la imagen).
@@ -542,7 +550,9 @@ export const MSG_TOQUE_SIN_VERIFICAR = "Verifica tu correo para poder dar un toq
 export const MSG_TOQUE_A_TI_MISMO = "No puedes darte un toque a ti mismo.";
 export const MSG_TOQUE_REPETIDO = "Ya le has dado un toque hoy.";
 /** Mismo criterio que el limite de Boost: la hora de verdad, no un "vuelve mañana" que miente. */
-export const MSG_TOQUE_LIMITE_DIARIO = `Ya has dado ${TOQUE_MAX_DIA} toques hoy. El contador se reinicia a medianoche UTC.`;
+export function msgToqueLimiteDiario(reinicio: string): string {
+  return `Ya has dado ${TOQUE_MAX_DIA} toques hoy. ${reinicio}`;
+}
 export const MSG_TOQUE_ENVIADO = "Toque enviado.";
 
 /**
@@ -567,9 +577,27 @@ export const MSG_BOOST_SIN_SALDO = "No te quedan Boosts. Compra uno para destaca
 /**
  * EL LIMITE NO DICE "vuelve mañana", y no es un descuido: el contador se reinicia a medianoche UTC
  * (ver RESET_TIMEZONE), que para alguien en UTC+10 no es "mañana" sino esta misma tarde. Decir la
- * hora de verdad es menos redondo y no miente.
+ * hora de verdad es menos redondo y no miente. Desde la Fase 11, esa hora en SU zona: ver
+ * `fraseReinicioDiario`.
  */
-export const MSG_BOOST_LIMITE_DIARIO = `Ya has destacado tu perfil ${BOOST_DAILY_LIMIT} veces hoy. El contador se reinicia a medianoche UTC.`;
+export function msgBoostLimiteDiario(reinicio: string): string {
+  return `Ya has destacado tu perfil ${BOOST_DAILY_LIMIT} veces hoy. ${reinicio}`;
+}
+
+/**
+ * CUÁNDO SE REINICIAN LOS CONTADORES DIARIOS (Boost, toques), dicho en la hora de quien mira (Fase 11):
+ * «El contador se reinicia a las 01:00.» El DÍA se sigue calculando en UTC (`RESET_TIMEZONE`): esto
+ * cambia cómo se DICE, nunca cuándo se reinicia. A un usuario no se le dice «UTC», y sin su zona no se
+ * inventa una hora: se dice que es cada día.
+ */
+export function fraseReinicioDiario(ahora: Date, idioma: Idioma, zona: ZonaHoraria | null): string {
+  return `El contador se reinicia ${cuandoSeReinicia(ahora, idioma, zona)}.`;
+}
+
+/** Solo el CUÁNDO: «a las 01:00», o «cada día» si no sabemos su zona. Para frases con otra forma. */
+export function cuandoSeReinicia(ahora: Date, idioma: Idioma, zona: ZonaHoraria | null): string {
+  return zona ? `a las ${horaDelReinicioDiario(ahora, idioma, zona)}` : "cada día";
+}
 export const MSG_BOOST_ACTIVAR_SIN_VERIFICAR = "Verifica tu correo para poder destacar tu perfil.";
 
 // ============================================================================
@@ -2480,13 +2508,10 @@ export const SOCIO_FUNDADOR_CREDITOS = 90;
  * fecha o la cifra se mueven, el copy se mueve con ellas; escrito a mano, la pantalla seguiria
  * prometiendo lo de antes y nadie lo notaria hasta que alguien lo reclamara.
  */
-export function msgSocioFundador(): string {
-  const hasta = new Date(SOCIO_FUNDADOR_HASTA_ISO).toLocaleDateString("es-ES", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "Europe/Madrid",
-  });
+export function msgSocioFundador(idioma: Idioma): string {
+  // El fin de la oferta se fijó en hora de MADRID (ver `SOCIO_FUNDADOR_HASTA_ISO`): la fecha se dice
+  // en esa zona a cualquiera, porque es la del contrato, no la de quien lee.
+  const hasta = formatearFecha(SOCIO_FUNDADOR_HASTA_ISO, idioma, ZONA_MADRID, "diaMesLargoAno");
   return `Socios Fundadores: las empresas que verifiquemos antes del ${hasta} se llevan ${fraseRegaloPublico()}.`;
 }
 

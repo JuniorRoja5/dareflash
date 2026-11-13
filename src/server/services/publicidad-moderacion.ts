@@ -51,6 +51,7 @@ import {
 } from "./publicidad";
 import { bloquearEmpresa, conReintentos } from "./publicidad-cerrojos";
 import { devolverDiaEnTx } from "./publicidad-consumo";
+import { formatearDiaClave, IDIOMA_SIN_PETICION } from "@/lib/formato";
 
 // ---------------------------------------------------------------------------------------------------
 // El listado y el contador
@@ -492,8 +493,8 @@ export async function absolverPublicidad(
   return r;
 }
 
-const FECHA_CORREO = { day: "numeric", month: "long", timeZone: "UTC" } as const;
-const diaEnCorreo = (d: Date) => d.toLocaleDateString("es-ES", FECHA_CORREO);
+/** Un día de campaña es una CLAVE de día UTC: etiqueta de calendario, sin zona (Fase 11). */
+const diaEnCorreo = (d: Date) => formatearDiaClave(d, IDIOMA_SIN_PETICION, "diaMesLargo");
 const enDias = (n: number) => (n === 1 ? "el día que le queda" : `los ${n} días que le quedan`);
 
 /**

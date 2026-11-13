@@ -6,10 +6,12 @@ import { useState } from "react";
 import { Boton } from "@/components/ui/boton";
 import { delCsrf, mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import type { AccionPublicidad } from "@/lib/publicidad";
+import { useFormato } from "@/components/formato-provider";
+import { formatearDiaClave, type Idioma } from "@/lib/formato";
 
-const FECHA = { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" } as const;
-const fechaLarga = (iso: string) =>
-  new Date(`${iso}T00:00:00.000Z`).toLocaleDateString("es-ES", FECHA);
+/** La primera fecha libre es una CLAVE de día UTC de la campaña: etiqueta de calendario, sin zona. */
+const fechaLarga = (iso: string, idioma: Idioma) =>
+  formatearDiaClave(iso, idioma, "diaMesLargoAno");
 
 /** El texto de cada botón. La acción principal de la ficha va en el botón principal; el resto, no. */
 const TEXTO: Record<AccionPublicidad, string> = {
@@ -45,6 +47,7 @@ export function AccionesCampana({
   /** Si el calendario pedido empieza hoy («Activar») o más tarde («Programar»). */
   empiezaHoy: boolean;
 }) {
+  const { idioma } = useFormato();
   const router = useRouter();
   const [enCurso, setEnCurso] = useState<AccionPublicidad | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -119,7 +122,7 @@ export function AccionesCampana({
         <div className="rounded-sm border border-line bg-raised p-4">
           <p className="text-sm text-text">
             El primer hueco libre para todos sus días empieza el{" "}
-            <span className="font-semibold">{fechaLarga(libre.fecha)}</span>.
+            <span className="font-semibold">{fechaLarga(libre.fecha, idioma)}</span>.
           </p>
           <Boton
             type="button"
@@ -128,7 +131,7 @@ export function AccionesCampana({
             disabled={enCurso !== null}
             onClick={() => void hacer(libre.accion, libre.fecha)}
           >
-            Programar para el {fechaLarga(libre.fecha)}
+            Programar para el {fechaLarga(libre.fecha, idioma)}
           </Boton>
         </div>
       ) : null}

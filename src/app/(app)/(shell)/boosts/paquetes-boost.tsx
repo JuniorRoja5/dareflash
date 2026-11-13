@@ -7,6 +7,7 @@ import { ImportePremio } from "@/components/ui/importe-premio";
 import { DEFAULT_CURRENCY, MSG_BOOST_PAGO_NO_DISPONIBLE } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { paquetesEnVenta } from "@/lib/boost-precio";
+import { useFormato } from "@/components/formato-provider";
 
 /**
  * LOS TRES PAQUETES, Y EL BOTÓN QUE ABRE EL PAGO.
@@ -49,6 +50,7 @@ export function PaquetesBoost({
   /** Cierto cuando el acento de la pantalla lo lleva otro botón (destacar). Ver la cabecera. */
   cedeElAcento?: boolean;
 }) {
+  const { idioma } = useFormato();
   const paquetes = paquetesEnVenta();
   /** El recomendado solo lleva el acento si esta sección tiene el acento de la pantalla. */
   const conAcento = (mejorPrecio: boolean) => mejorPrecio && !cedeElAcento;
@@ -138,11 +140,17 @@ export function PaquetesBoost({
                 premio de un reto, y por tanto `--df-money`. Es el único color de dinero de la
                 pantalla. */}
             <p className="mt-4">
-              <ImportePremio cents={p.precioCents} currency={DEFAULT_CURRENCY} tamano="tarjeta" />
+              <ImportePremio
+                idioma={idioma}
+                cents={p.precioCents}
+                currency={DEFAULT_CURRENCY}
+                tamano="tarjeta"
+              />
             </p>
 
             <p className="mt-2 text-2xs text-text-dim">
               <ImportePremio
+                idioma={idioma}
                 cents={p.porBoostCents}
                 currency={DEFAULT_CURRENCY}
                 tamano="lista"

@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 
 import { BOOST_DAILY_LIMIT, BOOST_DURACION_MIN } from "@/config/constants";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
+import { formatearNumero, type Idioma } from "@/lib/formato";
 
 import { ActivarBoost } from "./activar-boost";
 
@@ -40,11 +41,14 @@ import { ActivarBoost } from "./activar-boost";
  */
 export function HeroBoosts({
   saldo,
+  idioma,
   usadasHoy,
   vigenteHastaMs,
   cupo,
 }: {
   saldo: number;
+  /** El de quien mira (Fase 11): el saldo sale de `lib/formato`. */
+  idioma: Idioma;
   usadasHoy: number;
   vigenteHastaMs: number | null;
   /** Estado del cupo GLOBAL. Lo pinta `ActivarBoost`; ver su docblock. */
@@ -72,7 +76,7 @@ export function HeroBoosts({
             }}
           >
             <span className="sr-only">Tus Boosts: </span>
-            {saldo.toLocaleString("es-ES")}
+            {formatearNumero(saldo, idioma)}
           </h1>
 
           <p className="mt-3 max-w-prose text-sm text-text-dim">

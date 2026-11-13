@@ -15,12 +15,12 @@ import { etiquetaTipoNegocio } from "@/lib/empresa";
 import { nombrePais } from "@/lib/paises";
 
 import { AvisoVerificar } from "./aviso-verificar";
+import { formatearNumero, formatearFechaParaQuienMira } from "@/lib/formato";
 
 export const metadata = { title: "Mi empresa · DareFlash" };
 // Lee la sesión y la fila de la empresa: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 
-const FECHA = { day: "numeric", month: "long", year: "numeric" } as const;
 const ENLACE = "font-medium text-text underline underline-offset-2 hover:no-underline";
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
@@ -68,6 +68,9 @@ export default async function PaginaMiEmpresa() {
   }
 
   const { prisma } = await import("@/server/db/client");
+  // El idioma y la zona de la empresa que mira (Fase 11): cifras y fechas salen de `lib/formato`.
+  const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
+  const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
   const { miEmpresa } = await import("@/server/services/empresas");
   const { misCreditos } = await import("@/server/services/creditos");
   const { misPropuestasEnRevision } = await import("@/server/services/retos-empresa");
@@ -100,7 +103,7 @@ export default async function PaginaMiEmpresa() {
           etiqueta="Créditos de publicidad"
           valor={
             <span data-creditos-saldo={creditos.saldo}>
-              {creditos.saldo.toLocaleString("es-ES")}
+              {formatearNumero(creditos.saldo, idioma)}
             </span>
           }
           pie={
@@ -117,7 +120,7 @@ export default async function PaginaMiEmpresa() {
         />
         <TarjetaMetrica
           etiqueta="Propuestas en revisión"
-          valor={enRevision.toLocaleString("es-ES")}
+          valor={formatearNumero(enRevision, idioma)}
           pie={
             <Link href="/empresa/retos" className={ENLACE}>
               Ver mis retos
@@ -156,7 +159,7 @@ export default async function PaginaMiEmpresa() {
             <Dato etiqueta="Contacto" valor={empresa.personaContacto} />
             <Dato
               etiqueta="Alta"
-              valor={new Date(empresa.creadaMs).toLocaleDateString("es-ES", FECHA)}
+              valor={formatearFechaParaQuienMira(empresa.creadaMs, idioma, zona, "diaMesLargoAno")}
             />
             {empresa.ciudadTexto ? <Dato etiqueta="Ciudad" valor={empresa.ciudadTexto} /> : null}
             {empresa.webUrl ? <Dato etiqueta="Web" valor={empresa.webUrl} /> : null}
@@ -165,7 +168,12 @@ export default async function PaginaMiEmpresa() {
             {empresa.verificadaMs !== null ? (
               <Dato
                 etiqueta="Verificada"
-                valor={new Date(empresa.verificadaMs).toLocaleDateString("es-ES", FECHA)}
+                valor={formatearFechaParaQuienMira(
+                  empresa.verificadaMs,
+                  idioma,
+                  zona,
+                  "diaMesLargoAno",
+                )}
               />
             ) : null}
           </dl>

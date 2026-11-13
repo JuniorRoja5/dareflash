@@ -17,6 +17,8 @@ export default async function PerfilPage() {
   await apartarCuentaEmpresa();
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const user = await getCurrentUser();
+  const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
+  const idioma = await idiomaDeLaPeticion();
   if (!user) redirect("/entrar");
 
   const { prisma } = await import("@/server/db/client");
@@ -52,6 +54,7 @@ export default async function PerfilPage() {
 
   return (
     <PerfilVista
+      idioma={idioma}
       displayName={perfil.displayName}
       handle={perfil.username}
       imagen={perfil.image}

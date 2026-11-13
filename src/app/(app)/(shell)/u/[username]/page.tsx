@@ -49,6 +49,8 @@ export default async function PerfilPublicoPage({
   // Quien SOLO MIRA (cuenta de empresa, `soloMirar`) no toca: hoy no podría ser VIP de todos modos,
   // pero la regla de "no se ofrecen controles de participación" es una, y no depende de esa casualidad.
   const yo = await getCurrentUser();
+  const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
+  const idioma = await idiomaDeLaPeticion();
   const puedeTocar =
     yo && !soloMirar(yo) && yo.userId !== perfil.id
       ? await esVipActivoDe(prisma, yo.userId)
@@ -63,6 +65,7 @@ export default async function PerfilPublicoPage({
 
   return (
     <PerfilVista
+      idioma={idioma}
       displayName={perfil.displayName}
       handle={perfil.username}
       imagen={perfil.image}

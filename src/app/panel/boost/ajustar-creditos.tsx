@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { AJUSTE_BOOST_DELTA_MAX, AJUSTE_NOTA_MAX, AJUSTE_NOTA_MIN } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
+import { numeroPanel } from "@/app/panel/formato-panel";
 
 type Fase = "editar" | "confirmar" | "enviando";
 
@@ -72,7 +73,7 @@ export function AjustarCreditos({
         setAviso({
           tipo: "ok",
           texto: r.data.aplicado
-            ? `Hecho: @${username} tiene ahora ${(r.data.saldo ?? quedaria).toLocaleString("es-ES")} Boosts.`
+            ? `Hecho: @${username} tiene ahora ${numeroPanel(r.data.saldo ?? quedaria)} Boosts.`
             : "Ese ajuste ya estaba aplicado: no se ha repetido.",
         });
         setCantidad("");
@@ -135,8 +136,8 @@ export function AjustarCreditos({
       {deltaValido ? (
         <p className="mt-2 text-2xs text-text-dim tabular-nums">
           {negativo
-            ? `No puede quedar en negativo: tiene ${saldo.toLocaleString("es-ES")} Boosts.`
-            : `Quedaría en ${quedaria.toLocaleString("es-ES")} Boosts`}
+            ? `No puede quedar en negativo: tiene ${numeroPanel(saldo)} Boosts.`
+            : `Quedaría en ${numeroPanel(quedaria)} Boosts`}
         </p>
       ) : null}
 
@@ -156,7 +157,7 @@ export function AjustarCreditos({
           className="mt-4 flex flex-wrap items-center gap-2 text-sm"
         >
           <span className="text-text">
-            ¿{delta > 0 ? "Dar" : "Quitar"} {Math.abs(delta).toLocaleString("es-ES")}{" "}
+            ¿{delta > 0 ? "Dar" : "Quitar"} {numeroPanel(Math.abs(delta))}{" "}
             {Math.abs(delta) === 1 ? "Boost" : "Boosts"} a @{username}? Motivo: «{notaLimpia}»
           </span>
           <button

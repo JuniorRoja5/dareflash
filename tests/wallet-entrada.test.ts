@@ -287,8 +287,8 @@ describe("la información que hay que leer antes de cobrar", () => {
 
   it("y las cifras del ejemplo de comisiones salen del formateador, no escritas a mano", () => {
     // "$50.00" escrito en el texto se queda clavado el día que cambie la moneda o el formato.
-    expect(info).toMatch(/importeConMoneda\(5000\)/);
-    expect(info).toMatch(/importeConMoneda\(4890\)/);
+    expect(info).toMatch(/importeConMoneda\(5000, idioma\)/);
+    expect(info).toMatch(/importeConMoneda\(4890, idioma\)/);
     expect(plano, "el importe del ejemplo está escrito a mano").not.toMatch(/\$\s?50\.00/);
   });
 

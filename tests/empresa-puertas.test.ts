@@ -75,7 +75,7 @@ describe("la portada", () => {
 
   it("tiene un bloque «¿Tienes un negocio?» con el aviso de Socios Fundadores y su botón", () => {
     expect(portada).toContain("¿Tienes un negocio?");
-    expect(portada).toContain("msgSocioFundador()");
+    expect(portada).toContain("msgSocioFundador(idioma)");
     expect(portada).toContain("href={CTA_NEGOCIO.href}");
   });
 

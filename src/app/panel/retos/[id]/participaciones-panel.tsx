@@ -7,6 +7,7 @@ import { ModalReproductor } from "@/components/ui/modal-reproductor";
 import { getJson, postJsonCsrf } from "@/lib/cliente-http";
 import { nombreMostrado } from "@/lib/identidad";
 import type { EstadoParticipacionAdmin } from "@/server/services/participaciones-lista";
+import { fechaPanel } from "@/app/panel/formato-panel";
 
 /** Una participación tal y como la recibe el panel (el póster ya viene firmado del servidor). */
 export interface ParticipacionPanelUI {
@@ -225,7 +226,7 @@ function Fila({ p, onRetirada }: { p: ParticipacionPanelUI; onRetirada: () => vo
         </span>
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-text-dim tabular-nums">
-        {new Date(p.creadaEnMs).toLocaleDateString("es-ES", { timeZone: "UTC" })}
+        {fechaPanel(p.creadaEnMs, "numerica")}
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center justify-end gap-2">

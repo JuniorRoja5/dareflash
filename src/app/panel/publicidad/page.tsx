@@ -21,6 +21,7 @@ import { requireSeccion } from "../panel-guard";
 import { seccionPorHref } from "../secciones";
 
 import { AccionesPublicidad } from "./acciones-publicidad";
+import { fechaPanel } from "@/app/panel/formato-panel";
 
 const S = seccionPorHref("/panel/publicidad")!;
 
@@ -36,8 +37,7 @@ const ESTILO_TITULO = {
   fontFamily: "var(--font-display)",
   fontVariationSettings: '"wght" 720, "wdth" 112',
 } as const;
-const FECHA = { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" } as const;
-const fecha = (ms: number) => new Date(ms).toLocaleDateString("es-ES", FECHA);
+const fecha = (ms: number) => fechaPanel(ms, "numericaFija");
 const PILDORA =
   "inline-block whitespace-nowrap rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim";
 const TH = `px-4 py-3 whitespace-nowrap ${CABECERA}`;

@@ -7,19 +7,13 @@ import type { SolicitudPanel } from "@/server/services/retos-empresa";
 
 import { AccionesPropuesta } from "./acciones-propuesta";
 import { ETIQUETA_SOLICITUD_PANEL } from "./etiquetas";
+import { IDIOMA_PANEL, fechaPanel } from "@/app/panel/formato-panel";
 
 const CABECERA = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
 const PILDORA =
   "inline-block whitespace-nowrap rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim";
-/** Las fechas en UTC y diciéndolo: la propuesta se escribió en la hora local de la empresa. */
-const FECHA_HORA = {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "UTC",
-} as const;
+// Las fechas, en UTC y diciéndolo (`fechaPanel`): la propuesta se escribió en la hora local de la
+// empresa, y el admin la compara con todo lo demás en una sola zona.
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
@@ -64,26 +58,23 @@ export function FichaPropuesta({ s }: { s: SolicitudPanel }) {
               >
                 {s.empresa}
               </Link>{" "}
-              · {new Date(s.creadaMs).toLocaleString("es-ES", FECHA_HORA)} UTC
+              · {fechaPanel(s.creadaMs, "numericaFijaHora")}
             </p>
           </div>
         </div>
 
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <Dato etiqueta="Premio" valor={importeConMoneda(s.premioCents, DEFAULT_CURRENCY)} />
+          <Dato
+            etiqueta="Premio"
+            valor={importeConMoneda(s.premioCents, IDIOMA_PANEL, DEFAULT_CURRENCY)}
+          />
           <Dato
             etiqueta="Ganadores"
             valor={s.ganadores === 1 ? "1 ganador" : `${s.ganadores} ganadores`}
           />
           <Dato etiqueta="Categoría" valor={nombreCategoria(s.categoria) ?? s.categoria} />
-          <Dato
-            etiqueta="Abre"
-            valor={`${new Date(s.aperturaMs).toLocaleString("es-ES", FECHA_HORA)} UTC`}
-          />
-          <Dato
-            etiqueta="Cierra"
-            valor={`${new Date(s.cierreMs).toLocaleString("es-ES", FECHA_HORA)} UTC`}
-          />
+          <Dato etiqueta="Abre" valor={fechaPanel(s.aperturaMs, "numericaFijaHora")} />
+          <Dato etiqueta="Cierra" valor={fechaPanel(s.cierreMs, "numericaFijaHora")} />
         </dl>
 
         {s.descripcion ? (

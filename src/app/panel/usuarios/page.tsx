@@ -30,6 +30,7 @@ import {
   ETIQUETA_TODOS,
 } from "./etiquetas";
 import { Ficha } from "./ficha";
+import { numeroPanel, fechaPanel } from "@/app/panel/formato-panel";
 
 const S = seccionPorHref("/panel/usuarios")!;
 
@@ -285,13 +286,13 @@ export default async function Pagina({
                       {c.suspendida ? ETIQUETA_SUSPENDIDA : ETIQUETA_ACTIVA}
                     </span>
                     <span className="w-24 text-right text-2xs text-text-dim tabular-nums">
-                      {c.alta.toLocaleDateString("es-ES", { timeZone: "UTC" })}
+                      {fechaPanel(c.alta, "numerica")}
                     </span>
                     <span className="w-20 text-right text-sm text-text tabular-nums">
-                      {c.puntos.toLocaleString("es-ES")}
+                      {numeroPanel(c.puntos)}
                     </span>
                     <span className="w-16 text-right text-sm text-text tabular-nums">
-                      {c.victorias.toLocaleString("es-ES")}
+                      {numeroPanel(c.victorias)}
                     </span>
                   </Link>
                 </li>

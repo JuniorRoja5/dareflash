@@ -17,7 +17,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import {
   BOOST_DAILY_LIMIT,
   BOOST_DURACION_MIN,
-  MSG_BOOST_LIMITE_DIARIO,
   MSG_BOOST_SIN_SALDO,
 } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -27,6 +26,8 @@ import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 const H = vi.hoisted(() => ({
   prisma: null as unknown as PrismaClient,
   user: { userId: "", sessionId: "s1", role: "USER", emailVerified: new Date() as Date | null },
+  /** La zona de la cookie de quien pide (Fase 11). Tokio: UTC+9, sin horario de verano. */
+  zona: "Asia/Tokyo" as string | null,
 }));
 
 vi.mock("@/server/db/client", () => ({
@@ -48,6 +49,13 @@ vi.mock("@/server/auth/mutating-route", () => ({
 // La sesión que lee `requireVerifiedUser` sale del mismo doble: así el guard REAL decide de verdad.
 vi.mock("@/server/auth/current-user", () => ({
   getCurrentUser: async () => (H.user.userId ? H.user : null),
+}));
+
+// El idioma y la zona de la petición salen de una cookie (`next/headers`), que fuera de Next no
+// existe: se dobla SOLO eso. La frase la compone la ruta de verdad.
+vi.mock("@/server/formato-peticion", () => ({
+  idiomaDeLaPeticion: async () => "es",
+  zonaDeLaPeticion: async () => H.zona,
 }));
 
 import { POST as activar } from "../src/app/api/boost/activar/route";
@@ -163,14 +171,35 @@ describe("sin saldo y límite son 200, con su copy", () => {
 
     const res = await pedir({ token: TOKEN });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ estado: "limite", mensaje: MSG_BOOST_LIMITE_DIARIO });
+    // Con la zona de quien pide: las 00:00 UTC son las 09:00 en Tokio (Fase 11).
+    expect(await res.json()).toEqual({
+      estado: "limite",
+      mensaje: `Ya has destacado tu perfil ${BOOST_DAILY_LIMIT} veces hoy. El contador se reinicia a las 09:00.`,
+    });
     expect(await saldo(H.user.userId)).toBe(9);
   });
 
-  it("y el mensaje del límite NO promete «mañana»: el corte es la medianoche UTC", async () => {
-    // Para alguien en UTC+10, "vuelve mañana" es falso: su contador se reinicia esta misma tarde.
-    expect(MSG_BOOST_LIMITE_DIARIO).toMatch(/UTC/);
-    expect(MSG_BOOST_LIMITE_DIARIO).not.toMatch(/mañana/i);
+  it("sin la zona de quien pide, NO inventa una hora, ni dice «UTC», ni promete «mañana»", async () => {
+    // Para alguien en UTC+10, «vuelve mañana» es falso: su contador se reinicia esta misma tarde. Y sin
+    // saber su zona, una hora concreta sería inventada: se dice que es cada día (Fase 11).
+    H.zona = null;
+    try {
+      H.user.userId = await crearUsuario(prisma, { username: "sin_zona", boostBalance: 9 });
+      for (let i = 0; i < BOOST_DAILY_LIMIT; i += 1) {
+        await prisma.boostActivation.create({
+          data: {
+            userId: H.user.userId,
+            startsAt: new Date(),
+            expiresAt: new Date(Date.now() + 1),
+          },
+        });
+      }
+      const { mensaje } = (await (await pedir({ token: TOKEN })).json()) as { mensaje: string };
+      expect(mensaje).toContain("El contador se reinicia cada día.");
+      expect(mensaje).not.toMatch(/UTC|mañana|\d{2}:\d{2}/i);
+    } finally {
+      H.zona = "Asia/Tokyo";
+    }
   });
 });
 
