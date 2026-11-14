@@ -13,7 +13,8 @@ import path from "node:path";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { NOTIF_NO_LEIDAS_TOPE, TipoNotificacionSchema } from "../src/config/constants";
+import { NOTIF_NO_LEIDAS_TOPE } from "../src/config/constants";
+import { TipoNotificacionSchema } from "../src/config/esquemas";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import {
   AvisoSchema,

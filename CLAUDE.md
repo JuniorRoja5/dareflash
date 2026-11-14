@@ -277,6 +277,11 @@ borran para "limpiar"**:
   CI falló o no ha terminado, se para si el health responde con otro commit, y volver atrás con
   migraciones posteriores exige `--acepto-esquema-nuevo`.
 
+- `zod-fuera-del-cliente` — ningún `"use client"` llega a zod por ninguna cadena de imports (el fallo
+  la nombra). Un catálogo es una lista `VALORES_*` en `constants.ts`; su `z.enum` vive en
+  [src/config/esquemas.ts](src/config/esquemas.ts), solo para el servidor, construido con esa lista; el
+  cliente pregunta con `esUnoDe` ([src/lib/valores.ts](src/lib/valores.ts)). Un esquema en
+  `constants.ts` devolvía ~64 KB gzip a TODAS las páginas.
 - `reloj-rate-limit` — todo test que lleva una ruta real hasta el 429 congela el reloj
   (`congelarReloj()` de [tests/helpers/reloj.ts](tests/helpers/reloj.ts)). Ver la trampa de abajo.
 

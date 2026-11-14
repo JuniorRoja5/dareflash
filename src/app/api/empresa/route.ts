@@ -42,9 +42,8 @@ export async function POST(req: Request) {
     MSG_EMPRESA_DATOS_INVALIDOS,
     MSG_TERMINOS_SIN_ACEPTAR,
     RATE_LIMITS,
-    TipoCuentaEmpresaSchema,
-    TipoNegocioSchema,
   } = await import("@/config/constants");
+  const { TipoCuentaEmpresaSchema, TipoNegocioSchema } = await import("@/config/esquemas");
   const { esPaisIso } = await import("@/lib/paises");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { esArgon2Sobrecargado } = await import("@/server/auth/password");

@@ -5,8 +5,8 @@ import {
   MSG_MODERACION_RETIRADO,
   MSG_MODERACION_SIN_CAMBIOS,
   MSG_SIN_PERMISO_COLA,
-  ReportTargetModerableSchema,
 } from "@/config/constants";
+import { ReportTargetModerableSchema } from "@/config/esquemas";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk } from "@/server/http/api";
 

@@ -12,7 +12,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { TipoNotificacionSchema } from "../src/config/constants";
+import { TipoNotificacionSchema } from "../src/config/esquemas";
 import { ETIQUETA_TIPO } from "../src/app/panel/notificaciones/etiquetas";
 import { seccionPorHref } from "../src/app/panel/secciones";
 

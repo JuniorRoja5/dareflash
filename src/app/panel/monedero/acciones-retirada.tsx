@@ -7,8 +7,8 @@ import {
   AJUSTE_NOTA_MAX,
   FRASE_RECHAZO,
   MOTIVO_RECHAZO_LIBRE,
-  MotivoRechazoSchema,
   type MotivoRechazo,
+  VALORES_MOTIVO_RECHAZO,
 } from "@/config/constants";
 import { Boton } from "@/components/ui/boton";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
@@ -120,7 +120,7 @@ export function AccionesRetirada({
               className="min-h-[40px] w-full max-w-md rounded-sm border border-line bg-raised px-3 text-sm text-text"
             >
               <option value="">Elige un motivo…</option>
-              {MotivoRechazoSchema.options.map((m) => (
+              {VALORES_MOTIVO_RECHAZO.map((m) => (
                 <option key={m} value={m}>
                   {ETIQUETA_MOTIVO[m]}
                 </option>

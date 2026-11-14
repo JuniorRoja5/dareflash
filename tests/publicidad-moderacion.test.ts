@@ -21,7 +21,8 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { CREDITOS_POR_DIA, ReportTargetModerableSchema } from "../src/config/constants";
+import { CREDITOS_POR_DIA } from "../src/config/constants";
+import { ReportTargetModerableSchema } from "../src/config/esquemas";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { aplicarCreditos } from "../src/server/services/creditos";
 import { denunciar } from "../src/server/services/denuncias";

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { NOTIF_NO_LEIDAS_TOPE } from "@/config/constants";
 import { ctaPrincipal } from "@/lib/cta-principal";
-import { textoBadge } from "@/lib/notificaciones";
+import { textoBadge } from "@/lib/notificaciones-vista";
 
 import {
   ACENTO_VIP,

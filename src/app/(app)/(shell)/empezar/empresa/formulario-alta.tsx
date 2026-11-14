@@ -20,11 +20,12 @@ import {
   MSG_EMPRESA_CORREO_NUEVO,
   MSG_EMPRESA_WEB_O_REDES,
   MSG_REVISA_CORREO_EMPRESA,
-  TipoCuentaEmpresaSchema,
-  TipoNegocioSchema,
   type TipoCuentaEmpresa,
   type TipoNegocio,
+  VALORES_TIPO_CUENTA_EMPRESA,
+  VALORES_TIPO_NEGOCIO,
 } from "@/config/constants";
+import { unoDe } from "@/lib/valores";
 import { mensajeDe, postJson } from "@/lib/cliente-http";
 import type { PaisParaElegir } from "@/lib/paises";
 
@@ -197,9 +198,9 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
           id="tipoCuenta"
           label="¿Quién firma la cuenta?"
           value={tipoCuenta}
-          onChange={(v) => setTipoCuenta(TipoCuentaEmpresaSchema.parse(v))}
+          onChange={(v) => setTipoCuenta(unoDe(VALORES_TIPO_CUENTA_EMPRESA, v))}
         >
-          {TipoCuentaEmpresaSchema.options.map((t) => (
+          {VALORES_TIPO_CUENTA_EMPRESA.map((t) => (
             <option key={t} value={t}>
               {ETIQUETA_TIPO_CUENTA[t]}
             </option>
@@ -209,9 +210,9 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
           id="tipoNegocio"
           label="¿Qué clase de negocio es?"
           value={tipoNegocio}
-          onChange={(v) => setTipoNegocio(TipoNegocioSchema.parse(v))}
+          onChange={(v) => setTipoNegocio(unoDe(VALORES_TIPO_NEGOCIO, v))}
         >
-          {TipoNegocioSchema.options.map((t) => (
+          {VALORES_TIPO_NEGOCIO.map((t) => (
             <option key={t} value={t}>
               {ETIQUETA_TIPO_NEGOCIO[t]}
             </option>

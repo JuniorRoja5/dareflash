@@ -27,9 +27,9 @@ import {
   AFORO_MIDE_DESDE_ISO,
   AFORO_TTL_S,
   type NivelAforo,
-  NivelAforoSchema,
   ZONA_GLOBAL,
 } from "@/config/constants";
+import { NivelAforoSchema } from "@/config/esquemas";
 import { type Ubicacion, type Zona, mediana, zonasDe } from "@/lib/geo";
 import type { Db } from "@/server/db/types";
 

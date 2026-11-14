@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { TipoNotificacionSchema } from "@/config/constants";
+import { TipoNotificacionSchema } from "@/config/esquemas";
 import { leerFiltrosInspector } from "@/lib/filtros-inspector";
 
 import { requireSeccion } from "../panel-guard";

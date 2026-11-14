@@ -5,9 +5,9 @@ import {
   MSG_CREDITOS_PAGO_NO_DISPONIBLE,
   MSG_CREDITOS_SIN_VERIFICAR,
   PAQUETES_CREDITOS,
-  PaqueteCreditosSchema,
   RATE_LIMITS,
 } from "@/config/constants";
+import { PaqueteCreditosSchema } from "@/config/esquemas";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 

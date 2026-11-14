@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { MotivoRetiradaPublicidadSchema } from "@/config/constants";
+import { MotivoRetiradaPublicidadSchema } from "@/config/esquemas";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk } from "@/server/http/api";
 

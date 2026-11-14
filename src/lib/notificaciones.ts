@@ -8,14 +8,17 @@
  * como el mismo y el aviso saldría dos veces.
  *
  * `datos` es la FOTO del hecho, validada por tipo: lo justo para pintar el texto sin cruzar tablas.
+ *
+ * Lleva zod (`AvisoSchema`), así que el cliente NO lo importa: lo que pinta la bandeja y el badge en el
+ * navegador (`haceCuanto`, `textoBadge`) vive en `notificaciones-vista` (Fase 11 · P1b).
  */
 import { z } from "zod";
 
-import { VideoFailureReasonSchema, type VideoFailureReason } from "@/config/constants";
+import { type VideoFailureReason } from "@/config/constants";
+import { VideoFailureReasonSchema } from "@/config/esquemas";
 
 import { enlaceComentario } from "./enlace-comentario";
 import { COPY_SUBIDA } from "./estado-subida";
-import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "./formato";
 import { NIVELES, type ClaveNivel } from "./niveles";
 
 const Id = z.string().min(1).max(191);
@@ -414,32 +417,4 @@ export interface ContextoTexto {
   /** Vídeo de cada COMENTARIO avisado, por id de comentario. Sin él, el aviso de comentario enlaza
    *  como antes (al reto o al perfil): degrada, no rompe. */
   comentarios?: ReadonlyMap<string, string>;
-}
-
-/**
- * "Hace cuánto", en castellano y sin librería. Grueso a propósito: en una bandeja importa el orden de
- * magnitud, no el minuto exacto. Más de una semana -> la fecha.
- */
-export function haceCuanto(
-  ms: number,
-  ahoraMs: number,
-  idioma: Idioma,
-  zona: ZonaHoraria | null,
-): string {
-  const s = Math.max(0, Math.floor((ahoraMs - ms) / 1000));
-  if (s < 60) return "Ahora";
-  const min = Math.floor(s / 60);
-  if (min < 60) return `Hace ${min} min`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `Hace ${h} h`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `Hace ${d} d`;
-  // Más de una semana: el DÍA, en la zona de quien mira (Fase 11).
-  return formatearFechaParaQuienMira(ms, idioma, zona, "diaMes");
-}
-
-/** Contador del badge: "99+" por encima del tope; `null` si no hay nada que pintar. */
-export function textoBadge(noLeidas: number, tope: number): string | null {
-  if (noLeidas <= 0) return null;
-  return noLeidas > tope ? `${tope}+` : String(noLeidas);
 }

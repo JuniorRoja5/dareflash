@@ -34,13 +34,11 @@ import { z } from "zod";
 
 import {
   type AlcancePublicidad,
-  AlcancePublicidadSchema,
   type EstadoEmpresa,
   type EstadoPublicidad,
   type EstadoVisiblePublicidad,
   MSG_MOTIVO_RETIRADA_PUBLICIDAD,
   MSG_TIPO_NEGOCIO_DESCONOCIDO,
-  MotivoRetiradaPublicidadSchema,
   PUBLICIDAD_DESTINO_MAX,
   PUBLICIDAD_DIAS_MAX,
   PUBLICIDAD_DIAS_MIN,
@@ -54,6 +52,7 @@ import {
   type TipoNegocio,
   ZONA_GLOBAL,
 } from "@/config/constants";
+import { AlcancePublicidadSchema, MotivoRetiradaPublicidadSchema } from "@/config/esquemas";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import {
   codificarCursorTiempo,

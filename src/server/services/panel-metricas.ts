@@ -12,7 +12,8 @@
  */
 import "server-only";
 
-import { ChallengeStatusSchema, PANEL_INTERACCION_TOPE } from "@/config/constants";
+import { PANEL_INTERACCION_TOPE } from "@/config/constants";
+import { ChallengeStatusSchema } from "@/config/esquemas";
 import { Prisma } from "@/generated/prisma/client";
 import { ESTADOS_RETIRADA_EN_CURSO } from "@/lib/retirada";
 import { type DiaActividad, diasUtcEntre, rellenarSerie } from "@/lib/serie-diaria";

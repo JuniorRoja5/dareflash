@@ -7,9 +7,8 @@ import {
   MSG_DENUNCIA_SIN_VERIFICAR,
   MSG_DENUNCIA_YA,
   RATE_LIMITS,
-  ReportReasonSchema,
-  ReportTargetDenunciableSchema,
 } from "@/config/constants";
+import { ReportReasonSchema, ReportTargetDenunciableSchema } from "@/config/esquemas";
 import { veredictoDenuncia } from "@/lib/denuncias";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";

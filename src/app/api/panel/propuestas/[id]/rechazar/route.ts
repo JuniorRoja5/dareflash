@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { EMPRESA_NOTA_MAX, MotivoRechazoRetoSchema } from "@/config/constants";
+import { EMPRESA_NOTA_MAX } from "@/config/constants";
+import { MotivoRechazoRetoSchema } from "@/config/esquemas";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk } from "@/server/http/api";
 

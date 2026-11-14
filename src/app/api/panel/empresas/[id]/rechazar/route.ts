@@ -5,8 +5,8 @@ import {
   MSG_EMPRESA_MOTIVO_INVALIDO,
   MSG_EMPRESA_NO_ENCONTRADA,
   MSG_SIN_PERMISO_EMPRESAS,
-  MotivoRechazoEmpresaSchema,
 } from "@/config/constants";
+import { MotivoRechazoEmpresaSchema } from "@/config/esquemas";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk } from "@/server/http/api";
 

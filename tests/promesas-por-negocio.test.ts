@@ -36,7 +36,7 @@ import { campanaSchema, crearBorrador, PublicidadError } from "../src/server/ser
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
-const TIPOS = c.TipoNegocioSchema.options;
+const TIPOS = c.VALORES_TIPO_NEGOCIO;
 const ALCANCES = Object.keys(c.CREDITOS_POR_DIA) as AlcancePublicidad[];
 
 /** Cómo se reconoce en un texto que se habla de cada alcance. */

@@ -6,7 +6,8 @@
  * Las fechas son DÍAS UTC ENTEROS, como todo el proyecto: `hasta=2026-03-02` incluye el día 2 entero,
  * así que el límite que se aplica es el 3 a las 00:00 UTC, exclusivo.
  */
-import { TipoNotificacionSchema, type TipoNotificacion } from "@/config/constants";
+import { type TipoNotificacion } from "@/config/constants";
+import { TipoNotificacionSchema } from "@/config/esquemas";
 
 const DIA = /^\d{4}-\d{2}-\d{2}$/;
 const DIA_MS = 86_400_000;

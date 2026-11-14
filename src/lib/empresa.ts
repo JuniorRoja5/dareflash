@@ -22,8 +22,9 @@ import {
   type EstadoEmpresa,
   ETIQUETA_TIPO_NEGOCIO,
   type TipoNegocio,
-  TipoNegocioSchema,
+  VALORES_TIPO_NEGOCIO,
 } from "@/config/constants";
+import { esUnoDe } from "@/lib/valores";
 
 /**
  * LEE EL TIPO DE NEGOCIO GUARDADO. La columna es un `String`: un valor fuera del catálogo da `null`, y
@@ -33,8 +34,7 @@ import {
  * deshacía la verificación entera por culpa de una frase.
  */
 export function tipoNegocioDe(valor: string): TipoNegocio | null {
-  const r = TipoNegocioSchema.safeParse(valor);
-  return r.success ? r.data : null;
+  return esUnoDe(VALORES_TIPO_NEGOCIO, valor) ? valor : null;
 }
 
 /** Cómo se llama el tipo de negocio en pantalla; uno fuera del catálogo se dice, no se inventa. */

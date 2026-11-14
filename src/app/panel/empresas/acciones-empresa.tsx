@@ -6,10 +6,11 @@ import { useState } from "react";
 import {
   EMPRESA_NOTA_MAX,
   MSG_MOTIVO_RECHAZO_EMPRESA,
-  MotivoRechazoEmpresaSchema,
   type EstadoEmpresa,
   type MotivoRechazoEmpresa,
+  VALORES_MOTIVO_RECHAZO_EMPRESA,
 } from "@/config/constants";
+import { unoDe } from "@/lib/valores";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { puedeDecidirEmpresa } from "@/lib/empresa";
 
@@ -96,9 +97,9 @@ export function AccionesEmpresa({
             <select
               value={motivo}
               className={`mt-1 block w-full font-normal tracking-normal normal-case ${CONTROL}`}
-              onChange={(e) => setMotivo(MotivoRechazoEmpresaSchema.parse(e.target.value))}
+              onChange={(e) => setMotivo(unoDe(VALORES_MOTIVO_RECHAZO_EMPRESA, e.target.value))}
             >
-              {MotivoRechazoEmpresaSchema.options.map((m) => (
+              {VALORES_MOTIVO_RECHAZO_EMPRESA.map((m) => (
                 <option key={m} value={m}>
                   {MSG_MOTIVO_RECHAZO_EMPRESA[m]}
                 </option>
