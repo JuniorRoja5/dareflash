@@ -18,7 +18,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { VOTO_IPHASH_RETENCION_MS } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
-import { JobTypeSchema } from "../src/config/constants";
+import { JobTypeSchema } from "../src/config/esquemas";
 import { bucleWorker } from "../src/server/jobs/worker";
 import { generarPublicCode } from "../src/server/services/reto-codigo";
 import { purgarIpHashDeVotos } from "../src/server/services/votes";

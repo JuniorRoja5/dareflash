@@ -24,19 +24,21 @@ import { describe, expect, it } from "vitest";
 
 import {
   ALCANCES_POR_NEGOCIO,
-  AlcancePublicidadSchema,
   ETIQUETA_ESTADO_EMPRESA,
   ETIQUETA_TIPO_CUENTA,
   ETIQUETA_TIPO_NEGOCIO,
-  EstadoEmpresaSchema,
   MSG_ESTADO_EMPRESA,
   MSG_MOTIVO_RECHAZO_EMPRESA,
-  MotivoRechazoEmpresaSchema,
   SOCIO_FUNDADOR_CREDITOS,
   SOCIO_FUNDADOR_HASTA_ISO,
+} from "../src/config/constants";
+import {
+  AlcancePublicidadSchema,
+  EstadoEmpresaSchema,
+  MotivoRechazoEmpresaSchema,
   TipoCuentaEmpresaSchema,
   TipoNegocioSchema,
-} from "../src/config/constants";
+} from "../src/config/esquemas";
 import {
   alcancesPermitidos,
   espacioDeAlcance,

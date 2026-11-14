@@ -1,10 +1,7 @@
 import { z } from "zod";
 
-import {
-  MetodoRetiradaSchema,
-  MSG_RETIRADA_NO_DISPONIBLE,
-  RedCriptoSchema,
-} from "@/config/constants";
+import { MSG_RETIRADA_NO_DISPONIBLE } from "@/config/constants";
+import { MetodoRetiradaSchema, RedCriptoSchema } from "@/config/esquemas";
 
 /**
  * EL CUERPO DE UN MÉTODO DE COBRO Y SU COPY, en un sitio y no en dos.

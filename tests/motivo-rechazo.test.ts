@@ -24,12 +24,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import {
-  FRASE_RECHAZO,
-  FRASE_RECHAZO_DESCONOCIDO,
-  MOTIVO_RECHAZO_LIBRE,
-  MotivoRechazoSchema,
-} from "@/config/constants";
+import { FRASE_RECHAZO, FRASE_RECHAZO_DESCONOCIDO, MOTIVO_RECHAZO_LIBRE } from "@/config/constants";
+import { MotivoRechazoSchema } from "@/config/esquemas";
 import { fraseDeRechazo, validarMotivoRechazo } from "../src/lib/retirada";
 
 const TEXTO = "El banco nos devolvió la transferencia sin decir por qué";
@@ -160,7 +156,8 @@ describe("el guard: toda clave ELEGIBLE tiene su frase", () => {
       "utf8",
     ).replace(/^\s*\/\/.*$/gm, "");
     expect(vista, "el desplegable enumera los motivos a mano").toMatch(
-      /MotivoRechazoSchema\.options\.map/,
+      // La lista sin zod (Fase 11 · P1b): la misma de la que se construye `MotivoRechazoSchema`.
+      /VALORES_MOTIVO_RECHAZO\.map/,
     );
     // Y cada opción tiene su etiqueta corta: una sin ella saldría vacía en el desplegable.
     const etiquetas = /const ETIQUETA_MOTIVO[\s\S]*?\n\};/.exec(vista)?.[0] ?? "";

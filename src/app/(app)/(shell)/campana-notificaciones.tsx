@@ -6,7 +6,7 @@ import { useCallback, useRef, useState } from "react";
 import { Boton } from "@/components/ui/boton";
 import { NOTIF_DESPLEGABLE, NOTIF_NO_LEIDAS_TOPE } from "@/config/constants";
 import { getJson, postJsonCsrf } from "@/lib/cliente-http";
-import { haceCuanto, textoBadge } from "@/lib/notificaciones";
+import { haceCuanto, textoBadge } from "@/lib/notificaciones-vista";
 
 import { useNoLeidas } from "../avisos-contexto";
 import { useCerrarDesplegable } from "./usar-desplegable";

@@ -43,10 +43,10 @@ import "server-only";
 import {
   DEFAULT_CURRENCY,
   PAQUETES_BOOST,
-  PaqueteBoostSchema,
   RAZON_BOOST_COMPRA,
   REF_BOOST_STRIPE,
 } from "@/config/constants";
+import { PaqueteBoostSchema } from "@/config/esquemas";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { sanearError } from "@/server/observability/sanitize-error";
 

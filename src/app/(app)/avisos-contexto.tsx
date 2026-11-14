@@ -9,7 +9,7 @@ import {
   NOTIF_SONDEO_MS,
 } from "@/config/constants";
 import { getJson } from "@/lib/cliente-http";
-import { textoBadge } from "@/lib/notificaciones";
+import { textoBadge } from "@/lib/notificaciones-vista";
 
 /**
  * CONTADOR DE AVISOS SIN LEER — fuente ÚNICA en el cliente.

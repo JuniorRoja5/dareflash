@@ -11,7 +11,8 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { BoostReasonSchema, RAZON_BOOST_COMPRA } from "../src/config/constants";
+import { RAZON_BOOST_COMPRA } from "../src/config/constants";
+import { BoostReasonSchema } from "../src/config/esquemas";
 import { razonBoostPropia, RAZON_BOOST_AJUSTE } from "../src/lib/razones-boost";
 
 const RAZONES = BoostReasonSchema.options;

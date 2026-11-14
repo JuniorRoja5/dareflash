@@ -1,10 +1,7 @@
 import Link from "next/link";
 
-import {
-  DEFAULT_CURRENCY,
-  EstadoRetoSolicitudSchema,
-  type EstadoRetoSolicitud,
-} from "@/config/constants";
+import { DEFAULT_CURRENCY, type EstadoRetoSolicitud } from "@/config/constants";
+import { EstadoRetoSolicitudSchema } from "@/config/esquemas";
 import { importeConMoneda } from "@/lib/dinero";
 import {
   anterior,

@@ -3,16 +3,17 @@ import {
   AJUSTE_NOTA_MIN,
   FRASE_RECHAZO,
   FRASE_RECHAZO_DESCONOCIDO,
-  MetodoRetiradaSchema,
   MOTIVO_RECHAZO_LIBRE,
-  MotivoRechazoSchema,
-  RedCriptoSchema,
   REDES_CRIPTO,
   RETIRADA_MINIMA_CENTS,
   type MetodoRetirada,
   type MotivoRechazo,
   type RedCripto,
+  VALORES_METODO_RETIRADA,
+  VALORES_MOTIVO_RECHAZO,
+  VALORES_RED_CRIPTO,
 } from "@/config/constants";
+import { esUnoDe } from "@/lib/valores";
 
 /**
  * LA RETIRADA, EN LO QUE NO TOCA NI BASE DE DATOS NI RED. Aquí vive lo que se puede equivocar sin
@@ -91,7 +92,7 @@ const DIR_ERC20 = /^0x[0-9a-fA-F]{40}$/;
 export function validarDestino(
   destino: DestinoRetirada,
 ): { ok: true } | { ok: false; motivo: RechazoDestino } {
-  if (!MetodoRetiradaSchema.safeParse(destino.metodo).success) {
+  if (!esUnoDe(VALORES_METODO_RETIRADA, destino.metodo)) {
     return { ok: false, motivo: "METODO_DESCONOCIDO" };
   }
 
@@ -103,7 +104,7 @@ export function validarDestino(
     return { ok: true };
   }
 
-  if (!RedCriptoSchema.safeParse(destino.red).success) {
+  if (!esUnoDe(VALORES_RED_CRIPTO, destino.red)) {
     return { ok: false, motivo: "RED_NO_SOPORTADA" };
   }
   const dir = destino.direccion.trim();
@@ -291,7 +292,7 @@ export function validarMotivoRechazo(
   motivo: string | null | undefined,
   texto: string | null | undefined,
 ): { ok: true } | { ok: false; rechazo: RechazoMotivo } {
-  if (!MotivoRechazoSchema.safeParse(motivo).success) {
+  if (!esUnoDe(VALORES_MOTIVO_RECHAZO, motivo)) {
     return { ok: false, rechazo: "MOTIVO_OBLIGATORIO" };
   }
   const limpio = (texto ?? "").trim();
@@ -334,7 +335,7 @@ export function fraseDeRechazo(
  * ellas, con el CÓDIGO de la red ("TRC20") en vez de su nombre—. Es el mismo dato; se lee igual.
  */
 export function nombreDeMetodo(m: { metodo: string; red?: string | null }): string {
-  if (m.metodo === MetodoRetiradaSchema.enum.BANK) return "Cuenta bancaria";
+  if (m.metodo === "BANK") return "Cuenta bancaria";
   const red = REDES_CRIPTO.find((r) => r.red === m.red);
   return red ? `Cripto · ${red.nombre}` : "Cripto";
 }

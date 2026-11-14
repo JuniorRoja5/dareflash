@@ -4,8 +4,6 @@
  * Las reglas de producto que aun no ha cerrado el propietario van aqui con un
  * comentario `// PENDIENTE`, nunca esparcidas por el codigo.
  */
-import { z } from "zod";
-
 import {
   formatearFecha,
   horaDelReinicioDiario,
@@ -92,8 +90,8 @@ export const DEFAULT_CURRENCY = "USD";
 export const RETIRADA_MINIMA_CENTS = 5000;
 
 /** Como quiere cobrar. Union CERRADA: cada valor tiene su formulario y su validacion. */
-export const MetodoRetiradaSchema = z.enum(["BANK", "CRYPTO"]);
-export type MetodoRetirada = z.infer<typeof MetodoRetiradaSchema>;
+export const VALORES_METODO_RETIRADA = ["BANK", "CRYPTO"] as const;
+export type MetodoRetirada = (typeof VALORES_METODO_RETIRADA)[number];
 
 /**
  * LAS REDES QUE DAREFLASH ENVIA, y solo esas. No es una preferencia: un envio de cripto es
@@ -101,8 +99,8 @@ export type MetodoRetirada = z.infer<typeof MetodoRetiradaSchema>;
  * eso la persona se adapta a esta lista y no al reves, y por eso la lista es cerrada aqui y no un
  * texto libre en un formulario.
  */
-export const RedCriptoSchema = z.enum(["TRC20", "ERC20"]);
-export type RedCripto = z.infer<typeof RedCriptoSchema>;
+export const VALORES_RED_CRIPTO = ["TRC20", "ERC20"] as const;
+export type RedCripto = (typeof VALORES_RED_CRIPTO)[number];
 
 /** El catalogo que pinta el desplegable: la red, su nombre humano y las monedas que van por ella. */
 export const REDES_CRIPTO = [
@@ -172,14 +170,14 @@ export const CONCEPTO_MOVIMIENTO_OTRO = "Movimiento";
  * esta: un prefijo es una convencion que el dia que alguien no respete deja un garabato de clave
  * como mensaje.
  */
-export const MotivoRechazoSchema = z.enum([
+export const VALORES_MOTIVO_RECHAZO = [
   "RED_INCORRECTA",
   "DATOS_BANCARIOS",
   "CUENTA_NO_VERIFICADA",
   "SOSPECHA_FRAUDE",
   "OTRO",
-]);
-export type MotivoRechazo = z.infer<typeof MotivoRechazoSchema>;
+] as const;
+export type MotivoRechazo = (typeof VALORES_MOTIVO_RECHAZO)[number];
 
 /** La clave que exige, ademas, un texto escrito a mano. La unica. */
 export const MOTIVO_RECHAZO_LIBRE: MotivoRechazo = "OTRO";
@@ -349,10 +347,11 @@ export const PAQUETES_BOOST = {
 } as const satisfies Record<string, { precioCents: number; boosts: number }>;
 
 /** Las claves validas, como union. Un `packageId` que no este aqui no llega a Stripe. */
-export const PaqueteBoostSchema = z.enum(
-  Object.keys(PAQUETES_BOOST) as [keyof typeof PAQUETES_BOOST, ...(keyof typeof PAQUETES_BOOST)[]],
-);
-export type PaqueteBoost = z.infer<typeof PaqueteBoostSchema>;
+export const VALORES_PAQUETE_BOOST = Object.keys(PAQUETES_BOOST) as [
+  keyof typeof PAQUETES_BOOST,
+  ...(keyof typeof PAQUETES_BOOST)[],
+];
+export type PaqueteBoost = (typeof VALORES_PAQUETE_BOOST)[number];
 
 /** Razon del movimiento de creditos al COMPRAR. Coincide con `BoostReasonSchema`. */
 export const RAZON_BOOST_COMPRA = "PURCHASE";
@@ -375,8 +374,8 @@ export const RAZON_BOOST_AJUSTE_ADMIN = "ADMIN_ADJUST";
 // ============================================================================
 
 /** La clave del plan. Union de uno: el dia que haya otro, entra aqui y nada mas. */
-export const PlanVipSchema = z.enum(["VIP_MYTHIC"]);
-export type PlanVip = z.infer<typeof PlanVipSchema>;
+export const VALORES_PLAN_VIP = ["VIP_MYTHIC"] as const;
+export type PlanVip = (typeof VALORES_PLAN_VIP)[number];
 export const PLAN_VIP = "VIP_MYTHIC";
 
 /** 10 $/mes, en centimos enteros como todo el dinero del producto (documento maestro, §5). */
@@ -394,8 +393,8 @@ export const VIP_PRECIO_CENTS = 1000;
  * El acceso NO se lee de aqui: se CALCULA (ver `lib/vip`). Este campo dice que va a pasar al
  * terminar el periodo, no si hoy eres VIP.
  */
-export const EstadoSuscripcionSchema = z.enum(["ACTIVA", "CANCELADA", "CORTADA"]);
-export type EstadoSuscripcion = z.infer<typeof EstadoSuscripcionSchema>;
+export const VALORES_ESTADO_SUSCRIPCION = ["ACTIVA", "CANCELADA", "CORTADA"] as const;
+export type EstadoSuscripcion = (typeof VALORES_ESTADO_SUSCRIPCION)[number];
 
 /**
  * El UNICO estado que QUITA el acceso por si mismo. Se declara en positivo y en un solo sitio para
@@ -448,13 +447,11 @@ export const COLORES_NOMBRE_VIP = {
   fuego: "--vip-nombre-fuego",
 } as const satisfies Record<string, string>;
 
-export const ColorNombreSchema = z.enum(
-  Object.keys(COLORES_NOMBRE_VIP) as [
-    keyof typeof COLORES_NOMBRE_VIP,
-    ...(keyof typeof COLORES_NOMBRE_VIP)[],
-  ],
-);
-export type ColorNombre = z.infer<typeof ColorNombreSchema>;
+export const VALORES_COLOR_NOMBRE = Object.keys(COLORES_NOMBRE_VIP) as [
+  keyof typeof COLORES_NOMBRE_VIP,
+  ...(keyof typeof COLORES_NOMBRE_VIP)[],
+];
+export type ColorNombre = (typeof VALORES_COLOR_NOMBRE)[number];
 
 /**
  * UN NOMBRE DE TOKEN CSS, Y NADA MAS QUE ESO. `--` seguido de minusculas, digitos o guiones, de
@@ -774,13 +771,13 @@ export function esHandleReservado(handle: string): boolean {
  * OBJETO_INEXISTENTE: estuvo PUBLISHED pero su objeto en Bunny desaparecio (404) -> lo degrada la
  * reconciliacion Parte C. Distinto de un fallo de proceso: SI llego a publicarse.
  */
-export const VideoFailureReasonSchema = z.enum([
+export const VALORES_VIDEO_FAILURE_REASON = [
   "TRANSCODE_ERROR",
   "TOO_LONG",
   "UPLOAD_INCOMPLETE",
   "OBJETO_INEXISTENTE",
-]);
-export type VideoFailureReason = z.infer<typeof VideoFailureReasonSchema>;
+] as const;
+export type VideoFailureReason = (typeof VALORES_VIDEO_FAILURE_REASON)[number];
 
 /** Idiomas de lanzamiento. Solo estos dos. */
 export const LAUNCH_LOCALES = ["en", "es"] as const;
@@ -1482,7 +1479,7 @@ export const RATE_LIMITS = {
 // ============================================================================
 
 /** Estado de los movimientos de monedero (dinero). */
-export const WalletStatusSchema = z.enum([
+export const VALORES_WALLET_STATUS = [
   "PENDING",
   "APPROVED",
   // Entre "aprobada" y "pagada": el admin ya ha lanzado la transferencia y esta en vuelo. Existe
@@ -1492,24 +1489,24 @@ export const WalletStatusSchema = z.enum([
   "PAID",
   "REJECTED",
   "COMPLETED",
-]);
-export type WalletStatus = z.infer<typeof WalletStatusSchema>;
+] as const;
+export type WalletStatus = (typeof VALORES_WALLET_STATUS)[number];
 
 /** Tipo de movimiento de monedero. */
-export const WalletEntryTypeSchema = z.enum(["CREDIT", "DEBIT"]);
-export type WalletEntryType = z.infer<typeof WalletEntryTypeSchema>;
+export const VALORES_WALLET_ENTRY_TYPE = ["CREDIT", "DEBIT"] as const;
+export type WalletEntryType = (typeof VALORES_WALLET_ENTRY_TYPE)[number];
 
 /** Ciclo de vida de un reto. */
-export const ChallengeStatusSchema = z.enum(["DRAFT", "PUBLISHED", "CLOSED"]);
-export type ChallengeStatus = z.infer<typeof ChallengeStatusSchema>;
+export const VALORES_CHALLENGE_STATUS = ["DRAFT", "PUBLISHED", "CLOSED"] as const;
+export type ChallengeStatus = (typeof VALORES_CHALLENGE_STATUS)[number];
 
 /**
  * POR QUE cerro un reto (columna `Challenge.motivoCierre`). Existe porque "cerro sin ganador" NO se
  * deduce de que no haya `ChallengeResult`: hay cuatro formas de acabar sin ganador y significan cosas
  * distintas. La semantica de cada valor vive junto a la decision, en `src/lib/cierre-reto.ts`.
  */
-export const MotivoCierreSchema = z.enum(["CON_GANADORES", "SIN_MINIMO", "EMPATE_PENDIENTE"]);
-export type MotivoCierre = z.infer<typeof MotivoCierreSchema>;
+export const VALORES_MOTIVO_CIERRE = ["CON_GANADORES", "SIN_MINIMO", "EMPATE_PENDIENTE"] as const;
+export type MotivoCierre = (typeof VALORES_MOTIVO_CIERRE)[number];
 
 /**
  * Tipos de NOTIFICACION (Fase 4 · Pieza 6). Unión CERRADA: cada tipo cuelga del sitio donde ocurre su
@@ -1517,7 +1514,7 @@ export type MotivoCierre = z.infer<typeof MotivoCierreSchema>;
  * cumple. COMENTARIO llegó con los comentarios (Fase 2): lo emite `publicarComentario`, en la misma
  * transacción que el comentario.
  */
-export const TipoNotificacionSchema = z.enum([
+export const VALORES_TIPO_NOTIFICACION = [
   "VIDEO_LISTO",
   "VIDEO_FALLIDO",
   "VOTO_RECIBIDO",
@@ -1536,11 +1533,11 @@ export const TipoNotificacionSchema = z.enum([
   // decida mandartelo, sin nada de por medio —ni un video, ni un voto, ni un reto—, y por eso su
   // clave lleva el DIA dentro: ver `avisoToque`.
   "TOQUE",
-]);
-export type TipoNotificacion = z.infer<typeof TipoNotificacionSchema>;
+] as const;
+export type TipoNotificacion = (typeof VALORES_TIPO_NOTIFICACION)[number];
 
 /** A qué apunta un aviso: la mitad de su clave de unicidad (userId, tipo, refType, refId). */
-export const RefNotificacionSchema = z.enum([
+export const VALORES_REF_NOTIFICACION = [
   "VIDEO",
   "VOTO",
   "CHALLENGE",
@@ -1549,8 +1546,8 @@ export const RefNotificacionSchema = z.enum([
   "COMMENT",
   // El toque no apunta a ningun objeto: apunta a QUIEN lo manda (mas el dia, ver `avisoToque`).
   "USER",
-]);
-export type RefNotificacion = z.infer<typeof RefNotificacionSchema>;
+] as const;
+export type RefNotificacion = (typeof VALORES_REF_NOTIFICACION)[number];
 
 /** Avisos que enseña el desplegable de la campana (decisión de producto). */
 export const NOTIF_DESPLEGABLE = 6;
@@ -1583,8 +1580,8 @@ export const PANEL_INTERACCION_TOPE = 8;
 export const ANUNCIO_TEXTO_MIN = 3;
 export const ANUNCIO_TEXTO_MAX = 500;
 /** A quién va un anuncio. Hoy solo TODOS (cuentas reales: ni borradas ni baneadas). Crece con la segmentación. */
-export const AudienciaAnuncioSchema = z.enum(["TODOS"]);
-export type AudienciaAnuncio = z.infer<typeof AudienciaAnuncioSchema>;
+export const VALORES_AUDIENCIA_ANUNCIO = ["TODOS"] as const;
+export type AudienciaAnuncio = (typeof VALORES_AUDIENCIA_ANUNCIO)[number];
 /**
  * REPARTO (job FANOUT_ANUNCIO): cuentas por lote (un SELECT por keyset + un INSERT IGNORE del lote) y
  * lotes por ejecución del job. 500 x 20 = 10.000 avisos por ejecución, muy por dentro del timeout de
@@ -1612,8 +1609,8 @@ export const COMENTARIO_TEXTO_MAX = 300;
 /** Comentarios por página en el panel (keyset). */
 export const COMENTARIOS_PAGINA = 20;
 /** Quién retiró un comentario. AUTOR hoy; MODERACION llega con la Fase 5 (el campo ya lo admite). */
-export const RetiradaComentarioSchema = z.enum(["AUTOR", "MODERACION"]);
-export type RetiradaComentario = z.infer<typeof RetiradaComentarioSchema>;
+export const VALORES_RETIRADA_COMENTARIO = ["AUTOR", "MODERACION"] as const;
+export type RetiradaComentario = (typeof VALORES_RETIRADA_COMENTARIO)[number];
 export const INSPECTOR_NOTIF_PAGINA = 25;
 
 /**
@@ -1625,29 +1622,29 @@ export const INSPECTOR_NOTIF_PAGINA = 25;
 export const RETO_CIERRE_CADENCIA_MS = 5 * 60_000;
 
 /** Razon de un movimiento de creditos de Boost. */
-export const BoostReasonSchema = z.enum([
+export const VALORES_BOOST_REASON = [
   "PURCHASE",
   "VIP_WEEKLY",
   "ACTIVATION",
   "REFUND",
   "ADMIN_ADJUST",
-]);
-export type BoostReason = z.infer<typeof BoostReasonSchema>;
+] as const;
+export type BoostReason = (typeof VALORES_BOOST_REASON)[number];
 
 /** Estado de una denuncia. */
-export const ReportStatusSchema = z.enum(["OPEN", "REVIEWING", "RESOLVED", "DISMISSED"]);
-export type ReportStatus = z.infer<typeof ReportStatusSchema>;
+export const VALORES_REPORT_STATUS = ["OPEN", "REVIEWING", "RESOLVED", "DISMISSED"] as const;
+export type ReportStatus = (typeof VALORES_REPORT_STATUS)[number];
 
 /** Tipo de entidad denunciada. COMMENT: los comentarios ya existen; su moderación es la Fase 5. */
-export const ReportTargetTypeSchema = z.enum([
+export const VALORES_REPORT_TARGET_TYPE = [
   "VIDEO",
   "SUBMISSION",
   "USER",
   "COMMENT",
   // Fase 9 · P8: una campaña de publicidad (la pieza que se sirve en el feed y la portada).
   "PUBLICIDAD",
-]);
-export type ReportTargetType = z.infer<typeof ReportTargetTypeSchema>;
+] as const;
+export type ReportTargetType = (typeof VALORES_REPORT_TARGET_TYPE)[number];
 
 /**
  * Lo que HOY se puede denunciar de verdad: un vídeo del feed y un comentario. El tipo de la fila
@@ -1655,8 +1652,8 @@ export type ReportTargetType = z.infer<typeof ReportTargetTypeSchema>;
  * tipo que el servidor no comprueba contra un objeto real sería abrir denuncias contra la nada.
  * Cuando se construya la denuncia de un perfil, entra aquí y trae su comprobación.
  */
-export const ReportTargetDenunciableSchema = z.enum(["VIDEO", "COMMENT", "PUBLICIDAD"]);
-export type ReportTargetDenunciable = z.infer<typeof ReportTargetDenunciableSchema>;
+export const VALORES_REPORT_TARGET_DENUNCIABLE = ["VIDEO", "COMMENT", "PUBLICIDAD"] as const;
+export type ReportTargetDenunciable = (typeof VALORES_REPORT_TARGET_DENUNCIABLE)[number];
 
 /**
  * LO QUE DECIDE LA COLA DE MODERACIÓN (`/panel/moderacion`, MODERATOR): vídeos y comentarios. La
@@ -1665,15 +1662,15 @@ export type ReportTargetDenunciable = z.infer<typeof ReportTargetDenunciableSche
  * comercial—. Las rutas de la cola validan contra ESTA unión, no contra la de denunciables: si no, un
  * moderador podría retirar una campaña por la puerta de los vídeos.
  */
-export const ReportTargetModerableSchema = z.enum(["VIDEO", "COMMENT"]);
-export type ReportTargetModerable = z.infer<typeof ReportTargetModerableSchema>;
+export const VALORES_REPORT_TARGET_MODERABLE = ["VIDEO", "COMMENT"] as const;
+export type ReportTargetModerable = (typeof VALORES_REPORT_TARGET_MODERABLE)[number];
 
 /**
  * POR QUÉ se denuncia. Tipado, nunca texto libre: el moderador filtra y agrupa por esto, y un campo
  * libre además invitaría a escribir datos personales en una tabla que leerá otra gente.
  * `OTRO` existe para no obligar a mentir cuando no encaja ninguno, y es el último a propósito.
  */
-export const ReportReasonSchema = z.enum([
+export const VALORES_REPORT_REASON = [
   "SPAM",
   "SEXUAL",
   "VIOLENCIA",
@@ -1681,8 +1678,8 @@ export const ReportReasonSchema = z.enum([
   "MENORES",
   "DERECHOS",
   "OTRO",
-]);
-export type ReportReason = z.infer<typeof ReportReasonSchema>;
+] as const;
+export type ReportReason = (typeof VALORES_REPORT_REASON)[number];
 
 /**
  * El COPY de cada motivo, aquí y no en el diálogo: es lo que lee quien denuncia y lo que verá el
@@ -1716,8 +1713,8 @@ export const MSG_DENUNCIA_SIN_VERIFICAR = "Verifica tu correo para poder denunci
  * porque el panel la va a leer y a traducir: una acción nueva sin su copy saldría como un código.
  * El `targetType` de esas filas es "USER" y el `actorId`, quien la ejecutó.
  */
-export const AuditAccionCuentaSchema = z.enum(["ROLE_CHANGE", "BAN", "UNBAN", "EMAIL_VIEW"]);
-export type AuditAccionCuenta = z.infer<typeof AuditAccionCuentaSchema>;
+export const VALORES_AUDIT_ACCION_CUENTA = ["ROLE_CHANGE", "BAN", "UNBAN", "EMAIL_VIEW"] as const;
+export type AuditAccionCuenta = (typeof VALORES_AUDIT_ACCION_CUENTA)[number];
 
 /**
  * LISTADO DE CUENTAS (/panel/usuarios). Tamaño de página del keyset: suficiente para hojear sin que
@@ -1790,11 +1787,11 @@ export const INMUNIDAD_TRAS_DESCARTE_DIAS = 30;
 export const INMUNIDAD_TRAS_DESCARTE_MS = INMUNIDAD_TRAS_DESCARTE_DIAS * 24 * 60 * 60 * 1000;
 
 /** Estado de un job de la cola. */
-export const JobStatusSchema = z.enum(["PENDING", "RUNNING", "DONE", "FAILED"]);
-export type JobStatus = z.infer<typeof JobStatusSchema>;
+export const VALORES_JOB_STATUS = ["PENDING", "RUNNING", "DONE", "FAILED"] as const;
+export type JobStatus = (typeof VALORES_JOB_STATUS)[number];
 
 /** Tipos de job previstos. */
-export const JobTypeSchema = z.enum([
+export const VALORES_JOB_TYPE = [
   "BOOST_EXPIRY",
   // Aqui habia un "CHALLENGE_CLOSE". Se retira por la MISMA razon que se retiro "RETENTION_PURGE":
   // no tiene handler ni llamante, y dejarlo sugiere un mecanismo que no existe. El cierre de retos NO
@@ -1826,8 +1823,8 @@ export const JobTypeSchema = z.enum([
   // que es lo que de verdad protege. Escribe en NUESTRA BD con INSERT IGNORE sobre la UNIQUE de
   // Notification -> idempotente de verdad -> REQUEUE.
   "AVISO_AUTO_OCULTO",
-]);
-export type JobType = z.infer<typeof JobTypeSchema>;
+] as const;
+export type JobType = (typeof VALORES_JOB_TYPE)[number];
 
 /**
  * Proposito de un VerificationToken. El token de verificacion de alta y el de desbloqueo de
@@ -1835,15 +1832,15 @@ export type JobType = z.infer<typeof JobTypeSchema>;
  * NO son intercambiables: el proposito se comprueba DENTRO del WHERE al consumir (ver
  * `src/server/auth/email-token.ts`), asi que un token de un proposito no vale para el otro.
  */
-export const VerificationPurposeSchema = z.enum([
+export const VALORES_VERIFICATION_PURPOSE = [
   "EMAIL_VERIFY",
   "LOGIN_UNLOCK",
   "PASSWORD_RESET",
   // Confirmar una direccion NUEVA antes de aplicarla. Proposito PROPIO: un token de verificacion de
   // alta no puede servir para cambiar el correo de una cuenta, ni al reves.
   "EMAIL_CHANGE",
-]);
-export type VerificationPurpose = z.infer<typeof VerificationPurposeSchema>;
+] as const;
+export type VerificationPurpose = (typeof VALORES_VERIFICATION_PURPOSE)[number];
 
 // ============================================================================
 // PORTAL DE EMPRESA (Fase 9 · P1)
@@ -1853,28 +1850,33 @@ export type VerificationPurpose = z.infer<typeof VerificationPurposeSchema>;
  * QUIEN FIRMA la cuenta. No cambia permisos —los permisos son del `User` que la posee—: cambia el
  * formulario y, el dia que exista la factura, a nombre de quien se emite.
  */
-export const TipoCuentaEmpresaSchema = z.enum(["EMPRESA", "MARCA_PERSONAL"]);
-export type TipoCuentaEmpresa = z.infer<typeof TipoCuentaEmpresaSchema>;
+export const VALORES_TIPO_CUENTA_EMPRESA = ["EMPRESA", "MARCA_PERSONAL"] as const;
+export type TipoCuentaEmpresa = (typeof VALORES_TIPO_CUENTA_EMPRESA)[number];
 
 /**
  * QUE CLASE DE NEGOCIO es, y con ello QUE PUEDE COMPRAR (ver `ALCANCES_POR_NEGOCIO` y
  * `lib/empresa`). Un negocio FISICO es el unico que compra el espacio LOCAL; una marca personal o un
  * producto digital no tienen "una ciudad", asi que solo pueden comprar Pais o Global.
  */
-export const TipoNegocioSchema = z.enum(["FISICO", "ONLINE", "MARCA_O_DIGITAL"]);
-export type TipoNegocio = z.infer<typeof TipoNegocioSchema>;
+export const VALORES_TIPO_NEGOCIO = ["FISICO", "ONLINE", "MARCA_O_DIGITAL"] as const;
+export type TipoNegocio = (typeof VALORES_TIPO_NEGOCIO)[number];
 
 /**
  * ESTADO de la cuenta de empresa. Aqui el estado SI manda (es la decision de una persona, no el
  * vencimiento de un reloj como en `Subscription`). SUSPENDIDA la escribira la moderacion posterior
  * (P8): esta en la union porque el catalogo de estados se decidio entero, no porque P1 la use.
  */
-export const EstadoEmpresaSchema = z.enum(["PENDIENTE", "VERIFICADA", "RECHAZADA", "SUSPENDIDA"]);
-export type EstadoEmpresa = z.infer<typeof EstadoEmpresaSchema>;
+export const VALORES_ESTADO_EMPRESA = [
+  "PENDIENTE",
+  "VERIFICADA",
+  "RECHAZADA",
+  "SUSPENDIDA",
+] as const;
+export type EstadoEmpresa = (typeof VALORES_ESTADO_EMPRESA)[number];
 
 /** Los cuatro alcances que se podran comprar (los consume P6; la REGLA de quien puede, ya en P1). */
-export const AlcancePublicidadSchema = z.enum(["CIUDAD", "ESTADO", "PAIS", "GLOBAL"]);
-export type AlcancePublicidad = z.infer<typeof AlcancePublicidadSchema>;
+export const VALORES_ALCANCE_PUBLICIDAD = ["CIUDAD", "ESTADO", "PAIS", "GLOBAL"] as const;
+export type AlcancePublicidad = (typeof VALORES_ALCANCE_PUBLICIDAD)[number];
 
 /**
  * LOS DOS ESPACIOS del feed, nombrados por lo que significan y no por su numero: "Espacio 2" en un
@@ -1882,8 +1884,8 @@ export type AlcancePublicidad = z.infer<typeof AlcancePublicidadSchema>;
  * inventario sea cual sea la demanda del otro — que es lo unico que hace que "dos espacios
  * separados" signifique algo.
  */
-export const EspacioPublicidadSchema = z.enum(["LOCAL", "GLOBAL"]);
-export type EspacioPublicidad = z.infer<typeof EspacioPublicidadSchema>;
+export const VALORES_ESPACIO_PUBLICIDAD = ["LOCAL", "GLOBAL"] as const;
+export type EspacioPublicidad = (typeof VALORES_ESPACIO_PUBLICIDAD)[number];
 
 /**
  * QUE ALCANCES PUEDE COMPRAR CADA TIPO DE NEGOCIO. Es un CATALOGO de producto (de ahi que viva
@@ -1904,14 +1906,14 @@ export const ALCANCES_POR_NEGOCIO: Record<TipoNegocio, readonly AlcancePublicida
  * rechazo sin motivo genera un correo de soporte por cada caso. Lo que no viaja nunca es la NOTA
  * interna (ver `Empresa.notaInterna`), que es para el equipo.
  */
-export const MotivoRechazoEmpresaSchema = z.enum([
+export const VALORES_MOTIVO_RECHAZO_EMPRESA = [
   "DATOS_INSUFICIENTES",
   "WEB_NO_VALIDA",
   "ACTIVIDAD_NO_PERMITIDA",
   "SOSPECHA_FRAUDE",
   "DUPLICADA",
-]);
-export type MotivoRechazoEmpresa = z.infer<typeof MotivoRechazoEmpresaSchema>;
+] as const;
+export type MotivoRechazoEmpresa = (typeof VALORES_MOTIVO_RECHAZO_EMPRESA)[number];
 
 /** El copy del motivo, en humano y en segunda persona: es lo que lee quien se ha registrado. */
 export const MSG_MOTIVO_RECHAZO_EMPRESA: Record<MotivoRechazoEmpresa, string> = {
@@ -1954,13 +1956,13 @@ export const ETIQUETA_ESTADO_EMPRESA: Record<EstadoEmpresa, string> = {
  * `EMPRESA_CREDITOS_AJUSTE` (Fase 9 · P4): el admin movió a mano los créditos de publicidad. El POR
  * QUÉ va en la fila del ledger (`CreditoLedger.nota`); aquí, quién, cuánto y qué movimiento fue.
  */
-export const AuditAccionEmpresaSchema = z.enum([
+export const VALORES_AUDIT_ACCION_EMPRESA = [
   "EMPRESA_VERIFY",
   "EMPRESA_REJECT",
   "EMPRESA_FISCAL_VIEW",
   "EMPRESA_CREDITOS_AJUSTE",
-]);
-export type AuditAccionEmpresa = z.infer<typeof AuditAccionEmpresaSchema>;
+] as const;
+export type AuditAccionEmpresa = (typeof VALORES_AUDIT_ACCION_EMPRESA)[number];
 
 /**
  * LOS PAISES, en ISO 3166-1 alpha-2. Solo los CODIGOS: el nombre lo pone `Intl.DisplayNames` en el
@@ -2365,22 +2367,27 @@ export function msgAvisoEmpresaNueva(datos: {
  * el barrido horario lo CONSOLIDA en la columna y avisa a la empresa. El estado visible no espera al
  * barrido: mismo principio que el resto del producto (se calcula, el job solo consolida).
  */
-export const EstadoRetoSolicitudSchema = z.enum(["PENDIENTE", "APROBADA", "RECHAZADA", "CADUCADA"]);
-export type EstadoRetoSolicitud = z.infer<typeof EstadoRetoSolicitudSchema>;
+export const VALORES_ESTADO_RETO_SOLICITUD = [
+  "PENDIENTE",
+  "APROBADA",
+  "RECHAZADA",
+  "CADUCADA",
+] as const;
+export type EstadoRetoSolicitud = (typeof VALORES_ESTADO_RETO_SOLICITUD)[number];
 
 /**
  * POR QUÉ se rechaza una propuesta. Lista CERRADA porque ESTE motivo SÍ se le enseña a la empresa,
  * como el de la verificación: un rechazo sin motivo es un correo de soporte por cada caso. La nota
  * interna del equipo no viaja nunca.
  */
-export const MotivoRechazoRetoSchema = z.enum([
+export const VALORES_MOTIVO_RECHAZO_RETO = [
   "FECHAS_NO_VIABLES",
   "PREMIO_NO_ADECUADO",
   "CONTENIDO_NO_PERMITIDO",
   "DATOS_INSUFICIENTES",
   "DUPLICADA",
-]);
-export type MotivoRechazoReto = z.infer<typeof MotivoRechazoRetoSchema>;
+] as const;
+export type MotivoRechazoReto = (typeof VALORES_MOTIVO_RECHAZO_RETO)[number];
 
 /** En humano y en segunda persona: lo lee la empresa, en su portal y en el correo. */
 export const MSG_MOTIVO_RECHAZO_RETO: Record<MotivoRechazoReto, string> = {
@@ -2419,12 +2426,12 @@ export const MSG_ESTADO_SOLICITUD: Record<EstadoVisibleSolicitud, string> = {
  * Lo que queda en `AuditLog` al decidir una propuesta (`targetType` "RETO_SOLICITUD") y al marcar
  * recibido el pago de un reto de empresa (`targetType` "CHALLENGE": es del reto, no de la propuesta).
  */
-export const AuditAccionRetoSolicitudSchema = z.enum([
+export const VALORES_AUDIT_ACCION_RETO_SOLICITUD = [
   "RETO_SOLICITUD_APROBAR",
   "RETO_SOLICITUD_RECHAZAR",
   "RETO_PAGO_RECIBIDO",
-]);
-export type AuditAccionRetoSolicitud = z.infer<typeof AuditAccionRetoSolicitudSchema>;
+] as const;
+export type AuditAccionRetoSolicitud = (typeof VALORES_AUDIT_ACCION_RETO_SOLICITUD)[number];
 
 /**
  * CUÁNTAS PROPUESTAS PUEDE TENER UNA EMPRESA ESPERANDO A LA VEZ. Es un freno de cola, no dinero:
@@ -2578,7 +2585,7 @@ function alcanceMasBarato(tipoNegocio: TipoNegocio): AlcancePublicidad {
  * en P11, el consumo diario en P9), como los tipos de notificación: un motivo que nadie emite sería
  * una promesa que el sistema no cumple.
  */
-export const RazonCreditoSchema = z.enum([
+export const VALORES_RAZON_CREDITO = [
   "SOCIO_FUNDADOR",
   "AJUSTE_ADMIN",
   // P9: el cobro de UN día de campaña, al empezar ese día; y su devolución si ese mismo día la pausa
@@ -2587,8 +2594,8 @@ export const RazonCreditoSchema = z.enum([
   "DEVOLUCION",
   // P11: la compra de un paquete de créditos con Stripe. Una por sesión de pago.
   "COMPRA",
-]);
-export type RazonCredito = z.infer<typeof RazonCreditoSchema>;
+] as const;
+export type RazonCredito = (typeof VALORES_RAZON_CREDITO)[number];
 
 /**
  * Cómo se lee cada movimiento en el PORTAL de la empresa. Por el MOTIVO y nunca por la nota del
@@ -2613,13 +2620,11 @@ export const PAQUETES_CREDITOS = {
   creditos_30: { creditos: 30, precioCents: 1200 },
   creditos_100: { creditos: 100, precioCents: 3000 },
 } as const;
-export const PaqueteCreditosSchema = z.enum(
-  Object.keys(PAQUETES_CREDITOS) as [
-    keyof typeof PAQUETES_CREDITOS,
-    ...(keyof typeof PAQUETES_CREDITOS)[],
-  ],
-);
-export type PaqueteCreditos = z.infer<typeof PaqueteCreditosSchema>;
+export const VALORES_PAQUETE_CREDITOS = Object.keys(PAQUETES_CREDITOS) as [
+  keyof typeof PAQUETES_CREDITOS,
+  ...(keyof typeof PAQUETES_CREDITOS)[],
+];
+export type PaqueteCreditos = (typeof VALORES_PAQUETE_CREDITOS)[number];
 /** El `refType` de una compra en el ledger: el `refId` es el id de la SESIÓN de Checkout. */
 export const REF_CREDITOS_STRIPE = "STRIPE_CHECKOUT";
 
@@ -2743,14 +2748,14 @@ export function claveRegaloSocioFundador(empresaId: string): string {
  * La pausa del UMBRAL de denuncias no es un estado propio: es PAUSADA con `ocultoAutoEn` (ver el
  * modelo), y se enseña como EN_REVISION.
  */
-export const EstadoPublicidadSchema = z.enum([
+export const VALORES_ESTADO_PUBLICIDAD = [
   "BORRADOR",
   "ACTIVA",
   "PAUSADA",
   "TERMINADA",
   "RETIRADA",
-]);
-export type EstadoPublicidad = z.infer<typeof EstadoPublicidadSchema>;
+] as const;
+export type EstadoPublicidad = (typeof VALORES_ESTADO_PUBLICIDAD)[number];
 
 /**
  * Lo que se le enseña a la empresa. PROGRAMADA, FINALIZADA y EN_REVISION no se guardan nunca: se
@@ -2782,14 +2787,14 @@ export const ETIQUETA_ESTADO_PUBLICIDAD: Record<EstadoVisiblePublicidad, string>
  * (en el portal y en el correo): una retirada sin motivo genera un correo de soporte por cada caso. Lo
  * que no viaja nunca es la NOTA interna ni quién firmó.
  */
-export const MotivoRetiradaPublicidadSchema = z.enum([
+export const VALORES_MOTIVO_RETIRADA_PUBLICIDAD = [
   "ENGANOSA",
   "CONTENIDO_NO_PERMITIDO",
   "DESTINO_PELIGROSO",
   "INCUMPLE_NORMAS",
   "OTRO",
-]);
-export type MotivoRetiradaPublicidad = z.infer<typeof MotivoRetiradaPublicidadSchema>;
+] as const;
+export type MotivoRetiradaPublicidad = (typeof VALORES_MOTIVO_RETIRADA_PUBLICIDAD)[number];
 
 /** El copy del motivo, en segunda persona: es lo que lee la empresa. */
 export const MSG_MOTIVO_RETIRADA_PUBLICIDAD: Record<MotivoRetiradaPublicidad, string> = {
@@ -3067,8 +3072,8 @@ export const GEOIP_MEMO_ANONIMO_S = 60 * 60;
 export const CIUDADES_AUTOCOMPLETAR = 10;
 
 /** Los niveles de zona, del más concreto al más amplio. `GLOBAL` tiene una sola zona: «*». */
-export const NivelAforoSchema = z.enum(["CIUDAD", "ESTADO", "PAIS", "GLOBAL"]);
-export type NivelAforo = z.infer<typeof NivelAforoSchema>;
+export const VALORES_NIVEL_AFORO = ["CIUDAD", "ESTADO", "PAIS", "GLOBAL"] as const;
+export type NivelAforo = (typeof VALORES_NIVEL_AFORO)[number];
 export const ZONA_GLOBAL = "*";
 
 /**

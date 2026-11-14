@@ -9,7 +9,7 @@ import { NombreUsuario } from "@/components/ui/identidad-usuario";
 import { COMENTARIO_TEXTO_MAX, MSG_EMPRESA_SOLO_MIRA } from "@/config/constants";
 import { delCsrf, getJson, mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { limpiarComentario } from "@/lib/comentarios";
-import { haceCuanto } from "@/lib/notificaciones";
+import { haceCuanto } from "@/lib/notificaciones-vista";
 import type { ComentarioVista } from "@/server/services/comentarios";
 import { useFormato } from "@/components/formato-provider";
 

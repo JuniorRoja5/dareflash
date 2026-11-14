@@ -4,10 +4,10 @@ import {
   MSG_BOOST_PAGO_NO_DISPONIBLE,
   MSG_BOOST_SIN_VERIFICAR,
   PAQUETES_BOOST,
-  PaqueteBoostSchema,
   DEFAULT_CURRENCY,
   RATE_LIMITS,
 } from "@/config/constants";
+import { PaqueteBoostSchema } from "@/config/esquemas";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 

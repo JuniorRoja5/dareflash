@@ -32,7 +32,8 @@ import {
   normalizarNombre,
   normalizarYoutube,
 } from "@/app/(app)/(shell)/perfil/perfil-logic";
-import { ColorNombreSchema, esHandleReservado, VideoFailureReasonSchema } from "@/config/constants";
+import { esHandleReservado } from "@/config/constants";
+import { ColorNombreSchema, VideoFailureReasonSchema } from "@/config/esquemas";
 import { type ModerationStatus, Prisma } from "@/generated/prisma/client";
 import {
   codificarCursorTiempo,

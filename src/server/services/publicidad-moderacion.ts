@@ -28,10 +28,10 @@ import {
   type EstadoVisiblePublicidad,
   MSG_MOTIVO_RETIRADA_PUBLICIDAD,
   type MotivoRetiradaPublicidad,
-  MotivoRetiradaPublicidadSchema,
   PUBLICIDAD_PANEL_PAGINA,
   type ReportReason,
 } from "@/config/constants";
+import { MotivoRetiradaPublicidadSchema } from "@/config/esquemas";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import {
   codificarCursorTiempo,

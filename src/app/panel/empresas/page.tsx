@@ -1,10 +1,7 @@
 import Link from "next/link";
 
-import {
-  ETIQUETA_ESTADO_EMPRESA,
-  EstadoEmpresaSchema,
-  type EstadoEmpresa,
-} from "@/config/constants";
+import { ETIQUETA_ESTADO_EMPRESA, type EstadoEmpresa } from "@/config/constants";
+import { EstadoEmpresaSchema } from "@/config/esquemas";
 import {
   anterior,
   escribirPila,

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { Boton } from "@/components/ui/boton";
 import { NOTIF_PAGINA } from "@/config/constants";
-import { haceCuanto } from "@/lib/notificaciones";
+import { haceCuanto } from "@/lib/notificaciones-vista";
 
 import { MarcarLeidasAlVer } from "./marcar-leidas";
 

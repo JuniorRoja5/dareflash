@@ -20,12 +20,8 @@
  */
 import "server-only";
 
-import {
-  DEFAULT_CURRENCY,
-  PAQUETES_CREDITOS,
-  PaqueteCreditosSchema,
-  REF_CREDITOS_STRIPE,
-} from "@/config/constants";
+import { DEFAULT_CURRENCY, PAQUETES_CREDITOS, REF_CREDITOS_STRIPE } from "@/config/constants";
+import { PaqueteCreditosSchema } from "@/config/esquemas";
 import type { PrismaClient } from "@/generated/prisma/client";
 import type { Db } from "@/server/db/types";
 import { sanearError } from "@/server/observability/sanitize-error";

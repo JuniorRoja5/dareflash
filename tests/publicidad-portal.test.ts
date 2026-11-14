@@ -177,7 +177,8 @@ describe("los avisos que caducan", () => {
     // y el portal tiene que decirlo; en cuanto exista, esa frase sería mentira y tiene que irse —y P9
     // no puede cobrar los días de este periodo, ni con efecto retroactivo (lo dice la propia frase).
     const c = constantes();
-    const razones = /RazonCreditoSchema = z\.enum\(\[([^\]]*)\]\)/.exec(c)?.[1] ?? "";
+    // La lista vive en constants sin zod (Fase 11 · P1b); `RazonCreditoSchema` se construye con ella.
+    const razones = /VALORES_RAZON_CREDITO = \[([^\]]*)\] as const/.exec(c)?.[1] ?? "";
     expect(razones, "no encuentro la unión de motivos de crédito").not.toBe("");
     const cobra = /"CONSUMO"/.test(razones);
     const avisoVivo = /export const MSG_PUBLICIDAD_PERIODO_GRATIS\b/.test(c);

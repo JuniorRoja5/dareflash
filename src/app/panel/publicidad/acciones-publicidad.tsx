@@ -7,7 +7,7 @@ import {
   ETIQUETA_MOTIVO_RETIRADA_PUBLICIDAD,
   MSG_MOTIVO_RETIRADA_PUBLICIDAD,
   type MotivoRetiradaPublicidad,
-  MotivoRetiradaPublicidadSchema,
+  VALORES_MOTIVO_RETIRADA_PUBLICIDAD,
 } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 
@@ -109,7 +109,7 @@ export function AccionesPublicidad({
               value={motivo}
               onChange={(e) => setMotivo(e.target.value as MotivoRetiradaPublicidad)}
             >
-              {MotivoRetiradaPublicidadSchema.options.map((m) => (
+              {VALORES_MOTIVO_RETIRADA_PUBLICIDAD.map((m) => (
                 <option key={m} value={m}>
                   {ETIQUETA_MOTIVO_RETIRADA_PUBLICIDAD[m]}
                 </option>

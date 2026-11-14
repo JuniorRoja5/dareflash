@@ -6,9 +6,10 @@ import { useState } from "react";
 import {
   EMPRESA_NOTA_MAX,
   MSG_MOTIVO_RECHAZO_RETO,
-  MotivoRechazoRetoSchema,
   type MotivoRechazoReto,
+  VALORES_MOTIVO_RECHAZO_RETO,
 } from "@/config/constants";
+import { unoDe } from "@/lib/valores";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 
 /** La MISMA clase que los botones de la ficha de una empresa (`empresas/acciones-empresa`), 44 px en móvil. */
@@ -66,9 +67,9 @@ export function AccionesPropuesta({ id, titulo }: { id: string; titulo: string }
             <select
               value={motivo}
               className={`mt-1 block w-full font-normal tracking-normal normal-case ${CONTROL}`}
-              onChange={(e) => setMotivo(MotivoRechazoRetoSchema.parse(e.target.value))}
+              onChange={(e) => setMotivo(unoDe(VALORES_MOTIVO_RECHAZO_RETO, e.target.value))}
             >
-              {MotivoRechazoRetoSchema.options.map((m) => (
+              {VALORES_MOTIVO_RECHAZO_RETO.map((m) => (
                 <option key={m} value={m}>
                   {MSG_MOTIVO_RECHAZO_RETO[m]}
                 </option>

@@ -17,7 +17,8 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { ESTADOS_SIN_ACCESO_VIP, EstadoSuscripcionSchema } from "@/config/constants";
+import { ESTADOS_SIN_ACCESO_VIP } from "@/config/constants";
+import { EstadoSuscripcionSchema } from "@/config/esquemas";
 import { esVipActivo, estadoDesdeStripe, finDePeriodo, resolverVip } from "../src/lib/vip";
 
 const AHORA = new Date("2026-10-15T12:00:00Z");

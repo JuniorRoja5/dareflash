@@ -1,4 +1,5 @@
-import { COLORES_NOMBRE_VIP, ColorNombreSchema, TOKEN_CSS } from "@/config/constants";
+import { COLORES_NOMBRE_VIP, TOKEN_CSS, VALORES_COLOR_NOMBRE } from "@/config/constants";
+import { esUnoDe } from "@/lib/valores";
 
 /**
  * EL COLOR DEL NOMBRE DE UN VIP — y la puerta que impide que un valor del usuario entre en el CSS.
@@ -35,9 +36,8 @@ import { COLORES_NOMBRE_VIP, ColorNombreSchema, TOKEN_CSS } from "@/config/const
  * las variables de CSS existen para evitar.
  */
 export function colorDeNombre(clave: string | null | undefined): string | null {
-  const c = ColorNombreSchema.safeParse(clave);
-  if (!c.success) return null;
-  const token = COLORES_NOMBRE_VIP[c.data];
+  if (!esUnoDe(VALORES_COLOR_NOMBRE, clave)) return null;
+  const token = COLORES_NOMBRE_VIP[clave];
   // CINTURÓN Y TIRANTES: el catálogo es nuestro y sus valores son nombres de token, pero esto es lo
   // que acaba en una declaración CSS. Si alguien mete mañana un hex o un `rgb(...)` en el catálogo
   // —que "funcionaría"—, aquí se para: de esta función sale un `var(--algo)` o sale `null`.
