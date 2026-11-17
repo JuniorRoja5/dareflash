@@ -10,7 +10,13 @@
  *
  * Sin copias: cada esquema se construye con la lista importada, nunca con los valores reescritos
  * (lo vigila `tests/zod-fuera-del-cliente.test.ts`, igual que que ningún cliente llegue hasta aquí).
+ *
+ * `server-only` es la SEGUNDA barrera, distinta del test: si un componente de cliente llega a este
+ * módulo por cualquier cadena, el build falla. El worker lo carga con `--conditions=react-server` y
+ * Vitest con el stub de `vitest.config.ts`; la semilla y los scripts de admin no llegan aquí.
  */
+import "server-only";
+
 import { z } from "zod";
 
 import {

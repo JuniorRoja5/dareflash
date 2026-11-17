@@ -84,12 +84,18 @@ describe("un catálogo se escribe UNA vez, en constants.ts", () => {
     expect(llamadas.length).toBe(41);
     const malos = llamadas.filter(([, , arg]) => !/^VALORES_[A-Z0-9_]+$/.test(arg!.trim()));
     expect(malos.map(([l]) => l)).toEqual([]);
-    // Ni una cadena en todo el módulo, salvo la de "zod" y la de "./constants": un valor escrito
-    // aquí es una copia que se desincroniza en silencio el día que el catálogo cambie.
+    // Ni una cadena en todo el módulo, salvo los tres imports: un valor escrito aquí es una copia
+    // que se desincroniza en silencio el día que el catálogo cambie.
     const cadenas = [...fuente.matchAll(/["'`]([^"'`\n]*)["'`]/g)].map((m) => m[1]);
-    expect(cadenas.sort()).toEqual(["./constants", "zod"]);
+    expect(cadenas.sort()).toEqual(["./constants", "server-only", "zod"]);
     // Todas las demás exportaciones son z.enum de una lista: no hay otro tipo de esquema escondido.
     expect([...fuente.matchAll(/export const/g)].length).toBe(llamadas.length);
+  });
+
+  it("esquemas.ts es server-only: la segunda barrera (el build falla si un cliente llega aquí)", () => {
+    // Distinta de la de arriba: el test mira el grafo; esta la aplica Next al empaquetar. Sin el
+    // import, una cadena que el recorrido no viera (un alias nuevo, un import raro) pasaría.
+    expect(fuente).toMatch(/^import "server-only";$/m);
   });
 
   it("cada esquema acepta EXACTAMENTE su lista (mismo nombre, mismos valores, mismo orden)", () => {
