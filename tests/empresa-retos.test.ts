@@ -39,6 +39,7 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
+import { congelarReloj, soltarReloj } from "./helpers/reloj";
 
 const SECRET = falso("empresa-retos-secret-suficientemente-largo");
 const APP_URL = "http://test.local";
@@ -481,7 +482,10 @@ describe("cada empresa ve lo suyo", () => {
   it("el estado que ve: en revisión, aprobada (borrador) y publicada con su enlace", async () => {
     const { empresaId } = await unaEmpresa("Panadería La Espiga");
     const id = await proponer(empresaId);
-    const ver = async () => (await svc.misSolicitudesReto(prisma, empresaId)).items[0]!;
+    // Con `ahora: AHORA`: sin él, el estado se calcula con el reloj REAL y la propuesta (cierre a
+    // AHORA + 10 días) salía CADUCADA en cuanto el calendario pasó del 15/11/2026.
+    const ver = async () =>
+      (await svc.misSolicitudesReto(prisma, empresaId, { ahora: AHORA })).items[0]!;
     expect((await ver()).estado).toBe("EN_REVISION");
     const r = await aprobar(id);
     expect(await ver()).toMatchObject({ estado: "APROBADA", reto: null });
@@ -690,15 +694,23 @@ describe("la cifra de propuestas pendientes", () => {
       };
     };
 
-    expect(await cifras()).toEqual({ insignia: 0, cabecera: 0, resumen: 0 });
-    const id = await proponer(empresaId);
-    expect(await cifras()).toEqual({ insignia: 1, cabecera: 1, resumen: 1 });
-    expect(await cifras("MODERATOR")).toEqual({ insignia: 0, cabecera: 0, resumen: 0 });
-    // Y cuadra con las filas de la cola filtrada.
-    const cola = await svc.listarSolicitudesReto(prisma, { estado: "PENDIENTE" });
-    expect(cola.items).toHaveLength(1);
-    await aprobar(id);
-    expect(await cifras()).toEqual({ insignia: 0, cabecera: 0, resumen: 0 });
+    // `pendientesPanel` lee el reloj por dentro: se congela en AHORA, el instante del que cuelgan
+    // las fechas de la propuesta. Con el reloj real, desde el 15/11/2026 la propuesta ya había
+    // vencido y no contaba como pendiente.
+    congelarReloj(AHORA);
+    try {
+      expect(await cifras()).toEqual({ insignia: 0, cabecera: 0, resumen: 0 });
+      const id = await proponer(empresaId);
+      expect(await cifras()).toEqual({ insignia: 1, cabecera: 1, resumen: 1 });
+      expect(await cifras("MODERATOR")).toEqual({ insignia: 0, cabecera: 0, resumen: 0 });
+      // Y cuadra con las filas de la cola filtrada.
+      const cola = await svc.listarSolicitudesReto(prisma, { estado: "PENDIENTE", ahora: AHORA });
+      expect(cola.items).toHaveLength(1);
+      await aprobar(id);
+      expect(await cifras()).toEqual({ insignia: 0, cabecera: 0, resumen: 0 });
+    } finally {
+      soltarReloj();
+    }
   });
 
   it("la tarjeta del portal cuenta SOLO las suyas en revisión, con la misma regla que la cola", async () => {
