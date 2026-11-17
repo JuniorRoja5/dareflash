@@ -47,11 +47,16 @@ export const esCliente = (texto: string): boolean => /^\s*["']use client["']/.te
 const RE_IMPORT =
   /(?:^|\n)\s*(?:import|export)\s+(type\s+)?(?:[^;'"]*?\s+from\s+)?["']([^"']+)["']|import\(\s*["']([^"']+)["']\s*\)/g;
 
-/** Los especificadores que un fichero importa por VALOR (estáticos, re-exports, efectos y dinámicos). */
-export function especificadores(texto: string): string[] {
+/**
+ * Los especificadores que un fichero importa por VALOR (estáticos, re-exports, efectos y dinámicos).
+ * `dinamicos: false` deja fuera los `import()`: lo que va en el JS de la página ANTES de pedirlo, la
+ * pregunta de la P1c (`hls.js` solo puede llegar por un `import()` bajo demanda).
+ */
+export function especificadores(texto: string, { dinamicos = true } = {}): string[] {
   const out: string[] = [];
   for (const m of sinComentarios(texto).matchAll(RE_IMPORT)) {
     if (m[1]) continue; // import type / export type
+    if (m[3] !== undefined && !dinamicos) continue;
     out.push((m[2] ?? m[3])!);
   }
   return out;
@@ -83,13 +88,14 @@ export function cadenaHasta(
   origen: string,
   esPaquete: (espec: string) => boolean,
   leer: (f: string) => string = (f) => readFileSync(f, "utf8"),
+  { dinamicos = true } = {},
 ): string[] | null {
   const visto = new Set([origen]);
   const cola: string[][] = [[origen]];
   while (cola.length > 0) {
     const cadena = cola.shift()!;
     const f = cadena.at(-1)!;
-    for (const espec of especificadores(leer(f))) {
+    for (const espec of especificadores(leer(f), { dinamicos })) {
       if (esPaquete(espec)) return [...cadena.map(rel), espec];
       const r = resolver(f, espec);
       if (r && !visto.has(r)) {

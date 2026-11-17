@@ -11,6 +11,9 @@
     // Sin buildinfo propio: evita que su `.tsbuildinfo` choque con el del type-check del raíz.
     "incremental": false
   },
-  "include": ["vitest.config.ts", "tests/**/*.ts"],
+  // `src/types/*.d.ts`: las declaraciones ambientales (p. ej. `hls.js/light`) no llegan arrastradas por
+  // un import como el resto de `src`; sin ellas, un fichero de `src` que este proyecto alcanza se
+  // chequearía con el módulo como `any` (TS7016) aunque el raíz lo dé por bueno.
+  "include": ["vitest.config.ts", "tests/**/*.ts", "src/types/**/*.d.ts"],
   "exclude": ["node_modules"]
 }

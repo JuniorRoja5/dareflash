@@ -282,6 +282,10 @@ borran para "limpiar"**:
   [src/config/esquemas.ts](src/config/esquemas.ts), solo para el servidor, construido con esa lista; el
   cliente pregunta con `esUnoDe` ([src/lib/valores.ts](src/lib/valores.ts)). Un esquema en
   `constants.ts` devolvía ~64 KB gzip a TODAS las páginas.
+- `hls-light` — el reproductor pide `hls.js/light` (no el completo: ~62 KB gzip más en `/feed`) y solo
+  por `import()` bajo demanda; ningún cliente lo arrastra por un import estático; y el orden sigue
+  siendo hls.js PRIMERO y el HLS nativo como último recurso: el token de Bunny va en la query y el
+  nativo no lo propaga a los segmentos (rutas relativas) → 403 en Safari/iOS si se invierte.
 - `reloj-adelantado` (+ el job de CI `tests-reloj-adelantado`) — la suite entera corre OTRA vez con
   el reloj de Node adelantado 400 días ([scripts/ci-tests-reloj-adelantado.sh](scripts/ci-tests-reloj-adelantado.sh),
   libfaketime) y las imágenes dependen de ese job. Un test con fechas fijas que llama a un servicio

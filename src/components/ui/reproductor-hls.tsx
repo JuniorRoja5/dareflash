@@ -13,9 +13,20 @@ import { CajaVideo } from "./caja-video";
  * Bunny queda descartado). NO se acopla a Bunny: la URL llega por `src` (la firma la da el backend en
  * su pieza); aquí NO se construye ninguna URL ni clave.
  *
- * Reproducción: HLS NATIVO donde el navegador lo soporta (Safari/iOS -> `canPlayType`), y `hls.js`
- * (import DINÁMICO, fuera del bundle inicial) en el resto. Rendimiento: carga/reproduce SOLO cuando
- * está en pantalla (IntersectionObserver) y suelta el buffer al salir de vista.
+ * Reproducción: `hls.js` PRIMERO en todo navegador donde corre (MSE, y Managed Media Source en iOS
+ * 17.1+, o sea también Safari), y el HLS NATIVO (`canPlayType`) SOLO como último recurso donde hls.js
+ * no corre. El orden NO es por gusto: la URL firmada lleva el token de Bunny en la QUERY
+ * (`playlist.m3u8?token=…&expires=…`) y la playlist apunta a sus sublistas y segmentos con rutas
+ * RELATIVAS. El reproductor nativo las resuelve SIN la query, así que esas peticiones salen sin token
+ * y, con la autenticación por token activa (lo está en producción), dan 403: el vídeo se queda en el
+ * póster. hls.js lleva un LOADER propio que añade el token a cada petición. Mandar Safari al nativo
+ * exigiría el token EN LA RUTA (firma de `bunny.ts`): deuda aparcada, no un cambio de este fichero.
+ *
+ * Se carga `hls.js/light` (Fase 11 · P1c), por import DINÁMICO, fuera del bundle inicial: ~69 KB gzip
+ * menos que el build completo en todos los navegadores. Le faltan subtítulos, audio alternativo, DRM
+ * (EME), CMCD e intersticiales, y aquí no se usa nada de eso. Volver al completo lo pone rojo
+ * `tests/hls-light.test.ts`. Rendimiento: carga/reproduce SOLO cuando está en pantalla
+ * (IntersectionObserver) y suelta el buffer al salir de vista.
  *
  * Encuadre (reglas cerradas): `feed` = 9:16 inmersivo (el vídeo llena el alto; lo que no sea 9:16 se
  * rellena con fondo DIFUMINADO, nunca barras ni recorte). `detalle` = 16:9 escritorio / 9:16 móvil.
@@ -121,7 +132,7 @@ export function ReproductorHls({
       // no corre.
       let usaHlsJs = false;
       try {
-        const { default: Hls } = await import("hls.js");
+        const { default: Hls } = await import("hls.js/light");
         if (cancelado) return;
         if (Hls.isSupported()) {
           usaHlsJs = true;
