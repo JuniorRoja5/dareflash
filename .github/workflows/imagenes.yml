@@ -76,11 +76,44 @@ jobs:
       - run: npm run lint
       - run: npx vitest run
 
+  # LA MISMA SUITE CON EL RELOJ ADELANTADO 400 DÍAS (Fase 11 · PT). Un test que depende del día real en
+  # que corre (fechas fijas + un servicio que lee el reloj de verdad) es verde hasta que el calendario
+  # pasa sus fechas, y entonces cae en TODAS las ramas a la vez: le pasó a `empresa-retos` el
+  # 2026-11-15. Aquí cae hoy, en la rama que lo mete. NO es opcional: las imágenes dependen de él.
+  # En paralelo con `tests` (no alarga la espera; sí dobla los minutos de runner de los tests).
+  tests-reloj-adelantado:
+    name: Tests con el reloj adelantado 400 días (ninguno depende del día real)
+    needs: secretos
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mariadb:
+        image: mariadb:11.8
+        env:
+          # Sin contraseña, por lo mismo que en `tests`.
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "1"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    env:
+      TEST_DATABASE_URL: mysql://root@127.0.0.1:3306/dareflash_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends faketime
+      - run: bash scripts/ci-tests-reloj-adelantado.sh 400
+
   imagenes:
     name: Imágenes (construir, revisar y, en main, publicar)
-    # SIN TESTS VERDES NO HAY IMAGEN: si `tests` falla, este job ni empieza, y en el registro no aparece
-    # la etiqueta de ese SHA. deploy.sh lo detecta y no despliega.
-    needs: tests
+    # SIN TESTS VERDES NO HAY IMAGEN: si `tests` (o el mismo con el reloj adelantado) falla, este job ni
+    # empieza, y en el registro no aparece la etiqueta de ese SHA. deploy.sh lo detecta y no despliega.
+    needs: [tests, tests-reloj-adelantado]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:

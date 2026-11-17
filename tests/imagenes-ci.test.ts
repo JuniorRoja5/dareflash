@@ -15,7 +15,11 @@
  *  - La etiqueta es el SHA COMPLETO (`github.sha`): es lo que pide deploy.sh y lo que responde el health.
  *  - El compose de producción no construye nada.
  *
- * Para romperlo a propósito: quitar `needs: tests` (rojo); quitar el `if:` de main al paso de publicar
+ *  - Los tests corren DOS veces: normal y con el reloj adelantado 400 días (Fase 11 · PT), y las
+ *    imágenes dependen de las dos.
+ *
+ * Para romperlo a propósito: quitar `needs: tests` (rojo); quitar `tests-reloj-adelantado` del `needs`
+ * de las imágenes (rojo); quitar el `if:` de main al paso de publicar
  * (rojo); subir el paso de publicar por encima de la revisión (rojo); cambiar el `target` de web a
  * `worker` en CI o en el compose de emergencia (rojo); volver a poner `build:` en el de producción (rojo).
  */
@@ -102,8 +106,34 @@ describe("ningún secreto en el repositorio (escáner antes que nada)", () => {
 });
 
 describe("sin tests verdes no hay imagen", () => {
-  it("el job de las imágenes depende de los tests", () => {
-    expect(job("imagenes")).toMatch(/^ {4}needs: tests\s*$/m);
+  it("el job de las imágenes depende de los tests, y de los mismos con el reloj adelantado", () => {
+    expect(job("imagenes")).toMatch(/^ {4}needs: \[tests, tests-reloj-adelantado\]\s*$/m);
+  });
+
+  it("el reloj adelantado (PT) corre la suite ENTERA, más de un año por delante, contra MariaDB", () => {
+    // Si este job se quedara en «opcional» (o adelantara poco, o filtrara tests), una prueba con
+    // fechas fijas volvería a ser verde hasta el día que el calendario la alcanza.
+    const t = job("tests-reloj-adelantado");
+    expect(t).toMatch(/^ {4}needs: secretos\s*$/m);
+    expect(t).toMatch(/image: mariadb:11\.8/);
+    expect(t).toMatch(/MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: "1"/);
+    expect(t).toMatch(/TEST_DATABASE_URL: mysql:\/\/root@/);
+    expect(t).toMatch(/install -y --no-install-recommends faketime/);
+    const dias = /run: bash scripts\/ci-tests-reloj-adelantado\.sh (\d+)\s*$/m.exec(t)?.[1];
+    expect(dias, "el job no llama al script con sus días").toBeDefined();
+    expect(Number(dias)).toBeGreaterThanOrEqual(366);
+
+    const script = leer("scripts", "ci-tests-reloj-adelantado.sh");
+    expect(script).toMatch(/^set -euo pipefail$/m);
+    expect(script).toMatch(/^export LD_PRELOAD="\$LIB"$/m);
+    expect(script).toMatch(/^export FAKETIME="\+\$\{DIAS\}d"$/m);
+    // El monótono a velocidad real: si no, los temporizadores de vitest y del driver se descolocan.
+    expect(script).toMatch(/^export FAKETIME_DONT_FAKE_MONOTONIC=1$/m);
+    // Comprueba que el adelanto se aplica antes de fiarse de un verde, y lo pasa a los workers.
+    expect(script).toMatch(/el reloj de Node no se ha adelantado/);
+    expect(script).toMatch(/^export TEST_RELOJ_ADELANTADO_DIAS="\$DIAS"$/m);
+    // La suite entera, sin filtros, y lo último del script (su código de salida es el del job).
+    expect(script.trimEnd().split("\n").at(-1)).toBe("npx vitest run");
   });
 
   it("los tests son de verdad: typecheck, lint y vitest contra un MariaDB 11.8", () => {

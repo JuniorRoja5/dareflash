@@ -50,11 +50,19 @@ interface FilaPlan {
 }
 
 let prisma: PrismaClient;
+/** El instante con el que se siembran las filas, y el que se pregunta. */
+let ahora: number;
 
-/** El plan del filtro que hacen las DOS consultas de Boosts vigentes. */
+/**
+ * El plan del filtro que hacen las DOS consultas de Boosts vigentes. Con el MISMO `ahora` que la
+ * siembra, como un parámetro: así lo pregunta el servicio (`expiresAt: { gt: ahora }`). Con `NOW()`
+ * mezclaba dos relojes —el de Node para las filas, el de MariaDB para la pregunta— y con el reloj
+ * de Node adelantado (job `tests-reloj-adelantado`) todas las filas parecían vigentes.
+ */
 async function planDelFiltro(): Promise<FilaPlan> {
   const filas = await prisma.$queryRawUnsafe<FilaPlan[]>(
-    "EXPLAIN SELECT id FROM BoostActivation WHERE expiresAt > NOW()",
+    "EXPLAIN SELECT id FROM BoostActivation WHERE expiresAt > ?",
+    new Date(ahora),
   );
   return filas[0]!;
 }
@@ -70,7 +78,7 @@ beforeAll(async () => {
 
   const dueno = await crearUsuario(prisma, { username: "la_del_boost" });
   const filas: Array<{ id: string; userId: string; startsAt: Date; expiresAt: Date }> = [];
-  const ahora = Date.now();
+  ahora = Date.now();
   const HORA = 3_600_000;
   for (let i = 0; i < CADUCADAS; i += 1) {
     filas.push({

@@ -282,6 +282,12 @@ borran para "limpiar"**:
   [src/config/esquemas.ts](src/config/esquemas.ts), solo para el servidor, construido con esa lista; el
   cliente pregunta con `esUnoDe` ([src/lib/valores.ts](src/lib/valores.ts)). Un esquema en
   `constants.ts` devolvía ~64 KB gzip a TODAS las páginas.
+- `reloj-adelantado` (+ el job de CI `tests-reloj-adelantado`) — la suite entera corre OTRA vez con
+  el reloj de Node adelantado 400 días ([scripts/ci-tests-reloj-adelantado.sh](scripts/ci-tests-reloj-adelantado.sh),
+  libfaketime) y las imágenes dependen de ese job. Un test con fechas fijas que llama a un servicio
+  sin `ahora` cae HOY, no el día que el calendario lo alcanza (así cayó `empresa-retos` el
+  2026-11-15, en todas las ramas). Arreglo: pasar `ahora`, o `congelarReloj(AHORA)`. MariaDB no se
+  adelanta: sembrar con la hora de Node y preguntar con `NOW()` también cae.
 - `reloj-rate-limit` — todo test que lleva una ruta real hasta el 429 congela el reloj
   (`congelarReloj()` de [tests/helpers/reloj.ts](tests/helpers/reloj.ts)). Ver la trampa de abajo.
 
@@ -292,7 +298,8 @@ una ventana vacía. Pasó en CI de main con el mismo SHA que había salido verde
 Ni el entorno ni el código eran distintos; solo el segundo. Por eso un verde local no lo descarta, y
 repetir la suite tampoco: se congela el reloj. CI corre exactamente `npm ci`, `npm run typecheck`,
 `npm run lint` y `npx vitest run` contra un MariaDB sin contraseña; reproducirlo en local es lanzar
-esos mismos cuatro.
+esos mismos cuatro. Y, en paralelo, `npx vitest run` otra vez con el reloj adelantado 400 días (solo
+Linux: en Windows, dentro de un contenedor `node` con el paquete `faketime`).
 
 Al tocar uno de estos, la comprobación no es que pase en verde: es **romper el invariante a
 propósito y confirmar que se pone rojo**.
