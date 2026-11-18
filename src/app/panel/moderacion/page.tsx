@@ -7,7 +7,7 @@ import { ColaModeracion } from "./cola";
 
 const S = seccionPorHref("/panel/moderacion")!;
 
-export const metadata = { title: "Moderación · Panel" };
+export const metadata = { title: "Moderación" };
 export const dynamic = "force-dynamic";
 
 /**

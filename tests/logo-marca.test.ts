@@ -31,8 +31,13 @@ const LOGO = leer("src/components/ui/logo.tsx");
 const ICONO = leer("src/app/icon.svg");
 const NAV = leer("src/components/ui/navegacion.tsx");
 
-/** La palabra de la marca, tal cual se pinta. */
-const PALABRA = "DAREFLASH";
+/**
+ * La palabra de la marca, tal cual se pinta: la marca de `config/marca` EN MAYÚSCULAS (Fase 11 ·
+ * PM1). Ya no es un literal: el literal «DAREFLASH» no puede volver a ningún sitio (lo vigila
+ * también `marca-un-sitio`), y la palabra se escribe con esta expresión, en estos ficheros y no más.
+ */
+const PALABRA = "MARCA.toUpperCase()";
+const LITERAL = "DAREFLASH";
 
 describe("la marca se escribe en UN sitio", () => {
   it("el logotipo lleva la palabra", () => {
@@ -43,6 +48,7 @@ describe("la marca se escribe en UN sitio", () => {
     // Sin comentarios: un comentario que mencione `Logo` no lo monta.
     const sinComentarios = NAV.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     expect(sinComentarios).not.toContain(PALABRA);
+    expect(sinComentarios).not.toContain(LITERAL);
     expect(sinComentarios).toMatch(/<Logo[\s/>]/);
     expect(sinComentarios).toMatch(/from "\.\/logo"/);
   });
@@ -66,7 +72,7 @@ describe("la marca se escribe en UN sitio", () => {
       const texto = leer(rel)
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .replace(/^\s*\/\/.*$/gm, "");
-      if (texto.includes(PALABRA)) conPalabra.push(rel);
+      if (texto.includes(PALABRA) || texto.includes(LITERAL)) conPalabra.push(rel);
     }
     const intrusos = conPalabra.filter((f) => !(f in PERMITIDOS)).sort();
     expect(intrusos, "usa <Logo />; la palabra se escribe en logo.tsx").toEqual([]);
@@ -75,6 +81,7 @@ describe("la marca se escribe en UN sitio", () => {
   it("y los permitidos siguen escribiéndola: no se aparcan permisos muertos", () => {
     for (const f of Object.keys(PERMITIDOS)) {
       expect(leer(f), `${f} ya no la escribe: quita su permiso`).toContain(PALABRA);
+      expect(leer(f), `${f} vuelve a escribir el literal: usa ${PALABRA}`).not.toContain(LITERAL);
     }
   });
 });
@@ -118,7 +125,8 @@ describe("el color del logotipo sale del token, no de un atributo", () => {
 describe("se anuncia una vez", () => {
   it("el contenedor es role=img con el nombre de la marca, y el svg va aria-hidden", () => {
     expect(LOGO).toContain('role="img"');
-    expect(LOGO).toContain('aria-label="DareFlash"');
+    // El nombre sale de `config/marca`, no de un literal (Fase 11 · PM1).
+    expect(LOGO).toContain("aria-label={MARCA}");
     expect(LOGO).toContain('aria-hidden="true"');
   });
 });

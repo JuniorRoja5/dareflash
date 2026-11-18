@@ -6,8 +6,9 @@ import { ICONO_SECCION } from "./panel-iconos";
 import { primeraSeccionPara, seccionesPara } from "./secciones";
 import { TarjetaDinero, TarjetaMetrica } from "./tarjetas";
 import { numeroPanel } from "@/app/panel/formato-panel";
+import { MARCA } from "@/config/marca";
 
-export const metadata = { title: "Panel · DareFlash" };
+export const metadata = { title: "Panel" };
 export const dynamic = "force-dynamic";
 
 /**
@@ -65,9 +66,7 @@ export default async function ResumenPage() {
         >
           Resumen
         </h1>
-        <p className="mt-2 text-sm text-text-dim">
-          Vista general de la administración de DareFlash.
-        </p>
+        <p className="mt-2 text-sm text-text-dim">Vista general de la administración de {MARCA}.</p>
       </div>
 
       {/* ┌─ LO QUE PIDE UNA DECISIÓN, ARRIBA ──────────────────────────────────────────────────────┐

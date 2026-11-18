@@ -11,7 +11,7 @@ import { ambitoDelPortal } from "../ambito-portal";
 import { AvisoVerificar } from "../aviso-verificar";
 import { formatearDiaClave, type Idioma } from "@/lib/formato";
 
-export const metadata = { title: "Publicidad · DareFlash" };
+export const metadata = { title: "Publicidad" };
 // Lee la sesión y las campañas de la empresa: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 

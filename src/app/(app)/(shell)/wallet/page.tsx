@@ -10,7 +10,7 @@ import { MetodosDeCobro } from "./metodos-de-cobro";
 import { MovimientosMonedero } from "./movimientos-monedero";
 import { PedirCobro } from "./pedir-cobro";
 
-export const metadata = { title: "Mi monedero · DareFlash" };
+export const metadata = { title: "Mi monedero" };
 // Depende del SALDO, que cambia con cada cierre de reto. Nunca cacheada.
 export const dynamic = "force-dynamic";
 

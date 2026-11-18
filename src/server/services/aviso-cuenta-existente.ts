@@ -34,6 +34,7 @@ import type { Db } from "@/server/db/types";
 import type { EmailMessage } from "@/server/email/adapter";
 import { renderCorreoHtml } from "@/server/email/plantilla";
 import { enqueueEmail } from "@/server/email/send";
+import { MARCA } from "@/config/marca";
 
 /** Desde qué alta llegó el intento: cambia la explicación y a dónde se le manda. */
 export type MotivoCuentaExistente = "REGISTRO" | "EMPRESA";
@@ -66,12 +67,12 @@ export function correoCuentaExistente(
     const entrar = new URL("/entrar", appUrl).toString();
     const lineas = [
       "Alguien ha intentado registrar una empresa con tu correo.",
-      "Este correo ya es de una cuenta de empresa en DareFlash: entra con ella para ver cómo va tu empresa.",
+      `Este correo ya es de una cuenta de empresa en ${MARCA}: entra con ella para ver cómo va tu empresa.`,
       "Si no has sido tú, puedes ignorar este mensaje.",
     ];
     return {
       to: email,
-      subject: "Ya tienes una cuenta de empresa en DareFlash",
+      subject: `Ya tienes una cuenta de empresa en ${MARCA}`,
       text: [...lineas, "", `Entrar: ${entrar}`].join("\n"),
       html: renderCorreoHtml({
         preheader: "Alguien ha intentado registrar una empresa con tu correo.",
@@ -87,12 +88,12 @@ export function correoCuentaExistente(
     const otra = new URL("/empezar/empresa", appUrl).toString();
     const lineas = [
       "Alguien ha intentado registrar una empresa con tu correo.",
-      "Ya tienes una cuenta en DareFlash. Para registrar una empresa, usa otro correo.",
+      `Ya tienes una cuenta en ${MARCA}. Para registrar una empresa, usa otro correo.`,
       "Si no has sido tú, puedes ignorar este mensaje.",
     ];
     return {
       to: email,
-      subject: "Ya tienes una cuenta en DareFlash",
+      subject: `Ya tienes una cuenta en ${MARCA}`,
       text: [...lineas, "", `Registrar una empresa con otro correo: ${otra}`].join("\n"),
       html: renderCorreoHtml({
         preheader: "Alguien ha intentado registrar una empresa con tu correo.",
@@ -106,13 +107,13 @@ export function correoCuentaExistente(
 
   const recuperar = new URL("/recuperar", appUrl).toString();
   const lineas = [
-    "Alguien ha intentado crear una cuenta en DareFlash con tu correo.",
+    `Alguien ha intentado crear una cuenta en ${MARCA} con tu correo.`,
     "Ya tienes una cuenta con esta dirección: entra con ella. Si no recuerdas la contraseña, puedes recuperarla.",
     "Si no has sido tú, puedes ignorar este mensaje.",
   ];
   return {
     to: email,
-    subject: "Ya tienes una cuenta en DareFlash",
+    subject: `Ya tienes una cuenta en ${MARCA}`,
     text: [...lineas, "", `Recuperar la contraseña: ${recuperar}`].join("\n"),
     html: renderCorreoHtml({
       preheader: "Alguien ha intentado crear una cuenta con tu correo.",

@@ -5,6 +5,7 @@ import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 // SOLO EL TIPO: se borra al compilar, asi que no arrastra el modulo server-only al ambito de modulo
 // (la regla del despliegue sigue intacta; los VALORES se siguen importando dentro del handler).
 import type { MotivoBloqueo } from "@/server/services/participacion";
+import { MARCA } from "@/config/marca";
 
 export const dynamic = "force-dynamic";
 
@@ -122,7 +123,7 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     const guid = await crearObjetoVideo(
       clienteBunnyReal,
       config,
-      tituloUsuario ?? "Video de DareFlash",
+      tituloUsuario ?? `Video de ${MARCA}`,
     );
 
     // 2. Fila Video en PENDING (status por defecto; NO se pone PUBLISHED aqui) + marca de wake del

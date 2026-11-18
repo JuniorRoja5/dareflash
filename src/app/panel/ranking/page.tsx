@@ -11,7 +11,7 @@ import { HistorialPuntos } from "./historial-puntos";
 import { RankingMesPanel } from "./ranking-mes-panel";
 import { numeroPanel } from "@/app/panel/formato-panel";
 
-export const metadata = { title: "DareUp y ranking · Panel" };
+export const metadata = { title: "DareUp y ranking" };
 export const dynamic = "force-dynamic";
 
 const ESTILO_TITULO = {

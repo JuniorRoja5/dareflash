@@ -11,7 +11,7 @@ import { AjustarCreditos } from "./ajustar-creditos";
 import { RetirarDestacado } from "./retirar-destacado";
 import { fechaPanel } from "@/app/panel/formato-panel";
 
-export const metadata = { title: "Boost · Panel" };
+export const metadata = { title: "Boost" };
 export const dynamic = "force-dynamic";
 
 const ESTILO_TITULO = {

@@ -15,6 +15,7 @@ import type { EmailMessage } from "@/server/email/adapter";
 import { renderCorreoHtml } from "@/server/email/plantilla";
 import { enqueueEmail } from "@/server/email/send";
 import { rateLimit } from "@/server/security/rate-limit";
+import { MARCA } from "@/config/marca";
 
 /*
  * LA VENTANA DE ~40 MIN, CERRADA (mantenimiento · Pieza C).
@@ -47,7 +48,7 @@ export function buildUnlockEmail(appUrl: string, email: string, rawToken: string
   const link = url.toString();
   return {
     to: email,
-    subject: "Tu cuenta de DareFlash se ha bloqueado temporalmente",
+    subject: `Tu cuenta de ${MARCA} se ha bloqueado temporalmente`,
     text: [
       "Ha habido demasiados intentos de inicio de sesion en tu cuenta, asi que la hemos frenado",
       "temporalmente por seguridad.",

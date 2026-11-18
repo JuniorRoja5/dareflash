@@ -8,7 +8,7 @@ import {
   msgSocioFundador,
 } from "@/config/constants";
 
-export const metadata = { title: "Empezar · DareFlash" };
+export const metadata = { title: "Empezar" };
 
 /**
  * /empezar — ¿CÓMO QUIERES USAR DAREFLASH?

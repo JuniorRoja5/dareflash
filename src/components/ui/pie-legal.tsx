@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ENLACE_PIE_EMPRESAS } from "@/config/constants";
+import { MARCA } from "@/config/marca";
 
 /**
  * EL PIE LEGAL — la única puerta a los documentos legales desde dentro del producto.
@@ -56,7 +57,7 @@ export function PieLegal({
             `new Date()` tampoco sirve: `/privacidad` se PRERENDERIZA, así que ahí el año se
             congelaría en el del build. Un año en el pie no dice nada que no diga mejor la "última
             actualización" del propio documento legal. */}
-        <span>© DareFlash</span>
+        <span>© {MARCA}</span>
         <Link
           href="/privacidad"
           className="rounded-xs underline underline-offset-2 hover:text-text focus-visible:text-text"

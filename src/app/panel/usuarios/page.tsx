@@ -34,7 +34,7 @@ import { numeroPanel, fechaPanel } from "@/app/panel/formato-panel";
 
 const S = seccionPorHref("/panel/usuarios")!;
 
-export const metadata = { title: "Usuarios · Panel" };
+export const metadata = { title: "Usuarios" };
 // Lee la sesión y consulta según los filtros: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 

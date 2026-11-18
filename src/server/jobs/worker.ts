@@ -50,6 +50,7 @@ import { cadenciaConfirmMs, type ResultadoConfirm } from "@/server/services/vide
 import type { ResultadoReconciliacion } from "@/server/services/video-reconciliacion";
 
 import type { Registro } from "./registry";
+import { MARCA } from "@/config/marca";
 
 /** Timeout de UN handler. INVARIANTE: debe ser < REAPER_UMBRAL_MS (ver validarInvarianteReaper). */
 export const JOB_TIMEOUT_MS = Number(process.env["JOB_TIMEOUT_MS"] ?? String(60 * 1000)); // 60 s
@@ -448,7 +449,7 @@ export async function avisarSiFallidos(
     superado: fallidos >= input.umbral,
     mensaje: () => ({
       to: "",
-      subject: `[DareFlash] ${fallidos} trabajos en FAILED (umbral ${input.umbral})`,
+      subject: `[${MARCA}] ${fallidos} trabajos en FAILED (umbral ${input.umbral})`,
       text: [
         `La cola tiene ${fallidos} trabajos en estado FAILED (umbral de aviso: ${input.umbral}).`,
         "",

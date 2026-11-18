@@ -11,6 +11,7 @@ import {
   ZONA_MADRID,
   type ZonaHoraria,
 } from "@/lib/formato";
+import { MARCA, MARCAS_VETADAS } from "./marca";
 
 /**
  * Limite POR DEFECTO de conexiones del pool contra MariaDB (se puede sobreescribir con la variable
@@ -728,7 +729,7 @@ export const MINIATURA_MAX_LADO = 1280; // px
  *  2. MARCA / impersonación: nadie debe poder hacerse pasar por la plataforma o su equipo.
  * Comparación en minúsculas (el username se almacena y valida en minúsculas).
  */
-export const HANDLES_RESERVADOS = [
+export const HANDLES_RESERVADOS: readonly string[] = [
   // rutas / segmentos
   "admin",
   "api",
@@ -751,16 +752,17 @@ export const HANDLES_RESERVADOS = [
   "boost",
   "u",
   "settings",
-  // marca / impersonación
-  "dareflash",
+  // marca / impersonación: la de AHORA y todas las de ANTES (ver `config/marca`), para que un
+  // renombrado no deje libre el @usuario del nombre viejo.
+  ...MARCAS_VETADAS,
   "support",
   "oficial",
   "staff",
-] as const;
+];
 
 /** ¿El handle (ya en minúsculas o no) choca con un reservado? */
 export function esHandleReservado(handle: string): boolean {
-  return (HANDLES_RESERVADOS as readonly string[]).includes(handle.trim().toLowerCase());
+  return HANDLES_RESERVADOS.includes(handle.trim().toLowerCase());
 }
 
 /**
@@ -2296,8 +2298,7 @@ export const MSG_EMPRESA_WEB_O_REDES =
  * tiene cuenta» convertiría el alta en un oráculo que confirma qué direcciones existen, que es
  * justo lo que el registro de participante evita costando lo mismo exista la cuenta o no.
  */
-export const MSG_EMPRESA_CORREO_NUEVO =
-  "Usa un correo que no tenga ya cuenta en DareFlash: una cuenta de empresa no participa, así que no se puede convertir una cuenta de participante en una.";
+export const MSG_EMPRESA_CORREO_NUEVO = `Usa un correo que no tenga ya cuenta en ${MARCA}: una cuenta de empresa no participa, así que no se puede convertir una cuenta de participante en una.`;
 export const MSG_EMPRESA_NO_ENCONTRADA = "Esa empresa no existe.";
 export const MSG_SIN_PERMISO_EMPRESAS = "No tienes permiso para gestionar empresas.";
 export const MSG_EMPRESA_MOTIVO_INVALIDO = "Elige un motivo de la lista para rechazar.";
@@ -2473,8 +2474,7 @@ export function msgAvisoRetoPropuesto(datos: {
  * Y PROMETE UNA REGLA QUE EL CÓDIGO CUMPLE: "lo publicaremos en cuanto lo recibamos" es
  * `publicarReto`, que no publica un reto de empresa sin `pagoRecibidoEn`.
  */
-export const MSG_PAGO_PATROCINIO =
-  "El pago se hace por transferencia, fuera de DareFlash. Cuando aprobemos tu reto, te escribiremos para organizarlo, y lo publicaremos en cuanto lo recibamos. Quien gane cobra el premio entero.";
+export const MSG_PAGO_PATROCINIO = `El pago se hace por transferencia, fuera de ${MARCA}. Cuando aprobemos tu reto, te escribiremos para organizarlo, y lo publicaremos en cuanto lo recibamos. Quien gane cobra el premio entero.`;
 
 // ----------------------------------------------------------------------------
 // Decisiones de Fase 9 YA CERRADAS que consumen piezas posteriores. Viven aqui
@@ -2603,7 +2603,7 @@ export type RazonCredito = (typeof VALORES_RAZON_CREDITO)[number];
  */
 export const ETIQUETA_MOVIMIENTO_CREDITO: Record<RazonCredito, string> = {
   SOCIO_FUNDADOR: "Regalo de Socio Fundador",
-  AJUSTE_ADMIN: "Ajuste del equipo de DareFlash",
+  AJUSTE_ADMIN: `Ajuste del equipo de ${MARCA}`,
   CONSUMO: "Un día de campaña",
   DEVOLUCION: "Devolución de un día de campaña",
   COMPRA: "Compra de créditos",
@@ -2632,8 +2632,7 @@ export const REF_CREDITOS_STRIPE = "STRIPE_CHECKOUT";
  * SIN CLAVES, LA COMPRA NO PROMETE NADA (como Boost y VIP): los paquetes se ven, el botón no se ofrece
  * y se dice por qué —y de dónde salen hoy los créditos—.
  */
-export const MSG_CREDITOS_PAGO_NO_DISPONIBLE =
-  "La compra de créditos todavía no está disponible. Mientras tanto, los créditos llegan como regalo de Socio Fundador o del equipo de DareFlash.";
+export const MSG_CREDITOS_PAGO_NO_DISPONIBLE = `La compra de créditos todavía no está disponible. Mientras tanto, los créditos llegan como regalo de Socio Fundador o del equipo de ${MARCA}.`;
 export const MSG_CREDITOS_SIN_VERIFICAR =
   "Podrás comprar créditos en cuanto verifiquemos tu empresa.";
 /** Las condiciones, junto al botón de compra: lo que de verdad pasa con lo que se compra. */
@@ -2801,7 +2800,7 @@ export const MSG_MOTIVO_RETIRADA_PUBLICIDAD: Record<MotivoRetiradaPublicidad, st
   ENGANOSA: "La campaña promete algo que no se corresponde con lo que ofrece.",
   CONTENIDO_NO_PERMITIDO: "La imagen o el texto incluyen contenido que no podemos mostrar.",
   DESTINO_PELIGROSO: "El enlace lleva a un sitio que no es seguro para quien lo pulse.",
-  INCUMPLE_NORMAS: "La campaña no cumple las normas de publicidad de DareFlash.",
+  INCUMPLE_NORMAS: `La campaña no cumple las normas de publicidad de ${MARCA}.`,
   OTRO: "Hemos revisado la campaña y no podemos seguir mostrándola.",
 };
 /** Lo que el panel ve de cada motivo (etiqueta corta para elegir y filtrar). */
@@ -2959,7 +2958,7 @@ export const PUBLICIDAD_CACHE_HOY_MS = 60_000;
  * disfrazarlo, así que lleva «De DareFlash».
  */
 export const ETIQUETA_PIEZA_CAMPANA = "Publicidad";
-export const ETIQUETA_PIEZA_CASA = "De DareFlash";
+export const ETIQUETA_PIEZA_CASA = `De ${MARCA}`;
 /**
  * UN TIPO DE NEGOCIO GUARDADO FUERA DEL CATÁLOGO (no debería pasar: el alta lo valida). La MISMA frase
  * en el aviso de «Nueva campaña» y en el rechazo del servicio (`TIPO_NEGOCIO_DESCONOCIDO`): la
@@ -2985,7 +2984,7 @@ export const ANUNCIO_CASA: Record<
   },
   GLOBAL: {
     titulo: "Llega a gente de todo el país",
-    texto: "Tu marca, entre los vídeos de quienes compiten en DareFlash.",
+    texto: `Tu marca, entre los vídeos de quienes compiten en ${MARCA}.`,
     cta: "Anúnciate aquí",
   },
 };
@@ -2999,7 +2998,7 @@ export const ANUNCIO_CASA_DESTINO = {
 // principal: se lleva el UNICO acento de accion de la pantalla.
 // ----------------------------------------------------------------------------
 
-export const TITULO_EMPEZAR = "¿Cómo quieres usar DareFlash?";
+export const TITULO_EMPEZAR = `¿Cómo quieres usar ${MARCA}?`;
 export const SUBTITULO_EMPEZAR =
   "Dos cuentas distintas, y no se pueden mezclar: elige con cuál entras.";
 

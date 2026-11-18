@@ -19,7 +19,7 @@ import { ambitoDelPortal } from "../ambito-portal";
 import { AvisoVerificar } from "../aviso-verificar";
 import { formatearFechaParaQuienMira } from "@/lib/formato";
 
-export const metadata = { title: "Mis retos · DareFlash" };
+export const metadata = { title: "Mis retos" };
 // Lee la sesión y las filas de la empresa: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 

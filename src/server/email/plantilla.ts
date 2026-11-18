@@ -15,6 +15,7 @@
  *    (o los estilos), el usuario puede copiarlo igualmente.
  */
 import "server-only";
+import { MARCA } from "@/config/marca";
 
 // Mismos valores que --df-* en globals.css, en HEX literal (los emails no leen custom properties).
 // Que sigan siendo los mismos NO se confia: lo comprueba `tests/marca-hex-duplicados.test.ts`, que
@@ -118,7 +119,7 @@ ${notas}
 </tr>
 <tr>
 <td style="padding:8px 32px 32px;">
-<p style="margin:0;font-family:${FUENTE};font-size:12px;line-height:1.6;color:${COLOR.textFaint};">DareFlash &middot; Retos en video corto con premios reales.</p>
+<p style="margin:0;font-family:${FUENTE};font-size:12px;line-height:1.6;color:${COLOR.textFaint};">${MARCA} &middot; Retos en video corto con premios reales.</p>
 </td>
 </tr>
 </table>

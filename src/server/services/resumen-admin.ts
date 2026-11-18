@@ -43,6 +43,7 @@ import { type HuecosDeEspacio, type RedisLeerMetricas, huecosDelDia } from "./pu
 import { PUBLICIDAD_SIN_REVISION } from "./publicidad-visible";
 import { escribirEstado, leerEstado } from "./system-state";
 import { formatearDiaClave, formatearNumero, IDIOMA_DEL_EQUIPO } from "@/lib/formato";
+import { MARCA } from "@/config/marca";
 
 // ---------------------------------------------------------------------------------------------------
 // Puro: cuándo toca y qué se dice
@@ -146,7 +147,7 @@ export function componerResumen(
     }
   }
   return {
-    asunto: `DareFlash: resumen del ${fecha}`,
+    asunto: `${MARCA}: resumen del ${fecha}`,
     intro: `Lo que pasó el ${fecha} y lo que está esperando en el panel.`,
     lineas,
     enlacePanel: url("/panel"),
@@ -287,7 +288,9 @@ export async function hacerResumenDiario(
         ),
         html: renderCorreoHtml({
           preheader: c.intro,
-          titulo: c.asunto.replace(/^DareFlash: /, ""),
+          titulo: c.asunto.startsWith(`${MARCA}: `)
+            ? c.asunto.slice(`${MARCA}: `.length)
+            : c.asunto,
           intro: c.intro,
           cta: { texto: "Abrir el panel", href: c.enlacePanel },
           notas: c.lineas,
@@ -322,7 +325,7 @@ async function evaluarAvisoCasa(
     superado: sin > UMBRAL_AVISO_CASA,
     mensaje: () => ({
       to: "",
-      subject: "DareFlash: casi ningún hueco de publicidad tiene campaña",
+      subject: `${MARCA}: casi ningún hueco de publicidad tiene campaña`,
       text:
         `El ${fecha}, el ${porCiento(sin)} de los ${cifra(total)} huecos de publicidad no tuvo ninguna campaña: ` +
         "los cubrió el anuncio de la casa o quedaron vacíos. Al principio es lo esperable —hay pocas " +

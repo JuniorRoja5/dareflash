@@ -23,6 +23,7 @@ import { CLAVE_AVISO_GEOIP, GEOIP_DIAS_CADUCA } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { avisarConHisteresis } from "@/server/jobs/aviso-histeresis";
 import type { EmailAdapter } from "@/server/email/adapter";
+import { MARCA } from "@/config/marca";
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 
@@ -68,8 +69,8 @@ export async function revisarFicheroGeoIp(
       to: "",
       subject:
         estado.dias === null
-          ? "DareFlash: no hay fichero de geolocalización por IP"
-          : `DareFlash: el fichero de geolocalización tiene ${estado.dias} días`,
+          ? `${MARCA}: no hay fichero de geolocalización por IP`
+          : `${MARCA}: el fichero de geolocalización tiene ${estado.dias} días`,
       text:
         estado.dias === null
           ? `No se encuentra el fichero de IP en ${entrada.ruta}. Mientras falte, la ubicación de quien ` +

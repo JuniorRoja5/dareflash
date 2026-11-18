@@ -10,7 +10,7 @@ import { ETIQUETA_TIPO } from "./etiquetas";
 import { InspectorNotificaciones } from "./inspector-notificaciones";
 import { ListaAnuncios } from "./lista-anuncios";
 
-export const metadata = { title: "Notificaciones · Panel" };
+export const metadata = { title: "Notificaciones" };
 export const dynamic = "force-dynamic";
 
 const ESTILO_TITULO = {

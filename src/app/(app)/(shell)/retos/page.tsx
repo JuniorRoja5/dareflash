@@ -1,7 +1,7 @@
 import { categoriaValida } from "../buscar/buscar-logica";
 import { FeedRetos } from "./feed-retos";
 
-export const metadata = { title: "Retos · DareFlash" };
+export const metadata = { title: "Retos" };
 export const dynamic = "force-dynamic";
 
 /**

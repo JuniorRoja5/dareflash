@@ -4,7 +4,7 @@ import { CerrarSesion } from "../../cerrar-sesion";
 import { CambiarEmail } from "../../perfil/editar/cambiar-email";
 import { CambiarPassword } from "../../perfil/editar/cambiar-password";
 
-export const metadata = { title: "Cuenta · DareFlash" };
+export const metadata = { title: "Cuenta" };
 // Lee la sesión y el correo de la cuenta: por petición.
 export const dynamic = "force-dynamic";
 

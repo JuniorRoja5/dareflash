@@ -1,5 +1,6 @@
 import { importeConMoneda } from "@/lib/dinero";
 import { type Idioma } from "@/lib/formato";
+import { MARCA } from "@/config/marca";
 
 /**
  * INFORMACIÓN — lo que hay que saber antes de pedir un cobro: cómo funciona y quién paga las
@@ -47,7 +48,7 @@ export function InformacionCobro({ idioma }: { idioma: Idioma }) {
           <div>
             <h3 className="font-medium text-text">Comisiones</h3>
             <p className="mt-1.5 max-w-prose leading-relaxed">
-              Las comisiones del banco corren por tu cuenta, no por la de DareFlash. Recibirás el
+              Las comisiones del banco corren por tu cuenta, no por la de {MARCA}. Recibirás el
               importe solicitado menos esas comisiones: si pides {importeConMoneda(5000, idioma)},
               pueden llegarte, por ejemplo, {importeConMoneda(4890, idioma)}.
             </p>

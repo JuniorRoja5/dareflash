@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 
 import { PieLegal } from "@/components/ui/pie-legal";
+import { MARCA } from "@/config/marca";
 
-export const metadata = { title: "Política de Privacidad · DareFlash" };
+export const metadata = { title: "Política de Privacidad" };
 
 /**
  * POLÍTICA DE PRIVACIDAD — página pública, estática y sin datos.
@@ -103,7 +104,7 @@ export default function PrivacidadPage() {
 
       <Apartado numero={1} titulo="Quién es el responsable de tus datos">
         <p>
-          DareFlash (en adelante, «la Plataforma», «nosotros») es un servicio de retos en vídeo con
+          {MARCA} (en adelante, «la Plataforma», «nosotros») es un servicio de retos en vídeo con
           premios. El responsable del tratamiento de tus datos es:
         </p>
         <ul className="list-disc space-y-1.5 pl-5">
@@ -222,7 +223,7 @@ export default function PrivacidadPage() {
 
       <Apartado numero={4} titulo="Mayores de 18 años">
         <p>
-          DareFlash es <span className="text-text">solo para mayores de 18 años</span>. No admitimos
+          {MARCA} es <span className="text-text">solo para mayores de 18 años</span>. No admitimos
           cuentas de menores de edad ni recogemos sus datos a sabiendas. Si detectamos la cuenta de
           un menor, la eliminamos.
         </p>

@@ -24,6 +24,7 @@ import { revokeAllUserSessions } from "@/server/auth/session";
 import type { EmailMessage } from "@/server/email/adapter";
 import { renderCorreoHtml } from "@/server/email/plantilla";
 import { enqueueEmail } from "@/server/email/send";
+import { MARCA } from "@/config/marca";
 
 export type SolicitudCambio =
   | { ok: true }
@@ -39,9 +40,9 @@ function correoConfirmacion(appUrl: string, nuevoEmail: string, rawToken: string
   const link = url.toString();
   return {
     to: nuevoEmail,
-    subject: "Confirma tu nueva direccion en DareFlash",
+    subject: `Confirma tu nueva direccion en ${MARCA}`,
     text: [
-      "Has pedido usar esta direccion en tu cuenta de DareFlash.",
+      `Has pedido usar esta direccion en tu cuenta de ${MARCA}.`,
       "",
       "Para confirmarla, abre este enlace y pulsa el boton:",
       link,
@@ -49,10 +50,9 @@ function correoConfirmacion(appUrl: string, nuevoEmail: string, rawToken: string
       "Si no has sido tu, ignora este correo: tu cuenta no cambiara. El enlace caduca en 24 horas.",
     ].join("\n"),
     html: renderCorreoHtml({
-      preheader: "Confirma tu nueva direccion de correo en DareFlash.",
+      preheader: `Confirma tu nueva direccion de correo en ${MARCA}.`,
       titulo: "Confirma tu nueva direccion",
-      intro:
-        "Has pedido usar esta direccion en tu cuenta de DareFlash. Confirmala para que empiece a valer.",
+      intro: `Has pedido usar esta direccion en tu cuenta de ${MARCA}. Confirmala para que empiece a valer.`,
       cta: { texto: "Confirmar mi direccion", href: link },
       notas: [
         "Si no has sido tu, ignora este correo: tu cuenta no cambiara.",
@@ -70,7 +70,7 @@ function correoConfirmacion(appUrl: string, nuevoEmail: string, rawToken: string
  */
 function correoAviso(appUrl: string, emailViejo: string, nuevoEmail: string): EmailMessage {
   const cambiarPass = new URL("/perfil/editar", appUrl).toString();
-  const texto = `Se ha pedido cambiar el correo de tu cuenta de DareFlash a ${nuevoEmail}.`;
+  const texto = `Se ha pedido cambiar el correo de tu cuenta de ${MARCA} a ${nuevoEmail}.`;
   return {
     to: emailViejo,
     subject: "Se ha pedido cambiar el correo de tu cuenta",

@@ -12,7 +12,7 @@ import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 import { HeroInvitacion } from "./hero-invitacion";
 import { formatearNumero, formatearFechaParaQuienMira } from "@/lib/formato";
 
-export const metadata = { title: "Mis referidos · DareFlash" };
+export const metadata = { title: "Mis referidos" };
 // Lee la sesión y consulta por cursor: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 

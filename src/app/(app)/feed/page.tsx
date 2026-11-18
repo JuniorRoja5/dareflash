@@ -5,7 +5,7 @@ import { PARAM_COMENTARIO, PARAM_VIDEO } from "@/lib/enlace-comentario";
 import { UBICACION_DESCONOCIDA } from "@/lib/geo";
 import { soloMirar } from "@/lib/solo-mirar";
 
-export const metadata = { title: "Feed · DareFlash" };
+export const metadata = { title: "Feed" };
 export const dynamic = "force-dynamic";
 
 /** Un parámetro repetido (`?video=a&video=b`) no es una petición legítima: se ignora. */

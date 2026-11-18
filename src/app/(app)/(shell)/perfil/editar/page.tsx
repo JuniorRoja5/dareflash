@@ -7,7 +7,7 @@ import { CambiarEmail } from "./cambiar-email";
 import { CambiarPassword } from "./cambiar-password";
 import { FormularioEditarPerfil } from "./formulario-editar-perfil";
 
-export const metadata = { title: "Editar perfil · DareFlash" };
+export const metadata = { title: "Editar perfil" };
 
 // Lee la sesión (cookie) -> render dinámico por petición. Explícito para no depender de la inferencia.
 export const dynamic = "force-dynamic";

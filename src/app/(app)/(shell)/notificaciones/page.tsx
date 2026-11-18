@@ -7,7 +7,7 @@ import { haceCuanto } from "@/lib/notificaciones-vista";
 
 import { MarcarLeidasAlVer } from "./marcar-leidas";
 
-export const metadata = { title: "Notificaciones · DareFlash" };
+export const metadata = { title: "Notificaciones" };
 export const dynamic = "force-dynamic";
 
 /** "Ahora" del render. Fuera del componente: el reloj es de la petición, no un efecto del pintado. */

@@ -12,7 +12,7 @@ const ParamsSchema = z.object({ username: z.string().min(1).max(64) });
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
-  return { title: `@${username} · DareFlash` };
+  return { title: `@${username}` };
 }
 
 /**

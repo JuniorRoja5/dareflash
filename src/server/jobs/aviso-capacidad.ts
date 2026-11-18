@@ -48,6 +48,7 @@ import type { EmailAdapter } from "@/server/email/adapter";
 
 import { avisarConHisteresis } from "./aviso-histeresis";
 import { formatearFecha, IDIOMA_DEL_EQUIPO, ZONA_MADRID } from "@/lib/formato";
+import { MARCA } from "@/config/marca";
 
 /** Claves de histéresis. Una por umbral: ver el docblock de arriba. */
 const CLAVE_PREPARATE = "aviso:cpu_preparate";
@@ -203,7 +204,7 @@ export async function avisarSiCargaAlta(
     superado: mediana >= CPU_AVISO_AMPLIA_PCT,
     mensaje: () => ({
       to: "",
-      subject: `[DareFlash] AMPLIA YA: CPU al ${pct(mediana)} sostenido`,
+      subject: `[${MARCA}] AMPLIA YA: CPU al ${pct(mediana)} sostenido`,
       text: cuerpo(vigilante, {
         mediana,
         umbral: CPU_AVISO_AMPLIA_PCT,
@@ -224,7 +225,7 @@ export async function avisarSiCargaAlta(
     superado: mediana >= CPU_AVISO_PREPARATE_PCT,
     mensaje: () => ({
       to: "",
-      subject: `[DareFlash] Preparate: CPU al ${pct(mediana)} sostenido`,
+      subject: `[${MARCA}] Preparate: CPU al ${pct(mediana)} sostenido`,
       text: cuerpo(vigilante, {
         mediana,
         umbral: CPU_AVISO_PREPARATE_PCT,

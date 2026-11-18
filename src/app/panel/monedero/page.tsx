@@ -33,7 +33,7 @@ const FILTROS: readonly { etiqueta: string; estado?: EstadoRetirada }[] = [
   { etiqueta: "Rechazadas", estado: "REJECTED" },
 ];
 
-export const metadata = { title: "Monedero y retiradas · Panel" };
+export const metadata = { title: "Monedero y retiradas" };
 export const dynamic = "force-dynamic";
 
 const ESTILO_TITULO = {

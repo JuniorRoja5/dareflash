@@ -2,7 +2,7 @@ import { Suspense } from "react";
 
 import { TarjetaVerificacion } from "./tarjeta-verificacion";
 
-export const metadata = { title: "Verificar tu cuenta · DareFlash" };
+export const metadata = { title: "Verificar tu cuenta" };
 
 /**
  * VERIFICACION de email (/verify) — REHECHA con la identidad v2 (Rama 4). Ruta SUELTA, fuera del

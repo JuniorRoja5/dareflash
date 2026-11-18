@@ -7,7 +7,7 @@ import { ambitoDelPortal } from "../../ambito-portal";
 import { AvisoVerificar } from "../../aviso-verificar";
 import { FormularioPropuesta } from "./formulario-propuesta";
 
-export const metadata = { title: "Proponer un reto · DareFlash" };
+export const metadata = { title: "Proponer un reto" };
 // Lee la sesión y el estado de la empresa: por petición.
 export const dynamic = "force-dynamic";
 

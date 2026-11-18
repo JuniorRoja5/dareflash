@@ -11,7 +11,7 @@ import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 import { FondoRayos } from "./fondo-rayos";
 import { FondoRescoldo } from "./fondo-rescoldo";
 
-export const metadata = { title: "Perfiles Boost · DareFlash" };
+export const metadata = { title: "Perfiles Boost" };
 // Depende del RELOJ: quién está destacado cambia minuto a minuto. Nunca cacheada.
 export const dynamic = "force-dynamic";
 

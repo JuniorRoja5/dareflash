@@ -7,8 +7,9 @@ import { requireSeccion } from "../panel-guard";
 
 import { ExportarContabilidad } from "./exportar-contabilidad";
 import { fechaPanel } from "@/app/panel/formato-panel";
+import { MARCA } from "@/config/marca";
 
-export const metadata = { title: "Patrocinios · Panel" };
+export const metadata = { title: "Patrocinios" };
 export const dynamic = "force-dynamic";
 
 const ESTILO_TITULO = {
@@ -102,7 +103,7 @@ export default async function Pagina({
           <dl className="mt-4 grid gap-4 sm:grid-cols-3">
             {[
               { etiqueta: "Premios", valor: totales.premiosCents, fuerte: false },
-              { etiqueta: "Comisión DareFlash", valor: totales.comisionCents, fuerte: false },
+              { etiqueta: `Comisión ${MARCA}`, valor: totales.comisionCents, fuerte: false },
               { etiqueta: "Total a cobrar", valor: totales.totalCents, fuerte: true },
             ].map((t) => (
               <div key={t.etiqueta}>

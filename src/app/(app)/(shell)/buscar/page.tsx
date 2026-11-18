@@ -1,6 +1,6 @@
 import { BuscarCliente } from "./buscar-cliente";
 
-export const metadata = { title: "Buscar · DareFlash" };
+export const metadata = { title: "Buscar" };
 
 /**
  * /buscar — buscador PÚBLICO (dentro del shell, que ya deja pasar invitados). Lee `?q`/`?tipo` de la

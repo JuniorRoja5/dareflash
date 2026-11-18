@@ -294,6 +294,12 @@ borran para "limpiar"**:
   que sean: cada pago lleva su `tipo` en la metadata (`conTipo`, en sesión y en suscripción) y cada
   webhook descarta en silencio lo ajeno (200, sin log). Sin tipo, o con uno fuera del catálogo, no es
   de nadie: `tipoDePago` NO deduce nada de la forma (eso era la convención que se retiró).
+- `marca-un-sitio` / `render/marca-cambiada` — la marca se escribe UNA vez, en
+  [src/config/marca.ts](src/config/marca.ts): ningún «DareFlash» (en ninguna forma) en el código de
+  `src/` fuera de ahí y de las excepciones declaradas (favicon, nombres internos de fuente, el dominio
+  en `env.ts`); los títulos salen de `TITULO_RAIZ`. Con la marca cambiada en un test, título, correo y
+  logo la siguen, y la vieja sigue vetada como contraseña y como @usuario (`MARCAS_ANTERIORES`). El
+  dominio NO tiene constante: vive en la configuración (`APP_URL`, `EMAIL_FROM`).
 - `reloj-adelantado` (+ el job de CI `tests-reloj-adelantado`) — la suite entera corre OTRA vez con
   el reloj de Node adelantado 400 días ([scripts/ci-tests-reloj-adelantado.sh](scripts/ci-tests-reloj-adelantado.sh),
   libfaketime) y las imágenes dependen de ese job. Un test con fechas fijas que llama a un servicio

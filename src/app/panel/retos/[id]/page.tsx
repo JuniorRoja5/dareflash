@@ -14,7 +14,7 @@ import { RendimientoTiempo } from "./rendimiento-tiempo";
 import { DestacarPortada } from "./destacar-portada";
 import { ResolverEmpate } from "./resolver-empate";
 
-export const metadata = { title: "Gestionar reto · Panel" };
+export const metadata = { title: "Gestionar reto" };
 export const dynamic = "force-dynamic";
 
 const ETIQUETA_ESTADO: Record<string, string> = {

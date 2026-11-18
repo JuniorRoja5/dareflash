@@ -19,7 +19,7 @@ import { ambitoDelPortal } from "../../ambito-portal";
 import { AvisoVerificar } from "../../aviso-verificar";
 import { FormularioCampana } from "./formulario-campana";
 
-export const metadata = { title: "Nueva campaña · DareFlash" };
+export const metadata = { title: "Nueva campaña" };
 // Lee la sesión, el saldo y el catálogo: por petición.
 export const dynamic = "force-dynamic";
 

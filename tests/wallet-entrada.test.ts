@@ -271,7 +271,8 @@ describe("la información que hay que leer antes de cobrar", () => {
       "Al pedir un cobro, ese importe sale de tu saldo al momento, el equipo lo revisa y te lo envía por el método que elijas. Puede tardar unos días. Si lo rechazamos, el dinero vuelve entero a tu monedero.",
     );
     expect(plano).toContain(
-      "Las comisiones del banco corren por tu cuenta, no por la de DareFlash. Recibirás el importe solicitado menos esas comisiones: si pides",
+      // La marca sale de `config/marca` (Fase 11 · PM1); el texto pintado es el mismo.
+      "Las comisiones del banco corren por tu cuenta, no por la de {MARCA}. Recibirás el importe solicitado menos esas comisiones: si pides",
     );
   });
 

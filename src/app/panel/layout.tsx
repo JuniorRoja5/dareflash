@@ -13,8 +13,14 @@ import { ETIQUETA_ROL } from "./usuarios/etiquetas";
 // NO INDEXABLE (defensa en profundidad): además del `X-Robots-Tag: noindex` global de next.config y del
 // `Disallow` de robots.txt, el head del panel declara noindex explícito. Y sobre todo vive tras
 // `requireRole("ADMIN")` (abajo): un crawler no llega igualmente.
+/**
+ * `template` « · Panel» para las páginas de DENTRO del panel («Boost · Panel»); `default` «Panel» se
+ * encadena con la plantilla del layout raíz y da «Panel · DareFlash» a las que no ponen título. La
+ * portada del panel (`panel/page.tsx`) es del MISMO segmento que este layout, así que a ella no le
+ * llega esta plantilla sino la raíz: «Panel» → «Panel · DareFlash», como antes.
+ */
 export const metadata = {
-  title: "Panel · DareFlash",
+  title: { default: "Panel", template: "%s · Panel" },
   robots: { index: false, follow: false },
 };
 

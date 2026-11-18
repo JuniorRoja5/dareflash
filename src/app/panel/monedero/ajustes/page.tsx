@@ -7,7 +7,7 @@ import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 import { requireSeccion } from "../../panel-guard";
 import { IDIOMA_PANEL, fechaPanel } from "@/app/panel/formato-panel";
 
-export const metadata = { title: "Ajustes de saldo · Panel" };
+export const metadata = { title: "Ajustes de saldo" };
 export const dynamic = "force-dynamic";
 
 const ESTILO_TITULO = {

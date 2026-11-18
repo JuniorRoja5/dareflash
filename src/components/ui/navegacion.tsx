@@ -15,6 +15,7 @@ import {
 } from "./logic";
 import { Logo } from "./logo";
 import { MenuMasMovil } from "./menu-mas-movil";
+import { RAYO } from "@/components/ui/logo";
 
 // Iconos geometricos inline (sin dependencias): trazo de 1.5 px, currentColor, misma familia severa
 // del sistema. Uno por destino no central.
@@ -46,7 +47,7 @@ const ICONO: Record<string, ReactNode> = {
       <path d="M10.5 9.5l4 2.5-4 2.5z" />
     </>,
   ),
-  retos: svg(<path d="M13 3 5 13.5h5l-1 7.5 8-10.5h-5z" />), // rayo (flash)
+  retos: svg(<path d={RAYO} />), // el rayo de la marca: el MISMO trazado del logo
   ranking: svg(
     <>
       <rect x="4" y="12" width="4" height="7" />

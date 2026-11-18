@@ -1,3 +1,4 @@
+import { MARCA } from "@/config/marca";
 /**
  * EL LOGOTIPO — marca grafica (rayo en circulo, con tres lineas de velocidad detras) + la palabra.
  * Sustituye al wordmark de texto pelado que habia en la barra lateral. Sin PNG, sin dependencias y
@@ -33,8 +34,12 @@
  * medidas, que es el encargo de la pieza del glow. Un realce a medias ahora seria rehacerlo despues.
  */
 
-/** El rayo. Es el MISMO trazado que el favicon (`src/app/icon.svg`): una sola silueta de marca. */
-const RAYO = "M13 3 5 13.5h5l-1 7.5 8-10.5h-5z";
+/**
+ * El rayo. Es el MISMO trazado que el favicon (`src/app/icon.svg`): una sola silueta de marca. Se
+ * EXPORTA porque la navegación lo usa como icono de «Retos»: una copia del trazado allí sería una
+ * segunda silueta de marca libre de separarse de esta (Fase 11 · PM1).
+ */
+export const RAYO = "M13 3 5 13.5h5l-1 7.5 8-10.5h-5z";
 
 /**
  * MARCA sola (sin la palabra). El centro del circulo es (30,16) y el rayo se centra ahi mismo: su
@@ -76,7 +81,7 @@ export function Logo({ compacto = false, className }: { compacto?: boolean; clas
   return (
     <span
       role="img"
-      aria-label="DareFlash"
+      aria-label={MARCA}
       className={`inline-flex min-w-0 max-w-full items-center gap-2 ${className ?? ""}`}
     >
       <Marca className="h-6 w-auto shrink-0 text-action" />
@@ -89,7 +94,7 @@ export function Logo({ compacto = false, className }: { compacto?: boolean; clas
             fontVariationSettings: '"wght" 800, "wdth" 125',
           }}
         >
-          DAREFLASH
+          {MARCA.toUpperCase()}
         </span>
       )}
     </span>

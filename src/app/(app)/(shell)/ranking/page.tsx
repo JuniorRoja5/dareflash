@@ -1,6 +1,6 @@
 import { type DatosRanking, RankingVistas } from "./ranking-vistas";
 
-export const metadata = { title: "Ranking · DareFlash" };
+export const metadata = { title: "Ranking" };
 export const dynamic = "force-dynamic";
 
 /**

@@ -9,6 +9,7 @@ import { formatearNumero, type Idioma } from "@/lib/formato";
 import type { RetoPortada } from "@/server/services/portada";
 
 import { nombreCategoria } from "../retos/retos-datos";
+import { MARCA } from "@/config/marca";
 
 function IconoPlay() {
   return (
@@ -118,7 +119,7 @@ export function HeroDestacado({
         <p className="mt-3 text-center text-sm text-text-dim">
           {elegido ? (
             <>
-              Elegido por el <span className="font-medium text-text">equipo de DareFlash</span>
+              Elegido por el <span className="font-medium text-text">equipo de {MARCA}</span>
             </>
           ) : (
             <>

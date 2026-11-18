@@ -1,7 +1,7 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
 import { LanzadorSubida } from "./lanzador-subida";
 
-export const metadata = { title: "Crear · DareFlash" };
+export const metadata = { title: "Crear" };
 // Lee la sesión (una cuenta de empresa no sube vídeos: va a su portal) -> por petición.
 export const dynamic = "force-dynamic";
 

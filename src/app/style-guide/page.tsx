@@ -13,6 +13,7 @@ import { Tarjeta } from "@/components/ui/tarjeta";
 
 import { CuentaAtrasEnVivo, MarcadorEnVivo, VotoDemo } from "./demos";
 import { styleGuideHidden } from "./visibility";
+import { MARCA } from "@/config/marca";
 
 /**
  * HOJA DE ESTILO VIVA — Fase 1 · Paso A. Referencia interna del sistema de diseño de DareFlash:
@@ -26,7 +27,8 @@ import { styleGuideHidden } from "./visibility";
  * componente). No es una pantalla de producto, no puede quedar viva al abrir al publico, y NO
  * depende de que nadie se acuerde de retirarla: si no es desarrollo, no existe.
  */
-export const metadata = { title: "DareFlash · Sistema de diseño" };
+// `absolute`: la marca va DELANTE, al revés que la plantilla del layout raíz.
+export const metadata = { title: { absolute: `${MARCA} · Sistema de diseño` } };
 
 /** Cifra en Archivo Expanded (eje de anchura), peso alto, tabular. El tratamiento del dinero. */
 const displayExpanded = (peso: number, ancho = 125): CSSProperties => ({
@@ -134,7 +136,7 @@ export default async function StyleGuide() {
           style={displayExpanded(850)}
           className="text-5xl leading-none tracking-tight sm:text-hero"
         >
-          DAREFLASH
+          {MARCA.toUpperCase()}
         </h1>
         <p className="text-2xs uppercase tracking-[0.2em] text-text-dim">
           Sistema de diseño · Fase 1 · Tokens y primitivas

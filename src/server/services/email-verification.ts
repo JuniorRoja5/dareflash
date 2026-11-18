@@ -23,6 +23,7 @@ import {
 import type { EmailMessage } from "@/server/email/adapter";
 import { renderCorreoHtml } from "@/server/email/plantilla";
 import { enqueueEmail } from "@/server/email/send";
+import { MARCA } from "@/config/marca";
 
 export type CreatedVerification = CreatedToken;
 
@@ -88,9 +89,9 @@ export function buildVerificationEmail(
   const link = url.toString();
   return {
     to: email,
-    subject: "Verifica tu cuenta de DareFlash",
+    subject: `Verifica tu cuenta de ${MARCA}`,
     text: [
-      "Bienvenido a DareFlash.",
+      `Bienvenido a ${MARCA}.`,
       "",
       "Para activar tu cuenta, abre este enlace y pulsa el boton de confirmacion:",
       link,
@@ -98,10 +99,9 @@ export function buildVerificationEmail(
       "Si no te has registrado, ignora este correo. El enlace caduca en 24 horas.",
     ].join("\n"),
     html: renderCorreoHtml({
-      preheader: "Confirma tu correo para activar tu cuenta de DareFlash.",
+      preheader: `Confirma tu correo para activar tu cuenta de ${MARCA}.`,
       titulo: "Verifica tu cuenta",
-      intro:
-        "Bienvenido a DareFlash. Confirma tu direccion de correo para activar tu cuenta y empezar a competir.",
+      intro: `Bienvenido a ${MARCA}. Confirma tu direccion de correo para activar tu cuenta y empezar a competir.`,
       cta: { texto: "Verificar mi cuenta", href: link },
       notas: ["Si no te has registrado, ignora este correo.", "El enlace caduca en 24 horas."],
     }),

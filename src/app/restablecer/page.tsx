@@ -1,6 +1,6 @@
 import { FormularioRestablecer } from "./formulario-restablecer";
 
-export const metadata = { title: "Restablecer contraseña · DareFlash" };
+export const metadata = { title: "Restablecer contraseña" };
 
 const estiloDisplay = {
   fontFamily: "var(--font-display)",

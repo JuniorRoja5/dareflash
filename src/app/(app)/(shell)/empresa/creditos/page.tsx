@@ -17,7 +17,7 @@ import { MovimientosCreditos } from "../movimientos-creditos";
 import { ComprarCreditos } from "./comprar-creditos";
 import { formatearNumero, formatearImporte } from "@/lib/formato";
 
-export const metadata = { title: "Créditos de publicidad · DareFlash" };
+export const metadata = { title: "Créditos de publicidad" };
 // Lee la sesión y el ledger de la empresa: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 

@@ -9,7 +9,7 @@ import { CtaVip } from "./cta-vip";
 import { HeroVip } from "./hero-vip";
 import { TarjetaEresVip } from "./tarjeta-eres-vip";
 
-export const metadata = { title: "VIP Mythic · DareFlash" };
+export const metadata = { title: "VIP Mythic" };
 // Lee la sesión y la suscripción: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 

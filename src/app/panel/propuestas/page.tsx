@@ -20,7 +20,7 @@ import { IDIOMA_PANEL, fechaPanel } from "@/app/panel/formato-panel";
 
 const S = seccionPorHref("/panel/propuestas")!;
 
-export const metadata = { title: "Propuestas · Panel" };
+export const metadata = { title: "Propuestas" };
 // Lee la sesión y consulta según el filtro: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 

@@ -20,7 +20,7 @@ import { AccionesCampana } from "./acciones-campana";
 import { InformeCampana } from "./informe-campana";
 import { formatearNumero, formatearDiaClave, type Idioma } from "@/lib/formato";
 
-export const metadata = { title: "Campaña · DareFlash" };
+export const metadata = { title: "Campaña" };
 // Lee la sesión, la campaña y el aforo: por petición.
 export const dynamic = "force-dynamic";
 

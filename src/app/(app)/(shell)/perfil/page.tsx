@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { PerfilVista } from "./perfil-vista";
 
-export const metadata = { title: "Perfil · DareFlash" };
+export const metadata = { title: "Perfil" };
 export const dynamic = "force-dynamic";
 
 /**

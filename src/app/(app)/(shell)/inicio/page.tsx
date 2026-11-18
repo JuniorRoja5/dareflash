@@ -20,8 +20,9 @@ import { RayoHero } from "./rayo-hero";
 import { RetosDestacados } from "./retos-destacados";
 import { StatsInicio } from "./stats-inicio";
 import { UltimosGanadores } from "./ultimos-ganadores";
+import { MARCA } from "@/config/marca";
 
-export const metadata = { title: "Inicio · DareFlash" };
+export const metadata = { title: "Inicio" };
 
 /**
  * INICIO — la portada. La página más vista, y la que más cambia según quién mira.
@@ -152,7 +153,7 @@ export default async function InicioPage() {
             </div>
             <p className="mt-4 max-w-prose text-base text-text-dim lg:text-lg">
               {esEmpresa
-                ? "Estás viendo DareFlash como empresa: aquí los retos se miran, no se participa. Desde tu portal propones retos y lanzas tu publicidad."
+                ? `Estás viendo ${MARCA} como empresa: aquí los retos se miran, no se participa. Desde tu portal propones retos y lanzas tu publicidad.`
                 : "Sube tu reto, la comunidad vota y los mejores se llevan premios de verdad. Aquí gana lo que haces, no a quién conoces."}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">

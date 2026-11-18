@@ -17,7 +17,7 @@ import { nombrePais } from "@/lib/paises";
 import { AvisoVerificar } from "./aviso-verificar";
 import { formatearNumero, formatearFechaParaQuienMira } from "@/lib/formato";
 
-export const metadata = { title: "Mi empresa · DareFlash" };
+export const metadata = { title: "Mi empresa" };
 // Lee la sesión y la fila de la empresa: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 

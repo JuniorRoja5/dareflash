@@ -1,4 +1,5 @@
 import { PHASE_PRODUCTION_BUILD } from "next/constants";
+import { MARCA } from "@/config/marca";
 
 /**
  * Validacion de entorno en el ARRANQUE del servidor. Vive en un modulo aparte
@@ -29,7 +30,7 @@ export async function validateEnvOnStartup(): Promise<void> {
     if (error instanceof EnvValidationError) {
       // Morimos a proposito: un proceso vivo con configuracion invalida
       // serviria peticiones mal configuradas, que es peor que no arrancar.
-      console.error(`\n[DareFlash] ${error.message}\n`);
+      console.error(`\n[${MARCA}] ${error.message}\n`);
       process.exit(1);
     }
     throw error;

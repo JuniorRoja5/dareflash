@@ -2,6 +2,7 @@ import "server-only";
 
 import { ZxcvbnFactory } from "@zxcvbn-ts/core";
 import * as zxcvbnCommon from "@zxcvbn-ts/language-common";
+import { MARCAS_VETADAS } from "@/config/marca";
 
 /**
  * POLÍTICA DE CONTRASEÑA (server-side, COMPARTIDA por registro y restablecer). El registro aceptaba
@@ -13,8 +14,9 @@ import * as zxcvbnCommon from "@zxcvbn-ts/language-common";
  * y l33t. Se exige `score >= 3` (de 0 a 4). El diccionario común se carga UNA vez al importar.
  *
  * Además: mínimo 10 caracteres, y se rechaza si contiene la parte local del email (juan@x.com ->
- * fuera "juan...") o "dareflash" (lo primero que probaría alguien). Esas cadenas también se pasan a
- * zxcvbn como `userInputs` para que penalice sus variantes (juan1, dar3flash...).
+ * fuera "juan...") o la marca, la de ahora o una de antes (`MARCAS_VETADAS`: lo primero que
+ * probaría alguien). Esas cadenas también se pasan a zxcvbn como `userInputs` para que penalice
+ * sus variantes (juan1, dar3flash...).
  *
  * El cliente puede dar una pista de UX, pero el SERVIDOR es el único gate: nada entra sin pasar por
  * aquí. Los mensajes son HUMANOS (nunca score ni códigos).
@@ -28,7 +30,6 @@ const zxcvbn = new ZxcvbnFactory({
 
 export const LONGITUD_MINIMA = 10;
 const SCORE_MINIMO = 3; // 0..4; < 3 se considera adivinable
-const MARCA = "dareflash";
 
 const MENSAJE_DEBIL =
   "Esa contraseña es demasiado fácil de adivinar. Prueba una más larga o menos predecible.";
@@ -58,9 +59,10 @@ export function evaluarPassword(input: {
   const enMinus = password.toLowerCase();
   const local = localDeEmail(input.email);
   if (local && enMinus.includes(local)) return { ok: false, mensaje: MENSAJE_DEBIL };
-  if (enMinus.includes(MARCA)) return { ok: false, mensaje: MENSAJE_DEBIL };
+  // La marca de ahora y TODAS las de antes (`config/marca`): un renombrado no libera la vieja.
+  if (MARCAS_VETADAS.some((m) => enMinus.includes(m))) return { ok: false, mensaje: MENSAJE_DEBIL };
 
-  const userInputs = [local, MARCA].filter((s): s is string => Boolean(s));
+  const userInputs = [local, ...MARCAS_VETADAS].filter((s): s is string => Boolean(s));
   const { score } = zxcvbn.check(password, userInputs);
   if (score < SCORE_MINIMO) return { ok: false, mensaje: MENSAJE_DEBIL };
 

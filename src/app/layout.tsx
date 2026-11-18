@@ -10,10 +10,16 @@ import { idiomaDeLaPeticion, zonaDeLaPeticion } from "@/server/formato-peticion"
 // los ficheros y sus licencias, en `./fuentes`.
 import { variablesFuentes } from "./fuentes";
 import "./globals.css";
+import { MARCA, TITULO_RAIZ } from "@/config/marca";
 
+/**
+ * LA MARCA DE LOS TÍTULOS VIVE AQUÍ, una vez (`TITULO_RAIZ`, de `config/marca`): cada página pone solo
+ * su sección («Retos») y la plantilla añade la marca. Las excepciones usan `title.absolute` (la guía
+ * de estilo, con la marca delante). El panel encadena la suya (« · Panel») en su layout.
+ */
 export const metadata: Metadata = {
-  title: "DareFlash",
-  description: "DareFlash — retos en vídeo corto con premios reales.",
+  title: TITULO_RAIZ,
+  description: `${MARCA} — retos en vídeo corto con premios reales.`,
 };
 
 /**

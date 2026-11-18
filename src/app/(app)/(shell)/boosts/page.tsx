@@ -17,7 +17,7 @@ import { HeroBoosts } from "./hero-boosts";
 import { HistorialBoosts } from "./historial-boosts";
 import { PaquetesBoost } from "./paquetes-boost";
 
-export const metadata = { title: "Mis Boosts · DareFlash" };
+export const metadata = { title: "Mis Boosts" };
 // Lee la sesión y consulta por cursor: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 

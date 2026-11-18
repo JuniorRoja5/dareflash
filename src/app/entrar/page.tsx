@@ -2,7 +2,7 @@ import { PieLegal } from "@/components/ui/pie-legal";
 
 import { TarjetaAcceso } from "./tarjeta-acceso";
 
-export const metadata = { title: "Iniciar sesión · DareFlash" };
+export const metadata = { title: "Iniciar sesión" };
 
 /**
  * ACCESO (/entrar) — ruta SUELTA, fuera del grupo (app), sin nav (como /verify y /unlock). Es el

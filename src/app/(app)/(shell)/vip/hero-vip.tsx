@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { EmblemaVipGrande } from "@/components/ui/identidad-usuario";
 import { ImportePremio } from "@/components/ui/importe-premio";
 import { DEFAULT_CURRENCY, VIP_PRECIO_CENTS } from "@/config/constants";
+import { MARCA } from "@/config/marca";
 
 /**
  * HERO DE /vip — qué es Mythic, cuánto cuesta y qué pasa si te arrepientes.
@@ -71,8 +72,8 @@ export function HeroVip({ idioma }: { idioma: Idioma }) {
               VIP Mythic
             </h1>
             <p className="mt-3 max-w-[52ch] text-sm text-text-dim">
-              La membresía premium de DareFlash. Tu nombre y tu perfil destacan en toda la
-              plataforma, y cada semana recibes un Boost para ponerte en el espacio destacado.
+              La membresía premium de {MARCA}. Tu nombre y tu perfil destacan en toda la plataforma,
+              y cada semana recibes un Boost para ponerte en el espacio destacado.
             </p>
           </div>
         </div>

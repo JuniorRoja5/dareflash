@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { FormularioRecuperar } from "./formulario-recuperar";
 
-export const metadata = { title: "Recuperar contraseña · DareFlash" };
+export const metadata = { title: "Recuperar contraseña" };
 
 const estiloDisplay = {
   fontFamily: "var(--font-display)",

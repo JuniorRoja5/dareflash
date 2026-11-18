@@ -2,7 +2,7 @@ import { Suspense } from "react";
 
 import { TarjetaCambioEmail } from "./tarjeta-cambio-email";
 
-export const metadata = { title: "Confirmar tu nuevo correo · DareFlash" };
+export const metadata = { title: "Confirmar tu nuevo correo" };
 
 /**
  * CONFIRMACIÓN del cambio de correo (/cambiar-email). Ruta SUELTA, fuera del grupo (app) y sin nav,

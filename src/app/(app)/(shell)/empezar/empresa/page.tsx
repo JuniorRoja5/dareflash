@@ -6,7 +6,7 @@ import { paisesParaElegir } from "@/lib/paises";
 
 import { FormularioAlta } from "./formulario-alta";
 
-export const metadata = { title: "Registrar mi empresa · DareFlash" };
+export const metadata = { title: "Registrar mi empresa" };
 // Mira la sesión (para no enseñarle el alta a quien ya tiene su portal): por petición.
 export const dynamic = "force-dynamic";
 

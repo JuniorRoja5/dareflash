@@ -4,7 +4,7 @@ import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 import { requireSeccion } from "../panel-guard";
 import { RetosPanel } from "../retos-panel";
 
-export const metadata = { title: "Retos · Panel" };
+export const metadata = { title: "Retos" };
 export const dynamic = "force-dynamic";
 
 /**

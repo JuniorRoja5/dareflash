@@ -13,7 +13,7 @@ import { HistorialMisPuntos } from "./historial-mis-puntos";
 import { TablaPuntos } from "./tabla-puntos";
 import { formatearNumero } from "@/lib/formato";
 
-export const metadata = { title: "Mis puntos · DareFlash" };
+export const metadata = { title: "Mis puntos" };
 // Lee la sesión y consulta por cursor: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 
