@@ -21,7 +21,6 @@ import { z } from "zod";
 
 import {
   VALORES_METODO_RETIRADA,
-  VALORES_RED_CRIPTO,
   VALORES_MOTIVO_RECHAZO,
   VALORES_PAQUETE_BOOST,
   VALORES_PLAN_VIP,
@@ -64,7 +63,6 @@ import {
 } from "./constants";
 
 export const MetodoRetiradaSchema = z.enum(VALORES_METODO_RETIRADA);
-export const RedCriptoSchema = z.enum(VALORES_RED_CRIPTO);
 export const MotivoRechazoSchema = z.enum(VALORES_MOTIVO_RECHAZO);
 export const PaqueteBoostSchema = z.enum(VALORES_PAQUETE_BOOST);
 export const PlanVipSchema = z.enum(VALORES_PLAN_VIP);

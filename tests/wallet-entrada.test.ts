@@ -14,8 +14,8 @@
  *
  * Y de paso, lo que el DTO ya garantiza en el servidor, aquí se mira en la superficie: los datos de
  * pago no se nombran en ninguna de las tres vistas del monedero, y solo hay UN sitio donde se
- * teclean —el formulario de métodos—, porque cada tecleo de una dirección de cripto es una
- * oportunidad de equivocarse en algo irrecuperable.
+ * teclean —el formulario de métodos—, porque cada tecleo de un IBAN es una oportunidad de
+ * equivocarse.
  *
  * Para romperlo a propósito: añadir "wallet" a `NAV_ESCRITORIO` (rojo), quitar el botón del perfil
  * (rojo), dejar un `href="/cobros"` en cualquier sitio (rojo), o pintar la dirección completa en la
@@ -200,12 +200,6 @@ describe("la pantalla usa tokens, no colores", () => {
     expect(hero).not.toContain("--df-glow-vitrina");
   });
 
-  it("y el aviso irreversible va en `--df-alarm`, que es para lo que existe ese token", () => {
-    // Equivocarse de red es dinero que desaparece: eso es peligro, no "ojo". Si alguien lo baja a un
-    // gris o lo sube a un acento de marca, el aviso deja de leerse como lo que es.
-    expect(codigo("informacion-cobro.tsx")).toMatch(/text-alarm|border-alarm|bg-alarm/);
-  });
-
   it("el movimiento es SOLO `opacity`/`transform`, que es lo que el compositor sabe apagar", () => {
     // La regla global de `prefers-reduced-motion` mata animaciones y transiciones con `!important`
     // sobre `*`. Lo que se le escapa es el movimiento hecho desde JS, y una transición sobre una
@@ -272,17 +266,13 @@ describe("la información que hay que leer antes de cobrar", () => {
   /** El texto como lo lee una persona: sin saltos de línea del JSX ni llaves de interpolación. */
   const plano = info.replace(/\{"\s*"\}/g, " ").replace(/\s+/g, " ");
 
-  it("los tres textos están, literales", () => {
+  it("los dos textos están, literales", () => {
     expect(plano).toContain(
       "Al pedir un cobro, ese importe sale de tu saldo al momento, el equipo lo revisa y te lo envía por el método que elijas. Puede tardar unos días. Si lo rechazamos, el dinero vuelve entero a tu monedero.",
     );
     expect(plano).toContain(
-      "Las comisiones de la red (cripto) o del banco corren por tu cuenta, no por la de DareFlash. Recibirás el importe solicitado menos esas comisiones: si pides",
+      "Las comisiones del banco corren por tu cuenta, no por la de DareFlash. Recibirás el importe solicitado menos esas comisiones: si pides",
     );
-    expect(plano).toContain(
-      "Tu dirección tiene que ser de esa misma red. Si nos das una de otra red,",
-    );
-    expect(plano).toContain("el dinero se pierde y no se puede recuperar");
   });
 
   it("y las cifras del ejemplo de comisiones salen del formateador, no escritas a mano", () => {
@@ -292,19 +282,16 @@ describe("la información que hay que leer antes de cobrar", () => {
     expect(plano, "el importe del ejemplo está escrito a mano").not.toMatch(/\$\s?50\.00/);
   });
 
-  it("el aviso de la RED se ve sin desplegar nada", () => {
-    // Es el único de los tres que, si no se lee, cuesta dinero irrecuperable. Los otros dos se
-    // arreglan preguntando; este no. Así que no puede estar detrás de un clic.
-    //
-    // SE COMPARA CONTRA LA APERTURA DEL `<details>`, no contra el `<summary>`, y la primera versión
-    // lo tenía mal: al meter el aviso DENTRO del desplegable —justo encima del `<summary>`— el caso
-    // seguía verde, porque seguía apareciendo antes. Lo que importa no es ir antes del resumen, es
-    // quedar FUERA del elemento que se pliega.
+  it("todo va dentro del desplegable: ya no queda un aviso que no se pueda plegar", () => {
+    // Hubo uno FUERA, siempre visible y en `--df-alarm`: el de la red de la cripto, el único que
+    // costaba dinero irrecuperable si no se leía. Se fue con la cripto (Fase 11 · PC). Sin él, nada
+    // de esta sección merece la alarma, y el desplegable es lo primero que hay.
     const desplegable = info.indexOf("<details");
-    const aviso = info.indexOf("Red de la cripto");
     expect(desplegable, "ya no hay desplegable que mirar").toBeGreaterThan(-1);
-    expect(aviso).toBeGreaterThan(-1);
-    expect(aviso, "el aviso irreversible se ha metido en el desplegable").toBeLessThan(desplegable);
+    expect(info.slice(0, desplegable), "hay un bloque fuera del desplegable").not.toMatch(
+      /<(div|p|h3)\b/,
+    );
+    expect(info, "vuelve a haber un aviso en color de alarma").not.toMatch(/\balarm\b/);
   });
 });
 

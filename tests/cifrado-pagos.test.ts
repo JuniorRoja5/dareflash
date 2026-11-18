@@ -97,8 +97,8 @@ describe("la pista es lo único que se puede enseñar", () => {
     const { pistaDeDestino } = await modulo(SECRETO);
     expect(pistaDeDestino(IBAN)).toBe("1332");
     expect(pistaDeDestino(IBAN)).toHaveLength(4);
-    // Con más, una dirección de cripto acabaría identificando la cartera por acumulación de pistas.
-    expect(pistaDeDestino("0x52908400098527886E0F7030069857D2E4169EE7")).toBe("9EE7");
+    // Con más, la pista empezaría a ser el número de cuenta: los últimos dígitos de un IBAN lo son.
+    expect(IBAN.replace(/\s+/g, "").endsWith(pistaDeDestino(IBAN))).toBe(true);
   });
 
   it("y los espacios no cuentan: la pista de un IBAN escrito con huecos es la misma", async () => {

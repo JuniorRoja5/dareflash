@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { CuerpoMetodoPagoSchema, MENSAJE_METODO_PAGO } from "@/lib/metodo-pago-cuerpo";
+import { leerCuerpoMetodoPago, MENSAJE_METODO_PAGO } from "@/lib/metodo-pago-cuerpo";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk } from "@/server/http/api";
 
@@ -36,14 +36,13 @@ export const PUT = mutatingRoute<{ params: Promise<{ id: string }> }>(
     const parsed = ParamsSchema.safeParse(await params);
     if (!parsed.success) return apiError("NOT_FOUND", "Ese método ya no está.", 404);
 
-    const cuerpo = CuerpoMetodoPagoSchema.safeParse(await req.json().catch(() => null));
-    if (!cuerpo.success)
-      return apiError("VALIDATION", "No hemos podido procesar la petición.", 400);
+    const cuerpo = leerCuerpoMetodoPago(await req.json().catch(() => null));
+    if (!cuerpo.ok) return apiError(cuerpo.codigo, cuerpo.mensaje, 400);
 
     const r = await reemplazarMetodoPago(prisma, {
       userId,
       metodoId: parsed.data.id,
-      destino: cuerpo.data,
+      destino: cuerpo.destino,
     });
     if (!r.ok) {
       return apiError(

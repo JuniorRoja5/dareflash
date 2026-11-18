@@ -35,7 +35,6 @@ const ETIQUETA: Record<EstadoRetirada, string> = {
  * en `FRASE_RECHAZO` y se enseña debajo antes de confirmar: un desplegable con párrafos no se lee.
  */
 const ETIQUETA_MOTIVO: Record<MotivoRechazo, string> = {
-  RED_INCORRECTA: "La dirección no es de esa red",
   DATOS_BANCARIOS: "Los datos bancarios no funcionan",
   CUENTA_NO_VERIFICADA: "Falta verificar la cuenta",
   SOSPECHA_FRAUDE: "En revisión por actividad sospechosa",

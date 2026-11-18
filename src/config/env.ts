@@ -149,8 +149,8 @@ const serverSchema = z.object({
   /** El de `/api/empresa/creditos/webhook` (P11): la compra de créditos de publicidad. Ver arriba. */
   STRIPE_WEBHOOK_SECRET_CREDITOS: z.string().min(1).optional(),
   /**
-   * Secreto del que sale la clave con la que se cifran los DATOS DE PAGO de una retirada (IBAN,
-   * dirección de cripto). Ver `server/security/cifrado-pagos`.
+   * Secreto del que sale la clave con la que se cifran los DATOS DE PAGO de una retirada (IBAN y
+   * titular). Ver `server/security/cifrado-pagos`.
    *
    * OPCIONAL porque tiene que serlo: el build corre sin ninguna variable, y exigirla aquí tumbaría
    * el despliegue. Lo que NO es opcional es el comportamiento sin ella: sin secreto no se cifra y

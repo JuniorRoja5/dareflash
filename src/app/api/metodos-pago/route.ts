@@ -1,4 +1,4 @@
-import { CuerpoMetodoPagoSchema, MENSAJE_METODO_PAGO } from "@/lib/metodo-pago-cuerpo";
+import { leerCuerpoMetodoPago, MENSAJE_METODO_PAGO } from "@/lib/metodo-pago-cuerpo";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk } from "@/server/http/api";
 
@@ -30,10 +30,10 @@ export const POST = mutatingRoute(async (req, { prisma }) => {
     throw e;
   }
 
-  const cuerpo = CuerpoMetodoPagoSchema.safeParse(await req.json().catch(() => null));
-  if (!cuerpo.success) return apiError("VALIDATION", "No hemos podido procesar la petición.", 400);
+  const cuerpo = leerCuerpoMetodoPago(await req.json().catch(() => null));
+  if (!cuerpo.ok) return apiError(cuerpo.codigo, cuerpo.mensaje, 400);
 
-  const r = await guardarMetodoPago(prisma, { userId, destino: cuerpo.data });
+  const r = await guardarMetodoPago(prisma, { userId, destino: cuerpo.destino });
   if (!r.ok) {
     return apiError(
       r.rechazo,

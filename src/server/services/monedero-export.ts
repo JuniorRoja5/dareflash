@@ -62,7 +62,7 @@ export interface Exportacion {
 function destinoLegible(datosPago: string): string {
   try {
     const d = JSON.parse(descifrarDatoDePago(datosPago)) as Record<string, string>;
-    // Las claves son las que escribió `serializarDestino`: iban+titular, o direccion+red.
+    // Las claves son las que escribió `serializarDestino`: iban y titular.
     return Object.entries(d)
       .map(([k, v]) => `${k}: ${v}`)
       .join(" | ");
@@ -91,7 +91,6 @@ export async function exportarRetiradas(
       currency: true,
       status: true,
       metodo: true,
-      red: true,
       datosPago: true,
       createdAt: true,
       procesadaEn: true,
@@ -116,7 +115,6 @@ export async function exportarRetiradas(
       "importe",
       "moneda",
       "metodo",
-      "red",
       "destino",
       "estado",
       "solicitada",
@@ -129,7 +127,6 @@ export async function exportarRetiradas(
       centimosAImporte(f.amountCents),
       f.currency,
       f.metodo,
-      f.red,
       destinoLegible(f.datosPago),
       f.status,
       f.createdAt.toISOString(),

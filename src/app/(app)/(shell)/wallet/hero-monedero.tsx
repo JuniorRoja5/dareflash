@@ -65,7 +65,7 @@ export function HeroMonedero({
 
         <p className="mt-3 max-w-prose text-sm text-text-dim">
           Lo que ganas en los retos se acumula aquí. Cuando llegues al mínimo, puedes pedir que te
-          lo enviemos al banco o en cripto.
+          lo enviemos al banco.
         </p>
 
         {/* EL ESTADO, EN CHIPS Y NO EN LETRA PEQUEÑA. El mínimo es la única restricción del producto

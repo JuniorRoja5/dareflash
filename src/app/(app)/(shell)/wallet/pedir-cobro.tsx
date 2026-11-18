@@ -15,9 +15,9 @@ import { useFormato } from "@/components/formato-provider";
 /**
  * PEDIR UN COBRO. El importe y A CUÁL de tus métodos guardados.
  *
- * NO SE TECLEAN LOS DATOS DE PAGO: se elige uno de los guardados. Cada tecleo de una dirección de
- * cripto es una oportunidad de equivocarse en algo irrecuperable, así que ese momento ocurre UNA
- * vez, al configurarla, y no en cada cobro.
+ * NO SE TECLEAN LOS DATOS DE PAGO: se elige uno de los guardados. Cada tecleo de un IBAN es una
+ * oportunidad de equivocarse, así que ese momento ocurre UNA vez, al configurarlo, y no en cada
+ * cobro.
  *
  * LA CLAVE DE IDEMPOTENCIA SE GENERA UNA VEZ POR INTENCIÓN, no por envío. Si la red falla a mitad y
  * la persona vuelve a pulsar, el reintento lleva la MISMA clave y el servidor no debita dos veces.
@@ -107,9 +107,8 @@ export function PedirCobro({
         >
           {metodos.map((m) => (
             <option key={m.id} value={m.id}>
-              {/* El MISMO nombre que la tarjeta de arriba (`nombreDeMetodo`): aquí decía
-                  "Cripto · TRC20" —el código de la red, no su nombre— y allí "Cripto · TRON
-                  (TRC-20)". Dos formas de llamar a lo mismo en la misma pantalla. */}
+              {/* El MISMO nombre que la tarjeta de arriba (`nombreDeMetodo`): aquí llegó a decir
+                  una cosa y allí otra. Dos formas de llamar a lo mismo en la misma pantalla. */}
               {nombreDeMetodo(m)} ····{m.pista}
             </option>
           ))}

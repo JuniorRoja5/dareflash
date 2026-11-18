@@ -89,24 +89,16 @@ export const DEFAULT_CURRENCY = "USD";
  */
 export const RETIRADA_MINIMA_CENTS = 5000;
 
-/** Como quiere cobrar. Union CERRADA: cada valor tiene su formulario y su validacion. */
-export const VALORES_METODO_RETIRADA = ["BANK", "CRYPTO"] as const;
-export type MetodoRetirada = (typeof VALORES_METODO_RETIRADA)[number];
-
 /**
- * LAS REDES QUE DAREFLASH ENVIA, y solo esas. No es una preferencia: un envio de cripto es
- * IRREVERSIBLE, y una direccion de una red que no enviamos es dinero perdido sin vuelta atras. Por
- * eso la persona se adapta a esta lista y no al reves, y por eso la lista es cerrada aqui y no un
- * texto libre en un formulario.
+ * Como quiere cobrar. Union CERRADA: cada valor tiene su formulario y su validacion.
+ *
+ * SOLO BANCO (Fase 11 · PC). El cobro en cripto se retiro entero: catalogo, redes, formulario, panel,
+ * CSV y las columnas `red` (migracion `quitar_red_cripto`, que se niega a correr si queda alguna fila
+ * que no sea `BANK`). `tests/sin-cripto.test.ts` impide que vuelva un valor o un texto de cripto sin
+ * que alguien lo decida: un metodo nuevo aqui es una decision de producto, no una linea.
  */
-export const VALORES_RED_CRIPTO = ["TRC20", "ERC20"] as const;
-export type RedCripto = (typeof VALORES_RED_CRIPTO)[number];
-
-/** El catalogo que pinta el desplegable: la red, su nombre humano y las monedas que van por ella. */
-export const REDES_CRIPTO = [
-  { red: "TRC20", nombre: "TRON (TRC-20)", monedas: "USDC · USDT" },
-  { red: "ERC20", nombre: "Ethereum (ERC-20)", monedas: "USDC · USDT" },
-] as const;
+export const VALORES_METODO_RETIRADA = ["BANK"] as const;
+export type MetodoRetirada = (typeof VALORES_METODO_RETIRADA)[number];
 
 /**
  * Copy de la retirada. Humano, y sin un solo codigo de error dentro.
@@ -171,7 +163,6 @@ export const CONCEPTO_MOVIMIENTO_OTRO = "Movimiento";
  * como mensaje.
  */
 export const VALORES_MOTIVO_RECHAZO = [
-  "RED_INCORRECTA",
   "DATOS_BANCARIOS",
   "CUENTA_NO_VERIFICADA",
   "SOSPECHA_FRAUDE",
@@ -190,8 +181,6 @@ export const MOTIVO_RECHAZO_LIBRE: MotivoRechazo = "OTRO";
  * como respaldo, pero cuando hay texto escrito se enseña el texto (ver `fraseDeRechazo`).
  */
 export const FRASE_RECHAZO: Record<MotivoRechazo, string> = {
-  RED_INCORRECTA:
-    "La dirección que nos diste no es de la red indicada. Revísala y guarda el método otra vez antes de volver a pedirlo.",
   DATOS_BANCARIOS:
     "No pudimos completar la transferencia con esos datos bancarios. Comprueba el IBAN y el titular, y guarda el método otra vez.",
   CUENTA_NO_VERIFICADA:

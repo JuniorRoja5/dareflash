@@ -1,12 +1,11 @@
 /**
- * LOS MÉTODOS DE COBRO GUARDADOS — la única pantalla en la que alguien escribe una dirección.
+ * LOS MÉTODOS DE COBRO GUARDADOS — la única pantalla en la que alguien escribe su IBAN.
  *
  * Aquí es donde el dato de pago ENTRA EN CLARO al sistema, así que aquí están las puertas que antes
  * estaban en la solicitud:
  *
- *  - LA FORMA SE VALIDA ANTES DE GUARDAR, y la red se CONTRASTA con la dirección. Si pasa mal de
- *    aquí, el error se congela en todas las solicitudes futuras y un envío de cripto a la red
- *    equivocada no se recupera.
+ *  - LA FORMA SE VALIDA ANTES DE GUARDAR. Si pasa mal de aquí, el error se congela en todas las
+ *    solicitudes futuras. Y el método sale del catálogo: desde la Fase 11 · PC, solo `BANK`.
  *  - SE GUARDA CIFRADO, y FALLA CERRADA: sin `PAGOS_SECRET` no se guarda nada. Guardar el IBAN "en
  *    claro mientras tanto" es exactamente la fuga que el cifrado evita, y además silenciosa.
  *  - EL DTO ES LA PUERTA: `datosPago` no sale ni para pintar la lista propia.
@@ -41,10 +40,11 @@ let prisma: PrismaClient;
 let userId: string;
 
 const IBAN_OK = "ES9121000418450200051332";
-const TRON_OK = "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE";
-const ETH_OK = "0x52908400098527886E0F7030069857D2E4169EE7";
+const IBAN_OTRO = "DE89370400440532013000";
 
 const BANCO: DestinoRetirada = { metodo: "BANK", iban: IBAN_OK, titular: "Marta Ruiz" };
+/** Otra cuenta, para distinguir por la pista cuál de las dos quedó. */
+const BANCO_2: DestinoRetirada = { metodo: "BANK", iban: IBAN_OTRO, titular: "Marta Ruiz" };
 
 beforeAll(() => {
   prisma = createTestPrisma();
@@ -70,7 +70,6 @@ describe("guardar un método", () => {
     expect(fila.datosPago, "no está cifrado con el formato versionado").toMatch(/^v1:/);
     expect(fila.pista).toBe(IBAN_OK.slice(-4));
     expect(fila.metodo).toBe("BANK");
-    expect(fila.red, "un banco no tiene red").toBeNull();
 
     const mios = await misMetodosPago(prisma, userId);
     expect(mios).toEqual([
@@ -78,7 +77,6 @@ describe("guardar un método", () => {
         id: fila.id,
         metodo: "BANK",
         pista: IBAN_OK.slice(-4),
-        red: null,
         createdAt: fila.createdAt,
       },
     ]);
@@ -92,27 +90,13 @@ describe("guardar un método", () => {
     );
   });
 
-  it("cripto guarda su red, que es lo que decide por dónde se envía", async () => {
-    const r = await guardarMetodoPago(prisma, {
-      userId,
-      destino: { metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" },
-    });
-    expect(r.ok).toBe(true);
-    const [uno] = await misMetodosPago(prisma, userId);
-    expect(uno!.red).toBe("TRC20");
-    expect(uno!.pista).toBe(TRON_OK.slice(-4));
-  });
-
   it("solo son MÍOS los míos: la lista de otra persona no se mezcla", async () => {
     const otra = await crearUsuario(prisma, { username: "la_otra" });
     await guardarMetodoPago(prisma, { userId, destino: BANCO });
-    await guardarMetodoPago(prisma, {
-      userId: otra,
-      destino: { metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" },
-    });
+    await guardarMetodoPago(prisma, { userId: otra, destino: BANCO_2 });
 
-    expect((await misMetodosPago(prisma, userId)).map((m) => m.metodo)).toEqual(["BANK"]);
-    expect((await misMetodosPago(prisma, otra)).map((m) => m.metodo)).toEqual(["CRYPTO"]);
+    expect((await misMetodosPago(prisma, userId)).map((m) => m.pista)).toEqual([IBAN_OK.slice(-4)]);
+    expect((await misMetodosPago(prisma, otra)).map((m) => m.pista)).toEqual([IBAN_OTRO.slice(-4)]);
   });
 
   it("hay un tope, y se mide por persona", async () => {
@@ -131,30 +115,27 @@ describe("guardar un método", () => {
   });
 });
 
-describe("el destino: la red se exige y se contrasta", () => {
+describe("el destino: solo una cuenta bancaria bien escrita", () => {
   const guardar = (destino: DestinoRetirada) => guardarMetodoPago(prisma, { userId, destino });
   const rechazo = async (destino: DestinoRetirada): Promise<string | false> => {
     const r = await guardar(destino);
     return r.ok ? false : r.rechazo;
   };
 
-  it("cripto por su red correcta: pasa", async () => {
-    expect((await guardar({ metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" })).ok).toBe(true);
+  it("un banco bien escrito: pasa", async () => {
+    expect((await guardar(BANCO)).ok).toBe(true);
   });
 
-  it("una dirección de OTRA red se rechaza aunque sea válida en la suya", async () => {
-    // El fallo más caro de la pieza: un envío de cripto es irreversible. Una dirección de Ethereum
-    // es perfectamente válida… en Ethereum. Por TRON, ese dinero desaparece.
-    expect(await rechazo({ metodo: "CRYPTO", direccion: ETH_OK, red: "TRC20" })).toBe(
-      "DIRECCION_NO_ES_DE_LA_RED",
-    );
-    expect(await prisma.paymentMethod.count()).toBe(0);
-  });
-
-  it("una red que DareFlash no envía se rechaza", async () => {
-    expect(await rechazo({ metodo: "CRYPTO", direccion: TRON_OK, red: "BEP20" as never })).toBe(
-      "RED_NO_SOPORTADA",
-    );
+  it("CRYPTO ya no es un método: se rechaza como fuera de catálogo, y no se guarda nada", async () => {
+    // Aunque llegue con una dirección perfectamente válida: el servicio no se fía del tipo, mira el
+    // catálogo. Es la red de abajo de la ruta, que ya lo rechaza antes con su frase.
+    const cripto = {
+      metodo: "CRYPTO",
+      direccion: "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE",
+      iban: IBAN_OK,
+      titular: "Marta Ruiz",
+    } as never;
+    expect(await rechazo(cripto)).toBe("METODO_DESCONOCIDO");
     expect(await prisma.paymentMethod.count()).toBe(0);
   });
 
@@ -169,7 +150,7 @@ describe("el destino: la red se exige y se contrasta", () => {
     expect(await rechazo({ metodo: "BANK", iban: IBAN_OK, titular: " " })).toBe("TITULAR_VACIO");
   });
 
-  it("un método que no es ninguno de los dos se rechaza", async () => {
+  it("cualquier otro método fuera del catálogo, también", async () => {
     expect(await rechazo({ metodo: "PAYPAL" } as never)).toBe("METODO_DESCONOCIDO");
   });
 });
@@ -200,17 +181,12 @@ describe("sustituir un método ('editar')", () => {
 
   it("el viejo se va y el nuevo entra: nunca quedan los dos", async () => {
     const viejo = await guardar();
-    const r = await reemplazarMetodoPago(prisma, {
-      userId,
-      metodoId: viejo,
-      destino: { metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" },
-    });
+    const r = await reemplazarMetodoPago(prisma, { userId, metodoId: viejo, destino: BANCO_2 });
 
     expect(r.ok).toBe(true);
     const mios = await misMetodosPago(prisma, userId);
     expect(mios).toHaveLength(1);
-    expect(mios[0]!.metodo).toBe("CRYPTO");
-    expect(mios[0]!.pista).toBe(TRON_OK.slice(-4));
+    expect(mios[0]!.pista).toBe(IBAN_OTRO.slice(-4));
     expect(await prisma.paymentMethod.findUnique({ where: { id: viejo } })).toBeNull();
   });
 
@@ -220,11 +196,7 @@ describe("sustituir un método ('editar')", () => {
     const ids: string[] = [];
     for (let i = 0; i < MAX_METODOS_PAGO; i++) ids.push(await guardar());
 
-    const r = await reemplazarMetodoPago(prisma, {
-      userId,
-      metodoId: ids[0]!,
-      destino: { metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" },
-    });
+    const r = await reemplazarMetodoPago(prisma, { userId, metodoId: ids[0]!, destino: BANCO_2 });
 
     expect(r.ok, "con el tope lleno no deja ni sustituir").toBe(true);
     expect(await prisma.paymentMethod.count({ where: { userId } })).toBe(MAX_METODOS_PAGO);
@@ -271,11 +243,7 @@ describe("sustituir un método ('editar')", () => {
     const otra = await crearUsuario(prisma, { username: "la_otra" });
     const suyo = await guardar(BANCO, otra);
 
-    const r = await reemplazarMetodoPago(prisma, {
-      userId,
-      metodoId: suyo,
-      destino: { metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" },
-    });
+    const r = await reemplazarMetodoPago(prisma, { userId, metodoId: suyo, destino: BANCO_2 });
 
     // La operación se trata como un alta MÍA: el suyo sigue intacto y yo me quedo con uno nuevo.
     expect(r.ok).toBe(true);
@@ -285,12 +253,12 @@ describe("sustituir un método ('editar')", () => {
   });
 
   it("y el dato nuevo queda CIFRADO, como el de un alta", async () => {
-    const viejo = await guardar({ metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" });
+    const viejo = await guardar(BANCO_2);
     const r = await reemplazarMetodoPago(prisma, { userId, metodoId: viejo, destino: BANCO });
     const fila = await prisma.paymentMethod.findUniqueOrThrow({ where: { id: r.ok ? r.id : "" } });
     expect(fila.datosPago).not.toContain(IBAN_OK);
     expect(fila.datosPago).toMatch(/^v1:/);
-    expect(fila.red, "se quedó la red del método anterior").toBeNull();
+    expect(fila.pista, "se quedó la pista del método anterior").toBe(IBAN_OK.slice(-4));
   });
 });
 

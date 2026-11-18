@@ -33,7 +33,7 @@ const CuerpoSchema = z.object({
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
  * EL ROL SE DERIVA DE `secciones.ts`. Aquí importa el doble: este endpoint devuelve IBANes y
- * direcciones de cripto EN CLARO, que es lo único del producto que ni siquiera su dueño puede leer.
+ * titulares EN CLARO, que es lo único del producto que ni siquiera su dueño puede leer.
  *
  * Y SE AUDITA ANTES DE RESPONDER. Si la traza se escribiera "después de enviar", un fallo a mitad
  * dejaría el fichero entregado y la auditoría muda — que es el único estado inaceptable de los dos.

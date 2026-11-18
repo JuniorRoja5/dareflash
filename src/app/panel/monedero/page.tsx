@@ -5,7 +5,12 @@ import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { importeConMoneda } from "@/lib/dinero";
 import { nombreMostrado } from "@/lib/identidad";
 import { enlacePaginado, leerPila, PRIMERA, type Paginacion } from "@/lib/paginacion-pila";
-import { ESTADOS_RETIRADA, ETIQUETA_ESTADO, type EstadoRetirada } from "@/lib/retirada";
+import {
+  ESTADOS_RETIRADA,
+  ETIQUETA_ESTADO,
+  nombreDeMetodo,
+  type EstadoRetirada,
+} from "@/lib/retirada";
 
 import { requireSeccion } from "../panel-guard";
 
@@ -186,13 +191,11 @@ export default async function Pagina({
               </div>
 
               {/* EL DESTINO DEL PAGO, descifrado y solo aquí. En `font-mono` porque se va a copiar a
-                  mano a un banco o a una cartera, y un IBAN mal leído es dinero perdido. */}
+                  mano al banco, y un IBAN mal leído es una transferencia que no llega. */}
               <dl className="rounded-sm border border-line bg-raised/40 p-3 text-xs">
                 <div className="flex gap-2">
                   <dt className="shrink-0 text-text-dim">Método</dt>
-                  <dd className="text-text">
-                    {r.metodo === "BANK" ? "Banco" : `Cripto · ${r.red}`}
-                  </dd>
+                  <dd className="text-text">{nombreDeMetodo(r)}</dd>
                 </div>
                 {Object.entries(r.destino).map(([clave, valor]) => (
                   <div key={clave} className="mt-1 flex gap-2">

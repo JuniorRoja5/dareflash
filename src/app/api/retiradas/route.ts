@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  *
  * EL DESTINO TAMPOCO VIENE AQUÍ, solo el id de un método YA GUARDADO. Que los datos de pago no
  * viajen en cada solicitud no es solo comodidad: es un sitio menos por el que pasa un IBAN, y una
- * oportunidad menos de teclear mal una dirección de cripto, que es un error sin arreglo.
+ * oportunidad menos de teclearlo mal.
  *
  * `clave`: una por INTENCIÓN de cobrar, generada en la pantalla. Un reintento de la misma intención
  * —doble clic, red caída a mitad— llega con la misma clave y NO vuelve a debitar.

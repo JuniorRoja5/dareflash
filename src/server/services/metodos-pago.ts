@@ -18,10 +18,10 @@ import {
  * LOS MÉTODOS DE PAGO GUARDADOS — dónde quiere cobrar una persona, configurado una vez.
  *
  * ┌─ POR QUÉ SE GUARDAN Y NO SE TECLEAN EN CADA COBRO ────────────────────────────────────────────┐
- * │ Antes, cada solicitud pedía el IBAN o la dirección otra vez. Eso no es solo incómodo: cada    │
- * │ tecleo es una oportunidad de equivocarse en un número que, si es una dirección de cripto, NO  │
- * │ SE PUEDE RECUPERAR. Guardándolo, el error solo puede ocurrir una vez y en un momento en que   │
- * │ la persona está mirando precisamente eso.                                                     │
+ * │ Antes, cada solicitud pedía el IBAN otra vez. Eso no es solo incómodo: cada tecleo es una     │
+ * │ oportunidad de equivocarse en un número, y una transferencia a una cuenta equivocada no se    │
+ * │ deshace sola. Guardándolo, el error solo puede ocurrir una vez y en un momento en que la      │
+ * │ persona está mirando precisamente eso.                                                        │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
  * SE GUARDAN CIFRADOS, con la misma clave y el mismo formato que la retirada. Y como allí, falla
@@ -42,7 +42,6 @@ export interface MetodoPagoPropio {
   metodo: string;
   /** Los cuatro últimos caracteres del destino. Lo ÚNICO que se enseña sin descifrar. */
   pista: string;
-  red: string | null;
   createdAt: Date;
 }
 
@@ -55,8 +54,8 @@ export async function guardarMetodoPago(
   input: { userId: string; destino: DestinoRetirada },
 ): Promise<{ ok: true; id: string } | { ok: false; rechazo: RechazoMetodo }> {
   // LA FORMA ANTES QUE NADA, y aquí es donde de verdad importa: esta es la única pantalla en la que
-  // alguien escribe una dirección de cripto. Si pasa de aquí mal escrita, el error se congela en
-  // todas las solicitudes futuras. Misma función que valida en el navegador: no pueden discrepar.
+  // alguien escribe su IBAN. Si pasa de aquí mal escrito, el error se congela en todas las
+  // solicitudes futuras. Misma función que valida en el navegador: no pueden discrepar.
   const forma = validarDestino(input.destino);
   if (!forma.ok) return { ok: false, rechazo: forma.motivo };
 
@@ -71,7 +70,6 @@ export async function guardarMetodoPago(
       metodo: input.destino.metodo,
       datosPago: cifrarDatoDePago(serializarDestino(input.destino)),
       pista: pistaDeDestino(colaDelDestino(input.destino)),
-      red: input.destino.metodo === "CRYPTO" ? input.destino.red : null,
     },
     select: { id: true },
   });
@@ -90,7 +88,7 @@ export async function misMetodosPago(
   return db.paymentMethod.findMany({
     where: { userId },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    select: { id: true, metodo: true, pista: true, red: true, createdAt: true },
+    select: { id: true, metodo: true, pista: true, createdAt: true },
   });
 }
 
@@ -153,7 +151,6 @@ export async function reemplazarMetodoPago(
         metodo: input.destino.metodo,
         datosPago,
         pista,
-        red: input.destino.metodo === "CRYPTO" ? input.destino.red : null,
       },
       select: { id: true },
     });

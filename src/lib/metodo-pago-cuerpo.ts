@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 import { MSG_RETIRADA_NO_DISPONIBLE } from "@/config/constants";
-import { MetodoRetiradaSchema, RedCriptoSchema } from "@/config/esquemas";
+import { MetodoRetiradaSchema } from "@/config/esquemas";
+
+import type { DestinoRetirada } from "./retirada";
 
 /**
  * EL CUERPO DE UN MÉTODO DE COBRO Y SU COPY, en un sitio y no en dos.
@@ -12,22 +14,14 @@ import { MetodoRetiradaSchema, RedCriptoSchema } from "@/config/esquemas";
  * dejar dos validaciones del mismo dato libres de separarse — justo con el dato que, mal escrito, se
  * congela en todas las solicitudes futuras.
  *
- * La RED es obligatoria en cripto y de la LISTA CERRADA: una red que DareFlash no envía es dinero
- * perdido. La comprobación de que la dirección es DE esa red la hace `validarDestino`, que es la
- * misma función que corre en el navegador.
+ * El método sale del CATÁLOGO (`MetodoRetiradaSchema`), y hoy el catálogo es solo `BANK`. La forma
+ * fina del IBAN la comprueba `validarDestino`, que es la misma función que corre en el navegador.
  */
-export const CuerpoMetodoPagoSchema = z.discriminatedUnion("metodo", [
-  z.object({
-    metodo: z.literal(MetodoRetiradaSchema.enum.BANK),
-    iban: z.string().min(10).max(40),
-    titular: z.string().min(2).max(120),
-  }),
-  z.object({
-    metodo: z.literal(MetodoRetiradaSchema.enum.CRYPTO),
-    direccion: z.string().min(10).max(120),
-    red: RedCriptoSchema,
-  }),
-]);
+export const CuerpoMetodoPagoSchema = z.object({
+  metodo: MetodoRetiradaSchema,
+  iban: z.string().min(10).max(40),
+  titular: z.string().min(2).max(120),
+});
 
 /**
  * El copy por motivo de rechazo. Lo que la persona puede hacer algo con, nunca el código: "IBAN
@@ -39,9 +33,32 @@ export const MENSAJE_METODO_PAGO: Record<string, string> = {
     "Ya tienes todos los métodos de cobro que se pueden guardar. Borra uno para añadir otro.",
   IBAN_INVALIDO: "Revisa el IBAN: no parece completo.",
   TITULAR_VACIO: "Falta el nombre del titular de la cuenta.",
-  RED_NO_SOPORTADA: "Esa red no está disponible. Elige una de la lista.",
-  DIRECCION_INVALIDA: "Revisa la dirección: no parece completa.",
-  DIRECCION_NO_ES_DE_LA_RED:
-    "Esa dirección no es de la red elegida. Comprueba las dos: un envío a la red equivocada no se puede recuperar.",
-  METODO_DESCONOCIDO: "Elige banco o cripto.",
+  METODO_DESCONOCIDO: "Solo puedes cobrar en una cuenta bancaria: añade su IBAN y el titular.",
 };
+
+/**
+ * LEE EL CUERPO y, si no vale, dice POR QUÉ con una frase que se pueda enseñar.
+ *
+ * ┌─ UN MÉTODO FUERA DEL CATÁLOGO NO ES UN "NO HEMOS PODIDO PROCESAR" ────────────────────────────┐
+ * │ Quien manda `metodo: "CRYPTO"` (una app vieja en caché, un formulario de antes de retirar la  │
+ * │ cripto, una integración a mano) no ha mandado basura: ha pedido algo que ya no existe. Se le   │
+ * │ dice qué SÍ se puede, en vez del genérico de validación, que no le dice qué cambiar.          │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+export function leerCuerpoMetodoPago(
+  json: unknown,
+):
+  | { ok: true; destino: DestinoRetirada }
+  | { ok: false; codigo: "METODO_DESCONOCIDO" | "VALIDATION"; mensaje: string } {
+  const cuerpo = CuerpoMetodoPagoSchema.safeParse(json);
+  if (cuerpo.success) return { ok: true, destino: cuerpo.data };
+  const metodo = (json as { metodo?: unknown } | null)?.metodo;
+  if (!MetodoRetiradaSchema.safeParse(metodo).success) {
+    return {
+      ok: false,
+      codigo: "METODO_DESCONOCIDO",
+      mensaje: MENSAJE_METODO_PAGO.METODO_DESCONOCIDO!,
+    };
+  }
+  return { ok: false, codigo: "VALIDATION", mensaje: "No hemos podido procesar la petición." };
+}

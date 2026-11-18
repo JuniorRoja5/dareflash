@@ -5,7 +5,6 @@ import { type FormEvent, type SVGProps, useMemo, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
-import { REDES_CRIPTO } from "@/config/constants";
 import { delCsrf, mensajeDe, postJsonCsrf, putJsonCsrf } from "@/lib/cliente-http";
 import { nombreDeMetodo, validarDestino, type DestinoRetirada } from "@/lib/retirada";
 import type { MetodoPagoPropio } from "@/server/services/metodos-pago";
@@ -13,12 +12,15 @@ import type { MetodoPagoPropio } from "@/server/services/metodos-pago";
 /**
  * DÓNDE COBRAR — los métodos guardados, en tarjetas, y el formulario para añadir o sustituir uno.
  *
- * ┌─ ESTA ES LA ÚNICA PANTALLA DONDE ALGUIEN ESCRIBE UNA DIRECCIÓN ───────────────────────────────┐
- * │ Y por eso es donde más vale la validación: si una dirección de cripto pasa mal escrita de     │
- * │ aquí, el error se congela en todas las solicitudes futuras, y un envío a la red equivocada no │
- * │ se recupera. La comprobación usa la MISMA función que el servidor (`validarDestino`), así que │
- * │ no pueden discrepar: lo de aquí solo adelanta el "no", no decide.                             │
+ * ┌─ ESTA ES LA ÚNICA PANTALLA DONDE ALGUIEN ESCRIBE SU IBAN ─────────────────────────────────────┐
+ * │ Y por eso es donde más vale la validación: si un IBAN pasa mal escrito de aquí, el error se   │
+ * │ congela en todas las solicitudes futuras. La comprobación usa la MISMA función que el         │
+ * │ servidor (`validarDestino`), así que no pueden discrepar: lo de aquí solo adelanta el "no",   │
+ * │ no decide.                                                                                    │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * SIN SELECTOR DE TIPO: el único método es la cuenta bancaria (la cripto se retiró en la Fase 11 ·
+ * PC). Un selector de una sola opción es una pregunta que no pregunta nada.
  *
  * SE PUEDE CONFIGURAR CON EL MONEDERO VACÍO. Guardar un método no mueve dinero; esconderlo hasta
  * tener saldo solo conseguía que la primera vez que alguien gana se encontrara con dos pasos justo
@@ -66,13 +68,6 @@ const IconoBanco: Icono = (p) => (
   </Svg>
 );
 
-const IconoCripto: Icono = (p) => (
-  <Svg {...p}>
-    <path d="M12 2.5 20 7v10l-8 4.5L4 17V7l8-4.5Z" />
-    <path d="M9.5 8.5h4a2 2 0 0 1 0 4h-4m0 0h4.2a2 2 0 0 1 0 4H9.5m0-8V16m2-9.5v1.5m0 8v1.5" />
-  </Svg>
-);
-
 export function MetodosDeCobro({
   metodos,
   saldoCents,
@@ -83,19 +78,15 @@ export function MetodosDeCobro({
   const router = useRouter();
   /** `null` = cerrado; `""` = añadiendo uno nuevo; un id = reemplazando ese. */
   const [editando, setEditando] = useState<string | null>(metodos.length === 0 ? "" : null);
-  const [metodo, setMetodo] = useState<"BANK" | "CRYPTO">("BANK");
   const [iban, setIban] = useState("");
   const [titular, setTitular] = useState("");
-  const [direccion, setDireccion] = useState("");
-  const [red, setRed] = useState<(typeof REDES_CRIPTO)[number]["red"]>(REDES_CRIPTO[0].red);
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [borrando, setBorrando] = useState<string | null>(null);
 
   const destino: DestinoRetirada = useMemo(
-    () =>
-      metodo === "BANK" ? { metodo: "BANK", iban, titular } : { metodo: "CRYPTO", direccion, red },
-    [metodo, iban, titular, direccion, red],
+    () => ({ metodo: "BANK", iban, titular }),
+    [iban, titular],
   );
   const puede = validarDestino(destino).ok && !ocupado;
   const reemplazando = editando !== null && editando !== "";
@@ -103,22 +94,16 @@ export function MetodosDeCobro({
   function limpiar() {
     setIban("");
     setTitular("");
-    setDireccion("");
     setError(null);
   }
 
   function abrirNuevo() {
     limpiar();
-    setMetodo("BANK");
     setEditando("");
   }
 
-  /** Abre el formulario YA en el tipo y la red del método que se reemplaza: lo único que se sabe. */
   function abrirReemplazo(m: MetodoPagoPropio) {
     limpiar();
-    setMetodo(m.metodo === "CRYPTO" ? "CRYPTO" : "BANK");
-    const suRed = REDES_CRIPTO.find((r) => r.red === m.red);
-    if (suRed) setRed(suRed.red);
     setEditando(m.id);
   }
 
@@ -170,15 +155,14 @@ export function MetodosDeCobro({
         {metodos.map((m) => (
           <li
             key={m.id}
-            /* `flex-wrap` + un ancho mínimo para el nombre: con "Reemplazar" al lado, en móvil el
-               nombre se partía en tres líneas ("Cripto ·" / "TRON" / "(TRC-20)"). Así, cuando no
-               cabe, son los botones los que bajan a su propia línea. */
+            /* `flex-wrap` + un ancho mínimo para el nombre: con "Reemplazar" al lado, en móvil un
+               nombre largo se partía en tres líneas. Así, cuando no cabe, son los botones los que
+               bajan a su propia línea. */
             className="flex flex-wrap items-center gap-3 rounded-sm border border-line bg-surface/60 p-4 shadow-[var(--df-shadow-sm)] backdrop-blur-md"
           >
-            {/* El icono lleva el color del SIGNIFICADO del método —banco, cripto—, no un acento:
-                elegir dónde cobrar no es la acción de la pantalla. */}
+            {/* El icono es neutro, no un acento: elegir dónde cobrar no es la acción de la pantalla. */}
             <span className="grid size-10 shrink-0 place-items-center rounded-sm bg-raised text-text-dim">
-              {m.metodo === "BANK" ? <IconoBanco /> : <IconoCripto />}
+              <IconoBanco />
             </span>
             <span className="min-w-[9rem] flex-1">
               <span className="block text-sm font-medium text-text">{nombreDeMetodo(m)}</span>
@@ -247,86 +231,21 @@ export function MetodosDeCobro({
             </p>
           ) : null}
 
-          <fieldset>
-            <legend className="text-sm font-medium text-text">Tipo</legend>
-            <div className="mt-2 flex gap-2">
-              {(
-                [
-                  ["BANK", "Banco"],
-                  ["CRYPTO", "Cripto"],
-                ] as const
-              ).map(([valor, etiqueta]) => (
-                <button
-                  key={valor}
-                  type="button"
-                  onClick={() => setMetodo(valor)}
-                  aria-pressed={metodo === valor}
-                  /* NEUTRO, nunca el acento: elegir el tipo no es LA acción de la pantalla. */
-                  className={`min-h-[44px] rounded-sm px-4 text-sm transition-colors duration-[var(--df-dur-fast)] ease-mechanical ${
-                    metodo === valor
-                      ? "bg-raised font-medium text-text"
-                      : "text-text-dim hover:bg-raised hover:text-text"
-                  }`}
-                >
-                  {etiqueta}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          {metodo === "BANK" ? (
-            <>
-              <Campo
-                id="iban"
-                label="IBAN"
-                value={iban}
-                onChange={(e) => setIban(e.target.value)}
-                autoComplete="off"
-                placeholder="ES00 0000 0000 0000 0000 0000"
-              />
-              <Campo
-                id="titular"
-                label="Nombre del titular"
-                value={titular}
-                onChange={(e) => setTitular(e.target.value)}
-                autoComplete="off"
-              />
-            </>
-          ) : (
-            <>
-              <div>
-                <label htmlFor="red" className="mb-1.5 block text-sm font-medium text-text">
-                  Red
-                </label>
-                {/* LA RED SE ELIGE DE UNA LISTA CERRADA, no se escribe: una red que no enviamos es
-                    dinero perdido, así que no puede ser un campo de texto libre. */}
-                <select
-                  id="red"
-                  value={red}
-                  onChange={(e) => setRed(e.target.value as typeof red)}
-                  className="min-h-[44px] w-full rounded-sm border border-line bg-surface px-3.5 text-base text-text focus:bg-raised"
-                >
-                  {REDES_CRIPTO.map((r) => (
-                    <option key={r.red} value={r.red}>
-                      {r.nombre} — {r.monedas}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Campo
-                  id="direccion"
-                  label="Dirección"
-                  value={direccion}
-                  onChange={(e) => setDireccion(e.target.value)}
-                  autoComplete="off"
-                />
-                <p className="mt-1.5 text-xs text-text-dim">
-                  Tiene que ser una dirección de la red elegida. Un envío a otra red no se recupera.
-                </p>
-              </div>
-            </>
-          )}
+          <Campo
+            id="iban"
+            label="IBAN"
+            value={iban}
+            onChange={(e) => setIban(e.target.value)}
+            autoComplete="off"
+            placeholder="ES00 0000 0000 0000 0000 0000"
+          />
+          <Campo
+            id="titular"
+            label="Nombre del titular"
+            value={titular}
+            onChange={(e) => setTitular(e.target.value)}
+            autoComplete="off"
+          />
 
           {error ? (
             <p role="alert" className="text-sm text-alarm">

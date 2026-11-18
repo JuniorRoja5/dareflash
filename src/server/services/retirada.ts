@@ -27,8 +27,8 @@ import { applyWallet, LedgerError } from "./ledger";
  * │ monedero. Las dos son descuadres de dinero, que aquí no son bugs menores.                     │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
- * SALE EL IMPORTE SOLICITADO, NO MENOS. Las comisiones de red o de banco reducen lo que LLEGA, no lo
- * que sale: así los libros cuadran en lo pedido y la comisión queda entre la red y quien cobra. Aquí
+ * SALE EL IMPORTE SOLICITADO, NO MENOS. Las comisiones del banco reducen lo que LLEGA, no lo que
+ * sale: así los libros cuadran en lo pedido y la comisión queda entre el banco y quien cobra. Aquí
  * no se resta nada ni se estima nada — estimar una comisión sería inventar una cifra de dinero.
  *
  * EL DESTINO YA NO SE TECLEA AQUÍ: se elige un método GUARDADO y la retirada se queda con una COPIA
@@ -68,7 +68,7 @@ export async function solicitarRetirada(
   // la respuesta si el método de otro existe.
   const metodo = await db.paymentMethod.findFirst({
     where: { id: input.metodoPagoId, userId: input.userId },
-    select: { metodo: true, datosPago: true, pista: true, red: true },
+    select: { metodo: true, datosPago: true, pista: true },
   });
   if (!metodo) {
     return {
@@ -141,7 +141,6 @@ export async function solicitarRetirada(
             metodo: metodo.metodo,
             datosPago: metodo.datosPago,
             pista: metodo.pista,
-            red: metodo.red,
             idempotencyKey,
           },
         });
@@ -198,7 +197,6 @@ export interface RetiradaPropia {
   status: string;
   metodo: string;
   pista: string;
-  red: string | null;
   createdAt: Date;
   /**
    * Cuándo se movió por última vez (la aceptó, la puso en camino, la pagó o la rechazó). Es el ÚNICO
@@ -303,7 +301,6 @@ export async function misRetiradas(
       status: true,
       metodo: true,
       pista: true,
-      red: true,
       createdAt: true,
       procesadaEn: true,
       motivoRechazo: true,

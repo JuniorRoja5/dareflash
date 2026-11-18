@@ -7,8 +7,8 @@ import { env } from "@/config/env";
 /**
  * CIFRADO DE LOS DATOS DE PAGO (AES-256-GCM).
  *
- * Un IBAN o una dirección de cripto en claro en la base de datos es una fuga con nombre y apellidos:
- * basta una copia de seguridad perdida o un `SELECT` de más. Aquí se guardan cifrados y solo se
+ * Un IBAN y su titular en claro en la base de datos son una fuga con nombre y apellidos: basta
+ * una copia de seguridad perdida o un `SELECT` de más. Aquí se guardan cifrados y solo se
  * descifran en el punto donde hacen falta de verdad — el panel del admin que hace la transferencia.
  *
  * ┌─ SECRETO PROPIO, NO `AUTH_SECRET` ────────────────────────────────────────────────────────────┐
@@ -97,8 +97,10 @@ export function descifrarDatoDePago(guardado: string): string {
  * La PISTA que sí se puede enseñar: los últimos caracteres del destino. Sirve para que el usuario
  * reconozca su propia retirada ("…4321") sin que nadie descifre nada para pintar una lista.
  *
- * Se queda en CUATRO. Con más, una dirección de cripto acabaría identificando la cartera entera por
- * acumulación de pistas; con menos, no distingue dos cuentas de la misma persona.
+ * Se queda en CUATRO, también con el IBAN como único destino. Es la convención de los bancos
+ * (····4321), y por algo: los últimos dígitos de un IBAN son el número de cuenta, así que cada
+ * carácter de más es un trozo más de la cuenta en claro, en una columna que se lista sin descifrar.
+ * Con menos, no distingue dos cuentas de la misma persona.
  */
 export function pistaDeDestino(destino: string): string {
   const limpio = destino.replace(/\s+/g, "");

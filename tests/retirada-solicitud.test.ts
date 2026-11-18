@@ -43,7 +43,7 @@ let prisma: PrismaClient;
 let userId: string;
 
 const IBAN_OK = "ES9121000418450200051332";
-const TRON_OK = "TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE";
+const IBAN_OTRO = "DE89370400440532013000";
 
 const BANCO: DestinoRetirada = { metodo: "BANK", iban: IBAN_OK, titular: "Marta Ruiz" };
 
@@ -262,9 +262,13 @@ describe("el dinero sale al pedir", () => {
 });
 
 describe("la retirada se queda con una COPIA del método, no con un puntero", () => {
-  it("copia el blob cifrado TAL CUAL, con su pista y su red", async () => {
+  it("copia el blob cifrado TAL CUAL, con su método y su pista", async () => {
     await conSaldo(20_000);
-    const metodoPagoId = await conMetodo({ metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" });
+    const metodoPagoId = await conMetodo({
+      metodo: "BANK",
+      iban: IBAN_OTRO,
+      titular: "Marta Ruiz",
+    });
     const guardado = await prisma.paymentMethod.findUniqueOrThrow({ where: { id: metodoPagoId } });
 
     const r = await solicitarRetirada(prisma, {
@@ -275,13 +279,12 @@ describe("la retirada se queda con una COPIA del método, no con un puntero", ()
     });
 
     const w = await prisma.withdrawal.findUniqueOrThrow({ where: { id: r.retiradaId! } });
-    // El MISMO blob: se copia sin descifrar, así que la dirección no llega a estar en claro por este
+    // El MISMO blob: se copia sin descifrar, así que el IBAN no llega a estar en claro por este
     // camino. Si se descifrara y volviera a cifrar, el texto cambiaría (IV aleatorio) y este caso se
     // pondría rojo — que es justo lo que se quiere saber.
     expect(w.datosPago).toBe(guardado.datosPago);
-    expect(w.metodo).toBe("CRYPTO");
-    expect(w.red).toBe("TRC20");
-    expect(w.pista).toBe(TRON_OK.slice(-4));
+    expect(w.metodo).toBe("BANK");
+    expect(w.pista).toBe(IBAN_OTRO.slice(-4));
   });
 
   it("BORRAR el método NO cambia a dónde iba una solicitud ya pedida", async () => {
@@ -353,10 +356,11 @@ describe("los datos de pago no salen de aquí", () => {
     const r = await solicitarRetirada(prisma, {
       userId,
       importeCents: 6000,
-      metodoPagoId: await conMetodo({ metodo: "CRYPTO", direccion: TRON_OK, red: "TRC20" }),
+      metodoPagoId: await conMetodo({ metodo: "BANK", iban: IBAN_OTRO, titular: "Marta Ruiz" }),
       clave: "55555555-2222-4333-8444-555555555553",
     });
-    expect(JSON.stringify(r)).not.toContain(TRON_OK);
+    expect(JSON.stringify(r)).not.toContain(IBAN_OTRO);
+    expect(JSON.stringify(r)).not.toContain("Marta");
   });
 });
 

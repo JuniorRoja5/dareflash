@@ -175,7 +175,6 @@ export interface RetiradaPanel {
   currency: string;
   estado: EstadoRetirada;
   metodo: string;
-  red: string | null;
   createdAt: Date;
   /** Los datos de pago YA DESCIFRADOS. Solo salen de aquí hacia el panel del admin. */
   destino: Record<string, string>;
@@ -236,7 +235,6 @@ export async function listarRetiradas(
       currency: true,
       status: true,
       metodo: true,
-      red: true,
       datosPago: true,
       createdAt: true,
     },
@@ -270,7 +268,6 @@ export async function listarRetiradas(
       currency: f.currency,
       estado: f.status as EstadoRetirada,
       metodo: f.metodo,
-      red: f.red,
       createdAt: f.createdAt,
       destino,
       siguientes: siguientesEstados(f.status as EstadoRetirada),

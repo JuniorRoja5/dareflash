@@ -118,17 +118,16 @@ describe("el recorrido dice la verdad en cada estado", () => {
 });
 
 describe("el nombre del método se dice IGUAL en toda la pantalla", () => {
-  it("la red se nombra por su nombre, nunca por su código", () => {
-    // El selector de "pedir un cobro" decía "Cripto · TRC20" y la tarjeta de al lado "Cripto ·
-    // TRON (TRC-20)": el mismo método, dos nombres, en la misma pantalla.
-    expect(nombreDeMetodo({ metodo: "CRYPTO", red: "TRC20" })).toBe("Cripto · TRON (TRC-20)");
-    expect(nombreDeMetodo({ metodo: "CRYPTO", red: "ERC20" })).toContain("Ethereum");
-    expect(nombreDeMetodo({ metodo: "CRYPTO", red: "TRC20" })).not.toMatch(/TRC20\b/);
+  it("un banco es un banco", () => {
+    expect(nombreDeMetodo({ metodo: "BANK" })).toBe("Cuenta bancaria");
   });
 
-  it("un banco es un banco, y una red desconocida no inventa nombre", () => {
-    expect(nombreDeMetodo({ metodo: "BANK", red: null })).toBe("Cuenta bancaria");
-    expect(nombreDeMetodo({ metodo: "CRYPTO", red: "LO_QUE_SEA" })).toBe("Cripto");
+  it("un método fuera del catálogo no inventa nombre ni enseña su código", () => {
+    // FAIL-OPEN: la migración de la PC no deja ninguno, pero una fila rara no puede reventar ni
+    // pintar "CRYPTO" en la pantalla de alguien que espera su dinero.
+    for (const metodo of ["CRYPTO", "LO_QUE_SEA"]) {
+      expect(nombreDeMetodo({ metodo }), metodo).toBe("Método de cobro");
+    }
   });
 });
 

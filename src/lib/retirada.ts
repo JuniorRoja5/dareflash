@@ -4,14 +4,11 @@ import {
   FRASE_RECHAZO,
   FRASE_RECHAZO_DESCONOCIDO,
   MOTIVO_RECHAZO_LIBRE,
-  REDES_CRIPTO,
   RETIRADA_MINIMA_CENTS,
   type MetodoRetirada,
   type MotivoRechazo,
-  type RedCripto,
   VALORES_METODO_RETIRADA,
   VALORES_MOTIVO_RECHAZO,
-  VALORES_RED_CRIPTO,
 } from "@/config/constants";
 import { esUnoDe } from "@/lib/valores";
 
@@ -57,37 +54,20 @@ export function puedePedirCobro(saldoCents: number): boolean {
 // EL DESTINO
 // ---------------------------------------------------------------------------
 
-export type DestinoRetirada =
-  | { metodo: "BANK"; iban: string; titular: string }
-  | { metodo: "CRYPTO"; direccion: string; red: RedCripto };
+/** El único destino: una cuenta bancaria (IBAN y su titular). Ver `VALORES_METODO_RETIRADA`. */
+export type DestinoRetirada = { metodo: "BANK"; iban: string; titular: string };
 
-export type RechazoDestino =
-  | "METODO_DESCONOCIDO"
-  | "IBAN_INVALIDO"
-  | "TITULAR_VACIO"
-  | "RED_NO_SOPORTADA"
-  | "DIRECCION_INVALIDA"
-  | "DIRECCION_NO_ES_DE_LA_RED";
+export type RechazoDestino = "METODO_DESCONOCIDO" | "IBAN_INVALIDO" | "TITULAR_VACIO";
 
 /** IBAN: dos letras de país, dos dígitos de control y hasta 30 alfanuméricos. Sin espacios. */
 const IBAN = /^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/;
-/** TRON: base58 empezando por T, 34 caracteres. */
-const DIR_TRC20 = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
-/** Ethereum: 0x y 40 hex. */
-const DIR_ERC20 = /^0x[0-9a-fA-F]{40}$/;
 
 /**
- * Valida el destino del cobro. Es la puerta que impide el fallo más caro de toda la pieza.
+ * Valida el destino del cobro. Es la puerta que impide guardar un IBAN que no puede recibir nada:
+ * mal escrito aquí, el error se congela en todas las solicitudes futuras.
  *
- * ┌─ LA RED NO SE DEDUCE DE LA DIRECCIÓN: SE EXIGE Y SE CONTRASTA ────────────────────────────────┐
- * │ Un envío de cripto es IRREVERSIBLE. Mandar USDT por TRON a una dirección de Ethereum es       │
- * │ dinero que desaparece, sin soporte que valga y sin vuelta atrás. Por eso la red se elige      │
- * │ aparte Y se comprueba que la dirección es de ESA red: no basta con que la dirección "parezca  │
- * │ válida", porque una dirección de Ethereum es perfectamente válida… en Ethereum.               │
- * │                                                                                               │
- * │ Y por eso la lista es cerrada: una red que DareFlash no envía no se acepta aunque la          │
- * │ dirección esté bien escrita. La persona se adapta a las redes de la casa, no al revés.        │
- * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ * El método se contrasta con el CATÁLOGO aunque el tipo diga que solo puede ser `BANK`: esta función
+ * también corre con lo que llega por la red, y ahí el tipo no garantiza nada.
  */
 export function validarDestino(
   destino: DestinoRetirada,
@@ -95,39 +75,24 @@ export function validarDestino(
   if (!esUnoDe(VALORES_METODO_RETIRADA, destino.metodo)) {
     return { ok: false, motivo: "METODO_DESCONOCIDO" };
   }
-
-  if (destino.metodo === "BANK") {
-    if (destino.titular.trim().length < 2) return { ok: false, motivo: "TITULAR_VACIO" };
-    if (!IBAN.test(destino.iban.replace(/\s+/g, "").toUpperCase())) {
-      return { ok: false, motivo: "IBAN_INVALIDO" };
-    }
-    return { ok: true };
+  if (destino.titular.trim().length < 2) return { ok: false, motivo: "TITULAR_VACIO" };
+  if (!IBAN.test(destino.iban.replace(/\s+/g, "").toUpperCase())) {
+    return { ok: false, motivo: "IBAN_INVALIDO" };
   }
-
-  if (!esUnoDe(VALORES_RED_CRIPTO, destino.red)) {
-    return { ok: false, motivo: "RED_NO_SOPORTADA" };
-  }
-  const dir = destino.direccion.trim();
-  if (dir.length === 0) return { ok: false, motivo: "DIRECCION_INVALIDA" };
-  const patron = destino.red === "TRC20" ? DIR_TRC20 : DIR_ERC20;
-  // La dirección es válida PARA SU RED, no "válida" a secas: es la comprobación que salva el dinero.
-  if (!patron.test(dir)) return { ok: false, motivo: "DIRECCION_NO_ES_DE_LA_RED" };
   return { ok: true };
 }
 
 /** El texto que se cifra: todo lo que hace falta para pagar, y nada más. */
 export function serializarDestino(destino: DestinoRetirada): string {
-  return destino.metodo === "BANK"
-    ? JSON.stringify({
-        iban: destino.iban.replace(/\s+/g, "").toUpperCase(),
-        titular: destino.titular.trim(),
-      })
-    : JSON.stringify({ direccion: destino.direccion.trim(), red: destino.red });
+  return JSON.stringify({
+    iban: destino.iban.replace(/\s+/g, "").toUpperCase(),
+    titular: destino.titular.trim(),
+  });
 }
 
-/** Lo que se enseña sin descifrar nada: los últimos caracteres del destino. */
+/** Lo que se enseña sin descifrar nada: los últimos caracteres del IBAN. */
 export function colaDelDestino(destino: DestinoRetirada): string {
-  return destino.metodo === "BANK" ? destino.iban.replace(/\s+/g, "") : destino.direccion.trim();
+  return destino.iban.replace(/\s+/g, "");
 }
 
 // ---------------------------------------------------------------------------
@@ -331,13 +296,14 @@ export function fraseDeRechazo(
 
 /**
  * EL NOMBRE HUMANO DE UN MÉTODO DE COBRO, en un solo sitio: la tarjeta de "Dónde cobrar", el
- * selector de "Pedir un cobro" y cada fila del historial decían lo mismo de tres maneras —una de
- * ellas, con el CÓDIGO de la red ("TRC20") en vez de su nombre—. Es el mismo dato; se lee igual.
+ * selector de "Pedir un cobro", cada fila del historial y el panel decían lo mismo de varias
+ * maneras. Es el mismo dato; se lee igual.
+ *
+ * FAIL-OPEN con un nombre genérico para un método que ya no está en el catálogo: la migración que
+ * retiró la cripto no deja ninguno, pero una pantalla de dinero no revienta por una fila rara.
  */
-export function nombreDeMetodo(m: { metodo: string; red?: string | null }): string {
-  if (m.metodo === "BANK") return "Cuenta bancaria";
-  const red = REDES_CRIPTO.find((r) => r.red === m.red);
-  return red ? `Cripto · ${red.nombre}` : "Cripto";
+export function nombreDeMetodo(m: { metodo: string }): string {
+  return m.metodo === "BANK" ? "Cuenta bancaria" : "Método de cobro";
 }
 
 /** Clave de idempotencia de la SOLICITUD. Namespaced por usuario: ver `claveAjusteBoost`. */

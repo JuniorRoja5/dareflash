@@ -287,12 +287,12 @@ describe("rechazar exige decir por qué", () => {
       retiradaId: id,
       adminId,
       hasta: "REJECTED",
-      motivo: "RED_INCORRECTA",
+      motivo: "DATOS_BANCARIOS",
     });
 
     const fila = await prisma.withdrawal.findUniqueOrThrow({ where: { id } });
     expect(fila.status).toBe("REJECTED");
-    expect(fila.motivoRechazo, "se rechazó sin guardar el motivo").toBe("RED_INCORRECTA");
+    expect(fila.motivoRechazo, "se rechazó sin guardar el motivo").toBe("DATOS_BANCARIOS");
     // Una clave de la lista NO guarda texto: su frase ya está escrita y revisada.
     expect(fila.motivoRechazoTexto).toBeNull();
     expect(await saldo(), "el dinero no volvió").toBe(7500);
@@ -324,13 +324,13 @@ describe("rechazar exige decir por qué", () => {
       retiradaId: id,
       adminId,
       hasta: "REJECTED",
-      motivo: "RED_INCORRECTA",
+      motivo: "DATOS_BANCARIOS",
     });
 
     const mias = await misRetiradas(prisma, userId);
-    expect(mias.items[0]!.motivoRechazo).toBe(FRASE_RECHAZO.RED_INCORRECTA);
+    expect(mias.items[0]!.motivoRechazo).toBe(FRASE_RECHAZO.DATOS_BANCARIOS);
     // La CLAVE no viaja: lo que sale es la frase, resuelta en el servidor.
-    expect(JSON.stringify(mias)).not.toContain("RED_INCORRECTA");
+    expect(JSON.stringify(mias)).not.toContain("DATOS_BANCARIOS");
   });
 
   it("y una rechazada SIN motivo (de antes de la columna) no inventa ninguno", async () => {

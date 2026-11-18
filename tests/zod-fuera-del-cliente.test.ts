@@ -81,7 +81,7 @@ describe("un catálogo se escribe UNA vez, en constants.ts", () => {
   const llamadas = [...fuente.matchAll(/export const (\w+)Schema = z\.enum\(([^)]*)\);/g)];
 
   it("esquemas.ts construye cada z.enum con su lista importada, nunca con los valores reescritos", () => {
-    expect(llamadas.length).toBe(41);
+    expect(llamadas.length).toBe(40); // 41 en la P1b; la PC quitó `RedCriptoSchema`.
     const malos = llamadas.filter(([, , arg]) => !/^VALORES_[A-Z0-9_]+$/.test(arg!.trim()));
     expect(malos.map(([l]) => l)).toEqual([]);
     // Ni una cadena en todo el módulo, salvo los tres imports: un valor escrito aquí es una copia
@@ -140,7 +140,7 @@ describe("esUnoDe dice lo mismo que el z.enum del servidor", () => {
     { toString: () => "BANK" },
   ];
 
-  it("en los 41 catálogos, con cada valor, sus variantes y entradas que no son texto", () => {
+  it("en los 40 catálogos, con cada valor, sus variantes y entradas que no son texto", () => {
     const tablaEsquemas = esquemas as unknown as Record<
       string,
       { options: readonly string[]; safeParse: (v: unknown) => { success: boolean } }
@@ -162,7 +162,7 @@ describe("esUnoDe dice lo mismo que el z.enum del servidor", () => {
         casos++;
       }
     }
-    expect(casos).toBeGreaterThan(41 * 13);
+    expect(casos).toBeGreaterThan(40 * 13);
   });
 
   it("unoDe devuelve el valor del catálogo y lanza con uno de fuera, como el .parse del esquema", () => {

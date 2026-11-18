@@ -917,11 +917,9 @@ model WalletLedger {
 model PaymentMethod {
   id        String   @id @default(cuid())
   userId    String
-  metodo    String // BANK | CRYPTO (union en constants)
+  metodo    String // BANK, el unico (union en constants; la cripto se retiro en la Fase 11 · PC)
   datosPago String   @db.Text // cifrado, formato `v1:iv:tag:dato`
   pista     String   @db.VarChar(16)
-  /// Solo en CRYPTO: la red. Un envio a otra red es dinero perdido.
-  red       String?  @db.VarChar(16)
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt, id])
@@ -932,13 +930,13 @@ model PaymentMethod {
 /// User bloqueado. No hay estado "pedido pero aun en tu saldo", porque ese estado
 /// es justo el que deja pedir dos veces el mismo dinero.
 ///
-/// EL IMPORTE ES EL SOLICITADO, NO LO QUE LLEGA. Las comisiones de red o de banco
-/// las paga quien cobra y reducen lo que RECIBE, no lo que sale de aqui: asi los
-/// libros cuadran en el importe pedido y la comision queda entre la red y la persona.
+/// EL IMPORTE ES EL SOLICITADO, NO LO QUE LLEGA. Las comisiones del banco las paga
+/// quien cobra y reducen lo que RECIBE, no lo que sale de aqui: asi los libros
+/// cuadran en el importe pedido y la comision queda entre el banco y la persona.
 ///
 /// LOS DATOS DE PAGO VAN CIFRADOS (AES-256-GCM, clave propia de entorno). Son PII
-/// financiera: un IBAN o una direccion de cripto en claro en la base de datos es una
-/// fuga con nombre y apellidos. Se descifran SOLO en el panel del admin que procesa
+/// financiera: un IBAN y su titular en claro en la base de datos son una fuga con
+/// nombre y apellidos. Se descifran SOLO en el panel del admin que procesa
 /// el pago; nunca viajan en un DTO de usuario ni en un log. Lo que el usuario ve de
 /// su propia retirada sale de `pista`, que no es sensible.
 ///
@@ -953,15 +951,12 @@ model Withdrawal {
   amountCents Int // SIEMPRE positivo: lo solicitado. El DEBIT del ledger lleva el signo.
   currency    String @db.Char(3)
   status      String @default("PENDING") // union en constants (WalletStatusSchema)
-  metodo      String // BANK | CRYPTO (union en constants)
+  metodo      String // BANK, el unico (union en constants)
 
   /// PII financiera CIFRADA. Formato versionado (`v1:iv:tag:dato`) para poder rotar.
-  datosPago String  @db.Text
+  datosPago String @db.Text
   /// Lo NO sensible, para listar sin descifrar: los ultimos caracteres del destino.
-  pista     String  @db.VarChar(16)
-  /// Solo en CRYPTO: la red elegida (union en constants). El importe no se mueve de
-  /// red: si la direccion es de otra, el dinero se pierde y no se recupera.
-  red       String? @db.VarChar(16)
+  pista     String @db.VarChar(16)
 
   /// Del intento del usuario, para que un doble envio del formulario no pida dos veces.
   idempotencyKey String    @unique

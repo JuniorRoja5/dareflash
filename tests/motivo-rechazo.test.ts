@@ -65,7 +65,7 @@ describe('"OTRO" es la única que escribe, y la única que puede', () => {
     // Si se admitiera, habría un rechazo con su frase revisada Y un texto escrito al lado, y la
     // pantalla tendría que elegir cuál enseñar. La que se enseña es la revisada, así que el texto
     // sobraría — y lo que sobra, a la larga, se acaba enseñando.
-    const r = validarMotivoRechazo("RED_INCORRECTA", TEXTO);
+    const r = validarMotivoRechazo("DATOS_BANCARIOS", TEXTO);
     expect(r.ok).toBe(false);
     expect(r.ok === false && r.rechazo).toBe("TEXTO_SOBRA");
   });
@@ -98,7 +98,7 @@ describe("la frase la pone el copy, no la fila", () => {
   it("y una clave de la lista IGNORA un texto que le hayan colgado", () => {
     // Puede pasar con una fila vieja o un arreglo a mano. Se enseña la frase revisada, que es la
     // que alguien escribió pensando en quién la lee.
-    expect(fraseDeRechazo("RED_INCORRECTA", "lo que sea")).toBe(FRASE_RECHAZO.RED_INCORRECTA);
+    expect(fraseDeRechazo("DATOS_BANCARIOS", "lo que sea")).toBe(FRASE_RECHAZO.DATOS_BANCARIOS);
   });
 });
 
