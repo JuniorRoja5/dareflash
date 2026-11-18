@@ -14,12 +14,13 @@
  *  - el tipo escrito GANA a la forma: una compra marcada como de créditos con la forma exacta de una
  *    de Boost (usuario, paquete y precio de Boost) no abona boosts. Es el caso que la convención de
  *    antes no paraba;
- *  - LAS DE ANTES, sin tipo, se reconocen por su forma y se abonan, y un reenvío ya con tipo de la
- *    misma sesión no abona otra vez (la clave sigue siendo la de la sesión).
+ *  - SIN TIPO NO ES DE NADIE: una sesión o suscripción sin `tipo` no abona en ningún webhook ni
+ *    escribe en el log, aunque tenga la forma EXACTA de una compra. No se deduce nada de la forma: eso
+ *    era la convención que esta pieza retira (lo de antes era de prueba y se cancela a mano).
  *
  * Para romperlo a propósito: quitar el descarte por tipo de un webhook (rojo: escribe en el log o
- * abona lo ajeno), hacer que acepte también el tipo de otro (rojo), o quitar la deducción de la forma
- * antigua en `tipoDePago` (rojo: las sesiones de antes dejan de abonarse).
+ * abona lo ajeno), hacer que acepte también el tipo de otro (rojo), o volver a deducir el tipo de la
+ * forma en `tipoDePago` (rojo: una sesión sin tipo vuelve a abonarse).
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -294,42 +295,38 @@ describe("el tipo ESCRITO gana a la forma: ningún webhook acepta el de otro", (
   });
 });
 
-describe("compatibilidad: lo de antes no lleva tipo", () => {
-  it("una compra de Boost de antes se abona, y su reenvío ya con tipo NO abona otra vez", async () => {
-    const vieja = { userId, packageId: "boost_5" };
-    expect(await (await enviar.boost(sesion(vieja, { id: "cs_vieja" }))).json()).toEqual({
-      estado: "acreditado",
-    });
-    // La misma sesión otra vez —con o sin tipo—: la clave es la de la sesión, que no cambió.
-    expect(await (await enviar.boost(sesion(vieja, { id: "cs_vieja" }))).json()).toEqual({
-      estado: "repetida",
-    });
-    expect(
-      await (await enviar.boost(sesion(conTipo("boost", vieja), { id: "cs_vieja" }))).json(),
-    ).toEqual({ estado: "repetida" });
-    expect(await boosts()).toBe(PAQUETES_BOOST.boost_5.boosts);
-    expect(await prisma.boostLedger.count()).toBe(1);
+describe("sin tipo no es de nadie: no se deduce nada de la forma", () => {
+  // Cada caso lleva la forma EXACTA de una compra real de su producto, sin el `tipo`. Si alguien
+  // volviera a adivinar el tipo por los campos, todos estos abonarían.
+  it("una sesión con la forma de Boost, sin tipo: no abona en el webhook de Boost", async () => {
+    await ignoradaEnSilencio(await enviar.boost(sesion({ userId, packageId: "boost_5" })));
+    await nadaAbonado();
   });
 
-  it("una de créditos de antes se abona, y el webhook de Boost la sigue descartando", async () => {
-    const vieja = sesion(
+  it("una con la forma de créditos, sin tipo: no abona en el de créditos (ni en el de Boost)", async () => {
+    const sinTipo = sesion(
       { empresaId, packageId: "creditos_10" },
-      { id: "cs_vieja_c", pagadoCents: PAQUETES_CREDITOS.creditos_10.precioCents },
+      { pagadoCents: PAQUETES_CREDITOS.creditos_10.precioCents },
     );
-    await ignoradaEnSilencio(await enviar.boost(vieja));
-    expect(await (await enviar.creditos(vieja)).json()).toEqual({ estado: "acreditado" });
-    expect(await creditos()).toBe(PAQUETES_CREDITOS.creditos_10.creditos);
+    await ignoradaEnSilencio(await enviar.creditos(sinTipo));
+    await ignoradaEnSilencio(await enviar.boost(sinTipo));
+    await nadaAbonado();
   });
 
-  it("una suscripción VIP de antes (sin tipo, con `plan`) se sigue registrando en cada renovación", async () => {
-    // La metadata de la suscripción se fija al crearla: las de antes llegan SIN tipo para siempre.
-    const res = await enviar.vip(suscripcion({ userId, plan: "VIP_MYTHIC" }));
-    expect(await res.json()).toEqual({ estado: "registrada" });
+  it("una suscripción con usuario y `plan`, sin tipo: no se registra", async () => {
+    await ignoradaEnSilencio(await enviar.vip(suscripcion({ userId, plan: "VIP_MYTHIC" })));
+    await nadaAbonado();
   });
 
-  it("y el alta de VIP de antes (su sesión) tampoco ensucia el log de Boost ni el de créditos", async () => {
-    await ignoradaEnSilencio(await enviar.boost(sesion({ userId, plan: "VIP_MYTHIC" })));
-    await ignoradaEnSilencio(await enviar.creditos(sesion({ userId, plan: "VIP_MYTHIC" })));
+  it("y la misma sesión, reenviada YA con su tipo, se abona una vez: el descarte no la quema", async () => {
+    // El descarte no escribe nada, así que no deja la clave de idempotencia gastada: si la sesión
+    // vuelve con su tipo, se abona —y una sola vez—.
+    const sinTipo = { userId, packageId: "boost_5" };
+    await enviar.boost(sesion(sinTipo, { id: "cs_x" }));
+    const con = sesion(conTipo("boost", sinTipo), { id: "cs_x" });
+    expect(await (await enviar.boost(con)).json()).toEqual({ estado: "acreditado" });
+    expect(await (await enviar.boost(con)).json()).toEqual({ estado: "repetida" });
+    expect(await prisma.boostLedger.count()).toBe(1);
   });
 });
 
@@ -371,11 +368,11 @@ describe("tipoDePago, la regla en un sitio", () => {
     expect(tipoDePago({ tipo: "" })).toBe("desconocido");
   });
 
-  it("sin tipo, la forma antigua; sin forma, `null`", () => {
-    expect(tipoDePago({ userId: "u", packageId: "boost_5" })).toBe("boost");
-    expect(tipoDePago({ empresaId: "e", packageId: "creditos_10" })).toBe("creditos");
-    expect(tipoDePago({ userId: "u", plan: "VIP_MYTHIC" })).toBe("vip");
-    expect(tipoDePago({ packageId: "boost_5" })).toBeNull();
+  it("sin tipo, `null`, tenga la forma que tenga", () => {
+    expect(tipoDePago({ userId: "u", packageId: "boost_5" })).toBeNull();
+    expect(tipoDePago({ empresaId: "e", packageId: "creditos_10" })).toBeNull();
+    expect(tipoDePago({ userId: "u", plan: "VIP_MYTHIC" })).toBeNull();
+    expect(tipoDePago({})).toBeNull();
     expect(tipoDePago(null)).toBeNull();
     expect(tipoDePago(undefined)).toBeNull();
   });

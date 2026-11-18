@@ -16,37 +16,25 @@ import { esUnoDe } from "@/lib/valores";
  *
  * Devuelve:
  *  - el TIPO, si la metadata lo trae y es del catálogo;
- *  - `"desconocido"` si trae un `tipo` que no es del catálogo: no es de nadie, nadie abona;
- *  - el tipo DEDUCIDO de la forma antigua, si no trae `tipo` (ver abajo);
- *  - `null` si no trae `tipo` ni tiene la forma de ninguna compra nuestra.
+ *  - `"desconocido"` si trae un `tipo` que no es del catálogo;
+ *  - `null` si no trae `tipo`.
+ * En los dos últimos casos el pago no es de NADIE: ningún webhook abona y ninguno escribe en el log.
  *
- * ┌─ COMPATIBILIDAD: LAS SESIONES DE ANTES NO LLEVAN TIPO ────────────────────────────────────────┐
- * │ Para ellas se deduce de la forma que tenían, que es DISJUNTA entre productos:                 │
- * │   vip      → `plan` (sesión y suscripción)                                                    │
- * │   creditos → `empresaId` + `packageId`                                                        │
- * │   boost    → `userId` + `packageId`, y nada de lo anterior                                     │
- * │ Así una sesión pagada antes del cambio y aún sin abonar (un reenvío de Stripe, uno manual     │
- * │ desde el panel) SE ABONA, y no puede abonarse dos veces: la clave de idempotencia sigue siendo │
- * │ la de la sesión, que no ha cambiado. Un `tipo` escrito gana SIEMPRE a la forma.                │
- * │                                                                                               │
- * │ Se puede retirar cuando ya no quede nada sin tipo. En Checkout eso es pronto (una sesión      │
- * │ caduca en 24 h y Stripe reintenta 3 días); en VIP NO, porque la metadata de la SUSCRIPCIÓN se  │
- * │ fija al crearla y viaja en cada renovación: una suscripción de antes sigue llegando sin tipo.  │
+ * ┌─ SIN TIPO NO SE DEDUCE NADA DE LA FORMA, a propósito ─────────────────────────────────────────┐
+ * │ Se podría adivinar por los campos (`plan` → VIP, `empresaId` → créditos, `userId` → Boost),   │
+ * │ pero eso ES la convención que esta pieza retira: decidir de quién es un pago por cómo se      │
+ * │ llaman sus campos. Las sesiones y suscripciones de antes, sin tipo, eran todas de prueba      │
+ * │ (confirmado en Stripe el 18 nov) y las suscripciones VIP de prueba se cancelan a mano: no     │
+ * │ queda nada real en vuelo que haya que reconocer. Un pago nuevo sin tipo es un fallo nuestro   │
+ * │ al abrirlo, y `conTipo` es el único sitio que lo escribe.                                     │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
 export function tipoDePago(
   metadata: Record<string, string> | null | undefined,
 ): TipoPago | "desconocido" | null {
-  const m = metadata ?? {};
-  const escrito = m[METADATA_TIPO_PAGO];
-  if (escrito !== undefined) return esUnoDe(VALORES_TIPO_PAGO, escrito) ? escrito : "desconocido";
-
-  // Sin tipo: la forma antigua. El orden importa poco porque las formas son disjuntas, pero va de la
-  // más específica a la menos: `userId` + `packageId` no basta para decir Boost si hay algo más.
-  if (m["plan"]) return "vip";
-  if (m["empresaId"] && m["packageId"]) return "creditos";
-  if (m["userId"] && m["packageId"]) return "boost";
-  return null;
+  const escrito = metadata?.[METADATA_TIPO_PAGO];
+  if (escrito === undefined) return null;
+  return esUnoDe(VALORES_TIPO_PAGO, escrito) ? escrito : "desconocido";
 }
 
 /** La `metadata` con su tipo, para abrir un pago. Un solo sitio que escribe la clave. */

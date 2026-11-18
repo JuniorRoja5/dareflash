@@ -23,9 +23,9 @@ export const dynamic = "force-dynamic";
  *
  * SOLO LAS SUSCRIPCIONES DE VIP (Fase 11 · PW): una suscripción que no sea de tipo `vip` se descarta
  * EN SILENCIO (200, sin log). Hoy VIP es lo único que se suscribe, pero el tipo va escrito igual: que
- * esto sea lo único que crea suscripciones es una suposición, no una protección. Las suscripciones de
- * antes no llevan tipo y llegan así en CADA renovación —la metadata se fija al crearla—: se reconocen
- * por su `plan` (ver `lib/pago-tipo`).
+ * esto sea lo único que crea suscripciones es una suposición, no una protección. Una suscripción SIN
+ * tipo tampoco es de VIP: las de antes de este cambio eran de prueba y se cancelan a mano (ver
+ * `lib/pago-tipo`, que no deduce nada de la forma).
  *
  * TODO ES IDEMPOTENTE POR CONSTRUCCIÓN: lo que se escribe es un `upsert` con la fecha ABSOLUTA que
  * manda Stripe. Reprocesar el mismo evento —que Stripe reentrega cuando duda de nuestra respuesta—

@@ -31,7 +31,7 @@ export const dynamic = "force-dynamic";
  * complete en la cuenta: también las de créditos de publicidad y las altas de VIP. Las que no son
  * de tipo `boost` se descartan EN SILENCIO —200 y sin log—, porque no son una anomalía: son de otro
  * webhook, que las está tratando. Lo que SÍ es un error es una compra DE BOOST a la que le falta a
- * quién o qué abonar. Ver `lib/pago-tipo`, también para las sesiones de antes, que no llevan tipo.
+ * quién o qué abonar. Una sesión SIN tipo no es de nadie, tampoco de Boost: ver `lib/pago-tipo`.
  *
  * DOS TIPOS DE EVENTO, UNA SOLA COMPRA. `completed` llega en el pago normal y
  * `async_payment_succeeded` en los métodos diferidos. Los dos traen la MISMA sesión, así que los
