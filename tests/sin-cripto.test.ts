@@ -106,6 +106,19 @@ describe("ningún texto de src/ nombra la cripto", () => {
   });
 });
 
+describe("el aviso del CSV nombra lo que lleva el fichero, y nada más", () => {
+  it("«IBAN y titular», no «direcciones»", () => {
+    // Las capturas de la PC lo cazaron: el aviso seguía diciendo «(IBAN, direcciones)» —las de la
+    // cripto— y ningún detector lo veía, porque «direcciones» es una palabra corriente. Un aviso de
+    // datos sensibles que nombra algo que el fichero ya no lleva enseña a no leerlo.
+    const codigo = sinComentarios(
+      readFileSync(path.join(RAIZ, "src/app/panel/monedero/exportar-csv.tsx"), "utf8"),
+    );
+    expect(codigo).toContain("datos de pago en claro (IBAN y titular)");
+    expect(codigo).not.toMatch(/direcci/i);
+  });
+});
+
 describe("el catálogo", () => {
   it("el único método de cobro es BANK", () => {
     expect([...VALORES_METODO_RETIRADA]).toEqual(["BANK"]);

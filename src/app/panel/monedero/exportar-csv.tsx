@@ -17,7 +17,7 @@ import { SelectorRango } from "../selector-rango";
  * │ blob → un `<a download>` que se pulsa y se tira.                                              │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
- * EL AVISO ESTÁ ANTES DE LA DESCARGA, no después: lo que se baja lleva IBANes y direcciones en
+ * EL AVISO ESTÁ ANTES DE LA DESCARGA, no después: lo que se baja lleva IBANes y titulares en
  * claro, y eso hay que saberlo ANTES de tener el fichero en la carpeta de descargas.
  *
  * La URL del blob se REVOCA siempre, también si algo falla: es una referencia a datos de pago
@@ -91,7 +91,7 @@ export function ExportarCsv() {
           fichero con los datos bancarios de otras personas saliendo del servidor. */}
       <p className="mt-2 max-w-prose rounded-sm border border-alarm/40 bg-alarm/5 p-3 text-sm text-text-dim">
         <strong className="font-medium text-alarm">
-          Este archivo contiene datos de pago en claro (IBAN, direcciones).
+          Este archivo contiene datos de pago en claro (IBAN y titular).
         </strong>{" "}
         Guárdalo con cuidado: no lo dejes en Descargas ni lo mandes por chat. Cada exportación queda
         registrada con tu nombre y su rango.
