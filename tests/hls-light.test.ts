@@ -3,7 +3,7 @@
  *
  * Por qué existe: `hls.js` completo pesaba ~172 KB gzip en `/feed` (el 42 % de lo que descarga). El
  * build `hls.js/light` hace lo mismo para lo que usamos (sin subtítulos, audio alternativo, DRM, CMCD
- * ni intersticiales) por ~69 KB menos, en todos los navegadores. Lo que fija:
+ * ni intersticiales) por ~62 KB gzip menos (medido en `/feed`), en todos los navegadores. Lo que fija:
  *
  * 1. Solo se pide `hls.js/light`, y solo por `import()` dinámico: volver a `import("hls.js")` (el
  *    completo) o importarlo de forma estática en cualquier fichero es rojo, nombrando dónde.
@@ -33,7 +33,7 @@ const REPRODUCTOR = "src/components/ui/reproductor-hls.tsx";
 const reproductor = readFileSync(path.join(RAIZ, REPRODUCTOR), "utf8");
 
 describe("hls.js: solo el build light, y solo bajo demanda", () => {
-  it("todo import() de hls.js pide `hls.js/light` (el completo pesa ~69 KB gzip más)", () => {
+  it("todo import() de hls.js pide `hls.js/light` (el completo pesa ~62 KB gzip más)", () => {
     const dinamicos = todos.flatMap((f) =>
       [...sinComentarios(readFileSync(f, "utf8")).matchAll(/import\(\s*["']([^"']+)["']\s*\)/g)]
         .map((m) => m[1]!)

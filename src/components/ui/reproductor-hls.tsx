@@ -22,8 +22,8 @@ import { CajaVideo } from "./caja-video";
  * póster. hls.js lleva un LOADER propio que añade el token a cada petición. Mandar Safari al nativo
  * exigiría el token EN LA RUTA (firma de `bunny.ts`): deuda aparcada, no un cambio de este fichero.
  *
- * Se carga `hls.js/light` (Fase 11 · P1c), por import DINÁMICO, fuera del bundle inicial: ~69 KB gzip
- * menos que el build completo en todos los navegadores. Le faltan subtítulos, audio alternativo, DRM
+ * Se carga `hls.js/light` (Fase 11 · P1c), por import DINÁMICO, fuera del bundle inicial: ~62 KB gzip
+ * menos que el build completo en `/feed` (medido: 341,5 → 279,1 KB a 390), en todos los navegadores. Le faltan subtítulos, audio alternativo, DRM
  * (EME), CMCD e intersticiales, y aquí no se usa nada de eso. Volver al completo lo pone rojo
  * `tests/hls-light.test.ts`. Rendimiento: carga/reproduce SOLO cuando está en pantalla
  * (IntersectionObserver) y suelta el buffer al salir de vista.
