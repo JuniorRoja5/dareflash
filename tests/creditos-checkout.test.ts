@@ -203,7 +203,7 @@ describe("abrir el pago", () => {
   it("el precio y la empresa del cliente se IGNORAN: manda el catálogo y el chokepoint", async () => {
     await pedir({ packageId: "creditos_100", precioCents: 1, empresaId: "la_de_otro" });
     expect(args().line_items[0]?.price_data.unit_amount).toBe(3000);
-    expect(args().metadata).toEqual({ empresaId, packageId: "creditos_100" });
+    expect(args().metadata).toEqual({ tipo: "creditos", empresaId, packageId: "creditos_100" });
   });
 
   it("pide el número fiscal (con dirección y cliente), para que conste en sus documentos", async () => {

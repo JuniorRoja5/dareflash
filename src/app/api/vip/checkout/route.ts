@@ -7,6 +7,7 @@ import {
   RATE_LIMITS,
   VIP_PRECIO_CENTS,
 } from "@/config/constants";
+import { conTipo } from "@/lib/pago-tipo";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 
@@ -65,9 +66,11 @@ export const POST = mutatingRoute(async (_req, { user, env, prisma }) => {
       ],
       // El puente con el webhook. En la SESIÓN y además en la SUSCRIPCIÓN: los eventos de
       // renovación y de baja llegan con el objeto `subscription`, no con la sesión, así que sin
-      // esto no se sabría de quién es la renovación del mes que viene.
-      metadata: { userId: user.userId, plan: PLAN_VIP },
-      subscription_data: { metadata: { userId: user.userId, plan: PLAN_VIP } },
+      // esto no se sabría de quién es la renovación del mes que viene. El TIPO va en los dos por
+      // lo mismo: la sesión llega también a los webhooks de Boost y de créditos, que la descartan
+      // por él (ver `lib/pago-tipo`).
+      metadata: conTipo("vip", { userId: user.userId, plan: PLAN_VIP }),
+      subscription_data: { metadata: conTipo("vip", { userId: user.userId, plan: PLAN_VIP }) },
       success_url: `${env.APP_URL}/vip?suscripcion=ok`,
       cancel_url: `${env.APP_URL}/vip?suscripcion=cancelada`,
     });

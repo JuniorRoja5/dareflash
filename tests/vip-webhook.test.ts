@@ -98,7 +98,8 @@ function cuerpoEvento(
     finEnLaSuscripcion?: boolean;
   } = {},
 ): string {
-  const metadata: Record<string, string> = {};
+  // Como la escribe el checkout: con su `tipo` (Fase 11 · PW) y su `plan`.
+  const metadata: Record<string, string> = { tipo: "vip", plan: "VIP_MYTHIC" };
   if (opciones.usuario !== null) metadata["userId"] = opciones.usuario ?? userId;
   const fin = opciones.finSegundos === undefined ? FIN.getTime() / 1000 : opciones.finSegundos;
   return JSON.stringify({

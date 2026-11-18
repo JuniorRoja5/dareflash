@@ -153,7 +153,11 @@ describe("la metadata es el puente con el webhook", () => {
   it("lleva a QUIÉN acreditar y QUÉ, y nada más", async () => {
     await pedir({ packageId: "boost_5" });
     const args = H.crearSesion.mock.calls[0]?.[0] as { metadata: Record<string, string> };
-    expect(args.metadata).toEqual({ userId: H.user.userId, packageId: "boost_5" });
+    expect(args.metadata).toEqual({
+      tipo: "boost",
+      userId: H.user.userId,
+      packageId: "boost_5",
+    });
   });
 });
 

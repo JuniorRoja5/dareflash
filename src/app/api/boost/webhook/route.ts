@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 
+import { tipoDePago } from "@/lib/pago-tipo";
 import { apiError, apiOk, depsRuta } from "@/server/http/api";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,12 @@ export const dynamic = "force-dynamic";
  * moneda ajena o un importe que no cuadra se responden 200: no hay nada que reintentar, y un
  * 4xx/5xx haría que Stripe reenviara en bucle algo que nunca va a ir mejor. Lo que sí es 400 es una
  * firma mala: ahí el mensaje no es de quien dice ser.
+ *
+ * SOLO LAS COMPRAS DE BOOST (Fase 11 · PW). Stripe manda aquí TODA sesión de Checkout que se
+ * complete en la cuenta: también las de créditos de publicidad y las altas de VIP. Las que no son
+ * de tipo `boost` se descartan EN SILENCIO —200 y sin log—, porque no son una anomalía: son de otro
+ * webhook, que las está tratando. Lo que SÍ es un error es una compra DE BOOST a la que le falta a
+ * quién o qué abonar. Ver `lib/pago-tipo`, también para las sesiones de antes, que no llevan tipo.
  *
  * DOS TIPOS DE EVENTO, UNA SOLA COMPRA. `completed` llega en el pago normal y
  * `async_payment_succeeded` en los métodos diferidos. Los dos traen la MISMA sesión, así que los
@@ -66,13 +73,18 @@ export async function POST(req: Request) {
   if (!EVENTOS.has(evento.type)) return apiOk({ ignorado: evento.type });
 
   const sesion = evento.data.object as Stripe.Checkout.Session;
+  // DE OTRO PRODUCTO: no es nuestra y no es un error. Antes que nada más, para que ni un pago ajeno
+  // sin cobrar ni uno sin la metadata que esperamos nosotros escriban en el log.
+  if (tipoDePago(sesion.metadata) !== "boost") return apiOk({ ignorado: "otro_tipo" });
+
   // Un pago que aún no está cobrado (métodos diferidos) NO acredita: ya llegará su evento.
   if (sesion.payment_status !== "paid") return apiOk({ ignorado: "no_pagado" });
 
   const userId = sesion.metadata?.["userId"];
   const packageId = sesion.metadata?.["packageId"];
   if (!userId || !packageId) {
-    // Sin nuestra metadata no se sabe a quién acreditar. Es una anomalía, no un caso de uso.
+    // Una compra DE BOOST sin a quién o qué acreditar. Esto sí es una anomalía: el tipo dice que es
+    // nuestra, así que lo que falta lo tendríamos que haber puesto nosotros.
     console.error(`[boost/webhook] sesión ${sesion.id} sin metadata de compra`);
     return apiOk({ ignorado: "sin_metadata" });
   }

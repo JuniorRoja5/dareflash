@@ -8,6 +8,7 @@ import {
   RATE_LIMITS,
 } from "@/config/constants";
 import { PaqueteCreditosSchema } from "@/config/esquemas";
+import { conTipo } from "@/lib/pago-tipo";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 
@@ -88,7 +89,12 @@ export const POST = mutatingRoute(
             },
           },
         ],
-        metadata: { empresaId: ambito.empresaId, packageId: cuerpo.data.packageId },
+        // El TIPO le dice al webhook de créditos que esta compra es suya; el de Boost también la
+        // recibe y la descarta por él (ver `lib/pago-tipo`).
+        metadata: conTipo("creditos", {
+          empresaId: ambito.empresaId,
+          packageId: cuerpo.data.packageId,
+        }),
         customer_creation: "always",
         ...(email ? { customer_email: email } : {}),
         billing_address_collection: "required",

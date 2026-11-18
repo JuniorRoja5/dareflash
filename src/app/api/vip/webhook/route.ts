@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 
+import { tipoDePago } from "@/lib/pago-tipo";
 import { apiError, apiOk, depsRuta } from "@/server/http/api";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,12 @@ export const dynamic = "force-dynamic";
  * pagó" pero NO trae hasta cuándo; los de la suscripción traen el estado, la baja pedida y el fin
  * de periodo, que es lo único que de verdad decide el acceso. Y llegan también en las RENOVACIONES,
  * que la sesión no cubre: sin ellos, un VIP se caería al mes de suscribirse.
+ *
+ * SOLO LAS SUSCRIPCIONES DE VIP (Fase 11 · PW): una suscripción que no sea de tipo `vip` se descarta
+ * EN SILENCIO (200, sin log). Hoy VIP es lo único que se suscribe, pero el tipo va escrito igual: que
+ * esto sea lo único que crea suscripciones es una suposición, no una protección. Las suscripciones de
+ * antes no llevan tipo y llegan así en CADA renovación —la metadata se fija al crearla—: se reconocen
+ * por su `plan` (ver `lib/pago-tipo`).
  *
  * TODO ES IDEMPOTENTE POR CONSTRUCCIÓN: lo que se escribe es un `upsert` con la fecha ABSOLUTA que
  * manda Stripe. Reprocesar el mismo evento —que Stripe reentrega cuando duda de nuestra respuesta—
@@ -72,6 +79,9 @@ export async function POST(req: Request) {
   if (!EVENTOS.has(evento.type)) return apiOk({ ignorado: evento.type });
 
   const sub = evento.data.object as Stripe.Subscription;
+  // DE OTRO PRODUCTO: no es nuestra y no es un error.
+  if (tipoDePago(sub.metadata) !== "vip") return apiOk({ ignorado: "otro_tipo" });
+
   const userId = sub.metadata?.["userId"];
   if (!userId) {
     // Sin nuestra metadata no se sabe de quién es. Es una anomalía, no un caso de uso.

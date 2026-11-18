@@ -290,6 +290,10 @@ borran para "limpiar"**:
   `src/` (sin comentarios) nombra la cripto, `RED_INCORRECTA` no es un motivo, las dos rutas de
   métodos rechazan `"CRYPTO"` con una frase humana, y la migración `quitar_red_cripto` se niega
   (`SIGNAL`) antes de cualquier `DROP` si queda una fila que no es `BANK`.
+- `webhooks-por-tipo` — Stripe manda a CADA endpoint todos los eventos de su tipo, sean de la compra
+  que sean: cada pago lleva su `tipo` en la metadata (`conTipo`, en sesión y en suscripción) y cada
+  webhook descarta en silencio lo ajeno (200, sin log). El tipo escrito gana a la forma; sin tipo (lo
+  de antes de la Fase 11 · PW) se deduce de la forma antigua en `tipoDePago`.
 - `reloj-adelantado` (+ el job de CI `tests-reloj-adelantado`) — la suite entera corre OTRA vez con
   el reloj de Node adelantado 400 días ([scripts/ci-tests-reloj-adelantado.sh](scripts/ci-tests-reloj-adelantado.sh),
   libfaketime) y las imágenes dependen de ese job. Un test con fechas fijas que llama a un servicio

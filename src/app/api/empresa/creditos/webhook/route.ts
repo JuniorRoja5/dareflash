@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 
+import { tipoDePago } from "@/lib/pago-tipo";
 import { apiError, apiOk, depsRuta } from "@/server/http/api";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,10 @@ export const dynamic = "force-dynamic";
  *
  * NO PASA POR `mutatingRoute`: lo llama el servidor de Stripe, sin Origin, cookie ni CSRF. Su única
  * autenticación es la FIRMA sobre el cuerpo CRUDO (exenta en `tests/route-csrf.test.ts`, justificada).
+ *
+ * SOLO LAS COMPRAS DE CRÉDITOS (Fase 11 · PW). Stripe manda aquí TODA sesión de Checkout de la
+ * cuenta —también las de Boost y las altas de VIP—: las que no son de tipo `creditos` se descartan EN
+ * SILENCIO (200, sin log). Ver `lib/pago-tipo`.
  *
  * SIEMPRE 200 SALVO FIRMA INVÁLIDA (400) o fallo nuestro reintentable (5xx): un paquete desconocido,
  * otra moneda o un importe que no cuadra no mejoran al reenviarlos.
@@ -53,6 +58,9 @@ export async function POST(req: Request) {
   if (!EVENTOS.has(evento.type)) return apiOk({ ignorado: evento.type });
 
   const sesion = evento.data.object as Stripe.Checkout.Session;
+  // DE OTRO PRODUCTO: no es nuestra y no es un error.
+  if (tipoDePago(sesion.metadata) !== "creditos") return apiOk({ ignorado: "otro_tipo" });
+
   // Un pago aún no cobrado (métodos diferidos) NO abona: ya llegará su evento.
   if (sesion.payment_status !== "paid") return apiOk({ ignorado: "no_pagado" });
 

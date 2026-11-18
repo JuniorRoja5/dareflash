@@ -8,6 +8,7 @@ import {
   RATE_LIMITS,
 } from "@/config/constants";
 import { PaqueteBoostSchema } from "@/config/esquemas";
+import { conTipo } from "@/lib/pago-tipo";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 
@@ -71,8 +72,9 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
         },
       ],
       // Lo que el webhook necesita saber. Nada más: ni el precio (lo resuelve del catálogo) ni
-      // datos personales que no hagan falta ahí.
-      metadata: { userId: user.userId, packageId: cuerpo.data.packageId },
+      // datos personales que no hagan falta ahí. Y el TIPO, que es lo que le dice al webhook que
+      // esta compra es suya: los demás la reciben también y la descartan (ver `lib/pago-tipo`).
+      metadata: conTipo("boost", { userId: user.userId, packageId: cuerpo.data.packageId }),
       // VUELVE A /boosts, que es desde donde se compró y donde está el saldo. Antes apuntaba a
       // /perfil, que no tenía nada que recoger: el usuario volvía de pagar a una pantalla que no
       // mencionaba la compra. Los dos valores de `?compra=` los lee esa página y nadie más.

@@ -75,8 +75,11 @@ function cuerpoEvento(opciones: {
   /** En MINÚSCULAS, como la manda Stripe de verdad. */
   moneda?: string | null;
   estadoPago?: string;
+  /** El `tipo` de la metadata (Fase 11 · PW). `null` = una sesión de ANTES, sin tipo. */
+  tipoPago?: string | null;
 }): string {
   const metadata: Record<string, string> = {};
+  if (opciones.tipoPago !== null) metadata["tipo"] = opciones.tipoPago ?? "boost";
   if (opciones.usuario !== null) metadata["userId"] = opciones.usuario ?? userId;
   if (opciones.packageId !== null) metadata["packageId"] = opciones.packageId ?? "boost_5";
   return JSON.stringify({

@@ -362,6 +362,17 @@ export const RAZON_BOOST_AJUSTE_ADMIN = "ADMIN_ADJUST";
 // VIP MYTHIC (Fase 8) — la suscripcion
 // ============================================================================
 
+/**
+ * DE QUE PRODUCTO ES UN PAGO DE STRIPE (Fase 11 · PW). Viaja en la `metadata` de cada sesion de
+ * Checkout (y de la suscripcion, en VIP) bajo la clave `METADATA_TIPO_PAGO`, y cada webhook atiende
+ * SOLO el suyo: Stripe manda a cada endpoint TODOS los eventos del tipo al que esta suscrito, sean de
+ * la compra que sean. Antes cada webhook reconocia lo suyo por los nombres de sus campos (`userId` o
+ * `empresaId`): una convencion, no una proteccion. Ver `lib/pago-tipo`.
+ */
+export const VALORES_TIPO_PAGO = ["boost", "vip", "creditos"] as const;
+export type TipoPago = (typeof VALORES_TIPO_PAGO)[number];
+export const METADATA_TIPO_PAGO = "tipo";
+
 /** La clave del plan. Union de uno: el dia que haya otro, entra aqui y nada mas. */
 export const VALORES_PLAN_VIP = ["VIP_MYTHIC"] as const;
 export type PlanVip = (typeof VALORES_PLAN_VIP)[number];

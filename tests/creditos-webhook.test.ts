@@ -84,7 +84,7 @@ function cuerpoEvento(o: {
         payment_status: o.estadoPago ?? "paid",
         amount_total: o.pagadoCents ?? PAQUETES_CREDITOS.creditos_10.precioCents,
         currency: o.moneda === undefined ? DEFAULT_CURRENCY.toLowerCase() : o.moneda,
-        metadata: { empresaId, packageId: "creditos_10" },
+        metadata: { tipo: "creditos", empresaId, packageId: "creditos_10" },
       },
     },
   });
