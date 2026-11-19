@@ -172,10 +172,15 @@ const serverSchema = z.object({
   SMTP_PASSWORD: z.string().min(1).optional(),
   /**
    * Nombre HELO/EHLO que el cliente SMTP anuncia. Sin esto, nodemailer usa el hostname del contenedor
-   * (127.0.0.1) -> "helo=[127.0.0.1]", que perjudica la entregabilidad. OPCIONAL con default (no es
-   * secreto ni obligatorio; no rompe el arranque). Debe ser el dominio del remitente.
+   * (127.0.0.1) -> "helo=[127.0.0.1]", que perjudica la entregabilidad. No es secreto ni obligatorio:
+   * no rompe el arranque.
+   *
+   * SI EL `.env` NO LA DEFINE, ES EL HOST DE `APP_URL` (lo rellena `envSchema`, más abajo), nunca un
+   * dominio escrito aquí. Con un literal, el día que cambie el dominio un `.env` que no la defina
+   * seguiría anunciando el VIEJO en cada EHLO, y no lo vería nadie (Fase 11 · PM1). Así, cambiar de
+   * dominio es cambiar `APP_URL`, que ya es la única fuente. Si el `.env` la define, manda el `.env`.
    */
-  SMTP_HELO_NAME: z.string().min(1).default("dareflash.com"),
+  SMTP_HELO_NAME: z.string().min(1).optional(),
   /**
    * Correo del ADMIN para los AVISOS AL EQUIPO. Dos clases, y la diferencia importa:
    *
@@ -246,9 +251,27 @@ const clientSchema = z.object({});
  * tipos) porque un `z.object({})` vacio infiere `Record<string, never>` y al
  * intersectarlo colapsaria el tipo resultante a `never`.
  */
-const envSchema = serverSchema.extend(clientSchema.shape);
+const envSchema = serverSchema.extend(clientSchema.shape).transform((e) => ({
+  ...e,
+  // El EHLO nunca se queda sin valor: el del `.env`, o el host de APP_URL (ver su docblock).
+  SMTP_HELO_NAME: e.SMTP_HELO_NAME ?? heloPorDefecto(e.APP_URL),
+}));
 
-export type Env = z.infer<typeof envSchema>;
+export type Env = z.output<typeof envSchema>;
+
+/** El HELO cuando el `.env` no lo define: el host de `APP_URL`, sin puerto ni esquema. */
+export function heloPorDefecto(appUrl: string): string {
+  return new URL(appUrl).hostname;
+}
+
+/**
+ * Valida una FUENTE de variables (en la app, `process.env`) con el esquema efectivo. Pura y sin
+ * caché: la usa `validateEnv` y la usan los tests para comprobar lo que el esquema RELLENA (el HELO
+ * por defecto), no solo cómo está escrito.
+ */
+export function leerEnv(fuente: Record<string, string | undefined>) {
+  return envSchema.safeParse(fuente);
+}
 
 /** Error dedicado, para distinguirlo de cualquier otro fallo de arranque. */
 export class EnvValidationError extends Error {
@@ -275,7 +298,7 @@ let cache: Env | undefined;
 export function validateEnv(): Env {
   if (cache) return cache;
 
-  const parsed = envSchema.safeParse(process.env);
+  const parsed = leerEnv(process.env);
 
   if (!parsed.success) {
     const detalle = formatIssues(parsed.error).join("\n");

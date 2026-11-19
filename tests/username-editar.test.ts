@@ -37,6 +37,30 @@ describe("username · reglas puras", () => {
     expect(esHandleReservado("dareflash")).toBe(true);
     expect(esHandleReservado("juana")).toBe(false);
   });
+
+  it("la MARCA, por contención y sin separadores: un punto o un _ no la liberan (Fase 11 · PM1)", () => {
+    // `HANDLE_RE` admite `.` y `_`: comparando por igualdad exacta, todos estos pasaban y se podía
+    // suplantar a la plataforma con un punto.
+    for (const h of [
+      "dare.flash",
+      "dare_flash",
+      "dareflash_oficial",
+      "xdareflashx",
+      "DARE.FLASH",
+    ]) {
+      expect(esHandleReservado(h), h).toBe(true);
+    }
+    // Control: lo que solo se PARECE no se veta. Si todo saliera reservado, lo de arriba no mediría.
+    for (const h of ["daredevil", "flashero", "dare", "flash"]) {
+      expect(esHandleReservado(h), h).toBe(false);
+    }
+  });
+
+  it("y el resto de la lista sigue siendo por igualdad EXACTA: `admin` no veta `badminton`", () => {
+    expect(esHandleReservado("badminton")).toBe(false);
+    expect(esHandleReservado("supporter")).toBe(false);
+    expect(esHandleReservado("u_sanchez")).toBe(false);
+  });
 });
 
 describe("username · edición contra la BD (dientes)", () => {

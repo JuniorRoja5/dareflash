@@ -11,7 +11,7 @@ import {
   ZONA_MADRID,
   type ZonaHoraria,
 } from "@/lib/formato";
-import { MARCA, MARCAS_VETADAS } from "./marca";
+import { contieneMarcaVetada, MARCA, MARCAS_VETADAS } from "./marca";
 
 /**
  * Limite POR DEFECTO de conexiones del pool contra MariaDB (se puede sobreescribir con la variable
@@ -726,8 +726,13 @@ export const MINIATURA_MAX_LADO = 1280; // px
  * HANDLES RESERVADOS (fuente única) para la edición manual del username (P2). Dos motivos:
  *  1. RUTAS: un handle que choque con un segmento de la app (`/admin`, `/buscar`, `/u`…) rompería el
  *     enrutado o el perfil `/u/[username]`. Se listan las rutas de primer nivel reales + `u`.
- *  2. MARCA / impersonación: nadie debe poder hacerse pasar por la plataforma o su equipo.
- * Comparación en minúsculas (el username se almacena y valida en minúsculas).
+ *  2. IMPERSONACIÓN: nadie debe poder hacerse pasar por la plataforma o su equipo.
+ * Comparación EXACTA en minúsculas (el username se almacena y valida en minúsculas).
+ *
+ * LA MARCA NO ESTÁ EN ESTA LISTA: va por CONTENCIÓN y sin separadores (`contieneMarcaVetada`, en
+ * `esHandleReservado`), porque por igualdad exacta `dare.flash` o `dareflash_oficial` pasaban. Estas
+ * palabras, en cambio, siguen siendo exactas a propósito: por contención, `admin` vetaría a
+ * `badminton` y `u` a casi todo el mundo.
  */
 export const HANDLES_RESERVADOS: readonly string[] = [
   // rutas / segmentos
@@ -752,17 +757,22 @@ export const HANDLES_RESERVADOS: readonly string[] = [
   "boost",
   "u",
   "settings",
-  // marca / impersonación: la de AHORA y todas las de ANTES (ver `config/marca`), para que un
-  // renombrado no deje libre el @usuario del nombre viejo.
-  ...MARCAS_VETADAS,
+  // impersonación (la MARCA va aparte, por contención: ver arriba)
   "support",
   "oficial",
   "staff",
 ];
 
-/** ¿El handle (ya en minúsculas o no) choca con un reservado? */
+/**
+ * ¿El handle (ya en minúsculas o no) choca con un reservado? Dos reglas: la lista, por igualdad
+ * exacta; y la marca —la de ahora y TODAS las de antes, para que un renombrado no libere la vieja—,
+ * por contención y sin separadores.
+ */
 export function esHandleReservado(handle: string): boolean {
-  return HANDLES_RESERVADOS.includes(handle.trim().toLowerCase());
+  return (
+    HANDLES_RESERVADOS.includes(handle.trim().toLowerCase()) ||
+    contieneMarcaVetada(handle, MARCAS_VETADAS)
+  );
 }
 
 /**

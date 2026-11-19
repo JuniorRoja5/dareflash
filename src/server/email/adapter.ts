@@ -148,10 +148,11 @@ export function createSmtpEmailAdapter(): EmailAdapter {
           // HELO/EHLO con nuestro dominio: sin `name`, nodemailer usa el hostname del contenedor
           // (127.0.0.1) y algunos filtros penalizan ese "helo=[127.0.0.1]". Mejora la entregabilidad.
           //
-          // `SMTP_HELO_NAME` tiene DEFAULT en el esquema (no es opcional-sin-valor) justamente por
-          // esto: si se dejara sin default y el `.env` del servidor no la trajera, el transporte
-          // volvería a anunciar el hostname del contenedor y nada fallaría — se vería meses
-          // después, en la carpeta de spam de otra gente.
+          // `SMTP_HELO_NAME` NUNCA llega vacía (el esquema la rellena) justamente por esto: si el
+          // `.env` del servidor no la trajera y se quedara sin valor, el transporte volvería a
+          // anunciar el hostname del contenedor y nada fallaría — se vería meses después, en la
+          // carpeta de spam de otra gente. El valor de relleno es el host de `APP_URL`, no un
+          // dominio escrito: así no se queda anunciando el dominio viejo tras un cambio.
           name: env.SMTP_HELO_NAME,
           secure: cfg.port === 465, // 465 = TLS directo; 587 = STARTTLS
           requireTLS: cfg.port !== 465, // 587: STARTTLS OBLIGATORIO, nunca texto plano

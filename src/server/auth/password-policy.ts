@@ -2,7 +2,7 @@ import "server-only";
 
 import { ZxcvbnFactory } from "@zxcvbn-ts/core";
 import * as zxcvbnCommon from "@zxcvbn-ts/language-common";
-import { MARCAS_VETADAS } from "@/config/marca";
+import { contieneMarcaVetada, MARCAS_VETADAS } from "@/config/marca";
 
 /**
  * POLÍTICA DE CONTRASEÑA (server-side, COMPARTIDA por registro y restablecer). El registro aceptaba
@@ -59,8 +59,9 @@ export function evaluarPassword(input: {
   const enMinus = password.toLowerCase();
   const local = localDeEmail(input.email);
   if (local && enMinus.includes(local)) return { ok: false, mensaje: MENSAJE_DEBIL };
-  // La marca de ahora y TODAS las de antes (`config/marca`): un renombrado no libera la vieja.
-  if (MARCAS_VETADAS.some((m) => enMinus.includes(m))) return { ok: false, mensaje: MENSAJE_DEBIL };
+  // La marca de ahora y TODAS las de antes (`config/marca`): un renombrado no libera la vieja. Sin
+  // separadores en los dos lados, para que `Dare.Flash…` o `dare_flash…` caigan igual.
+  if (contieneMarcaVetada(password, MARCAS_VETADAS)) return { ok: false, mensaje: MENSAJE_DEBIL };
 
   const userInputs = [local, ...MARCAS_VETADAS].filter((s): s is string => Boolean(s));
   const { score } = zxcvbn.check(password, userInputs);

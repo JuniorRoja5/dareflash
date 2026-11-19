@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { evaluarPassword } from "../src/server/auth/password-policy";
+import { contrasenaFalsa } from "./helpers/valores-falsos";
 
 /**
  * Dientes de la política de contraseña. Lo importante: una contraseña que CUMPLE la longitud pero es
@@ -44,6 +45,16 @@ describe("evaluarPassword", () => {
   it("rechaza si contiene la marca 'dareflash' (aunque sea larga)", () => {
     expect(evaluar(`${MARCA}2026`).ok).toBe(false);
     expect(evaluar(`${MARCA[0]!.toUpperCase()}${MARCA.slice(1)}-2026!`).ok).toBe(false);
+  });
+
+  it("y con separadores dentro de la marca, igual: `Dare_Flash`, `Dare.Flash` (Fase 11 · PM1)", () => {
+    // Se compone con una contraseña que POR SÍ SOLA pasa: si se rechaza, es por la marca.
+    const fuerte = contrasenaFalsa("marca-separadores");
+    expect(evaluar(fuerte).ok, "control: sin marca, pasa").toBe(true);
+    for (const sep of ["_", ".", "-", " "]) {
+      const conMarca = `${MARCA.slice(0, 4)}${sep}${MARCA.slice(4)}${fuerte}`;
+      expect(evaluar(conMarca).ok, `con «${sep}»`).toBe(false);
+    }
   });
 
   it("rechaza si contiene la parte local del email", () => {

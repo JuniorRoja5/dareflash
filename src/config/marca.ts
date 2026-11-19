@@ -27,14 +27,41 @@ export const MARCA = "DareFlash";
 export const MARCAS_ANTERIORES: readonly string[] = [];
 
 /**
+ * LA FORMA COMPARABLE de un nombre: minúsculas y sin separadores (espacio, punto, guion bajo, guion).
+ *
+ * ┌─ POR QUÉ SIN SEPARADORES ─────────────────────────────────────────────────────────────────────┐
+ * │ Un @usuario admite `.` y `_` (`HANDLE_RE`), así que comparar la marca TAL CUAL dejaba libres   │
+ * │ `dare.flash`, `dare_flash` o `dareflash_oficial`: suplantación de la plataforma con un punto.  │
+ * │ Y una marca con espacio («Revol Flash») daría «revol flash», que ningún handle puede igualar:  │
+ * │ `revolflash` quedaría libre. Normalizando los DOS lados, todo eso es la misma palabra.          │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+export function normalizarNombre(texto: string): string {
+  return texto.toLowerCase().replace(/[\s._-]+/g, "");
+}
+
+/**
  * Lo que nadie puede usar como @usuario ni dentro de su contraseña: la marca de ahora y TODAS las de
- * antes, en minúsculas (los handles se guardan y comparan en minúsculas, y el veto de contraseñas
- * también). Función y no solo el valor para que el test que cambia la marca recalcule con ESTA regla.
+ * antes, YA NORMALIZADAS. Función y no solo el valor para que el test que cambia la marca recalcule
+ * con ESTA regla.
  */
 export function marcasVetadas(marca: string, anteriores: readonly string[]): readonly string[] {
-  return [marca, ...anteriores].map((m) => m.toLowerCase());
+  return [marca, ...anteriores].map(normalizarNombre);
 }
 export const MARCAS_VETADAS = marcasVetadas(MARCA, MARCAS_ANTERIORES);
+
+/**
+ * ¿Lleva `texto` DENTRO alguna marca vetada, una vez normalizados los dos lados? Por CONTENCIÓN, no
+ * por igualdad: `dareflash_oficial` o `xdareflashx` también suplantan.
+ *
+ * `vetadas` se pasa SIEMPRE (sin valor por defecto): quien llama pasa el `MARCAS_VETADAS` que importa,
+ * y así el test que sustituye este módulo por una marca de prueba mide la regla con SU lista. Con un
+ * valor por defecto, la función seguiría leyendo la lista real aunque el módulo estuviera sustituido.
+ */
+export function contieneMarcaVetada(texto: string, vetadas: readonly string[]): boolean {
+  const t = normalizarNombre(texto);
+  return vetadas.some((m) => m.length > 0 && t.includes(m));
+}
 
 /**
  * EL TÍTULO DE LAS PÁGINAS, para el layout raíz: cada página pone solo su sección («Retos») y la

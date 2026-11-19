@@ -35,8 +35,8 @@ const NOMBRE = /dare[\s_-]?flash/i;
 const EXCEPCIONES: Record<string, string> = {
   "src/config/marca.ts": "la fuente: aquí se escribe la marca, una vez",
   "src/config/env.ts":
-    "el DOMINIO, que es configuración y no marca: el ejemplo del error de APP_URL y el valor por " +
-    "defecto de SMTP_HELO_NAME (el `.env` lo sobrescribe; la PM2 cambia el dominio ahí)",
+    "el DOMINIO, solo como EJEMPLO en el mensaje de error de APP_URL (una ayuda para quien configura, " +
+    "no un valor que use nadie). El HELO por defecto sale ya del host de APP_URL, no de un literal",
   "src/app/icon.svg": "el favicon es un fichero estático: no importa nada (aria-label)",
   "src/app/globals.css":
     "el NOMBRE INTERNO de las familias de fuente de respaldo, no texto visible (lo fija fuentes-locales)",

@@ -15,11 +15,12 @@
  * │ tiene que acordarse del `.env` — que es justo lo que el rojo le va a recordar.                │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
-import { contrasenaFalsa } from "./helpers/valores-falsos";
+import { contrasenaFalsa, falso } from "./helpers/valores-falsos";
 import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+import { leerEnv } from "../src/config/env";
 import {
   leerConfigSmtp,
   mensajeSmtpIncompleto,
@@ -98,14 +99,36 @@ describe("la lectura de la configuración", () => {
 });
 
 describe("el EHLO nunca puede anunciar el hostname del contenedor", () => {
-  it("`SMTP_HELO_NAME` tiene DEFAULT en el esquema: no puede quedarse sin valor", () => {
-    // Si fuera `.optional()` y el `.env` del servidor no la trajera, nodemailer anunciaría
-    // `helo=[127.0.0.1]` y nada fallaría: se vería meses después, en la carpeta de spam de otros.
-    const esquema = readFileSync("src/config/env.ts", "utf8");
-    expect(esquema).toMatch(/SMTP_HELO_NAME:\s*z\.string\(\)[^\n]*\.default\(/);
-    expect(esquema, "`SMTP_HELO_NAME` volvió a ser opcional-sin-valor").not.toMatch(
-      /SMTP_HELO_NAME:\s*z\.string\(\)[^\n]*\.optional\(\)/,
+  // Se mide lo que el esquema DEVUELVE, no cómo está escrito: si se quedara sin valor y el `.env` del
+  // servidor no la trajera, nodemailer anunciaría `helo=[127.0.0.1]` y nada fallaría (se vería
+  // meses después, en la carpeta de spam de otros). Y el valor por defecto sale de APP_URL, no de un
+  // dominio escrito (Fase 11 · PM1): con un literal, al cambiar de dominio un `.env` que no la defina
+  // seguiría anunciando el viejo.
+  const BASE = {
+    APP_URL: "https://ejemplo.test",
+    DATABASE_URL: falso("database-url-helo"),
+    AUTH_SECRET: falso("auth-secret-helo"),
+    BUNNY_STREAM_LIBRARY_ID: "1",
+    BUNNY_STREAM_API_KEY: falso("bunny-api-helo"),
+    BUNNY_CDN_HOSTNAME: "cdn.ejemplo.test",
+    BUNNY_TOKEN_AUTH_KEY: falso("bunny-token-helo"),
+  };
+  const helo = (fuente: Record<string, string>) => {
+    const r = leerEnv(fuente);
+    if (!r.success) throw new Error(`la fuente de prueba no valida: ${r.error.message}`);
+    return r.data.SMTP_HELO_NAME;
+  };
+
+  it("sin `SMTP_HELO_NAME` en el `.env`, es el HOST de APP_URL", () => {
+    expect(helo(BASE)).toBe("ejemplo.test");
+    // Sin puerto ni esquema ni ruta: un host.
+    expect(helo({ ...BASE, APP_URL: "https://otro.ejemplo.test:8443/x" })).toBe(
+      "otro.ejemplo.test",
     );
+  });
+
+  it("si el `.env` la define, manda el `.env`", () => {
+    expect(helo({ ...BASE, SMTP_HELO_NAME: "otro.test" })).toBe("otro.test");
   });
 
   it("y el transporte lo pasa como `name` (que es lo que fija el EHLO)", () => {
