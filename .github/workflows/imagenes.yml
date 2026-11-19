@@ -160,6 +160,8 @@ jobs:
           platforms: linux/amd64
           load: true
           push: false
+          # El worker anota su commit en el latido que lee el health (Fase 11 · worker vigilado).
+          build-args: GIT_SHA=${{ github.sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}

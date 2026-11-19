@@ -16,7 +16,8 @@
 #   4. Las descarga y migra con la imagen `migrate` de ESE SHA (scripts/migrate-prod.sh).
 #   5. Las etiqueta en local como `desplegada` (lo que usa el compose sin IMAGE_TAG) y `up -d`.
 #   6. Espera al health y COMPRUEBA que el commit que responde es el desplegado. Si es otro, lo dice
-#      claramente y sale con error: lo que sirve NO es lo que se pidió.
+#      claramente y sale con error: lo que sirve NO es lo que se pidió. Y después, que el WORKER
+#      (su latido en el health) es ese commit y sigue vivo: sin él no hay correos ni tareas de fondo.
 #
 # VOLVER ATRÁS Y LAS MIGRACIONES. Prisma no deshace migraciones: volver a un SHA anterior cambia el
 # CÓDIGO, nunca el ESQUEMA. La versión vieja arranca contra un esquema más nuevo que el suyo, y eso es
@@ -33,7 +34,7 @@
 # comprobar el health). En 1 vCPU el build carga la web mientras dura: es la última opción.
 #
 # Variables (para pruebas; no hace falta tocarlas): DEPLOY_ESPERA_MAX_S, DEPLOY_ESPERA_PASO_S,
-# DEPLOY_HEALTH_MAX_S, DEPLOY_HEALTH_PASO_S.
+# DEPLOY_HEALTH_MAX_S, DEPLOY_HEALTH_PASO_S, DEPLOY_LATIDO_MAX_S, DEPLOY_WORKER_VIVO_MIN_S.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -49,6 +50,10 @@ ESPERA_MAX_S="${DEPLOY_ESPERA_MAX_S:-1500}"
 ESPERA_PASO_S="${DEPLOY_ESPERA_PASO_S:-60}"
 HEALTH_MAX_S="${DEPLOY_HEALTH_MAX_S:-180}"
 HEALTH_PASO_S="${DEPLOY_HEALTH_PASO_S:-5}"
+# El worker vivo (paso 6b): latido de hace menos de 60 s (cuatro de LATIDO_WORKER_CADENCIA_MS, 15 s) y
+# proceso vivo al menos 30 s (dos latidos: uno en bucle de reinicios no llega). Ver constants.ts.
+LATIDO_MAX_S="${DEPLOY_LATIDO_MAX_S:-60}"
+WORKER_VIVO_MIN_S="${DEPLOY_WORKER_VIVO_MIN_S:-30}"
 
 morir() {
   echo >&2
@@ -71,12 +76,14 @@ for a in "$@"; do
   esac
 done
 
-# Lo que responde la versión EN MARCHA: "<commit> <status>", o nada si `web` no responde.
+# Lo que responde la versión EN MARCHA: "<commit> <status> <worker.commit> <worker.haceS> <worker.vivoS>",
+# o nada si `web` no responde. Sin latido del worker, sus tres campos salen `null`.
 salud() {
   "${COMPOSE[@]}" exec -T web node -e '
     fetch("http://127.0.0.1:3000/api/health")
       .then((r) => r.json())
-      .then((j) => console.log((j.commit || "null") + " " + j.status))
+      .then((j) => { const w = j.worker || {};
+        console.log([j.commit || "null", j.status, w.commit || "null", w.haceS ?? "null", w.vivoS ?? "null"].join(" ")); })
       .catch(() => process.exit(1));' 2>/dev/null | tr -d '\r' || true
 }
 
@@ -227,7 +234,7 @@ done
 paso "[6/6] Comprobando que responde $SHA"
 INICIO=$(date +%s)
 while :; do
-  read -r COMMIT STATUS <<<"$(salud)" || true
+  read -r COMMIT STATUS _ <<<"$(salud)" || true
   COMMIT="${COMMIT:-}"
   STATUS="${STATUS:-}"
   if [ -n "$COMMIT" ] && [ "$COMMIT" != "$SHA" ]; then
@@ -249,6 +256,42 @@ while :; do
   sleep "$HEALTH_PASO_S"
 done
 
+# --- 6b. Y el WORKER tiene que ser ESTE commit, y estar vivo -------------------------------------------
+# El 19 nov un `.env` mal puesto mató al worker al arrancar, en bucle de reinicios, y este script dijo
+# «DESPLEGADO»: solo preguntaba a la web. Ahora se espera, con el mismo tope, al LATIDO del worker que
+# enseña el health (`services/latido-worker`): de ESTE commit, de hace menos de LATIDO_MAX_S, y de un
+# proceso que lleve vivo al menos WORKER_VIVO_MIN_S. Lo último es lo que distingue uno sano de uno en
+# bucle, que alcanza a latir alguna vez antes de morir. Un latido de OTRO commit no es error en el acto:
+# es el del worker viejo, que sigue en la base hasta que el nuevo escriba el suyo.
+paso "Comprobando que el worker es $SHA y está vivo"
+INICIO=$(date +%s)
+while :; do
+  read -r _ _ W_COMMIT W_HACE W_VIVO <<<"$(salud)" || true
+  W_COMMIT="${W_COMMIT:-null}"
+  W_HACE="${W_HACE:-null}"
+  W_VIVO="${W_VIVO:-null}"
+  if [ "$W_COMMIT" = "$SHA" ] && [[ "$W_HACE" =~ ^[0-9]+$ ]] && [[ "$W_VIVO" =~ ^[0-9]+$ ]] \
+    && [ "$W_HACE" -le "$LATIDO_MAX_S" ] && [ "$W_VIVO" -ge "$WORKER_VIVO_MIN_S" ]; then
+    break
+  fi
+  if [ $(($(date +%s) - INICIO)) -ge "$HEALTH_MAX_S" ]; then
+    echo >&2
+    if [ "$W_COMMIT" = "null" ]; then
+      echo "ERROR: el worker no arranca: en ${HEALTH_MAX_S}s no ha dado ni un latido." >&2
+    elif [ "$W_COMMIT" != "$SHA" ]; then
+      echo "ERROR: el worker no arranca: el último latido es del commit $W_COMMIT, NO de $SHA." >&2
+    else
+      echo "ERROR: el worker no arranca o no se queda vivo (último latido hace ${W_HACE}s, vivo ${W_VIVO}s)." >&2
+    fi
+    echo "La web responde, pero sin worker no salen correos ni corren las tareas de fondo." >&2
+    echo "Mira los logs: docker compose -f docker-compose.prod.yml logs --tail=100 worker" >&2
+    [ -n "$ACTUAL" ] && [ "$ACTUAL" != "$SHA" ] \
+      && echo "Para volver a lo que había: ./scripts/deploy.sh $ACTUAL" >&2
+    exit 5
+  fi
+  sleep "$HEALTH_PASO_S"
+done
+
 # --- Historial: una línea por despliegue con éxito. Es de donde `limpiar.sh` saca la versión ANTERIOR
 #     (lo único que no se le puede preguntar a Docker). Sin repetir la última si se vuelve a aplicar. ---
 HISTORIAL="${DEPLOY_HISTORIAL:-.despliegues}"
@@ -257,7 +300,7 @@ if [ "$(tail -1 "$HISTORIAL" 2>/dev/null || true)" != "$SHA" ]; then
 fi
 
 echo
-echo "DESPLEGADO $SHA (el health responde ok con ese commit)."
+echo "DESPLEGADO $SHA (el health responde ok con ese commit, y el worker late con él)."
 if [ -n "$ACTUAL" ] && [ "$ACTUAL" != "$SHA" ]; then
   echo "Para volver a la versión anterior: ./scripts/deploy.sh $ACTUAL"
 fi

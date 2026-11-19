@@ -283,7 +283,12 @@ borran para "limpiar"**:
   todo y la profundidad es luminosidad, no sombra.
 - `deploy-script` — `deploy.sh` ejecutado de verdad con `docker`/`git`/`curl` falsos: no despliega si
   CI falló o no ha terminado, se para si el health responde con otro commit, y volver atrás con
-  migraciones posteriores exige `--acepto-esquema-nuevo`.
+  migraciones posteriores exige `--acepto-esquema-nuevo`. Y no da por bueno un despliegue sin WORKER:
+  espera a su LATIDO en el health (`worker: { commit, haceS, vivoS }`, de
+  [src/server/services/latido-worker.ts](src/server/services/latido-worker.ts)) del SHA desplegado,
+  reciente y con el proceso vivo un rato (uno en bucle de reinicios late y muere). `health` fija la
+  forma del cuerpo; `redis-listo`, que el worker espera a Redis antes de su primera pasada;
+  `sanear-error`, que el log dice la clase del fallo y nunca el mensaje.
 
 - `zod-fuera-del-cliente` — ningún `"use client"` llega a zod por ninguna cadena de imports (el fallo
   la nombra). Un catálogo es una lista `VALORES_*` en `constants.ts`; su `z.enum` vive en

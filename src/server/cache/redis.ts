@@ -37,3 +37,36 @@ export function getRedis(): Redis | null {
   memo = redis;
   return memo;
 }
+
+/**
+ * ESPERA A QUE LA CONEXIÓN ESTÉ LISTA, con tope, y dice si lo está. Para quien va a usar Redis
+ * NADA MÁS ARRANCAR (el worker, en su primera pasada).
+ *
+ * ┌─ POR QUÉ: LA PRIMERA ORDEN FALLABA SIEMPRE (reproducido, 19 nov) ──────────────────────────────┐
+ * │ Con `lazyConnect` la conexión la abre la PRIMERA orden; y sin cola offline, esa misma orden se  │
+ * │ rechaza al instante mientras el estado es `connecting` («Stream isn't writeable and            │
+ * │ enableOfflineQueue options is false»). Medio segundo después funciona. El worker hace su       │
+ * │ primera pasada justo al arrancar, así que el aforo y las cifras de publicidad fallaban EN CADA │
+ * │ ARRANQUE, estuviera Redis listo o no, y el aforo no se reintentaba hasta una hora después.     │
+ * │ No se resuelve activando la cola offline: entonces, con Redis caído, cada petición esperaría   │
+ * │ una conexión que no llega, que es justo lo que estas opciones evitan.                          │
+ * └────────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * `false` si no hay Redis, si no conecta en `topeMs`, o si falla: el que llama sigue igual que antes
+ * (cada tarea ya sabe degradar sin Redis). Nunca lanza.
+ */
+export async function esperarRedisListo(topeMs = 5_000): Promise<boolean> {
+  const redis = getRedis();
+  if (!redis) return false;
+  if (redis.status === "ready") return true;
+  try {
+    const listo = new Promise<boolean>((resolve) => {
+      redis.once("ready", () => resolve(true));
+    });
+    if (redis.status === "wait") void redis.connect().catch(() => undefined);
+    const tope = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), topeMs));
+    return await Promise.race([listo, tope]);
+  } catch {
+    return false;
+  }
+}

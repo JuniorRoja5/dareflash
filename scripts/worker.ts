@@ -42,7 +42,8 @@ import { limpiarHuerfanosBunny } from "@/server/services/reconciliacion-huerfano
 import { reconciliarPublicadosDesaparecidos } from "@/server/services/reconciliacion-publicados";
 import { recalcularScoresAutoridad } from "@/server/services/recalculo-scores";
 import { barrerPropuestas } from "@/server/services/retos-empresa";
-import { getRedis } from "@/server/cache/redis";
+import { esperarRedisListo, getRedis } from "@/server/cache/redis";
+import { anotarLatido } from "@/server/services/latido-worker";
 import { materializarAforo } from "@/server/services/aforo";
 import { cobrarPublicidadDeHoy } from "@/server/services/publicidad-cobro";
 import { materializarMetricasPublicidad } from "@/server/services/publicidad-metricas";
@@ -131,12 +132,26 @@ async function main(): Promise<void> {
     );
   }
 
+  // REDIS LISTO ANTES DE LA PRIMERA PASADA (Fase 11 · worker vigilado): el aforo y las cifras de
+  // publicidad lo usan en la primera vuelta, y con la conexión aún abriéndose fallaban en CADA
+  // arranque (ver `esperarRedisListo`). Con tope: sin Redis, se sigue como antes y cada tarea degrada.
+  const redisListo = await esperarRedisListo();
+  if (getRedis() && !redisListo) {
+    console.warn("[worker] Redis no conecta en el tope; las tareas que lo usan lo reintentarán.");
+  }
+
+  // EL LATIDO: desde cuándo vive ESTE proceso, y de qué commit es (el de la imagen; `null` fuera de un
+  // artefacto). Ver `services/latido-worker`.
+  const arranque = new Date();
+
   await bucleWorker(prisma, registro, {
     workerToken,
     limit: LIMIT,
     intervaloMs: INTERVALO_MS,
     parar,
     dormir,
+    latido: (now) =>
+      anotarLatido(prisma, { commit: env.GIT_SHA ?? null, ahora: now, desde: arranque }),
     // Mantenimiento cableado: purgas (Job DONE/FAILED, RateLimit, Session) y aviso de FAILED.
     emailAdapter, // aviso DIRECTO, fuera de la cola
     adminEmail: env.ADMIN_EMAIL,

@@ -26,6 +26,13 @@ const NUEVO = "b".repeat(40);
 const OTRO = "c".repeat(40);
 const MIGRACIONES = "20260101000000_una 20260201000000_otra";
 
+/**
+ * Lo que dice el health de una versión SANA: la web con ese commit y `ok`, y el worker latiendo con
+ * ESE commit, hace 3 s y vivo desde hace 40 (Fase 11 · worker vigilado). Formato de `salud()`:
+ * `<commit> <status> <worker.commit> <worker.haceS> <worker.vivoS>`.
+ */
+const sano = (sha: string) => `${sha} ok ${sha} 3 40`;
+
 /** En Windows, el bash de Git (el de System32 es el de WSL, y no ve estos ficheros). */
 function bash(): string {
   if (process.platform !== "win32") return "bash";
@@ -161,7 +168,7 @@ describe("deploy.sh: el camino bueno", () => {
   it("descarga, migra con la imagen de ESE SHA, arranca y comprueba el health", () => {
     const r = desplegar([NUEVO], {
       FAKE_HEALTH_ANTES: `${VIEJO} ok`,
-      FAKE_HEALTH_DESPUES: `${NUEVO} ok`,
+      FAKE_HEALTH_DESPUES: sano(NUEVO),
       FAKE_ANCESTROS: `${VIEJO}>${NUEVO}`,
     });
     expect(r.salida).toContain(`DESPLEGADO ${NUEVO}`);
@@ -196,7 +203,7 @@ describe("deploy.sh: el límite de la API de GitHub no se confunde con un fallo 
   it("mira el REGISTRO antes que la API: si las imágenes ya están, no gasta ni una consulta", () => {
     const r = desplegar([NUEVO], {
       FAKE_HEALTH_ANTES: `${VIEJO} ok`,
-      FAKE_HEALTH_DESPUES: `${NUEVO} ok`,
+      FAKE_HEALTH_DESPUES: sano(NUEVO),
       FAKE_ANCESTROS: `${VIEJO}>${NUEVO}`,
     });
     expect(r.codigo).toBe(0);
@@ -272,10 +279,68 @@ describe("deploy.sh: el health tiene que ser el commit desplegado", () => {
   });
 });
 
+/**
+ * EL WORKER (Fase 11 · worker vigilado). El 19 nov el worker murió al arrancar, en bucle, y este script
+ * dijo «DESPLEGADO»: solo miraba la web. Ahora, con la web ya buena, espera al latido del worker.
+ */
+describe("deploy.sh: el worker tiene que ser ESTE commit y estar vivo", () => {
+  const base = { FAKE_HEALTH_ANTES: sano(VIEJO), FAKE_ANCESTROS: `${VIEJO}>${NUEVO}` };
+  const conTope = { DEPLOY_HEALTH_MAX_S: "1", DEPLOY_HEALTH_PASO_S: "1" };
+
+  it("latido del commit desplegado, reciente y vivo: DESPLEGADO", () => {
+    const r = desplegar([NUEVO], { ...base, FAKE_HEALTH_DESPUES: `${NUEVO} ok ${NUEVO} 2 45` });
+    expect(r.codigo).toBe(0);
+    expect(r.salida).toContain(`DESPLEGADO ${NUEVO}`);
+  });
+
+  it("latido de OTRO commit hasta el tope: error, dice cuál es y cómo volver", () => {
+    const r = desplegar([NUEVO], {
+      ...base,
+      ...conTope,
+      FAKE_HEALTH_DESPUES: `${NUEVO} ok ${VIEJO} 2 900`,
+    });
+    expect(r.codigo).toBe(5);
+    expect(r.salida).toContain("el worker no arranca");
+    expect(r.salida).toContain(VIEJO);
+    expect(r.salida).toContain("logs --tail=100 worker");
+    expect(r.salida).toContain(`./scripts/deploy.sh ${VIEJO}`);
+    expect(r.salida).not.toContain("DESPLEGADO");
+  });
+
+  it("sin ningún latido en el tope: error, «el worker no arranca»", () => {
+    const r = desplegar([NUEVO], { ...base, ...conTope, FAKE_HEALTH_DESPUES: `${NUEVO} ok` });
+    expect(r.codigo).toBe(5);
+    expect(r.salida).toMatch(/el worker no arranca: .*ni un latido/);
+    expect(r.salida).not.toContain("DESPLEGADO");
+  });
+
+  it("EN BUCLE: latido bueno y reciente, pero el proceso no lleva vivo ni dos latidos: error", () => {
+    // Lo que pasó el 19 nov: el worker alcanza a latir y muere; cada reinicio empieza de cero.
+    const r = desplegar([NUEVO], {
+      ...base,
+      ...conTope,
+      FAKE_HEALTH_DESPUES: `${NUEVO} ok ${NUEVO} 1 5`,
+    });
+    expect(r.codigo).toBe(5);
+    expect(r.salida).toContain("no se queda vivo");
+    expect(r.salida).not.toContain("DESPLEGADO");
+  });
+
+  it("latido VIEJO (el worker murió hace rato): error", () => {
+    const r = desplegar([NUEVO], {
+      ...base,
+      ...conTope,
+      FAKE_HEALTH_DESPUES: `${NUEVO} ok ${NUEVO} 300 600`,
+    });
+    expect(r.codigo).toBe(5);
+    expect(r.salida).not.toContain("DESPLEGADO");
+  });
+});
+
 describe("deploy.sh: volver atrás", () => {
   const atras = {
     FAKE_HEALTH_ANTES: `${NUEVO} ok`,
-    FAKE_HEALTH_DESPUES: `${VIEJO} ok`,
+    FAKE_HEALTH_DESPUES: sano(VIEJO),
     FAKE_ANCESTROS: `${VIEJO}>${NUEVO}`,
   };
 
@@ -409,7 +474,7 @@ describe("deploy.sh deja el historial y limpia con limpiar.sh", () => {
     writeFileSync(historial, `${VIEJO}\n`);
     const r = desplegar([NUEVO], {
       FAKE_HEALTH_ANTES: `${VIEJO} ok`,
-      FAKE_HEALTH_DESPUES: `${NUEVO} ok`,
+      FAKE_HEALTH_DESPUES: sano(NUEVO),
       FAKE_ANCESTROS: `${VIEJO}>${NUEVO}`,
       FAKE_SHA_WEB: NUEVO,
       DEPLOY_HISTORIAL: historial,

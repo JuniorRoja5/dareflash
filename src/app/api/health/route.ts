@@ -36,6 +36,10 @@ export async function GET() {
   // interno visible. Si algun dia se expone algo mas que un contador, moverlo a una ruta con rol
   // de administrador.
   let jobsFailed: number | null = null;
+  // EL WORKER (Fase 11 · worker vigilado): su último latido —commit, hace cuántos segundos y cuántos
+  // lleva vivo—, para que un worker muerto o en bucle de reinicios se vea con el mismo curl y
+  // `deploy.sh` no dé por bueno un despliegue sin él. Solo números y el SHA.
+  let worker: { commit: string | null; haceS: number; vivoS: number } | null = null;
   try {
     const { prisma } = await import("@/server/db/client");
     // Consulta trivial: solo comprueba que la conexion responde.
@@ -45,6 +49,14 @@ export async function GET() {
       prisma.job.count({ where: { status: "FAILED" } }),
       DB_PING_TIMEOUT_MS,
     );
+    // Aparte: una fila de latido rara o una lectura que falla no es una base caída, y no puede
+    // ponerse a decir `degraded` ni ensuciar el log de la BD. Sin latido legible, no sale.
+    try {
+      const { leerLatido } = await import("@/server/services/latido-worker");
+      worker = await withTimeout(leerLatido(prisma, new Date()), DB_PING_TIMEOUT_MS);
+    } catch {
+      worker = null;
+    }
   } catch (error) {
     // El DETALLE completo va al log; NUNCA al cuerpo de la respuesta (no exponer
     // cadena de conexion, host, usuario ni el error interno).
@@ -67,6 +79,8 @@ export async function GET() {
     db: dbOk,
     ...(jobsFailed !== null ? { jobsFailed } : {}),
     commit: env.GIT_SHA ?? null,
+    // Sin latido (o con la base caída), no sale: la ausencia ya dice «no hay worker que se vea».
+    ...(worker ? { worker } : {}),
     entorno: env.NODE_ENV,
     ...(dbOk ? {} : { error: "DB_UNAVAILABLE" }),
     momento: new Date().toISOString(),

@@ -70,6 +70,10 @@ tam=$(docker image inspect --format '{{.Size}}' "$GEOIP")
 gs=$(docker image inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \
   "$REGISTRO/dareflash-web:$SHA" | sed -n 's/^GIT_SHA=//p')
 [ "$gs" = "$SHA" ] || fallo "web: GIT_SHA es '$gs', no el SHA del commit (el health mentiría)"
+# Y el del worker: lo anota en su latido, y `deploy.sh` espera el latido de ESTE commit (Fase 11).
+gw=$(docker image inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \
+  "$REGISTRO/dareflash-worker:$SHA" | sed -n 's/^GIT_SHA=//p')
+[ "$gw" = "$SHA" ] || fallo "worker: GIT_SHA es '$gw', no el SHA del commit (su latido mentiría)"
 
 if [ "$fallos" -gt 0 ]; then
   echo "REVISIÓN FALLIDA: $fallos problema(s). No se publica nada." >&2

@@ -10,6 +10,7 @@
  */
 import {
   AFORO_MATERIALIZAR_CADENCIA_MS,
+  LATIDO_WORKER_CADENCIA_MS,
   PUBLICIDAD_COBRO_CADENCIA_MS,
   PUBLICIDAD_METRICAS_CADENCIA_MS,
   CONFIRM_CADENCIA_ACTIVO_MS,
@@ -588,6 +589,12 @@ export interface OpcionesBucle {
    * pasa de GEOIP_DIAS_CADUCA. Una vez al día. Sin él, no se revisa.
    */
   revisarGeoIp?: (now: Date) => Promise<{ estado: { dias: number | null; viejo: boolean } }>;
+  /**
+   * EL LATIDO (Fase 11 · worker vigilado, `anotarLatido`): que el worker vive y de qué commit es,
+   * cada `LATIDO_WORKER_CADENCIA_MS`, ANTES de procesar el lote (un lote largo no lo retrasa una
+   * vuelta entera). Sin él, el health no ve al worker y `deploy.sh` no da el despliegue por bueno.
+   */
+  latido?: (now: Date) => Promise<void>;
 }
 
 /**
@@ -629,8 +636,21 @@ export async function bucleWorker(
   // fuerza UN barrido (recoge PENDING previos).
   let ultimoWakeHonrado: string | null = null;
 
+  let proximoLatido = 0;
+
   while (!o.parar()) {
     const t = ahora();
+    // EL LATIDO, lo primero de cada vuelta que toque: es lo que el health enseña y `deploy.sh`
+    // espera. Si falla (la BD caída), se dice y se sigue: el siguiente lo reintenta.
+    if (o.latido && t.getTime() >= proximoLatido) {
+      try {
+        await o.latido(t);
+      } catch (e) {
+        o.log?.(`[worker] latido fallo (${sanearError(e)}); reintento en la siguiente vuelta.`);
+      }
+      proximoLatido = t.getTime() + LATIDO_WORKER_CADENCIA_MS;
+    }
+
     const { hechos, fallidos } = await procesarLote(db, registro, {
       workerToken: o.workerToken,
       limit: o.limit,

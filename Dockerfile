@@ -109,6 +109,13 @@ CMD ["node", "server.js"]
 # env, adaptador) en un proceso Node. tini (PID 1) reenvia SIGTERM para el apagado limpio.
 FROM builder AS worker
 ENV NODE_ENV=production
+# EL COMMIT, como en `runner` y por lo mismo: el worker lo anota en su LATIDO, que el health enseña y
+# `deploy.sh` espera (Fase 11 · worker vigilado). Sin él, un worker del commit viejo pasaría por el
+# nuevo. Se exige un SHA de 40 hex: un build sin él falla aquí, no en producción.
+ARG GIT_SHA
+RUN echo "$GIT_SHA" | grep -Eq '^[0-9a-f]{40}$' \
+    || { echo "ERROR: falta GIT_SHA o no es un SHA de 40 hex. Construye con GIT_SHA=\$(git rev-parse HEAD)" >&2; exit 1; }
+ENV GIT_SHA=$GIT_SHA
 # node DIRECTO (tsx como loader, no `npx tsx`): asi el proceso Node es el hijo directo de
 # tini y recibe SIGTERM en su handler -> apagado limpio (con npx en medio, la senal no llega
 # a node y el contenedor moria con 143).

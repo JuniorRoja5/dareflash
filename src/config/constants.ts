@@ -3107,6 +3107,14 @@ export const AFORO_MIDE_DESDE_ISO = "2026-11-07";
 /** Cada cuánto se materializa el aforo de Redis a `AforoZonaDia` (recuento absoluto: reejecutar converge). */
 export const AFORO_MATERIALIZAR_CADENCIA_MS = 60 * 60 * 1000;
 
+/**
+ * EL LATIDO DEL WORKER (Fase 11 · worker vigilado, `services/latido-worker`): cada cuánto reescribe su
+ * fila de `SystemState`. `deploy.sh` da el worker por vivo si su último latido tiene menos de
+ * `DEPLOY_LATIDO_MAX_S` (60 s, CUATRO latidos: un lote largo puede retrasar uno) y el proceso lleva
+ * vivo al menos `DEPLOY_WORKER_VIVO_MIN_S` (30 s, dos latidos: uno en bucle de reinicios no llega).
+ */
+export const LATIDO_WORKER_CADENCIA_MS = 15_000;
+
 /** Cuánto viven en Redis las claves de aforo de un día: lo justo para materializar hoy y ayer y algo más. */
 export const AFORO_TTL_S = 3 * 24 * 60 * 60;
 
