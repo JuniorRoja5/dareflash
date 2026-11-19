@@ -47,10 +47,16 @@ describe("lo que nombra el producto sigue a la marca", () => {
     expect(TITULO_RAIZ.default).toBe("Revol Flash");
   });
 
-  it("el asunto y el cuerpo de un correo", () => {
+  it("el asunto y el cuerpo de un correo, también su logotipo", () => {
     const c = buildVerificationEmail("https://x.test", "a@b.test", "t");
     expect(c.subject).toBe("Verifica tu cuenta de Revol Flash");
-    expect(`${c.subject}${c.text}${c.html}`).not.toMatch(/dareflash/i);
+    // EL HTML SE LEE SIN ETIQUETAS, como lo lee una persona: el logotipo del correo estuvo escrito a
+    // mano partido en dos («DARE» + un `<span>` con «FLASH») y ningún buscador de texto lo veía, ni
+    // este mismo caso, que antes miraba el HTML crudo (Fase 11 · PM2).
+    const leido = c.html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
+    expect(leido).toContain("Revol Flash");
+    const sinSeparadores = `${c.subject} ${c.text} ${leido}`.toLowerCase().replace(/[\s._-]+/g, "");
+    expect(sinSeparadores, "el correo sigue diciendo la marca vieja").not.toContain("dareflash");
   });
 
   it("el logo: lo que se anuncia y lo que se lee", () => {

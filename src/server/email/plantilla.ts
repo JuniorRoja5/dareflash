@@ -57,6 +57,20 @@ export interface PlantillaCorreoInput {
   notas: string[];
 }
 
+/**
+ * EL LOGOTIPO DEL CORREO, a dos tonos: la última palabra de la marca (la que empieza por mayúscula al
+ * final: «Revol» + «Flash») en el color de la acción, y el resto en el de texto. SALE DE `MARCA`: estuvo
+ * escrito a mano, partido en dos por un `<span>`, y sobrevivió al cambio de nombre, porque partido por
+ * una etiqueta ningún buscador de texto lo veía (Fase 11 · PM2). Una marca de una sola palabra va
+ * entera en el color de texto.
+ */
+function logotipoCorreo(): string {
+  const corte = MARCA.search(/[A-Z][^A-Z]*$/);
+  const [inicio, final] = corte > 0 ? [MARCA.slice(0, corte), MARCA.slice(corte)] : [MARCA, ""];
+  const resalte = final ? `<span style="color:${COLOR.action};">${escapeHtml(final)}</span>` : "";
+  return `${escapeHtml(inicio)}${resalte}`;
+}
+
 /** Compone el HTML de marca de un correo transaccional a partir de su contenido. */
 export function renderCorreoHtml(input: PlantillaCorreoInput): string {
   const href = escapeHtml(input.cta.href);
@@ -84,7 +98,7 @@ export function renderCorreoHtml(input: PlantillaCorreoInput): string {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${COLOR.surface}" style="max-width:600px;background-color:${COLOR.surface};border:1px solid ${COLOR.line};border-radius:8px;">
 <tr>
 <td style="padding:32px 32px 4px;">
-<p style="margin:0;font-family:${FUENTE};font-size:20px;font-weight:800;letter-spacing:0.06em;color:${COLOR.text};text-transform:uppercase;">DARE<span style="color:${COLOR.action};">FLASH</span></p>
+<p style="margin:0;font-family:${FUENTE};font-size:20px;font-weight:800;letter-spacing:0.06em;color:${COLOR.text};text-transform:uppercase;">${logotipoCorreo()}</p>
 </td>
 </tr>
 <tr>
