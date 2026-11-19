@@ -7,11 +7,12 @@ import { MARCA } from "@/config/marca";
  * EL TAMANO ESTA MEDIDO, Y NO A LA PRIMERA: nacio con la marca a 28 px y la palabra a 22 px, y en
  * produccion SE SALIA de la barra lateral. La cuenta: la columna son 224 px menos 12 de `p-3` por
  * lado menos 8 del `px-2` del propio logo = 184 disponibles, y aquello pedia 219. Con la marca a 24
- * y la palabra a 16 son 167, o sea 17 de holgura. La palabra mide 7,85 em en Archivo con
- * `wght 800 / wdth 125` (medido sobre el woff2 que sirve el build), y esa cuenta la vigila
- * `tests/logo-cabe.test.ts` para que cambiar un tamano sin rehacerla salga en rojo.
+ * y la palabra a 15 px son ~173, o sea ~11 de holgura. La palabra «REVOLFLASH» mide 8,77 em en Archivo
+ * con `wght 800 / wdth 125` (medida en el navegador con la fuente cargada); a 16 px dejaba solo ~3 de
+ * holgura, por eso baja a 15 (Fase 11 · PM2): un valor fuera de la escala de texto, a propósito, solo
+ * para esto. La cuenta la vigila `tests/logo-cabe.test.ts`, atada a la palabra que se midió.
  *
- * `truncate` + `min-w-0` NO son el plan: son la valvula. Con 17 px de holgura no deberia recortar
+ * `truncate` + `min-w-0` NO son el plan: son la valvula. Con ~11 px de holgura no deberia recortar
  * nunca, pero si la fuente display no carga, la pila de reserva tiene OTRAS metricas y puede venir
  * mas ancha. Entre recortar la palabra y empujar la columna entera, se recorta.
  *
@@ -88,7 +89,7 @@ export function Logo({ compacto = false, className }: { compacto?: boolean; clas
       {compacto ? null : (
         <span
           aria-hidden="true"
-          className="min-w-0 truncate text-base leading-none text-text"
+          className="min-w-0 truncate text-[15px] leading-none text-text"
           style={{
             fontFamily: "var(--font-display)",
             fontVariationSettings: '"wght" 800, "wdth" 125',

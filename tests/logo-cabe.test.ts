@@ -10,19 +10,26 @@
  * relleno salen de `navegacion.tsx`, el relleno del propio logo de como se usa alli, y los dos
  * tamanos de `logo.tsx`. Cambiar cualquiera de esos cuatro numeros sin rehacer la cuenta cae en rojo.
  *
- * LA UNICA CONSTANTE MEDIDA A MANO es el ancho de la palabra: 7,85 em en Archivo con
- * `wght 800 / wdth 125`. Sale de medir el woff2 que sirve el build (`.next/static/media`), tomando
- * el ancho de la instancia por defecto —6098/1000 em— y aplicando el eje de anchura, que es
- * PORCENTUAL por definicion de OpenType (125 = 125% del ancho normal) mas el salto de peso: x1,288.
- * Es una estimacion con base, no una medida exacta, y por eso la holgura exigida no es cero.
+ * LA UNICA CONSTANTE MEDIDA A MANO es el ancho de la palabra, y va ATADA A LA PALABRA QUE SE MIDIO
+ * (`MEDIDA`): con la medida de otra palabra la suma no comprueba nada. Paso (Fase 11 · PM2): la cifra
+ * era la de «DAREFLASH» (7,85 em) y el test seguia en verde con «REVOLFLASH», que mide 8,77 em y dejaba
+ * ~3 px. Ahora el test exige que la palabra medida sea la marca actual en mayusculas.
  *
- * Para romperlo a proposito: devolver la palabra a `text-xl` (rojo), subir la marca a `h-7` con la
- * palabra grande (rojo), estrechar la columna a `w-48` (rojo) o quitarle la contencion (rojo).
+ * COMO SE MIDE (repetirlo al cambiar la marca): en el navegador, con la fuente display CARGADA
+ * (`document.fonts.check`), en la barra lateral de escritorio: el ancho del `<span>` de la palabra
+ * (`getBoundingClientRect().width`) dividido por su `font-size` calculado. Asi se midio «REVOLFLASH»
+ * el 20 nov 2026: 140,3 px a 16 px = 8,77 em. La holgura exigida (10 px) cubre el margen de esa medida.
+ *
+ * Para romperlo a proposito: atar la medida a otra palabra (rojo, «vuelve a medir»); devolver la
+ * palabra a 16 px (rojo: no cabe con 10 px de holgura); subir la marca a `h-7` (rojo); estrechar la
+ * columna a `w-48` (rojo) o quitarle la contencion (rojo).
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
+
+import { MARCA } from "../src/config/marca";
 
 const RAIZ = path.resolve(__dirname, "..");
 const leer = (rel: string): string => readFileSync(path.resolve(RAIZ, rel), "utf8");
@@ -42,8 +49,18 @@ const ESCALA = new Map(
   ]),
 );
 
-/** El ancho de "DAREFLASH" en ems. Ver el docblock: medido sobre el woff2 del build. */
-const PALABRA_EM = 7.85;
+/**
+ * El ancho de la palabra en ems, ATADO a la palabra que se midio. Ver el docblock: como se mide. Si la
+ * marca cambia, esto se vuelve a medir: el test lo exige.
+ */
+const MEDIDA = { palabra: "REVOLFLASH", em: 8.77 };
+
+/** El tamano de la palabra en px: de la escala (`text-base`) o un valor fijo (`text-[15px]`). */
+const RE_TAMANO = /truncate (text-(?:[a-z0-9]+|\[\d+(?:\.\d+)?px\]))/;
+function pxDe(clase: string): number | undefined {
+  const fijo = /^text-\[([\d.]+)px\]$/.exec(clase);
+  return fijo ? Number(fijo[1]) : ESCALA.get(clase);
+}
 
 /** El SVG de la marca: su ancho sale de la proporcion del viewBox, no de un numero suelto. */
 const VIEWBOX = /viewBox="0 0 (\d+) (\d+)"/.exec(LOGO);
@@ -71,7 +88,15 @@ describe("la cuenta cuadra: el logotipo entra en la barra lateral", () => {
     // Y las dos del propio logotipo, con su mensaje: sin esto, quitar `truncate` o cambiar la
     // forma del `<Marca>` revienta la suma de abajo con un "null" en vez de decir que falta.
     expect(/<Marca className="h-(\d+)/.test(LOGO), "el alto de la marca").toBe(true);
-    expect(/truncate (text-[a-z0-9]+)/.test(LOGO), "el tamano de la palabra").toBe(true);
+    expect(RE_TAMANO.test(LOGO), "el tamano de la palabra").toBe(true);
+  });
+
+  it("la medida es de la palabra que se pinta HOY (la marca en mayusculas)", () => {
+    expect(
+      MEDIDA.palabra,
+      `la medida es de «${MEDIDA.palabra}» y el logo pinta «${MARCA.toUpperCase()}»: vuelve a medir ` +
+        "el ancho de la palabra (ver el docblock) y actualiza MEDIDA",
+    ).toBe(MARCA.toUpperCase());
   });
 
   it("marca + hueco + palabra caben, con holgura para el margen de la medida", () => {
@@ -85,10 +110,13 @@ describe("la cuenta cuadra: el logotipo entra en la barra lateral", () => {
     const altoMarca = Number(/<Marca className="h-(\d+)/.exec(LOGO)![1]) * U;
     const anchoMarca = (altoMarca * Number(VIEWBOX![1])) / Number(VIEWBOX![2]);
     const hueco = Number(/items-center gap-(\d+)/.exec(LOGO)![1]) * U;
-    const clasePalabra = /truncate (text-[a-z0-9]+)/.exec(LOGO)![1]!;
-    const tamanoPalabra = ESCALA.get(clasePalabra);
-    expect(tamanoPalabra, `${clasePalabra} no esta en la escala de globals.css`).toBeDefined();
-    const anchoPalabra = tamanoPalabra! * PALABRA_EM;
+    const clasePalabra = RE_TAMANO.exec(LOGO)![1]!;
+    const tamanoPalabra = pxDe(clasePalabra);
+    expect(
+      tamanoPalabra,
+      `${clasePalabra} no esta en la escala ni es un tamano en px`,
+    ).toBeDefined();
+    const anchoPalabra = tamanoPalabra! * MEDIDA.em;
 
     const total = anchoMarca + hueco + anchoPalabra;
     // 10 px de holgura: la medida de la palabra tiene un ~3% de error (unos 4 px a este tamano) y
