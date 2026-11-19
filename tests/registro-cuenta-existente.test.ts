@@ -21,7 +21,6 @@
  * correo existe ANTES de hashear (rojo el del tiempo).
  */
 import { contrasenaFalsa, falso } from "./helpers/valores-falsos";
-import { performance } from "node:perf_hooks";
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -29,6 +28,7 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 import { congelarReloj, soltarReloj } from "./helpers/reloj";
+import { costeArgon2, separacionDeMedianas } from "./helpers/tiempo-argon2";
 
 const H = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient }));
 
@@ -49,7 +49,6 @@ const { POST: registrar } = await import("../src/app/api/auth/register/route");
 const { POST: altaEmpresa } = await import("../src/app/api/empresa/route");
 const { altaEmpresaDesdeCero } = await import("../src/server/services/empresas");
 const { avisarCuentaExistente } = await import("../src/server/services/aviso-cuenta-existente");
-const { hashPassword } = await import("../src/server/auth/password");
 
 let prisma: PrismaClient;
 const PASS = contrasenaFalsa("larga-y-buena");
@@ -211,17 +210,11 @@ describe("el tope es por DÍA, no para siempre", () => {
 });
 
 describe("mismo tiempo de respuesta en el alta de empresa", () => {
-  const mediana = (xs: number[]) => {
-    const s = [...xs].sort((a, b) => a - b);
-    const m = Math.floor(s.length / 2);
-    return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
-  };
-
   it("correo nuevo y existente tardan casi igual: el argon2 se paga en los dos caminos", async () => {
-    await hashPassword(contrasenaFalsa("calentar"));
-    const t0 = performance.now();
-    await hashPassword(contrasenaFalsa("medir"));
-    const argon2 = performance.now() - t0;
+    // La medida vive en `helpers/tiempo-argon2` (compartida con el registro de participante): H es
+    // la mediana de varios hashes, y los pares van intercalados, alternados y sin el primero. Es la
+    // SEGUNDA red; la primera, sin reloj, es `argon2-antes-de-mirar`.
+    const argon2 = await costeArgon2();
 
     await yaTieneCuenta("existe@test.test");
     const aviso = {
@@ -236,19 +229,13 @@ describe("mismo tiempo de respuesta en el alta de empresa", () => {
       tipoNegocio: "FISICO" as const,
     });
 
-    const tNuevo: number[] = [];
-    const tExiste: number[] = [];
-    for (let i = 0; i < 6; i += 1) {
-      let s = performance.now();
-      await altaEmpresaDesdeCero(prisma, datos("existe@test.test"), aviso);
-      tExiste.push(performance.now() - s);
-      s = performance.now();
-      await altaEmpresaDesdeCero(prisma, datos(`nuevo${i}@test.test`), aviso);
-      tNuevo.push(performance.now() - s);
-    }
+    const { separacion } = await separacionDeMedianas(
+      () => altaEmpresaDesdeCero(prisma, datos("existe@test.test"), aviso),
+      (i) => altaEmpresaDesdeCero(prisma, datos(`nuevo${i}@test.test`), aviso),
+    );
     // El mismo umbral que el registro de participante (`registration.test`), que tiene su versión
     // rota demostrando que lo supera: mirar existencia antes de hashear separa las medianas en un
     // argon2 entero.
-    expect(Math.abs(mediana(tNuevo) - mediana(tExiste))).toBeLessThan(argon2 * 0.5);
+    expect(separacion).toBeLessThan(argon2 * 0.5);
   });
 });

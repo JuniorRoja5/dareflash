@@ -309,6 +309,13 @@ borran para "limpiar"**:
   salvo en la lista que las veta; los títulos salen de `TITULO_RAIZ`. Con la marca cambiada en un test, título, correo y
   logo la siguen, y la vieja sigue vetada como contraseña y como @usuario (`MARCAS_ANTERIORES`). El
   dominio NO tiene constante: vive en la configuración (`APP_URL`, `EMAIL_FROM`).
+- `argon2-antes-de-mirar` — registrarse con un correo que ya existe no se distingue de hacerlo con uno
+  nuevo: en `registerUser` y en `altaEmpresaDesdeCero`, el hash de la contraseña se llama EXACTAMENTE
+  una vez y ANTES de la primera operación sobre `User`, con correo nuevo y con existente. SIN RELOJ
+  (espía sobre el `hashPassword` real + extensión de Prisma que apunta el orden). Los tests de tiempo
+  (`registration`, `registro-cuenta-existente`) son la SEGUNDA red y miden con
+  [tests/helpers/tiempo-argon2.ts](tests/helpers/tiempo-argon2.ts) (H mediana de varios hashes, pares
+  intercalados y alternados): nada de `retry`, `skip` ni umbral subido a ojo.
 - `reloj-adelantado` (+ el job de CI `tests-reloj-adelantado`) — la suite entera corre OTRA vez con
   el reloj de Node adelantado 400 días ([scripts/ci-tests-reloj-adelantado.sh](scripts/ci-tests-reloj-adelantado.sh),
   libfaketime) y las imágenes dependen de ese job. Un test con fechas fijas que llama a un servicio

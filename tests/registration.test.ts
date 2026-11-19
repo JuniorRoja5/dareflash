@@ -1,5 +1,4 @@
 import { contrasenaFalsa } from "./helpers/valores-falsos";
-import { performance } from "node:perf_hooks";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
@@ -15,6 +14,7 @@ import {
 } from "../src/server/auth/registration";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
+import { costeArgon2, separacionDeMedianas } from "./helpers/tiempo-argon2";
 
 /** P2002 con la forma del driver adapter de MariaDB (nombre de indice en constraint.index). */
 function p2002Adapter(index: string): Prisma.PrismaClientKnownRequestError {
@@ -51,19 +51,9 @@ const BIRTH = new Date("2000-01-01T00:00:00.000Z");
 const ACEPTO = new Date("2026-01-01T00:00:00.000Z");
 const PASS = contrasenaFalsa("suficientemente-larga");
 
-function median(xs: number[]): number {
-  const s = [...xs].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 === 0 ? (s[mid - 1]! + s[mid]!) / 2 : s[mid]!;
-}
-
-/** Coste de un argon2 (referencia para el umbral), tras un warmup del modulo nativo. */
-async function costeArgon2(): Promise<number> {
-  await hashPassword(contrasenaFalsa("calentar")); // el primer hash paga la inicializacion del modulo nativo
-  const t0 = performance.now();
-  await hashPassword(contrasenaFalsa("medir-coste"));
-  return performance.now() - t0;
-}
+// La medida (H como mediana de varios hashes, pares intercalados y alternados, sin el primero)
+// vive en `helpers/tiempo-argon2`, compartida con el alta de empresa: ver allí el porqué. Este test
+// es la SEGUNDA red; la primera, sin reloj, es `argon2-antes-de-mirar`.
 
 describe("registro: sin oraculo por tiempo ni carrera", () => {
   it("NO ENUMERA por tiempo: hashea SIEMPRE, asi email nuevo y existente tardan casi igual", async () => {
@@ -80,35 +70,22 @@ describe("registro: sin oraculo por tiempo ni carrera", () => {
       },
     });
 
-    const N = 6;
-    const tExist: number[] = [];
-    const tNuevo: number[] = [];
-    for (let i = 0; i < N; i++) {
-      let s = performance.now();
-      await registerUser(prisma, {
-        email: existente,
+    const registrar = (email: string) =>
+      registerUser(prisma, {
+        email,
         password: PASS,
         birthDate: BIRTH,
         terminosAceptadosEn: ACEPTO,
         appUrl: "https://x.test",
       });
-      tExist.push(performance.now() - s);
+    const { separacion } = await separacionDeMedianas(
+      () => registrar(existente),
+      (i) => registrar(`nuevo${i}@test.com`),
+    );
 
-      s = performance.now();
-      await registerUser(prisma, {
-        email: `nuevo${i}@test.com`,
-        password: PASS,
-        birthDate: BIRTH,
-        terminosAceptadosEn: ACEPTO,
-        appUrl: "https://x.test",
-      });
-      tNuevo.push(performance.now() - s);
-    }
-
-    // Con hash SIEMPRE, la separacion entre medianas es << el coste de un argon2 (solo
-    // el encolado del correo, ~ms). El mismo umbral caza la version rota (test de abajo).
-    const diff = Math.abs(median(tNuevo) - median(tExist));
-    expect(diff).toBeLessThan(H * 0.5);
+    // Con hash SIEMPRE, la separacion entre medianas es << el coste de un argon2 (solo el
+    // trabajo de base de datos de cada camino). El mismo umbral caza la version rota (abajo).
+    expect(separacion).toBeLessThan(H * 0.5);
   });
 
   it("DIENTES: la version ROTA (hash TRAS mirar existencia) SI separa las medianas", async () => {
@@ -143,21 +120,12 @@ describe("registro: sin oraculo por tiempo ni carrera", () => {
       },
     });
 
-    const N = 6;
-    const tExist: number[] = [];
-    const tNuevo: number[] = [];
-    for (let i = 0; i < N; i++) {
-      let s = performance.now();
-      await registrarRoto(existente);
-      tExist.push(performance.now() - s);
-
-      s = performance.now();
-      await registrarRoto(`nuevo${i}@test.com`);
-      tNuevo.push(performance.now() - s);
-    }
-
-    const diff = Math.abs(median(tNuevo) - median(tExist));
-    expect(diff).toBeGreaterThan(H * 0.5); // la rota SI se separa -> el test la caza
+    // LA MISMA medida que el test de arriba: si el diente midiera de otra forma, no probaria nada.
+    const { separacion } = await separacionDeMedianas(
+      () => registrarRoto(existente),
+      (i) => registrarRoto(`nuevo${i}@test.com`),
+    );
+    expect(separacion).toBeGreaterThan(H * 0.5); // la rota SI se separa -> el test la caza
   });
 
   it("CARRERA: dos registros simultaneos del mismo email nuevo -> un solo usuario, sin 500", async () => {
