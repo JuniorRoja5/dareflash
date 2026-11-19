@@ -311,11 +311,17 @@ borran para "limpiar"**:
   dominio NO tiene constante: vive en la configuración (`APP_URL`, `EMAIL_FROM`).
 - `argon2-antes-de-mirar` — registrarse con un correo que ya existe no se distingue de hacerlo con uno
   nuevo: en `registerUser` y en `altaEmpresaDesdeCero`, el hash de la contraseña se llama EXACTAMENTE
-  una vez y ANTES de la primera operación sobre `User`, con correo nuevo y con existente. SIN RELOJ
-  (espía sobre el `hashPassword` real + extensión de Prisma que apunta el orden). Los tests de tiempo
-  (`registration`, `registro-cuenta-existente`) son la SEGUNDA red y miden con
-  [tests/helpers/tiempo-argon2.ts](tests/helpers/tiempo-argon2.ts) (H mediana de varios hashes, pares
-  intercalados y alternados): nada de `retry`, `skip` ni umbral subido a ojo.
+  una vez y ANTES de la primera operación sobre `User` o de cualquier consulta EN CRUDO, con correo
+  nuevo y con existente. SIN RELOJ (espía sobre el `hashPassword` real + extensión de Prisma a nivel de
+  cliente que apunta el orden, también `$queryRaw`). Los tests de tiempo (`registration`,
+  `registro-cuenta-existente`) son la SEGUNDA red y miden con
+  [tests/helpers/tiempo-argon2.ts](tests/helpers/tiempo-argon2.ts) lo que AÑADE EL HASH a la separación
+  entre caminos (`excesoDelHash`: misma ejecución con el hash real y con uno instantáneo), contra H/2:
+  nada de `retry`, `skip` ni umbral subido a ojo. **DECISIÓN (analista, 19 nov 2026):** la diferencia
+  de trabajo de BASE DE DATOS entre correo nuevo y existente es un RIESGO RESIDUAL ACEPTADO (pequeña
+  frente al argon2, con límite de intentos por IP, e igualarla exigiría trabajo falso). Medida sin
+  carga: ~7 ms en el registro y ~10 ms en el alta de empresa, frente a ~72 ms de argon2. Si crece, se
+  revisa.
 - `reloj-adelantado` (+ el job de CI `tests-reloj-adelantado`) — la suite entera corre OTRA vez con
   el reloj de Node adelantado 400 días ([scripts/ci-tests-reloj-adelantado.sh](scripts/ci-tests-reloj-adelantado.sh),
   libfaketime) y las imágenes dependen de ese job. Un test con fechas fijas que llama a un servicio

@@ -17,7 +17,8 @@
  * servicios no preguntan, insertan y deja decidir a la restricción UNIQUE—.
  *
  * Para romperlo a propósito: mirar si el correo existe y solo entonces hashear (rojo: el existente
- * no hashea, o hashea después de mirar); hashear dos veces en un camino (rojo).
+ * no hashea, o hashea después de mirar); mirarlo con SQL a mano (`$queryRaw`) antes de hashear
+ * (rojo: las consultas en crudo también se apuntan); hashear dos veces en un camino (rojo).
  */
 import { contrasenaFalsa, falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -57,6 +58,9 @@ vi.mock("@/server/auth/password", async (original) => {
 const { registerUser } = await import("../src/server/auth/registration");
 const { altaEmpresaDesdeCero } = await import("../src/server/services/empresas");
 
+/** Cómo se apunta una consulta EN CRUDO (sin modelo): `$sql.$queryRaw`, `$sql.$executeRaw`… */
+const CRUDO = "$sql";
+
 let base: PrismaClient;
 /** El cliente que ven los servicios: el de verdad, con cada operación apuntada en `H.orden`. */
 let db: PrismaClient;
@@ -65,11 +69,12 @@ beforeAll(() => {
   base = createTestPrisma();
   db = base.$extends({
     query: {
-      $allModels: {
-        async $allOperations({ model, operation, args, query }) {
-          H.orden.push(`${model}.${operation}`);
-          return query(args);
-        },
+      // A NIVEL DE CLIENTE y no en `$allModels`: así entran también las consultas EN CRUDO
+      // (`$queryRaw`, `$executeRaw`, sus `Unsafe`), que no son de ningún modelo. Una comprobación de
+      // existencia hecha con SQL a mano se le escapaba a la versión anterior de este registro.
+      async $allOperations({ model, operation, args, query }) {
+        H.orden.push(model ? `${model}.${operation}` : `${CRUDO}.${operation}`);
+        return query(args);
       },
     },
   }) as unknown as PrismaClient;
@@ -103,10 +108,14 @@ function pagaAntesDeMirar(orden: string[]) {
   expect(hashes, `el hash se llamó ${hashes} veces: ${orden.join(" → ")}`).toBe(1);
   const primeraSobreUser = orden.findIndex((o) => o.startsWith("User."));
   expect(primeraSobreUser, "no tocó la cuenta: el caso no mide nada").toBeGreaterThan(-1);
+  // Una consulta EN CRUDO no dice qué tabla mira, así que cuenta como «mirar la cuenta»: la primera
+  // de las dos marca el límite. Más estricto que necesario, y a propósito.
+  const primeraCruda = orden.findIndex((o) => o.startsWith(`${CRUDO}.`));
+  const limite = primeraCruda === -1 ? primeraSobreUser : Math.min(primeraSobreUser, primeraCruda);
   expect(
     orden.indexOf("hash"),
     `el hash llega DESPUÉS de mirar la cuenta: ${orden.join(" → ")}`,
-  ).toBeLessThan(primeraSobreUser);
+  ).toBeLessThan(limite);
 }
 
 describe("registro de participante (registerUser)", () => {
@@ -185,5 +194,10 @@ describe("control: el registro de orden ve lo que tiene que ver", () => {
     expect(orden.filter((o) => o === "hash")).toHaveLength(0);
     const ordenNuevo = await ordenDe(() => rota("otro@test.test"));
     expect(ordenNuevo.indexOf("hash")).toBeGreaterThan(ordenNuevo.indexOf("User.findUnique"));
+  });
+
+  it("y una consulta EN CRUDO también se apunta: SQL a mano no se escapa del registro", async () => {
+    const orden = await ordenDe(() => db.$queryRaw`SELECT 1 AS uno`);
+    expect(orden).toEqual([`${CRUDO}.$queryRaw`]);
   });
 });

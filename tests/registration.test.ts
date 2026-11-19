@@ -1,6 +1,21 @@
 import { contrasenaFalsa } from "./helpers/valores-falsos";
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+/**
+ * EL INTERRUPTOR DEL HASH: el `hashPassword` real, o uno instantáneo cuando la medida de tiempo pide
+ * su línea base (ver `excesoDelHash`). Por defecto, el real: los demás casos de este fichero no lo
+ * notan.
+ */
+const HASH = vi.hoisted(() => ({ real: true }));
+vi.mock("../src/server/auth/password", async (original) => {
+  const m = await original<typeof import("../src/server/auth/password")>();
+  return {
+    ...m,
+    hashPassword: (password: string) =>
+      HASH.real ? m.hashPassword(password) : Promise.resolve(m.DUMMY_HASH),
+  };
+});
 import { generarCodigoReferido } from "../src/server/auth/codigo-referido";
 
 import { Prisma } from "../src/generated/prisma/client";
@@ -14,7 +29,7 @@ import {
 } from "../src/server/auth/registration";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
-import { costeArgon2, separacionDeMedianas } from "./helpers/tiempo-argon2";
+import { costeArgon2, excesoDelHash } from "./helpers/tiempo-argon2";
 
 /** P2002 con la forma del driver adapter de MariaDB (nombre de indice en constraint.index). */
 function p2002Adapter(index: string): Prisma.PrismaClientKnownRequestError {
@@ -51,9 +66,19 @@ const BIRTH = new Date("2000-01-01T00:00:00.000Z");
 const ACEPTO = new Date("2026-01-01T00:00:00.000Z");
 const PASS = contrasenaFalsa("suficientemente-larga");
 
-// La medida (H como mediana de varios hashes, pares intercalados y alternados, sin el primero)
-// vive en `helpers/tiempo-argon2`, compartida con el alta de empresa: ver allí el porqué. Este test
-// es la SEGUNDA red; la primera, sin reloj, es `argon2-antes-de-mirar`.
+/*
+ * EL TIEMPO, COMO SEGUNDA RED (la primera, sin reloj, es `argon2-antes-de-mirar`). La medida vive en
+ * `helpers/tiempo-argon2`, compartida con el alta de empresa: H es la mediana de varios hashes, y lo
+ * que se compara con H/2 es lo que AÑADE EL HASH a la separación entre caminos (`excesoDelHash`), no
+ * la separación entera.
+ *
+ * DECISIÓN (analista, 19 nov 2026): la diferencia de trabajo de BASE DE DATOS entre «correo nuevo» y
+ * «correo existente» es un RIESGO RESIDUAL ACEPTADO, no algo que este test ignore por comodidad. Es
+ * pequeña frente al argon2, que es lo que se iguala; el registro tiene límite de intentos por IP; e
+ * igualarla exigiría trabajo falso en el alta. Su tamaño, medido SIN carga (mediana de la separación
+ * con el hash instantáneo, 10 pasadas, 19 nov 2026): ~7 ms (máx. 7,6), frente a un argon2 de
+ * ~71 ms. Si crece mucho, se revisa.
+ */
 
 describe("registro: sin oraculo por tiempo ni carrera", () => {
   it("NO ENUMERA por tiempo: hashea SIEMPRE, asi email nuevo y existente tardan casi igual", async () => {
@@ -78,14 +103,15 @@ describe("registro: sin oraculo por tiempo ni carrera", () => {
         terminosAceptadosEn: ACEPTO,
         appUrl: "https://x.test",
       });
-    const { separacion } = await separacionDeMedianas(
-      () => registrar(existente),
-      (i) => registrar(`nuevo${i}@test.com`),
-    );
+    const { exceso } = await excesoDelHash({
+      existente: () => registrar(existente),
+      nuevo: (i) => registrar(`nuevo${i}@test.com`),
+      hashReal: (activo) => void (HASH.real = activo),
+    });
 
-    // Con hash SIEMPRE, la separacion entre medianas es << el coste de un argon2 (solo el
-    // trabajo de base de datos de cada camino). El mismo umbral caza la version rota (abajo).
-    expect(separacion).toBeLessThan(H * 0.5);
+    // Con hash SIEMPRE, el hash no añade separación entre caminos: ~0. El mismo umbral caza la
+    // version rota (abajo), donde un camino no lo paga y el exceso es ~H.
+    expect(Math.abs(exceso)).toBeLessThan(H * 0.5);
   });
 
   it("DIENTES: la version ROTA (hash TRAS mirar existencia) SI separa las medianas", async () => {
@@ -121,11 +147,12 @@ describe("registro: sin oraculo por tiempo ni carrera", () => {
     });
 
     // LA MISMA medida que el test de arriba: si el diente midiera de otra forma, no probaria nada.
-    const { separacion } = await separacionDeMedianas(
-      () => registrarRoto(existente),
-      (i) => registrarRoto(`nuevo${i}@test.com`),
-    );
-    expect(separacion).toBeGreaterThan(H * 0.5); // la rota SI se separa -> el test la caza
+    const { exceso } = await excesoDelHash({
+      existente: () => registrarRoto(existente),
+      nuevo: (i) => registrarRoto(`nuevo${i}@test.com`),
+      hashReal: (activo) => void (HASH.real = activo),
+    });
+    expect(exceso).toBeGreaterThan(H * 0.5); // la rota SI se separa -> el test la caza
   });
 
   it("CARRERA: dos registros simultaneos del mismo email nuevo -> un solo usuario, sin 500", async () => {

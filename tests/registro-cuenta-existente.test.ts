@@ -28,9 +28,22 @@ import type { PrismaClient } from "../src/generated/prisma/client";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 import { congelarReloj, soltarReloj } from "./helpers/reloj";
-import { costeArgon2, separacionDeMedianas } from "./helpers/tiempo-argon2";
+import { costeArgon2, excesoDelHash } from "./helpers/tiempo-argon2";
 
 const H = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient }));
+/**
+ * EL INTERRUPTOR DEL HASH: el `hashPassword` real, o uno instantáneo cuando la medida de tiempo pide
+ * su línea base (ver `excesoDelHash`). Por defecto, el real: los demás casos no lo notan.
+ */
+const HASH = vi.hoisted(() => ({ real: true }));
+vi.mock("@/server/auth/password", async (original) => {
+  const m = await original<typeof import("../src/server/auth/password")>();
+  return {
+    ...m,
+    hashPassword: (password: string) =>
+      HASH.real ? m.hashPassword(password) : Promise.resolve(m.DUMMY_HASH),
+  };
+});
 
 vi.mock("@/server/db/client", () => ({
   get prisma() {
@@ -209,33 +222,64 @@ describe("el tope es por DÍA, no para siempre", () => {
   });
 });
 
+/*
+ * EL TIEMPO, COMO SEGUNDA RED (la primera, sin reloj, es `argon2-antes-de-mirar`). La medida vive en
+ * `helpers/tiempo-argon2`, compartida con el registro de participante: H es la mediana de varios
+ * hashes, y lo que se compara con H/2 es lo que AÑADE EL HASH a la separación entre caminos
+ * (`excesoDelHash`), no la separación entera.
+ *
+ * DECISIÓN (analista, 19 nov 2026): la diferencia de trabajo de BASE DE DATOS entre «correo nuevo» y
+ * «correo existente» es un RIESGO RESIDUAL ACEPTADO, no algo que este test ignore por comodidad. Es
+ * pequeña frente al argon2, que es lo que se iguala; el alta tiene límite de intentos por IP; e
+ * igualarla exigiría trabajo falso en el alta. Aquí es mayor que en el registro de participante (el
+ * alta nueva crea la cuenta, la empresa y el aviso al admin en una transacción). Su tamaño, medido
+ * SIN carga (mediana de la separación con el hash instantáneo, 10 pasadas, 19 nov 2026): ~10 ms
+ * (máx. 10,9), frente a un argon2 de ~73 ms. Si crece mucho, se revisa.
+ */
 describe("mismo tiempo de respuesta en el alta de empresa", () => {
+  const aviso = {
+    adminEmail: "admin@x.test",
+    urlPanel: "https://x.test/p",
+    appUrl: "https://x.test",
+  };
+  const datos = (email: string) => ({
+    ...cuerpoEmpresa(email),
+    terminosAceptadosEn: new Date(),
+    tipoCuenta: "EMPRESA" as const,
+    tipoNegocio: "FISICO" as const,
+  });
+  const interruptor = (activo: boolean) => void (HASH.real = activo);
+
   it("correo nuevo y existente tardan casi igual: el argon2 se paga en los dos caminos", async () => {
-    // La medida vive en `helpers/tiempo-argon2` (compartida con el registro de participante): H es
-    // la mediana de varios hashes, y los pares van intercalados, alternados y sin el primero. Es la
-    // SEGUNDA red; la primera, sin reloj, es `argon2-antes-de-mirar`.
     const argon2 = await costeArgon2();
 
     await yaTieneCuenta("existe@test.test");
-    const aviso = {
-      adminEmail: "admin@x.test",
-      urlPanel: "https://x.test/p",
-      appUrl: "https://x.test",
-    };
-    const datos = (email: string) => ({
-      ...cuerpoEmpresa(email),
-      terminosAceptadosEn: new Date(),
-      tipoCuenta: "EMPRESA" as const,
-      tipoNegocio: "FISICO" as const,
+    const { exceso } = await excesoDelHash({
+      existente: () => altaEmpresaDesdeCero(prisma, datos("existe@test.test"), aviso),
+      nuevo: (i) => altaEmpresaDesdeCero(prisma, datos(`nuevo${i}@test.test`), aviso),
+      hashReal: interruptor,
     });
+    // Con el hash en los dos caminos, el hash no añade separación: ~0. La versión rota (abajo) lo
+    // supera con un argon2 entero.
+    expect(Math.abs(exceso)).toBeLessThan(argon2 * 0.5);
+  });
 
-    const { separacion } = await separacionDeMedianas(
-      () => altaEmpresaDesdeCero(prisma, datos("existe@test.test"), aviso),
-      (i) => altaEmpresaDesdeCero(prisma, datos(`nuevo${i}@test.test`), aviso),
-    );
-    // El mismo umbral que el registro de participante (`registration.test`), que tiene su versión
-    // rota demostrando que lo supera: mirar existencia antes de hashear separa las medianas en un
-    // argon2 entero.
-    expect(separacion).toBeLessThan(argon2 * 0.5);
+  it("DIENTES: la versión ROTA (mirar si existe y solo entonces dar el alta) SÍ lo supera", async () => {
+    // Un camino que no paga el argon2: el existente vuelve en cuanto ve la cuenta, y solo el nuevo
+    // llega al alta (que hashea). Con LA MISMA medida que el caso de arriba: si el diente midiera
+    // de otra forma, no probaría nada.
+    const altaRota = async (email: string) => {
+      const ya = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+      if (ya) return;
+      await altaEmpresaDesdeCero(prisma, datos(email), aviso);
+    };
+    const argon2 = await costeArgon2();
+    await yaTieneCuenta("existe@test.test");
+    const { exceso } = await excesoDelHash({
+      existente: () => altaRota("existe@test.test"),
+      nuevo: (i) => altaRota(`nuevo${i}@test.test`),
+      hashReal: interruptor,
+    });
+    expect(exceso).toBeGreaterThan(argon2 * 0.5);
   });
 });

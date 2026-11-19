@@ -11,6 +11,17 @@
  *    se ALTERNA en cada par y el primero se descarta: el primer par paga calentamientos (conexiones,
  *    JIT, cachés) que no son del camino que se mide.
  *  - El UMBRAL no se toca: `H/2`. Lo que cambia es que `H` y las medianas se miden mejor.
+ *
+ * ┌─ Y SE MIDE LO QUE AÑADE EL HASH, NO LA DIFERENCIA ENTERA (`excesoDelHash`) ───────────────────┐
+ * │ Medido: con el hash SUSTITUIDO por uno instantáneo, los dos caminos ya se separan (el alta    │
+ * │ nueva escribe más en la base de datos que el aviso de cuenta existente). En el alta de        │
+ * │ empresa, con carga, esa separación de base llegaba a 0,65·H: rojos falsos que no tenían nada  │
+ * │ que ver con el argon2. Así que se mide en la MISMA ejecución con el hash real y con el         │
+ * │ instantáneo, alternando, y se compara la DIFERENCIA de las dos separaciones con `H/2`: con el │
+ * │ hash en los dos caminos es ~0; con la versión rota (un camino sin hash) es ~H.                │
+ * │ La separación de base es un RIESGO RESIDUAL ACEPTADO (decisión del analista, 19 nov): ver el   │
+ * │ docblock de los dos tests.                                                                    │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
 import { performance } from "node:perf_hooks";
 
@@ -77,4 +88,58 @@ export async function separacionDeMedianas(
     medianaExistente,
     medianaNuevo,
   };
+}
+
+/**
+ * LO QUE AÑADE EL HASH a la separación entre caminos (ver la cabecera). En la MISMA ejecución mide
+ * pares con el hash REAL y pares con el hash INSTANTÁNEO, alternando el modo en cada vuelta para que
+ * la deriva de la máquina caiga en los dos por igual, y devuelve la diferencia entre las dos
+ * separaciones (con signo: nuevo − existente). Con el argon2 pagado en los dos caminos, ~0; con un
+ * camino que no lo paga, ~H.
+ *
+ * `hashReal(activo)` lo da el test: es el interruptor de su `vi.mock` de `@/server/auth/password`
+ * (el real o uno instantáneo). Al acabar SIEMPRE se deja en real, aunque algo lance.
+ */
+export async function excesoDelHash(opciones: {
+  existente: () => Promise<unknown>;
+  nuevo: (i: number) => Promise<unknown>;
+  hashReal: (activo: boolean) => void;
+  pares?: number;
+}): Promise<{ exceso: number; separacionReal: number; separacionBase: number }> {
+  const { existente, nuevo, hashReal, pares = PARES } = opciones;
+  const t = {
+    real: { e: [] as number[], n: [] as number[] },
+    base: { e: [] as number[], n: [] as number[] },
+  };
+  const medir = async (f: () => Promise<unknown>) => {
+    const t0 = performance.now();
+    await f();
+    return performance.now() - t0;
+  };
+  try {
+    for (let i = 0; i <= pares; i++) {
+      const modos = i % 2 === 0 ? (["real", "base"] as const) : (["base", "real"] as const);
+      for (const modo of modos) {
+        hashReal(modo === "real");
+        const k = i * 2 + (modo === "real" ? 0 : 1); // un correo distinto por alta
+        let e: number;
+        let n: number;
+        if ((i + (modo === "real" ? 0 : 1)) % 2 === 0) {
+          e = await medir(existente);
+          n = await medir(() => nuevo(k));
+        } else {
+          n = await medir(() => nuevo(k));
+          e = await medir(existente);
+        }
+        if (i === 0) continue; // calentamiento
+        t[modo].e.push(e);
+        t[modo].n.push(n);
+      }
+    }
+  } finally {
+    hashReal(true);
+  }
+  const separacionReal = mediana(t.real.n) - mediana(t.real.e);
+  const separacionBase = mediana(t.base.n) - mediana(t.base.e);
+  return { exceso: separacionReal - separacionBase, separacionReal, separacionBase };
 }
