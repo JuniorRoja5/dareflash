@@ -30,7 +30,7 @@ function Dato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
  * la derecha su estado y lo que se puede hacer con ella—; en móvil, una debajo de otra.
  *
  * Una pendiente lleva sus botones; una aprobada, el enlace a su BORRADOR (donde se pone lo de
- * DareFlash y se publica); una rechazada, el motivo que leyó la empresa y la nota del equipo.
+ * RevolFlash y se publica); una rechazada, el motivo que leyó la empresa y la nota del equipo.
  */
 export function FichaPropuesta({ s }: { s: SolicitudPanel }) {
   return (

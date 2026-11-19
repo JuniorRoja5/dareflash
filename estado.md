@@ -1,4 +1,4 @@
-# DareFlash — Estado del codigo (LA PARTE QUE CADUCA)
+# RevolFlash — Estado del codigo (LA PARTE QUE CADUCA)
 
 > **Foto del 2026-11-11, con la Fase 9 CERRADA salvo la P13 (la P14, la portada, recien
 > fusionada).** La foto describe el commit en el que se escribio: `git log` de este fichero da el
@@ -22,7 +22,7 @@
 el **rail MANUAL completo**: el premio se acredita al cerrar un reto, la persona puede pedir un cobro
 y un administrador lo mueve por su maquina de estados desde `/panel/monedero`.
 
-**La transferencia la hace una persona, fuera de DareFlash.** No hay pago automatico ni verificacion
+**La transferencia la hace una persona, fuera de RevolFlash.** No hay pago automatico ni verificacion
 de identidad del proveedor de pagos: eso es opcional y posterior. Lo que el producto garantiza es que
 el dinero SALE del monedero al pedirlo y VUELVE entero si se rechaza; el envio en si es manual.
 
@@ -145,7 +145,7 @@ docker compose -f docker-compose.prod.yml logs -f --tail=100 web    # logs (o wo
 
 **Limpiar disco: SOLO `./scripts/limpiar.sh`** (deploy.sh ya lo ejecuta al final de cada despliegue).
 Conserva las cuatro imagenes de la version EN MARCHA y las de la ANTERIOR (para volver atras sin
-descargar; si falta alguna, la descarga) y borra el resto de imagenes de DareFlash, las colgantes y la
+descargar; si falta alguna, la descarga) y borra el resto de imagenes de RevolFlash, las colgantes y la
 cache de build. **Nunca `docker image prune -a` ni `docker system prune -a`**: borran toda imagen sin
 contenedor en marcha, y `geoip` y `migrate` nunca lo tienen. Paso el 2026-11-12 (se perdieron sus
 imagenes y la etiqueta `desplegada`, y el cron de geoip habria fallado en diciembre).

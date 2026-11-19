@@ -37,7 +37,7 @@ yarn-error.log*
 # Prisma: cliente generado (se regenera en cada install con `prisma generate`)
 /src/generated
 
-# DareFlash: documentacion local (NO sincroniza con el repo)
+# RevolFlash: documentacion local (NO sincroniza con el repo)
 /Documentacion NO GIT/
 # Auditorias e informes de seguridad: NUNCA en el repo. Describen hallazgos abiertos con su ruta de
 # explotacion — publicarlos le ahorra el reconocimiento a quien ataque. Viven fuera, en otro canal.

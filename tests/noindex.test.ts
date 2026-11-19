@@ -4,7 +4,7 @@ import nextConfig from "../next.config";
 import robots from "../src/app/robots";
 
 /**
- * PESTILLO DE LANZAMIENTO. dareflash.com NO debe indexarse hasta la Fase 1 (decision de Junior).
+ * PESTILLO DE LANZAMIENTO. revolflash.com NO debe indexarse hasta la Fase 1 (decision de Junior).
  * Estos tests son el pestillo: el dia que alguien quite el noindex —cabecera o robots.txt— SALTAN
  * y obligan a mirar lo que esta haciendo. NO los "arregles" para que pasen: si tocas el bloqueo de
  * indexacion, es una decision CONSCIENTE, no un test molesto que ajustar.

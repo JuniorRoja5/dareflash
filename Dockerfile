@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # =============================================================================
-# DareFlash — imagen de PRODUCCION (VPS). Multi-stage.
+# RevolFlash — imagen de PRODUCCION (VPS). Multi-stage.
 # Node 22.23.1 (segun .nvmrc). Salida `standalone` de Next para imagen ligera.
 #
 # argon2 es un modulo NATIVO: se instala en la etapa `deps` (con build tools por si

@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  *
  * Tras fijarla se guarda el NOMBRE que Bunny le ha dado (`Video.thumbnailFileName`): sin eso el
  * póster seguiría pidiendo `thumbnail.jpg`, que es el frame automático, y la personalizada no se
- * vería en DareFlash aunque sí se viera en Bunny.
+ * vería en RevolFlash aunque sí se viera en Bunny.
  */
 export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (req, { user, env, prisma }, { params }) => {

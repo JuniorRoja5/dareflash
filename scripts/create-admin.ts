@@ -8,9 +8,9 @@
  *   - Hashea con Argon2id y registra la creacion en AuditLog, en una transaccion.
  *
  * Uso:
- *   ADMIN_EMAIL=admin@dareflash.com ADMIN_PASSWORD=... npx tsx scripts/create-admin.ts
+ *   ADMIN_EMAIL=admin@revolflash.com ADMIN_PASSWORD=... npx tsx scripts/create-admin.ts
  *   # o interactivo (pide la contrasena sin mostrarla):
- *   ADMIN_EMAIL=admin@dareflash.com npx tsx scripts/create-admin.ts
+ *   ADMIN_EMAIL=admin@revolflash.com npx tsx scripts/create-admin.ts
  */
 import "dotenv/config";
 

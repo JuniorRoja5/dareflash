@@ -1,5 +1,5 @@
 /**
- * Logica PURA de las primitivas de DareFlash: umbrales y eleccion de token de color. Se extrae
+ * Logica PURA de las primitivas de RevolFlash: umbrales y eleccion de token de color. Se extrae
  * aparte —sin React, sin DOM— para poder ATARLA con tests. Dos invariantes de producto que no
  * pueden depender de que alguien se acuerde:
  *   - la cuenta atras pasa de --df-time a --df-alarm por debajo de 24 h;

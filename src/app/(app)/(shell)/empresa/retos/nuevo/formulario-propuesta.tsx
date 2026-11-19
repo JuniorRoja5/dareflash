@@ -25,7 +25,7 @@ function aIsoUtc(valorLocal: string): string | null {
 
 /**
  * PROPONER UN RETO PATROCINADO (Fase 9 · P3). El formulario del admin RECORTADO: qué, premio, fechas
- * y ganadores, y el logo de la marca. Lo que es de DareFlash —comisión, nivel, VIP, portada— no está:
+ * y ganadores, y el logo de la marca. Lo que es de RevolFlash —comisión, nivel, VIP, portada— no está:
  * lo pone el equipo en el borrador. La MARCA tampoco se escribe: es la de la empresa.
  *
  * Los mismos campos con los mismos nombres que el del panel, para que el servidor los valide con la

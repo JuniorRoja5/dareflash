@@ -25,7 +25,7 @@ type Panel = "botones" | "rechazo";
  * formulario de rechazo (motivo que SÍ lee la empresa, nota que NO), mismo tratamiento del doble clic.
  *
  * APROBAR NO PUBLICA, y el botón lo dice: crea el BORRADOR, y el aviso enlaza a él para que el admin
- * ponga lo que es de DareFlash (comisión, nivel, portada) y lo publique con la acción de siempre.
+ * ponga lo que es de RevolFlash (comisión, nivel, portada) y lo publique con la acción de siempre.
  */
 export function AccionesPropuesta({ id, titulo }: { id: string; titulo: string }) {
   const router = useRouter();

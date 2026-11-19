@@ -730,7 +730,7 @@ export const MINIATURA_MAX_LADO = 1280; // px
  * Comparación EXACTA en minúsculas (el username se almacena y valida en minúsculas).
  *
  * LA MARCA NO ESTÁ EN ESTA LISTA: va por CONTENCIÓN y sin separadores (`contieneMarcaVetada`, en
- * `esHandleReservado`), porque por igualdad exacta `dare.flash` o `dareflash_oficial` pasaban. Estas
+ * `esHandleReservado`), porque por igualdad exacta `revol.flash` o `revolflash_oficial` pasaban. Estas
  * palabras, en cambio, siguen siendo exactas a propósito: por contención, `admin` vetaría a
  * `badminton` y `u` a casi todo el mundo.
  */
@@ -1063,7 +1063,7 @@ export const LOGIN_UNLOCK_TTL_MS = 2 * 60 * 60 * 1000; // 2 h (ver acoplamiento 
 export const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000; // 30 min
 
 /**
- * EDAD MINIMA PARA USAR DAREFLASH. 18, global: no se varia por pais a proposito — una tabla de
+ * EDAD MINIMA PARA USAR REVOLFLASH. 18, global: no se varia por pais a proposito — una tabla de
  * mayorias de edad por jurisdiccion obliga a saber DONDE esta cada persona, y eso es un dato que no
  * tenemos ni queremos pedir para esto. Un unico numero, el mas alto de los habituales.
  *
@@ -2476,7 +2476,7 @@ export function msgAvisoRetoPropuesto(datos: {
 /**
  * CÓMO SE PAGA, contado a la EMPRESA (formulario y portal). Copy firmado por el analista.
  *
- * SIN UNA PALABRA SOBRE CÓMO SE REPARTE EL DINERO DENTRO DE DAREFLASH: a la empresa se le dice lo que
+ * SIN UNA PALABRA SOBRE CÓMO SE REPARTE EL DINERO DENTRO DE REVOLFLASH: a la empresa se le dice lo que
  * paga y que quien gane cobra el premio entero, nunca la comisión ni su porcentaje. El desglose vive
  * solo en el panel. Lo vigila `empresa-sin-comisiones`, que censa todo lo que se le enseña o se le
  * escribe a una empresa.
@@ -2964,8 +2964,8 @@ export const PUBLICIDAD_CACHE_HOY_MS = 60_000;
 
 /**
  * LA ETIQUETA DE CADA PIEZA, SIEMPRE A LA VISTA. Una campaña es publicidad de un tercero: «Publicidad».
- * El anuncio de la casa no lo es —lo pone DareFlash para sí mismo—: decir «Publicidad» ahí sería
- * disfrazarlo, así que lleva «De DareFlash».
+ * El anuncio de la casa no lo es —lo pone RevolFlash para sí mismo—: decir «Publicidad» ahí sería
+ * disfrazarlo, así que lleva «De RevolFlash».
  */
 export const ETIQUETA_PIEZA_CAMPANA = "Publicidad";
 export const ETIQUETA_PIEZA_CASA = `De ${MARCA}`;

@@ -53,7 +53,7 @@ import { DB_CONNECTION_LIMIT_DEFECTO } from "./constants";
 const serverSchema = z.object({
   // --- Obligatorias HOY ---
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  APP_URL: z.url("APP_URL debe ser una URL absoluta, p.ej. https://dareflash.com"),
+  APP_URL: z.url("APP_URL debe ser una URL absoluta, p.ej. https://revolflash.com"),
   /** Paso 4 — base de datos. Ya configurada en el VPS (confirmado por el propietario). */
   DATABASE_URL: z
     .string()

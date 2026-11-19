@@ -7,7 +7,7 @@
  *   2. El ADMIN la revisa en el panel y la APRUEBA (`aprobarSolicitudReto`) —nace un `Challenge` en
  *      BORRADOR, patrocinado, con la marca y el `empresaId` puestos— o la RECHAZA con un motivo de
  *      lista cerrada (`rechazarSolicitudReto`). Las dos decisiones le escriben a la empresa.
- *   3. El borrador sigue el camino de siempre: el admin pone lo que es de DareFlash (comisión, nivel,
+ *   3. El borrador sigue el camino de siempre: el admin pone lo que es de RevolFlash (comisión, nivel,
  *      VIP, portada) y lo PUBLICA con la acción que ya existe, que es la que mira el reloj.
  *
  * ┌─ UNA PROPUESTA SIN APROBAR NO SE VE EN NINGÚN SITIO PÚBLICO, Y ES POR CONSTRUCCIÓN ───────────┐
@@ -61,7 +61,7 @@ import { camposDeReto, conFechasDeReto } from "./retos-admin";
 
 /**
  * LO QUE UNA EMPRESA PUEDE PROPONER: los MISMOS campos que el formulario del admin
- * (`camposDeReto`), y nada de lo que es de DareFlash —comisión, nivel, VIP, marca—, que lo pone el
+ * (`camposDeReto`), y nada de lo que es de RevolFlash —comisión, nivel, VIP, marca—, que lo pone el
  * equipo en el borrador. La marca no se escribe: es la de la empresa.
  *
  * Y UNA REGLA MÁS que el admin no tiene: el premio tiene que ser mayor que cero. Un reto patrocinado
@@ -664,7 +664,7 @@ async function avisarDecisionReto(
   const titulo = aprobada ? "Hemos aprobado tu reto" : "No hemos podido aprobar tu reto";
   // SIN IMPORTES NI DESGLOSE: a la empresa se le dice que está aprobado, que le escribimos para
   // organizar el pago y que se publica al recibirlo (la regla de `publicarReto`). Cómo se reparte el
-  // dinero dentro de DareFlash no es cosa suya (`empresa-sin-comisiones` censa este correo).
+  // dinero dentro de RevolFlash no es cosa suya (`empresa-sin-comisiones` censa este correo).
   const cuerpo = aprobada
     ? `Hemos aprobado «${entrada.titulo}». Te escribiremos para organizar el pago, y lo publicaremos en cuanto lo recibamos.`
     : `Hemos revisado «${entrada.titulo}» y no lo hemos podido aprobar. ${

@@ -13,7 +13,7 @@ import type { Idioma } from "@/lib/formato";
  * │ dentro, y no se parecía a ninguna otra del producto: /puntos y /boosts abren con un HERO —la  │
  * │ cifra en Archivo Expanded, enorme, sobre cristal, con el halo de su color— y esta abría como  │
  * │ un formulario de ajustes. El dinero es la cifra más importante que esta persona va a ver en   │
- * │ DareFlash, y pesaba menos en pantalla que su nivel.                                           │
+ * │ RevolFlash, y pesaba menos en pantalla que su nivel.                                           │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  *
  * LA CIFRA LA PINTA `ImportePremio`, que es LA primitiva del dinero: Archivo Expanded, peso 850,

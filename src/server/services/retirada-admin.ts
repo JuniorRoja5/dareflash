@@ -20,7 +20,7 @@ import { applyWallet } from "./ledger";
  *
  * ┌─ EL DINERO YA SALIÓ AL SOLICITAR ─────────────────────────────────────────────────────────────┐
  * │ Aprobar, poner en proceso o finalizar NO mueven saldo: son anotaciones de lo que el admin     │
- * │ está haciendo POR FUERA de DareFlash (la transferencia la hace a mano). La ÚNICA transición   │
+ * │ está haciendo POR FUERA de RevolFlash (la transferencia la hace a mano). La ÚNICA transición   │
  * │ que mueve dinero es RECHAZAR, que lo devuelve. Si aprobar también moviera algo, el importe    │
  * │ saldría dos veces del monedero y nadie lo vería hasta cuadrar los libros.                     │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘

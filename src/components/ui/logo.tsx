@@ -26,7 +26,7 @@ import { MARCA } from "@/config/marca";
  *    y el rayo desaparece. Lo que si es CSS es la clase `text-action` del `<svg>`, y de ahi baja el
  *    color a todos los trazos.
  *  - SE ANUNCIA UNA VEZ. El contenedor es `role="img"` con `aria-label`, asi que un lector de
- *    pantalla dice "DareFlash" y no "DareFlash DareFlash" (la marca y luego la palabra). El `<svg>`
+ *    pantalla dice "RevolFlash" y no "RevolFlash RevolFlash" (la marca y luego la palabra). El `<svg>`
  *    va `aria-hidden` por lo mismo.
  *
  * El REALCE (glow) NO esta aqui a proposito: un halo verde pesa distinto sobre negro que sobre blanco

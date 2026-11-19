@@ -16,7 +16,7 @@ import { styleGuideHidden } from "./visibility";
 import { MARCA } from "@/config/marca";
 
 /**
- * HOJA DE ESTILO VIVA — Fase 1 · Paso A. Referencia interna del sistema de diseño de DareFlash:
+ * HOJA DE ESTILO VIVA — Fase 1 · Paso A. Referencia interna del sistema de diseño de RevolFlash:
  * cada token renderizado con su nombre y su unico trabajo. NO es una pantalla de producto; es lo
  * que se revisa antes de construir primitivas. Construida con la propia gramatica del brief
  * (geometria severa, filetes de 1px, cero sombras, oscuro), para que se vea el sistema, no un

@@ -42,7 +42,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return apiError("VALIDATION", "Revisa el enlace y la contrasena.", 400);
 
   // POLITICA DE CONTRASENA FUERTE (misma que el registro). Aqui no hay email a mano (el token aun no
-  // se ha consumido), pero longitud + fuerza + veto de "dareflash" siguen aplicando.
+  // se ha consumido), pero longitud + fuerza + veto de la marca siguen aplicando.
   const veredicto = evaluarPassword({ password: parsed.data.password });
   if (!veredicto.ok) return apiError("VALIDATION", veredicto.mensaje, 400);
 

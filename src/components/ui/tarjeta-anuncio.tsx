@@ -19,9 +19,9 @@ const TEXTO_LARGO = 70;
  * desincronice de la ancha: es el mismo marcado. Y nunca se estira de lado a lado: `max-w-4xl`.
  *
  * REGLAS QUE NO SE MUEVEN:
- *  - La etiqueta («Publicidad» o «De DareFlash») SIEMPRE a la vista, la primera de la columna de texto
+ *  - La etiqueta («Publicidad» o «De RevolFlash») SIEMPRE a la vista, la primera de la columna de texto
  *    y con el contraste del texto principal: es la identificación obligatoria de la publicidad.
- *  - «Visitar» es NEUTRO, nunca `--df-action`: la acción de la pantalla es la de DareFlash, y un anuncio
+ *  - «Visitar» es NEUTRO, nunca `--df-action`: la acción de la pantalla es la de RevolFlash, y un anuncio
  *    que la imitara competiría con ella.
  *  - Profundidad por LUMINOSIDAD (`--df-surface` sobre el fondo, `--df-raised` en la imagen), sin sombra.
  *  - El enlace es `pieza.enlace` (`/ir/{id}`, que cuenta el clic); el dominio es TEXTO, no enlace.

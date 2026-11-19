@@ -3,7 +3,7 @@
  * fuente:
  *
  *  - SE ANUNCIA UNA VEZ, Y CON EL NOMBRE DE LA MARCA. El lockup es `role="img"` + `aria-label`, así
- *    que un lector de pantalla dice "DareFlash" una sola vez, y no la marca y después la palabra.
+ *    que un lector de pantalla dice la marca una sola vez, y no la marca y después la palabra.
  *  - LA PALABRA SE SIGUE VIENDO. Es el fallo que tendría una marca metida entera dentro del SVG: si
  *    la fuente no carga, el nombre desaparece. Aquí la palabra es texto real del documento.
  *  - NO ES UN ENLACE. "Inicio" ya es una fila de la nav; dos puertas al mismo sitio, pegadas, son
@@ -21,21 +21,22 @@ vi.mock("next/link", async () => {
 
 import { NavegacionLateral } from "@/components/ui/navegacion";
 import { NAV_ESCRITORIO } from "@/components/ui/logic";
+import { MARCA } from "@/config/marca";
 
 describe("la marca del cromo de escritorio", () => {
-  it("se anuncia UNA vez como DareFlash", () => {
+  it("se anuncia UNA vez con el nombre de la marca", () => {
     render(<NavegacionLateral />);
-    expect(screen.getAllByRole("img", { name: "DareFlash" })).toHaveLength(1);
+    expect(screen.getAllByRole("img", { name: MARCA })).toHaveLength(1);
   });
 
   it("y la palabra se pinta de verdad (no depende de que cargue la fuente)", () => {
     render(<NavegacionLateral />);
-    expect(screen.getByText("DAREFLASH")).toBeTruthy();
+    expect(screen.getByText(MARCA.toUpperCase())).toBeTruthy();
   });
 
   it("el logotipo NO es un enlace", () => {
     render(<NavegacionLateral />);
-    const marca = screen.getByRole("img", { name: "DareFlash" });
+    const marca = screen.getByRole("img", { name: MARCA });
     expect(marca.closest("a"), "el logotipo quedó envuelto en un enlace").toBeNull();
   });
 

@@ -1,4 +1,4 @@
-# DareFlash — orquestacion de PRODUCCION.
+# RevolFlash — orquestacion de PRODUCCION.
 #
 # El .env vive FUERA del repo, en el entorno del servidor. Contiene tanto MARIADB_*
 # (para el servicio de BD) como las variables de la app (DATABASE_URL apuntando al

@@ -5,7 +5,7 @@
  * standalone que `create-admin.ts` (dotenv + PrismaMariaDb + cliente generado + DATABASE_URL).
  *
  * Uso (ambas variables OBLIGATORIAS; la contraseña NUNCA se registra):
- *   ADMIN_EMAIL=admin@dareflash.com ADMIN_PASSWORD=<NUEVA> npx tsx scripts/reset-admin-password.ts
+ *   ADMIN_EMAIL=admin@revolflash.com ADMIN_PASSWORD=<NUEVA> npx tsx scripts/reset-admin-password.ts
  */
 import "dotenv/config";
 

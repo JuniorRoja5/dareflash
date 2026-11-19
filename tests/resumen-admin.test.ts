@@ -28,6 +28,7 @@ import {
 } from "../src/server/services/resumen-admin";
 
 import { createTestPrisma, resetDb } from "./helpers/db";
+import { MARCA } from "@/config/marca";
 
 let prisma: PrismaClient;
 beforeAll(() => {
@@ -154,7 +155,7 @@ describe("el resumen", () => {
     const [job] = await resumenes();
     const p = job?.payload as unknown as EmailMessage;
     expect(p.to).toBe(ADMIN);
-    expect(p.subject).toBe("DareFlash: resumen del 9 de diciembre");
+    expect(p.subject).toBe(`${MARCA}: resumen del 9 de diciembre`);
     expect(p.text).toContain("1 empresa espera verificación");
     expect(p.text).toContain(`${APP}/panel/empresas?estado=PENDIENTE`);
     const empresa = await prisma.empresa.findFirstOrThrow({ select: { id: true } });

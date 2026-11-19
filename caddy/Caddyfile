@@ -1,4 +1,4 @@
-# DareFlash — reverse proxy con HTTPS automatico (Let's Encrypt).
+# RevolFlash — reverse proxy con HTTPS automatico (Let's Encrypt).
 # Caddy es el unico servicio que expone 80/443. Proxy al servicio `web` de la red
 # interna del compose. Los certificados se guardan en el volumen caddy_data.
 
@@ -99,8 +99,9 @@
 	}
 }
 
-# Dominio principal.
-dareflash.com {
+# Dominio principal: el UNICO que sirve la plataforma (Fase 11 · PM2). El dominio anterior desaparece
+# SIN redireccion, a proposito (decision de negocio): no hay bloque para el.
+revolflash.com {
 	import cabeceras_seguridad
 
 	# AVATARES: estaticos desde el volumen `avatars_data` (montado en /srv/avatars), servidos por
@@ -157,9 +158,9 @@ dareflash.com {
 }
 
 # www -> apex (301). Evita contenido duplicado y unifica el dominio canonico.
-www.dareflash.com {
+www.revolflash.com {
 	# Tambien aqui: una redireccion es una respuesta HTTPS mas, y es donde aterriza quien teclea el
 	# dominio con www. Que reciba el HSTS en ese primer contacto es justo el momento util.
 	import cabeceras_seguridad
-	redir https://dareflash.com{uri} permanent
+	redir https://revolflash.com{uri} permanent
 }

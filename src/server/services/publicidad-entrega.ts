@@ -63,14 +63,14 @@ import { PUBLICIDAD_SERVIBLE } from "./publicidad-visible";
 export interface PiezaEntregada {
   tipo: "campana" | "casa";
   id: string;
-  /** «Publicidad» (un tercero) o «De DareFlash» (la casa). Siempre visible. */
+  /** «Publicidad» (un tercero) o «De RevolFlash» (la casa). Siempre visible. */
   etiqueta: string;
   imagen: string | null;
   titulo: string | null;
   texto: string;
   cta: string;
   enlace: string;
-  /** Si el enlace sale de DareFlash (pestaña nueva, `rel="sponsored noopener"`). */
+  /** Si el enlace sale de RevolFlash (pestaña nueva, `rel="sponsored noopener"`). */
   externo: boolean;
   /**
    * ADÓNDE LLEVA, como TEXTO («tienda.es»): solo el nombre del sitio (`dominioDe`), nunca la dirección

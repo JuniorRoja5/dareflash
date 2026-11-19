@@ -45,6 +45,7 @@ import {
 import { rechazarEmpresa, verificarEmpresa } from "../src/server/services/empresas";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
+import { MARCA } from "@/config/marca";
 
 let prisma: PrismaClient;
 let admin: string;
@@ -406,7 +407,7 @@ describe("lo que ve la empresa", () => {
       expect(Object.keys(m).sort()).toEqual(["concepto", "creadoMs", "delta", "id", "recibo"]);
     }
     expect(c.movimientos.map((m) => m.concepto).sort()).toEqual(
-      ["Ajuste del equipo de DareFlash", "Regalo de Socio Fundador"].sort(),
+      [`Ajuste del equipo de ${MARCA}`, "Regalo de Socio Fundador"].sort(),
     );
     expect(JSON.stringify(c)).not.toContain("secreto del equipo");
     expect(JSON.stringify(c)).not.toContain(admin);

@@ -41,7 +41,7 @@ const TH = `py-3 pr-4 whitespace-nowrap ${CABECERA}`;
  *  - LAS PROPUESTAS, con su estado calculado (en revisión, rechazada con su motivo, aprobada,
  *    publicada con enlace al reto). La nota interna del equipo no está: el DTO no la trae.
  *  - EL EXTRACTO (`extractoDeEmpresa`): por reto, el premio para quien gane y el total a pagar, y
- *    nada de cómo se reparte el dinero dentro de DareFlash —ese desglose es solo del panel—. Sale de
+ *    nada de cómo se reparte el dinero dentro de RevolFlash —ese desglose es solo del panel—. Sale de
  *    la MISMA consulta que la contabilidad del panel acotada a su `empresaId`, así que las cifras
  *    cuadran por construcción.
  */
@@ -235,7 +235,7 @@ export default async function PaginaMisRetos({
         ) : (
           <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
             {/* EL TOTAL DE TODOS, no el de la lista: sale agregado en la base, como en el panel.
-                Solo lo que paga: cómo se reparte dentro de DareFlash no se le cuenta a la empresa. */}
+                Solo lo que paga: cómo se reparte dentro de RevolFlash no se le cuenta a la empresa. */}
             {totales.moneda ? (
               <TarjetaMetrica
                 etiqueta="Total a pagar"

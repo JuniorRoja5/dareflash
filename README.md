@@ -1,4 +1,4 @@
-# DareFlash
+# RevolFlash
 
 Plataforma web _mobile-first_ de retos en vídeo corto.
 

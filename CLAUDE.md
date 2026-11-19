@@ -4,6 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
+## El producto se llama RevolFlash
+
+Dominio `revolflash.com` (Fase 11 · PM2). Lo que ve una persona sale de
+[src/config/marca.ts](src/config/marca.ts). **Los nombres INTERNOS siguen siendo `dareflash`** y no se
+renombran: el repositorio, las imágenes de Docker (`dareflash-web`…), la base de datos y sus usuarios,
+los volúmenes, `~/dareflash-config` y las reglas de gitleaks. No es un descuido: renombrarlos no lo ve
+nadie y rompería el despliegue; el repositorio pasará a privado al terminar la plataforma.
+
 ## Idioma
 
 El código, los comentarios, los nombres de fichero y los identificadores están **en
@@ -295,9 +303,10 @@ borran para "limpiar"**:
   webhook descarta en silencio lo ajeno (200, sin log). Sin tipo, o con uno fuera del catálogo, no es
   de nadie: `tipoDePago` NO deduce nada de la forma (eso era la convención que se retiró).
 - `marca-un-sitio` / `render/marca-cambiada` — la marca se escribe UNA vez, en
-  [src/config/marca.ts](src/config/marca.ts): ningún «DareFlash» (en ninguna forma) en el código de
-  `src/` fuera de ahí y de las excepciones declaradas (favicon, nombres internos de fuente, el dominio
-  en `env.ts`); los títulos salen de `TITULO_RAIZ`. Con la marca cambiada en un test, título, correo y
+  [src/config/marca.ts](src/config/marca.ts): la marca actual (en ninguna forma) no se escribe en el
+  código de `src/` fuera de ahí y de las excepciones declaradas (favicon, nombres internos de fuente,
+  el ejemplo del dominio en `env.ts`), y las ANTERIORES no aparecen en `src/` ni en un comentario,
+  salvo en la lista que las veta; los títulos salen de `TITULO_RAIZ`. Con la marca cambiada en un test, título, correo y
   logo la siguen, y la vieja sigue vetada como contraseña y como @usuario (`MARCAS_ANTERIORES`). El
   dominio NO tiene constante: vive en la configuración (`APP_URL`, `EMAIL_FROM`).
 - `reloj-adelantado` (+ el job de CI `tests-reloj-adelantado`) — la suite entera corre OTRA vez con

@@ -12,7 +12,7 @@
 # entropía. NO cazan una contraseña corta escrita en un YAML ni una URL con usuario y clave, que es lo
 # que marcó GitGuardian la primera vez; ni un valor de test asignado a una clave `password`. Por eso las
 # reglas de abajo, más estrictas que las de un escáner genérico: aquí no se pide entropía.
-title = "DareFlash"
+title = "RevolFlash"
 
 [extend]
 useDefault = true

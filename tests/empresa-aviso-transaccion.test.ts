@@ -61,14 +61,14 @@ const alta = (email: string, adminEmail: string | null) =>
     },
     {
       adminEmail,
-      urlPanel: "https://dareflash.com/panel/empresas",
-      appUrl: "https://dareflash.com",
+      urlPanel: "https://plataforma.test/panel/empresas",
+      appUrl: "https://plataforma.test",
     },
   );
 
 describe("el encolado del aviso", () => {
   it("recibe el cliente de la transacción, NO el singleton de Prisma", async () => {
-    await alta("tx@bar.test", "admin@dareflash.com");
+    await alta("tx@bar.test", "admin@plataforma.test");
     const e = await prisma.empresa.findFirstOrThrow({ select: { id: true } });
 
     // El de verificación de la cuenta va FUERA de la transacción a propósito (es recuperable con

@@ -450,7 +450,7 @@ export async function exportarGanadores(
  * EL EXTRACTO QUE VE UNA EMPRESA (Fase 9 · P3): por reto, el premio para quien gane y el total a
  * pagar. NADA MÁS.
  *
- * ┌─ SIN UNA CIFRA DE CÓMO SE REPARTE EL DINERO DENTRO DE DAREFLASH ──────────────────────────────┐
+ * ┌─ SIN UNA CIFRA DE CÓMO SE REPARTE EL DINERO DENTRO DE REVOLFLASH ──────────────────────────────┐
  * │ La empresa no tiene por qué conocer la comisión ni su porcentaje. Por eso esto NO es la fila   │
  * │ del panel (`FilaPatrocinio`, que lleva `comisionBps` y `comisionCents`): es una PROYECCIÓN sin │
  * │ esos campos. No basta con no pintarlos —un campo que viaja al portal acaba pintado algún día—: │

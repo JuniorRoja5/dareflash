@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
       "./node_modules/node-gyp-build/**",
     ],
   },
-  // BLOQUEO DE INDEXACION (decision de Junior: dareflash.com NO se indexa hasta la Fase 1).
+  // BLOQUEO DE INDEXACION (decision de Junior: revolflash.com NO se indexa hasta la Fase 1).
   // Cabecera en TODAS las rutas: robots.txt evita el RASTREO, pero Google puede indexar igual una
   // URL que le llega enlazada desde fuera; esta cabecera es la que impide DE VERDAD la indexacion.
   // VA FIJO EN CODIGO, sin variable de entorno: `next build` corre SIN variables (asi construye

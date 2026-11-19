@@ -6,7 +6,7 @@ import { contieneMarcaVetada, MARCAS_VETADAS } from "@/config/marca";
 
 /**
  * POLÍTICA DE CONTRASEÑA (server-side, COMPARTIDA por registro y restablecer). El registro aceptaba
- * antes cualquier cadena de 8+ caracteres: "password", "12345678" o "dareflash2026" pasaban. Esto es
+ * antes cualquier cadena de 8+ caracteres: "password", "12345678" o la marca con un año pasaban. Esto es
  * un GATE de fuerza real, no solo de longitud.
  *
  * Fuerza vía @zxcvbn-ts (librería LOCAL, sin red ni datos fuera, como sharp): estima cuántos intentos
@@ -60,7 +60,7 @@ export function evaluarPassword(input: {
   const local = localDeEmail(input.email);
   if (local && enMinus.includes(local)) return { ok: false, mensaje: MENSAJE_DEBIL };
   // La marca de ahora y TODAS las de antes (`config/marca`): un renombrado no libera la vieja. Sin
-  // separadores en los dos lados, para que `Dare.Flash…` o `dare_flash…` caigan igual.
+  // separadores en los dos lados, para que `Revol.Flash…` o `revol_flash…` caigan igual.
   if (contieneMarcaVetada(password, MARCAS_VETADAS)) return { ok: false, mensaje: MENSAJE_DEBIL };
 
   const userInputs = [local, ...MARCAS_VETADAS].filter((s): s is string => Boolean(s));

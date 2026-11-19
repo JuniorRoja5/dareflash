@@ -55,8 +55,8 @@ afterAll(async () => {
 });
 const AVISO = {
   adminEmail: null,
-  urlPanel: "https://dareflash.com/panel/empresas",
-  appUrl: "https://dareflash.com",
+  urlPanel: "https://plataforma.test/panel/empresas",
+  appUrl: "https://plataforma.test",
 };
 const PASS = contrasenaFalsa("larga-y-buena");
 
@@ -144,7 +144,7 @@ describe("con dos empresas de verdad en la base de datos", () => {
     await verificarEmpresa(prisma, {
       empresaId: empresaB,
       actorId: admin,
-      appUrl: "https://dareflash.com",
+      appUrl: "https://plataforma.test",
     });
     const suya = await miEmpresa(prisma, empresaA);
     expect(suya?.id).toBe(empresaA);

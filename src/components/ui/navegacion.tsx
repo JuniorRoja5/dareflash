@@ -242,7 +242,7 @@ export function NavegacionLateral({
       className="flex h-full w-56 flex-col gap-1 border-r border-line bg-surface p-3"
     >
       {/* LA MARCA. Antes era la palabra en texto pelado; ahora es el logotipo (`Logo`), que lleva la
-          marca grafica y la palabra juntas. El literal "DAREFLASH" vive SOLO en `logo.tsx`: escribirlo
+          marca grafica y la palabra juntas. El literal "REVOLFLASH" vive SOLO en `logo.tsx`: escribirlo
           aqui otra vez volveria a crear dos marcas que pueden discrepar. */}
       <Logo className="mb-4 px-2 pt-2" />
       {(esCuentaEmpresa ? destinosDe(NAV_ESCRITORIO_EMPRESA) : destinosDe(NAV_ESCRITORIO)).map(

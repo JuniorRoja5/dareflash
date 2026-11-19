@@ -192,10 +192,10 @@ const pila = (trozos: { style: { fontFamily: string } }[], respaldo: string) =>
 export const variablesFuentes = {
   "--font-archivo": pila(
     [archivoLatin, archivoLatinExt, archivoVietnamita],
-    "DareFlash Archivo Respaldo",
+    "RevolFlash Archivo Respaldo",
   ),
   "--font-plex": pila(
     [plexLatin, plexLatinExt, plexVietnamita, plexCirilico, plexCirilicoExt, plexGriego],
-    "DareFlash Plex Respaldo",
+    "RevolFlash Plex Respaldo",
   ),
 } as CSSProperties;

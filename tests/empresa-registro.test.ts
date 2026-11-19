@@ -41,9 +41,9 @@ import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 let prisma: PrismaClient;
 let admin: string;
 
-const ADMIN_EMAIL = "admin@dareflash.com";
-const URL_PANEL = "https://dareflash.com/panel/empresas";
-const APP_URL = "https://dareflash.com";
+const ADMIN_EMAIL = "admin@plataforma.test";
+const URL_PANEL = "https://plataforma.test/panel/empresas";
+const APP_URL = "https://plataforma.test";
 const PASS = contrasenaFalsa("larga-y-buena");
 
 beforeAll(() => {

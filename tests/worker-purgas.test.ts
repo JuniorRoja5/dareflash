@@ -140,7 +140,7 @@ describe("purga de Job FAILED (retencion 90 dias)", () => {
 
 describe("aviso al admin por acumulacion de FAILED (histeresis durable)", () => {
   const umbral = 3;
-  const admin = "admin@dareflash.com";
+  const admin = "admin@plataforma.test";
 
   it("cruzar el umbral envia UN aviso; seguir por encima no; bajar y volver a cruzar si", async () => {
     const adapter = fakeAdapter();

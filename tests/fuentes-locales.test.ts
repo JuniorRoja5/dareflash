@@ -91,14 +91,14 @@ describe("los respaldos mientras carga: las métricas de antes, exactas", () => 
     new RegExp(`@font-face \\{\\s*font-family: "${familia}";([^}]*)\\}`).exec(css)?.[1] ?? "";
 
   it("Archivo: 98.7 % / 88.96 % / 21.28 % (las de next/font/google)", () => {
-    const c = cara("DareFlash Archivo Respaldo");
+    const c = cara("RevolFlash Archivo Respaldo");
     expect(c).toMatch(/size-adjust: 98\.7%;/);
     expect(c).toMatch(/ascent-override: 88\.96%;/);
     expect(c).toMatch(/descent-override: 21\.28%;/);
   });
 
   it("Plex: 101.17 % / 101.32 % / 27.18 %", () => {
-    const c = cara("DareFlash Plex Respaldo");
+    const c = cara("RevolFlash Plex Respaldo");
     expect(c).toMatch(/size-adjust: 101\.17%;/);
     expect(c).toMatch(/ascent-override: 101\.32%;/);
     expect(c).toMatch(/descent-override: 27\.18%;/);
@@ -106,7 +106,7 @@ describe("los respaldos mientras carga: las métricas de antes, exactas", () => 
 
   it("y la pila termina en esos respaldos (puestos antes, taparían a los trozos de detrás)", () => {
     const modulo = readFileSync(path.join(FUENTES, "index.ts"), "utf8");
-    expect(modulo).toMatch(/"DareFlash Archivo Respaldo",?\s*\)/);
-    expect(modulo).toMatch(/"DareFlash Plex Respaldo",?\s*\)/);
+    expect(modulo).toMatch(/"RevolFlash Archivo Respaldo",?\s*\)/);
+    expect(modulo).toMatch(/"RevolFlash Plex Respaldo",?\s*\)/);
   });
 });

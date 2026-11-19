@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ============================================================================
-   DAREFLASH — TOKENS DEL SISTEMA (brief de marca v1.0)
+   REVOLFLASH — TOKENS DEL SISTEMA (brief de marca v1.0)
    Retransmision deportiva, no red social: geometria severa, color sin miedo.
    Cada color semantico tiene UN SOLO TRABAJO y no se presta a ningun otro.
 
@@ -61,7 +61,7 @@
    calcula `next/font/local` midiendo el fichero daba otro para Archivo (102,8 % frente a 98,7 %), y eso
    habría cambiado el salto del primer pintado. Los nombres los usa la pila de `src/app/fuentes`. */
 @font-face {
-  font-family: "DareFlash Archivo Respaldo";
+  font-family: "RevolFlash Archivo Respaldo";
   src: local("Arial");
   ascent-override: 88.96%;
   descent-override: 21.28%;
@@ -69,7 +69,7 @@
   size-adjust: 98.7%;
 }
 @font-face {
-  font-family: "DareFlash Plex Respaldo";
+  font-family: "RevolFlash Plex Respaldo";
   src: local("Arial");
   ascent-override: 101.32%;
   descent-override: 27.18%;

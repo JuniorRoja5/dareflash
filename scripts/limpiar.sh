@@ -11,7 +11,7 @@
 #  1. CONSERVA las cuatro imágenes (web, worker, migrate, geoip) de la versión EN MARCHA —la del
 #     contenedor `web`, ver `sha_en_marcha`— y las de la ANTERIOR, para volver atrás sin descargar.
 #     Si alguna de las dos versiones tiene una imagen que falta, la DESCARGA (es lo que se quiere tener).
-#  2. BORRA el resto de imágenes de DareFlash: otras versiones del registro y las viejas construidas en
+#  2. BORRA el resto de imágenes nuestras: otras versiones del registro y las viejas construidas en
 #     el servidor (`dareflash-*` sin registro delante). Las de terceros (mariadb, redis, caddy) no las
 #     toca: tienen contenedor y no son nuestras.
 #  3. Vacía las imágenes colgantes (sin etiqueta) y la CACHÉ DE BUILD (el servidor ya no construye; el

@@ -14,7 +14,7 @@
  * las cabeceras al componer una respuesta de ERROR. Un test de estructura no lo veía.
  *
  * Para comprobar de verdad hay que PEDIR respuestas de cada tipo y mirarlas:
- *   - en vivo, tras desplegar: `curl -sI https://dareflash.com/` y también sobre un estático que NO
+ *   - en vivo, tras desplegar: `curl -sI https://revolflash.com/` y también sobre un estático que NO
  *     exista (`/avatars/noexiste.webp`), que es el caso que se escapó;
  *   - en local, sin desplegar: levantar la imagen real de Caddy con este mismo fichero (cambiando el
  *     sitio a `:PUERTO` y `auto_https off`) y hacer los mismos `curl`. Así se encontró el fallo.
@@ -127,5 +127,42 @@ describe("no se pisa lo que ya existía", () => {
   it("siguen el proxy a la app y el X-Real-IP del que depende el rate-limit", () => {
     expect(CONFIG).toContain("reverse_proxy web:3000");
     expect(CONFIG).toMatch(/header_up X-Real-IP \{remote_host\}/);
+  });
+});
+
+/**
+ * EL DOMINIO (Fase 11 · PM2). `revolflash.com` es el ÚNICO que sirve la plataforma, `www` redirige al
+ * apex, y el dominio anterior desaparece SIN redirección (decisión de negocio: la marca nueva no debe
+ * tener ninguna relación con la vieja). Se mira el fichero ENTERO, comentarios incluidos: el Caddyfile
+ * se despliega, y un comentario que nombra el dominio viejo es justo lo que se quería quitar.
+ */
+describe("Caddyfile · el dominio", () => {
+  /** Las direcciones de los bloques de sitio: la línea que abre `{` en la columna 0, sin snippets. */
+  const sitios = CONFIG.split("\n")
+    .filter((l) => /^\S[^{]*\{\s*$/.test(l) && !l.startsWith("("))
+    .map((l) => l.replace("{", "").trim())
+    .filter((d) => d.length > 0);
+
+  it("el nombre viejo no aparece en NINGUNA forma, ni en un comentario", () => {
+    const lineas = CADDYFILE.split("\n").filter((l) => /dare[\s._-]?flash/i.test(l));
+    expect(
+      lineas,
+      `el Caddyfile nombra el dominio o la marca vieja:\n${lineas.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  it("el bloque principal es revolflash.com, y solo hay ese y su www", () => {
+    expect(sitios).toEqual(["revolflash.com", "www.revolflash.com"]);
+  });
+
+  it("www redirige al apex con 301, y lleva las cabeceras de seguridad", () => {
+    const www = /^www\.revolflash\.com\s*\{([\s\S]*?)\n\}/m.exec(CONFIG)?.[1] ?? "";
+    expect(www, "no hay bloque www").not.toBe("");
+    expect(www).toMatch(/redir https:\/\/revolflash\.com\{uri\} permanent/);
+    expect(www).toMatch(/import cabeceras_seguridad/);
+  });
+
+  it("control: el lector de sitios ve los bloques (si no, la igualdad de arriba no mediría nada)", () => {
+    expect(sitios.length).toBeGreaterThanOrEqual(2);
   });
 });

@@ -8,7 +8,7 @@
  *
  * Y lo decidido para P7: el VIP no ve nada; solo salen las campañas que ocupan HOY, activas y de una
  * empresa verificada; la rotación reparte igual entre la gente de una zona; el tope de frecuencia; el
- * anuncio de la casa —siempre en la portada, una vez por sesión en el feed, «De DareFlash» y, para una
+ * anuncio de la casa —siempre en la portada, una vez por sesión en el feed, «De <marca>» y, para una
  * empresa, hacia su Publicidad—.
  *
  * Redis va con un doble en memoria con lo que se usa (INCR, LPUSH/LTRIM/LRANGE, SET NX).
@@ -41,6 +41,7 @@ import {
 import type { RedisLeerMetricas } from "../src/server/services/publicidad-metricas";
 
 import { createTestPrisma, crearUsuario, resetDb } from "./helpers/db";
+import { MARCA } from "@/config/marca";
 
 let prisma: PrismaClient;
 beforeAll(() => {
@@ -253,11 +254,11 @@ describe("el anuncio de la casa", () => {
     expect(await elegir("LOCAL", enValencia, "feed", redis)).toBeNull();
   });
 
-  it("dice «De DareFlash», no «Publicidad»; a una empresa la lleva a su Publicidad", async () => {
+  it("dice «De <marca>», no «Publicidad»; a una empresa la lleva a su Publicidad", async () => {
     const casa = await elegir("LOCAL", enValencia, "portada");
     expect(casa).toMatchObject({
       tipo: "casa",
-      etiqueta: "De DareFlash",
+      etiqueta: `De ${MARCA}`,
       enlace: "/empezar/empresa",
     });
     const deEmpresa = await elegir("LOCAL", { ...enValencia, esEmpresa: true }, "portada");

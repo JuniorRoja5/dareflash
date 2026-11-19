@@ -23,7 +23,7 @@ beforeEach(async () => {
   await resetDb(prisma);
 });
 
-const APP_URL = "https://dareflash.com";
+const APP_URL = "https://plataforma.test";
 const ACEPTO = new Date("2026-01-01T00:00:00.000Z");
 
 describe("registro", () => {

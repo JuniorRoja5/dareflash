@@ -24,7 +24,7 @@ import { ladoQr, matrizQr, QR_ZONA_TRANQUILA, rutaQr, type MatrizQr } from "../s
 // seguía verde, porque estaba comprobando su propia copia.
 const matrizDe = matrizQr;
 
-const ENLACE = "https://dareflash.com/entrar?ref=a2e879d4fwca2";
+const ENLACE = "https://plataforma.test/entrar?ref=a2e879d4fwca2";
 
 describe("la zona tranquila", () => {
   it("son cuatro módulos, los que pide el estándar", () => {
@@ -126,8 +126,16 @@ describe("la huella del dibujo", () => {
     return h;
   }
 
+  /**
+   * EL ENLACE CUYO DIBUJO SE VALIDÓ CON UN TELÉFONO. Es el de antes del cambio de dominio (Fase 11 ·
+   * PM2) A PROPÓSITO: la huella vale porque ese dibujo concreto se escaneó; con otro enlace habría
+   * que volver a anotarla y fijaría un dibujo que nadie ha escaneado. No es un dominio que se sirva:
+   * es el dato de entrada de una foto. El resto de este fichero usa `ENLACE`, neutro.
+   */
+  const ENLACE_VALIDADO = "https://dareflash.com/entrar?ref=a2e879d4fwca2";
+
   it("el dibujo de un enlace fijo es EXACTAMENTE el de siempre", () => {
-    const ruta = rutaQr(matrizDe(ENLACE));
+    const ruta = rutaQr(matrizDe(ENLACE_VALIDADO));
     // Anotados de la implementación actual. ESTO DETECTA UN CAMBIO, NO DEMUESTRA QUE SE ESCANEE:
     // que un QR se lea solo lo demuestra una cámara, y aquí no hay ninguna. Lo que este número
     // garantiza es que el dibujo que alguien validó una vez con un teléfono sigue siendo el mismo.

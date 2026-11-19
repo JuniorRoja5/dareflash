@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  * POST /api/auth/confirmar-email — confirma la direccion NUEVA de un cambio de correo.
  *
  * SIN sesion a proposito, igual que `/api/auth/verify`: quien abre el enlace lo hace desde su gestor
- * de correo, donde no hay sesion de DareFlash. La autoridad es el TOKEN (un solo uso, hash en BD,
+ * de correo, donde no hay sesion de RevolFlash. La autoridad es el TOKEN (un solo uso, hash en BD,
  * caduca, y su proposito va dentro del WHERE). Por eso esta EXENTA de `mutatingRoute`: no hay sesion
  * a la que atar un token CSRF — la misma justificacion que las otras entradas por correo.
  *

@@ -66,7 +66,7 @@ const REGLAS_MAX = 4000;
 
 /**
  * LOS CAMPOS DE UN RETO QUE DECIDE QUIEN LO PROPONE: qué, cuánto y cuándo. Los comparten el formulario
- * del admin (`crearRetoSchema`, que añade lo que es de DareFlash: nivel, VIP, marca, comisión) y la
+ * del admin (`crearRetoSchema`, que añade lo que es de RevolFlash: nivel, VIP, marca, comisión) y la
  * propuesta de una empresa (`solicitudRetoSchema`, Fase 9 · P3, que no añade nada de eso).
  *
  * UNA SOLA DEFINICIÓN para los dos: si el tope del título o la regla del premio vivieran copiados, la
@@ -132,7 +132,7 @@ export function crearRetoSchema(now: Date) {
     z
       .object({
         ...camposDeReto(),
-        // ↓ Lo que es de DAREFLASH, no de quien propone el reto.
+        // ↓ Lo que es de REVOLFLASH, no de quien propone el reto.
         /**
          * QUIÉN puede participar. Se guarda la CLAVE del nivel, no un número de puntos (ver el
          * comentario de la columna). Ausente = `rookie` = TODOS: así un formulario antiguo, o una

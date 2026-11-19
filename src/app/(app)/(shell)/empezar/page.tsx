@@ -11,7 +11,7 @@ import {
 export const metadata = { title: "Empezar" };
 
 /**
- * /empezar — ¿CÓMO QUIERES USAR DAREFLASH?
+ * /empezar — ¿CÓMO QUIERES USAR REVOLFLASH?
  *
  * Existe porque hay DOS cuentas que no se pueden mezclar: la de participante (sube, vota, gana) y
  * la de empresa (mira, patrocina, se anuncia). Sin esta pantalla, un negocio se registraba como

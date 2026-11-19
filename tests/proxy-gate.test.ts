@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 import { SESSION_COOKIE } from "../src/config/constants";
 import { config, proxy } from "../src/proxy";
 
-const BASE = "https://dareflash.com";
+const BASE = "https://plataforma.test";
 
 function peticion(
   ruta: string,

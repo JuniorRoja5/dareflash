@@ -6,7 +6,7 @@ import type { PiezaEntregada } from "@/server/services/publicidad-entrega";
  * y el mismo marco 9:16 que un vídeo, para que el snap no salte. No es un vídeo: no reproduce nada ni
  * cuenta como «visto»; el feed la salta en todo lo que va por vídeo (ver `FeedVertical`).
  *
- * LA ETIQUETA SIEMPRE A LA VISTA y arriba: «Publicidad» si es de un tercero, «De DareFlash» si es la
+ * LA ETIQUETA SIEMPRE A LA VISTA y arriba: «Publicidad» si es de un tercero, «De RevolFlash» si es la
  * casa (ver `ETIQUETA_PIEZA_*`). Escondida en un rincón o tras un toque sería publicidad encubierta.
  *
  * EL ENLACE SALE DEL DTO (`enlace`, generado en una sola función: `enlaceDeCampana`), y el de una campaña
@@ -22,7 +22,7 @@ export function PiezaFeed({
   alRef: (el: HTMLElement | null) => void;
   /**
    * P8: con qué sesión se puede DENUNCIAR la campaña (la misma regla que un vídeo), o `null` para quien
-   * solo mira (una cuenta de empresa). La casa no se denuncia: es de DareFlash.
+   * solo mira (una cuenta de empresa). La casa no se denuncia: es de RevolFlash.
    */
   denuncia?: { haySesion: boolean; emailVerificado: boolean } | null;
 }) {

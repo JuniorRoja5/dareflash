@@ -15,9 +15,9 @@ import { ETIQUETA_ROL } from "./usuarios/etiquetas";
 // `requireRole("ADMIN")` (abajo): un crawler no llega igualmente.
 /**
  * `template` « · Panel» para las páginas de DENTRO del panel («Boost · Panel»); `default` «Panel» se
- * encadena con la plantilla del layout raíz y da «Panel · DareFlash» a las que no ponen título. La
+ * encadena con la plantilla del layout raíz y da «Panel · RevolFlash» a las que no ponen título. La
  * portada del panel (`panel/page.tsx`) es del MISMO segmento que este layout, así que a ella no le
- * llega esta plantilla sino la raíz: «Panel» → «Panel · DareFlash», como antes.
+ * llega esta plantilla sino la raíz: «Panel» → «Panel · RevolFlash», como antes.
  */
 export const metadata = {
   title: { default: "Panel", template: "%s · Panel" },
