@@ -20,6 +20,8 @@ import path from "node:path";
 
 import { afterAll, describe, expect, it } from "vitest";
 
+import { sinComentarios } from "./helpers/grafo-imports";
+
 const RAIZ = path.resolve(__dirname, "..");
 const VIEJO = "a".repeat(40);
 const NUEVO = "b".repeat(40);
@@ -107,6 +109,12 @@ case "$1" in
     [ "$2" = "--quiet" ] && exit 0
     for f in \${FAKE_POSTERIORES:-}; do echo "prisma/migrations/$f/migration.sql"; done; exit 0 ;;
   show)
+    # El worker de un commit: por defecto el de hoy (late); los SHA de FAKE_SIN_LATIDO, uno de antes.
+    case "$2" in
+      *:scripts/worker.ts)
+        for x in \${FAKE_SIN_LATIDO:-}; do [ "$x" = "\${2%%:*}" ] && { echo "// worker sin latido"; exit 0; }; done
+        cat scripts/worker.ts; exit 0 ;;
+    esac
     # Por defecto, el MISMO Caddyfile que el del disco; con FAKE_CADDYFILE_DISTINTO=1, otro.
     if [ "\${FAKE_CADDYFILE_DISTINTO:-0}" = 1 ]; then echo "otro.test {"; echo "}"; else cat caddy/Caddyfile; fi
     exit 0 ;;
@@ -348,6 +356,56 @@ describe("deploy.sh: el worker tiene que ser ESTE commit y estar vivo", () => {
     });
     expect(r.codigo).toBe(5);
     expect(r.salida).not.toContain("DESPLEGADO");
+  });
+});
+
+/**
+ * VOLVER ATRÁS A UN COMMIT QUE NO SABE LATIR. Su worker no anota latido y su health no tiene `worker`:
+ * exigírselo convertía la vía de emergencia en «el worker no arranca» con todo sano, y sin recargar
+ * Caddy. Se decide por el commit (su `scripts/worker.ts`), no por el health.
+ */
+describe("deploy.sh: volver atrás a un commit anterior a la vigilancia del worker", () => {
+  // El health de una versión vieja: sin el campo `worker`.
+  const atras = {
+    FAKE_HEALTH_ANTES: sano(NUEVO),
+    FAKE_HEALTH_DESPUES: `${VIEJO} ok`,
+    FAKE_ANCESTROS: `${VIEJO}>${NUEVO}`,
+    DEPLOY_HEALTH_MAX_S: "1",
+    DEPLOY_HEALTH_PASO_S: "1",
+  };
+  const caddy = (r: { llamadas: string[] }, orden: string) =>
+    r.llamadas.findIndex((l) => l.includes(" exec -T caddy caddy " + orden + " "));
+
+  it("sin latido en ese commit: AVISA, valida y recarga Caddy, y DESPLEGADO con código 0", () => {
+    const r = desplegar([VIEJO], { ...atras, FAKE_SIN_LATIDO: VIEJO });
+    expect(r.codigo).toBe(0);
+    expect(r.salida).toContain(
+      "AVISO: este commit es anterior a la vigilancia del worker: no se puede comprobar que esté vivo.",
+    );
+    expect(r.salida).toContain("logs --tail=100 worker");
+    expect(r.salida).not.toContain("el worker no arranca");
+    expect(r.llamadas).toContain(`git show ${VIEJO}:scripts/worker.ts`);
+    expect(caddy(r, "validate")).toBeGreaterThan(-1);
+    expect(caddy(r, "reload")).toBeGreaterThan(caddy(r, "validate"));
+    expect(r.salida).toContain(`DESPLEGADO ${VIEJO}`);
+  });
+
+  it("control: si ese commit SÍ sabe latir y no late, sigue siendo error 5", () => {
+    const r = desplegar([VIEJO], atras);
+    expect(r.codigo).toBe(5);
+    expect(r.salida).toContain("el worker no arranca");
+    expect(r.salida).not.toContain("anterior a la vigilancia");
+    expect(r.salida).not.toContain("DESPLEGADO");
+  });
+
+  it("la marca que busca deploy.sh está en el worker de HOY (un renombrado no apaga la vigilancia)", () => {
+    // Si `anotarLatido(` dejara de aparecer en scripts/worker.ts, deploy.sh trataría TODO commit nuevo
+    // como «anterior a la vigilancia»: avisaría y seguiría, sin esperar al latido nunca más.
+    const script = readFileSync(path.join(RAIZ, "scripts", "deploy.sh"), "utf8");
+    const marca = /^MARCA_LATIDO='([^']+)'$/m.exec(script)?.[1];
+    expect(marca, "no se encontró MARCA_LATIDO en deploy.sh").toBeTruthy();
+    const worker = sinComentarios(readFileSync(path.join(RAIZ, "scripts", "worker.ts"), "utf8"));
+    expect(worker, `scripts/worker.ts ya no contiene «${marca}»`).toContain(marca);
   });
 });
 

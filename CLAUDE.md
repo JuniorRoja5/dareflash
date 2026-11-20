@@ -287,7 +287,9 @@ borran para "limpiar"**:
   migraciones posteriores exige `--acepto-esquema-nuevo`. Y no da por bueno un despliegue sin WORKER:
   espera a su LATIDO en el health (`worker: { commit, haceS, vivoS }`, de
   [src/server/services/latido-worker.ts](src/server/services/latido-worker.ts)) del SHA desplegado,
-  reciente y con el proceso vivo un rato (uno en bucle de reinicios late y muere). `health` fija la
+  reciente y con el proceso vivo un rato (uno en bucle de reinicios late y muere). Un commit que NO
+  sabe latir (su `scripts/worker.ts` no llama a `anotarLatido(`: anterior a esta vigilancia) no se
+  espera: AVISA y sigue, para que volver atrás en una emergencia no se pare con todo sano. `health` fija la
   forma del cuerpo; `redis-listo`, que el worker espera a Redis antes de su primera pasada y que su
   `bucleWorker` recibe `latido` (opcional: quitarlo compila); `sanear-error`, que el log dice la
   clase del fallo y nunca el mensaje. Y al final, CADDY: el Caddyfile DEL SHA desplegado (también al

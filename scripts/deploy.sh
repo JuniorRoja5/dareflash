@@ -265,6 +265,20 @@ done
 # proceso que lleve vivo al menos WORKER_VIVO_MIN_S. Lo último es lo que distingue uno sano de uno en
 # bucle, que alcanza a latir alguna vez antes de morir. Un latido de OTRO commit no es error en el acto:
 # es el del worker viejo, que sigue en la base hasta que el nuevo escriba el suyo.
+#
+# PERO un commit ANTERIOR a esta vigilancia no late (su worker no anota, su imagen no lleva GIT_SHA y su
+# health no tiene `worker`), y la fila del latido conserva el del worker NUEVO. Sin distinguirlo, volver
+# atrás a uno de esos —la vía de emergencia— esperaría el tope, diría «el worker no arranca» con todo
+# sano y no llegaría a recargar Caddy. Se decide por el COMMIT, no por el health (que no distingue
+# «versión vieja» de «sin latido»): sabe latir si SU `scripts/worker.ts` llama a `anotarLatido(`, que es
+# lo que de verdad escribe el latido (no basta con que exista el módulo). `deploy-script` exige que el
+# worker de hoy la contenga, para que un renombrado no apague la vigilancia en silencio.
+MARCA_LATIDO='anotarLatido('
+if ! git show "$SHA:scripts/worker.ts" 2>/dev/null | grep -qF "$MARCA_LATIDO"; then
+  paso "El worker de $SHA no se puede comprobar"
+  echo "AVISO: este commit es anterior a la vigilancia del worker: no se puede comprobar que esté vivo."
+  echo "Míralo con: docker compose -f docker-compose.prod.yml logs --tail=100 worker"
+else
 paso "Comprobando que el worker es $SHA y está vivo"
 INICIO=$(date +%s)
 while :; do
@@ -293,6 +307,7 @@ while :; do
   fi
   sleep "$HEALTH_PASO_S"
 done
+fi
 
 # --- 6c. Y CADDY tiene que servir el Caddyfile de ESTE commit ----------------------------------------
 # Caddy monta `caddy/` y NO relee el fichero solo: hasta ahora había que hacer `caddy reload` a mano, y
