@@ -67,6 +67,16 @@ case "$1" in
     echo "IMAGE_TAG=\${IMAGE_TAG:-}" >> "$FAKE_LOG"
     case "$*" in
       *" ps -q web"*) [ -n "\${FAKE_SHA_WEB:-}" ] && echo cont-web; exit 0 ;;
+      *" exec -T caddy "*)
+        case "$*" in
+          *" validate "*)
+            [ "\${FAKE_CADDY_VALIDA:-1}" = 1 ] && exit 0
+            echo "Error: adapting config using caddyfile: Caddyfile:3: unrecognized directive: rediir"; exit 1 ;;
+          *" reload "*)
+            [ "\${FAKE_CADDY_RECARGA:-1}" = 1 ] && exit 0
+            echo "Error: sending configuration to instance: connection refused"; exit 1 ;;
+          *) cat >/dev/null; exit 0 ;;
+        esac ;;
       *" exec "*)
         if grep -q " up -d" "$FAKE_LOG"; then h="\${FAKE_HEALTH_DESPUES:-}"; else h="\${FAKE_HEALTH_ANTES:-}"; fi
         [ -n "$h" ] && { echo "$h"; exit 0; }
@@ -96,6 +106,8 @@ case "$1" in
   diff)
     [ "$2" = "--quiet" ] && exit 0
     for f in \${FAKE_POSTERIORES:-}; do echo "prisma/migrations/$f/migration.sql"; done; exit 0 ;;
+  show)
+    echo "revolflash.com {"; echo "}"; exit 0 ;;
   ls-tree)
     for m in $FAKE_MIGRACIONES; do echo "prisma/migrations/$m"; done
     echo prisma/migrations/migration_lock.toml; exit 0 ;;
@@ -334,6 +346,62 @@ describe("deploy.sh: el worker tiene que ser ESTE commit y estar vivo", () => {
     });
     expect(r.codigo).toBe(5);
     expect(r.salida).not.toContain("DESPLEGADO");
+  });
+});
+
+/**
+ * CADDY (Fase 11 · worker vigilado, corrección 2). Caddy monta `caddy/` pero NO relee el fichero: un
+ * Caddyfile nuevo no se servía hasta un `caddy reload` a mano. Ahora deploy.sh lo valida DENTRO del
+ * contenedor de Caddy y solo entonces lo recarga.
+ */
+describe("deploy.sh: Caddy valida ANTES de recargar, y un fallo no se da por bueno", () => {
+  const base = {
+    FAKE_HEALTH_ANTES: sano(VIEJO),
+    FAKE_HEALTH_DESPUES: sano(NUEVO),
+    FAKE_ANCESTROS: `${VIEJO}>${NUEVO}`,
+  };
+  const caddy = (r: { llamadas: string[] }, orden: string) =>
+    r.llamadas.findIndex((l) => l.includes(" exec -T caddy caddy " + orden + " "));
+
+  it("caso bueno: el Caddyfile de ESE SHA, `validate` antes que `reload`, y DESPLEGADO", () => {
+    const r = desplegar([NUEVO], base);
+    expect(r.codigo).toBe(0);
+    expect(r.salida).toContain(`DESPLEGADO ${NUEVO}`);
+    expect(r.llamadas).toContain(`git show ${NUEVO}:caddy/Caddyfile`);
+    expect(caddy(r, "validate")).toBeGreaterThan(-1);
+    expect(caddy(r, "reload")).toBeGreaterThan(caddy(r, "validate"));
+    // Y después de arrancar web y worker, no antes.
+    expect(caddy(r, "validate")).toBeGreaterThan(r.llamadas.findIndex((l) => / up -d$/.test(l)));
+  });
+
+  it("Caddyfile INVÁLIDO: error, dice qué pasa y NO recarga", () => {
+    const r = desplegar([NUEVO], { ...base, FAKE_CADDY_VALIDA: "0" });
+    expect(r.codigo).toBe(6);
+    expect(r.salida).toContain(`el Caddyfile de ${NUEVO} NO es válido. NO se ha recargado`);
+    expect(r.salida).toContain("unrecognized directive"); // lo que dice Caddy, no un genérico
+    expect(caddy(r, "validate")).toBeGreaterThan(-1);
+    expect(caddy(r, "reload")).toBe(-1);
+    expect(r.salida).not.toContain("DESPLEGADO");
+  });
+
+  it("un `reload` que FALLA: error con su propia salida, sin DESPLEGADO", () => {
+    const r = desplegar([NUEVO], { ...base, FAKE_CADDY_RECARGA: "0" });
+    expect(r.codigo).toBe(7);
+    expect(r.salida).toContain("Caddy NO lo ha podido recargar");
+    expect(r.salida).toContain("connection refused");
+    expect(r.salida).not.toContain("DESPLEGADO");
+  });
+
+  it("al volver atrás, valida y recarga el Caddyfile del SHA DE DESTINO", () => {
+    const r = desplegar([VIEJO], {
+      FAKE_HEALTH_ANTES: sano(NUEVO),
+      FAKE_HEALTH_DESPUES: sano(VIEJO),
+      FAKE_ANCESTROS: `${VIEJO}>${NUEVO}`,
+    });
+    expect(r.codigo).toBe(0);
+    expect(r.llamadas).toContain(`git show ${VIEJO}:caddy/Caddyfile`);
+    expect(r.llamadas.some((l) => l.includes(`git show ${NUEVO}:`))).toBe(false);
+    expect(caddy(r, "reload")).toBeGreaterThan(caddy(r, "validate"));
   });
 });
 

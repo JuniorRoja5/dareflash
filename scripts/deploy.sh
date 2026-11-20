@@ -18,6 +18,8 @@
 #   6. Espera al health y COMPRUEBA que el commit que responde es el desplegado. Si es otro, lo dice
 #      claramente y sale con error: lo que sirve NO es lo que se pidió. Y después, que el WORKER
 #      (su latido en el health) es ese commit y sigue vivo: sin él no hay correos ni tareas de fondo.
+#      Y por último, que CADDY sirve el Caddyfile de ese commit: lo valida dentro de su contenedor y
+#      solo entonces lo recarga (sin recargar si no valida; ver el paso 6c).
 #
 # VOLVER ATRÁS Y LAS MIGRACIONES. Prisma no deshace migraciones: volver a un SHA anterior cambia el
 # CÓDIGO, nunca el ESQUEMA. La versión vieja arranca contra un esquema más nuevo que el suyo, y eso es
@@ -292,6 +294,48 @@ while :; do
   sleep "$HEALTH_PASO_S"
 done
 
+# --- 6c. Y CADDY tiene que servir el Caddyfile de ESTE commit ----------------------------------------
+# Caddy monta `caddy/` y NO relee el fichero solo: hasta ahora había que hacer `caddy reload` a mano, y
+# si se olvidaba este script decía «DESPLEGADO» con el servidor web sirviendo la configuración vieja (la
+# PM2, el cambio de dominio, fue el primer caso). Ahora:
+#   - se toma el Caddyfile DEL SHA QUE SE DESPLIEGA (`git show`), no el del árbol de trabajo: en una
+#     vuelta atrás son distintos, y lo que se despliega es el SHA;
+#   - se copia a un temporal DENTRO del contenedor de Caddy y se VALIDA allí, con su versión de Caddy;
+#   - si no valida, error SIN recargar: Caddy sigue con la configuración que tiene en marcha;
+#   - si valida, `caddy reload` (idempotente: sin cambios no hace nada). Si falla, error.
+paso "Caddy: validando y recargando el Caddyfile de $SHA"
+CADDY_TMP=/tmp/Caddyfile.desplegado
+CADDY_SALIDA=$(mktemp)
+git show "$SHA:caddy/Caddyfile" \
+  | "${COMPOSE[@]}" exec -T caddy sh -c "cat > $CADDY_TMP" >"$CADDY_SALIDA" 2>&1 \
+  || { echo >&2; echo "ERROR: no se pudo llevar el Caddyfile de $SHA al contenedor de Caddy." >&2;
+       cat "$CADDY_SALIDA" >&2; rm -f "$CADDY_SALIDA"; exit 6; }
+if ! "${COMPOSE[@]}" exec -T caddy caddy validate --config "$CADDY_TMP" --adapter caddyfile \
+  >"$CADDY_SALIDA" 2>&1; then
+  echo >&2
+  echo "ERROR: el Caddyfile de $SHA NO es válido. NO se ha recargado: Caddy sigue con la configuración" >&2
+  echo "que tenía en marcha. La web y el worker nuevos están arrancados; lo que falla es el Caddyfile." >&2
+  echo "Lo que dice Caddy:" >&2
+  tail -20 "$CADDY_SALIDA" >&2
+  [ -n "$ACTUAL" ] && [ "$ACTUAL" != "$SHA" ] \
+    && echo "Para volver a lo que había: ./scripts/deploy.sh $ACTUAL" >&2
+  rm -f "$CADDY_SALIDA"
+  exit 6
+fi
+if ! "${COMPOSE[@]}" exec -T caddy caddy reload --config "$CADDY_TMP" --adapter caddyfile \
+  >"$CADDY_SALIDA" 2>&1; then
+  echo >&2
+  echo "ERROR: el Caddyfile de $SHA es válido, pero Caddy NO lo ha podido recargar." >&2
+  echo "Lo que dice Caddy:" >&2
+  tail -20 "$CADDY_SALIDA" >&2
+  echo "Mira los logs: docker compose -f docker-compose.prod.yml logs --tail=100 caddy" >&2
+  [ -n "$ACTUAL" ] && [ "$ACTUAL" != "$SHA" ] \
+    && echo "Para volver a lo que había: ./scripts/deploy.sh $ACTUAL" >&2
+  rm -f "$CADDY_SALIDA"
+  exit 7
+fi
+rm -f "$CADDY_SALIDA"
+
 # --- Historial: una línea por despliegue con éxito. Es de donde `limpiar.sh` saca la versión ANTERIOR
 #     (lo único que no se le puede preguntar a Docker). Sin repetir la última si se vuelve a aplicar. ---
 HISTORIAL="${DEPLOY_HISTORIAL:-.despliegues}"
@@ -300,7 +344,7 @@ if [ "$(tail -1 "$HISTORIAL" 2>/dev/null || true)" != "$SHA" ]; then
 fi
 
 echo
-echo "DESPLEGADO $SHA (el health responde ok con ese commit, y el worker late con él)."
+echo "DESPLEGADO $SHA (el health responde ok con ese commit, el worker late con él y Caddy sirve su Caddyfile)."
 if [ -n "$ACTUAL" ] && [ "$ACTUAL" != "$SHA" ]; then
   echo "Para volver a la versión anterior: ./scripts/deploy.sh $ACTUAL"
 fi

@@ -102,8 +102,9 @@ las rutas lo cargan con **import dinámico dentro del handler** (`depsRuta()`, o
 `npm run test:build-sin-env` vigila esa propiedad; el workflow
 [imagenes.yml](.github/workflows/imagenes.yml) pasa los tests y construye las imágenes reales (las
 que respetan `.dockerignore`) en cada push, y en `main` las publica en ghcr.io. **El servidor no
-compila**: [scripts/deploy.sh](scripts/deploy.sh) descarga la imagen del SHA y comprueba que el
-health responde con ese commit. Una imagen se publica PÚBLICA: nada secreto puede entrar en el build.
+compila**: [scripts/deploy.sh](scripts/deploy.sh) descarga la imagen del SHA, comprueba que el
+health responde con ese commit y que el worker late con él, y valida y recarga el Caddyfile de ese
+commit dentro del contenedor de Caddy. Una imagen se publica PÚBLICA: nada secreto puede entrar en el build.
 
 Promover una variable a **obligatoria** en `env.ts` obliga a añadirla al `.env` del servidor **en
 el mismo paso**: si falta, el proceso muere al arrancar (fail-fast deliberado, ver
@@ -287,8 +288,12 @@ borran para "limpiar"**:
   espera a su LATIDO en el health (`worker: { commit, haceS, vivoS }`, de
   [src/server/services/latido-worker.ts](src/server/services/latido-worker.ts)) del SHA desplegado,
   reciente y con el proceso vivo un rato (uno en bucle de reinicios late y muere). `health` fija la
-  forma del cuerpo; `redis-listo`, que el worker espera a Redis antes de su primera pasada;
-  `sanear-error`, que el log dice la clase del fallo y nunca el mensaje.
+  forma del cuerpo; `redis-listo`, que el worker espera a Redis antes de su primera pasada y que su
+  `bucleWorker` recibe `latido` (opcional: quitarlo compila); `sanear-error`, que el log dice la
+  clase del fallo y nunca el mensaje. Y al final, CADDY: el Caddyfile DEL SHA desplegado (también al
+  volver atrás) se valida dentro de su contenedor y solo entonces se recarga; si no valida, error
+  sin recargar; si el reload falla, error. Caddy no relee el fichero montado: sin esto, un Caddyfile
+  nuevo no se servía hasta un `caddy reload` a mano.
 
 - `zod-fuera-del-cliente` — ningún `"use client"` llega a zod por ninguna cadena de imports (el fallo
   la nombra). Un catálogo es una lista `VALORES_*` en `constants.ts`; su `z.enum` vive en

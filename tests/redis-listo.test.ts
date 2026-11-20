@@ -11,7 +11,8 @@
  * lo que ioredis pregunta al conectar (INFO) y a HGETALL, que es lo que usan esas tareas.
  *
  * Para romperlo a propósito: que `esperarRedisListo` no abra la conexión (rojo: la primera orden
- * vuelve a fallar); quitar el `await esperarRedisListo()` del worker (rojo, estructural).
+ * vuelve a fallar); quitar el `await esperarRedisListo()` del worker (rojo, estructural); quitar el
+ * `latido:` del `bucleWorker` de `scripts/worker.ts` (rojo, estructural: es opcional y compila igual).
  */
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:net";
@@ -133,5 +134,28 @@ describe("el worker lo espera antes de su primera pasada (estructural)", () => {
     expect(espera, "el worker ya no espera a Redis").toBeGreaterThan(-1);
     expect(bucle).toBeGreaterThan(-1);
     expect(espera, "espera a Redis DESPUÉS de empezar el bucle").toBeLessThan(bucle);
+  });
+
+  it("y el `bucleWorker` que arranca recibe `latido`, que anota el latido de verdad", () => {
+    // `latido` es OPCIONAL en `OpcionesBucle` (como el resto del mantenimiento: los tests pasan solo
+    // lo que usan). Si alguien lo quita de aquí, compila, la suite sigue verde, y solo lo descubre
+    // `deploy.sh` EN PRODUCCIÓN, sin latido que esperar. Esto lo caza antes.
+    const codigo = sinComentarios(
+      readFileSync(path.resolve(__dirname, "../scripts/worker.ts"), "utf8"),
+    );
+    const inicio = codigo.search(/await bucleWorker\(prisma, registro, \{/);
+    expect(inicio, "no se encontró la llamada a bucleWorker").toBeGreaterThan(-1);
+    // El objeto de opciones, casando llaves (no hasta el primer `}`: dentro hay funciones).
+    const abre = codigo.indexOf("{", inicio);
+    let nivel = 0;
+    let fin = abre;
+    for (; fin < codigo.length; fin++) {
+      if (codigo[fin] === "{") nivel++;
+      else if (codigo[fin] === "}" && --nivel === 0) break;
+    }
+    const opciones = codigo.slice(abre, fin + 1);
+    expect(opciones, "el worker ya no late: falta `latido:` en bucleWorker").toMatch(
+      /\blatido:\s*\(now\)\s*=>\s*anotarLatido\(/,
+    );
   });
 });
