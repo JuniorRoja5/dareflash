@@ -112,13 +112,26 @@ case "$1" in
     # El worker de un commit: por defecto el de hoy (late); los SHA de FAKE_SIN_LATIDO, uno de antes.
     case "$2" in
       *:scripts/worker.ts)
+        [ "\${FAKE_GIT_SHOW_FALLA:-0}" = 1 ] && { echo "fatal: unable to read 1a2b3c" >&2; exit 128; }
         for x in \${FAKE_SIN_LATIDO:-}; do [ "$x" = "\${2%%:*}" ] && { echo "// worker sin latido"; exit 0; }; done
+        if [ "\${FAKE_WORKER_GRANDE:-0}" = 1 ]; then
+          # La marca al PRINCIPIO y >500 KB detrás (más que el búfer de una tubería). Con \`exec\`, el que
+          # recibe el SIGPIPE es ESTE proceso, como le pasaría al git de verdad.
+          echo "latido: (now) => anotarLatido(prisma, {})"
+          exec awk 'BEGIN { for (i = 0; i < 20000; i++) print "// relleno relleno relleno" }'
+        fi
         cat scripts/worker.ts; exit 0 ;;
     esac
     # Por defecto, el MISMO Caddyfile que el del disco; con FAKE_CADDYFILE_DISTINTO=1, otro.
     if [ "\${FAKE_CADDYFILE_DISTINTO:-0}" = 1 ]; then echo "otro.test {"; echo "}"; else cat caddy/Caddyfile; fi
     exit 0 ;;
   ls-tree)
+    if [ "\${@: -1}" = "scripts/worker.ts" ]; then
+      # Como el de verdad: con el fichero, su nombre; sin él, nada y 0; si git falla, 128.
+      [ "\${FAKE_GIT_LSTREE_FALLA:-0}" = 1 ] && { echo "fatal: not a tree object" >&2; exit 128; }
+      for x in \${FAKE_SIN_WORKER:-}; do [ "$x" = "$3" ] && exit 0; done
+      echo scripts/worker.ts; exit 0
+    fi
     for m in $FAKE_MIGRACIONES; do echo "prisma/migrations/$m"; done
     echo prisma/migrations/migration_lock.toml; exit 0 ;;
 esac
@@ -400,6 +413,47 @@ describe("deploy.sh: volver atrás a un commit anterior a la vigilancia del work
     expect(r.codigo).toBe(5);
     expect(r.salida).toContain("el worker no arranca");
     expect(r.salida).not.toContain("anterior a la vigilancia");
+    expect(r.salida).not.toContain("DESPLEGADO");
+  });
+
+  it("un worker GRANDE con la marca al principio sabe latir (la detección no depende de un SIGPIPE)", () => {
+    // Con `git show | grep -q` y `pipefail`, grep sale al primer acierto, git recibe SIGPIPE (141) y la
+    // tubería «falla»: se tomaba por «no sabe latir» y la vigilancia se SALTABA, el lado peligroso.
+    const r = desplegar([NUEVO], {
+      FAKE_HEALTH_ANTES: sano(VIEJO),
+      FAKE_HEALTH_DESPUES: sano(NUEVO),
+      FAKE_ANCESTROS: `${VIEJO}>${NUEVO}`,
+      FAKE_WORKER_GRANDE: "1",
+    });
+    expect(r.salida).not.toContain("anterior a la vigilancia");
+    expect(r.salida).toContain(`Comprobando que el worker es ${NUEVO} y está vivo`);
+    expect(r.salida).toContain("el worker late con él");
+    expect(r.codigo).toBe(0);
+  });
+
+  it("y uno grande con el worker muerto sigue siendo error 5", () => {
+    const r = desplegar([VIEJO], { ...atras, FAKE_WORKER_GRANDE: "1" });
+    expect(r.codigo).toBe(5);
+    expect(r.salida).not.toContain("anterior a la vigilancia");
+  });
+
+  it("si `scripts/worker.ts` NO EXISTE en ese commit: no sabe latir, avisa y sigue", () => {
+    const r = desplegar([VIEJO], { ...atras, FAKE_SIN_WORKER: VIEJO });
+    expect(r.codigo).toBe(0);
+    expect(r.salida).toContain("AVISO: este commit es anterior a la vigilancia del worker");
+    expect(r.salida).toContain(`DESPLEGADO ${VIEJO}`);
+  });
+
+  it.each([
+    ["ls-tree", { FAKE_GIT_LSTREE_FALLA: "1" }],
+    ["show", { FAKE_GIT_SHOW_FALLA: "1" }],
+  ])("si `git %s` FALLA: error claro, ni aviso ni Caddy ni DESPLEGADO", (_orden, falla) => {
+    const r = desplegar([VIEJO], { ...atras, ...falla });
+    expect(r.codigo).toBe(8);
+    expect(r.salida).toContain(`no se pudo leer el worker de ${VIEJO} en git`);
+    expect(r.salida).toContain("fatal:"); // lo que dice git, no un genérico
+    expect(r.salida).not.toContain("anterior a la vigilancia");
+    expect(caddy(r, "reload")).toBe(-1);
     expect(r.salida).not.toContain("DESPLEGADO");
   });
 

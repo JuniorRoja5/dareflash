@@ -273,9 +273,30 @@ done
 # «versión vieja» de «sin latido»): sabe latir si SU `scripts/worker.ts` llama a `anotarLatido(`, que es
 # lo que de verdad escribe el latido (no basta con que exista el módulo). `deploy-script` exige que el
 # worker de hoy la contenga, para que un renombrado no apague la vigilancia en silencio.
+#
+# SIN TUBERÍA, a propósito. Con `git show | grep -q` y `pipefail`, grep sale al primer acierto y, si a git
+# le queda salida, muere por SIGPIPE (141): la tubería «falla» y se tomaba por «no sabe latir», que es
+# SALTARSE la vigilancia. Por eso: `ls-tree` distingue «no existe en ese commit» (salida vacía, 0) de un
+# fallo de git (≠ 0), el fichero se lee entero a una variable y la marca se busca en ella. Un fallo de
+# git es un ERROR, no un aviso: no se sabe qué commit es, y tratarlo como viejo apagaría la vigilancia.
 MARCA_LATIDO='anotarLatido('
 WORKER_DICHO="el worker late con él"
-if ! git show "$SHA:scripts/worker.ts" 2>/dev/null | grep -qF "$MARCA_LATIDO"; then
+SABE_LATIR=0
+fallo_git_worker() {
+  echo >&2
+  echo "ERROR: no se pudo leer el worker de $SHA en git, así que no se sabe si hay que esperar a su" >&2
+  echo "latido. La web y el worker nuevos están arrancados; Caddy NO se ha recargado. Lo que dice git:" >&2
+  echo "$1" >&2
+  [ -n "$ACTUAL" ] && [ "$ACTUAL" != "$SHA" ] \
+    && echo "Para volver a lo que había: ./scripts/deploy.sh $ACTUAL" >&2
+  exit 8
+}
+EN_COMMIT=$(git ls-tree --name-only "$SHA" -- scripts/worker.ts 2>&1) || fallo_git_worker "$EN_COMMIT"
+if [ -n "$EN_COMMIT" ]; then
+  FUENTE_WORKER=$(git show "$SHA:scripts/worker.ts" 2>&1) || fallo_git_worker "$FUENTE_WORKER"
+  [[ "$FUENTE_WORKER" == *"$MARCA_LATIDO"* ]] && SABE_LATIR=1
+fi
+if [ "$SABE_LATIR" != 1 ]; then
   WORKER_DICHO="el worker NO se ha podido comprobar: commit anterior a su vigilancia"
   paso "El worker de $SHA no se puede comprobar"
   echo "AVISO: este commit es anterior a la vigilancia del worker: no se puede comprobar que esté vivo."

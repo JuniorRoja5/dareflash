@@ -289,7 +289,9 @@ borran para "limpiar"**:
   [src/server/services/latido-worker.ts](src/server/services/latido-worker.ts)) del SHA desplegado,
   reciente y con el proceso vivo un rato (uno en bucle de reinicios late y muere). Un commit que NO
   sabe latir (su `scripts/worker.ts` no llama a `anotarLatido(`: anterior a esta vigilancia) no se
-  espera: AVISA y sigue, para que volver atrás en una emergencia no se pare con todo sano. `health` fija la
+  espera: AVISA y sigue, para que volver atrás en una emergencia no se pare con todo sano. La marca se
+  busca SIN tubería (`git show | grep -q` con `pipefail` caía por SIGPIPE en «no sabe latir» con un
+  fichero grande), y un fallo de `git` es error 8, no aviso. `health` fija la
   forma del cuerpo; `redis-listo`, que el worker espera a Redis antes de su primera pasada y que su
   `bucleWorker` recibe `latido` (opcional: quitarlo compila); `sanear-error`, que el log dice la
   clase del fallo y nunca el mensaje. Y al final, CADDY: el Caddyfile DEL SHA desplegado (también al
