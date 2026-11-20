@@ -48,16 +48,14 @@ git pull
 ./scripts/deploy.sh
 ```
 
-**`deploy.sh` NO recarga Caddy.** Comprueba el health por dentro (`127.0.0.1:3000`), así que dirá
-`DESPLEGADO` aunque Caddy siga sirviendo el Caddyfile viejo. El fichero nuevo ya está en disco (el
-compose monta el directorio `caddy/`), pero Caddy no lo vuelve a leer solo. Hay que recargarlo:
-
-```bash
-docker compose -f docker-compose.prod.yml exec caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
-```
+**Caddy lo recarga `deploy.sh`.** Caddy no vuelve a leer solo el fichero montado, así que el script,
+después de arrancar la web y el worker, valida el Caddyfile del commit desplegado DENTRO del contenedor
+de Caddy y solo entonces lo recarga. Si no valida, se para con un error y NO recarga (Caddy sigue con lo
+que tenía); si la recarga falla, se para con otro error. En los dos casos imprime lo que dice Caddy. Solo
+dice `DESPLEGADO` cuando Caddy ya sirve el Caddyfile nuevo.
 
 Los certificados de `revolflash.com` y `www.revolflash.com` los pide Caddy solo en ese momento (Let's
-Encrypt). Si la recarga falla, el error sale en esa misma orden; los logs, con
+Encrypt). Si algo falla después de la recarga, los logs están en
 `docker compose -f docker-compose.prod.yml logs --tail=50 caddy`.
 
 ## 3. Lo que sigue pendiente
@@ -102,8 +100,10 @@ anterior SIN tocar el `.env`:
 
 ```bash
 ./scripts/deploy.sh <sha anterior>
-docker compose -f docker-compose.prod.yml exec caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
+
+`deploy.sh` recarga Caddy con el Caddyfile de ESE commit, y avisa de que el del disco es otro: si el
+contenedor de Caddy se reinicia, cargará el del disco.
 
 Ojo: con el commit anterior, el Caddyfile solo tiene el bloque del dominio viejo, así que **la web
 seguirá sin verse desde fuera** hasta arreglar el Caddyfile. Volver atrás solo tiene sentido si lo que

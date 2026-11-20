@@ -293,7 +293,8 @@ borran para "limpiar"**:
   clase del fallo y nunca el mensaje. Y al final, CADDY: el Caddyfile DEL SHA desplegado (también al
   volver atrás) se valida dentro de su contenedor y solo entonces se recarga; si no valida, error
   sin recargar; si el reload falla, error. Caddy no relee el fichero montado: sin esto, un Caddyfile
-  nuevo no se servía hasta un `caddy reload` a mano.
+  nuevo no se servía hasta un `caddy reload` a mano. Y si el Caddyfile servido no es el del disco (una
+  vuelta atrás), AVISA: un reinicio del contenedor de Caddy cargaría el del disco.
 
 - `zod-fuera-del-cliente` — ningún `"use client"` llega a zod por ninguna cadena de imports (el fallo
   la nombra). Un catálogo es una lista `VALORES_*` en `constants.ts`; su `z.enum` vive en

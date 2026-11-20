@@ -335,6 +335,15 @@ if ! "${COMPOSE[@]}" exec -T caddy caddy reload --config "$CADDY_TMP" --adapter 
   exit 7
 fi
 rm -f "$CADDY_SALIDA"
+# Caddy queda sirviendo el temporal, pero si su contenedor se reinicia (reinicio del VPS, un `up` que lo
+# recree) vuelve a leer el fichero MONTADO, el del árbol de trabajo. Tras una vuelta atrás son distintos,
+# y ese reinicio cambiaría la configuración sin que nadie lo vea. Se avisa; no se cambia nada.
+if ! git show "$SHA:caddy/Caddyfile" | cmp -s - caddy/Caddyfile; then
+  echo
+  echo "AVISO: Caddy sirve el Caddyfile de $SHA, pero el del disco (caddy/Caddyfile) es otro; si el"
+  echo "contenedor de Caddy se reinicia, cargará el del disco. Para fijarlo, deja el árbol en $SHA o"
+  echo "vuelve a desplegar."
+fi
 
 # --- Historial: una línea por despliegue con éxito. Es de donde `limpiar.sh` saca la versión ANTERIOR
 #     (lo único que no se le puede preguntar a Docker). Sin repetir la última si se vuelve a aplicar. ---

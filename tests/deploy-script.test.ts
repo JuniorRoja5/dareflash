@@ -107,7 +107,9 @@ case "$1" in
     [ "$2" = "--quiet" ] && exit 0
     for f in \${FAKE_POSTERIORES:-}; do echo "prisma/migrations/$f/migration.sql"; done; exit 0 ;;
   show)
-    echo "revolflash.com {"; echo "}"; exit 0 ;;
+    # Por defecto, el MISMO Caddyfile que el del disco; con FAKE_CADDYFILE_DISTINTO=1, otro.
+    if [ "\${FAKE_CADDYFILE_DISTINTO:-0}" = 1 ]; then echo "otro.test {"; echo "}"; else cat caddy/Caddyfile; fi
+    exit 0 ;;
   ls-tree)
     for m in $FAKE_MIGRACIONES; do echo "prisma/migrations/$m"; done
     echo prisma/migrations/migration_lock.toml; exit 0 ;;
@@ -402,6 +404,28 @@ describe("deploy.sh: Caddy valida ANTES de recargar, y un fallo no se da por bue
     expect(r.llamadas).toContain(`git show ${VIEJO}:caddy/Caddyfile`);
     expect(r.llamadas.some((l) => l.includes(`git show ${NUEVO}:`))).toBe(false);
     expect(caddy(r, "reload")).toBeGreaterThan(caddy(r, "validate"));
+  });
+
+  // Caddy queda con el temporal; si su contenedor se reinicia, vuelve al fichero montado del disco.
+  const AVISO = /AVISO: Caddy sirve el Caddyfile de a{40}, pero el del disco/;
+  const atras = {
+    FAKE_HEALTH_ANTES: sano(NUEVO),
+    FAKE_HEALTH_DESPUES: sano(VIEJO),
+    FAKE_ANCESTROS: `${VIEJO}>${NUEVO}`,
+  };
+
+  it("vuelta atrás con un Caddyfile DISTINTO del disco: avisa (no es un error)", () => {
+    const r = desplegar([VIEJO], { ...atras, FAKE_CADDYFILE_DISTINTO: "1" });
+    expect(r.codigo).toBe(0);
+    expect(r.salida).toMatch(AVISO);
+    expect(r.salida).toContain("si el\ncontenedor de Caddy se reinicia, cargará el del disco");
+    expect(r.salida).toContain(`DESPLEGADO ${VIEJO}`);
+  });
+
+  it("con el MISMO Caddyfile que el disco: no avisa", () => {
+    const r = desplegar([VIEJO], atras);
+    expect(r.codigo).toBe(0);
+    expect(r.salida).not.toMatch(/AVISO: Caddy/);
   });
 });
 
