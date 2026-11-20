@@ -313,6 +313,8 @@ describe("deploy.sh: el worker tiene que ser ESTE commit y estar vivo", () => {
     const r = desplegar([NUEVO], { ...base, FAKE_HEALTH_DESPUES: `${NUEVO} ok ${NUEVO} 2 45` });
     expect(r.codigo).toBe(0);
     expect(r.salida).toContain(`DESPLEGADO ${NUEVO}`);
+    expect(r.salida).toContain("el worker late con él");
+    expect(r.salida).not.toContain("anterior a la vigilancia");
   });
 
   it("latido de OTRO commit hasta el tope: error, dice cuál es y cómo volver", () => {
@@ -388,6 +390,9 @@ describe("deploy.sh: volver atrás a un commit anterior a la vigilancia del work
     expect(caddy(r, "validate")).toBeGreaterThan(-1);
     expect(caddy(r, "reload")).toBeGreaterThan(caddy(r, "validate"));
     expect(r.salida).toContain(`DESPLEGADO ${VIEJO}`);
+    // Y la línea final no dice que el worker late: no se ha comprobado.
+    expect(r.salida).not.toContain("el worker late con él");
+    expect(r.salida).toContain("el worker NO se ha podido comprobar");
   });
 
   it("control: si ese commit SÍ sabe latir y no late, sigue siendo error 5", () => {

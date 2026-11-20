@@ -274,7 +274,9 @@ done
 # lo que de verdad escribe el latido (no basta con que exista el módulo). `deploy-script` exige que el
 # worker de hoy la contenga, para que un renombrado no apague la vigilancia en silencio.
 MARCA_LATIDO='anotarLatido('
+WORKER_DICHO="el worker late con él"
 if ! git show "$SHA:scripts/worker.ts" 2>/dev/null | grep -qF "$MARCA_LATIDO"; then
+  WORKER_DICHO="el worker NO se ha podido comprobar: commit anterior a su vigilancia"
   paso "El worker de $SHA no se puede comprobar"
   echo "AVISO: este commit es anterior a la vigilancia del worker: no se puede comprobar que esté vivo."
   echo "Míralo con: docker compose -f docker-compose.prod.yml logs --tail=100 worker"
@@ -368,7 +370,7 @@ if [ "$(tail -1 "$HISTORIAL" 2>/dev/null || true)" != "$SHA" ]; then
 fi
 
 echo
-echo "DESPLEGADO $SHA (el health responde ok con ese commit, el worker late con él y Caddy sirve su Caddyfile)."
+echo "DESPLEGADO $SHA (el health responde ok con ese commit, $WORKER_DICHO, y Caddy sirve su Caddyfile)."
 if [ -n "$ACTUAL" ] && [ "$ACTUAL" != "$SHA" ]; then
   echo "Para volver a la versión anterior: ./scripts/deploy.sh $ACTUAL"
 fi
