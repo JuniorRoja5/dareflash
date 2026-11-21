@@ -82,6 +82,9 @@ describe("sesiones en base de datos", () => {
       sessionId: expect.any(String),
       // Fase 9 · P5: la ubicación sale de la misma consulta; una sesión recién creada no la tiene aún.
       ubicacion: { paisIso: null, estadoCodigo: null, ciudadId: null },
+      // Fase 11 · P2: la zona guardada, también de la misma consulta (para la primera vista desde un
+      // dispositivo sin la cookie de zona). Una cuenta nueva aún no la tiene.
+      zonaHoraria: null,
     });
   });
 

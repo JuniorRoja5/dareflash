@@ -343,6 +343,14 @@ borran para "limpiar"**:
   sin `ahora` cae HOY, no el día que el calendario lo alcanza (así cayó `empresa-retos` el
   2026-11-15, en todas las ramas). Arreglo: pasar `ahora`, o `congelarReloj(AHORA)`. MariaDB no se
   adelanta: sembrar con la hora de Node y preguntar con `NOW()` también cae.
+- `zona-usuario` / `zona-de-la-peticion` / `zona-usuario-dias-utc` — la zona horaria del usuario
+  (`User.zonaHoraria`, Fase 11 · P2) se lee en la MISMA consulta de `validateSession` (contada: una) y se
+  escribe allí solo si cambia: en el acto si era NULL, y si no solo con el refresco amortiguado de
+  `lastSeenAt` (dos dispositivos no escriben en cada petición). Entra y se lee por `zonaParaGuardar`
+  (regla de la cookie + nombre canónico del ICU: `Europe/Kyiv` y `Europe/Kiev` son uno). Ausente o
+  inválida nunca borra; sin sesión válida no escribe. `zonaDeLaPeticion` = cookie → guardada → `null`,
+  sin mirar la sesión si hay cookie. Y la zona solo MUESTRA: con ella guardada en UTC+14, Boost y toques
+  siguen contando el día UTC, y los ficheros que calculan días y meses no la nombran.
 - `reloj-rate-limit` — todo test que lleva una ruta real hasta el 429 congela el reloj
   (`congelarReloj()` de [tests/helpers/reloj.ts](tests/helpers/reloj.ts)). Ver la trampa de abajo.
 

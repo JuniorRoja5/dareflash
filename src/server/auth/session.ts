@@ -17,7 +17,9 @@
  * envoltorio de cookie (server-only) vive en `current-user.ts`.
  */
 import { createHash, randomBytes } from "node:crypto";
+import type { ZonaHoraria } from "@/lib/formato";
 import type { Ubicacion } from "@/lib/geo";
+import { zonaParaGuardar } from "@/lib/zona-espectador";
 
 import {
   plazosSesion,
@@ -111,6 +113,12 @@ export interface SessionUser {
    * tambien es desconocida. `validateSession` la rellena siempre.
    */
   ubicacion?: Ubicacion;
+  /**
+   * La zona horaria GUARDADA del usuario (Fase 11 · P2), leída en la MISMA consulta, ya pasada por
+   * `zonaParaGuardar`. Solo la usa `zonaDeLaPeticion` cuando el navegador no trae la suya. Opcional por
+   * lo mismo que `ubicacion`: ausente = no la sabemos.
+   */
+  zonaHoraria?: ZonaHoraria | null;
 }
 
 /**
@@ -131,12 +139,23 @@ export interface SessionUser {
  * nadie haga nada: el sondeo del contador de avisos. Si cada sondeo refrescara la actividad, una
  * pestana abierta con nadie delante mantendria la sesion viva para siempre y la caducidad por
  * inactividad —la que cierra la sesion olvidada del admin— no llegaria nunca.
+ *
+ * `zonaNavegador` (Fase 11 · P2) es la zona que dice el navegador (cookie `df-zona`). Se GUARDA en el
+ * usuario solo si es valida (`zonaParaGuardar`), distinta de la guardada, y ademas:
+ *  - la guardada es NULL (o ya no vale): se escribe en el acto, UNA vez en la vida de la cuenta; o
+ *  - toca el refresco amortiguado de `lastSeenAt` de ESTA sesion: como mucho una escritura por sesion
+ *    cada `SESION_REFRESCO_MIN_MS`. Dos dispositivos con zonas distintas usados a la vez escriben, como
+ *    mucho, una vez cada uno por ventana —no en cada peticion alternando—, y gana el ultimo en refrescar.
+ * Con la misma zona (el caso normal), CERO escrituras; la lectura va en el `select` de siempre, asi que
+ * tampoco hay una consulta mas. Ausente o invalida NUNCA borra la guardada. Sesion caducada, inactiva,
+ * o cuenta borrada o baneada: se sale antes y no se escribe nada (y el `where` lo repite, por si la
+ * cuenta se banea entre la lectura y la escritura). Con `tocar: false` tampoco: pedir no es usar.
  */
 export async function validateSession(
   db: Db,
   rawToken: string | undefined | null,
   now?: Date,
-  opciones: { tocar?: boolean } = {},
+  opciones: { tocar?: boolean; zonaNavegador?: string | null } = {},
 ): Promise<SessionUser | null> {
   if (!rawToken) return null;
   const nowD = now ?? new Date();
@@ -158,6 +177,7 @@ export async function validateSession(
           deletedAt: true,
           bannedAt: true,
           esCuentaEmpresa: true,
+          zonaHoraria: true,
         },
       },
     },
@@ -178,11 +198,26 @@ export async function validateSession(
   // Refresco AMORTIGUADO de la ultima actividad (ver SESION_REFRESCO_MIN_MS). No renueva `expires`:
   // el tope absoluto no se mueve por usar la sesion, que es justo lo que lo hace un tope.
   // Con `tocar: false` (el sondeo del contador de avisos) no se refresca: pedir no es usar.
-  if (
-    opciones.tocar !== false &&
-    nowD.getTime() - row.lastSeenAt.getTime() > SESION_REFRESCO_MIN_MS
-  ) {
+  const tocar = opciones.tocar !== false;
+  const refrescoDebido = nowD.getTime() - row.lastSeenAt.getTime() > SESION_REFRESCO_MIN_MS;
+  if (tocar && refrescoDebido) {
     await db.session.updateMany({ where: { id: row.id }, data: { lastSeenAt: nowD } });
+  }
+
+  // LA ZONA DEL NAVEGADOR, guardada solo si cambia (ver el docblock: cuando y por que asi).
+  let zonaGuardada = zonaParaGuardar(row.user.zonaHoraria);
+  const zonaDicha = zonaParaGuardar(opciones.zonaNavegador);
+  if (
+    tocar &&
+    zonaDicha !== null &&
+    zonaDicha !== zonaGuardada &&
+    (zonaGuardada === null || refrescoDebido)
+  ) {
+    await db.user.updateMany({
+      where: { id: row.user.id, deletedAt: null, bannedAt: null },
+      data: { zonaHoraria: zonaDicha },
+    });
+    zonaGuardada = zonaDicha;
   }
 
   return {
@@ -192,6 +227,7 @@ export async function validateSession(
     esCuentaEmpresa: row.user.esCuentaEmpresa,
     sessionId: row.id,
     ubicacion: { paisIso: row.geoPais, estadoCodigo: row.geoEstado, ciudadId: row.geoCiudadId },
+    zonaHoraria: zonaGuardada,
   };
 }
 

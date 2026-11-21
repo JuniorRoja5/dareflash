@@ -11,6 +11,7 @@ import { cache } from "react";
 
 import { SESSION_COOKIE } from "@/config/constants";
 import { env } from "@/config/env";
+import { ZONA_COOKIE, zonaDesdeCookie } from "@/lib/zona-espectador";
 import { prisma } from "@/server/db/client";
 
 import { validateSession, type SessionUser } from "./session";
@@ -41,8 +42,13 @@ import { validateSession, type SessionUser } from "./session";
  * eso la verificacion de esta pieza es una TRAZA sobre una peticion real, no un unitario.
  */
 export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  return validateSession(prisma, token);
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE)?.value;
+  // La zona del navegador viaja a la MISMA validación (Fase 11 · P2): ahí se guarda si cambió, sin
+  // una consulta más. Sin sesión no hay consulta ni escritura (`validateSession` sale antes).
+  return validateSession(prisma, token, undefined, {
+    zonaNavegador: zonaDesdeCookie(jar.get(ZONA_COOKIE)?.value),
+  });
 });
 
 /**

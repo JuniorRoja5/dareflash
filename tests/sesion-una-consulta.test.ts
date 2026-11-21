@@ -43,6 +43,8 @@ describe("getCurrentUser está memoizado por petición", () => {
 
   it("sigue leyendo la cookie y delegando en `validateSession` (mismo contrato de antes)", () => {
     expect(CODIGO).toContain("SESSION_COOKIE");
-    expect(CODIGO).toContain("validateSession(prisma, token)");
+    // Desde la P2 de la Fase 11 le pasa además la zona del navegador (cookie `df-zona`), para guardarla
+    // en la MISMA validación: el token sigue siendo el de la cookie de sesión.
+    expect(CODIGO).toMatch(/validateSession\(prisma, token, undefined, \{\s*zonaNavegador:/);
   });
 });

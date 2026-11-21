@@ -229,6 +229,16 @@ model User {
   /// la regla y el dia que se reejecute sobre una base con datos tiene que converger).
   esCuentaEmpresa Boolean @default(false)
 
+  /// LA ZONA HORARIA DEL ULTIMO NAVEGADOR QUE LA DIJO (Fase 11 · P2). Solo cambia como se MUESTRA una
+  /// hora, nunca como se CALCULA: las claves de dia y de mes siguen en UTC. Sirve para la primera
+  /// vista desde un dispositivo sin la cookie `df-zona`, y para lo que sale del worker sin peticion
+  /// (correos, push). NULL = no la sabemos, y no se inventa: nunca sale de la IP.
+  ///
+  /// Solo entra por `zonaParaGuardar` (`lib/zona-espectador`): la regla de la cookie mas la forma
+  /// canonica del ICU, y se LEE por la misma. 64 es el tope de esa regla (`zonaHoraria`): la zona IANA
+  /// mas larga mide 32. La escribe `validateSession`, solo si cambia (ver alli cuando).
+  zonaHoraria String? @db.VarChar(64)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

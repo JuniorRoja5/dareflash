@@ -81,6 +81,18 @@ export function zonaHoraria(valor: unknown): ZonaHoraria | null {
 }
 
 /**
+ * El nombre CANÓNICO que da el ICU a una zona ya validada (`Europe/Kyiv` → `Europe/Kiev`, `Etc/UTC` →
+ * `UTC`). Vive aquí porque `Intl` solo se toca en este módulo; quien la usa y por qué está en
+ * `zonaParaGuardar` (`lib/zona-espectador`). Formatear con uno u otro nombre da la misma cadena.
+ */
+export function zonaCanonica(zona: ZonaHoraria): ZonaHoraria {
+  return (
+    zonaHoraria(new Intl.DateTimeFormat("en-US", { timeZone: zona }).resolvedOptions().timeZone) ??
+    zona
+  );
+}
+
+/**
  * LA ZONA DEL NAVEGADOR, leída en el cliente. Solo para lo que se pinta DESPUÉS de hidratar (ver
  * `FechaLocal` del panel); lo que pinta el servidor usa la cookie (`lib/zona-espectador`).
  */
