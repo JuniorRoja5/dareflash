@@ -142,7 +142,8 @@ export default function PrivacidadPage() {
           <li>
             <span className="text-text">Datos de uso y técnicos:</span> dirección IP, tipo de
             dispositivo y navegador, y registros de actividad, que usamos para seguridad y
-            prevención del fraude.
+            prevención del fraude. También guardamos la zona horaria de tu navegador, para mostrarte
+            las horas en tu hora local.
           </li>
           <li>
             <span className="text-text">Ubicación aproximada:</span> a partir de tu dirección IP
