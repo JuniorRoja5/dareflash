@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 import { useEffect, useState } from "react";
 
 import { Imagen3d } from "@/components/ui/imagen-3d";
@@ -83,9 +83,9 @@ export function StatsInicio({
     return (
       <p className="mt-8 max-w-prose text-sm text-text-dim">
         Ahora mismo no hay retos abiertos.{" "}
-        <Link href="/retos" className="text-text underline underline-offset-2">
+        <Enlace href="/retos" className="text-text underline underline-offset-2">
           Mira los que vienen
-        </Link>
+        </Enlace>
         .
       </p>
     );

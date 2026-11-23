@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { Boton } from "@/components/ui/boton";
 import { CajaVideo } from "@/components/ui/caja-video";
@@ -70,7 +70,7 @@ export function HeroDestacado({
       />
       <div className="mx-auto w-full max-w-[320px] lg:max-w-[560px]">
         <Inclinable className="rounded-sm transition-[box-shadow] duration-[var(--df-dur-fast)] ease-mechanical hover:shadow-[var(--df-glow-hover)]">
-          <Link href={href} aria-label={`Reto destacado: ${reto.titulo}`} className="block">
+          <Enlace href={href} aria-label={`Reto destacado: ${reto.titulo}`} className="block">
             <CajaVideo
               className="rounded-sm border border-line bg-raised"
               relleno={
@@ -114,7 +114,7 @@ export function HeroDestacado({
             >
               {reto.coverImage ? null : <IconoPlay />}
             </CajaVideo>
-          </Link>
+          </Enlace>
         </Inclinable>
         <p className="mt-3 text-center text-sm text-text-dim">
           {elegido ? (

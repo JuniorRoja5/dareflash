@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useNavegar } from "@/components/enlace";
 import { useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
@@ -49,6 +50,7 @@ export function AccionesCampana({
 }) {
   const { idioma } = useFormato();
   const router = useRouter();
+  const navegar = useNavegar();
   const [enCurso, setEnCurso] = useState<AccionPublicidad | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [libre, setLibre] = useState<{ accion: AccionPublicidad; fecha: string } | null>(null);
@@ -69,7 +71,7 @@ export function AccionesCampana({
       if (r.ok) {
         setLibre(null);
         if (accion === "BORRAR") {
-          router.push("/empresa/publicidad");
+          navegar.push("/empresa/publicidad");
         }
         router.refresh();
       } else if (r.code === "ZONA_LLENA") {

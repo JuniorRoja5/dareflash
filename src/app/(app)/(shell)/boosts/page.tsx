@@ -1,5 +1,5 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
-import { redirect } from "next/navigation";
+import { redirigir } from "@/server/redirigir";
 
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { TarjetaMetrica } from "@/components/ui/tarjeta-metrica";
@@ -50,7 +50,7 @@ export default async function BoostsPage({
   await apartarCuentaEmpresa();
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
-  if (!sesion) redirect("/entrar?siguiente=%2Fboosts");
+  if (!sesion) return redirigir("/entrar?siguiente=%2Fboosts");
 
   const sp = await searchParams;
   const aqui: Paginacion = {

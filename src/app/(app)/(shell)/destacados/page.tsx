@@ -1,5 +1,5 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { Boton } from "@/components/ui/boton";
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
@@ -150,9 +150,9 @@ export default async function DestacadosPage({
 
         <p className="mt-10 text-2xs text-text-dim">
           Esto no es el ranking: aquí se aparece por haber gastado un Boost, no por ganar retos.{" "}
-          <Link href="/ranking" className="underline underline-offset-2 hover:text-text">
+          <Enlace href="/ranking" className="underline underline-offset-2 hover:text-text">
             Ver el ranking del mes
-          </Link>
+          </Enlace>
           .
         </p>
       </div>

@@ -36,6 +36,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/server/auth/current-user", () => ({ getCurrentUser: mocks.getCurrentUser }));
+// P5a: `redirigir` lee el idioma de la petición (`x-df-idioma`); sin petición, una cabecera vacía = «es».
+vi.mock("next/headers", async (original) => ({
+  ...(await original<typeof import("next/headers")>()),
+  headers: async () => new Headers(),
+}));
 vi.mock("next/navigation", () => ({ redirect: mocks.redirect, notFound: mocks.notFound }));
 
 const VERIFICADO: SessionUser = {
@@ -88,7 +93,7 @@ describe("el alta vive FUERA del portal", () => {
 
   it("y el portal manda al alta a quien todavía no tiene empresa", () => {
     expect(leer("src/app/(app)/(shell)/empresa/page.tsx")).toContain(
-      'redirect("/empezar/empresa")',
+      'return redirigir("/empezar/empresa")',
     );
   });
 });

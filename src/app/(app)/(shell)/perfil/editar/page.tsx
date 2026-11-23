@@ -1,5 +1,5 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { Boton } from "@/components/ui/boton";
 
@@ -69,12 +69,12 @@ export default async function EditarPerfilPage() {
     <div className="mx-auto w-full max-w-5xl px-4 py-8 lg:px-8 lg:py-12">
       <div className="mb-6 flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold text-text">Editar perfil</h1>
-        <Link
+        <Enlace
           href="/perfil"
           className="rounded-xs text-sm text-text-dim transition-colors duration-150 ease-mechanical hover:text-text"
         >
           Volver al perfil
-        </Link>
+        </Enlace>
       </div>
 
       <FormularioEditarPerfil

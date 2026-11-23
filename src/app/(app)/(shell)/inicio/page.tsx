@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { CAMINO_EMPRESA, CTA_NEGOCIO, msgSocioFundador } from "@/config/constants";
 import { Boton } from "@/components/ui/boton";
@@ -192,12 +192,12 @@ export default async function InicioPage() {
           <section className="min-w-0 lg:col-span-2">
             <div className="flex items-baseline justify-between gap-4">
               <h2 className="text-xl font-semibold text-text lg:text-2xl">Retos abiertos</h2>
-              <Link
+              <Enlace
                 href="/retos"
                 className="shrink-0 text-sm font-medium text-text-dim hover:text-text"
               >
                 Ver todos →
-              </Link>
+              </Enlace>
             </div>
             <div className="mt-4">
               <RetosDestacados
@@ -211,12 +211,12 @@ export default async function InicioPage() {
           <aside className="min-w-0 lg:col-span-1">
             <div className="flex items-baseline justify-between gap-4">
               <h2 className="text-xl font-semibold text-text lg:text-2xl">Top del mes</h2>
-              <Link
+              <Enlace
                 href="/ranking"
                 className="shrink-0 text-sm font-medium text-text-dim hover:text-text"
               >
                 Ver todo
-              </Link>
+              </Enlace>
             </div>
             <div className="mt-4 overflow-hidden rounded-sm border border-line bg-surface/60 backdrop-blur-md">
               {topRanking.length === 0 ? (

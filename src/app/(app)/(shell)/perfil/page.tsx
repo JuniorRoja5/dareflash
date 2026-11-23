@@ -1,5 +1,5 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
-import { redirect } from "next/navigation";
+import { redirigir } from "@/server/redirigir";
 
 import { PerfilVista } from "./perfil-vista";
 
@@ -19,7 +19,7 @@ export default async function PerfilPage() {
   const user = await getCurrentUser();
   const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
   const idioma = await idiomaDeLaPeticion();
-  if (!user) redirect("/entrar");
+  if (!user) return redirigir("/entrar");
 
   const { prisma } = await import("@/server/db/client");
   const { miPerfil } = await import("@/server/services/perfil");
@@ -38,7 +38,7 @@ export default async function PerfilPage() {
     esVipActivoDe(prisma, user.userId),
   ]);
   // Sesión válida pero la fila pudo borrarse/banearse entre validar la cookie y consultar: mismo trato.
-  if (!perfil) redirect("/entrar");
+  if (!perfil) return redirigir("/entrar");
 
   const videos = perfil.videos.map((v) => ({
     id: v.id,

@@ -172,7 +172,8 @@ describe("la página es honesta con el servidor", () => {
   const page = leer("page.tsx");
 
   it("exige sesión y vuelve a /boosts tras entrar", () => {
-    expect(page).toContain('redirect("/entrar?siguiente=%2Fboosts")');
+    // Desde la P5a, por `redirigir` (conserva el idioma de la página; ver `enlaces-con-idioma`).
+    expect(page).toContain('return redirigir("/entrar?siguiente=%2Fboosts")');
   });
 
   it("no se cachea", () => {
@@ -248,7 +249,8 @@ describe("la vuelta de Stripe no miente", () => {
     // quita `?compra=ok`, así que el aviso volvía al recargar y seguía puesto con el saldo ya al
     // día. Lo que de verdad lo cierra es navegar al pathname sin parámetros — y eso, además, trae
     // el saldo fresco, porque la página se renderiza por petición.
-    expect(aviso).toMatch(/router\.replace\(pathname/);
+    // Desde la P5a, por `useNavegar` (conserva el idioma; ver `enlaces-con-idioma`).
+    expect(aviso).toMatch(/navegar\.replace\(pathname/);
     expect(aviso, "vuelve el refresh que dejaba el aviso pegado a la URL").not.toMatch(
       /router\.refresh\(/,
     );

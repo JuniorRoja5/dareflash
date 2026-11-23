@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { MSG_PAGO_PATROCINIO, RETO_SOLICITUDES_PENDIENTES_MAX } from "@/config/constants";
@@ -36,12 +36,12 @@ export default async function PaginaProponerReto() {
   return (
     <div className="df-rise space-y-6">
       <div>
-        <Link
+        <Enlace
           href="/empresa/retos"
           className="inline-flex min-h-[44px] items-center text-sm text-text-dim underline underline-offset-2 hover:text-text"
         >
           <span aria-hidden="true">←&nbsp;</span>Mis retos
-        </Link>
+        </Enlace>
         <h1 className="text-2xl text-text">Proponer un reto</h1>
         <p className="mt-1 max-w-prose text-sm text-text-dim">
           Tú pones el reto y el premio; nosotros lo revisamos, lo preparamos y lo publicamos con tu

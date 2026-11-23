@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { anterior, enlacePaginado, siguiente, type Paginacion } from "@/lib/paginacion-pila";
 
@@ -49,16 +49,16 @@ export function PasosKeyset({
       {/* Los huecos se rellenan con un `span` vacío para que `justify-between` mantenga a
           "Siguiente" a la derecha cuando no hay "Anterior". */}
       {atras ? (
-        <Link href={enlacePaginado(base, atras, filtro)} rel="prev" className={PASO}>
+        <Enlace href={enlacePaginado(base, atras, filtro)} rel="prev" className={PASO}>
           <span aria-hidden="true">←</span> Anterior
-        </Link>
+        </Enlace>
       ) : (
         <span />
       )}
       {adelante ? (
-        <Link href={enlacePaginado(base, adelante, filtro)} rel="next" className={PASO}>
+        <Enlace href={enlacePaginado(base, adelante, filtro)} rel="next" className={PASO}>
           Siguiente <span aria-hidden="true">→</span>
-        </Link>
+        </Enlace>
       ) : (
         <span />
       )}

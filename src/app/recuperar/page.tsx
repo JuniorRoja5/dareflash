@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { FormularioRecuperar } from "./formulario-recuperar";
 
@@ -37,12 +37,12 @@ export default function RecuperarPage() {
         <FormularioRecuperar />
         <p className="mt-6 text-sm text-text-dim">
           ¿Ya te acuerdas?{" "}
-          <Link
+          <Enlace
             href="/entrar"
             className="rounded-xs font-medium text-text underline underline-offset-2"
           >
             Iniciar sesión
-          </Link>
+          </Enlace>
         </p>
       </div>
     </main>

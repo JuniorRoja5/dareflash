@@ -1,6 +1,6 @@
 import "server-only";
 
-import { redirect } from "next/navigation";
+import { redirigir } from "@/server/redirigir";
 
 /** La raíz del portal. La seguridad no es el nombre (es el guard), pero se centraliza. */
 export const PORTAL_PATH = "/empresa";
@@ -22,7 +22,7 @@ export async function protegerPortal(): Promise<void> {
     await requireUser();
   } catch (e) {
     if (e instanceof AuthError && e.code === "UNAUTHENTICATED") {
-      redirect(`/entrar?siguiente=${encodeURIComponent(PORTAL_PATH)}`);
+      return redirigir(`/entrar?siguiente=${encodeURIComponent(PORTAL_PATH)}`);
     }
     throw e;
   }

@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import { Enlace } from "@/components/enlace";
+import { redirigir } from "@/server/redirigir";
 
 import { Boton } from "@/components/ui/boton";
 import { NOTIF_PAGINA } from "@/config/constants";
@@ -33,7 +33,7 @@ export default async function NotificacionesPage({
 }) {
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const user = await getCurrentUser();
-  if (!user) redirect(`/entrar?siguiente=${encodeURIComponent("/notificaciones")}`);
+  if (!user) return redirigir(`/entrar?siguiente=${encodeURIComponent("/notificaciones")}`);
 
   const { cursor } = await searchParams;
   const { prisma } = await import("@/server/db/client");
@@ -79,7 +79,7 @@ export default async function NotificacionesPage({
         <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {pagina.items.map((i) => (
             <li key={i.id}>
-              <Link
+              <Enlace
                 href={i.href}
                 className="flex h-full gap-3 rounded-sm border border-line bg-surface/60 p-4 transition-colors duration-150 ease-mechanical hover:bg-raised"
               >
@@ -98,7 +98,7 @@ export default async function NotificacionesPage({
                     {haceCuanto(i.creadaMs, ahoraMs, idioma, zona)}
                   </span>
                 </span>
-              </Link>
+              </Enlace>
             </li>
           ))}
         </ul>

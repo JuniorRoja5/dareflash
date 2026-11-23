@@ -14,6 +14,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const H = vi.hoisted(() => ({ sesion: null as unknown }));
 
+// P5a: `redirigir` lee el idioma de la petición (`x-df-idioma`); sin petición, una cabecera vacía = «es».
+vi.mock("next/headers", async (original) => ({
+  ...(await original<typeof import("next/headers")>()),
+  headers: async () => new Headers(),
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   redirect: (url: string) => {

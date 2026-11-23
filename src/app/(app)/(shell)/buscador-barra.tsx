@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Enlace } from "@/components/enlace";
+import { useNavegar } from "@/components/enlace";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -69,7 +69,7 @@ interface ResultadoSug {
  * JS funcionando (mejora progresiva).
  */
 export function BuscadorBarra() {
-  const router = useRouter();
+  const navegar = useNavegar();
   const [q, setQ] = useState("");
   const [resultado, setResultado] = useState<ResultadoSug>({ clave: "", items: [] });
   const [abierto, setAbierto] = useState(false);
@@ -124,7 +124,7 @@ export function BuscadorBarra() {
   function irA(destino: string): void {
     setAbierto(false);
     setActivo(-1);
-    router.push(destino);
+    navegar.push(destino);
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
@@ -230,13 +230,13 @@ export function BuscadorBarra() {
             </li>
           ))}
           <li className="border-t border-line">
-            <Link
+            <Enlace
               href={hrefBuscarTodos(termino)}
               onClick={() => setAbierto(false)}
               className="block px-3 py-2 text-sm font-medium text-text-dim hover:text-text"
             >
               Ver todos los resultados de «{termino}»
-            </Link>
+            </Enlace>
           </li>
         </ul>
       ) : null}

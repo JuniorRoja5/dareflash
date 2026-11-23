@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 import type { CSSProperties } from "react";
 
 import { nivelPorPuntos } from "@/lib/niveles";
@@ -71,7 +71,7 @@ export function TarjetaDestacado({
   const nivel = nivelPorPuntos(puntos);
   const conEmblema = nivel.emblema && nivel.tokenColor ? nivel : null;
   return (
-    <Link
+    <Enlace
       href={`/u/${username}`}
       data-destacado={username}
       data-nivel={conEmblema?.clave}
@@ -135,6 +135,6 @@ export function TarjetaDestacado({
         />
         <InsigniaNivel puntos={puntos} />
       </span>
-    </Link>
+    </Enlace>
   );
 }

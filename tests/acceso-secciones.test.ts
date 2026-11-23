@@ -99,7 +99,8 @@ describe.each(SECCIONES)("$clave: exige sesión y pagina por keyset", ({ clave, 
   it("exige sesión, y al invitado lo manda a entrar (no lo deja en blanco)", () => {
     const p = pagina(clave);
     expect(p).toContain("getCurrentUser");
-    expect(p).toMatch(/if \(!sesion\) redirect\("\/entrar\?siguiente=/);
+    // Desde la P5a, por `redirigir` (conserva el idioma; ver `enlaces-con-idioma`).
+    expect(p).toMatch(/if \(!sesion\) return redirigir\("\/entrar\?siguiente=/);
     // Y vuelve AQUÍ al terminar: un `siguiente=` a otra parte deja al usuario donde no pidió estar.
     expect(p).toContain(encodeURIComponent(ruta));
   });

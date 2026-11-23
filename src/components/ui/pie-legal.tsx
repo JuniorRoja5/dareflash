@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { ENLACE_PIE_EMPRESAS } from "@/config/constants";
 import { MARCA } from "@/config/marca";
@@ -58,12 +58,12 @@ export function PieLegal({
             congelaría en el del build. Un año en el pie no dice nada que no diga mejor la "última
             actualización" del propio documento legal. */}
         <span>© {MARCA}</span>
-        <Link
+        <Enlace
           href="/privacidad"
           className="rounded-xs underline underline-offset-2 hover:text-text focus-visible:text-text"
         >
           Privacidad
-        </Link>
+        </Enlace>
         {/* NO ES UN ENLACE, y no es un olvido: la página no existe todavía. Un `<span>` no promete un
             clic (ver la familia de "sin botones muertos"). */}
         <span>Términos (pronto)</span>
@@ -72,12 +72,12 @@ export function PieLegal({
             se busca "para empresas" en cualquier web. Discreto, como el resto del pie. Fuera para
             una cuenta de empresa: ya lo es. */}
         {esCuentaEmpresa ? null : (
-          <Link
+          <Enlace
             href={ENLACE_PIE_EMPRESAS.href}
             className="rounded-xs underline underline-offset-2 hover:text-text focus-visible:text-text"
           >
             {ENLACE_PIE_EMPRESAS.texto}
-          </Link>
+          </Enlace>
         )}
       </div>
     </footer>

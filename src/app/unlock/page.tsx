@@ -12,7 +12,7 @@
  * El token NO se consume en el GET: un BOTON hace POST a /api/auth/unlock. Deliberado: los escaneres
  * de correo hacen prefetch y consumirian el token de un solo uso antes del clic.
  */
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 import { useSearchParams } from "next/navigation";
 import { type CSSProperties, Suspense, useState } from "react";
 
@@ -76,7 +76,7 @@ function UnlockContenido() {
           {/* No hay /login todavia: se dice con TEXTO que vuelva a intentar iniciar sesion. */}
           <p>Vuelve a intentar iniciar sesion.</p>
           <p>
-            <Link href="/">Volver al inicio</Link>
+            <Enlace href="/">Volver al inicio</Enlace>
           </p>
         </>
       )}
@@ -93,7 +93,7 @@ function UnlockContenido() {
             enviaremos uno nuevo.
           </p>
           <p>
-            <Link href="/">Volver al inicio</Link>
+            <Enlace href="/">Volver al inicio</Enlace>
           </p>
         </>
       )}

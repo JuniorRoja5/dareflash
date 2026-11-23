@@ -1,6 +1,6 @@
 import "server-only";
 
-import { redirect } from "next/navigation";
+import { redirigir } from "@/server/redirigir";
 
 /**
  * LAS PANTALLAS DE PARTICIPANTE NO SE LE ENSEÑAN A UNA EMPRESA (Fase 9, P2).
@@ -25,5 +25,5 @@ export async function apartarCuentaEmpresa(
 ): Promise<void> {
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
-  if (sesion?.esCuentaEmpresa) redirect(destino);
+  if (sesion?.esCuentaEmpresa) return redirigir(destino);
 }

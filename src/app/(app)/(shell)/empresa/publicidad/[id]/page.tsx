@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 import { notFound } from "next/navigation";
 
 import { Tarjeta } from "@/components/ui/tarjeta";
@@ -125,12 +125,12 @@ export default async function PaginaCampana({
   return (
     <div className="df-rise space-y-6">
       <div>
-        <Link
+        <Enlace
           href="/empresa/publicidad"
           className="inline-flex min-h-[44px] items-center text-sm text-text-dim underline underline-offset-2 hover:text-text"
         >
           <span aria-hidden="true">←&nbsp;</span>Publicidad
-        </Link>
+        </Enlace>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="min-w-0 text-2xl break-words text-text">{c.nombre}</h1>
           <span className="rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim">

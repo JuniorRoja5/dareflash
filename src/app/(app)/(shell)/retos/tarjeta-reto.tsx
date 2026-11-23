@@ -1,5 +1,5 @@
 import type { Idioma } from "@/lib/formato";
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { Boton } from "@/components/ui/boton";
 import { Marcador } from "@/components/ui/marcador";
@@ -67,7 +67,7 @@ export function TarjetaReto({ reto, idioma }: { reto: RetoPublicoVista; idioma: 
 
   const contenido = (
     <>
-      <Link
+      <Enlace
         href={href}
         aria-hidden
         tabIndex={-1}
@@ -131,11 +131,11 @@ export function TarjetaReto({ reto, idioma }: { reto: RetoPublicoVista; idioma: 
             />
           </span>
         </span>
-      </Link>
+      </Enlace>
 
       <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 lg:p-4">
         <h2 className="min-w-0">
-          <Link
+          <Enlace
             href={href}
             /* DOS LÍNEAS, y el marco dorado depende de ello: el cuadrado que gira se dimensiona
                desde el ANCHO de la tarjeta y cubre la diagonal mientras no sea 1,73 veces más alta
@@ -143,7 +143,7 @@ export function TarjetaReto({ reto, idioma }: { reto: RetoPublicoVista; idioma: 
             className="line-clamp-2 rounded-xs leading-snug font-semibold text-text hover:text-text-dim"
           >
             {reto.titulo}
-          </Link>
+          </Enlace>
         </h2>
 
         <div className="mt-auto flex flex-wrap items-center gap-2">

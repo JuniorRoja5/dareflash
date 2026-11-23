@@ -1,5 +1,5 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
-import { redirect } from "next/navigation";
+import { redirigir } from "@/server/redirigir";
 
 import { ESTADOS_RETIRADA_EN_CURSO, puedePedirCobro } from "@/lib/retirada";
 
@@ -52,7 +52,7 @@ export default async function WalletPage() {
   try {
     userId = (await requireVerifiedUser()).userId;
   } catch (e) {
-    if (e instanceof AuthError) redirect("/entrar?siguiente=/wallet");
+    if (e instanceof AuthError) return redirigir("/entrar?siguiente=/wallet");
     throw e;
   }
 

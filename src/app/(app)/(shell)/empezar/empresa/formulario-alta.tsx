@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
+import { Enlace } from "@/components/enlace";
 
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
@@ -351,9 +352,9 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
           />
           <span>
             Acepto la{" "}
-            <a href="/privacidad" className="underline underline-offset-2">
+            <Enlace href="/privacidad" className="underline underline-offset-2">
               política de privacidad
-            </a>{" "}
+            </Enlace>{" "}
             y los términos.
           </span>
         </label>

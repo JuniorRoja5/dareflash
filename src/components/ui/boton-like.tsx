@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { formatearContador } from "@/components/feed/feed-datos";
 import { delCsrf, postJsonCsrf } from "@/lib/cliente-http";
-import { navegarDuro } from "@/lib/navegacion-dura";
+import { useNavegarDuro } from "@/components/enlace";
 
 /**
  * ME GUSTA — corazón del rail del feed.
@@ -38,6 +38,7 @@ export function BotonLike({
   /** Es tuyo: no se puede dar like (el servidor responde PROPIO). */
   esMio?: boolean;
 }) {
+  const navegarDuro = useNavegarDuro();
   const [dado, setDado] = useState(miLike);
   const [delta, setDelta] = useState(0);
   const [enCurso, setEnCurso] = useState(false);

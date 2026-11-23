@@ -95,7 +95,8 @@ describe("la página es honesta con el servidor", () => {
   const page = leer("page.tsx");
 
   it("exige sesión y vuelve a /vip tras entrar", () => {
-    expect(page).toContain('redirect("/entrar?siguiente=%2Fvip")');
+    // Desde la P5a, por `redirigir` (conserva el idioma de la página; ver `enlaces-con-idioma`).
+    expect(page).toContain('return redirigir("/entrar?siguiente=%2Fvip")');
   });
 
   it("no se cachea", () => {
@@ -172,7 +173,8 @@ describe("quién es VIP lo dice el CHOKEPOINT, no la URL", () => {
     expect(aviso).toMatch(/Pago recibido/);
     // Y limpia la query, que es lo que de verdad trae el estado nuevo (un `refresh` la dejaría
     // pegada a la URL: el fallo que ya se cometió en el aviso de Boost).
-    expect(aviso).toMatch(/router\.replace\(pathname/);
+    // Desde la P5a, por `useNavegar` (conserva el idioma; ver `enlaces-con-idioma`).
+    expect(aviso).toMatch(/navegar\.replace\(pathname/);
     expect(aviso, "vuelve el refresh que dejaba el aviso pegado").not.toMatch(/router\.refresh\(/);
   });
 });

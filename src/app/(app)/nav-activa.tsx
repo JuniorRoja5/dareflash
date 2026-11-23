@@ -1,14 +1,13 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-
 import { destinoActivo } from "@/components/ui/logic";
+import { useRutaSinIdioma } from "@/components/enlace";
 import { NavegacionInferior, NavegacionLateral } from "@/components/ui/navegacion";
 
 import { useNoLeidas } from "./avisos-contexto";
 
 /**
- * Islas cliente minimas del armazon: leen la ruta (`usePathname`), calculan el destino activo con
+ * Islas cliente minimas del armazon: leen la ruta sin idioma (`useRutaSinIdioma`), calculan el destino activo con
  * la funcion PURA `destinoActivo`, y se lo pasan a la nav (que sigue presentacional y pura). Asi el
  * unico "use client" del armazon queda aislado aqui; el layout y las primitivas no se ensucian. El ROL
  * (que decide el [+] de la barra inferior) lo resuelve el layout en el servidor y llega por prop; las
@@ -23,7 +22,7 @@ export function NavInferiorActiva({
   rol: string | null;
   esCuentaEmpresa: boolean;
 }) {
-  const activo = destinoActivo(usePathname()) ?? undefined;
+  const activo = destinoActivo(useRutaSinIdioma()) ?? undefined;
   const { noLeidas } = useNoLeidas();
   return (
     <NavegacionInferior
@@ -36,6 +35,6 @@ export function NavInferiorActiva({
 }
 
 export function NavLateralActiva({ esCuentaEmpresa }: { esCuentaEmpresa: boolean }) {
-  const activo = destinoActivo(usePathname()) ?? undefined;
+  const activo = destinoActivo(useRutaSinIdioma()) ?? undefined;
   return <NavegacionLateral activo={activo} esCuentaEmpresa={esCuentaEmpresa} />;
 }

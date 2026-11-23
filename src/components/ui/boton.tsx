@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
 
 import { botonTokens, type BotonVariante } from "./logic";
@@ -34,7 +34,7 @@ type PropsComunes = { variante?: BotonVariante; className?: string; children?: R
 type PropsBoton = PropsComunes &
   Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className" | "children"> & { href?: undefined };
 
-/** Forma <Link>/<a> (con href): un CTA de navegacion con el lenguaje del boton. */
+/** Forma <Enlace>/<a> (con href): un CTA de navegacion con el lenguaje del boton. */
 type PropsEnlace = PropsComunes &
   Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "className" | "children" | "href"> & {
     href: string;
@@ -46,8 +46,8 @@ type PropsEnlace = PropsComunes &
  * texto. Zona tactil 44 px; foco visible global; deshabilitado sobrio.
  *
  * SIN `href` renderiza un <button> con el marcado EXACTO de antes (type="button" por defecto,
- * sobreescribible; spread de props). CON `href` renderiza un <Link> de Next (un <a>) con las MISMAS
- * clases: elimina el "<Link> vestido de boton" (CtaCrear, CTAs del hero) — el CTA de navegacion
+ * sobreescribible; spread de props). CON `href` renderiza un <Enlace> de Next (un <a>) con las MISMAS
+ * clases: elimina el "<Enlace> vestido de boton" (CtaCrear, CTAs del hero) — el CTA de navegacion
  * queda identico al boton, sin duplicar el string de clases a mano.
  */
 export function Boton({
@@ -60,9 +60,9 @@ export function Boton({
 
   if (props.href !== undefined) {
     return (
-      <Link className={clases} {...props}>
+      <Enlace className={clases} {...props}>
         {children}
-      </Link>
+      </Enlace>
     );
   }
   // type="button" por defecto para no hacer submit por accidente dentro de un formulario; va ANTES

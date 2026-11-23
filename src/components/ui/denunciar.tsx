@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { Enlace } from "@/components/enlace";
 import { useEffect, useState } from "react";
 
 import {
@@ -132,12 +133,12 @@ export function Denunciar({
             ) : veredicto === "sin_sesion" ? (
               <>
                 <p className="text-sm text-text-dim">Inicia sesión para denunciar.</p>
-                <a
+                <Enlace
                   href={`/entrar?siguiente=${encodeURIComponent(ruta || "/feed")}`}
                   className="mt-5 block rounded-sm border border-line py-2 text-center text-sm text-text hover:bg-raised"
                 >
                   Iniciar sesión
-                </a>
+                </Enlace>
               </>
             ) : veredicto === "sin_verificar" ? (
               <>

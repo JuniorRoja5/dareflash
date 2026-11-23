@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Imagen3d } from "@/components/ui/imagen-3d";
@@ -31,11 +31,11 @@ export function UltimosGanadores({ ganadores, tema }: { ganadores: GanadorPortad
             key={`${g.userId}-${g.cuandoMs}`}
             className="flex items-center gap-3 rounded-sm border border-line bg-surface/60 p-3 backdrop-blur-md"
           >
-            <Link href={`/u/${g.username}`} className="shrink-0" aria-hidden tabIndex={-1}>
+            <Enlace href={`/u/${g.username}`} className="shrink-0" aria-hidden tabIndex={-1}>
               <Avatar nombre={g.username} imagen={g.image} tamano="sm" perezosa puntos={g.puntos} />
-            </Link>
+            </Enlace>
             <div className="min-w-0 flex-1">
-              <Link href={`/u/${g.username}`} className="block min-w-0 hover:underline">
+              <Enlace href={`/u/${g.username}`} className="block min-w-0 hover:underline">
                 <NombreUsuario
                   username={g.username}
                   displayName={g.displayName}
@@ -43,12 +43,12 @@ export function UltimosGanadores({ ganadores, tema }: { ganadores: GanadorPortad
                   colorNombre={g.colorNombre}
                   clase="block truncate text-sm font-semibold"
                 />
-              </Link>
+              </Enlace>
               <p className="truncate text-2xs text-text-dim">
                 ganó{" "}
-                <Link href={g.retoHref} className="text-text hover:underline">
+                <Enlace href={g.retoHref} className="text-text hover:underline">
                   {g.retoTitulo}
-                </Link>
+                </Enlace>
               </p>
             </div>
             <p

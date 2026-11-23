@@ -1,5 +1,6 @@
-import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { Enlace } from "@/components/enlace";
+import { notFound } from "next/navigation";
+import { redirigir } from "@/server/redirigir";
 
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { TarjetaMetrica } from "@/components/ui/tarjeta-metrica";
@@ -53,7 +54,7 @@ export default async function PaginaMiEmpresa() {
   try {
     ambito = await requireEmpresa();
   } catch (e) {
-    if (e instanceof SinEmpresa) redirect("/empezar/empresa");
+    if (e instanceof SinEmpresa) return redirigir("/empezar/empresa");
     if (e instanceof AuthError && e.code === "EMAIL_NOT_VERIFIED") {
       return (
         <div className="df-rise">
@@ -112,9 +113,9 @@ export default async function PaginaMiEmpresa() {
               {empresa.tipoNegocio
                 ? fraseQueEsUnCredito(empresa.tipoNegocio)
                 : fraseCreditoPublica()}
-              <Link href="/empresa/creditos" className={`mt-1 block ${ENLACE}`}>
+              <Enlace href="/empresa/creditos" className={`mt-1 block ${ENLACE}`}>
                 Ver movimientos
-              </Link>
+              </Enlace>
             </>
           }
         />
@@ -122,9 +123,9 @@ export default async function PaginaMiEmpresa() {
           etiqueta="Propuestas en revisión"
           valor={formatearNumero(enRevision, idioma)}
           pie={
-            <Link href="/empresa/retos" className={ENLACE}>
+            <Enlace href="/empresa/retos" className={ENLACE}>
               Ver mis retos
-            </Link>
+            </Enlace>
           }
         />
       </div>

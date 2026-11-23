@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { CATEGORIES } from "@/config/constants";
 import { categoriasDeLaPortada } from "@/lib/portada";
@@ -20,14 +20,17 @@ export function CategoriasPortada({ porCategoria }: { porCategoria: Record<strin
         <h2 id="categorias-portada" className="text-xl font-semibold text-text lg:text-2xl">
           Categorías
         </h2>
-        <Link href="/retos" className="shrink-0 text-sm font-medium text-text-dim hover:text-text">
+        <Enlace
+          href="/retos"
+          className="shrink-0 text-sm font-medium text-text-dim hover:text-text"
+        >
           Ver todos los retos →
-        </Link>
+        </Enlace>
       </div>
       <ul className="mt-4 flex flex-wrap gap-2">
         {categorias.map((c) => (
           <li key={c.key}>
-            <Link
+            <Enlace
               href={`/retos?categoria=${c.key}`}
               className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium whitespace-nowrap transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised ${
                 c.abiertos > 0
@@ -42,7 +45,7 @@ export function CategoriasPortada({ porCategoria }: { porCategoria: Record<strin
                   <span className="sr-only"> {c.abiertos === 1 ? "abierto" : "abiertos"}</span>
                 </span>
               ) : null}
-            </Link>
+            </Enlace>
           </li>
         ))}
       </ul>

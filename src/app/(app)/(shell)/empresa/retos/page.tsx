@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { Boton } from "@/components/ui/boton";
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
@@ -150,12 +150,12 @@ export default async function PaginaMisRetos({
                           {nombreCategoria(s.categoria) ?? s.categoria}
                         </p>
                         {s.reto ? (
-                          <Link
+                          <Enlace
                             href={`/retos/${s.reto.publicCode}-${s.reto.slug}`}
                             className={`mt-1 inline-block ${ENLACE}`}
                           >
                             Ver el reto publicado
-                          </Link>
+                          </Enlace>
                         ) : null}
                       </td>
                       <td className="py-3 pr-4 text-right whitespace-nowrap text-text tabular-nums">
@@ -204,12 +204,12 @@ export default async function PaginaMisRetos({
                       </p>
                     ) : null}
                     {s.reto ? (
-                      <Link
+                      <Enlace
                         href={`/retos/${s.reto.publicCode}-${s.reto.slug}`}
                         className={`mt-2 inline-flex min-h-[44px] items-center ${ENLACE}`}
                       >
                         Ver el reto publicado
-                      </Link>
+                      </Enlace>
                     ) : null}
                   </Tarjeta>
                 </li>

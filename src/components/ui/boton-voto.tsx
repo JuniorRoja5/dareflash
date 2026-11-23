@@ -14,7 +14,7 @@ import {
 } from "@/lib/voto-cliente";
 
 import { ContadorVotos } from "./contador-votos";
-import { navegarDuro } from "@/lib/navegacion-dura";
+import { useNavegarDuro } from "@/components/enlace";
 
 /**
  * BOTÓN DE VOTAR + RECUENTO — ÚNICO componente, montado donde hay reproductor (el rail del feed y el
@@ -147,6 +147,7 @@ export function BotonVoto({
   const { visto, votoActual, mostrados } = useEstadoVoto(retoId, participacionId, miVoto, votos);
   const [aviso, setAviso] = useState<string | null>(null);
   const [mover, setMover] = useState<{ mensaje: string; votoActualEn: string | null } | null>(null);
+  const navegarDuro = useNavegarDuro();
   const [ocupado, setOcupado] = useState(false);
 
   const estado = estadoBoton({
@@ -187,7 +188,7 @@ export function BotonVoto({
     } finally {
       setOcupado(false);
     }
-  }, [estado, retoId, participacionId, miVoto]);
+  }, [estado, retoId, participacionId, miVoto, navegarDuro]);
 
   const confirmarMover = useCallback(async () => {
     setMover(null);

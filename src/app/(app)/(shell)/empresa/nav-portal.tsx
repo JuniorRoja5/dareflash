@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Enlace, useRutaSinIdioma } from "@/components/enlace";
 
 import { SECCIONES_PORTAL, seccionPortalActiva } from "./secciones-portal";
 
@@ -17,7 +16,7 @@ import { SECCIONES_PORTAL, seccionPortalActiva } from "./secciones-portal";
  * 44 px de alto, el mínimo táctil del brief.
  */
 export function NavPortal() {
-  const activa = seccionPortalActiva(usePathname());
+  const activa = seccionPortalActiva(useRutaSinIdioma());
   return (
     <nav
       aria-label="Portal de empresa"
@@ -26,7 +25,7 @@ export function NavPortal() {
       {SECCIONES_PORTAL.map((s) => {
         const esActiva = activa === s.href;
         return (
-          <Link
+          <Enlace
             key={s.href}
             href={s.href}
             aria-current={esActiva ? "page" : undefined}
@@ -37,7 +36,7 @@ export function NavPortal() {
             }`}
           >
             {s.nombre}
-          </Link>
+          </Enlace>
         );
       })}
     </nav>

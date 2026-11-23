@@ -26,6 +26,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/server/auth/current-user", () => ({ getCurrentUser: mocks.getCurrentUser }));
+// P5a: `redirigir` lee el idioma de la petición (`x-df-idioma`); sin petición, una cabecera vacía = «es».
+vi.mock("next/headers", async (original) => ({
+  ...(await original<typeof import("next/headers")>()),
+  headers: async () => new Headers(),
+}));
 vi.mock("next/navigation", () => ({
   redirect: mocks.redirect,
   notFound: mocks.notFound,

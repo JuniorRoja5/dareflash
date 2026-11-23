@@ -1,5 +1,5 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
-import { redirect } from "next/navigation";
+import { redirigir } from "@/server/redirigir";
 
 import { MSG_VIP_PAGO_NO_DISPONIBLE, MSG_VIP_SIN_VERIFICAR } from "@/config/constants";
 
@@ -54,7 +54,7 @@ export default async function VipPage({
   // El idioma y la zona de quien mira (Fase 11): importes y fechas salen de `lib/formato`.
   const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
   const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
-  if (!sesion) redirect("/entrar?siguiente=%2Fvip");
+  if (!sesion) return redirigir("/entrar?siguiente=%2Fvip");
 
   const sp = await searchParams;
   // Solo los dos valores que escribe la ruta de checkout. Cualquier otra cosa en `?suscripcion=`

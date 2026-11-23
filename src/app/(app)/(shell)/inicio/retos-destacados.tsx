@@ -1,5 +1,5 @@
 import type { Idioma } from "@/lib/formato";
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import type { RetoPublicoVista } from "@/server/services/retos-publico";
 
@@ -27,9 +27,9 @@ export function RetosDestacados({
         {hayDestacado
           ? "Ahora mismo no hay más retos abiertos que el destacado."
           : "Ahora mismo no hay retos abiertos."}{" "}
-        <Link href="/retos" className="text-text underline underline-offset-2">
+        <Enlace href="/retos" className="text-text underline underline-offset-2">
           Ver los próximos
-        </Link>
+        </Enlace>
       </p>
     );
   }

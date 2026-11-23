@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -379,7 +379,7 @@ function Celda({
       </button>
 
       <div className="mt-2 flex min-w-0 items-baseline gap-1.5">
-        <Link href={`/u/${p.username}`} className="min-w-0 truncate hover:underline">
+        <Enlace href={`/u/${p.username}`} className="min-w-0 truncate hover:underline">
           <NombreUsuario
             displayName={p.displayName}
             username={p.username}
@@ -387,7 +387,7 @@ function Celda({
             colorNombre={p.colorNombre}
             clase="truncate text-sm font-medium text-text"
           />
-        </Link>
+        </Enlace>
         {conHandleSecundario(p.displayName) ? (
           <HandleUsuario username={p.username} clase="truncate text-2xs text-text-dim" />
         ) : null}

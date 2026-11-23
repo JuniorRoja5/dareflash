@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useNavegar } from "@/components/enlace";
 import { useRouter } from "next/navigation";
 
 import { Boton } from "@/components/ui/boton";
@@ -55,6 +56,7 @@ export function BotonParticipar({
   vetoVip?: boolean;
 }) {
   const router = useRouter();
+  const navegar = useNavegar();
   const [abierto, setAbierto] = useState(false);
 
   if (!activo) {
@@ -107,7 +109,9 @@ export function BotonParticipar({
         variante="principal"
         className="w-full py-3.5"
         onClick={() =>
-          autenticado ? setAbierto(true) : router.push(enlaceEntrarParaParticipar(publicCode, slug))
+          autenticado
+            ? setAbierto(true)
+            : navegar.push(enlaceEntrarParaParticipar(publicCode, slug))
         }
       >
         {yaParticipa ? "Reemplazar mi vídeo" : "Participar"}

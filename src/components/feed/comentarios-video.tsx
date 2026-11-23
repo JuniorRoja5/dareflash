@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { Enlace } from "@/components/enlace";
 import { type FormEvent, useEffect, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -336,12 +337,12 @@ export function ComentariosVideo({
             </button>
           </form>
         ) : (
-          <a
+          <Enlace
             href={`/entrar?siguiente=${encodeURIComponent(ruta || "/feed")}`}
             className="block rounded-sm border border-line px-3 py-2 text-center text-sm text-text-dim hover:bg-raised hover:text-text"
           >
             Inicia sesión para comentar
-          </a>
+          </Enlace>
         )}
         {aviso ? (
           <p role="alert" className="mt-2 text-xs text-alarm">

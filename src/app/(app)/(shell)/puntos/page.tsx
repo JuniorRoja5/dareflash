@@ -1,5 +1,5 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
-import { redirect } from "next/navigation";
+import { redirigir } from "@/server/redirigir";
 
 import { EmblemaDeNivel } from "@/components/ui/emblema-nivel";
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
@@ -39,7 +39,7 @@ export default async function PuntosPage({
   await apartarCuentaEmpresa();
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
-  if (!sesion) redirect("/entrar?siguiente=%2Fpuntos");
+  if (!sesion) return redirigir("/entrar?siguiente=%2Fpuntos");
   // El idioma y la zona de quien mira (Fase 11): cifras y fechas salen de `lib/formato`.
   const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
   const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);

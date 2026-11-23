@@ -1,4 +1,5 @@
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import { redirigirPermanente } from "@/server/redirigir";
 
 import { Marcador } from "@/components/ui/marcador";
 import { PildoraCategoria } from "@/components/ui/pildora";
@@ -46,7 +47,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
 
   const r = await resolverRetoDetalle(prisma, codigo);
   if (r.tipo === "noEncontrado") notFound();
-  if (r.tipo === "redirect") permanentRedirect(r.a);
+  if (r.tipo === "redirect") return redirigirPermanente(r.a);
   const reto = r.reto;
 
   const usuario = await getCurrentUser();

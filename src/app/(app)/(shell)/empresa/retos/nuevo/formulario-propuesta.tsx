@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useNavegar } from "@/components/enlace";
 import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
@@ -38,6 +39,7 @@ function aIsoUtc(valorLocal: string): string | null {
  */
 export function FormularioPropuesta() {
   const router = useRouter();
+  const navegar = useNavegar();
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [categoria, setCategoria] = useState<string>(CATEGORIES[0]!.key);
@@ -101,7 +103,7 @@ export function FormularioPropuesta() {
       });
       if (res.ok) {
         // A la lista: ahí se ve en revisión. Navegación de cliente normal (no hay cambio de sesión).
-        router.push("/empresa/retos?enviada=1");
+        navegar.push("/empresa/retos?enviada=1");
         router.refresh();
         return;
       }

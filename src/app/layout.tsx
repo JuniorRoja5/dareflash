@@ -16,11 +16,19 @@ import { MARCA, TITULO_RAIZ } from "@/config/marca";
  * LA MARCA DE LOS TÍTULOS VIVE AQUÍ, una vez (`TITULO_RAIZ`, de `config/marca`): cada página pone solo
  * su sección («Retos») y la plantilla añade la marca. Las excepciones usan `title.absolute` (la guía
  * de estilo, con la marca delante). El panel encadena la suya (« · Panel») en su layout.
+ *
+ * Y LA CANÓNICA Y EL `hreflang` TAMBIÉN VIVEN AQUÍ, una vez (Fase 11 · P5a): los de la ruta de la
+ * petición en cada idioma publicado, más `x-default` (ver `server/metadatos-idioma`). Ninguna página
+ * pone los suyos. Por petición (`generateMetadata`), nunca en ámbito de módulo: el build no tiene una.
  */
-export const metadata: Metadata = {
-  title: TITULO_RAIZ,
-  description: `${MARCA} — retos en vídeo corto con premios reales.`,
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { alternativasDeLaPeticion } = await import("@/server/metadatos-idioma");
+  return {
+    title: TITULO_RAIZ,
+    description: `${MARCA} — retos en vídeo corto con premios reales.`,
+    alternates: await alternativasDeLaPeticion(),
+  };
+}
 
 /**
  * `viewport-fit=cover` es OBLIGATORIO para que `env(safe-area-inset-*)` tenga valor (>0) en móviles

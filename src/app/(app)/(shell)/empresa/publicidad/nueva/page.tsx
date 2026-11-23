@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { Tarjeta } from "@/components/ui/tarjeta";
 import {
@@ -54,12 +54,12 @@ export default async function PaginaNuevaCampana() {
 
   const cabecera = (
     <div>
-      <Link
+      <Enlace
         href="/empresa/publicidad"
         className="inline-flex min-h-[44px] items-center text-sm text-text-dim underline underline-offset-2 hover:text-text"
       >
         <span aria-hidden="true">←&nbsp;</span>Publicidad
-      </Link>
+      </Enlace>
       <h1 className="text-2xl text-text">Nueva campaña</h1>
       <p className="mt-1 max-w-prose text-sm text-text-dim">
         {/* DECIDIDO, no por defecto: sin empresa resuelta (correo sin confirmar) o con un tipo fuera

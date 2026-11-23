@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { TarjetaDestacado } from "@/components/ui/tarjeta-destacado";
 import type { PerfilDestacado } from "@/server/services/boost-destacados";
@@ -54,16 +54,16 @@ export function BoostDestacados({
         {soloMirar ? null : (
           <div className="flex shrink-0 flex-wrap items-baseline gap-x-4">
             {perfiles.length > 0 ? (
-              <Link
+              <Enlace
                 href="/destacados"
                 className="text-sm font-medium text-text-dim hover:text-text"
               >
                 Ver todos →
-              </Link>
+              </Enlace>
             ) : null}
-            <Link href="/boosts" className="text-sm font-medium text-text-dim hover:text-text">
+            <Enlace href="/boosts" className="text-sm font-medium text-text-dim hover:text-text">
               Destaca tu perfil →
-            </Link>
+            </Enlace>
           </div>
         )}
       </div>

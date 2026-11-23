@@ -54,6 +54,26 @@ export function rutaSinIdioma(ruta: string): string {
 }
 
 /**
+ * LA CANÓNICA Y EL `hreflang` de una página (Fase 11 · P5a), a partir de su ruta SIN prefijo. La
+ * canónica es la propia del idioma en que se mira; `languages` lleva SOLO los idiomas publicados más
+ * `x-default`, que es la raíz (el castellano). Las URL son absolutas (`base` = `APP_URL`) y sin query.
+ * La usa el layout raíz y nadie más (ver `server/metadatos-idioma`).
+ */
+export function alternativasDeIdioma(
+  base: string,
+  idioma: Idioma,
+  resto: string,
+  publicados: readonly Idioma[],
+): { canonical: string; languages: Record<string, string> } {
+  const origen = base.replace(/\/+$/, "");
+  const abs = (i: Idioma) => `${origen}${ruta(i, resto)}`;
+  const languages: Record<string, string> = {};
+  for (const i of publicados) languages[i] = abs(i);
+  languages["x-default"] = abs(IDIOMA_RAIZ);
+  return { canonical: abs(idioma), languages };
+}
+
+/**
  * EL ENLACE INTERNO EN UN IDIOMA. `ruta("en", "/retos")` → `/en/retos`; en castellano, sin tocar.
  * Idempotente: una ruta que ya lleva prefijo de idioma sale igual (no hay `/en/en/…`). No toca lo que
  * no es una ruta interna (`https://…`, `mailto:`, `#ancla`, `?query`, `//host`) ni las rutas sin

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 import type { ReactNode } from "react";
 
 import { NOTIF_NO_LEIDAS_TOPE } from "@/config/constants";
@@ -179,7 +179,7 @@ export function NavegacionInferior({
     >
       {(esCuentaEmpresa ? destinosDe(NAV_MOVIL_EMPRESA) : destinosDe(NAV_MOVIL)).map((d) =>
         "central" in d && d.central ? (
-          <Link
+          <Enlace
             key={d.clave}
             href={cta.href}
             aria-label={cta.texto}
@@ -188,9 +188,9 @@ export function NavegacionInferior({
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-action text-2xl font-bold leading-none text-void">
               {cta.crea ? "+" : ICONO_EMPRESA}
             </span>
-          </Link>
+          </Enlace>
         ) : (
-          <Link
+          <Enlace
             key={d.clave}
             href={d.href}
             aria-current={activo === d.clave ? "page" : undefined}
@@ -212,7 +212,7 @@ export function NavegacionInferior({
                 <span className="sr-only"> ({badgePerfil} avisos sin leer)</span>
               ) : null}
             </span>
-          </Link>
+          </Enlace>
         ),
       )}
       {/* EL QUINTO HUECO. Va después del bucle y no dentro: no es un destino del catálogo, es la
@@ -253,7 +253,7 @@ export function NavegacionLateral({
           const esVip = "acento" in d && d.acento === "vip";
           if (esVip) {
             return (
-              <Link
+              <Enlace
                 key={d.clave}
                 href={d.href}
                 data-nav-vip
@@ -265,11 +265,11 @@ export function NavegacionLateral({
               >
                 {ICONO[d.clave]}
                 <span>{d.nombre}</span>
-              </Link>
+              </Enlace>
             );
           }
           return (
-            <Link
+            <Enlace
               key={d.clave}
               href={d.href}
               aria-current={activo === d.clave ? "page" : undefined}
@@ -281,7 +281,7 @@ export function NavegacionLateral({
             >
               {ICONO[d.clave]}
               <span>{d.nombre}</span>
-            </Link>
+            </Enlace>
           );
         },
       )}

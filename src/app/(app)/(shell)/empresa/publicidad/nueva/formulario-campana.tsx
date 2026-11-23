@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useNavegar } from "@/components/enlace";
 import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
@@ -58,6 +59,7 @@ export interface PropsFormularioCampana {
  */
 export function FormularioCampana(props: PropsFormularioCampana) {
   const router = useRouter();
+  const navegar = useNavegar();
   const [alcance, setAlcance] = useState<AlcancePublicidad>(props.alcances[0]!);
   const [ciudad, setCiudad] = useState<{ id: number; etiqueta: string } | null>(null);
   const [region, setRegion] = useState("");
@@ -128,7 +130,7 @@ export function FormularioCampana(props: PropsFormularioCampana) {
       const data = (await res.json().catch(() => ({}))) as { id?: string };
       if (res.ok && data.id) {
         // A la ficha del borrador: ahí están la estimación y el botón de activar.
-        router.push(`/empresa/publicidad/${data.id}`);
+        navegar.push(`/empresa/publicidad/${data.id}`);
         router.refresh();
         return;
       }

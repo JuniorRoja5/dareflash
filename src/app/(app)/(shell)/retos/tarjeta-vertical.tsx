@@ -1,5 +1,5 @@
 import type { Idioma } from "@/lib/formato";
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { Boton } from "@/components/ui/boton";
 import { CajaVideo } from "@/components/ui/caja-video";
@@ -43,7 +43,7 @@ export function TarjetaVertical({ reto, idioma }: { reto: RetoPublicoVista; idio
     // acción. Sin sombra para dar profundidad (MARCA.md: la profundidad es luminosidad).
     <Inclinable className="h-full rounded-sm">
       <article className="flex h-full flex-col overflow-hidden rounded-sm border border-line bg-surface/60 backdrop-blur-md transition-[background-color,box-shadow] duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised/80 hover:shadow-[var(--df-glow-hover)]">
-        <Link href={href} aria-label={reto.titulo} className="block">
+        <Enlace href={href} aria-label={reto.titulo} className="block">
           {/* Sin el barrido `df-sheen`: en la portada había una docena a la vez (y anima
               `background-position` en bucle). El brillo que sigue al puntero (`Inclinable`) hace ese
               papel, y solo al pasar. */}
@@ -87,15 +87,15 @@ export function TarjetaVertical({ reto, idioma }: { reto: RetoPublicoVista; idio
           >
             {reto.coverImage ? null : <IconoPlay />}
           </CajaVideo>
-        </Link>
+        </Enlace>
 
         {/* En móvil la rejilla va a dos columnas (~170 px): título y botón en fila dejaban el título en
           «Reto de…». Apilados, el título tiene el ancho entero; desde `sm`, en fila. */}
         <div className="flex flex-col items-stretch gap-2 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <h3 className="line-clamp-2 min-w-0 text-sm leading-snug font-medium">
-            <Link href={href} className="rounded-xs text-text hover:text-text-dim">
+            <Enlace href={href} className="rounded-xs text-text hover:text-text-dim">
               {reto.titulo}
-            </Link>
+            </Enlace>
           </h3>
           <Boton href={href} variante="secundario" className="shrink-0 px-4 text-xs">
             Participar

@@ -1,5 +1,5 @@
 import type { Idioma } from "@/lib/formato";
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import type { RetoPublicoVista } from "@/server/services/retos-publico";
 
@@ -19,9 +19,12 @@ export function ProximosRetos({ retos, idioma }: { retos: RetoPublicoVista[]; id
         <h2 id="proximos-retos" className="text-xl font-semibold text-text lg:text-2xl">
           Próximos retos
         </h2>
-        <Link href="/retos" className="shrink-0 text-sm font-medium text-text-dim hover:text-text">
+        <Enlace
+          href="/retos"
+          className="shrink-0 text-sm font-medium text-text-dim hover:text-text"
+        >
           Ver todos →
-        </Link>
+        </Enlace>
       </div>
       {/* DOS COLUMNAS en móvil, como la lista de /retos (`feed-retos`): la tarjeta está pensada para
           eso. En una sola columna cada tarjeta ocupaba una pantalla entera. */}

@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { postJsonCsrf } from "@/lib/cliente-http";
 import { mensajeError, MSG_LOGOUT } from "@/lib/mensajes-error";
-import { navegarDuro } from "@/lib/navegacion-dura";
+import { useNavegarDuro } from "@/components/enlace";
 
 /**
  * Hook de CERRAR SESIÓN, compartido por el desplegable de la barra (escritorio) y el botón de /perfil
@@ -20,6 +20,7 @@ export function useCerrarSesion(): {
   cargando: boolean;
   error: string;
 } {
+  const navegarDuro = useNavegarDuro();
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
 

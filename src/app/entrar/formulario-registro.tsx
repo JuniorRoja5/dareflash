@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
@@ -195,13 +195,13 @@ export function FormularioRegistro() {
               │ la política te cambiaría lo que has consentido, y al volver estaría distinto de  │
               │ como lo dejaste. `stopPropagation` corta el clic antes de que la etiqueta lo vea.│
               └────────────────────────────────────────────────────────────────────────────────┘ */}
-          <Link
+          <Enlace
             href="/privacidad"
             onClick={(e) => e.stopPropagation()}
             className="underline underline-offset-2 hover:text-text"
           >
             política de privacidad
-          </Link>
+          </Enlace>
           .
         </span>
       </label>

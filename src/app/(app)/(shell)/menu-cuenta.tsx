@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 import { useCallback, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -124,7 +124,7 @@ export function MenuCuenta({
                 {cargando ? "Cerrando sesión…" : item.label}
               </button>
             ) : (
-              <Link
+              <Enlace
                 key={item.id}
                 role="menuitem"
                 href={item.href ?? "/"}
@@ -132,7 +132,7 @@ export function MenuCuenta({
                 className={CLASE_ITEM}
               >
                 {item.label}
-              </Link>
+              </Enlace>
             ),
           )}
           {error ? (

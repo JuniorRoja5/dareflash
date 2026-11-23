@@ -14,6 +14,11 @@
  */
 export function esRutaLocalSegura(destino: string | null | undefined): destino is string {
   if (!destino) return false;
+  // NI ESPACIOS NI CARACTERES DE CONTROL, NI UNA SOLA «\» (Fase 11 · P5a). El navegador QUITA los
+  // tabuladores y los saltos de línea de una URL antes de resolverla, así que "/\t/evil.example" pasaba
+  // todas las comprobaciones de abajo y acababa en "//evil.example": otro dominio. Y la «\» la trata
+  // como «/» en http(s). Una ruta nuestra no lleva ninguno de los dos (van codificados: %09, %5C).
+  if (/[\u0000- \u007f\\]/.test(destino)) return false;
   if (!destino.startsWith("/")) return false;
   if (destino.startsWith("//")) return false;
   if (destino.startsWith("/\\")) return false;

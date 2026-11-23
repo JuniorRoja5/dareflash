@@ -1,6 +1,6 @@
 import "server-only";
 
-import { redirect } from "next/navigation";
+import { redirigir } from "@/server/redirigir";
 
 import type { AmbitoEmpresa } from "@/server/auth/empresa-actual";
 
@@ -19,7 +19,7 @@ export async function ambitoDelPortal(): Promise<AmbitoEmpresa | null> {
   try {
     return await requireEmpresa();
   } catch (e) {
-    if (e instanceof SinEmpresa) redirect("/empezar/empresa");
+    if (e instanceof SinEmpresa) return redirigir("/empezar/empresa");
     if (e instanceof AuthError && e.code === "EMAIL_NOT_VERIFIED") return null;
     throw e;
   }

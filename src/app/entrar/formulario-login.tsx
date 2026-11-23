@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 import { type FormEvent, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
@@ -8,7 +8,7 @@ import { Campo } from "@/components/ui/campo";
 import { postJson } from "@/lib/cliente-http";
 import { mensajeError, MSG_LOGIN } from "@/lib/mensajes-error";
 import { destinoTrasLogin } from "@/lib/destino-login";
-import { navegarDuro } from "@/lib/navegacion-dura";
+import { useNavegarDuro } from "@/components/enlace";
 import { rutaSiguienteSegura } from "@/lib/ruta-siguiente";
 
 /**
@@ -26,6 +26,7 @@ import { rutaSiguienteSegura } from "@/lib/ruta-siguiente";
 type Estado = "idle" | "enviando";
 
 export function FormularioLogin() {
+  const navegarDuro = useNavegarDuro();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [verVisible, setVerVisible] = useState(false);
@@ -162,12 +163,12 @@ export function FormularioLogin() {
       </Boton>
 
       {/* El cambio a "Crear cuenta" lo gestiona la tarjeta (toggle); aquí solo el reset de contraseña. */}
-      <Link
+      <Enlace
         href="/recuperar"
         className="rounded-xs text-sm text-text-dim transition-colors duration-150 ease-mechanical hover:text-text"
       >
         He olvidado mi contraseña
-      </Link>
+      </Enlace>
     </form>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 import { useEffect, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -158,13 +158,13 @@ export function BuscarCliente({
       {enCategorias ? (
         <div className="flex flex-wrap gap-2">
           {CATEGORIAS.map((c) => (
-            <Link
+            <Enlace
               key={c.clave}
               href={hrefCategoria(c.clave)}
               className="inline-flex min-h-[44px] items-center rounded-full border border-line px-4 text-sm text-text-dim transition-colors duration-150 ease-mechanical hover:bg-raised hover:text-text"
             >
               {c.nombre}
-            </Link>
+            </Enlace>
           ))}
         </div>
       ) : error ? (
@@ -185,7 +185,7 @@ export function BuscarCliente({
             {tab === "usuarios"
               ? (res.items as UsuarioBusqueda[]).map((u) => (
                   <li key={u.id}>
-                    <Link
+                    <Enlace
                       href={`/u/${u.username ?? ""}`}
                       className="df-rise flex items-center gap-3 rounded-sm border border-line bg-surface/60 p-3 shadow-[var(--df-shadow-sm)] transition-colors duration-150 ease-mechanical hover:bg-surface"
                     >
@@ -211,12 +211,12 @@ export function BuscarCliente({
                           />
                         ) : null}
                       </span>
-                    </Link>
+                    </Enlace>
                   </li>
                 ))
               : (res.items as RetoItem[]).map((r) => (
                   <li key={r.id}>
-                    <Link
+                    <Enlace
                       href={`/retos/${r.publicCode}-${r.slug}`}
                       className="df-rise flex flex-col gap-1 rounded-sm border border-line bg-surface/60 p-3 shadow-[var(--df-shadow-sm)] transition-colors duration-150 ease-mechanical hover:bg-surface"
                     >
@@ -224,7 +224,7 @@ export function BuscarCliente({
                       <span>
                         <PildoraCategoria>{nombreCategoria(r.category)}</PildoraCategoria>
                       </span>
-                    </Link>
+                    </Enlace>
                   </li>
                 ))}
           </ul>

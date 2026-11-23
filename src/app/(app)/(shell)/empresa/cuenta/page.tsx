@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { redirigir } from "@/server/redirigir";
 
 import { CerrarSesion } from "../../cerrar-sesion";
 import { CambiarEmail } from "../../perfil/editar/cambiar-email";
@@ -31,8 +31,8 @@ export default async function CuentaEmpresaPage() {
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
   // Sin sesión no se llega (lo corta el layout); se comprueba igual para que el tipo lo sepa.
-  if (!sesion) redirect("/entrar?siguiente=%2Fempresa%2Fcuenta");
-  if (!sesion.esCuentaEmpresa) redirect("/perfil/editar");
+  if (!sesion) return redirigir("/entrar?siguiente=%2Fempresa%2Fcuenta");
+  if (!sesion.esCuentaEmpresa) return redirigir("/perfil/editar");
 
   const { prisma } = await import("@/server/db/client");
   const cuenta = await prisma.user.findUnique({

@@ -1,8 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-
 import { Boton } from "@/components/ui/boton";
+import { useRutaSinIdioma } from "@/components/enlace";
 import { ctaPrincipal } from "@/lib/cta-principal";
 
 /**
@@ -25,7 +24,7 @@ export function CtaCrear({
   rol: string | null;
   esCuentaEmpresa?: boolean;
 }) {
-  const enInicio = usePathname() === "/inicio";
+  const enInicio = useRutaSinIdioma() === "/inicio";
   const { texto, href, crea } = ctaPrincipal(rol, esCuentaEmpresa);
   return (
     <Boton href={href} variante={enInicio ? "secundario" : "principal"}>

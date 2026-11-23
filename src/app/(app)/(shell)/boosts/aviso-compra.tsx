@@ -1,6 +1,8 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+
+import { useNavegar } from "@/components/enlace";
 import { useCallback, useTransition } from "react";
 
 /** Los dos estados con los que Stripe nos devuelve. Cualquier otro valor no pinta nada. */
@@ -48,7 +50,7 @@ export type EstadoVuelta = "ok" | "cancelada";
  * también se puede cerrar: si no, se queda pegado a la URL igual que el otro.
  */
 export function AvisoCompra({ estado }: { estado: EstadoVuelta }) {
-  const router = useRouter();
+  const navegar = useNavegar();
   const pathname = usePathname();
   const [pendiente, iniciar] = useTransition();
 
@@ -60,8 +62,8 @@ export function AvisoCompra({ estado }: { estado: EstadoVuelta }) {
    * principio daría un salto que nadie ha pedido.
    */
   const descartar = useCallback(() => {
-    iniciar(() => router.replace(pathname, { scroll: false }));
-  }, [router, pathname]);
+    iniciar(() => navegar.replace(pathname, { scroll: false }));
+  }, [navegar, pathname]);
 
   if (estado === "cancelada") {
     return (

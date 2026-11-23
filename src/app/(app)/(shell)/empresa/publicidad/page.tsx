@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 
 import { Boton } from "@/components/ui/boton";
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
@@ -130,12 +130,12 @@ export default async function PaginaPublicidad({
                   {pagina.items.map((c) => (
                     <tr key={c.id} data-campana={c.id} className="align-middle">
                       <td className="max-w-[16rem] py-3 pr-4 pl-5">
-                        <Link
+                        <Enlace
                           href={`/empresa/publicidad/${c.id}`}
                           className={`break-words ${ENLACE}`}
                         >
                           {c.nombre}
-                        </Link>
+                        </Enlace>
                       </td>
                       <td className="max-w-[16rem] py-3 pr-4 break-words text-text-dim">
                         {c.zona}
@@ -158,7 +158,7 @@ export default async function PaginaPublicidad({
             <ul className="space-y-3 md:hidden">
               {pagina.items.map((c) => (
                 <li key={c.id} data-campana-movil={c.id}>
-                  <Link href={`/empresa/publicidad/${c.id}`} className="block min-h-[44px]">
+                  <Enlace href={`/empresa/publicidad/${c.id}`} className="block min-h-[44px]">
                     <Tarjeta>
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="min-w-0 flex-1 text-sm font-semibold break-words text-text">
@@ -171,7 +171,7 @@ export default async function PaginaPublicidad({
                         {calendario(c, idioma)} · {c.creditosPorDia} cr./día
                       </p>
                     </Tarjeta>
-                  </Link>
+                  </Enlace>
                 </li>
               ))}
             </ul>

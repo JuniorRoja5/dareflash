@@ -1,6 +1,6 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import { Enlace } from "@/components/enlace";
+import { redirigir } from "@/server/redirigir";
 
 import { Avatar } from "@/components/ui/avatar";
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
@@ -37,7 +37,7 @@ export default async function ReferidosPage({
   await apartarCuentaEmpresa();
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const sesion = await getCurrentUser();
-  if (!sesion) redirect("/entrar?siguiente=%2Freferidos");
+  if (!sesion) return redirigir("/entrar?siguiente=%2Freferidos");
   // El idioma y la zona de quien mira (Fase 11): cifras y fechas salen de `lib/formato`.
   const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
   const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
@@ -151,9 +151,9 @@ export default async function ReferidosPage({
 
           <p className="mt-6 text-2xs text-text-dim">
             Invitar es una de las formas de ganar puntos.{" "}
-            <Link href="/puntos" className="underline underline-offset-2 hover:text-text">
+            <Enlace href="/puntos" className="underline underline-offset-2 hover:text-text">
               Ver todas y tu nivel
-            </Link>
+            </Enlace>
             .
           </p>
         </section>

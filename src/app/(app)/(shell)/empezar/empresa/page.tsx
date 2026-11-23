@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { redirigir } from "@/server/redirigir";
 
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { fraseCreditoPublica, msgSocioFundador } from "@/config/constants";
@@ -56,7 +56,7 @@ export default async function PaginaAltaEmpresa() {
   const sesion = await getCurrentUser();
   const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
   const idioma = await idiomaDeLaPeticion();
-  if (sesion?.esCuentaEmpresa) redirect("/empresa");
+  if (sesion?.esCuentaEmpresa) return redirigir("/empresa");
 
   return (
     <div className="df-rise mx-auto w-full max-w-6xl px-4 py-8 lg:px-8 lg:py-12">

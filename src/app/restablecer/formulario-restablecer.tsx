@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, Suspense, useState } from "react";
 
@@ -116,12 +116,12 @@ function RestablecerContenido() {
           <Boton href="/recuperar" variante="secundario" className="w-full">
             Pedir un enlace nuevo
           </Boton>
-          <Link
+          <Enlace
             href="/entrar"
             className="rounded-xs text-center text-sm text-text-dim transition-colors duration-150 ease-mechanical hover:text-text"
           >
             Iniciar sesión
-          </Link>
+          </Enlace>
         </div>
       </>
     );

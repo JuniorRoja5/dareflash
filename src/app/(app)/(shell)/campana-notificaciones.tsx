@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 import { useCallback, useRef, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
@@ -147,7 +147,7 @@ export function CampanaNotificaciones() {
             <ul className="divide-y divide-line">
               {carga.items.map((i) => (
                 <li key={i.id}>
-                  <Link
+                  <Enlace
                     href={i.href}
                     onClick={cerrar}
                     className="flex gap-3 px-4 py-3 transition-colors duration-150 ease-mechanical hover:bg-raised"
@@ -166,7 +166,7 @@ export function CampanaNotificaciones() {
                         {haceCuanto(i.creadaMs, carga.ahoraMs, idioma, zona)}
                       </span>
                     </span>
-                  </Link>
+                  </Enlace>
                 </li>
               ))}
             </ul>

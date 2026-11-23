@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Enlace } from "@/components/enlace";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -110,7 +110,7 @@ export function MenuMasMovil({
             const esVip = "acento" in d && d.acento === "vip";
             return (
               <li key={d.clave}>
-                <Link
+                <Enlace
                   href={d.href}
                   aria-current={activo === d.clave ? "page" : undefined}
                   onClick={cerrar}
@@ -126,7 +126,7 @@ export function MenuMasMovil({
                 >
                   {icono[d.clave]}
                   <span>{d.nombre}</span>
-                </Link>
+                </Enlace>
               </li>
             );
           })}
