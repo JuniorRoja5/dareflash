@@ -1157,6 +1157,14 @@ export const SESSION_MAX_PER_USER = 10;
 /** Nombre de la cookie de sesion. */
 export const SESSION_COOKIE = "df_session";
 
+/**
+ * LOS IDIOMAS QUE SE SIRVEN (Fase 11 · P5a). El castellano vive en la raíz (`/feed`); el resto, con su
+ * prefijo (`/en/feed`, `/de/feed`). Un idioma del catálogo (`IDIOMAS`, en `lib/formato`) que NO está aquí
+ * da 404 con su prefijo y no sale en el `hreflang`: el enrutado existe, pero no se publica hasta que
+ * tenga sus textos (P5c). Lo aplica el proxy; ver `lib/idioma-ruta`.
+ */
+export const IDIOMAS_PUBLICADOS: readonly Idioma[] = ["es"];
+
 /** Bytes de aleatoriedad del token de sesion (256 bits). */
 export const SESSION_TOKEN_BYTES = 32;
 

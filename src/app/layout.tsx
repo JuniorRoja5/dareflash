@@ -40,7 +40,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // lang="es" fijo por ahora: el bilingue en/es de la Fase 1 se resuelve en su paso.
+  // `lang` = el idioma de la URL (Fase 11 · P5a): «es» en la raíz, el del prefijo en `/en/…`.
   //
   // EL TEMA SE SIRVE DESDE EL SERVIDOR: `data-theme` sale ya en el HTML, leído de la cookie. Es lo que
   // evita el parpadeo — con la preferencia en `localStorage` el primer pintado sería siempre oscuro y
@@ -51,7 +51,7 @@ export default async function RootLayout({
   const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
   return (
     <html
-      lang="es"
+      lang={idioma}
       data-theme={atributoTema(tema)}
       className="h-full antialiased"
       style={variablesFuentes}

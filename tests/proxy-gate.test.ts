@@ -51,9 +51,16 @@ describe("gate de /crear", () => {
 });
 
 describe("el redirect del login termina", () => {
-  it("/entrar no pasa por el proxy: nada puede devolverlo a sí mismo", () => {
+  // Hasta la P5a esto se fijaba con «/entrar no pasa por el proxy». Desde la P5a pasa (necesita su
+  // idioma y su canónica, como toda página), así que se fija lo que de verdad importa: el proxy NUNCA
+  // redirige /entrar —con o sin sesión, con o sin `siguiente`, en cualquier idioma—: el login termina.
+  it("el proxy nunca redirige /entrar: nada puede devolverlo a sí mismo", () => {
     for (const url of ["/entrar", "/entrar?siguiente=%2Fcrear"]) {
-      expect(unstable_doesMiddlewareMatch({ config, url })).toBe(false);
+      for (const sesion of [false, true]) {
+        const res = proxy(peticion(url, { sesion }));
+        expect(getRedirectUrl(res), `${url} (sesión: ${sesion})`).toBeNull();
+        expect(res.status, `${url} (sesión: ${sesion})`).toBe(200);
+      }
     }
   });
 

@@ -18,6 +18,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const H = vi.hoisted(() => ({
   cookies: {} as Record<string, string>,
+  cabeceras: {} as Record<string, string>,
   usuario: null as null | { zonaHoraria?: string | null },
   llamadasSesion: 0,
 }));
@@ -26,6 +27,7 @@ vi.mock("next/headers", () => ({
   cookies: async () => ({
     get: (nombre: string) => (nombre in H.cookies ? { value: H.cookies[nombre] } : undefined),
   }),
+  headers: async () => new Headers(H.cabeceras),
 }));
 vi.mock("@/server/auth/current-user", () => ({
   getCurrentUser: async () => {
@@ -35,10 +37,11 @@ vi.mock("@/server/auth/current-user", () => ({
 }));
 
 import { ZONA_COOKIE } from "../src/lib/zona-espectador";
-import { zonaDeLaPeticion } from "../src/server/formato-peticion";
+import { idiomaDeLaPeticion, zonaDeLaPeticion } from "../src/server/formato-peticion";
 
 beforeEach(() => {
   H.cookies = {};
+  H.cabeceras = {};
   H.usuario = null;
   H.llamadasSesion = 0;
 });
@@ -86,7 +89,14 @@ describe("la zona guardada llega por la sesión, no por una consulta propia", ()
     expect(codigo).toMatch(/await import\("@\/server\/auth\/current-user"\)/);
   });
 
-  it("`idiomaDeLaPeticion` sigue en «es» (el idioma es de la P5)", () => {
-    expect(codigo).toMatch(/idiomaDeLaPeticion\(\): Promise<Idioma> \{\s*return "es";\s*\}/);
+  // Hasta la P5a era «es» siempre. Desde la P5a lo dice la URL, a través de la cabecera del proxy.
+  it("`idiomaDeLaPeticion` sale de `x-df-idioma` (la pone el proxy); sin ella o rara, «es»", async () => {
+    expect(await idiomaDeLaPeticion()).toBe("es");
+    H.cabeceras = { "x-df-idioma": "en" };
+    expect(await idiomaDeLaPeticion()).toBe("en");
+    H.cabeceras = { "x-df-idioma": "fr" };
+    expect(await idiomaDeLaPeticion()).toBe("es");
+    H.cabeceras = { "x-df-idioma": "EN" };
+    expect(await idiomaDeLaPeticion()).toBe("es");
   });
 });

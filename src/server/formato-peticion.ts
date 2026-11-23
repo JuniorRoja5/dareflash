@@ -6,18 +6,33 @@
  */
 import "server-only";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import type { Idioma, ZonaHoraria } from "@/lib/formato";
+import { CABECERA_IDIOMA, CABECERA_RUTA, esIdioma, IDIOMA_RAIZ } from "@/lib/idioma-ruta";
 import { ZONA_COOKIE, zonaDesdeCookie } from "@/lib/zona-espectador";
 
 /**
- * El idioma de quien mira. HOY SIEMPRE «es»: la app solo habla castellano. La pieza de idiomas de la
- * Fase 11 lo leerá de su preferencia; todo lo que formatea ya pide el idioma, así que ese cambio será
- * aquí y en ningún otro sitio.
+ * EL IDIOMA DE LA PÁGINA, y el único sitio del que sale (Fase 11 · P5a). La URL manda: lo pone el proxy
+ * en `x-df-idioma` a partir del prefijo (`/en/…`), y pisa siempre el que mande el cliente. Sin cabecera
+ * —una ruta que no pasa por el proxy (la API, el panel) o el build—, el de la raíz: «es».
+ *
+ * Todavía no hay textos traducidos (P5b/P5c): hoy cambia `<html lang>` y lo que formatea con el idioma;
+ * y mientras `IDIOMAS_PUBLICADOS` sea solo «es», el proxy no deja llegar aquí otro.
  */
 export async function idiomaDeLaPeticion(): Promise<Idioma> {
-  return "es";
+  const valor = (await headers()).get(CABECERA_IDIOMA);
+  return esIdioma(valor) ? valor : IDIOMA_RAIZ;
+}
+
+/**
+ * La ruta de la página SIN prefijo de idioma (`/retos/x` también en `/en/retos/x`), de `x-df-ruta`. Para
+ * la canónica y el `hreflang`. `null` si la petición no pasó por el proxy (panel, API, build): ahí no
+ * se publica ninguna.
+ */
+export async function rutaDeLaPeticion(): Promise<string | null> {
+  const valor = (await headers()).get(CABECERA_RUTA);
+  return valor && valor.startsWith("/") && !valor.startsWith("//") ? valor : null;
 }
 
 /**
