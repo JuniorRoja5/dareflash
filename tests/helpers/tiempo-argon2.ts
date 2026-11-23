@@ -22,11 +22,37 @@
  * │ La separación de base es un RIESGO RESIDUAL ACEPTADO (decisión del analista, 19 nov): ver el   │
  * │ docblock de los dos tests.                                                                    │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ *
+ * CORREN SOLOS (PTA2): estos tests van en el proyecto `tiempo` de vitest, un worker y detrás de todo lo
+ * demás (ver `tests-de-tiempo.ts`). Un fichero nuevo que importe este helper va en esa lista.
+ *
+ * SI FALLA EN LOCAL: repetirlo SOLO (`npx vitest run --project tiempo`).
+ *  - Si solo pasa, fue un parón de la máquina (otro proceso, el antivirus, un build): medido en la PTA2,
+ *    los fallos sueltos en local eran del tamaño de un argon2 entero, no ruido de la suite. No se
+ *    persigue desde los tests.
+ *  - Si también falla solo, es una REGRESIÓN: algún camino ha dejado de pagar el hash (o lo paga dos
+ *    veces). Se mira, empezando por `argon2-antes-de-mirar`. Nunca se sube el umbral ni se reintenta.
+ *
+ * EL MARGEN, MEDIBLE: con `TIEMPO_ARGON2_REGISTRO=<fichero>` en el entorno, cada medición añade una línea
+ * JSON (test, `H`, exceso y las dos separaciones). Apagado por defecto; no cambia lo que se mide. Con
+ * él se sacó la tabla de la PTA2: |exceso|/(H/2) del caso sano (cuanto más lejos de 1, mejor) y de la
+ * versión rota (tiene que pasar de 1).
  */
+import { appendFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
+
+import { expect } from "vitest";
 
 import { hashPassword } from "../../src/server/auth/password";
 import { contrasenaFalsa } from "./valores-falsos";
+
+/** Apunta una medición si `TIEMPO_ARGON2_REGISTRO` lo pide (ver la cabecera). */
+function apuntar(datos: Record<string, number>): void {
+  const fichero = process.env["TIEMPO_ARGON2_REGISTRO"];
+  if (!fichero) return;
+  const linea = { t: Date.now(), test: expect.getState().currentTestName, ...datos };
+  appendFileSync(fichero, `${JSON.stringify(linea)}\n`);
+}
 
 export function mediana(xs: number[]): number {
   const s = [...xs].sort((a, b) => a - b);
@@ -47,7 +73,9 @@ export async function costeArgon2(): Promise<number> {
     await hashPassword(contrasenaFalsa(`medir-coste-${i}`));
     t.push(performance.now() - t0);
   }
-  return mediana(t);
+  const H = mediana(t);
+  apuntar({ H });
+  return H;
 }
 
 /**
@@ -141,5 +169,7 @@ export async function excesoDelHash(opciones: {
   }
   const separacionReal = mediana(t.real.n) - mediana(t.real.e);
   const separacionBase = mediana(t.base.n) - mediana(t.base.e);
-  return { exceso: separacionReal - separacionBase, separacionReal, separacionBase };
+  const exceso = separacionReal - separacionBase;
+  apuntar({ exceso, separacionReal, separacionBase });
+  return { exceso, separacionReal, separacionBase };
 }

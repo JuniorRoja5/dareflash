@@ -23,8 +23,18 @@ const execFileAsync = promisify(execFile);
 
 export default async function setup(): Promise<void> {
   const base = nombreBdBase();
-  const nombres = [base, ...Array.from({ length: NUM_WORKER_DBS }, (_, i) => `${base}_${i + 1}`)];
+  await provisionarBds([
+    base,
+    ...Array.from({ length: NUM_WORKER_DBS }, (_, i) => `${base}_${i + 1}`),
+  ]);
+}
 
+/**
+ * Recrea y migra las BDs `nombres`. La usa también el globalSetup del proyecto `tiempo`
+ * (`global-setup-tiempo.ts`) para SU BD: los dos globalSetup pueden correr a la vez, y por eso cada uno
+ * toca solo sus BDs (un DROP de la del otro a mitad de su migración sería una carrera).
+ */
+export async function provisionarBds(nombres: string[]): Promise<void> {
   // 1) RECREAR las BDs desde cero en CADA ejecución: DROP + CREATE, nunca reutilizarlas.
   //
   //    Antes era `CREATE DATABASE IF NOT EXISTS`, así que cada BD de worker vivía para siempre y

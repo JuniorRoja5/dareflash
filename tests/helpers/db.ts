@@ -60,9 +60,13 @@ export function urlBdTest(nombre: string): string {
   return url.toString();
 }
 
-/** Id del worker de vitest (1..N); fuera de vitest (o sin pool) -> "1". */
+/**
+ * Id del worker de vitest (1..N); fuera de vitest (o sin pool) -> "1". El proyecto `tiempo` fija
+ * `BD_TEST_SUFIJO` para usar SU BD (`<base>_tiempo`) en vez de la del worker 1 (ver
+ * `helpers/tests-de-tiempo.ts`).
+ */
 function poolId(): string {
-  return process.env["VITEST_POOL_ID"] ?? "1";
+  return process.env["BD_TEST_SUFIJO"] ?? process.env["VITEST_POOL_ID"] ?? "1";
 }
 
 /** Nombre de la BD de ESTE worker: `<base>_<poolId>`. */

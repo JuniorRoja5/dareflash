@@ -336,7 +336,12 @@ borran para "limpiar"**:
   de trabajo de BASE DE DATOS entre correo nuevo y existente es un RIESGO RESIDUAL ACEPTADO (pequeña
   frente al argon2, con límite de intentos por IP, e igualarla exigiría trabajo falso). Medida sin
   carga: ~7 ms en el registro y ~10 ms en el alta de empresa, frente a ~72 ms de argon2. Si crece, se
-  revisa.
+  revisa. Los tests de tiempo CORREN SOLOS (`tests-de-tiempo-aislados`, PTA2): proyecto de vitest
+  `tiempo`, un worker, su BD (`<base>_tiempo`) y el último grupo; el general los excluye, y todo fichero
+  que importe `tiempo-argon2` va en `TESTS_DE_TIEMPO` (si no, rojo con su nombre). **Si fallan en
+  local:** repetirlos solos (`npx vitest run --project tiempo`); si pasan, fue un parón de la máquina; si
+  fallan también solos, es una regresión y se mira. `TIEMPO_ARGON2_REGISTRO=<fichero>` apunta el margen
+  de cada medición.
 - `reloj-adelantado` (+ el job de CI `tests-reloj-adelantado`) — la suite entera corre OTRA vez con
   el reloj de Node adelantado 400 días ([scripts/ci-tests-reloj-adelantado.sh](scripts/ci-tests-reloj-adelantado.sh),
   libfaketime) y las imágenes dependen de ese job. Un test con fechas fijas que llama a un servicio

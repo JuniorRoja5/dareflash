@@ -2,8 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { parse } from "dotenv";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
+import { SUFIJO_BD_TIEMPO, TESTS_DE_TIEMPO } from "./tests/helpers/tests-de-tiempo";
 import { NUM_WORKER_DBS } from "./tests/helpers/workers";
 
 /**
@@ -32,7 +33,8 @@ const alias = {
 };
 
 /**
- * DOS PROYECTOS, porque son dos clases de test con necesidades opuestas:
+ * TRES PROYECTOS, porque son tres clases de test con necesidades distintas (el tercero, `tiempo`, se
+ * explica en su sitio y en `tests/helpers/tests-de-tiempo.ts`). Los dos primeros:
  *
  *  - `node`: lo de siempre. Toca la base de datos, una BD por worker, `globalSetup` que las provisiona.
  *  - `render`: componentes en jsdom. NO necesita base de datos —montar una para renderizar un <ul> es
@@ -51,6 +53,8 @@ export default defineConfig({
           name: "node",
           environment: "node",
           include: ["tests/**/*.test.ts"],
+          // Los que miden TIEMPO van en su proyecto (`tiempo`, abajo): aquí competirían por la CPU.
+          exclude: [...configDefaults.exclude, ...TESTS_DE_TIEMPO],
           // AISLAMIENTO POR WORKER: el globalSetup crea/migra una BD por worker
           // (`dareflash_test_<POOL_ID>`) y cada test la usa (ver tests/helpers/db.ts). Antes se
           // compartía UNA BD con `fileParallelism:false` -> contaminación cruzada y flakiness. Ahora
@@ -78,6 +82,25 @@ export default defineConfig({
           include: ["tests/render/**/*.test.tsx"],
           setupFiles: ["./tests/render/setup.ts"],
           sequence: { groupOrder: 1 },
+        },
+      },
+      {
+        resolve: { alias },
+        test: {
+          // LOS TESTS QUE MIDEN TIEMPO, SOLOS (Fase 11 · PTA2; ver `tests/helpers/tests-de-tiempo.ts`).
+          // Un worker, su BD (`<base>_tiempo`, con su globalSetup) y el ÚLTIMO grupo: los grupos corren
+          // en serie, así que empiezan cuando `node` y `render` ya han terminado y no comparten la CPU
+          // con ningún otro test mientras miden. Mismo pool que `node` (forks: `process.env` propio).
+          name: "tiempo",
+          environment: "node",
+          include: [...TESTS_DE_TIEMPO],
+          globalSetup: ["./tests/global-setup-tiempo.ts"],
+          env: { BD_TEST_SUFIJO: SUFIJO_BD_TIEMPO },
+          pool: "forks",
+          maxWorkers: 1,
+          testTimeout: 30_000,
+          hookTimeout: 30_000,
+          sequence: { groupOrder: 2 },
         },
       },
     ],
