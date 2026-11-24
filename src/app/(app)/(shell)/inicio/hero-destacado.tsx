@@ -8,8 +8,11 @@ import { PildoraCategoria } from "@/components/ui/pildora";
 import type { Idioma } from "@/lib/formato";
 import type { RetoPortada } from "@/server/services/portada";
 
-import { textos } from "@/textos/servidor";
+import { textos, textosRicos } from "@/textos/servidor";
 import { nombreDeCategoria } from "@/textos/categoria";
+
+/** Las palabras que pesan de la frase de debajo («mayor premio», «equipo de …»). */
+const RESALTADO = { className: "font-medium text-text" };
 
 function IconoPlay() {
   return (
@@ -45,8 +48,9 @@ export async function HeroDestacado({
   /** El de quien mira (Fase 11): cifras e importe salen de `lib/formato`. */
   idioma: Idioma;
 }) {
-  const [t, tcat, tmar] = await Promise.all([
+  const [t, tr, tcat, tmar] = await Promise.all([
     textos("inicio"),
+    textosRicos("inicio"),
     textos("categorias"),
     textos("marcador"),
   ]);
@@ -124,18 +128,7 @@ export async function HeroDestacado({
           </Enlace>
         </Inclinable>
         <p className="mt-3 text-center text-sm text-text-dim">
-          {elegido ? (
-            <>
-              {t("elegidoAntes")}
-              <span className="font-medium text-text">{t("elegidoResaltado")}</span>
-            </>
-          ) : (
-            <>
-              {t("mayorAntes")}
-              <span className="font-medium text-text">{t("mayorResaltado")}</span>
-              {t("mayorDespues")}
-            </>
-          )}
+          {tr(elegido ? "elegido" : "mayorPremio", { resaltado: RESALTADO })}
         </p>
       </div>
     </div>

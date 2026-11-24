@@ -4,6 +4,7 @@ import { createContext, useContext, useMemo } from "react";
 
 import type { Espacio } from "@/textos/plantilla";
 import { crearT, type FuncionT } from "@/textos/plantilla";
+import { crearTRico, type FuncionTRico } from "@/textos/rico";
 import type { NombreEspacio, Textos } from "@/textos/servidor";
 
 import { useFormato } from "./formato-provider";
@@ -45,6 +46,17 @@ export function useEspacios<N extends NombreEspacio>(nombres: readonly N[]): Pic
     (salida as Record<string, unknown>)[n] = e;
   }
   return salida;
+}
+
+/** La `tRico` de un espacio que el servidor ha pasado (frases con formato dentro). Sin él LANZA. */
+export function useTextosRicos<N extends NombreEspacio>(espacio: N): FuncionTRico<Textos[N]> {
+  const espacios = useContext(Contexto);
+  const { idioma } = useFormato();
+  const e = espacios[espacio];
+  const t = useMemo(() => (e ? crearTRico(e as Textos[N], idioma) : null), [e, idioma]);
+  if (!t)
+    throw new Error(`useTextosRicos("${String(espacio)}"): ese espacio no llega a este componente`);
+  return t;
 }
 
 /** La `t` de un espacio que el servidor ha pasado. Sin él LANZA: un texto que no llega es un fallo. */

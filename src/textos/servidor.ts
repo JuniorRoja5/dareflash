@@ -14,6 +14,7 @@ import { idiomaDeLaPeticion, idiomaDeTextosDeLaPeticion } from "@/server/formato
 import { es } from "./es";
 import { crearT, type FuncionT } from "./plantilla";
 import { pseudoDiccionario } from "./pseudo";
+import { crearTRico, type FuncionTRico } from "./rico";
 
 export type Textos = typeof es;
 export type NombreEspacio = Exclude<keyof Textos, "__idioma">;
@@ -38,6 +39,17 @@ export async function textos<N extends NombreEspacio>(espacio: N): Promise<Funci
     idiomaDeLaPeticion(),
   ]);
   return crearT(diccionario(idiomaTextos)[espacio], idiomaFormato);
+}
+
+/** La `tRico` de un espacio (las frases con formato dentro), en el idioma de la petición. */
+export async function textosRicos<N extends NombreEspacio>(
+  espacio: N,
+): Promise<FuncionTRico<Textos[N]>> {
+  const [idiomaTextos, idiomaFormato] = await Promise.all([
+    idiomaDeTextosDeLaPeticion(),
+    idiomaDeLaPeticion(),
+  ]);
+  return crearTRico(diccionario(idiomaTextos)[espacio], idiomaFormato);
 }
 
 /** Lo que un componente de cliente recibe: SOLO esos espacios, SOLO de ese idioma. */

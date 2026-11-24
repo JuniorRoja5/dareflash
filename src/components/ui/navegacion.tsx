@@ -1,7 +1,7 @@
 "use client";
 
 import { Enlace } from "@/components/enlace";
-import { useTextos } from "@/components/textos-provider";
+import { useTextos, useTextosRicos } from "@/components/textos-provider";
 import type { ReactNode } from "react";
 
 import { NOTIF_NO_LEIDAS_TOPE } from "@/config/constants";
@@ -174,6 +174,7 @@ export function NavegacionInferior({
   esCuentaEmpresa?: boolean;
 }) {
   const t = useTextos("nav");
+  const tr = useTextosRicos("nav");
   const tc = useTextos("cta");
   const cta = ctaPrincipal(rol, esCuentaEmpresa);
   const badgePerfil = textoBadge(noLeidas, NOTIF_NO_LEIDAS_TOPE);
@@ -212,10 +213,16 @@ export function NavegacionInferior({
               ) : null}
             </span>
             <span>
-              {t(`destino_${d.clave}`)}
-              {d.clave === "perfil" && badgePerfil ? (
-                <span className="sr-only">{t("avisosSinLeer", { badge: badgePerfil })}</span>
-              ) : null}
+              {d.clave === "perfil" && badgePerfil
+                ? tr(
+                    "destinoConAvisos",
+                    { oculto: {} },
+                    {
+                      destino: t(`destino_${d.clave}`),
+                      badge: badgePerfil,
+                    },
+                  )
+                : t(`destino_${d.clave}`)}
             </span>
           </Enlace>
         ),

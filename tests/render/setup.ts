@@ -32,9 +32,11 @@ vi.mock("@/components/textos-provider", async (original) => {
   const real = await original<typeof import("../../src/components/textos-provider")>();
   const { es } = await import("../../src/textos/es");
   const { crearT } = await import("../../src/textos/plantilla");
+  const { crearTRico } = await import("../../src/textos/rico");
   return {
     ...real,
     useTextos: (n: keyof typeof es) => crearT(es[n] as never, "es"),
+    useTextosRicos: (n: keyof typeof es) => crearTRico(es[n] as never, "es"),
     useEspacios: (ns: readonly (keyof typeof es)[]) =>
       Object.fromEntries(ns.map((n) => [n, es[n]])),
   };
@@ -42,9 +44,11 @@ vi.mock("@/components/textos-provider", async (original) => {
 vi.mock("@/textos/servidor", async () => {
   const { es } = await import("../../src/textos/es");
   const { crearT } = await import("../../src/textos/plantilla");
+  const { crearTRico } = await import("../../src/textos/rico");
   const corte = (ns: readonly (keyof typeof es)[]) => Object.fromEntries(ns.map((n) => [n, es[n]]));
   return {
     textos: async (n: keyof typeof es) => crearT(es[n] as never, "es"),
+    textosRicos: async (n: keyof typeof es) => crearTRico(es[n] as never, "es"),
     textosParaCliente: (_idioma: string, ns: readonly (keyof typeof es)[]) => corte(ns),
     textosClienteDeLaPeticion: async (ns: readonly (keyof typeof es)[]) => corte(ns),
   };

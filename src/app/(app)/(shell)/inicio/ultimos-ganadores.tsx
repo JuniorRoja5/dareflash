@@ -6,7 +6,7 @@ import { NombreUsuario } from "@/components/ui/identidad-usuario";
 import { centimosAImporte } from "@/lib/dinero";
 import type { Tema } from "@/lib/tema";
 import type { GanadorPortada } from "@/server/services/portada";
-import { textos } from "@/textos/servidor";
+import { textos, textosRicos } from "@/textos/servidor";
 
 /**
  * «ÚLTIMOS GANADORES» (rediseño de /inicio): los puestos 1 REALES más recientes y lo que cobraron
@@ -24,7 +24,7 @@ export async function UltimosGanadores({
   tema: Tema;
 }) {
   if (ganadores.length === 0) return null;
-  const t = await textos("inicio");
+  const [t, tr] = await Promise.all([textos("inicio"), textosRicos("inicio")]);
   return (
     <section aria-labelledby="ultimos-ganadores">
       <div className="flex items-center gap-3">
@@ -53,10 +53,11 @@ export async function UltimosGanadores({
                 />
               </Enlace>
               <p className="truncate text-2xs text-text-dim">
-                {t("gano")}{" "}
-                <Enlace href={g.retoHref} className="text-text hover:underline">
-                  {g.retoTitulo}
-                </Enlace>
+                {tr(
+                  "gano",
+                  { enlace: { href: g.retoHref, className: "text-text hover:underline" } },
+                  { reto: g.retoTitulo },
+                )}
               </p>
             </div>
             <p

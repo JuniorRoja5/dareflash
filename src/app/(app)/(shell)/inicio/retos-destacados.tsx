@@ -1,8 +1,7 @@
 import type { Idioma } from "@/lib/formato";
-import { Enlace } from "@/components/enlace";
 
 import type { RetoPublicoVista } from "@/server/services/retos-publico";
-import { textos } from "@/textos/servidor";
+import { textosRicos } from "@/textos/servidor";
 
 import { TarjetaVertical } from "../retos/tarjeta-vertical";
 
@@ -22,14 +21,13 @@ export async function RetosDestacados({
   hayDestacado: boolean;
   idioma: Idioma;
 }) {
-  const t = await textos("inicio");
   if (retos.length === 0) {
+    const tr = await textosRicos("inicio");
     return (
       <p className="rounded-sm border border-line bg-surface/60 px-4 py-6 text-center text-sm text-text-dim">
-        {hayDestacado ? t("rejillaVacioConDestacado") : t("rejillaVacio")}{" "}
-        <Enlace href="/retos" className="text-text underline underline-offset-2">
-          {t("verLosProximos")}
-        </Enlace>
+        {tr(hayDestacado ? "rejillaVacioConDestacado" : "rejillaVacio", {
+          enlace: { href: "/retos", className: "text-text underline underline-offset-2" },
+        })}
       </p>
     );
   }

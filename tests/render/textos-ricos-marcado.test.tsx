@@ -1,10 +1,10 @@
 /**
  * LAS FRASES CON FORMATO, LETRA A LETRA Y ETIQUETA A ETIQUETA (Fase 11 · P5b1 · `tRico`).
  *
- * Ocho sitios pintaban UNA frase partida en varias claves para meter un formato en medio (el resaltado
+ * Nueve sitios pintaban UNA frase partida en varias claves para meter un formato en medio (el resaltado
  * del hero, un enlace, un `sr-only`). Al pasarlos a `tRico` el castellano no puede cambiar NI EN EL
  * MARCADO: la misma etiqueta, con la misma clase, alrededor de las mismas palabras. Este test fija el
- * HTML exacto de cada uno, sacado del código ANTERIOR a la conversión. Seis de los ocho no salen en las
+ * HTML exacto de cada uno, sacado del código ANTERIOR a la conversión. Seis de los nueve no salen en las
  * páginas de muestra (dependen de un estado que la semilla no pinta: el destacado elegido por el
  * admin, los ganadores, la portada vacía, los avisos), así que esta es su única red.
  *
@@ -25,6 +25,7 @@ vi.mock("next/link", async () => {
 
 import { ProveedorAvisos } from "@/app/(app)/avisos-contexto";
 import { CampanaNotificaciones } from "@/app/(app)/(shell)/campana-notificaciones";
+import { CategoriasPortada } from "@/app/(app)/(shell)/inicio/categorias-portada";
 import { ComoFunciona } from "@/app/(app)/(shell)/inicio/como-funciona";
 import { HeroDestacado } from "@/app/(app)/(shell)/inicio/hero-destacado";
 import { RetosDestacados } from "@/app/(app)/(shell)/inicio/retos-destacados";
@@ -134,6 +135,22 @@ describe("lo que solo oye un lector de pantalla", () => {
     const { container } = render(await resolverServidor(<ComoFunciona tema="oscuro" />));
     expect(container.querySelector("h3")!.outerHTML).toBe(
       '<h3 class="text-base font-semibold text-text"><span class="sr-only">Paso 1: </span>Elige un reto</h3>',
+    );
+  });
+
+  it("« abiertos» detrás del número de cada categoría (con su plural)", async () => {
+    const { container } = render(
+      await resolverServidor(<CategoriasPortada porCategoria={{ fitness: 3, humor: 1 }} />),
+    );
+    const cifra = (href: string) =>
+      container.querySelector(`a[href="${href}"] span.rounded-full`)!.outerHTML;
+    const clase =
+      "rounded-full bg-raised px-2 py-0.5 text-2xs font-semibold tabular-nums text-text";
+    expect(cifra("/retos?categoria=fitness")).toBe(
+      `<span class="${clase}">3<span class="sr-only"> abiertos</span></span>`,
+    );
+    expect(cifra("/retos?categoria=humor")).toBe(
+      `<span class="${clase}">1<span class="sr-only"> abierto</span></span>`,
     );
   });
 

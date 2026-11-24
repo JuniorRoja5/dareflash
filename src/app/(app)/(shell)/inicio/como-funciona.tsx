@@ -1,6 +1,6 @@
 import { Imagen3d, type Pieza3d } from "@/components/ui/imagen-3d";
 import type { Tema } from "@/lib/tema";
-import { textos } from "@/textos/servidor";
+import { textos, textosRicos } from "@/textos/servidor";
 
 /**
  * «CÓMO FUNCIONA», EN 3 PASOS (rediseño de /inicio). Es el bloque que funciona con CUALQUIER cantidad de
@@ -20,7 +20,7 @@ const PASOS: { pieza: Pieza3d; numero: 1 | 2 | 3 }[] = [
 ];
 
 export async function ComoFunciona({ tema }: { tema: Tema }) {
-  const t = await textos("inicio");
+  const [t, tr] = await Promise.all([textos("inicio"), textosRicos("inicio")]);
   return (
     <section aria-labelledby="como-funciona">
       <h2 id="como-funciona" className="text-xl font-semibold text-text lg:text-2xl">
@@ -47,8 +47,7 @@ export async function ComoFunciona({ tema }: { tema: Tema }) {
             </div>
             <div className="min-w-0">
               <h3 className="text-base font-semibold text-text">
-                <span className="sr-only">{t("pasoN", { n: i + 1 })}</span>
-                {t(`paso${p.numero}Titulo`)}
+                {tr("pasoTitulo", { oculto: {} }, { n: i + 1, titulo: t(`paso${p.numero}Titulo`) })}
               </h3>
               <p className="mt-1 text-sm text-text-dim">{t(`paso${p.numero}Texto`)}</p>
             </div>

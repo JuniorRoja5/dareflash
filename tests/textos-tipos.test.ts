@@ -7,12 +7,14 @@
  * Vitest solo comprueba que lo correcto sí funciona.
  *
  * Para romperlo: tipar los parámetros de `t` como `Record<string, unknown>` (rojo: sobran las directivas),
- * o `Diccionario` como `Record<string, Record<string, string>>` (rojo, igual).
+ * o `Diccionario` como `Record<string, Record<string, string>>` (rojo, igual). Y en `tRico`: abrir el
+ * catálogo (`MarcasPara` sin el `never` de lo desconocido) o quitar `conMarcasConocidas` (rojo, igual).
  */
 import { describe, expect, it } from "vitest";
 
 import { es } from "../src/textos/es";
-import { crearT, type Diccionario } from "../src/textos/plantilla";
+import { conMarcasConocidas, crearT, type Diccionario } from "../src/textos/plantilla";
+import { crearTRico } from "../src/textos/rico";
 
 describe("los textos se comprueban al compilar", () => {
   it("t(): la clave existe y los parámetros son los de la plantilla", () => {
@@ -54,5 +56,45 @@ describe("los textos se comprueban al compilar", () => {
     >;
 
     expect([_falta, _sobra, _plural]).toHaveLength(3);
+  });
+});
+
+describe("tRico: el formato va DENTRO de la frase, y solo con marcas del catálogo", () => {
+  it("las marcas y los parámetros de la plantilla se piden al compilar", () => {
+    const t = crearT(es.inicio, "es");
+    const tr = crearTRico(es.inicio, "es");
+    // Lo correcto compila (lo que pinta lo mira `render/textos-ricos`).
+    tr("mayorPremio", { resaltado: { className: "x" } });
+    tr("gano", { enlace: { href: "/r" } }, { reto: "R" });
+    tr("pasoTitulo", { oculto: {} }, { n: 1, titulo: "T" });
+
+    // @ts-expect-error — una clave CON formato no va por `t`: pintaría las llaves tal cual
+    t("mayorPremio");
+    // @ts-expect-error — y una SIN formato no va por `tRico`
+    tr("h1", {});
+    // @ts-expect-error — falta la marca entera
+    tr("mayorPremio", {});
+    // @ts-expect-error — falta lo que pide la marca (el destino del enlace)
+    tr("gano", { enlace: {} }, { reto: "R" });
+    // @ts-expect-error — falta el parámetro que va DENTRO de la marca (`reto`)
+    tr("gano", { enlace: { href: "/r" } });
+    // @ts-expect-error — un parámetro de más
+    tr("gano", { enlace: { href: "/r" } }, { reto: "R", sobra: "x" });
+    // @ts-expect-error — el `{n}` de dentro de una marca también es un número
+    tr("pasoTitulo", { oculto: {} }, { n: "1", titulo: "T" });
+  });
+
+  it("una marca fuera del catálogo no compila, ni al pintarla ni en el diccionario", () => {
+    const raro = { k: "hola {parpadeo:mundo}" } as const;
+    // @ts-expect-error — `parpadeo` no está en el catálogo: no hay valor que la cumpla
+    crearTRico(raro, "es")("k", { parpadeo: {} });
+
+    // @ts-expect-error — un diccionario con una marca desconocida no compila AUNQUE nadie la pinte
+    conMarcasConocidas({ __idioma: "x", e: { k: "hola {parpadeo:mundo}" } } as const);
+    // @ts-expect-error — tampoco escondida en una forma de un plural
+    conMarcasConocidas({ __idioma: "x", e: { k: { one: "{n}", other: "{n}{raro:x}" } } } as const);
+    // El control: con una marca del catálogo, sí.
+    const bien = conMarcasConocidas({ __idioma: "x", e: { k: "hola {resaltado:mundo}" } } as const);
+    expect(bien.e.k).toBe("hola {resaltado:mundo}");
   });
 });

@@ -35,13 +35,21 @@ const ACENTOS: Record<string, string> = {
   V: "Ṽ",
 };
 
-/** Un texto en pseudo-idioma. Lo de dentro de `{…}` no se toca. */
+/**
+ * Lo que NO se toca: un `{parámetro}`, la apertura de una marca (`{resaltado:`) y la `}` que la cierra.
+ * Si se acentuaran, `t` no podría rellenar el parámetro y `tRico` no reconocería la marca: el `xx`
+ * enseñaría las llaves en vez del formato.
+ */
+const INTOCABLE = /(\{\w+\}|\{\w+:|\})/;
+const esIntocable = (p: string) => /^(\{\w+\}|\{\w+:|\})$/.test(p);
+
+/** Un texto en pseudo-idioma. Los parámetros y las marcas, tal cual; las palabras de dentro, sí cambian. */
 export function pseudoTexto(texto: string): string {
-  const partes = texto.split(/(\{\w+\})/);
+  const partes = texto.split(INTOCABLE);
   const cambiado = partes
-    .map((p) => (/^\{\w+\}$/.test(p) ? p : [...p].map((c) => ACENTOS[c] ?? c).join("")))
+    .map((p) => (esIntocable(p) ? p : [...p].map((c) => ACENTOS[c] ?? c).join("")))
     .join("");
-  const visibles = partes.filter((p) => !/^\{\w+\}$/.test(p)).join("").length;
+  const visibles = partes.filter((p) => !esIntocable(p)).join("").length;
   const relleno = Math.max(1, Math.ceil(visibles * 0.3));
   return `[${cambiado} ${"·".repeat(relleno)}]`;
 }

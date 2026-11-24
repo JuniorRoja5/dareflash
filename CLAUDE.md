@@ -387,6 +387,16 @@ borran para "limpiar"**:
   `scripts/centinelas-textos.mjs`: lo miran `ci-revisar-imagenes.sh` y `check-build-sin-env`). En las zonas extraídas no hay
   texto a mano en JSX (censo por AST); lo que falta vive en `PENDIENTES_P5B2`, que solo puede menguar. El
   pseudo-idioma `/xx/…` (acentos, +30 %, corchetes) solo se sirve en desarrollo; en producción, 404.
+  **REGLA: una frase es UNA clave.** Si lleva un formato en medio (palabras resaltadas, un enlace, algo
+  que solo oye un lector de pantalla), la marca va DENTRO de la plantilla y se pinta con `tRico`
+  ([src/textos/rico.tsx](src/textos/rico.tsx); `await textosRicos(…)` / `useTextosRicos(…)`): «El
+  {resaltado:mayor premio} en juego ahora mismo». Nunca trozos contiguos con una etiqueta entre ellos
+  (al traducir cambia el orden y no encajan), y nunca HTML en un diccionario. Catálogo CERRADO de marcas
+  (`PropsDeMarca`: `resaltado`, `enlace`, `oculto`; la etiqueta, la clase y el destino los pone el
+  código): una desconocida no compila, ni en `es.ts` (`conMarcasConocidas`) ni al pintar; `t()` no
+  acepta una clave con marcas. Una marca nueva entra en el catálogo solo si hace falta de verdad. El
+  marcado de las frases convertidas lo fija `render/textos-ricos-marcado` (HTML exacto, de antes de
+  convertirlas), y `render/textos-ricos` que un `<script>` del diccionario se pinta como texto.
 - `reloj-rate-limit` — todo test que lleva una ruta real hasta el 429 congela el reloj
   (`congelarReloj()` de [tests/helpers/reloj.ts](tests/helpers/reloj.ts)). Ver la trampa de abajo.
 

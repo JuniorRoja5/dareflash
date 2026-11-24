@@ -1,6 +1,5 @@
 "use client";
 
-import { Enlace } from "@/components/enlace";
 import { useEffect, useState } from "react";
 
 import { Imagen3d } from "@/components/ui/imagen-3d";
@@ -8,7 +7,7 @@ import { type CifraVisible, premioCorto } from "@/lib/portada";
 import type { Tema } from "@/lib/tema";
 import { formatearMarcador } from "@/lib/formato";
 import { useFormato } from "@/components/formato-provider";
-import { useTextos } from "@/components/textos-provider";
+import { useTextos, useTextosRicos } from "@/components/textos-provider";
 
 const REDUCE =
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -83,15 +82,13 @@ export function StatsInicio({
   /** Save-Data: las cifras salen ya puestas, sin recuento (reduced-motion ya lo hacía). */
   quieto?: boolean;
 }) {
-  const t = useTextos("inicioCifras");
+  const tr = useTextosRicos("inicioCifras");
   if (cifras.length === 0) {
     return (
       <p className="mt-8 max-w-prose text-sm text-text-dim">
-        {t("vacio")}{" "}
-        <Enlace href="/retos" className="text-text underline underline-offset-2">
-          {t("miraLosQueVienen")}
-        </Enlace>
-        {t("punto")}
+        {tr("vacio", {
+          enlace: { href: "/retos", className: "text-text underline underline-offset-2" },
+        })}
       </p>
     );
   }

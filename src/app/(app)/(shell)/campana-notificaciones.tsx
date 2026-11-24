@@ -11,7 +11,7 @@ import { haceCuanto, textoBadge } from "@/lib/notificaciones-vista";
 import { useNoLeidas } from "../avisos-contexto";
 import { useCerrarDesplegable } from "./usar-desplegable";
 import { useFormato } from "@/components/formato-provider";
-import { useTextos } from "@/components/textos-provider";
+import { useTextos, useTextosRicos } from "@/components/textos-provider";
 
 /** Icono campana inline (trazo 1.6 px, currentColor), misma familia severa que la barra. */
 function IconoCampana() {
@@ -62,6 +62,7 @@ type Carga =
 export function CampanaNotificaciones() {
   const { idioma, zona } = useFormato();
   const t = useTextos("campana");
+  const tr = useTextosRicos("campana");
   const { noLeidas, fijar } = useNoLeidas();
   const [abierto, setAbierto] = useState(false);
   const [carga, setCarga] = useState<Carga>({ estado: "cargando" });
@@ -159,8 +160,7 @@ export function CampanaNotificaciones() {
                     />
                     <span className="min-w-0 flex-1">
                       <span className={`block text-sm ${i.leida ? "text-text-dim" : "text-text"}`}>
-                        {i.leida ? null : <span className="sr-only">{t("nuevo")}</span>}
-                        {i.texto}
+                        {i.leida ? i.texto : tr("avisoNuevo", { oculto: {} }, { texto: i.texto })}
                       </span>
                       <span className="mt-0.5 block text-2xs text-text-dim">
                         {haceCuanto(i.creadaMs, carga.ahoraMs, idioma, zona)}

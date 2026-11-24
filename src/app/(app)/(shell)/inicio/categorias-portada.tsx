@@ -2,7 +2,7 @@ import { Enlace } from "@/components/enlace";
 
 import { CATEGORIES } from "@/config/constants";
 import { categoriasDeLaPortada } from "@/lib/portada";
-import { textos } from "@/textos/servidor";
+import { textos, textosRicos } from "@/textos/servidor";
 import { nombreDeCategoria } from "@/textos/categoria";
 
 /**
@@ -20,7 +20,11 @@ export async function CategoriasPortada({
   porCategoria: Record<string, number>;
 }) {
   const categorias = categoriasDeLaPortada(CATEGORIES, porCategoria);
-  const [t, tcat] = await Promise.all([textos("inicio"), textos("categorias")]);
+  const [t, tr, tcat] = await Promise.all([
+    textos("inicio"),
+    textosRicos("inicio"),
+    textos("categorias"),
+  ]);
   return (
     <section aria-labelledby="categorias-portada">
       <div className="flex items-baseline justify-between gap-4">
@@ -48,8 +52,7 @@ export async function CategoriasPortada({
               {nombreDeCategoria(tcat, c.key)}
               {c.abiertos > 0 ? (
                 <span className="rounded-full bg-raised px-2 py-0.5 text-2xs font-semibold tabular-nums text-text">
-                  {c.abiertos}
-                  <span className="sr-only">{t("abiertos", { n: c.abiertos })}</span>
+                  {tr("abiertos", { oculto: {} }, { n: c.abiertos })}
                 </span>
               ) : null}
             </Enlace>

@@ -7,10 +7,18 @@
  * `{parámetros}`; `{marca}` la pone `t`; un plural es `{ one, other }` con `{n}`. El texto es el que se
  * veía antes, letra a letra: lo fija el render de muestras de la P5b1.
  *
+ * UNA FRASE ES UNA CLAVE. Si lleva un formato en medio (unas palabras resaltadas, un enlace, algo que
+ * solo oye un lector de pantalla), la marca va DENTRO: «El {resaltado:mayor premio} en juego ahora
+ * mismo», y se pinta con `tRico` (src/textos/rico.tsx). Nunca una frase en trozos para meter una
+ * etiqueta entre ellos: al traducir, el orden de las palabras cambia y los trozos dejan de encajar.
+ * `conMarcasConocidas` hace que una marca fuera del catálogo no compile.
+ *
  * SOLO para el servidor (`textos/servidor`). Ningún `"use client"` puede importarlo: lo fija
  * `textos-fuera-del-cliente`, y la marca `__idioma` es la que busca la revisión de la imagen en CI.
  */
-export const es = {
+import { conMarcasConocidas } from "./plantilla";
+
+export const es = conMarcasConocidas({
   __idioma: "es",
 
   // ── Armazón ──────────────────────────────────────────────────────────────────────────────────────
@@ -26,7 +34,7 @@ export const es = {
     cargando: "Cargando…",
     error: "No hemos podido cargar tus avisos. Vuelve a abrir la campana para reintentarlo.",
     vacio: "Aún no tienes avisos. Sube un vídeo o participa en un reto y aquí verás lo que pase.",
-    nuevo: "Nuevo: ",
+    avisoNuevo: "{oculto:Nuevo: }{texto}",
     verTodas: "Ver todas",
   },
   cuenta: {
@@ -276,14 +284,11 @@ export const es = {
     sinParticipantes: "Todavía nadie ha participado: puedes ser el primero",
     participantes: { one: "{n} participante", other: "{n} participantes" },
     votos: { one: "{n} voto", other: "{n} votos" },
-    elegidoAntes: "Elegido por el ",
-    elegidoResaltado: "equipo de {marca}",
-    mayorAntes: "El ",
-    mayorResaltado: "mayor premio",
-    mayorDespues: " en juego ahora mismo",
+    elegido: "Elegido por el {resaltado:equipo de {marca}}",
+    mayorPremio: "El {resaltado:mayor premio} en juego ahora mismo",
     // Cómo funciona
     comoFunciona: "Cómo funciona",
-    pasoN: "Paso {n}: ",
+    pasoTitulo: "{oculto:Paso {n}: }{titulo}",
     paso1Titulo: "Elige un reto",
     paso1Texto: "Cada reto tiene su premio y su fecha de cierre. Entra en el que mejor se te dé.",
     paso2Titulo: "Sube tu vídeo",
@@ -306,21 +311,19 @@ export const es = {
     // Categorías
     categoriasTitulo: "Categorías",
     verTodosLosRetos: "Ver todos los retos →",
-    abiertos: { one: " abierto", other: " abiertos" },
+    abiertos: { one: "{n}{oculto: abierto}", other: "{n}{oculto: abiertos}" },
     // Rejilla de retos
-    rejillaVacioConDestacado: "Ahora mismo no hay más retos abiertos que el destacado.",
-    rejillaVacio: "Ahora mismo no hay retos abiertos.",
-    verLosProximos: "Ver los próximos",
+    rejillaVacioConDestacado:
+      "Ahora mismo no hay más retos abiertos que el destacado. {enlace:Ver los próximos}",
+    rejillaVacio: "Ahora mismo no hay retos abiertos. {enlace:Ver los próximos}",
     // Próximos y ganadores
     proximosTitulo: "Próximos retos",
     ganadoresTitulo: "Últimos ganadores",
-    gano: "ganó",
+    gano: "ganó {enlace:{reto}}",
   },
   /** Las cifras del hero: es una isla de CLIENTE (el recuento animado), así que va en su espacio. */
   inicioCifras: {
-    vacio: "Ahora mismo no hay retos abiertos.",
-    miraLosQueVienen: "Mira los que vienen",
-    punto: ".",
+    vacio: "Ahora mismo no hay retos abiertos. {enlace:Mira los que vienen}.",
     cifra_premios: "en premios ahora",
     cifra_retos: { one: "reto abierto", other: "retos abiertos" },
     cifra_categorias: "categorías",
@@ -354,7 +357,7 @@ export const es = {
   nav: {
     principal: "Principal",
     mas: "Más",
-    avisosSinLeer: " ({badge} avisos sin leer)",
+    destinoConAvisos: "{destino}{oculto: ({badge} avisos sin leer)}",
     destino_inicio: "Inicio",
     destino_feed: "Feed",
     destino_retos: "Retos",
@@ -368,4 +371,4 @@ export const es = {
     destino_vip: "Hazte VIP Mythic",
     destino_cuenta: "Cuenta",
   },
-} as const;
+} as const);
