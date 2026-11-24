@@ -75,14 +75,15 @@ gw=$(docker image inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \
   "$REGISTRO/dareflash-worker:$SHA" | sed -n 's/^GIT_SHA=//p')
 [ "$gw" = "$SHA" ] || fallo "worker: GIT_SHA es '$gw', no el SHA del commit (su latido mentiría)"
 
-# NINGÚN DICCIONARIO EN EL JAVASCRIPT DEL NAVEGADOR (Fase 11 · P5b1). Los textos de la app solo los lee
-# el servidor; al navegador le llegan los de cada página, como datos. Si un componente de cliente
-# importara un diccionario, el diccionario ENTERO —todos los textos, de cualquier idioma— iría en sus
-# trozos de JS. Cada diccionario lleva la marca `__idioma`: si aparece en `.next/static`, ha viajado.
-# (La primera red, sobre el grafo de imports, es `tests/textos-fuera-del-cliente.test.ts`.)
+# NINGÚN DICCIONARIO EN EL JAVASCRIPT DEL NAVEGADOR (Fase 11 · P5b1). Los textos de la app llegan al
+# navegador como datos, nunca dentro de un trozo de JS. Si un componente de cliente importara un
+# diccionario, el compilador metería en su trozo lo que usara: el objeto entero (con la marca `__idioma`),
+# un espacio, o el texto suelto. Se buscan sus CENTINELAS (la marca y cada texto largo que no vive en otro
+# sitio de `src/`; ver `scripts/centinelas-textos.mjs`). La primera red, sobre el grafo de imports, es
+# `tests/textos-fuera-del-cliente.test.ts`; la del pre-push, `check-build-sin-env.mjs`.
 WEB="$REGISTRO/dareflash-web:$SHA"
-viajan=$(docker run --rm --entrypoint sh "$WEB" -c \
-  'grep -rl "__idioma" /app/.next/static 2>/dev/null; true')
+viajan=$(node scripts/centinelas-textos.mjs | docker run -i --rm --entrypoint sh "$WEB" -c \
+  'grep -rlF -f /dev/stdin /app/.next/static 2>/dev/null; true')
 [ -z "$viajan" ] || fallo "web: un diccionario de textos viaja en el JS del navegador: $viajan"
 
 if [ "$fallos" -gt 0 ]; then

@@ -72,10 +72,22 @@ describe("los diccionarios no llegan al cliente", () => {
 
   it("las dos redes sobre el BUILD siguen ahí: la imagen web en CI y el build local del pre-push", () => {
     const revisar = readFileSync(path.join(RAIZ, "scripts/ci-revisar-imagenes.sh"), "utf8");
-    expect(revisar).toMatch(/grep -rl "__idioma" \/app\/\.next\/static/);
+    expect(revisar).toMatch(/node scripts\/centinelas-textos\.mjs \| docker run -i/);
+    expect(revisar).toMatch(/grep -rlF -f \/dev\/stdin \/app\/\.next\/static/);
     expect(revisar).toMatch(/fallo "web: un diccionario de textos viaja en el JS del navegador/);
     const local = readFileSync(path.join(RAIZ, "scripts/check-build-sin-env.mjs"), "utf8");
-    expect(local).toMatch(/includes\("__idioma"\)/);
+    expect(local).toMatch(/const centinelas = centinelasTextos\(root\)/);
     expect(local).toMatch(/join\(root, "\.next", "static"\)/);
+  });
+
+  it("los centinelas: la marca y los textos largos que solo viven en los diccionarios", async () => {
+    const { centinelasTextos } = await import("../scripts/centinelas-textos.mjs");
+    const c = (centinelasTextos as (raiz: string) => string[])(RAIZ);
+    expect(c[0]).toBe("__idioma");
+    expect(c).toContain("Lo revisará una persona. No se avisa a quien lo publicó.");
+    // Uno que TAMBIÉN está escrito fuera de los diccionarios no puede ser centinela: saldría en el JS
+    // por ese otro fichero y daría un rojo falso.
+    expect(c).not.toContain("No hemos podido conectar. Inténtalo de nuevo.");
+    expect(c.every((x) => x === "__idioma" || x.length >= 20)).toBe(true);
   });
 });
