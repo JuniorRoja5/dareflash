@@ -1,6 +1,7 @@
 "use client";
 
 import type { LoaderCallbacks, LoaderConfiguration, LoaderContext } from "hls.js";
+import { useTextos } from "@/components/textos-provider";
 import { type PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from "react";
 
 import { crearMarcadorVisto } from "@/lib/visto-cliente";
@@ -83,6 +84,7 @@ export function ReproductorHls({
    */
   haySesion?: boolean;
 }) {
+  const t = useTextos("reproductor");
   const esFeed = variante === "feed";
   const videoRef = useRef<HTMLVideoElement>(null);
   const contenedorRef = useRef<HTMLDivElement>(null);
@@ -341,7 +343,7 @@ export function ReproductorHls({
       disablePictureInPicture
       onError={() => setError((prev) => prev ?? "transitorio")}
       className={`h-full w-full ${ajuste}`}
-      aria-label="Vídeo"
+      aria-label={t("video")}
     />
   );
 
@@ -349,12 +351,12 @@ export function ReproductorHls({
   const overlayError =
     error === "permanente" ? (
       <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-void/85 p-4 text-center">
-        <p className="text-sm font-medium text-text">Este vídeo ya no está disponible</p>
-        <p className="text-2xs text-text-dim">Puede que su autor lo haya retirado.</p>
+        <p className="text-sm font-medium text-text">{t("noDisponible")}</p>
+        <p className="text-2xs text-text-dim">{t("retirado")}</p>
       </div>
     ) : error === "transitorio" ? (
       <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-void/85 p-4 text-center">
-        <p className="text-sm text-text-dim">No se pudo cargar el vídeo. Reintenta.</p>
+        <p className="text-sm text-text-dim">{t("noCarga")}</p>
         <button
           type="button"
           onClick={() => {
@@ -364,7 +366,7 @@ export function ReproductorHls({
           }}
           className="rounded-sm border border-line px-4 py-1.5 text-sm text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised"
         >
-          Reintentar
+          {t("reintentar")}
         </button>
       </div>
     ) : null;
@@ -395,7 +397,7 @@ export function ReproductorHls({
           tap y el teclado (Space/Enter con foco). */}
       <button
         type="button"
-        aria-label={pausado ? "Reanudar el vídeo" : "Pausar el vídeo"}
+        aria-label={pausado ? t("reanudar") : t("pausar")}
         onPointerDown={onTapDown}
         onPointerMove={onTapMove}
         onClick={onTapClick}

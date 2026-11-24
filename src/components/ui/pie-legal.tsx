@@ -2,6 +2,7 @@ import { Enlace } from "@/components/enlace";
 
 import { ENLACE_PIE_EMPRESAS } from "@/config/constants";
 import { MARCA } from "@/config/marca";
+import { textos } from "@/textos/servidor";
 
 /**
  * EL PIE LEGAL — la única puerta a los documentos legales desde dentro del producto.
@@ -27,7 +28,7 @@ import { MARCA } from "@/config/marca";
  * para eso; colgarle un pie sería meterle una banda de texto debajo del vídeo. Tampoco va en el
  * panel: el admin no es público y ya tiene su propio armazón.
  */
-export function PieLegal({
+export async function PieLegal({
   /**
    * `true` donde debajo hay BARRA INFERIOR FIJA (todo el grupo `(app)`): el pie se queda detrás de
    * ella si no se reserva el hueco. Es un booleano y no un `className` libre porque dos clases de
@@ -46,6 +47,7 @@ export function PieLegal({
   sobreNavMovil?: boolean;
   esCuentaEmpresa?: boolean;
 }) {
+  const t = await textos("pie");
   return (
     <footer
       className={`mt-auto border-t border-line px-4 pt-6 text-xs text-text-dim lg:px-8 ${
@@ -62,11 +64,11 @@ export function PieLegal({
           href="/privacidad"
           className="rounded-xs underline underline-offset-2 hover:text-text focus-visible:text-text"
         >
-          Privacidad
+          {t("privacidad")}
         </Enlace>
         {/* NO ES UN ENLACE, y no es un olvido: la página no existe todavía. Un `<span>` no promete un
             clic (ver la familia de "sin botones muertos"). */}
-        <span>Términos (pronto)</span>
+        <span>{t("terminos")}</span>
         {/* LA PUERTA DEL NEGOCIO, en el pie de TODAS las páginas que lo montan. El alta de empresa
             estaba escondida —solo se llegaba escribiendo la dirección— y el pie es el sitio donde
             se busca "para empresas" en cualquier web. Discreto, como el resto del pie. Fuera para
@@ -76,7 +78,7 @@ export function PieLegal({
             href={ENLACE_PIE_EMPRESAS.href}
             className="rounded-xs underline underline-offset-2 hover:text-text focus-visible:text-text"
           >
-            {ENLACE_PIE_EMPRESAS.texto}
+            {t("paraEmpresas")}
           </Enlace>
         )}
       </div>

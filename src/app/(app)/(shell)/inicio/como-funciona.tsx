@@ -1,5 +1,6 @@
 import { Imagen3d, type Pieza3d } from "@/components/ui/imagen-3d";
 import type { Tema } from "@/lib/tema";
+import { textos } from "@/textos/servidor";
 
 /**
  * «CÓMO FUNCIONA», EN 3 PASOS (rediseño de /inicio). Es el bloque que funciona con CUALQUIER cantidad de
@@ -11,29 +12,19 @@ import type { Tema } from "@/lib/tema";
  * Cada paso, con su imagen 3D (neutra: ni acción ni dinero, ver `optimizar-recursos-3d`) y su número
  * grande en la tipografía de display, en neutro — los números de orden no son dinero ni acción.
  */
-const PASOS: { pieza: Pieza3d; titulo: string; texto: string }[] = [
-  {
-    pieza: "paso-1-reto",
-    titulo: "Elige un reto",
-    texto: "Cada reto tiene su premio y su fecha de cierre. Entra en el que mejor se te dé.",
-  },
-  {
-    pieza: "paso-2-video",
-    titulo: "Sube tu vídeo",
-    texto: "Grábalo y súbelo antes de que cierre. Un vídeo por reto.",
-  },
-  {
-    pieza: "paso-3-voto",
-    titulo: "La comunidad vota",
-    texto: "Los votos deciden quién gana, y quien gana se lleva el premio.",
-  },
+/** Los tres pasos: su dibujo y su número. Los textos salen de `inicio.paso<N>Titulo/Texto`. */
+const PASOS: { pieza: Pieza3d; numero: 1 | 2 | 3 }[] = [
+  { pieza: "paso-1-reto", numero: 1 },
+  { pieza: "paso-2-video", numero: 2 },
+  { pieza: "paso-3-voto", numero: 3 },
 ];
 
-export function ComoFunciona({ tema }: { tema: Tema }) {
+export async function ComoFunciona({ tema }: { tema: Tema }) {
+  const t = await textos("inicio");
   return (
     <section aria-labelledby="como-funciona">
       <h2 id="como-funciona" className="text-xl font-semibold text-text lg:text-2xl">
-        Cómo funciona
+        {t("comoFunciona")}
       </h2>
       <ol className="mt-5 grid gap-4 sm:grid-cols-3 lg:gap-6">
         {PASOS.map((p, i) => (
@@ -56,10 +47,10 @@ export function ComoFunciona({ tema }: { tema: Tema }) {
             </div>
             <div className="min-w-0">
               <h3 className="text-base font-semibold text-text">
-                <span className="sr-only">Paso {i + 1}: </span>
-                {p.titulo}
+                <span className="sr-only">{t("pasoN", { n: i + 1 })}</span>
+                {t(`paso${p.numero}Titulo`)}
               </h3>
-              <p className="mt-1 text-sm text-text-dim">{p.texto}</p>
+              <p className="mt-1 text-sm text-text-dim">{t(`paso${p.numero}Texto`)}</p>
             </div>
           </li>
         ))}

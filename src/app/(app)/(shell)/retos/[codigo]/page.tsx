@@ -8,21 +8,21 @@ import { soloMirar } from "@/lib/solo-mirar";
 
 import { ChapaExclusivo } from "../chapa-exclusivo";
 import { MarcaSponsor } from "../marca-sponsor";
-import { nombreCategoria } from "../retos-datos";
+import { TextosProvider } from "@/components/textos-provider";
+import { nombreDeCategoria } from "@/textos/categoria";
+import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
 import { BotonParticipar } from "./participar";
 import { ParticipacionesReto, type ParticipacionUI } from "./participaciones-reto";
 
 export const dynamic = "force-dynamic";
 
-const COPY_MI_ESTADO: Record<string, { texto: string; tono: "neutro" | "alarma" }> = {
-  procesando: {
-    texto: "Tu vídeo se está procesando; aparecerá cuando esté listo.",
-    tono: "neutro",
-  },
-  fallida: {
-    texto: "Tu vídeo no se pudo procesar. Pulsa Reemplazar para volver a intentarlo.",
-    tono: "alarma",
-  },
+/** Qué se dice de MI participación según su estado (el texto, de `reto.miEstado<Estado>`). */
+const COPY_MI_ESTADO: Record<
+  string,
+  { clave: "miEstadoProcesando" | "miEstadoFallida"; tono: "neutro" | "alarma" }
+> = {
+  procesando: { clave: "miEstadoProcesando", tono: "neutro" },
+  fallida: { clave: "miEstadoFallida", tono: "alarma" },
 };
 
 /**
@@ -101,7 +101,14 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
     reto.soloVip && usuario !== null && !(await esVipActivoDe(prisma, usuario.userId));
 
   // Firma el póster de cada participación (el player firma su propia URL vía el endpoint firmado).
-  const contextoReto = { titulo: reto.titulo, categoria: nombreCategoria(reto.categoria) };
+  const [t, tcat, tmar, tTarjeta, textosFicha] = await Promise.all([
+    textos("reto"),
+    textos("categorias"),
+    textos("marcador"),
+    textos("tarjetaReto"),
+    textosClienteDeLaPeticion(["participar", "participaciones", "feed", "comentarios"] as const),
+  ]);
+  const contextoReto = { titulo: reto.titulo, categoria: nombreDeCategoria(tcat, reto.categoria) };
   const participacionesUI: ParticipacionUI[] = pagina.items.map((p) => {
     const urls = firmarReproduccion(p.bunnyVideoId, p.thumbnailFileName);
     return {
@@ -125,145 +132,152 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
   const miEstado = mi ? COPY_MI_ESTADO[mi.estado] : undefined;
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-5 lg:px-8 lg:py-12">
-      {/* En móvil la ficha y las participaciones se aprietan: la ficha ocupaba la pantalla entera y
+    <TextosProvider textos={textosFicha}>
+      <div className="mx-auto w-full max-w-7xl px-4 py-5 lg:px-8 lg:py-12">
+        {/* En móvil la ficha y las participaciones se aprietan: la ficha ocupaba la pantalla entera y
           empujaba las participaciones fuera de vista. En lg todo se queda como estaba. */}
-      <div className="grid gap-5 lg:grid-cols-3 lg:items-start lg:gap-8">
-        {/* FICHA del reto — una columna en escritorio, primera tarjeta en móvil. */}
-        <article className="df-rise overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md">
-          {/* Portada real (servida por Caddy) si hay; banner apaisado. */}
-          {reto.coverImage ? (
-            // eslint-disable-next-line @next/next/no-img-element -- estático servido por Caddy en /portadas/*
-            <img
-              src={reto.coverImage}
-              alt=""
-              /* Banner más bajo en móvil: 16:9 se comía un tercio de la pantalla antes del título. */
-              className="aspect-[16/7] w-full border-b border-line object-cover lg:aspect-video"
-            />
-          ) : null}
-          <div className="p-4 lg:p-6">
-            <div className="flex flex-wrap items-center gap-2">
-              <PildoraCategoria>{nombreCategoria(reto.categoria)}</PildoraCategoria>
-              {/* LA CHAPA TAMBIÉN AQUÍ. Se llega a esta ficha desde una tarjeta con marco dorado:
+        <div className="grid gap-5 lg:grid-cols-3 lg:items-start lg:gap-8">
+          {/* FICHA del reto — una columna en escritorio, primera tarjeta en móvil. */}
+          <article className="df-rise overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md">
+            {/* Portada real (servida por Caddy) si hay; banner apaisado. */}
+            {reto.coverImage ? (
+              // eslint-disable-next-line @next/next/no-img-element -- estático servido por Caddy en /portadas/*
+              <img
+                src={reto.coverImage}
+                alt=""
+                /* Banner más bajo en móvil: 16:9 se comía un tercio de la pantalla antes del título. */
+                className="aspect-[16/7] w-full border-b border-line object-cover lg:aspect-video"
+              />
+            ) : null}
+            <div className="p-4 lg:p-6">
+              <div className="flex flex-wrap items-center gap-2">
+                <PildoraCategoria>{nombreDeCategoria(tcat, reto.categoria)}</PildoraCategoria>
+                {/* LA CHAPA TAMBIÉN AQUÍ. Se llega a esta ficha desde una tarjeta con marco dorado:
                   sin nada que lo recuerde, el detalle parecería otro reto. No lleva el marco —el
                   oro envolviendo la columna entera competiría con la portada y con el marcador—,
                   solo la etiqueta que dice qué es. */}
-              {reto.soloVip ? <ChapaExclusivo /> : null}
-              {/* Y la marca, entera: aquí hay sitio para "Patrocinado por X" con todas las letras,
+                {reto.soloVip ? <ChapaExclusivo etiqueta={tTarjeta("exclusivo")} /> : null}
+                {/* Y la marca, entera: aquí hay sitio para "Patrocinado por X" con todas las letras,
                   que es donde la transparencia tiene que leerse sin esfuerzo. */}
-              {reto.sponsor ? <MarcaSponsor sponsor={reto.sponsor} /> : null}
+                {reto.sponsor ? (
+                  <MarcaSponsor sponsor={reto.sponsor} etiqueta={tTarjeta("patrocinadoPor")} />
+                ) : null}
+              </div>
+              <h1
+                className="mt-2 text-xl leading-tight text-text lg:mt-3 lg:text-2xl"
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontVariationSettings: '"wght" 720, "wdth" 112',
+                }}
+              >
+                {reto.titulo}
+              </h1>
+
+              {/* Marcador: premio (en --df-money) + cuenta atrás. Unidad indivisible.
+                APUNTA A LA APERTURA mientras el reto no ha empezado: contar hacia el cierre de algo
+                que aún no se puede hacer es decirle a la gente que se le acaba un tiempo que no ha
+                empezado a correr. Cerrado ya, no hay nada que contar y el plazo queda vacío. */}
+              <div className="mt-4 lg:mt-5">
+                <Marcador
+                  idioma={idioma}
+                  cents={reto.premioCents}
+                  deadlineMs={cuenta.objetivoMs}
+                  hacia={cuenta.fase === "proximamente" ? "apertura" : "cierre"}
+                  textoAbreEn={tmar("abreEn")}
+                  tamano="tarjeta"
+                  apilarEnMovil
+                />
+              </div>
+
+              <dl className="mt-4 lg:mt-6">
+                <dt className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
+                  {t("ganadores")}
+                </dt>
+                <dd className="mt-1 text-sm text-text">
+                  {t("nGanadores", { n: reto.winnersCount })}
+                </dd>
+              </dl>
+
+              {reto.descripcion ? (
+                <section className="mt-4 lg:mt-6">
+                  <h2 className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
+                    {t("descripcion")}
+                  </h2>
+                  <p className="mt-2 text-sm whitespace-pre-line text-text-dim">
+                    {reto.descripcion}
+                  </p>
+                </section>
+              ) : null}
+
+              {reto.reglas ? (
+                <section className="mt-4 lg:mt-6">
+                  <h2 className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
+                    {t("reglas")}
+                  </h2>
+                  <p className="mt-2 text-sm whitespace-pre-line text-text-dim">{reto.reglas}</p>
+                </section>
+              ) : null}
+
+              {/* Participar: invitado -> login; logueado -> modal de subida con el challengeId. Si ya
+                participó (publicada), el CTA pasa a "Reemplazar". */}
+              <div className="mt-5 lg:mt-8">
+                {/* QUIEN SOLO MIRA (cuenta de empresa, `soloMirar`): en el sitio del botón, la razón.
+                  No un botón desactivado: "Participar" es la acción de `--df-action` de esta pantalla,
+                  y apagada seguiría ocupando su sitio sin hacer nada (MARCA.md, una por pantalla). */}
+                {soloMirar(usuario) ? (
+                  <p data-solo-mirar className="text-sm text-text-dim">
+                    {MSG_EMPRESA_SOLO_MIRA}
+                  </p>
+                ) : (
+                  <BotonParticipar
+                    challengeId={reto.id}
+                    publicCode={reto.publicCode}
+                    slug={reto.slug}
+                    autenticado={usuario !== null}
+                    activo={activo}
+                    /* POR QUÉ no está activo: un reto que aún no ha abierto NO está "cerrado", y el
+                     botón lo decía igual. La fase sale de la misma regla que `activo`. */
+                    fase={cuenta.fase}
+                    yaParticipa={mi?.estado === "publicada"}
+                    avisoNivel={avisoNivel}
+                    vetoVip={vetoVip}
+                  />
+                )}
+                {miEstado ? (
+                  <p
+                    role="status"
+                    className={`mt-2 text-sm ${miEstado.tono === "alarma" ? "text-alarm" : "text-text-dim"}`}
+                  >
+                    {t(miEstado.clave)}
+                  </p>
+                ) : null}
+              </div>
             </div>
-            <h1
-              className="mt-2 text-xl leading-tight text-text lg:mt-3 lg:text-2xl"
+          </article>
+
+          {/* PARTICIPACIONES reales (Submission+Video PUBLISHED), más votadas primero. */}
+          <section className="df-rise lg:col-span-2" style={{ animationDelay: "80ms" }}>
+            <h2
+              className="mb-3 text-lg leading-none text-text lg:mb-4 lg:text-xl"
               style={{
                 fontFamily: "var(--font-display)",
                 fontVariationSettings: '"wght" 720, "wdth" 112',
               }}
             >
-              {reto.titulo}
-            </h1>
-
-            {/* Marcador: premio (en --df-money) + cuenta atrás. Unidad indivisible.
-                APUNTA A LA APERTURA mientras el reto no ha empezado: contar hacia el cierre de algo
-                que aún no se puede hacer es decirle a la gente que se le acaba un tiempo que no ha
-                empezado a correr. Cerrado ya, no hay nada que contar y el plazo queda vacío. */}
-            <div className="mt-4 lg:mt-5">
-              <Marcador
-                idioma={idioma}
-                cents={reto.premioCents}
-                deadlineMs={cuenta.objetivoMs}
-                hacia={cuenta.fase === "proximamente" ? "apertura" : "cierre"}
-                tamano="tarjeta"
-                apilarEnMovil
-              />
-            </div>
-
-            <dl className="mt-4 lg:mt-6">
-              <dt className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
-                Ganadores
-              </dt>
-              <dd className="mt-1 text-sm text-text">
-                {reto.winnersCount === 1 ? "1 ganador" : `${reto.winnersCount} ganadores`}
-              </dd>
-            </dl>
-
-            {reto.descripcion ? (
-              <section className="mt-4 lg:mt-6">
-                <h2 className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
-                  Descripción
-                </h2>
-                <p className="mt-2 text-sm whitespace-pre-line text-text-dim">{reto.descripcion}</p>
-              </section>
-            ) : null}
-
-            {reto.reglas ? (
-              <section className="mt-4 lg:mt-6">
-                <h2 className="text-2xs font-semibold tracking-widest text-text-dim uppercase">
-                  Reglas
-                </h2>
-                <p className="mt-2 text-sm whitespace-pre-line text-text-dim">{reto.reglas}</p>
-              </section>
-            ) : null}
-
-            {/* Participar: invitado -> login; logueado -> modal de subida con el challengeId. Si ya
-                participó (publicada), el CTA pasa a "Reemplazar". */}
-            <div className="mt-5 lg:mt-8">
-              {/* QUIEN SOLO MIRA (cuenta de empresa, `soloMirar`): en el sitio del botón, la razón.
-                  No un botón desactivado: "Participar" es la acción de `--df-action` de esta pantalla,
-                  y apagada seguiría ocupando su sitio sin hacer nada (MARCA.md, una por pantalla). */}
-              {soloMirar(usuario) ? (
-                <p data-solo-mirar className="text-sm text-text-dim">
-                  {MSG_EMPRESA_SOLO_MIRA}
-                </p>
-              ) : (
-                <BotonParticipar
-                  challengeId={reto.id}
-                  publicCode={reto.publicCode}
-                  slug={reto.slug}
-                  autenticado={usuario !== null}
-                  activo={activo}
-                  /* POR QUÉ no está activo: un reto que aún no ha abierto NO está "cerrado", y el
-                     botón lo decía igual. La fase sale de la misma regla que `activo`. */
-                  fase={cuenta.fase}
-                  yaParticipa={mi?.estado === "publicada"}
-                  avisoNivel={avisoNivel}
-                  vetoVip={vetoVip}
-                />
-              )}
-              {miEstado ? (
-                <p
-                  role="status"
-                  className={`mt-2 text-sm ${miEstado.tono === "alarma" ? "text-alarm" : "text-text-dim"}`}
-                >
-                  {miEstado.texto}
-                </p>
-              ) : null}
-            </div>
-          </div>
-        </article>
-
-        {/* PARTICIPACIONES reales (Submission+Video PUBLISHED), más votadas primero. */}
-        <section className="df-rise lg:col-span-2" style={{ animationDelay: "80ms" }}>
-          <h2
-            className="mb-3 text-lg leading-none text-text lg:mb-4 lg:text-xl"
-            style={{
-              fontFamily: "var(--font-display)",
-              fontVariationSettings: '"wght" 720, "wdth" 112',
-            }}
-          >
-            Participaciones
-          </h2>
-          <ParticipacionesReto
-            challengeId={reto.id}
-            participaciones={participacionesUI}
-            cursorInicial={pagina.nextCursor}
-            miSubmissionId={mi?.submissionId ?? null}
-            haySesion={usuario !== null}
-            emailVerificado={usuario?.emailVerified != null}
-            soloMirar={soloMirar(usuario)}
-          />
-        </section>
+              {t("participaciones")}
+            </h2>
+            <ParticipacionesReto
+              challengeId={reto.id}
+              participaciones={participacionesUI}
+              cursorInicial={pagina.nextCursor}
+              miSubmissionId={mi?.submissionId ?? null}
+              haySesion={usuario !== null}
+              emailVerificado={usuario?.emailVerified != null}
+              soloMirar={soloMirar(usuario)}
+            />
+          </section>
+        </div>
       </div>
-    </div>
+    </TextosProvider>
   );
 }

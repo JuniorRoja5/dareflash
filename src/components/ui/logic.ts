@@ -108,20 +108,20 @@ export function botonTokens(variante: BotonVariante): BotonTokens {
 // ---------------------------------------------------------------------------
 
 export const NAV_DESTINOS = [
-  { clave: "inicio", nombre: "Inicio", href: "/inicio" },
-  { clave: "feed", nombre: "Feed", href: "/feed" },
-  { clave: "retos", nombre: "Retos", href: "/retos" },
+  { clave: "inicio", href: "/inicio" },
+  { clave: "feed", href: "/feed" },
+  { clave: "retos", href: "/retos" },
   // El hueco CENTRAL de móvil. Su texto y su ruta los pone `ctaPrincipal` en cada barra (también en
   // la de la empresa, donde es "Mi empresa"); lo de aquí es el del participante, para marcar /crear.
-  { clave: "crear", nombre: CTA_USUARIO.texto, href: CTA_USUARIO.href, central: true },
-  { clave: "ranking", nombre: "Ranking", href: "/ranking" },
+  { clave: "crear", href: CTA_USUARIO.href, central: true },
+  { clave: "ranking", href: "/ranking" },
   // DESTACADOS — la vitrina de perfiles con Boost. Se llama "Boost" porque es la palabra del
   // producto; la ruta es /destacados porque es lo que lista. Va con los destinos de DESCUBRIR
   // (inicio, feed, retos, ranking) y no con los de "lo mío": es el escaparate de otra gente.
-  { clave: "destacados", nombre: "Boost", href: "/destacados" },
-  { clave: "perfil", nombre: "Perfil", href: "/perfil" },
-  { clave: "puntos", nombre: "Puntos", href: "/puntos" },
-  { clave: "referidos", nombre: "Referidos", href: "/referidos" },
+  { clave: "destacados", href: "/destacados" },
+  { clave: "perfil", href: "/perfil" },
+  { clave: "puntos", href: "/puntos" },
+  { clave: "referidos", href: "/referidos" },
   /**
    * LA PUERTA AL VIP. `acento: "vip"` NO es decoración: es lo que le da el ORO.
    *
@@ -138,14 +138,14 @@ export const NAV_DESTINOS = [
    * SE LE ENSEÑA A TODO EL MUNDO, VIP incluido: quien ya lo es entra igual a /vip, que es donde
    * ve su estado y puede darse de baja. Esconderlo a los VIP dejaría la baja sin puerta.
    */
-  { clave: "vip", nombre: "Hazte VIP Mythic", href: "/vip", acento: "vip" },
+  { clave: "vip", href: "/vip", acento: "vip" },
   /**
    * LA CUENTA DE UNA EMPRESA: correo, contraseña y cerrar sesión. Es el hueco de "Perfil" en su nav,
    * porque una empresa NO tiene perfil de participante —ni vídeos, ni puntos, ni nombre público que
    * editar—, y mandarla a /perfil/editar era enseñarle un formulario que el servidor le rechaza.
    * Solo está en las listas de EMPRESA (ver `NAV_ESCRITORIO_EMPRESA`).
    */
-  { clave: "cuenta", nombre: "Cuenta", href: "/empresa/cuenta" },
+  { clave: "cuenta", href: "/empresa/cuenta" },
 ] as const;
 
 export type NavDestino = (typeof NAV_DESTINOS)[number];

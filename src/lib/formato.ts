@@ -142,6 +142,22 @@ function formatoFecha(locale: string, opciones: Intl.DateTimeFormatOptions): Int
 // Números e importes
 // ---------------------------------------------------------------------------------------------------
 
+const reglasDePlural = new Map<Idioma, Intl.PluralRules>();
+
+/**
+ * LA FORMA DE PLURAL de una cantidad en un idioma: «one» (un vídeo) u «other» (el resto). La usan los
+ * textos (`textos/plantilla`, Fase 11 · P5b1) para elegir la forma de un plural; vive aquí porque `Intl`
+ * solo se toca en este módulo. Las formas de es/en/de que se distinguen son esas dos.
+ */
+export function formaDePlural(n: number, idioma: Idioma): "one" | "other" {
+  let r = reglasDePlural.get(idioma);
+  if (!r) {
+    r = new Intl.PluralRules(LOCALE[idioma]);
+    reglasDePlural.set(idioma, r);
+  }
+  return r.select(n) === "one" ? "one" : "other";
+}
+
 /** Un número corriente: un saldo de puntos, un recuento («1234», «12.345» en español). */
 export function formatearNumero(n: number, idioma: Idioma): string {
   return formatoNumero(LOCALE[idioma]).format(n);

@@ -15,6 +15,7 @@ import {
 
 import { ContadorVotos } from "./contador-votos";
 import { useNavegarDuro } from "@/components/enlace";
+import { useTextos } from "@/components/textos-provider";
 
 /**
  * BOTÓN DE VOTAR + RECUENTO — ÚNICO componente, montado donde hay reproductor (el rail del feed y el
@@ -148,6 +149,7 @@ export function BotonVoto({
   const [aviso, setAviso] = useState<string | null>(null);
   const [mover, setMover] = useState<{ mensaje: string; votoActualEn: string | null } | null>(null);
   const navegarDuro = useNavegarDuro();
+  const t = useTextos("voto");
   const [ocupado, setOcupado] = useState(false);
 
   const estado = estadoBoton({
@@ -203,7 +205,9 @@ export function BotonVoto({
 
   const votado = estado === "votado";
   const bloqueado = estado === "cerrado" || estado === "no-votable" || estado === "sin-ver";
-  const etiqueta = TEXTO[estado];
+  const etiqueta = t(`texto_${estado}`);
+  // «sin ver» lo dice el servidor con su mensaje (`MSG_VOTO_SIN_VER`, compartido con la API: P5b3).
+  const aria = estado === "sin-ver" ? MSG_VOTO_SIN_VER : t(`aria_${estado}`);
 
   const contador = (
     <span className="tabular-nums">
@@ -219,7 +223,7 @@ export function BotonVoto({
           type="button"
           onClick={() => void alPulsar()}
           disabled={bloqueado || ocupado}
-          aria-label={ARIA[estado]}
+          aria-label={aria}
           title={estado === "sin-ver" ? MSG_VOTO_SIN_VER : undefined}
           className={`flex h-14 w-14 items-center justify-center rounded-full text-void transition-[filter,background-color] duration-[var(--df-dur-fast)] ease-mechanical ${
             votado ? "bg-ok" : "bg-action"
@@ -255,9 +259,9 @@ export function BotonVoto({
         {etiqueta}
       </button>
       <span className="text-xl font-semibold text-text">
-        {contador} <span className="text-sm font-normal text-text-dim">votos</span>
+        {contador} <span className="text-sm font-normal text-text-dim">{t("etiquetaVotos")}</span>
       </span>
-      {votado ? <span className="text-sm text-ok">· voto registrado</span> : null}
+      {votado ? <span className="text-sm text-ok">{t("votoRegistrado")}</span> : null}
       {estado === "sin-ver" ? (
         <span className="text-sm text-text-dim">{MSG_VOTO_SIN_VER}</span>
       ) : null}
@@ -273,25 +277,11 @@ export function BotonVoto({
   );
 }
 
-/** Texto del botón por estado. Copy HUMANO, nunca el código del estado. */
-const TEXTO: Record<string, string> = {
-  cerrado: "Votación cerrada",
-  invitado: "Votar",
-  "sin-ver": "Votar",
-  votar: "Votar",
-  votado: "Votado",
-  "no-votable": "Tu participación",
-};
-
-/** Lo que oye un lector de pantalla: el botón NO puede decir "Votar" cuando no se puede votar. */
-const ARIA: Record<string, string> = {
-  cerrado: "La votación de este reto está cerrada",
-  invitado: "Inicia sesión para votar",
-  "sin-ver": MSG_VOTO_SIN_VER,
-  votar: "Votar esta participación",
-  votado: "Quitar mi voto de esta participación",
-  "no-votable": "No puedes votar tu propia participación",
-};
+/*
+ * El texto del botón y lo que oye un lector de pantalla, POR ESTADO, viven en los textos (`voto.texto_*`
+ * y `voto.aria_*`, Fase 11 · P5b1). Copy HUMANO, nunca el código del estado; y el botón NO puede decir
+ * «Votar» cuando no se puede votar.
+ */
 
 function Aviso({ texto }: { texto: string }) {
   return (
@@ -315,14 +305,15 @@ function DialogoMover({
   onConfirmar: () => void;
   onCancelar: () => void;
 }) {
+  const t = useTextos("voto");
   return (
     <div
       role="alertdialog"
-      aria-label="Mover tu voto"
+      aria-label={t("moverAria")}
       className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-sm rounded-sm border border-line bg-surface/95 p-4 text-left shadow-[var(--df-shadow-md)] backdrop-blur-md"
     >
       <p className="text-sm text-text">{mensaje}</p>
-      <p className="mt-0.5 text-2xs text-text-dim">¿Mover tu voto aquí?</p>
+      <p className="mt-0.5 text-2xs text-text-dim">{t("moverPregunta")}</p>
       <div className="mt-3 flex gap-2">
         <button
           type="button"
@@ -330,14 +321,14 @@ function DialogoMover({
           onClick={onConfirmar}
           className="rounded-sm bg-action px-4 py-2 text-sm font-semibold text-void transition-[filter] duration-150 ease-mechanical hover:brightness-110"
         >
-          Mover mi voto
+          {t("moverMiVoto")}
         </button>
         <button
           type="button"
           onClick={onCancelar}
           className="rounded-sm border border-line px-4 py-2 text-sm text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised"
         >
-          Cancelar
+          {t("cancelar")}
         </button>
       </div>
     </div>

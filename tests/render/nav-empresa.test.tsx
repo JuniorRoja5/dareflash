@@ -8,6 +8,7 @@
  * siempre `NAV_MOVIL_MAS` (rojo).
  */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { es } from "@/textos/es";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/link", async () => {
@@ -43,7 +44,7 @@ describe("escritorio: la lateral de la empresa", () => {
 describe("móvil: la barra de la empresa", () => {
   it("el central lleva a su portal, con su escaparate y SIN «+»", () => {
     render(<NavegacionInferior rol="USER" esCuentaEmpresa />);
-    const central = screen.getByRole("link", { name: CTA_EMPRESA.texto });
+    const central = screen.getByRole("link", { name: es.cta[CTA_EMPRESA.clave] });
     expect(central.getAttribute("href")).toBe(CTA_EMPRESA.href);
     expect(central.querySelector("[data-cta-empresa]")).not.toBeNull();
     expect(screen.queryByText("+")).toBeNull();

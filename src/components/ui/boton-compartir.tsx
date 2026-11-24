@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTextos } from "@/components/textos-provider";
 
 import { enlaceVideo } from "@/lib/enlace-comentario";
 
@@ -27,6 +28,7 @@ import { enlaceVideo } from "@/lib/enlace-comentario";
 type Estado = "idle" | "copiado" | "fallo";
 
 export function BotonCompartir({ videoId, titulo }: { videoId: string; titulo?: string | null }) {
+  const t = useTextos("compartir");
   const [estado, setEstado] = useState<Estado>("idle");
 
   async function compartir(): Promise<void> {
@@ -57,7 +59,7 @@ export function BotonCompartir({ videoId, titulo }: { videoId: string; titulo?: 
     <button
       type="button"
       onClick={() => void compartir()}
-      aria-label="Compartir"
+      aria-label={t("compartir")}
       className="flex flex-col items-center gap-1"
     >
       <span className="flex h-11 w-11 items-center justify-center text-white lg:text-text lg:hover:text-white">
@@ -74,7 +76,7 @@ export function BotonCompartir({ videoId, titulo }: { videoId: string; titulo?: 
         className="text-2xs font-semibold text-white lg:text-text-dim"
         data-estado={estado}
       >
-        {estado === "copiado" ? "Copiado" : estado === "fallo" ? "No se pudo" : "Compartir"}
+        {estado === "copiado" ? t("copiado") : estado === "fallo" ? t("fallo") : t("compartir")}
       </span>
     </button>
   );

@@ -8,6 +8,7 @@ import { type CifraVisible, premioCorto } from "@/lib/portada";
 import type { Tema } from "@/lib/tema";
 import { formatearMarcador } from "@/lib/formato";
 import { useFormato } from "@/components/formato-provider";
+import { useTextos } from "@/components/textos-provider";
 
 const REDUCE =
   typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -33,6 +34,7 @@ function useCountUp(target: number, quieto: boolean): number {
 
 function Cifra({ c, tema, quieto }: { c: CifraVisible; tema: Tema; quieto: boolean }) {
   const { idioma } = useFormato();
+  const t = useTextos("inicioCifras");
   const v = useCountUp(c.valor, quieto);
   const esDinero = c.clave === "premios";
   return (
@@ -55,7 +57,9 @@ function Cifra({ c, tema, quieto }: { c: CifraVisible; tema: Tema; quieto: boole
         >
           {esDinero ? premioCorto(v) : formatearMarcador(Math.round(v), idioma)}
         </p>
-        <p className="mt-0.5 text-2xs tracking-widest text-text-dim uppercase">{c.etiqueta}</p>
+        <p className="mt-0.5 text-2xs tracking-widest text-text-dim uppercase">
+          {c.clave === "retos" ? t("cifra_retos", { n: c.valor }) : t(`cifra_${c.clave}`)}
+        </p>
       </div>
     </div>
   );
@@ -79,14 +83,15 @@ export function StatsInicio({
   /** Save-Data: las cifras salen ya puestas, sin recuento (reduced-motion ya lo hacía). */
   quieto?: boolean;
 }) {
+  const t = useTextos("inicioCifras");
   if (cifras.length === 0) {
     return (
       <p className="mt-8 max-w-prose text-sm text-text-dim">
-        Ahora mismo no hay retos abiertos.{" "}
+        {t("vacio")}{" "}
         <Enlace href="/retos" className="text-text underline underline-offset-2">
-          Mira los que vienen
+          {t("miraLosQueVienen")}
         </Enlace>
-        .
+        {t("punto")}
       </p>
     );
   }

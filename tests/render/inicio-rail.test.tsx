@@ -8,6 +8,7 @@
  * Para romperlo a propósito: pasar `imagen={null}` en el rail (rojo).
  */
 import { render, screen, within } from "@testing-library/react";
+import { resolverServidor } from "../helpers/render-servidor";
 import { describe, expect, it, vi } from "vitest";
 
 const FOTO = "/avatars/ganadora.webp";
@@ -73,7 +74,7 @@ import InicioPage from "@/app/(app)/(shell)/inicio/page";
 
 describe("rail Top del mes de la portada", () => {
   it("pinta la foto de quien la tiene y la inicial de quien no", async () => {
-    render(await InicioPage());
+    render(await resolverServidor(await InicioPage()));
     const rail = screen.getByRole("heading", { name: "Top del mes" }).closest("aside")!;
 
     const imgs = [...rail.querySelectorAll("img")];

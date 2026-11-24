@@ -1,3 +1,5 @@
+import { textos } from "@/textos/servidor";
+
 import { Esqueleto } from "@/components/ui/esqueleto";
 
 /**
@@ -21,14 +23,15 @@ import { Esqueleto } from "@/components/ui/esqueleto";
  *    escritorio; son círculos, así que los huecos también.
  *  - el texto del autor y el pie, abajo a la izquierda, sobre el degradado.
  */
-export default function CargandoFeed() {
+export default async function CargandoFeed() {
+  const t = await textos("feed");
   return (
     <div
       role="status"
       aria-busy="true"
       className="lg:grid lg:h-[100svh] lg:grid-cols-[minmax(0,1fr)_380px]"
     >
-      <span className="sr-only">Cargando…</span>
+      <span className="sr-only">{t("cargando")}</span>
 
       {/* COLUMNA DEL VÍDEO */}
       <div className="relative min-w-0">

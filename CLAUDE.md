@@ -373,6 +373,18 @@ borran para "limpiar"**:
   inválida nunca borra; sin sesión válida no escribe. `zonaDeLaPeticion` = cookie → guardada → `null`,
   sin mirar la sesión si hay cookie. Y la zona solo MUESTRA: con ella guardada en UTC+14, Boost y toques
   siguen contando el día UTC, y los ficheros que calculan días y meses no la nombran.
+- `textos-tipos` / `textos-base` / `textos-fuera-del-cliente` / `textos-a-mano` (Fase 11 · P5b1) — la
+  traducción propia ([src/textos/](src/textos/)): `es.ts` es la fuente (`as const`) y otro idioma cumple
+  `satisfies Diccionario<typeof es>` (falta o sobra una clave, o falta un parámetro de `t()`: no compila;
+  lo comprueba `tsc`). `t()` rellena `{param}`, pone `{marca}`, formatea `{n}` con la P1 y elige el plural
+  con `formaDePlural` (el `Intl` sigue en `lib/formato`). Los diccionarios solo los importa
+  `textos/servidor`: un componente de servidor pinta con `await textos("<espacio>")`; uno de cliente recibe
+  SOLO sus espacios por `TextosProvider` (`textosParaCliente`, listas en `textos/espacios`); y uno que se
+  pinta en los DOS lados (la tarjeta de un reto, el marcador) recibe sus textos POR PROP. Ningún
+  `"use client"` llega a un diccionario (grafo de imports; y la marca `__idioma` no puede aparecer en
+  `.next/static`: lo miran `ci-revisar-imagenes.sh` y `check-build-sin-env`). En las zonas extraídas no hay
+  texto a mano en JSX (censo por AST); lo que falta vive en `PENDIENTES_P5B2`, que solo puede menguar. El
+  pseudo-idioma `/xx/…` (acentos, +30 %, corchetes) solo se sirve en desarrollo; en producción, 404.
 - `reloj-rate-limit` — todo test que lleva una ruta real hasta el 429 congela el reloj
   (`congelarReloj()` de [tests/helpers/reloj.ts](tests/helpers/reloj.ts)). Ver la trampa de abajo.
 

@@ -11,11 +11,22 @@ import { REJILLA_CIERRE_PRONTO_MS } from "../src/config/constants";
 import {
   bloquesPortada,
   categoriasDeLaPortada,
+  type CifraVisible,
   cifrasVisibles,
   ordenarRejilla,
   pintarPiezaEnPortada,
   premioCorto,
 } from "../src/lib/portada";
+import { es } from "../src/textos/es";
+import { crearT } from "../src/textos/plantilla";
+
+/**
+ * La etiqueta de cada cifra, como la pinta la portada desde la P5b1 (`stats-inicio`): de los textos, con
+ * el plural de «retos» por su número. Así el texto que se ve sigue fijado aquí, letra a letra.
+ */
+const tCifras = crearT(es.inicioCifras, "es");
+const etiqueta = (c: CifraVisible) =>
+  c.clave === "retos" ? tCifras("cifra_retos", { n: c.valor }) : tCifras(`cifra_${c.clave}`);
 
 describe("las cifras del hero", () => {
   it("sin retos abiertos, NINGUNA (nada de «$0 en premios»)", () => {
@@ -27,7 +38,7 @@ describe("las cifras del hero", () => {
       cifrasVisibles({ categorias: 3, retosAbiertos: 12, premiosCents: 840_000 }).map((c) => [
         c.clave,
         c.valor,
-        c.etiqueta,
+        etiqueta(c),
       ]),
     ).toEqual([
       ["premios", 840_000, "en premios ahora"],
@@ -37,7 +48,7 @@ describe("las cifras del hero", () => {
     expect(
       cifrasVisibles({ categorias: 1, retosAbiertos: 1, premiosCents: 0 }).map((c) => [
         c.clave,
-        c.etiqueta,
+        etiqueta(c),
       ]),
     ).toEqual([["retos", "reto abierto"]]);
   });

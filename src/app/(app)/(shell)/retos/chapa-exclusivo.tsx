@@ -1,5 +1,4 @@
 import { MarcaVip } from "@/components/ui/identidad-usuario";
-import { ETIQUETA_RETO_SOLO_VIP } from "@/config/constants";
 
 /**
  * LA CHAPA DEL RETO EXCLUSIVO, con la MARCA de verdad dentro.
@@ -18,9 +17,12 @@ import { ETIQUETA_RETO_SOLO_VIP } from "@/config/constants";
  * dos veces, acabarían diciendo cosas distintas.
  */
 export function ChapaExclusivo({
+  etiqueta,
   compacta = false,
   clase = "",
 }: {
+  /** «EXCLUSIVO», en el idioma de la página (`tarjetaReto.exclusivo`): la da quien la pinta. */
+  etiqueta: string;
   /**
    * En la REJILLA (dos columnas en móvil, tarjeta de ~170 px) la palabra no cabe: con ella, la
    * chapa se come la portada o baja de línea. Compacta, la palabra aparece a partir de `sm`. En el
@@ -41,7 +43,7 @@ export function ChapaExclusivo({
     >
       <MarcaVip />
       {/* La MARCA nunca se calla; la palabra, en la rejilla estrecha, sí (ver `compacta`). */}
-      <span className={compacta ? "hidden sm:inline" : undefined}>{ETIQUETA_RETO_SOLO_VIP}</span>
+      <span className={compacta ? "hidden sm:inline" : undefined}>{etiqueta}</span>
     </span>
   );
 }

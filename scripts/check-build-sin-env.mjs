@@ -20,7 +20,7 @@
  * Uso: npm run test:build-sin-env
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, renameSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, renameSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 // Ficheros que Next carga automaticamente. Se apartan para replicar el entorno de Docker.
@@ -166,6 +166,25 @@ if (status !== 0) {
 if (salida.includes("Ecmascript file had an error")) {
   console.error(salida);
   console.error("\n[test] FALLO: el build compila pero contiene un archivo con error.\n");
+  process.exit(1);
+}
+
+// NINGÚN DICCIONARIO EN EL JS DEL NAVEGADOR (Fase 11 · P5b1): cada diccionario de textos lleva la marca
+// `__idioma`; si aparece en `.next/static`, un componente de cliente lo ha arrastrado entero. La misma
+// comprobación la hace CI sobre la imagen web (`scripts/ci-revisar-imagenes.sh`).
+const viajan = [];
+(function buscar(dir) {
+  if (!existsSync(dir)) return;
+  for (const n of readdirSync(dir)) {
+    const p = join(dir, n);
+    if (statSync(p).isDirectory()) buscar(p);
+    else if (/\.js$/.test(n) && readFileSync(p, "utf8").includes("__idioma")) viajan.push(p);
+  }
+})(join(root, ".next", "static"));
+if (viajan.length > 0) {
+  console.error(
+    `\n[test] FALLO: un diccionario de textos viaja en el JS del navegador:\n  ${viajan.join("\n  ")}\n`,
+  );
   process.exit(1);
 }
 

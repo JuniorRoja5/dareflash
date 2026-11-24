@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 
 import { Boton } from "@/components/ui/boton";
 import { RELLENO_VIP } from "@/components/ui/logic";
-import { CTA_RETO_PROXIMAMENTE, CTA_RETO_SOLO_VIP, MSG_RETO_SOLO_VIP } from "@/config/constants";
+import { MSG_RETO_SOLO_VIP } from "@/config/constants";
+import { useTextos } from "@/components/textos-provider";
 import type { FaseReto } from "@/lib/reto-ventana";
 import { ModalSubida } from "@/app/(app)/(shell)/crear/modal-subida";
 
@@ -57,12 +58,13 @@ export function BotonParticipar({
 }) {
   const router = useRouter();
   const navegar = useNavegar();
+  const t = useTextos("participar");
   const [abierto, setAbierto] = useState(false);
 
   if (!activo) {
     return (
       <Boton variante="principal" disabled className="w-full py-3.5">
-        {fase === "proximamente" ? CTA_RETO_PROXIMAMENTE : "Reto cerrado"}
+        {fase === "proximamente" ? t("aunNoHaAbierto") : t("retoCerrado")}
       </Boton>
     );
   }
@@ -78,7 +80,7 @@ export function BotonParticipar({
     return (
       <>
         <Boton variante="principal" disabled className="w-full py-3.5">
-          Nivel insuficiente
+          {t("nivelInsuficiente")}
         </Boton>
         <p role="status" className="mt-2 text-sm text-text-dim">
           {avisoNivel}
@@ -94,7 +96,7 @@ export function BotonParticipar({
     return (
       <>
         <Boton href="/vip" variante="fantasma" className="w-full py-3.5" style={RELLENO_VIP}>
-          {CTA_RETO_SOLO_VIP}
+          {t("hazteVip")}
         </Boton>
         <p role="status" className="mt-2 text-sm text-text-dim">
           {MSG_RETO_SOLO_VIP}
@@ -114,7 +116,7 @@ export function BotonParticipar({
             : navegar.push(enlaceEntrarParaParticipar(publicCode, slug))
         }
       >
-        {yaParticipa ? "Reemplazar mi vídeo" : "Participar"}
+        {yaParticipa ? t("reemplazar") : t("participar")}
       </Boton>
       {abierto ? (
         <ModalSubida

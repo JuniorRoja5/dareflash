@@ -17,11 +17,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import {
-  CTA_RETO_SOLO_VIP,
-  ETIQUETA_RETO_SOLO_VIP,
-  MSG_RETO_SOLO_VIP,
-} from "../src/config/constants";
+import { MSG_RETO_SOLO_VIP } from "../src/config/constants";
+import { es } from "../src/textos/es";
 
 const RAIZ = process.cwd();
 const SHELL = ["src", "app", "(app)", "(shell)"];
@@ -171,9 +168,10 @@ describe("el CTA del exclusivo lleva a /vip, en humano", () => {
 
   it("no-VIP: enlace a /vip con el copy del catálogo, no un botón muerto", () => {
     expect(participar).toContain('href="/vip"');
-    expect(participar).toContain("CTA_RETO_SOLO_VIP");
+    // Desde la P5b1 el copy del CTA vive en los textos (`participar.hazteVip`).
+    expect(participar).toContain('t("hazteVip")');
     expect(participar).toContain("MSG_RETO_SOLO_VIP");
-    expect(CTA_RETO_SOLO_VIP).toMatch(/VIP/);
+    expect(es.participar.hazteVip).toMatch(/VIP/);
     // Cero jerga: lo que se lee no puede ser el código del error.
     expect(MSG_RETO_SOLO_VIP).not.toMatch(/SOLO_VIP|409/);
   });
@@ -192,11 +190,12 @@ describe("el CTA del exclusivo lleva a /vip, en humano", () => {
     expect(detalle, "la vista mira el estado a mano").not.toMatch(/estado === "ACTIVA"/);
   });
 
-  it("la chapa usa la MARCA compartida y el literal del catálogo", () => {
+  it("la chapa usa la MARCA compartida y el literal de los textos", () => {
     const chapa = leer(...CHAPA);
     expect(chapa).toContain("<MarcaVip");
-    expect(chapa).toContain("ETIQUETA_RETO_SOLO_VIP");
-    expect(ETIQUETA_RETO_SOLO_VIP.length).toBeGreaterThan(3);
+    // Desde la P5b1 el literal llega por prop desde los textos (`tarjetaReto.exclusivo`).
+    expect(chapa).toContain("{etiqueta}");
+    expect(es.tarjetaReto.exclusivo.length).toBeGreaterThan(3);
   });
 });
 

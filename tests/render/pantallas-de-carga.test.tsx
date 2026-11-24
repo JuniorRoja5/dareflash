@@ -27,6 +27,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { render } from "@testing-library/react";
+import { resolverServidor } from "../helpers/render-servidor";
 import { describe, expect, it } from "vitest";
 
 import CargandoBoosts from "@/app/(app)/(shell)/boosts/loading";
@@ -105,8 +106,8 @@ function contenedorDe(fuente: string): { ancho: string; aire: string } {
 describe("ningún esqueleto afirma nada", () => {
   it.each(PANTALLAS.map((p) => [p.nombre, p.Comp] as const))(
     "%s no pinta más texto que el anuncio",
-    (_nombre, Comp) => {
-      const { container } = render(<Comp />);
+    async (_nombre, Comp) => {
+      const { container } = render(await resolverServidor(<Comp />));
       // Ni cifras, ni nombres, ni "Reto": si aparece cualquier otro texto, es contenido inventado.
       expect(container.textContent).toBe(ANUNCIO);
     },
@@ -114,8 +115,8 @@ describe("ningún esqueleto afirma nada", () => {
 
   it.each(PANTALLAS.map((p) => [p.nombre, p.Comp] as const))(
     "%s se anuncia una SOLA vez y como estado",
-    (_nombre, Comp) => {
-      const { container } = render(<Comp />);
+    async (_nombre, Comp) => {
+      const { container } = render(await resolverServidor(<Comp />));
       const estados = container.querySelectorAll('[role="status"]');
       // Uno: con varios, un lector de pantalla repetiría "Cargando" por cada región.
       expect(estados).toHaveLength(1);
@@ -123,9 +124,9 @@ describe("ningún esqueleto afirma nada", () => {
     },
   );
 
-  it("los bloques de relleno quedan FUERA del árbol accesible", () => {
+  it("los bloques de relleno quedan FUERA del árbol accesible", async () => {
     // Si no fueran `aria-hidden`, un lector recitaría decenas de divs vacíos antes del contenido.
-    const { container } = render(<CargandoDestacados />);
+    const { container } = render(await resolverServidor(<CargandoDestacados />));
     const bloques = container.querySelectorAll(".animate-pulse");
     expect(bloques.length).toBeGreaterThan(5);
     for (const b of bloques) {
@@ -139,10 +140,10 @@ describe("y ocupan el sitio de su página (contra el salto)", () => {
     ["portal de empresa", CargandoPortal],
     ["/panel/empresas", CargandoPanelEmpresas],
     ["/panel/propuestas", CargandoPanelPropuestas],
-  ] as const)("%s no mete un contenedor dentro del de su layout", (_nombre, Comp) => {
+  ] as const)("%s no mete un contenedor dentro del de su layout", async (_nombre, Comp) => {
     // El layout del portal y el del panel ya ponen el ancho y el aire: un segundo `mx-auto max-w-…
     // py-…` dentro sumaría márgenes y el contenido saltaría al llegar.
-    const { container } = render(<Comp />);
+    const { container } = render(await resolverServidor(<Comp />));
     const raiz = container.querySelector('[role="status"]')!;
     expect(raiz.className).not.toMatch(/max-w-|mx-auto|py-/);
   });
@@ -151,9 +152,9 @@ describe("y ocupan el sitio de su página (contra el salto)", () => {
 
   it.each(conContenedor.map((p) => [p.nombre, p.Comp, p.contenedor!] as const))(
     "%s usa el mismo ancho y el mismo aire que su página",
-    (nombre, Comp, contenedor) => {
+    async (nombre, Comp, contenedor) => {
       const esperado = contenedorDe(leer(...contenedor));
-      const { container } = render(<Comp />);
+      const { container } = render(await resolverServidor(<Comp />));
       const raiz = container.querySelector('[role="status"]')!;
 
       expect(raiz.className, `${nombre}: ancho distinto del de ${contenedor.join("/")}`).toContain(
@@ -163,7 +164,7 @@ describe("y ocupan el sitio de su página (contra el salto)", () => {
     },
   );
 
-  it("el detector funciona: lee anchos DISTINTOS en páginas distintas", () => {
+  it("el detector funciona: lee anchos DISTINTOS en páginas distintas", async () => {
     // Sin esto, un `contenedorDe` que devolviera siempre lo mismo dejaría los casos de arriba en
     // verde aunque todos los esqueletos tuvieran el ancho equivocado.
     expect(contenedorDe(leer("(shell)", "retos", "page.tsx")).ancho).toBe("max-w-7xl");

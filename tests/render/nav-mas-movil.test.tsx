@@ -11,6 +11,7 @@
  *  - Y SI LO QUE SE VE ESTÁ DENTRO, el botón se enciende como cualquier otro destino.
  */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { es } from "@/textos/es";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/link", async () => {
@@ -86,7 +87,9 @@ describe("lo que lleva dentro", () => {
 
     const esperados = destinosDe(NAV_MOVIL_MAS);
     expect(filas().map((a) => a.getAttribute("href"))).toEqual(esperados.map((d) => d.href));
-    expect(filas().map((a) => a.textContent)).toEqual(esperados.map((d) => d.nombre));
+    expect(filas().map((a) => a.textContent)).toEqual(
+      esperados.map((d) => es.nav[`destino_${d.clave}`]),
+    );
   });
 
   it("y hoy eso es Inicio, Ranking, Boost, Puntos, Referidos y la puerta al VIP", () => {

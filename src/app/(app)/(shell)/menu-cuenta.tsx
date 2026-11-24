@@ -1,6 +1,7 @@
 "use client";
 
 import { Enlace } from "@/components/enlace";
+import { useTextos } from "@/components/textos-provider";
 import { useCallback, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -72,6 +73,7 @@ export function MenuCuenta({
   /** Cuenta de EMPRESA: su menú (portal + cuenta) y su avatar SIN anillo de nivel. */
   esCuentaEmpresa?: boolean;
 }) {
+  const t = useTextos("cuenta");
   const [abierto, setAbierto] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const cerrar = useCallback(() => setAbierto(false), []);
@@ -86,7 +88,7 @@ export function MenuCuenta({
         type="button"
         aria-haspopup="menu"
         aria-expanded={abierto}
-        aria-label={usuario ? "Tu cuenta" : "Acceder"}
+        aria-label={usuario ? t("tuCuenta") : t("acceder")}
         onClick={() => setAbierto((v) => !v)}
         className="flex items-center gap-1 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-text"
       >
@@ -107,7 +109,7 @@ export function MenuCuenta({
       {abierto ? (
         <div
           role="menu"
-          aria-label="Cuenta"
+          aria-label={t("menu")}
           className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-sm border border-line bg-surface py-1 shadow-[var(--df-shadow-md)]"
         >
           {items.map((item) =>
@@ -121,7 +123,7 @@ export function MenuCuenta({
                 aria-busy={cargando}
                 className={`${CLASE_ITEM} disabled:opacity-40`}
               >
-                {cargando ? "Cerrando sesión…" : item.label}
+                {cargando ? t("cerrando") : t(`opcion_${item.id}`)}
               </button>
             ) : (
               <Enlace
@@ -131,7 +133,7 @@ export function MenuCuenta({
                 onClick={cerrar}
                 className={CLASE_ITEM}
               >
-                {item.label}
+                {t(`opcion_${item.id}`)}
               </Enlace>
             ),
           )}

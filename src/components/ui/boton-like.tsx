@@ -5,6 +5,7 @@ import { useState } from "react";
 import { formatearContador } from "@/components/feed/feed-datos";
 import { delCsrf, postJsonCsrf } from "@/lib/cliente-http";
 import { useNavegarDuro } from "@/components/enlace";
+import { useTextos } from "@/components/textos-provider";
 
 /**
  * ME GUSTA — corazón del rail del feed.
@@ -39,6 +40,7 @@ export function BotonLike({
   esMio?: boolean;
 }) {
   const navegarDuro = useNavegarDuro();
+  const t = useTextos("like");
   const [dado, setDado] = useState(miLike);
   const [delta, setDelta] = useState(0);
   const [enCurso, setEnCurso] = useState(false);
@@ -85,7 +87,7 @@ export function BotonLike({
       onClick={() => void alternar()}
       disabled={esMio}
       aria-pressed={dado}
-      aria-label={`${dado ? "Quitar me gusta" : "Me gusta"} (${formatearContador(mostrados)})`}
+      aria-label={t(dado ? "quitarMeGusta" : "meGusta", { cuenta: formatearContador(mostrados) })}
       className="flex flex-col items-center gap-1 disabled:opacity-40"
     >
       <span className="flex h-11 w-11 items-center justify-center text-white lg:text-text lg:hover:text-white">

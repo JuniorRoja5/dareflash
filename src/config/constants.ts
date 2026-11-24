@@ -1263,26 +1263,6 @@ export const MSG_PARTICIPACION_BLOQUEADA =
  */
 export const MSG_RETO_SOLO_VIP = "Este reto es exclusivo de VIP Mythic.";
 
-/** El CTA del reto exclusivo cuando quien mira no es VIP. Lleva a /vip, que es donde se arregla. */
-export const CTA_RETO_SOLO_VIP = "Hazte VIP para participar";
-
-/** La chapa de la tarjeta de un reto exclusivo. Va al lado de la marca "VIP", que ya dice el plan. */
-export const ETIQUETA_RETO_SOLO_VIP = "EXCLUSIVO";
-
-/**
- * UN RETO QUE TODAVIA NO HA ABIERTO (`startsAt` futuro). La chapa de su tarjeta y el titulo de su
- * seccion en /retos.
- *
- * "PROXIMAMENTE" y no "PROGRAMADO": lo segundo es la palabra del PANEL (`estadoRetoAdmin`), que
- * describe una decision del admin. Al publico no le interesa que alguien lo programara, sino que
- * todavia no puede entrar — y "proximamente" ademas promete, que es lo que se quiere en un
- * producto de concurso.
- */
-export const ETIQUETA_RETO_PROXIMAMENTE = "PRÓXIMAMENTE";
-
-/** El CTA del detalle de un reto que aun no ha abierto: dice por que no se puede, no "cerrado". */
-export const CTA_RETO_PROXIMAMENTE = "Aún no ha abierto";
-
 // ============================================================================
 // RETOS PATROCINADOS (Fase 9 · P1)
 // ============================================================================
@@ -1297,9 +1277,6 @@ export const CTA_RETO_PROXIMAMENTE = "Aún no ha abierto";
  * emitida. Hay diente que lo fija.
  */
 export const COMISION_SPONSOR_BPS_DEFECTO = 2500;
-
-/** Lo que se lee en la tarjeta y en la ficha de un reto patrocinado, delante del nombre de la marca. */
-export const ETIQUETA_PATROCINADO = "Patrocinado por";
 
 /** Nombre de marca: es un nombre comercial escrito a mano, no una clave. Tope sobrio. */
 export const SPONSOR_NOMBRE_MAX = 60;
@@ -3044,7 +3021,8 @@ export const CTA_NEGOCIO = {
 } as const;
 
 /** El enlace del pie de página: discreto, como el resto del pie, pero en TODAS las páginas. */
-export const ENLACE_PIE_EMPRESAS = { texto: "Para empresas", href: "/empezar/empresa" } as const;
+/** El destino de «Para empresas» del pie. Su texto vive en los textos (`pie.paraEmpresas`, Fase 11 · P5b1). */
+export const ENLACE_PIE_EMPRESAS = { href: "/empezar/empresa" } as const;
 
 export const CAMINO_EMPRESA = {
   titulo: "Soy un negocio",

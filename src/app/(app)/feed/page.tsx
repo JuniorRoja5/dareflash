@@ -4,8 +4,13 @@ import { FeedVertical } from "@/components/feed/feed-vertical";
 import { PARAM_COMENTARIO, PARAM_VIDEO } from "@/lib/enlace-comentario";
 import { UBICACION_DESCONOCIDA } from "@/lib/geo";
 import { soloMirar } from "@/lib/solo-mirar";
+import { TextosProvider } from "@/components/textos-provider";
+import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
 
-export const metadata = { title: "Feed" };
+/** El título, en el idioma de la página (Fase 11 · P5b1): por petición, nunca en ámbito de módulo. */
+export async function generateMetadata() {
+  return { title: (await textos("feed"))("titulo") };
+}
 export const dynamic = "force-dynamic";
 
 /** Un parámetro repetido (`?video=a&video=b`) no es una petición legítima: se ignora. */
@@ -67,13 +72,17 @@ export default async function FeedPage({
     ? [destino, ...pagina.items.filter((p) => p.id !== destino.id)]
     : pagina.items;
 
+  // Los textos: los de esta página (servidor) y los de su isla de cliente, solo esos espacios.
+  const [t, textosFeed] = await Promise.all([
+    textos("feed"),
+    textosClienteDeLaPeticion(["feed", "comentarios"] as const),
+  ]);
+
   if (items.length === 0) {
     return (
       <div className="flex min-h-[100svh] flex-col items-center justify-center gap-3 px-6 text-center">
-        <h1 className="text-lg font-semibold text-text">Aún no hay vídeos</h1>
-        <p className="max-w-sm text-sm text-text-dim">
-          Cuando se publiquen los primeros vídeos, aparecerán aquí. Vuelve en un rato.
-        </p>
+        <h1 className="text-lg font-semibold text-text">{t("vacioTitulo")}</h1>
+        <p className="max-w-sm text-sm text-text-dim">{t("vacioTexto")}</p>
       </div>
     );
   }
@@ -89,15 +98,17 @@ export default async function FeedPage({
   });
 
   return (
-    <FeedVertical
-      postsIniciales={items}
-      piezasIniciales={piezas}
-      cursorInicial={pagina.nextCursor}
-      haySesion={haySesion}
-      emailVerificado={usuario?.emailVerified != null}
-      comentarioDestacado={destino && comentario ? comentario : undefined}
-      aviso={pedido && !destino ? "Ese vídeo ya no está disponible." : undefined}
-      soloMirar={soloMirar(usuario)}
-    />
+    <TextosProvider textos={textosFeed}>
+      <FeedVertical
+        postsIniciales={items}
+        piezasIniciales={piezas}
+        cursorInicial={pagina.nextCursor}
+        haySesion={haySesion}
+        emailVerificado={usuario?.emailVerified != null}
+        comentarioDestacado={destino && comentario ? comentario : undefined}
+        aviso={pedido && !destino ? t("videoNoDisponible") : undefined}
+        soloMirar={soloMirar(usuario)}
+      />
+    </TextosProvider>
   );
 }

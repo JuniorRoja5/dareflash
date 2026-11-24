@@ -16,11 +16,12 @@ import { describe, expect, it } from "vitest";
 
 import { NAV_DESTINOS } from "../src/components/ui/logic";
 import { CTA_ADMIN, CTA_USUARIO, ctaPrincipal } from "../src/lib/cta-principal";
+import { es } from "../src/textos/es";
 
 describe("ctaPrincipal", () => {
   it("ADMIN -> crear un reto de verdad, en el panel", () => {
     expect(ctaPrincipal("ADMIN")).toEqual({
-      texto: "Crear reto",
+      clave: "crearReto",
       href: "/panel/retos",
       crea: true,
     });
@@ -28,14 +29,14 @@ describe("ctaPrincipal", () => {
 
   it("usuario, moderador e invitado -> su acción real: subir un vídeo", () => {
     for (const rol of ["USER", "MODERATOR", null]) {
-      expect(ctaPrincipal(rol)).toEqual({ texto: "Subir vídeo", href: "/crear", crea: true });
+      expect(ctaPrincipal(rol)).toEqual({ clave: "subirVideo", href: "/crear", crea: true });
     }
   });
 
   it("una cuenta de EMPRESA -> su portal, SIN «+»: hoy su CTA no crea nada", () => {
     // Su rol es USER: si la empresa no fuera primero, recibiría «Subir vídeo», que no puede hacer.
     expect(ctaPrincipal("USER", true)).toEqual({
-      texto: "Mi empresa",
+      clave: "miEmpresa",
       href: "/empresa",
       crea: false,
     });
@@ -45,7 +46,16 @@ describe("ctaPrincipal", () => {
   it("el CTA del no-admin no lleva al panel ni se llama como el del admin", () => {
     // El copy final lo decide Junior; lo que no puede pasar es que el no-admin vea la acción del admin.
     expect(CTA_USUARIO.href.startsWith("/panel")).toBe(false);
-    expect(CTA_USUARIO.texto).not.toBe(CTA_ADMIN.texto);
+    expect(es.cta[CTA_USUARIO.clave]).not.toBe(es.cta[CTA_ADMIN.clave]);
+  });
+
+  // Desde la P5b1 el TEXTO de cada CTA vive en los textos (`cta.<clave>`); el copy sigue fijado aquí.
+  it("lo que dice cada CTA, en castellano", () => {
+    expect(es.cta).toEqual({
+      crearReto: "Crear reto",
+      subirVideo: "Subir vídeo",
+      miEmpresa: "Mi empresa",
+    });
   });
 });
 
@@ -108,6 +118,6 @@ describe("nadie pinta el CTA por su cuenta (estructural)", () => {
     // `destinoActivo` marca /crear con él: si divergiera, la nav y el CTA hablarían de sitios distintos.
     const crear = NAV_DESTINOS.find((d) => d.clave === "crear");
     expect(crear?.href).toBe(CTA_USUARIO.href);
-    expect(crear?.nombre).toBe(CTA_USUARIO.texto);
+    expect(es.nav.destino_crear).toBe(es.cta[CTA_USUARIO.clave]);
   });
 });

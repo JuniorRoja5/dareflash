@@ -23,6 +23,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { CTA_NEGOCIO, ENLACE_PIE_EMPRESAS } from "../src/config/constants";
+import { es } from "../src/textos/es";
 
 const leer = (rel: string) => readFileSync(path.resolve(__dirname, "..", rel), "utf8");
 /** Sin comentarios: un guard que cuenta la prosa que explica la regla acaba borrado. */
@@ -38,7 +39,8 @@ describe("las puertas van al alta, desde una sola fuente", () => {
     expect(CTA_NEGOCIO.href).toBe("/empezar/empresa");
     expect(ENLACE_PIE_EMPRESAS.href).toBe("/empezar/empresa");
     expect(CTA_NEGOCIO.texto).toBe("¿Tienes un negocio? Regístralo aquí");
-    expect(ENLACE_PIE_EMPRESAS.texto).toBe("Para empresas");
+    // Desde la P5b1 el texto vive en los textos (una sola fuente igual): `pie.paraEmpresas`.
+    expect(es.pie.paraEmpresas).toBe("Para empresas");
   });
 
   it("nadie escribe la ruta a mano en las puertas: sale de la constante", () => {
@@ -74,7 +76,9 @@ describe("la portada", () => {
   const portada = soloCodigo(leer("src/app/(app)/(shell)/inicio/page.tsx"));
 
   it("tiene un bloque «¿Tienes un negocio?» con el aviso de Socios Fundadores y su botón", () => {
-    expect(portada).toContain("¿Tienes un negocio?");
+    // Desde la P5b1 el título vive en los textos (`inicio.tienesNegocio`).
+    expect(portada).toContain('t("tienesNegocio")');
+    expect(es.inicio.tienesNegocio).toBe("¿Tienes un negocio?");
     expect(portada).toContain("msgSocioFundador(idioma)");
     expect(portada).toContain("href={CTA_NEGOCIO.href}");
   });
@@ -96,6 +100,6 @@ describe("el pie de página", () => {
   it("enlaza «Para empresas»", () => {
     const pie = soloCodigo(leer("src/components/ui/pie-legal.tsx"));
     expect(pie).toContain("href={ENLACE_PIE_EMPRESAS.href}");
-    expect(pie).toContain("{ENLACE_PIE_EMPRESAS.texto}");
+    expect(pie).toContain('{t("paraEmpresas")}');
   });
 });

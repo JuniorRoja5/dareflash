@@ -55,7 +55,8 @@ describe("cada pantalla cubierta tiene su esqueleto", () => {
       const f = join(APP, ...ruta);
       expect(existsSync(f), `no existe ${ruta.join("/")} (pantalla: ${nombre})`).toBe(true);
       // Y que no sea un fichero vacío que cumpla la letra sin hacer nada.
-      expect(readFileSync(f, "utf8")).toMatch(/export default function/);
+      // (`async` desde la P5b1: un esqueleto puede pedir su «Cargando…» a los textos.)
+      expect(readFileSync(f, "utf8")).toMatch(/export default (async )?function/);
     },
   );
 

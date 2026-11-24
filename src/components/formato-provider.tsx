@@ -3,7 +3,7 @@
 import { createContext, useContext } from "react";
 
 import type { Idioma, ZonaHoraria } from "@/lib/formato";
-import { IDIOMA_RAIZ } from "@/lib/idioma-ruta";
+import { IDIOMA_RAIZ, type IdiomaDeTextos } from "@/lib/idioma-ruta";
 
 /**
  * EL IDIOMA Y LA ZONA PARA LOS COMPONENTES DE CLIENTE (Fase 11 · P1).
@@ -12,18 +12,25 @@ import { IDIOMA_RAIZ } from "@/lib/idioma-ruta";
  * cliente formatea con la MISMA zona que el servidor, y el HTML hidrata igual a los dos lados. La zona
  * puede ser `null` (aún no la sabemos): cada componente decide qué hacer, normalmente quitar la hora.
  */
-const Contexto = createContext<{ idioma: Idioma; zona: ZonaHoraria | null } | null>(null);
+const Contexto = createContext<{
+  idioma: Idioma;
+  zona: ZonaHoraria | null;
+  idiomaTextos: IdiomaDeTextos;
+} | null>(null);
 
 export function FormatoProvider({
   idioma,
   zona,
+  idiomaTextos = idioma,
   children,
 }: {
   idioma: Idioma;
   zona: ZonaHoraria | null;
+  /** El de los TEXTOS y los enlaces (Fase 11 · P5b1): el mismo, o el pseudo-idioma `xx` en desarrollo. */
+  idiomaTextos?: IdiomaDeTextos;
   children: React.ReactNode;
 }) {
-  return <Contexto.Provider value={{ idioma, zona }}>{children}</Contexto.Provider>;
+  return <Contexto.Provider value={{ idioma, zona, idiomaTextos }}>{children}</Contexto.Provider>;
 }
 
 /**
@@ -32,12 +39,16 @@ export function FormatoProvider({
  * siempre (lo pone el layout raíz y `formato-unico` lo fija); el respaldo es para los tests que
  * renderizan un componente suelto, donde un enlace sin idioma es un enlace en castellano.
  */
-export function useIdiomaDeLaPagina(): Idioma {
-  return useContext(Contexto)?.idioma ?? IDIOMA_RAIZ;
+export function useIdiomaDeLaPagina(): IdiomaDeTextos {
+  return useContext(Contexto)?.idiomaTextos ?? IDIOMA_RAIZ;
 }
 
 /** El idioma y la zona de quien mira. Fuera del proveedor LANZA: un componente sin ellos es un fallo. */
-export function useFormato(): { idioma: Idioma; zona: ZonaHoraria | null } {
+export function useFormato(): {
+  idioma: Idioma;
+  zona: ZonaHoraria | null;
+  idiomaTextos: IdiomaDeTextos;
+} {
   const v = useContext(Contexto);
   if (!v) throw new Error("useFormato fuera de FormatoProvider");
   return v;

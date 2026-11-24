@@ -2,6 +2,7 @@ import type { Idioma } from "@/lib/formato";
 import { Enlace } from "@/components/enlace";
 
 import type { RetoPublicoVista } from "@/server/services/retos-publico";
+import { textos } from "@/textos/servidor";
 
 import { TarjetaVertical } from "../retos/tarjeta-vertical";
 
@@ -12,7 +13,7 @@ import { TarjetaVertical } from "../retos/tarjeta-vertical";
  *
  * Vacío honesto: si no queda ninguno abierto aparte del destacado, se dice y se enlaza a la lista.
  */
-export function RetosDestacados({
+export async function RetosDestacados({
   retos,
   hayDestacado,
   idioma,
@@ -21,14 +22,13 @@ export function RetosDestacados({
   hayDestacado: boolean;
   idioma: Idioma;
 }) {
+  const t = await textos("inicio");
   if (retos.length === 0) {
     return (
       <p className="rounded-sm border border-line bg-surface/60 px-4 py-6 text-center text-sm text-text-dim">
-        {hayDestacado
-          ? "Ahora mismo no hay más retos abiertos que el destacado."
-          : "Ahora mismo no hay retos abiertos."}{" "}
+        {hayDestacado ? t("rejillaVacioConDestacado") : t("rejillaVacio")}{" "}
         <Enlace href="/retos" className="text-text underline underline-offset-2">
-          Ver los próximos
+          {t("verLosProximos")}
         </Enlace>
       </p>
     );

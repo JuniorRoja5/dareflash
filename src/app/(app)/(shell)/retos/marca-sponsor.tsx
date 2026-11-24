@@ -1,4 +1,3 @@
-import { ETIQUETA_PATROCINADO } from "@/config/constants";
 import type { SponsorVista } from "@/server/services/retos-publico";
 
 /**
@@ -21,10 +20,13 @@ import type { SponsorVista } from "@/server/services/retos-publico";
  */
 export function MarcaSponsor({
   sponsor,
+  etiqueta,
   compacta = false,
   clase = "",
 }: {
   sponsor: SponsorVista;
+  /** «Patrocinado por», en el idioma de la página (`tarjetaReto.patrocinadoPor`). */
+  etiqueta: string;
   /** En la rejilla estrecha se pinta solo la marca; "Patrocinado por" aparece a partir de `sm`. */
   compacta?: boolean;
   clase?: string;
@@ -44,7 +46,7 @@ export function MarcaSponsor({
           className="h-4 w-4 shrink-0 object-contain"
         />
       ) : null}
-      <span className={compacta ? "hidden sm:inline" : undefined}>{ETIQUETA_PATROCINADO}</span>
+      <span className={compacta ? "hidden sm:inline" : undefined}>{etiqueta}</span>
       <span className="truncate font-semibold">{sponsor.nombre}</span>
     </span>
   );

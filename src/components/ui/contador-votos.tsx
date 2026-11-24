@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTextos } from "@/components/textos-provider";
 
 import { useFormato } from "@/components/formato-provider";
 import { formatearMarcador } from "@/lib/formato";
@@ -18,6 +19,7 @@ const prefiereMenosMovimiento = (): boolean =>
 export function ContadorVotos({ votos, className = "" }: { votos: number; className?: string }) {
   // El idioma de quien mira, del proveedor del layout (Fase 11): el número sale de `lib/formato`.
   const { idioma } = useFormato();
+  const t = useTextos("voto");
   const [mostrado, setMostrado] = useState(votos);
   const [golpe, setGolpe] = useState(false);
   const prev = useRef(votos);
@@ -51,7 +53,7 @@ export function ContadorVotos({ votos, className = "" }: { votos: number; classN
   return (
     <span
       className={`inline-block tabular-nums transition-transform duration-150 ease-mechanical ${golpe ? "scale-110" : "scale-100"} ${className}`}
-      aria-label={`${formatearMarcador(votos, idioma)} votos`}
+      aria-label={t("votos", { cuenta: formatearMarcador(votos, idioma) })}
     >
       {formatearMarcador(mostrado, idioma)}
     </span>

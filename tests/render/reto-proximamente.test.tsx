@@ -20,7 +20,11 @@ import { BotonParticipar } from "@/app/(app)/(shell)/retos/[codigo]/participar";
 import { TarjetaReto } from "@/app/(app)/(shell)/retos/tarjeta-reto";
 import { Marcador } from "@/components/ui/marcador";
 import { tokenCuentaAtras } from "@/components/ui/logic";
-import { ETIQUETA_RETO_PROXIMAMENTE } from "@/config/constants";
+// Desde la P5b1 la etiqueta vive en los textos (`tarjetaReto.proximamente`).
+import { es } from "@/textos/es";
+import { TEXTOS_TARJETA } from "../helpers/textos-prueba";
+
+const ETIQUETA_RETO_PROXIMAMENTE = es.tarjetaReto.proximamente;
 import type { RetoPublicoVista } from "@/server/services/retos-publico";
 
 afterEach(cleanup);
@@ -41,7 +45,7 @@ const BASE: RetoPublicoVista = {
 };
 
 const pintar = (over: Partial<RetoPublicoVista> = {}) =>
-  render(<TarjetaReto idioma="es" reto={{ ...BASE, ...over }} />).container;
+  render(<TarjetaReto idioma="es" reto={{ ...BASE, ...over }} textos={TEXTOS_TARJETA} />).container;
 
 /** Un reto que abre dentro de un día y cierra dentro de siete. */
 const FUTURO: Partial<RetoPublicoVista> = {
@@ -123,10 +127,21 @@ describe("la cuenta a la apertura no es una alarma", () => {
 
   it("el marcador antepone «Abre en» solo cuando cuenta a la apertura", () => {
     const abre = render(
-      <Marcador idioma="es" cents={1000} deadlineMs={Date.now() + DIA} hacia="apertura" />,
+      <Marcador
+        idioma="es"
+        cents={1000}
+        deadlineMs={Date.now() + DIA}
+        hacia="apertura"
+        textoAbreEn={es.marcador.abreEn}
+      />,
     ).container;
     const cierra = render(
-      <Marcador idioma="es" cents={1000} deadlineMs={Date.now() + DIA} />,
+      <Marcador
+        idioma="es"
+        cents={1000}
+        deadlineMs={Date.now() + DIA}
+        textoAbreEn={es.marcador.abreEn}
+      />,
     ).container;
 
     expect(abre.textContent).toContain("Abre en");

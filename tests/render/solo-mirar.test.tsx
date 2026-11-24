@@ -22,6 +22,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { act, cleanup, render, screen } from "@testing-library/react";
+import { es } from "@/textos/es";
+import { resolverServidor } from "../helpers/render-servidor";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/ui/reproductor-hls", () => ({
@@ -141,16 +143,16 @@ describe("el feed, para quien solo mira", () => {
 });
 
 describe("el pie: «Para empresas» no se le enseña a una empresa", () => {
-  it("una cuenta de empresa no lo ve", () => {
-    render(<PieLegal sobreNavMovil esCuentaEmpresa />);
-    expect(screen.queryByText(ENLACE_PIE_EMPRESAS.texto)).toBeNull();
+  it("una cuenta de empresa no lo ve", async () => {
+    render(await resolverServidor(<PieLegal sobreNavMovil esCuentaEmpresa />));
+    expect(screen.queryByText(es.pie.paraEmpresas)).toBeNull();
     // El resto del pie sigue: es la puerta a /privacidad.
     expect(screen.getByText("Privacidad")).toBeTruthy();
   });
 
-  it("invitados y participantes, sí", () => {
-    render(<PieLegal sobreNavMovil />);
-    expect(screen.getByText(ENLACE_PIE_EMPRESAS.texto).getAttribute("href")).toBe(
+  it("invitados y participantes, sí", async () => {
+    render(await resolverServidor(<PieLegal sobreNavMovil />));
+    expect(screen.getByText(es.pie.paraEmpresas).getAttribute("href")).toBe(
       ENLACE_PIE_EMPRESAS.href,
     );
   });
@@ -167,13 +169,13 @@ const leer = (...p: string[]) =>
     .replace(/^\s*\/\/.*$/gm, "");
 
 describe("cada página compartida saca la decisión de `soloMirar`", () => {
-  it("el feed", () => {
+  it("el feed", async () => {
     expect(leer("src", "app", "(app)", "feed", "page.tsx")).toMatch(
       /soloMirar=\{soloMirar\(usuario\)\}/,
     );
   });
 
-  it("el detalle del reto: «Participar» y la rejilla (con su feed)", () => {
+  it("el detalle del reto: «Participar» y la rejilla (con su feed)", async () => {
     const reto = leer("src", "app", "(app)", "(shell)", "retos", "[codigo]", "page.tsx");
     // El botón va DENTRO de la rama de quien participa.
     expect(reto).toMatch(
@@ -192,13 +194,13 @@ describe("cada página compartida saca la decisión de `soloMirar`", () => {
     expect(rejilla).toMatch(/<FeedVertical[\s\S]*?soloMirar=\{soloMirar\}/);
   });
 
-  it("el perfil público: quien solo mira no toca", () => {
+  it("el perfil público: quien solo mira no toca", async () => {
     expect(leer("src", "app", "(app)", "(shell)", "u", "[username]", "page.tsx")).toMatch(
       /!soloMirar\(yo\)/,
     );
   });
 
-  it("el feed le pasa la decisión a las tres piezas de comentarios y controles", () => {
+  it("el feed le pasa la decisión a las tres piezas de comentarios y controles", async () => {
     const f = leer("src", "components", "feed", "feed-vertical.tsx");
     // Cinco: el post, el panel y la hoja (desde `FeedVertical`) y los comentarios del panel y de la
     // hoja (desde cada uno). Uno de menos es una pieza que vuelve a ofrecer controles.
@@ -207,7 +209,7 @@ describe("cada página compartida saca la decisión de `soloMirar`", () => {
     expect(c).toMatch(/\{soloMirar \? \(/);
   });
 
-  it("nadie fija `soloMirar` a mano en una página", () => {
+  it("nadie fija `soloMirar` a mano en una página", async () => {
     for (const rel of [
       ["src", "app", "(app)", "feed", "page.tsx"],
       ["src", "app", "(app)", "(shell)", "retos", "[codigo]", "page.tsx"],
@@ -217,7 +219,7 @@ describe("cada página compartida saca la decisión de `soloMirar`", () => {
     }
   });
 
-  it("el pie del shell lee la sesión", () => {
+  it("el pie del shell lee la sesión", async () => {
     expect(leer("src", "app", "(app)", "(shell)", "layout.tsx")).toMatch(
       /<PieLegal sobreNavMovil esCuentaEmpresa=\{user\?\.esCuentaEmpresa \?\? false\} \/>/,
     );

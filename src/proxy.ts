@@ -2,14 +2,31 @@ import type { NextRequest } from "next/server";
 import { NextResponse, userAgent } from "next/server";
 
 import { IDIOMAS_PUBLICADOS, SESSION_COOKIE } from "@/config/constants";
+import { env } from "@/config/env";
 import {
   CABECERA_IDIOMA,
   CABECERA_RUTA,
   esRutaSinIdioma,
+  IDIOMA_PSEUDO,
   IDIOMA_RAIZ,
+  type IdiomaDeTextos,
   ruta,
   separarIdioma,
 } from "@/lib/idioma-ruta";
+
+/**
+ * ¿Se sirve el pseudo-idioma `xx`? SOLO en desarrollo (Fase 11 · P5b1). Se lee `env` SOLO cuando la URL
+ * lleva `/xx`: el resto de páginas no dependen de él.
+ */
+function pseudoPublicado(): boolean {
+  return env.NODE_ENV === "development";
+}
+
+/** ¿Se sirve este prefijo? Los publicados, y el pseudo-idioma solo en desarrollo. */
+function prefijoServido(prefijo: IdiomaDeTextos): boolean {
+  if (prefijo === IDIOMA_PSEUDO) return pseudoPublicado();
+  return IDIOMAS_PUBLICADOS.includes(prefijo);
+}
 
 /**
  * PROXY (antes `middleware`; renombrado en Next 16 — misma funcionalidad, ver
@@ -90,7 +107,7 @@ export function proxy(req: NextRequest): NextResponse {
     url.pathname = resto;
     return NextResponse.redirect(url, 308);
   }
-  if (prefijo !== null && (!IDIOMAS_PUBLICADOS.includes(prefijo) || esRutaSinIdioma(resto))) {
+  if (prefijo !== null && (!prefijoServido(prefijo) || esRutaSinIdioma(resto))) {
     return noExiste(req);
   }
 

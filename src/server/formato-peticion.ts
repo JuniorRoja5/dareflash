@@ -9,7 +9,14 @@ import "server-only";
 import { cookies, headers } from "next/headers";
 
 import type { Idioma, ZonaHoraria } from "@/lib/formato";
-import { CABECERA_IDIOMA, CABECERA_RUTA, esIdioma, IDIOMA_RAIZ } from "@/lib/idioma-ruta";
+import {
+  CABECERA_IDIOMA,
+  CABECERA_RUTA,
+  esIdioma,
+  esIdiomaDeTextos,
+  IDIOMA_RAIZ,
+  type IdiomaDeTextos,
+} from "@/lib/idioma-ruta";
 import { ZONA_COOKIE, zonaDesdeCookie } from "@/lib/zona-espectador";
 
 /**
@@ -23,6 +30,16 @@ import { ZONA_COOKIE, zonaDesdeCookie } from "@/lib/zona-espectador";
 export async function idiomaDeLaPeticion(): Promise<Idioma> {
   const valor = (await headers()).get(CABECERA_IDIOMA);
   return esIdioma(valor) ? valor : IDIOMA_RAIZ;
+}
+
+/**
+ * EL IDIOMA DE LOS TEXTOS de la página (Fase 11 · P5b1): el de `idiomaDeLaPeticion`, o el pseudo-idioma
+ * `xx` (solo en desarrollo; el proxy no lo deja pasar en producción). Para elegir el diccionario y para
+ * los enlaces; para FORMATEAR (números, fechas, plurales) se usa `idiomaDeLaPeticion`, que en `xx` es «es».
+ */
+export async function idiomaDeTextosDeLaPeticion(): Promise<IdiomaDeTextos> {
+  const valor = (await headers()).get(CABECERA_IDIOMA);
+  return esIdiomaDeTextos(valor) ? valor : IDIOMA_RAIZ;
 }
 
 /**

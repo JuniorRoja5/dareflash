@@ -1,6 +1,7 @@
 "use client";
 
 import { Enlace } from "@/components/enlace";
+import { useTextos } from "@/components/textos-provider";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -47,7 +48,7 @@ import {
 export function MenuMasMovil({
   activo,
   icono,
-  etiqueta = "Más",
+  etiqueta,
   esCuentaEmpresa = false,
 }: {
   /** Clave del destino activo, para marcar la fila y encender el botón si lo que se ve está dentro. */
@@ -58,6 +59,8 @@ export function MenuMasMovil({
   /** Cuenta de EMPRESA: su menú, derivado de SUS listas (`NAV_MOVIL_MAS_EMPRESA`). */
   esCuentaEmpresa?: boolean;
 }) {
+  const t = useTextos("nav");
+  const textoBoton = etiqueta ?? t("mas");
   const [abierto, setAbierto] = useState(false);
   const caja = useRef<HTMLDivElement>(null);
   const idMenu = useId();
@@ -95,7 +98,7 @@ export function MenuMasMovil({
            otros destinos ni se sale por abajo. Ancho mínimo para que el objetivo táctil sea cómodo. */
         <ul
           id={idMenu}
-          aria-label={etiqueta}
+          aria-label={textoBoton}
           /* `min-w-52` y no 44: con 44 el destino más largo del catálogo ("Hazte VIP Mythic") se
              partía en dos renglones y la fila dejaba de leerse como las demás. El ancho lo marca el
              nombre más largo, no el más corto, y 208 px siguen cabiendo de sobra en 390. */
@@ -125,7 +128,7 @@ export function MenuMasMovil({
                   }`}
                 >
                   {icono[d.clave]}
-                  <span>{d.nombre}</span>
+                  <span>{t(`destino_${d.clave}`)}</span>
                 </Enlace>
               </li>
             );
@@ -158,7 +161,7 @@ export function MenuMasMovil({
         >
           <path d="M6 15l6-6 6 6" />
         </svg>
-        <span>{etiqueta}</span>
+        <span>{textoBoton}</span>
       </button>
     </div>
   );

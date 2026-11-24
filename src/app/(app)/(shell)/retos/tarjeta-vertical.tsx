@@ -10,7 +10,8 @@ import type { RetoPublicoVista } from "@/server/services/retos-publico";
 
 import { ChapaExclusivo } from "./chapa-exclusivo";
 import { MarcaSponsor } from "./marca-sponsor";
-import { nombreCategoria } from "./retos-datos";
+import { nombreDeCategoria } from "@/textos/categoria";
+import { textos } from "@/textos/servidor";
 
 /** Triangulo de "play" del placeholder (SVG inline; nada de emojis como iconos). */
 function IconoPlay() {
@@ -35,7 +36,18 @@ function IconoPlay() {
  * Solo retos ABIERTOS: la portada no enseña ni próximos ni cerrados, así que la cuenta va al cierre. El
  * plazo viaja ABSOLUTO (`deadlineMs`): el marcador cuenta en el cliente, sin `Date.now()` en el render.
  */
-export function TarjetaVertical({ reto, idioma }: { reto: RetoPublicoVista; idioma: Idioma }) {
+export async function TarjetaVertical({
+  reto,
+  idioma,
+}: {
+  reto: RetoPublicoVista;
+  idioma: Idioma;
+}) {
+  const [t, tcat, tmar] = await Promise.all([
+    textos("tarjetaReto"),
+    textos("categorias"),
+    textos("marcador"),
+  ]);
   const href = `/retos/${reto.publicCode}-${reto.slug}`;
   return (
     // PROFUNDIDAD SUTIL (rediseño de /inicio): inclinación hacia el puntero y brillo que lo sigue
@@ -63,13 +75,17 @@ export function TarjetaVertical({ reto, idioma }: { reto: RetoPublicoVista; idio
             overlays={
               <>
                 <span className="pointer-events-none absolute inset-x-2.5 top-2.5 z-10 flex flex-wrap items-start justify-between gap-1.5">
-                  <PildoraCategoria>{nombreCategoria(reto.categoria)}</PildoraCategoria>
-                  {reto.soloVip ? <ChapaExclusivo compacta /> : null}
+                  <PildoraCategoria>{nombreDeCategoria(tcat, reto.categoria)}</PildoraCategoria>
+                  {reto.soloVip ? <ChapaExclusivo etiqueta={t("exclusivo")} compacta /> : null}
                 </span>
                 <span className="pointer-events-none absolute inset-x-0 bottom-0 z-10 block border-t border-line bg-void/70 px-2.5 py-2">
                   {reto.sponsor ? (
                     <span className="mb-1.5 flex min-w-0">
-                      <MarcaSponsor sponsor={reto.sponsor} compacta />
+                      <MarcaSponsor
+                        sponsor={reto.sponsor}
+                        etiqueta={t("patrocinadoPor")}
+                        compacta
+                      />
                     </span>
                   ) : null}
                   <span className="block" style={{ filter: "var(--df-glow-dinero)" }}>
@@ -78,6 +94,7 @@ export function TarjetaVertical({ reto, idioma }: { reto: RetoPublicoVista; idio
                       cents={reto.premioCents}
                       deadlineMs={reto.deadlineMs}
                       tamano="lista"
+                      textoAbreEn={tmar("abreEn")}
                       apilarEnMovil
                     />
                   </span>
@@ -98,7 +115,7 @@ export function TarjetaVertical({ reto, idioma }: { reto: RetoPublicoVista; idio
             </Enlace>
           </h3>
           <Boton href={href} variante="secundario" className="shrink-0 px-4 text-xs">
-            Participar
+            {t("participar")}
           </Boton>
         </div>
       </article>

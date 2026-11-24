@@ -2,6 +2,7 @@ import { Enlace } from "@/components/enlace";
 
 import { TarjetaDestacado } from "@/components/ui/tarjeta-destacado";
 import type { PerfilDestacado } from "@/server/services/boost-destacados";
+import { textos } from "@/textos/servidor";
 
 /**
  * PERFILES DESTACADOS (Boost) — la FILA de la portada, con datos reales.
@@ -30,23 +31,22 @@ import type { PerfilDestacado } from "@/server/services/boost-destacados";
  * /boosts son pantallas de participante, que la apartan a su portal, y "puedes ser el primero" la
  * invitaría a comprar algo que no puede tener. Ver los perfiles sí: mirar es lo que viene a hacer.
  */
-export function BoostDestacados({
+export async function BoostDestacados({
   perfiles,
   soloMirar = false,
 }: {
   perfiles: PerfilDestacado[];
   soloMirar?: boolean;
 }) {
+  const t = await textos("inicio");
   return (
     <section aria-labelledby="destacados">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div className="flex flex-wrap items-baseline gap-x-3">
           <h2 id="destacados" className="text-xl font-semibold text-text">
-            Descúbrelos hoy
+            {t("destacadosTitulo")}
           </h2>
-          <span className="text-sm text-text-dim">
-            Creadores a los que seguir la pista ahora mismo
-          </span>
+          <span className="text-sm text-text-dim">{t("destacadosSubtitulo")}</span>
         </div>
         {/* DOS ENLACES CON TRABAJOS DISTINTOS: "ver todos" lleva a la lista (y es la puerta de móvil
             a la sección); "destaca tu perfil" lleva a comprar. Juntar los dos en uno obligaría a
@@ -58,11 +58,11 @@ export function BoostDestacados({
                 href="/destacados"
                 className="text-sm font-medium text-text-dim hover:text-text"
               >
-                Ver todos →
+                {t("verTodos")}
               </Enlace>
             ) : null}
             <Enlace href="/boosts" className="text-sm font-medium text-text-dim hover:text-text">
-              Destaca tu perfil →
+              {t("destacaTuPerfil")}
             </Enlace>
           </div>
         )}
@@ -70,9 +70,7 @@ export function BoostDestacados({
 
       {perfiles.length === 0 ? (
         <p className="mt-4 rounded-sm border border-line bg-surface/40 p-6 text-center text-sm text-text-dim">
-          {soloMirar
-            ? "Ahora mismo no hay ningún perfil destacado."
-            : "Ahora mismo no hay ningún perfil destacado. Puedes ser el primero."}
+          {soloMirar ? t("destacadosVacio") : t("destacadosVacioInvita")}
         </p>
       ) : (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

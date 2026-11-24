@@ -241,7 +241,8 @@ describe("escritorio: sin números mágicos ni hueco muerto", () => {
     // Y el contador de "Comentar" es el del vídeo, no un 0 fijo. (El texto cambia a "Ver comentarios"
     // para quien solo mira —cuenta de empresa, Fase 9 P2—; el contador es el mismo.)
     expect(src).toMatch(
-      /label=\{soloMirar \? "Ver comentarios" : "Comentar"\}\s+valor=\{post\.comentarios\}/,
+      // (Desde la P5b1 los textos salen de `feed.verComentarios` / `feed.comentar`.)
+      /label=\{soloMirar \? t\("verComentarios"\) : t\("comentar"\)\}\s+valor=\{post\.comentarios\}/,
     );
   });
 });

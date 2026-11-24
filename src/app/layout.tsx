@@ -4,7 +4,11 @@ import { cookies } from "next/headers";
 import { FormatoProvider } from "@/components/formato-provider";
 import { atributoTema, TEMA_COLOR_BARRA, TEMA_COOKIE, temaDesdeCookie } from "@/lib/tema";
 import { SCRIPT_ZONA } from "@/lib/zona-espectador";
-import { idiomaDeLaPeticion, zonaDeLaPeticion } from "@/server/formato-peticion";
+import {
+  idiomaDeLaPeticion,
+  idiomaDeTextosDeLaPeticion,
+  zonaDeLaPeticion,
+} from "@/server/formato-peticion";
 
 // Tipografía del sistema (MARCA.md): Archivo + IBM Plex Sans, servidas desde el repositorio. El porqué,
 // los ficheros y sus licencias, en `./fuentes`.
@@ -56,7 +60,11 @@ export default async function RootLayout({
   const tema = temaDesdeCookie((await cookies()).get(TEMA_COOKIE)?.value);
   // EL IDIOMA Y LA ZONA DE QUIEN MIRA (Fase 11 · P1), para los componentes de cliente que formatean:
   // los mismos que usa el servidor, así el HTML hidrata igual a los dos lados (ver `lib/zona-espectador`).
-  const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
+  const [idioma, zona, idiomaTextos] = await Promise.all([
+    idiomaDeLaPeticion(),
+    zonaDeLaPeticion(),
+    idiomaDeTextosDeLaPeticion(),
+  ]);
   return (
     <html
       lang={idioma}
@@ -70,7 +78,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_ZONA }} />
       </head>
       <body className="flex min-h-full flex-col">
-        <FormatoProvider idioma={idioma} zona={zona}>
+        <FormatoProvider idioma={idioma} zona={zona} idiomaTextos={idiomaTextos}>
           {children}
         </FormatoProvider>
       </body>

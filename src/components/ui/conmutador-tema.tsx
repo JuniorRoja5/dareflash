@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTextos } from "@/components/textos-provider";
 
 import { atributoTema, cookieDeTema, TEMA_COLOR_BARRA, temaContrario, type Tema } from "@/lib/tema";
 
@@ -28,9 +29,10 @@ export function ConmutadorTema({
    *  ella, el botón de icono del cromo de escritorio. Mismo botón, dos sitios. */
   conTexto?: boolean;
 }) {
+  const t = useTextos("tema");
   const [tema, setTema] = useState<Tema>(inicial);
   const destino = temaContrario(tema);
-  const etiqueta = destino === "claro" ? "Cambiar a tema claro" : "Cambiar a tema oscuro";
+  const etiqueta = destino === "claro" ? t("cambiarAClaro") : t("cambiarAOscuro");
 
   function cambiar(): void {
     setTema(destino);
@@ -86,7 +88,7 @@ export function ConmutadorTema({
       onClick={cambiar}
       // El nombre accesible dice lo que VA A PASAR, no en qué tema estás: es un botón, no un estado.
       aria-label={etiqueta}
-      title={destino === "claro" ? "Tema claro" : "Tema oscuro"}
+      title={destino === "claro" ? t("claro") : t("oscuro")}
       className={`grid h-10 w-10 shrink-0 place-items-center rounded-sm text-text-dim transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised hover:text-text ${className}`}
     >
       {icono}

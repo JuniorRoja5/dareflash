@@ -1,5 +1,9 @@
 import { notFound } from "next/navigation";
 
+import { TextosProvider } from "@/components/textos-provider";
+import { IDIOMA_DEL_EQUIPO } from "@/lib/formato";
+import { textosParaCliente } from "@/textos/servidor";
+
 import { VerificadorReproduccion } from "./verificador";
 
 export const metadata = { title: "Verificación de reproducción" };
@@ -28,7 +32,10 @@ export default async function ReproduccionTestPage({
         <p className="mb-6 text-sm text-text-dim">
           Video <span className="tabular-nums">{id}</span> — pide la URL firmada y la reproduce.
         </p>
-        <VerificadorReproduccion id={id} />
+        {/* Página interna de verificación: el reproductor, con sus textos en el idioma del equipo. */}
+        <TextosProvider textos={textosParaCliente(IDIOMA_DEL_EQUIPO, ["reproductor"])}>
+          <VerificadorReproduccion id={id} />
+        </TextosProvider>
       </div>
     </main>
   );

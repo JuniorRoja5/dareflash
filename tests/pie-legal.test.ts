@@ -26,6 +26,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { es } from "../src/textos/es";
+
 const RAIZ = path.resolve(__dirname, "..");
 const leer = (rel: string): string => readFileSync(path.resolve(RAIZ, rel), "utf8");
 /** Sin comentarios: el pie EXPLICA en prosa por qué no enlaza los términos; explicarlo no es hacerlo. */
@@ -126,14 +128,16 @@ describe("`/terminos` se nombra, pero no se enlaza mientras no exista", () => {
       // HA LLEGADO EL TEXTO FINAL. Este caso cambia de lado: ahora lo que falla es NO enlazarlo, y
       // además hay que quitar el "(pronto)", que ya es mentira.
       expect(src, "`/terminos` ya existe: enlázalo en el pie").toMatch(/href="\/terminos"/);
-      expect(src, 'quita el "(pronto)": la página ya existe').not.toMatch(/\(pronto\)/);
+      expect(es.pie.terminos, 'quita el "(pronto)": la página ya existe').not.toMatch(/\(pronto\)/);
       return;
     }
     expect(src, "enlaza a `/terminos`, que no existe").not.toMatch(/href="\/terminos"/);
     // Se NOMBRA igual: que el documento esté por llegar es una información, y esconderlo deja la
     // duda de si existe en algún sitio que no encuentras.
-    expect(src).toMatch(/T[ée]rminos/);
-    expect(src).toMatch(/\(pronto\)/);
+    // Desde la P5b1 el texto vive en los textos (`pie.terminos`): el pie lo pinta, sin enlace.
+    expect(src).toContain('t("terminos")');
+    expect(es.pie.terminos).toMatch(/T[ée]rminos/);
+    expect(es.pie.terminos).toMatch(/\(pronto\)/);
   });
 });
 

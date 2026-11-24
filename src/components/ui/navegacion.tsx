@@ -1,4 +1,7 @@
+"use client";
+
 import { Enlace } from "@/components/enlace";
+import { useTextos } from "@/components/textos-provider";
 import type { ReactNode } from "react";
 
 import { NOTIF_NO_LEIDAS_TOPE } from "@/config/constants";
@@ -170,11 +173,13 @@ export function NavegacionInferior({
   /** ¿La sesión es de una cuenta de EMPRESA? Cambia la lista y el CTA (ver `NAV_MOVIL_EMPRESA`). */
   esCuentaEmpresa?: boolean;
 }) {
+  const t = useTextos("nav");
+  const tc = useTextos("cta");
   const cta = ctaPrincipal(rol, esCuentaEmpresa);
   const badgePerfil = textoBadge(noLeidas, NOTIF_NO_LEIDAS_TOPE);
   return (
     <nav
-      aria-label="Principal"
+      aria-label={t("principal")}
       className="flex items-stretch justify-around border-t border-line bg-surface"
     >
       {(esCuentaEmpresa ? destinosDe(NAV_MOVIL_EMPRESA) : destinosDe(NAV_MOVIL)).map((d) =>
@@ -182,7 +187,7 @@ export function NavegacionInferior({
           <Enlace
             key={d.clave}
             href={cta.href}
-            aria-label={cta.texto}
+            aria-label={tc(cta.clave)}
             className="flex min-h-[44px] min-w-[44px] flex-1 items-center justify-center py-2"
           >
             <span className="flex h-11 w-11 items-center justify-center rounded-full bg-action text-2xl font-bold leading-none text-void">
@@ -207,9 +212,9 @@ export function NavegacionInferior({
               ) : null}
             </span>
             <span>
-              {d.nombre}
+              {t(`destino_${d.clave}`)}
               {d.clave === "perfil" && badgePerfil ? (
-                <span className="sr-only"> ({badgePerfil} avisos sin leer)</span>
+                <span className="sr-only">{t("avisosSinLeer", { badge: badgePerfil })}</span>
               ) : null}
             </span>
           </Enlace>
@@ -236,9 +241,10 @@ export function NavegacionLateral({
   /** ¿La sesión es de una cuenta de EMPRESA? Pinta su lista (ver `NAV_ESCRITORIO_EMPRESA`). */
   esCuentaEmpresa?: boolean;
 }) {
+  const t = useTextos("nav");
   return (
     <nav
-      aria-label="Principal"
+      aria-label={t("principal")}
       className="flex h-full w-56 flex-col gap-1 border-r border-line bg-surface p-3"
     >
       {/* LA MARCA. Antes era la palabra en texto pelado; ahora es el logotipo (`Logo`), que lleva la
@@ -264,7 +270,7 @@ export function NavegacionLateral({
                 style={ACENTO_VIP}
               >
                 {ICONO[d.clave]}
-                <span>{d.nombre}</span>
+                <span>{t(`destino_${d.clave}`)}</span>
               </Enlace>
             );
           }
@@ -280,7 +286,7 @@ export function NavegacionLateral({
               }`}
             >
               {ICONO[d.clave]}
-              <span>{d.nombre}</span>
+              <span>{t(`destino_${d.clave}`)}</span>
             </Enlace>
           );
         },

@@ -1,7 +1,14 @@
 import { categoriaValida } from "../buscar/buscar-logica";
-import { FeedRetos } from "./feed-retos";
+import { TextosProvider } from "@/components/textos-provider";
+import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
 
-export const metadata = { title: "Retos" };
+import { FeedRetos } from "./feed-retos";
+import { ESPACIOS_TARJETA_RETO } from "./tarjeta-reto";
+
+/** El título, en el idioma de la página (Fase 11 · P5b1): por petición, nunca en ámbito de módulo. */
+export async function generateMetadata() {
+  return { title: (await textos("retos"))("titulo") };
+}
 export const dynamic = "force-dynamic";
 
 /**
@@ -30,6 +37,10 @@ export default async function RetosPage({
     listarRetosProximos(prisma, ahora),
     listarRetosCerrados(prisma, ahora),
   ]);
+  const [t, textosLista] = await Promise.all([
+    textos("retos"),
+    textosClienteDeLaPeticion(["retosLista", ...ESPACIOS_TARJETA_RETO] as const),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
@@ -40,15 +51,17 @@ export default async function RetosPage({
           fontVariationSettings: '"wght" 720, "wdth" 112',
         }}
       >
-        Retos activos
+        {t("retosActivos")}
       </h1>
-      <FeedRetos
-        activos={activos}
-        proximos={proximos}
-        cerrados={cerrados.items}
-        cerradosCursor={cerrados.nextCursor}
-        categoriaInicial={categoriaInicial}
-      />
+      <TextosProvider textos={textosLista}>
+        <FeedRetos
+          activos={activos}
+          proximos={proximos}
+          cerrados={cerrados.items}
+          cerradosCursor={cerrados.nextCursor}
+          categoriaInicial={categoriaInicial}
+        />
+      </TextosProvider>
     </div>
   );
 }

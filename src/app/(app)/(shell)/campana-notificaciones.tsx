@@ -11,6 +11,7 @@ import { haceCuanto, textoBadge } from "@/lib/notificaciones-vista";
 import { useNoLeidas } from "../avisos-contexto";
 import { useCerrarDesplegable } from "./usar-desplegable";
 import { useFormato } from "@/components/formato-provider";
+import { useTextos } from "@/components/textos-provider";
 
 /** Icono campana inline (trazo 1.6 px, currentColor), misma familia severa que la barra. */
 function IconoCampana() {
@@ -60,6 +61,7 @@ type Carga =
  */
 export function CampanaNotificaciones() {
   const { idioma, zona } = useFormato();
+  const t = useTextos("campana");
   const { noLeidas, fijar } = useNoLeidas();
   const [abierto, setAbierto] = useState(false);
   const [carga, setCarga] = useState<Carga>({ estado: "cargando" });
@@ -110,7 +112,7 @@ export function CampanaNotificaciones() {
         type="button"
         aria-haspopup="dialog"
         aria-expanded={abierto}
-        aria-label={badge ? `Notificaciones (${badge} sin leer)` : "Notificaciones"}
+        aria-label={badge ? t("etiquetaConNuevas", { badge }) : t("titulo")}
         onClick={alternar}
         className="relative flex h-11 w-11 items-center justify-center rounded-full text-text-dim transition-colors duration-150 ease-mechanical hover:bg-raised hover:text-text"
       >
@@ -125,24 +127,22 @@ export function CampanaNotificaciones() {
       {abierto ? (
         <div
           role="dialog"
-          aria-label="Notificaciones"
+          aria-label={t("titulo")}
           className="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-sm border border-line bg-surface shadow-[var(--df-shadow-md)]"
         >
           <p className="border-b border-line px-4 py-3 text-sm font-semibold text-text">
-            Notificaciones
+            {t("titulo")}
           </p>
 
           {carga.estado === "cargando" ? (
-            <p className="px-4 py-6 text-center text-sm text-text-dim">Cargando…</p>
+            <p className="px-4 py-6 text-center text-sm text-text-dim">{t("cargando")}</p>
           ) : carga.estado === "error" ? (
             <p role="alert" className="px-4 py-6 text-center text-sm text-text-dim">
-              No hemos podido cargar tus avisos. Vuelve a abrir la campana para reintentarlo.
+              {t("error")}
             </p>
           ) : carga.items.length === 0 ? (
             // Vacío = invitación a actuar, no un mensaje triste (brief v2).
-            <p className="px-4 py-6 text-center text-sm text-text-dim">
-              Aún no tienes avisos. Sube un vídeo o participa en un reto y aquí verás lo que pase.
-            </p>
+            <p className="px-4 py-6 text-center text-sm text-text-dim">{t("vacio")}</p>
           ) : (
             <ul className="divide-y divide-line">
               {carga.items.map((i) => (
@@ -159,7 +159,7 @@ export function CampanaNotificaciones() {
                     />
                     <span className="min-w-0 flex-1">
                       <span className={`block text-sm ${i.leida ? "text-text-dim" : "text-text"}`}>
-                        {i.leida ? null : <span className="sr-only">Nuevo: </span>}
+                        {i.leida ? null : <span className="sr-only">{t("nuevo")}</span>}
                         {i.texto}
                       </span>
                       <span className="mt-0.5 block text-2xs text-text-dim">
@@ -180,7 +180,7 @@ export function CampanaNotificaciones() {
                 onClick={cerrar}
                 className="w-full"
               >
-                Ver todas
+                {t("verTodas")}
               </Boton>
             </div>
           ) : null}

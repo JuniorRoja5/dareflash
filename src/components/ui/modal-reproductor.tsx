@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useTextos } from "@/components/textos-provider";
 import { createPortal } from "react-dom";
 
 import { ReproductorHls } from "./reproductor-hls";
@@ -55,7 +56,8 @@ export function ModalReproductor({
   const dialogoRef = useRef<HTMLDivElement>(null);
   const cerrarRef = useRef<HTMLButtonElement>(null);
   const tituloId = useId();
-  const etiqueta = titulo?.trim() ? titulo : "Reproducción del vídeo";
+  const t = useTextos("modal");
+  const etiqueta = titulo?.trim() ? titulo : t("reproduccion");
 
   // Al montar: guarda el foco previo (para DEVOLVERLO al cerrar; el disparador sigue en la rejilla),
   // bloquea el scroll del fondo y lleva el foco al botón de cerrar (primer accionable del diálogo).
@@ -157,7 +159,7 @@ export function ModalReproductor({
           ref={cerrarRef}
           type="button"
           onClick={onCerrar}
-          aria-label="Cerrar"
+          aria-label={t("cerrar")}
           className="absolute -top-11 right-0 grid h-9 w-9 place-items-center rounded-full border border-line bg-surface/80 text-text backdrop-blur-md transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised lg:-right-11 lg:top-0"
         >
           <IconoCerrar />
@@ -165,12 +167,12 @@ export function ModalReproductor({
 
         <div className="overflow-hidden rounded-sm border border-line bg-void shadow-[var(--df-shadow-lg)]">
           {estado.fase === "cargando" ? (
-            <MensajeCaja>Cargando…</MensajeCaja>
+            <MensajeCaja>{t("cargando")}</MensajeCaja>
           ) : estado.fase === "no-disponible" ? (
-            <MensajeCaja>Este vídeo no está disponible.</MensajeCaja>
+            <MensajeCaja>{t("noDisponible")}</MensajeCaja>
           ) : estado.fase === "error" ? (
             <MensajeCaja>
-              <span>No se pudo cargar el vídeo. Reintenta.</span>
+              <span>{t("noCarga")}</span>
               <button
                 type="button"
                 onClick={() => {
@@ -179,7 +181,7 @@ export function ModalReproductor({
                 }}
                 className="mt-3 rounded-sm border border-line px-4 py-1.5 text-sm text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised"
               >
-                Reintentar
+                {t("reintentar")}
               </button>
             </MensajeCaja>
           ) : (

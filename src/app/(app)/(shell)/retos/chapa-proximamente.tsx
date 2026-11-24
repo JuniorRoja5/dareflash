@@ -1,5 +1,3 @@
-import { ETIQUETA_RETO_PROXIMAMENTE } from "@/config/constants";
-
 /**
  * LA CHAPA DE UN RETO QUE AÚN NO HA ABIERTO.
  *
@@ -21,7 +19,8 @@ import { ETIQUETA_RETO_PROXIMAMENTE } from "@/config/constants";
  * versalitas— porque viven en el mismo sitio de la misma tarjeta y pueden salir las dos a la vez:
  * dos chapas con dos formas distintas en la misma esquina se leen como dos cosas sin relación.
  */
-export function ChapaProximamente({ clase = "" }: { clase?: string }) {
+/** `etiqueta`: «PRÓXIMAMENTE», en el idioma de la página (`tarjetaReto.proximamente`). */
+export function ChapaProximamente({ etiqueta, clase = "" }: { etiqueta: string; clase?: string }) {
   return (
     <span
       data-reto-chapa-proximamente
@@ -32,7 +31,7 @@ export function ChapaProximamente({ clase = "" }: { clase?: string }) {
         backgroundColor: "color-mix(in srgb, var(--df-void) 72%, transparent)",
       }}
     >
-      {ETIQUETA_RETO_PROXIMAMENTE}
+      {etiqueta}
     </span>
   );
 }

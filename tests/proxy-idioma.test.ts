@@ -20,7 +20,15 @@ import { getRedirectUrl, unstable_doesMiddlewareMatch } from "next/experimental/
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const H = vi.hoisted(() => ({ publicados: ["es"] as string[] }));
+const H = vi.hoisted(() => ({ publicados: ["es"] as string[], entorno: "production" }));
+// El pseudo-idioma `xx` solo se sirve en desarrollo: el proxy lee `NODE_ENV` (y SOLO para `/xx`).
+vi.mock("@/config/env", () => ({
+  env: {
+    get NODE_ENV() {
+      return H.entorno;
+    },
+  },
+}));
 vi.mock("@/config/constants", async (original) => ({
   ...(await original<typeof import("../src/config/constants")>()),
   get IDIOMAS_PUBLICADOS() {
@@ -77,6 +85,7 @@ function urlsDeHoy(): string[] {
 
 beforeEach(() => {
   H.publicados = ["es"];
+  H.entorno = "production";
 });
 
 describe("1 · las URL de hoy responden igual, en castellano", () => {
@@ -193,5 +202,29 @@ describe("5 · con un idioma publicado (simulado)", () => {
 
   it("/de sigue sin publicar: 404", () => {
     expect(aLaPagina(proxy(peticion("/de/feed"))).reescrita).toBe(`${BASE}/_no-existe`);
+  });
+});
+
+describe("6 · el pseudo-idioma xx (Fase 11 · P5b1): solo en desarrollo", () => {
+  it.each(["/xx/feed", "/xx", "/xx/retos/abc-x"])(
+    "%s en PRODUCCIÓN → 404 (como un idioma no publicado)",
+    (url) => {
+      H.entorno = "production";
+      expect(aLaPagina(proxy(peticion(url))).reescrita).toBe(`${BASE}/_no-existe`);
+    },
+  );
+
+  it("en desarrollo, /xx/feed se reescribe a /feed con x-df-idioma: xx", () => {
+    H.entorno = "development";
+    expect(aLaPagina(proxy(peticion("/xx/feed")))).toEqual({
+      idioma: "xx",
+      ruta: "/feed",
+      reescrita: `${BASE}/feed`,
+    });
+  });
+
+  it("y en test tampoco se sirve (solo «development»)", () => {
+    H.entorno = "test";
+    expect(aLaPagina(proxy(peticion("/xx/feed"))).reescrita).toBe(`${BASE}/_no-existe`);
   });
 });

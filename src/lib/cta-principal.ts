@@ -23,15 +23,16 @@
  * hero).
  */
 export interface CtaPrincipal {
-  readonly texto: string;
+  /** Qué texto lleva: la clave de `cta.<clave>` en los textos (Fase 11 · P5b1). */
+  readonly clave: "crearReto" | "subirVideo" | "miEmpresa";
   readonly href: string;
   /** ¿El destino CREA algo? Decide si el botón lleva "+": un "+" que no crea nada miente. */
   readonly crea: boolean;
 }
 
-export const CTA_ADMIN: CtaPrincipal = { texto: "Crear reto", href: "/panel/retos", crea: true };
-export const CTA_USUARIO: CtaPrincipal = { texto: "Subir vídeo", href: "/crear", crea: true };
-export const CTA_EMPRESA: CtaPrincipal = { texto: "Mi empresa", href: "/empresa", crea: false };
+export const CTA_ADMIN: CtaPrincipal = { clave: "crearReto", href: "/panel/retos", crea: true };
+export const CTA_USUARIO: CtaPrincipal = { clave: "subirVideo", href: "/crear", crea: true };
+export const CTA_EMPRESA: CtaPrincipal = { clave: "miEmpresa", href: "/empresa", crea: false };
 
 /**
  * `rol` = el de la sesión, o `null` para un invitado. `esCuentaEmpresa` = el de la sesión

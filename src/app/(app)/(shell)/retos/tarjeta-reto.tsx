@@ -10,7 +10,13 @@ import type { RetoPublicoVista } from "@/server/services/retos-publico";
 import { ChapaExclusivo } from "./chapa-exclusivo";
 import { ChapaProximamente } from "./chapa-proximamente";
 import { MarcaSponsor } from "./marca-sponsor";
-import { nombreCategoria } from "./retos-datos";
+import { nombreDeCategoria } from "@/textos/categoria";
+import { crearT } from "@/textos/plantilla";
+import type { Textos } from "@/textos/servidor";
+
+/** Los textos que necesita la tarjeta, como DATOS: se pinta en el servidor y en el cliente. */
+export type TextosTarjetaReto = Pick<Textos, "tarjetaReto" | "categorias" | "marcador">;
+export const ESPACIOS_TARJETA_RETO = ["tarjetaReto", "categorias", "marcador"] as const;
 
 /** Triangulo de "play" del placeholder de la miniatura (SVG inline; nada de emojis como iconos). */
 function IconoPlay() {
@@ -48,7 +54,18 @@ const CLASES_HOVER =
  * todas las pantallas del producto; lo que marca la exclusividad son el marco y la chapa, que son
  * forma y no color sobre una cifra.
  */
-export function TarjetaReto({ reto, idioma }: { reto: RetoPublicoVista; idioma: Idioma }) {
+export function TarjetaReto({
+  reto,
+  idioma,
+  textos,
+}: {
+  reto: RetoPublicoVista;
+  idioma: Idioma;
+  textos: TextosTarjetaReto;
+}) {
+  const t = crearT(textos.tarjetaReto, idioma);
+  const tcat = crearT(textos.categorias, idioma);
+  const tmar = crearT(textos.marcador, idioma);
   const href = `/retos/${reto.publicCode}-${reto.slug}`;
   /**
    * LA FASE Y A QUÉ INSTANTE SE CUENTA, con la MISMA regla que el servidor (`lib/reto-ventana`).
@@ -94,12 +111,14 @@ export function TarjetaReto({ reto, idioma }: { reto: RetoPublicoVista; idioma: 
             captura, y ningún test lo habría visto. En una fila no pueden solaparse: o caben las
             dos, o la segunda baja de línea. */}
         <span className="pointer-events-none absolute inset-x-2.5 top-2.5 z-10 flex flex-wrap items-start justify-between gap-1.5">
-          <PildoraCategoria>{nombreCategoria(reto.categoria)}</PildoraCategoria>
+          <PildoraCategoria>{nombreDeCategoria(tcat, reto.categoria)}</PildoraCategoria>
           {/* Las chapas van en la MISMA fila flexible, así que un reto exclusivo Y próximo enseña
               las dos sin que se monten: o caben, o la segunda baja de línea. */}
           <span className="flex flex-wrap items-start justify-end gap-1.5">
-            {cuenta.fase === "proximamente" ? <ChapaProximamente /> : null}
-            {reto.soloVip ? <ChapaExclusivo compacta /> : null}
+            {cuenta.fase === "proximamente" ? (
+              <ChapaProximamente etiqueta={t("proximamente")} />
+            ) : null}
+            {reto.soloVip ? <ChapaExclusivo etiqueta={t("exclusivo")} compacta /> : null}
           </span>
         </span>
         {/* MARCADOR — firma, superpuesto abajo (siempre visible). Halo de dinero.
@@ -111,7 +130,7 @@ export function TarjetaReto({ reto, idioma }: { reto: RetoPublicoVista; idioma: 
         <span className="pointer-events-none absolute inset-x-0 bottom-0 z-10 block border-t border-line bg-void/70 px-2.5 py-2">
           {reto.sponsor ? (
             <span className="mb-1.5 flex min-w-0">
-              <MarcaSponsor sponsor={reto.sponsor} compacta />
+              <MarcaSponsor sponsor={reto.sponsor} etiqueta={t("patrocinadoPor")} compacta />
             </span>
           ) : null}
           {/* EL GLOW, SOLO SOBRE EL DINERO: es `--df-glow-dinero`, y aplicado a la barra entera
@@ -127,6 +146,7 @@ export function TarjetaReto({ reto, idioma }: { reto: RetoPublicoVista; idioma: 
               deadlineMs={cuenta.objetivoMs}
               hacia={cuenta.fase === "proximamente" ? "apertura" : "cierre"}
               tamano="lista"
+              textoAbreEn={tmar("abreEn")}
               apilarEnMovil
             />
           </span>
@@ -148,7 +168,7 @@ export function TarjetaReto({ reto, idioma }: { reto: RetoPublicoVista; idioma: 
 
         <div className="mt-auto flex flex-wrap items-center gap-2">
           <Boton href={href} variante="secundario" className="ml-auto px-4">
-            Ver reto
+            {t("verReto")}
           </Boton>
         </div>
       </div>

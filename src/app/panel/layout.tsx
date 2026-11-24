@@ -1,7 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { TextosProvider } from "@/components/textos-provider";
+import { IDIOMA_DEL_EQUIPO } from "@/lib/formato";
 import { nombreMostrado } from "@/lib/identidad";
+import { ESPACIOS_PANEL } from "@/textos/espacios";
+import { textosParaCliente } from "@/textos/servidor";
 import { totalPendientes } from "@/lib/pendientes-panel";
 
 import { InsigniaPendientes } from "./insignia-pendientes";
@@ -90,7 +94,13 @@ export default async function PanelLayout({ children }: { children: ReactNode })
           {/* La nav solo enseña lo que ese rol alcanza: un moderador no ve Retos, DareUp ni anuncios. */}
           <PanelNav rol={quienMira.role} pendientes={pendientes} />
         </aside>
-        <main className="min-w-0 flex-1 px-5 py-8 lg:px-8 lg:py-10">{children}</main>
+        <main className="min-w-0 flex-1 px-5 py-8 lg:px-8 lg:py-10">
+          {/* El panel NO se traduce (Fase 11 · P5): las primitivas de cliente que usa (el modal y el
+              reproductor) reciben sus textos siempre en el idioma del equipo. */}
+          <TextosProvider textos={textosParaCliente(IDIOMA_DEL_EQUIPO, ESPACIOS_PANEL)}>
+            {children}
+          </TextosProvider>
+        </main>
       </div>
     </div>
   );

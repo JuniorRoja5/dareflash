@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
 
+import { TextosProvider } from "@/components/textos-provider";
+import { ESPACIOS_ARMAZON } from "@/textos/espacios";
+import { textosClienteDeLaPeticion } from "@/textos/servidor";
+
 import { ProveedorAvisos } from "./avisos-contexto";
 import { NavInferiorActiva, NavLateralActiva } from "./nav-activa";
 
@@ -30,23 +34,28 @@ export default async function ArmazonLayout({ children }: { children: ReactNode 
   const conAvisos = rol !== null && !esCuentaEmpresa;
   const { noLeidasDeSesion } = await import("@/server/services/notificaciones-sesion");
   const noLeidas = conAvisos ? await noLeidasDeSesion() : 0;
+  // Los textos de las islas de CLIENTE del armazón (barra, nav, menús): solo esos espacios y solo del
+  // idioma de la página (Fase 11 · P5b1). Lo de servidor pinta su texto y no necesita nada de esto.
+  const textosArmazon = await textosClienteDeLaPeticion(ESPACIOS_ARMAZON);
 
   return (
-    <ProveedorAvisos inicial={noLeidas} activo={conAvisos}>
-      <div className="min-h-full">
-        {/* Lateral fija — solo escritorio (>= lg) */}
-        <div className="fixed inset-y-0 left-0 z-40 hidden lg:block">
-          <NavLateralActiva esCuentaEmpresa={esCuentaEmpresa} />
-        </div>
+    <TextosProvider textos={textosArmazon}>
+      <ProveedorAvisos inicial={noLeidas} activo={conAvisos}>
+        <div className="min-h-full">
+          {/* Lateral fija — solo escritorio (>= lg) */}
+          <div className="fixed inset-y-0 left-0 z-40 hidden lg:block">
+            <NavLateralActiva esCuentaEmpresa={esCuentaEmpresa} />
+          </div>
 
-        {/* Contenido: solo reserva el hueco de la lateral (lg). El pb-24 de la barra inferior lo pone el shell. */}
-        <div className="min-h-full lg:pl-56">{children}</div>
+          {/* Contenido: solo reserva el hueco de la lateral (lg). El pb-24 de la barra inferior lo pone el shell. */}
+          <div className="min-h-full lg:pl-56">{children}</div>
 
-        {/* Barra inferior fija — solo movil; el wrapper pinta el safe-area del mismo color que la barra */}
-        <div className="fixed inset-x-0 bottom-0 z-40 bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
-          <NavInferiorActiva rol={rol} esCuentaEmpresa={esCuentaEmpresa} />
+          {/* Barra inferior fija — solo movil; el wrapper pinta el safe-area del mismo color que la barra */}
+          <div className="fixed inset-x-0 bottom-0 z-40 bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
+            <NavInferiorActiva rol={rol} esCuentaEmpresa={esCuentaEmpresa} />
+          </div>
         </div>
-      </div>
-    </ProveedorAvisos>
+      </ProveedorAvisos>
+    </TextosProvider>
   );
 }

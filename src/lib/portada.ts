@@ -13,9 +13,9 @@ export interface CifrasPortada {
 }
 
 export type CifraVisible =
-  | { clave: "premios"; valor: number; etiqueta: string }
-  | { clave: "retos"; valor: number; etiqueta: string }
-  | { clave: "categorias"; valor: number; etiqueta: string };
+  | { clave: "premios"; valor: number }
+  | { clave: "retos"; valor: number }
+  | { clave: "categorias"; valor: number };
 
 /**
  * LAS CIFRAS QUE SE ENSEÑAN. Ninguna se inventa y ninguna se enseña para decir poco:
@@ -26,15 +26,11 @@ export type CifraVisible =
 export function cifrasVisibles(c: CifrasPortada): CifraVisible[] {
   if (c.retosAbiertos <= 0) return [];
   const r: CifraVisible[] = [];
-  if (c.premiosCents > 0)
-    r.push({ clave: "premios", valor: c.premiosCents, etiqueta: "en premios ahora" });
-  r.push({
-    clave: "retos",
-    valor: c.retosAbiertos,
-    etiqueta: c.retosAbiertos === 1 ? "reto abierto" : "retos abiertos",
-  });
-  if (c.categorias > 1)
-    r.push({ clave: "categorias", valor: c.categorias, etiqueta: "categorías" });
+  if (c.premiosCents > 0) r.push({ clave: "premios", valor: c.premiosCents });
+  // La etiqueta («reto abierto» / «retos abiertos») la pone la vista desde los textos
+  // (`inicioCifras.cifra_<clave>`, Fase 11 · P5b1): aquí solo se decide QUÉ cifras salen.
+  r.push({ clave: "retos", valor: c.retosAbiertos });
+  if (c.categorias > 1) r.push({ clave: "categorias", valor: c.categorias });
   return r;
 }
 

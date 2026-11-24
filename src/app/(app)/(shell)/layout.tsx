@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { PieLegal } from "@/components/ui/pie-legal";
+import { textos } from "@/textos/servidor";
 
 import { BarraSuperior } from "./barra-superior";
 
@@ -33,7 +34,7 @@ export default async function ShellLayout({ children }: { children: ReactNode })
     });
     if (fila) {
       cuenta = {
-        nombre: fila.displayName ?? fila.username ?? "Tú",
+        nombre: fila.displayName ?? fila.username ?? (await textos("cuenta"))("nombreSinNombre"),
         imagen: fila.image,
         puntos: fila.pointsBalance,
       };

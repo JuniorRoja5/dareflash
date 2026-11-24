@@ -6,6 +6,7 @@ import { ContadorVotos } from "@/components/ui/contador-votos";
 import { CuentaAtras, type TamanoCuenta } from "@/components/ui/cuenta-atras";
 import { Marcador, type TamanoMarcador } from "@/components/ui/marcador";
 import { useFormato } from "@/components/formato-provider";
+import { useTextos } from "@/components/textos-provider";
 
 /**
  * Wrappers EN VIVO solo para la hoja de estilo (dev-only). Las primitivas reciben un `deadlineMs`
@@ -42,6 +43,7 @@ export function MarcadorEnVivo({
   apilarEnMovil?: boolean;
 }) {
   const { idioma } = useFormato();
+  const t = useTextos("marcador");
   const [deadlineMs, setDeadlineMs] = useState<number | null>(null);
   useEffect(() => {
     const fijarPlazo = (): void => setDeadlineMs(Date.now() + offsetMs);
@@ -53,6 +55,7 @@ export function MarcadorEnVivo({
       cents={cents}
       deadlineMs={deadlineMs}
       tamano={tamano}
+      textoAbreEn={t("abreEn")}
       apilarEnMovil={apilarEnMovil}
     />
   );

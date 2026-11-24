@@ -22,6 +22,7 @@ import {
 } from "../src/components/ui/logic";
 import { formatearImporte } from "../src/lib/formato";
 import { CTA_USUARIO } from "../src/lib/cta-principal";
+import { es } from "../src/textos/es";
 
 const H = 60 * 60 * 1000;
 
@@ -119,11 +120,12 @@ describe("navegacion: catalogo canonico de destinos", () => {
   it("nombres y rutas exactos", () => {
     // `crear` es el [+], el CTA principal: su texto y su ruta son los de `ctaPrincipal` para el
     // no-admin, no un literal propio del catálogo (ver tests/cta-principal.test.ts).
-    expect(NAV_DESTINOS.map((d) => d.nombre)).toEqual([
+    // Desde la P5b1 el NOMBRE de cada destino vive en los textos (`nav.destino_<clave>`); se fija igual.
+    expect(NAV_DESTINOS.map((d) => es.nav[`destino_${d.clave}`])).toEqual([
       "Inicio",
       "Feed",
       "Retos",
-      CTA_USUARIO.texto,
+      es.cta[CTA_USUARIO.clave],
       "Ranking",
       // El NOMBRE es "Boost" (la palabra del producto) y la RUTA es /destacados (lo que lista). Que
       // no coincidan es deliberado: nadie busca "destacados" en un menú, buscan Boost.

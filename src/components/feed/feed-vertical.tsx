@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTextos } from "@/components/textos-provider";
 
 import { BotonCompartir } from "@/components/ui/boton-compartir";
 import { BotonLike } from "@/components/ui/boton-like";
@@ -173,6 +174,7 @@ function PostInicio({
   /** Abrir los comentarios de este vídeo (hoja en móvil; en escritorio, la caja del panel). */
   onComentar: () => void;
 }) {
+  const t = useTextos("feed");
   // Snapshot del mute efectivo en la fase de CAPTURA del pointerdown (root->botón), ANTES de que el
   // listener del contenedor (fase de burbuja) desbloquee el audio y flipe `mutedEfectivo`. Sin esto,
   // si el PRIMER gesto es el botón, el onClick leería el estado ya cambiado y mutearía en vez de sonar.
@@ -250,7 +252,9 @@ function PostInicio({
               claseHandle="text-sm text-white/80"
             />
           </div>
-          <p className="mt-1 line-clamp-2 text-sm text-white/90">Reto: {post.retoTitulo}</p>
+          <p className="mt-1 line-clamp-2 text-sm text-white/90">
+            {t("reto", { titulo: post.retoTitulo })}
+          </p>
           {post.categoria ? (
             <div className="mt-2">
               <PildoraCategoria>{post.categoria}</PildoraCategoria>
@@ -266,7 +270,7 @@ function PostInicio({
           className={`pointer-events-none absolute top-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-void/70 px-3 py-1.5 text-xs font-medium whitespace-nowrap text-white backdrop-blur-sm transition-opacity duration-[var(--df-dur-reveal)] ease-mechanical ${mostrarHint && esActivo ? "opacity-100" : "opacity-0"}`}
         >
           <IconoSonido silenciado={false} />
-          Toca para activar el sonido
+          {t("sonido")}
         </div>
       </div>
 
@@ -284,7 +288,7 @@ function PostInicio({
             QUIEN SOLO MIRA (cuenta de empresa) ve la CIFRA, no el botón: ver cuántos me gusta
             tiene es mirar; darlo, participar. */}
         {soloMirar ? (
-          <Cifra valor={post.likes} etiqueta="me gusta" />
+          <Cifra valor={post.likes} etiqueta={t("cifraMeGusta")} />
         ) : (
           <BotonLike
             videoId={post.id}
@@ -296,7 +300,7 @@ function PostInicio({
         )}
         {/* Abre los comentarios. Para quien solo mira, a LEERLOS: por eso no se llama "Comentar". */}
         <Accion
-          label={soloMirar ? "Ver comentarios" : "Comentar"}
+          label={soloMirar ? t("verComentarios") : t("comentar")}
           valor={post.comentarios}
           icono={<IconoComentario />}
           onClick={onComentar}
@@ -306,7 +310,7 @@ function PostInicio({
             boton muerto—. Todo su estado (visto, mi voto, reto abierto) sale del payload y de los
             registros compartidos; ver `components/ui/boton-voto`. */}
         {post.participacionId && post.retoId && soloMirar ? (
-          <Cifra valor={post.votos} etiqueta="votos" />
+          <Cifra valor={post.votos} etiqueta={t("cifraVotos")} />
         ) : post.participacionId && post.retoId ? (
           <BotonVoto
             variante="rail"
@@ -332,7 +336,7 @@ function PostInicio({
             intentoRef.current = muted;
           }}
           onClick={() => onToggleSilencio(intentoRef.current)}
-          aria-label={muted ? "Activar sonido" : "Silenciar"}
+          aria-label={muted ? t("activarSonido") : t("silenciar")}
           className="flex flex-col items-center"
         >
           <span className="flex h-11 w-11 items-center justify-center text-white lg:text-text lg:hover:text-white">
@@ -374,6 +378,7 @@ function PanelComentarios({
   onContador: (videoId: string, comentarios: number) => void;
   anclaComentario?: string;
 }) {
+  const t = useTextos("feed");
   return (
     <aside className="hidden border-l border-line bg-surface shadow-[var(--df-shadow-lg)] lg:flex lg:h-[100svh] lg:flex-col lg:overflow-hidden">
       <div className="border-b border-line p-4">
@@ -391,12 +396,16 @@ function PanelComentarios({
           claseNombre="font-semibold text-text"
           claseHandle="text-sm text-text-dim"
         />
-        <p className="mt-1 line-clamp-2 text-sm text-text-dim">Reto: {post.retoTitulo}</p>
+        <p className="mt-1 line-clamp-2 text-sm text-text-dim">
+          {t("reto", { titulo: post.retoTitulo })}
+        </p>
         <div className="mt-2 flex items-center gap-2">
           {post.categoria ? <PildoraCategoria>{post.categoria}</PildoraCategoria> : null}
           <span className="text-2xs tabular-nums text-text-dim">
-            {formatearContador(post.votos)} votos · {formatearContador(post.comentarios)}{" "}
-            comentarios
+            {t("resumen", {
+              votos: formatearContador(post.votos),
+              comentarios: formatearContador(post.comentarios),
+            })}
           </span>
         </div>
       </div>
@@ -438,6 +447,7 @@ function HojaComentarios({
   onCerrar: () => void;
   anclaComentario?: string;
 }) {
+  const t = useTextos("feed");
   useEffect(() => {
     const alTeclear = (e: KeyboardEvent): void => {
       if (e.key === "Escape") onCerrar();
@@ -450,24 +460,24 @@ function HojaComentarios({
     <div className="fixed inset-0 z-50 lg:hidden">
       <button
         type="button"
-        aria-label="Cerrar comentarios"
+        aria-label={t("cerrarComentarios")}
         onClick={onCerrar}
         className="absolute inset-0 bg-void/60"
       />
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Comentarios"
+        aria-label={t("comentarios")}
         className="absolute inset-x-0 bottom-0 flex h-[70svh] flex-col rounded-t-sm border-t border-line bg-surface shadow-[var(--df-shadow-lg)]"
       >
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <p className="text-sm font-semibold text-text tabular-nums">
-            {formatearContador(post.comentarios)} comentarios
+            {t("nComentarios", { cuenta: formatearContador(post.comentarios) })}
           </p>
           <button
             type="button"
             onClick={onCerrar}
-            aria-label="Cerrar"
+            aria-label={t("cerrar")}
             className="grid h-9 w-9 place-items-center rounded-full text-text-dim hover:bg-raised hover:text-text"
           >
             ×
@@ -496,12 +506,13 @@ function Flecha({
   onClick: () => void;
   disabled: boolean;
 }) {
+  const t = useTextos("feed");
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-label={dir === "up" ? "Vídeo anterior" : "Vídeo siguiente"}
+      aria-label={dir === "up" ? t("videoAnterior") : t("videoSiguiente")}
       className="pointer-events-auto grid h-11 w-11 place-items-center rounded-full border border-line bg-surface text-text shadow-[var(--df-shadow-sm)] transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised disabled:opacity-30 disabled:hover:bg-surface"
     >
       <svg
@@ -526,6 +537,7 @@ function Flecha({
  * Se cierra a mano; no desaparece solo, para que no se lo pierda quien tarde en mirar.
  */
 function AvisoEntrada({ texto }: { texto: string }) {
+  const t = useTextos("feed");
   const [visible, setVisible] = useState(true);
   if (!visible) return null;
   return (
@@ -537,7 +549,7 @@ function AvisoEntrada({ texto }: { texto: string }) {
       <button
         type="button"
         onClick={() => setVisible(false)}
-        aria-label="Cerrar aviso"
+        aria-label={t("cerrarAviso")}
         className="shrink-0 rounded-full px-2 text-text-dim hover:text-text"
       >
         ×

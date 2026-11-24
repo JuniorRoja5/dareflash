@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useTextos } from "@/components/textos-provider";
 import { Enlace } from "@/components/enlace";
 import { type FormEvent, useEffect, useState } from "react";
 
@@ -58,6 +59,7 @@ export function ComentariosVideo({
   anclaId?: string;
 }) {
   const { idioma, zona } = useFormato();
+  const t = useTextos("comentarios");
   const ruta = usePathname();
   const [items, setItems] = useState<ComentarioVista[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -166,9 +168,9 @@ export function ComentariosVideo({
         if (typeof r.data.comentarios === "number") onContador(r.data.comentarios);
         return;
       }
-      setAviso(mensajeDe(r.data) || "No se pudo publicar el comentario.");
+      setAviso(mensajeDe(r.data) || t("errorPublicar"));
     } catch {
-      setAviso("No hemos podido conectar. Inténtalo de nuevo.");
+      setAviso(t("sinConexion"));
     } finally {
       setEnviando(false);
     }
@@ -187,9 +189,9 @@ export function ComentariosVideo({
         if (typeof r.data.comentarios === "number") onContador(r.data.comentarios);
         return;
       }
-      setAviso(mensajeDe(r.data) || "No se pudo borrar el comentario.");
+      setAviso(mensajeDe(r.data) || t("errorBorrar"));
     } catch {
-      setAviso("No hemos podido conectar. Inténtalo de nuevo.");
+      setAviso(t("sinConexion"));
     }
   }
 
@@ -202,18 +204,19 @@ export function ComentariosVideo({
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {anclaPerdida ? (
           <p role="status" className="mb-3 rounded-sm bg-raised px-3 py-2 text-xs text-text-dim">
-            Ese comentario ya no está.
+            {t("yaNoEsta")}
           </p>
         ) : null}
         {carga.estado === "cargando" ? (
-          <p className="text-sm text-text-dim">Cargando comentarios…</p>
+          <p className="text-sm text-text-dim">{t("cargando")}</p>
         ) : carga.estado === "error" ? (
           <p role="alert" className="text-sm text-text-dim">
-            No se pudieron cargar los comentarios.
+            {t("error")}
           </p>
         ) : lista.length === 0 ? (
           <p className="text-sm text-text-dim">
-            Aún no hay comentarios.{haySesion && !soloMirar ? " Sé el primero." : ""}
+            {t("vacio")}
+            {haySesion && !soloMirar ? t("seElPrimero") : ""}
           </p>
         ) : (
           <ul className="space-y-4">
@@ -254,20 +257,20 @@ export function ComentariosVideo({
                   {c.esMio ? (
                     confirmando === c.id ? (
                       <span className="mt-1 flex items-center gap-2 text-2xs">
-                        <span className="text-text-dim">¿Borrar tu comentario?</span>
+                        <span className="text-text-dim">{t("borrarPregunta")}</span>
                         <button
                           type="button"
                           onClick={() => void borrar(c.id)}
                           className="font-medium text-alarm hover:underline"
                         >
-                          Sí, borrar
+                          {t("siBorrar")}
                         </button>
                         <button
                           type="button"
                           onClick={() => setConfirmando(null)}
                           className="text-text-dim hover:underline"
                         >
-                          No
+                          {t("no")}
                         </button>
                       </span>
                     ) : (
@@ -276,7 +279,7 @@ export function ComentariosVideo({
                         onClick={() => setConfirmando(c.id)}
                         className="mt-1 text-2xs text-text-dim hover:text-text hover:underline"
                       >
-                        Borrar
+                        {t("borrar")}
                       </button>
                     )
                   ) : soloMirar ? null : (
@@ -303,7 +306,7 @@ export function ComentariosVideo({
             disabled={cargandoMas}
             className="mt-4 w-full rounded-sm border border-line py-2 text-sm text-text-dim transition-colors hover:bg-raised hover:text-text disabled:opacity-40"
           >
-            {cargandoMas ? "Cargando…" : "Ver más comentarios"}
+            {cargandoMas ? t("cargandoMas") : t("verMas")}
           </button>
         ) : null}
       </div>
@@ -317,14 +320,14 @@ export function ComentariosVideo({
         ) : haySesion ? (
           <form onSubmit={(e) => void publicar(e)} className="flex items-end gap-2">
             <label className="min-w-0 flex-1">
-              <span className="sr-only">Escribe un comentario</span>
+              <span className="sr-only">{t("escribe")}</span>
               <textarea
                 id={idCaja}
                 value={texto}
                 rows={1}
                 maxLength={COMENTARIO_TEXTO_MAX}
                 onChange={(e) => setTexto(e.target.value)}
-                placeholder="Comentar…"
+                placeholder={t("placeholder")}
                 className="block max-h-32 w-full resize-none rounded-sm border border-line bg-raised/60 px-3 py-2 text-sm text-text placeholder:text-text-dim focus:outline-none"
               />
             </label>
@@ -333,7 +336,7 @@ export function ComentariosVideo({
               disabled={limpio === null || enviando}
               className="min-h-[36px] shrink-0 rounded-sm border border-line px-3 text-sm font-medium text-text transition-colors hover:bg-raised disabled:opacity-40"
             >
-              {enviando ? "Publicando…" : "Publicar"}
+              {enviando ? t("publicando") : t("publicar")}
             </button>
           </form>
         ) : (
@@ -341,7 +344,7 @@ export function ComentariosVideo({
             href={`/entrar?siguiente=${encodeURIComponent(ruta || "/feed")}`}
             className="block rounded-sm border border-line px-3 py-2 text-center text-sm text-text-dim hover:bg-raised hover:text-text"
           >
-            Inicia sesión para comentar
+            {t("iniciaSesion")}
           </Enlace>
         )}
         {aviso ? (

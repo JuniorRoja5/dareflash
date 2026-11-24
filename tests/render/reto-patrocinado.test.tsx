@@ -20,7 +20,11 @@ vi.mock("next/link", async () => {
 });
 
 import { TarjetaReto } from "@/app/(app)/(shell)/retos/tarjeta-reto";
-import { ETIQUETA_PATROCINADO } from "@/config/constants";
+// Desde la P5b1 la etiqueta vive en los textos (`tarjetaReto.patrocinadoPor`).
+import { es } from "@/textos/es";
+import { TEXTOS_TARJETA } from "../helpers/textos-prueba";
+
+const ETIQUETA_PATROCINADO = es.tarjetaReto.patrocinadoPor;
 import type { RetoPublicoVista } from "@/server/services/retos-publico";
 
 afterEach(cleanup);
@@ -41,7 +45,7 @@ const BASE: RetoPublicoVista = {
 };
 
 const pintar = (over: Partial<RetoPublicoVista> = {}) =>
-  render(<TarjetaReto idioma="es" reto={{ ...BASE, ...over }} />).container;
+  render(<TarjetaReto idioma="es" reto={{ ...BASE, ...over }} textos={TEXTOS_TARJETA} />).container;
 
 const marcaSponsor = (c: HTMLElement) => c.querySelector("[data-reto-sponsor]");
 const chapaVip = (c: HTMLElement) => c.querySelector("[data-reto-chapa-vip]");

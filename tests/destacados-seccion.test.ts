@@ -17,6 +17,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { es } from "../src/textos/es";
+
 import {
   destinoActivo,
   destinosDe,
@@ -46,7 +48,8 @@ describe("es un destino del catálogo, como cualquier sección", () => {
     expect(d, "destacados no está en NAV_DESTINOS").toBeDefined();
     expect(d?.href).toBe("/destacados");
     // Se llama "Boost" porque es la palabra del producto; la ruta dice lo que lista.
-    expect(d?.nombre).toBe("Boost");
+    // (Desde la P5b1 el nombre vive en los textos: `nav.destino_destacados`.)
+    expect(es.nav.destino_destacados).toBe("Boost");
   });
 
   it("y el ACTIVO se resuelve igual que el resto", () => {

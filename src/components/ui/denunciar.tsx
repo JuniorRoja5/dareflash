@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useTextos } from "@/components/textos-provider";
 import { Enlace } from "@/components/enlace";
 import { useEffect, useState } from "react";
 
@@ -43,6 +44,7 @@ export function Denunciar({
   esMio: boolean;
   className?: string;
 }) {
+  const t = useTextos("denunciar");
   const ruta = usePathname();
   const [abierto, setAbierto] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -77,9 +79,9 @@ export function Denunciar({
         setResultado(r.data.mensaje);
         return;
       }
-      setError(mensajeDe(r.data) || "No se pudo enviar la denuncia.");
+      setError(mensajeDe(r.data) || t("errorEnvio"));
     } catch {
-      setError("No hemos podido conectar. Inténtalo de nuevo.");
+      setError(t("sinConexion"));
     } finally {
       setEnviando(false);
     }
@@ -96,24 +98,24 @@ export function Denunciar({
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        aria-label="Denunciar"
+        aria-label={t("denunciar")}
         className={`text-2xs text-text-dim transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:text-text hover:underline ${className}`}
       >
-        Denunciar
+        {t("denunciar")}
       </button>
 
       {abierto ? (
         <div className="fixed inset-0 z-50 grid place-items-center p-4">
           <button
             type="button"
-            aria-label="Cerrar"
+            aria-label={t("cerrar")}
             onClick={cerrar}
             className="absolute inset-0 bg-void/70"
           />
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Denunciar"
+            aria-label={t("denunciar")}
             className="relative w-full max-w-sm rounded-lg border border-line bg-surface p-5 shadow-[var(--df-shadow-lg)]"
           >
             {resultado ? (
@@ -127,17 +129,17 @@ export function Denunciar({
                   onClick={cerrar}
                   className="mt-5 w-full rounded-sm border border-line py-2 text-sm text-text-dim hover:bg-raised hover:text-text"
                 >
-                  Cerrar
+                  {t("cerrar")}
                 </button>
               </>
             ) : veredicto === "sin_sesion" ? (
               <>
-                <p className="text-sm text-text-dim">Inicia sesión para denunciar.</p>
+                <p className="text-sm text-text-dim">{t("iniciaSesion")}</p>
                 <Enlace
                   href={`/entrar?siguiente=${encodeURIComponent(ruta || "/feed")}`}
                   className="mt-5 block rounded-sm border border-line py-2 text-center text-sm text-text hover:bg-raised"
                 >
-                  Iniciar sesión
+                  {t("iniciarSesion")}
                 </Enlace>
               </>
             ) : veredicto === "sin_verificar" ? (
@@ -148,15 +150,13 @@ export function Denunciar({
                   onClick={cerrar}
                   className="mt-5 w-full rounded-sm border border-line py-2 text-sm text-text-dim hover:bg-raised hover:text-text"
                 >
-                  Cerrar
+                  {t("cerrar")}
                 </button>
               </>
             ) : (
               <>
-                <p className="text-sm font-semibold text-text">¿Qué pasa con esto?</p>
-                <p className="mt-1 text-2xs text-text-dim">
-                  Lo revisará una persona. No se avisa a quien lo publicó.
-                </p>
+                <p className="text-sm font-semibold text-text">{t("pregunta")}</p>
+                <p className="mt-1 text-2xs text-text-dim">{t("loRevisara")}</p>
                 <ul className="mt-4 space-y-1">
                   {MOTIVOS_DENUNCIA.map((m) => (
                     <li key={m.clave}>
@@ -166,7 +166,7 @@ export function Denunciar({
                         onClick={() => void enviar(m.clave)}
                         className="w-full rounded-sm px-3 py-2 text-left text-sm text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised disabled:opacity-50"
                       >
-                        {m.texto}
+                        {t(`motivo_${m.clave}`)}
                       </button>
                     </li>
                   ))}
@@ -181,7 +181,7 @@ export function Denunciar({
                   onClick={cerrar}
                   className="mt-4 w-full rounded-sm border border-line py-2 text-sm text-text-dim hover:bg-raised hover:text-text"
                 >
-                  Cancelar
+                  {t("cancelar")}
                 </button>
               </>
             )}

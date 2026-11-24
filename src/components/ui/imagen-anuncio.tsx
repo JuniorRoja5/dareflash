@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTextos } from "@/components/textos-provider";
 
 type Estado = "cargando" | "lista" | "error";
 
@@ -21,6 +22,7 @@ type Estado = "cargando" | "lista" | "error";
  * efecto mira `complete` al montar.
  */
 export function ImagenAnuncio({ src }: { src: string }) {
+  const t = useTextos("anuncio");
   const ref = useRef<HTMLImageElement>(null);
   const [estado, setEstado] = useState<Estado>("cargando");
 
@@ -36,7 +38,7 @@ export function ImagenAnuncio({ src }: { src: string }) {
     >
       {estado === "error" ? (
         <p className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-text-dim">
-          La imagen no se ha podido cargar.
+          {t("imagenNoCarga")}
         </p>
       ) : (
         <>

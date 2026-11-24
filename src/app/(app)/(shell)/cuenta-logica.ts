@@ -5,10 +5,12 @@
  * componente solo mapea esta lista.
  */
 
-/** Una entrada del menú. `logout` es una ACCIÓN (sin href); el resto son navegación. */
+/**
+ * Una entrada del menú. `logout` es una ACCIÓN (sin href); el resto son navegación. Sin texto: lo pone el
+ * menú desde los textos (`cuenta.opcion_<id>`, Fase 11 · P5b1); aquí solo se decide QUÉ sale.
+ */
 export type ItemCuenta = {
   id: "perfil" | "empresa" | "cuenta" | "logout" | "entrar";
-  label: string;
   href?: string;
 };
 
@@ -22,16 +24,13 @@ export type ItemCuenta = {
 export function itemsMenuCuenta(haySesion: boolean, esCuentaEmpresa = false): ItemCuenta[] {
   if (haySesion && esCuentaEmpresa) {
     return [
-      { id: "empresa", label: "Mi empresa", href: "/empresa" },
-      { id: "cuenta", label: "Cuenta", href: "/empresa/cuenta" },
-      { id: "logout", label: "Cerrar sesión" },
+      { id: "empresa", href: "/empresa" },
+      { id: "cuenta", href: "/empresa/cuenta" },
+      { id: "logout" },
     ];
   }
   if (haySesion) {
-    return [
-      { id: "perfil", label: "Ver mi perfil", href: "/perfil" },
-      { id: "logout", label: "Cerrar sesión" },
-    ];
+    return [{ id: "perfil", href: "/perfil" }, { id: "logout" }];
   }
-  return [{ id: "entrar", label: "Entrar", href: "/entrar" }];
+  return [{ id: "entrar", href: "/entrar" }];
 }

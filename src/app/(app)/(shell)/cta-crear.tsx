@@ -1,5 +1,6 @@
 "use client";
 
+import { useTextos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { useRutaSinIdioma } from "@/components/enlace";
 import { ctaPrincipal } from "@/lib/cta-principal";
@@ -25,11 +26,12 @@ export function CtaCrear({
   esCuentaEmpresa?: boolean;
 }) {
   const enInicio = useRutaSinIdioma() === "/inicio";
-  const { texto, href, crea } = ctaPrincipal(rol, esCuentaEmpresa);
+  const t = useTextos("cta");
+  const { clave, href, crea } = ctaPrincipal(rol, esCuentaEmpresa);
   return (
     <Boton href={href} variante={enInicio ? "secundario" : "principal"}>
       {crea ? <span className="text-lg font-bold leading-none">+</span> : null}
-      <span>{texto}</span>
+      <span>{t(clave)}</span>
     </Boton>
   );
 }

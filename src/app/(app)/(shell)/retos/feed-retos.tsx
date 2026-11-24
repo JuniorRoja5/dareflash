@@ -3,12 +3,13 @@
 import { useState } from "react";
 
 import { PildoraFiltro } from "@/components/ui/pildora-filtro";
-import { ETIQUETA_RETO_PROXIMAMENTE } from "@/config/constants";
 import { getJson } from "@/lib/cliente-http";
 import type { RetoPublicoVista } from "@/server/services/retos-publico";
 
 import { CATEGORIAS, CATEGORIA_TODOS, filtrarRetos } from "./retos-datos";
-import { TarjetaReto } from "./tarjeta-reto";
+import { ESPACIOS_TARJETA_RETO, TarjetaReto } from "./tarjeta-reto";
+import { useEspacios, useTextos } from "@/components/textos-provider";
+import { nombreDeCategoria } from "@/textos/categoria";
 import { useFormato } from "@/components/formato-provider";
 
 /**
@@ -44,6 +45,9 @@ export function FeedRetos({
   categoriaInicial?: string | null;
 }) {
   const { idioma } = useFormato();
+  const t = useTextos("retosLista");
+  const tcat = useTextos("categorias");
+  const textosTarjeta = useEspacios(ESPACIOS_TARJETA_RETO);
   const [pestana, setPestana] = useState<"activos" | "proximos" | "cerrados">("activos");
   const [categoria, setCategoria] = useState<string>(categoriaInicial ?? CATEGORIA_TODOS);
   const [masCerrados, setMasCerrados] = useState<RetoPublicoVista[]>([]);
@@ -83,19 +87,17 @@ export function FeedRetos({
       {/* Pestañas Activos | Próximamente | Cerrados. La de en medio SOLO aparece si hay alguno:
           una pestaña vacía permanente enseña un "no hay nada" cada vez que alguien la pulsa, y
           hay semanas enteras sin ningún reto programado. */}
-      <div role="tablist" aria-label="Estado de los retos" className="mb-4 flex flex-wrap gap-2">
+      <div role="tablist" aria-label={t("estado")} className="mb-4 flex flex-wrap gap-2">
         <PildoraFiltro activo={pestana === "activos"} onClick={() => setPestana("activos")}>
-          Activos
+          {t("activos")}
         </PildoraFiltro>
         {proximos.length > 0 ? (
           <PildoraFiltro activo={pestana === "proximos"} onClick={() => setPestana("proximos")}>
-            {ETIQUETA_RETO_PROXIMAMENTE.charAt(0) +
-              ETIQUETA_RETO_PROXIMAMENTE.slice(1).toLowerCase()}{" "}
-            ({proximos.length})
+            {t("proximamente", { n: proximos.length })}
           </PildoraFiltro>
         ) : null}
         <PildoraFiltro activo={pestana === "cerrados"} onClick={() => setPestana("cerrados")}>
-          Cerrados
+          {t("cerrados")}
         </PildoraFiltro>
       </div>
 
@@ -103,14 +105,14 @@ export function FeedRetos({
       {pestana === "activos" ? (
         <div
           role="group"
-          aria-label="Filtrar por categoría"
+          aria-label={t("filtrar")}
           className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden"
         >
           <PildoraFiltro
             activo={categoria === CATEGORIA_TODOS}
             onClick={() => setCategoria(CATEGORIA_TODOS)}
           >
-            Todos
+            {t("todos")}
           </PildoraFiltro>
           {CATEGORIAS.map((c) => (
             <PildoraFiltro
@@ -118,7 +120,7 @@ export function FeedRetos({
               activo={categoria === c.clave}
               onClick={() => setCategoria(c.clave)}
             >
-              {c.nombre}
+              {nombreDeCategoria(tcat, c.clave)}
             </PildoraFiltro>
           ))}
         </div>
@@ -128,17 +130,17 @@ export function FeedRetos({
         <div className="mt-8 rounded-sm border border-line bg-surface/60 p-6 text-center shadow-[var(--df-shadow-md)] backdrop-blur-md">
           <p className="font-medium text-text">
             {pestana === "activos"
-              ? "Todavía no hay retos activos en esta categoría."
+              ? t("vacioActivos")
               : pestana === "proximos"
-                ? "No hay ningún reto programado ahora mismo."
-                : "Aún no hay retos cerrados."}
+                ? t("vacioProximos")
+                : t("vacioCerrados")}
           </p>
         </div>
       ) : (
         <ul role="list" className="df-rise mt-4 grid grid-cols-2 gap-3 sm:gap-4">
           {visibles.map((reto) => (
             <li key={reto.publicCode} className="grid">
-              <TarjetaReto reto={reto} idioma={idioma} />
+              <TarjetaReto reto={reto} idioma={idioma} textos={textosTarjeta} />
             </li>
           ))}
         </ul>
@@ -153,7 +155,7 @@ export function FeedRetos({
           disabled={cargando}
           className="mt-4 w-full rounded-sm border border-line py-2 text-sm text-text-dim transition-colors hover:bg-raised hover:text-text disabled:opacity-40"
         >
-          {cargando ? "Cargando…" : "Ver más retos cerrados"}
+          {cargando ? t("cargando") : t("verMasCerrados")}
         </button>
       ) : null}
     </>

@@ -24,6 +24,7 @@ export function Marcador({
   deadlineMs,
   tamano = "tarjeta",
   hacia = "cierre",
+  textoAbreEn,
   apilarEnMovil = false,
   className = "",
 }: {
@@ -40,6 +41,11 @@ export function Marcador({
    * y se leería como el tiempo que queda para participar, que es justo lo contrario.
    */
   hacia?: CuentaHacia;
+  /**
+   * El «Abre en», en el idioma de la página (`marcador.abreEn`; Fase 11 · P5b1). El marcador se pinta en
+   * el SERVIDOR y en el cliente, así que no puede pedir sus textos él mismo: se los da quien lo pinta.
+   */
+  textoAbreEn: string;
   /**
    * OPT-IN (por defecto false → comportamiento intacto). Si true, en movil PREMIO y PLAZO se APILAN
    * (dos lineas, sin recortar) y en lg vuelven a la linea horizontal de siempre. Pensado para tiles
@@ -76,7 +82,7 @@ export function Marcador({
       <span className="inline-flex min-w-0 flex-col items-start">
         {hacia === "apertura" ? (
           <span className="text-2xs leading-none font-semibold tracking-widest whitespace-nowrap text-text-dim uppercase">
-            Abre en
+            {textoAbreEn}
           </span>
         ) : null}
         <CuentaAtras deadlineMs={deadlineMs} tamano={t.cuenta as TamanoCuenta} hacia={hacia} />

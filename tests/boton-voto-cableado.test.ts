@@ -117,7 +117,8 @@ describe("el estado viene del payload, no de una ida y vuelta", () => {
 
   it("el texto y el aria salen de tablas de copy, nunca del código del estado", () => {
     const src = leer(BOTON);
-    expect(src).toContain("TEXTO[estado]");
-    expect(src).toContain("ARIA[estado]");
+    // Desde la P5b1 las tablas viven en los textos (`voto.texto_<estado>` / `voto.aria_<estado>`).
+    expect(src).toContain("t(`texto_${estado}`)");
+    expect(src).toContain("t(`aria_${estado}`)");
   });
 });

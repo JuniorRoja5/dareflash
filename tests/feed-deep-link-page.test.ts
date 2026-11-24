@@ -21,6 +21,16 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/server/db/client", () => ({ prisma: {} }));
+// Los textos de la página (Fase 11 · P5b1): `textos()` lee el idioma de la petición, que aquí no hay.
+vi.mock("@/textos/servidor", async () => {
+  const { es } = await import("../src/textos/es");
+  const { crearT } = await import("../src/textos/plantilla");
+  const corte = (ns: readonly (keyof typeof es)[]) => Object.fromEntries(ns.map((n) => [n, es[n]]));
+  return {
+    textos: async (n: keyof typeof es) => crearT(es[n] as never, "es"),
+    textosClienteDeLaPeticion: async (ns: readonly (keyof typeof es)[]) => corte(ns),
+  };
+});
 vi.mock("@/server/auth/current-user", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/server/services/feed", () => ({
   feedPublicado: mocks.feedPublicado,
@@ -58,15 +68,18 @@ const post = (id: string): PostFeed => ({
 
 /** Las props con las que la página monta el feed (el elemento, sin renderizarlo). */
 async function propsDelFeed(query: Record<string, string | string[] | undefined>) {
-  const el = (await FeedPage({ searchParams: Promise.resolve(query) })) as {
-    props: {
-      postsIniciales?: PostFeed[];
-      cursorInicial?: string | null;
-      comentarioDestacado?: string;
-      aviso?: string;
-    };
+  type PropsFeed = {
+    postsIniciales?: PostFeed[];
+    cursorInicial?: string | null;
+    comentarioDestacado?: string;
+    aviso?: string;
   };
-  return el.props;
+  const el = (await FeedPage({ searchParams: Promise.resolve(query) })) as {
+    props: PropsFeed & { children?: { props: PropsFeed } };
+  };
+  // Desde la P5b1 el feed va dentro de su `TextosProvider` (los textos de su isla de cliente): las props
+  // del feed son las del hijo. El estado vacío (sin vídeos) no lleva proveedor.
+  return el.props.children?.props ?? el.props;
 }
 
 beforeEach(() => {

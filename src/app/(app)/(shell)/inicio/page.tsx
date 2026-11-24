@@ -20,9 +20,14 @@ import { RayoHero } from "./rayo-hero";
 import { RetosDestacados } from "./retos-destacados";
 import { StatsInicio } from "./stats-inicio";
 import { UltimosGanadores } from "./ultimos-ganadores";
-import { MARCA } from "@/config/marca";
+import { TextosProvider } from "@/components/textos-provider";
+import { textos } from "@/textos/servidor";
+import { textosClienteDeLaPeticion } from "@/textos/servidor";
 
-export const metadata = { title: "Inicio" };
+/** El título, en el idioma de la página (Fase 11 · P5b1): por petición, nunca en ámbito de módulo. */
+export async function generateMetadata() {
+  return { title: (await textos("inicio"))("titulo") };
+}
 
 /**
  * INICIO — la portada. La página más vista, y la que más cambia según quién mira.
@@ -90,6 +95,11 @@ export default async function InicioPage() {
   // El idioma de quien mira (Fase 11): cifras e importes salen de `lib/formato`.
   const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
   const idioma = await idiomaDeLaPeticion();
+  const [t, tc, textosCifras] = await Promise.all([
+    textos("inicio"),
+    textos("cta"),
+    textosClienteDeLaPeticion(["inicioCifras"] as const),
+  ]);
 
   // ¿HA PARTICIPADO ALGUNA VEZ? Solo para un participante (el invitado no tiene, y a la empresa no le
   // sale «Cómo funciona»): una consulta corta, que se para en la primera fila.
@@ -141,7 +151,7 @@ export default async function InicioPage() {
                   fontVariationSettings: '"wght" 860, "wdth" 130',
                 }}
               >
-                Reta al mundo. Gana de verdad.
+                {t("h1")}
               </h1>
               {/* EL RAYO de la marca: decorativo (el titular ya dice lo que hay que decir), con el glow
                   de la acción y su movimiento con el scroll (`.df-rayo`). Nunca más de 176 px CSS: el
@@ -152,21 +162,21 @@ export default async function InicioPage() {
               <RayoHero tema={tema} />
             </div>
             <p className="mt-4 max-w-prose text-base text-text-dim lg:text-lg">
-              {esEmpresa
-                ? `Estás viendo ${MARCA} como empresa: aquí los retos se miran, no se participa. Desde tu portal propones retos y lanzas tu publicidad.`
-                : "Sube tu reto, la comunidad vota y los mejores se llevan premios de verdad. Aquí gana lo que haces, no a quién conoces."}
+              {esEmpresa ? t("introEmpresa") : t("intro")}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               {/* ÚNICO acento de acción de la pantalla — PLANO, realzado con --df-cta-lift */}
               <Boton href={cta.href} variante="principal" className="shadow-[var(--df-cta-lift)]">
                 {cta.crea ? <span className="text-lg leading-none font-bold">+</span> : null}
-                <span>{cta.texto}</span>
+                <span>{tc(cta.clave)}</span>
               </Boton>
               <Boton href="/retos" variante="secundario">
-                Explorar retos
+                {t("explorarRetos")}
               </Boton>
             </div>
-            <StatsInicio cifras={cifrasVisibles(portada.cifras)} tema={tema} quieto={ahorro} />
+            <TextosProvider textos={textosCifras}>
+              <StatsInicio cifras={cifrasVisibles(portada.cifras)} tema={tema} quieto={ahorro} />
+            </TextosProvider>
           </div>
 
           <HeroDestacado destacado={portada.destacado} idioma={idioma} />
@@ -191,12 +201,12 @@ export default async function InicioPage() {
         >
           <section className="min-w-0 lg:col-span-2">
             <div className="flex items-baseline justify-between gap-4">
-              <h2 className="text-xl font-semibold text-text lg:text-2xl">Retos abiertos</h2>
+              <h2 className="text-xl font-semibold text-text lg:text-2xl">{t("retosAbiertos")}</h2>
               <Enlace
                 href="/retos"
                 className="shrink-0 text-sm font-medium text-text-dim hover:text-text"
               >
-                Ver todos →
+                {t("verTodos")}
               </Enlace>
             </div>
             <div className="mt-4">
@@ -210,20 +220,18 @@ export default async function InicioPage() {
 
           <aside className="min-w-0 lg:col-span-1">
             <div className="flex items-baseline justify-between gap-4">
-              <h2 className="text-xl font-semibold text-text lg:text-2xl">Top del mes</h2>
+              <h2 className="text-xl font-semibold text-text lg:text-2xl">{t("topDelMes")}</h2>
               <Enlace
                 href="/ranking"
                 className="shrink-0 text-sm font-medium text-text-dim hover:text-text"
               >
-                Ver todo
+                {t("verTodo")}
               </Enlace>
             </div>
             <div className="mt-4 overflow-hidden rounded-sm border border-line bg-surface/60 backdrop-blur-md">
               {topRanking.length === 0 ? (
                 // VACÍO HONESTO: nadie ha ganado todavía este mes.
-                <p className="px-4 py-6 text-center text-sm text-text-dim">
-                  Todavía no ha ganado nadie este mes. Sé el primero.
-                </p>
+                <p className="px-4 py-6 text-center text-sm text-text-dim">{t("topVacio")}</p>
               ) : (
                 topRanking.map((fila, i) => (
                   <FilaPuesto
@@ -233,7 +241,7 @@ export default async function InicioPage() {
                     username={fila.username}
                     imagen={fila.image}
                     cifra={fila.victorias}
-                    unidad={fila.victorias === 1 ? "victoria" : "victorias"}
+                    unidad={t("unidadVictoria", { n: fila.victorias })}
                     puntos={fila.puntos}
                     esVip={fila.esVip}
                     colorNombre={fila.colorNombre}
@@ -291,13 +299,13 @@ export default async function InicioPage() {
           >
             <div className="min-w-0 flex-1">
               <h2 id="para-negocios" className="text-xl text-text">
-                ¿Tienes un negocio?
+                {t("tienesNegocio")}
               </h2>
               <p className="mt-2 max-w-prose text-sm text-text-dim">{CAMINO_EMPRESA.cuerpo}</p>
               <p className="mt-2 max-w-prose text-sm text-text">{msgSocioFundador(idioma)}</p>
             </div>
             <Boton href={CTA_NEGOCIO.href} variante="secundario" className="mt-4 shrink-0 lg:mt-0">
-              Registrar mi empresa
+              {t("registrarEmpresa")}
             </Boton>
           </section>
         ) : null}

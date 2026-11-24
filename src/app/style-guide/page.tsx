@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { CSSProperties, ReactNode } from "react";
+import { TextosProvider } from "@/components/textos-provider";
 
 import { Avatar } from "@/components/ui/avatar";
 import { NIVELES } from "@/lib/niveles";
@@ -125,513 +126,521 @@ export default async function StyleGuide() {
   const idioma = await idiomaDeLaPeticion();
   // DEV-ONLY: en produccion (NODE_ENV != "development") la ruta no existe -> 404. Ver visibility.ts.
   if (styleGuideHidden(process.env.NODE_ENV)) notFound();
+  // Las primitivas de cliente que enseña piden sus textos (Fase 11 · P5b1): los del armazón y el marcador.
+  const { textosClienteDeLaPeticion } = await import("@/textos/servidor");
+  const { ESPACIOS_ARMAZON } = await import("@/textos/espacios");
+  const textosGuia = await textosClienteDeLaPeticion([...ESPACIOS_ARMAZON, "marcador"] as const);
 
   return (
-    <main className="mx-auto w-full max-w-[900px] px-6 pb-24">
-      {/* Cabecera */}
-      <header className="flex flex-wrap items-end justify-between gap-4 pt-14 pb-2">
-        {/* A 390 px el tamaño de héroe, en ancho expandido, no cabía: la página entera se desplazaba en
+    <TextosProvider textos={textosGuia}>
+      <main className="mx-auto w-full max-w-[900px] px-6 pb-24">
+        {/* Cabecera */}
+        <header className="flex flex-wrap items-end justify-between gap-4 pt-14 pb-2">
+          {/* A 390 px el tamaño de héroe, en ancho expandido, no cabía: la página entera se desplazaba en
             horizontal (572 px). En móvil, más pequeño; desde sm, el de siempre. */}
-        <h1
-          style={displayExpanded(850)}
-          className="text-5xl leading-none tracking-tight sm:text-hero"
-        >
-          {MARCA.toUpperCase()}
-        </h1>
-        <p className="text-2xs uppercase tracking-[0.2em] text-text-dim">
-          Sistema de diseño · Fase 1 · Tokens y primitivas
+          <h1
+            style={displayExpanded(850)}
+            className="text-5xl leading-none tracking-tight sm:text-hero"
+          >
+            {MARCA.toUpperCase()}
+          </h1>
+          <p className="text-2xs uppercase tracking-[0.2em] text-text-dim">
+            Sistema de diseño · Fase 1 · Tokens y primitivas
+          </p>
+        </header>
+        <p className="max-w-prose text-sm text-text-dim">
+          Retransmisión deportiva, no red social. La cifra manda sobre la foto: geometría severa,
+          color sin miedo, cada color con un solo trabajo. Referencia viva de los tokens.
         </p>
-      </header>
-      <p className="max-w-prose text-sm text-text-dim">
-        Retransmisión deportiva, no red social. La cifra manda sobre la foto: geometría severa,
-        color sin miedo, cada color con un solo trabajo. Referencia viva de los tokens.
-      </p>
 
-      {/* EL MARCADOR — elemento firma */}
-      <Seccion etiqueta="Elemento firma · el marcador">
-        <div className="flex flex-wrap items-center gap-x-10 gap-y-6">
-          <div className="flex flex-wrap items-center gap-6">
-            <div>
-              <p className="mb-1 text-2xs uppercase tracking-widest text-text-dim">Premio</p>
-              <p style={displayExpanded(850)} className="text-money" data-size="hero">
-                <span className="align-top text-2xl">$</span>
-                <span className="text-[48px] leading-none sm:text-[64px]">1,250</span>
-                <span className="text-2xl">.00</span>
-              </p>
-            </div>
-            <div className="h-16 w-px bg-line" aria-hidden />
-            <div>
-              <p className="mb-1 text-2xs uppercase tracking-widest text-text-dim">Termina en</p>
-              <p style={displayExpanded(650, 112)} className="text-[40px] leading-none text-time">
-                02:41:09
-              </p>
+        {/* EL MARCADOR — elemento firma */}
+        <Seccion etiqueta="Elemento firma · el marcador">
+          <div className="flex flex-wrap items-center gap-x-10 gap-y-6">
+            <div className="flex flex-wrap items-center gap-6">
+              <div>
+                <p className="mb-1 text-2xs uppercase tracking-widest text-text-dim">Premio</p>
+                <p style={displayExpanded(850)} className="text-money" data-size="hero">
+                  <span className="align-top text-2xl">$</span>
+                  <span className="text-[48px] leading-none sm:text-[64px]">1,250</span>
+                  <span className="text-2xl">.00</span>
+                </p>
+              </div>
+              <div className="h-16 w-px bg-line" aria-hidden />
+              <div>
+                <p className="mb-1 text-2xs uppercase tracking-widest text-text-dim">Termina en</p>
+                <p style={displayExpanded(650, 112)} className="text-[40px] leading-none text-time">
+                  02:41:09
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-        <p className="mt-6 max-w-prose text-sm text-text-dim">
-          Premio y reloj no se separan nunca. Sin fondo propio, sin sombra, sin caja: vive sobre la
-          superficie. Es lo único del sistema que puede gritar. La primitiva completa (con la
-          transición ámbar → alarma por debajo de 24 h) se construye en el Paso B.
-        </p>
-      </Seccion>
+          <p className="mt-6 max-w-prose text-sm text-text-dim">
+            Premio y reloj no se separan nunca. Sin fondo propio, sin sombra, sin caja: vive sobre
+            la superficie. Es lo único del sistema que puede gritar. La primitiva completa (con la
+            transición ámbar → alarma por debajo de 24 h) se construye en el Paso B.
+          </p>
+        </Seccion>
 
-      {/* LEY DE JERARQUIA */}
-      <Seccion etiqueta="Ley de jerarquía · requisito de producto">
-        <div className="grid gap-6 md:grid-cols-[1fr_auto]">
-          <div className="border border-line rounded-sm bg-surface p-5">
-            <p style={displayExpanded(800)} className="text-[52px] leading-none text-money">
-              <span className="align-top text-xl">$</span>25.00
-            </p>
-            <p style={displayExpanded(600, 110)} className="mt-2 text-2xl leading-none text-time">
-              6 d 04 h
-            </p>
-            <button
-              type="button"
-              className="mt-4 w-full rounded-sm bg-action px-4 py-3 text-sm font-semibold text-void transition-[filter] duration-150 ease-mechanical hover:brightness-110"
-            >
-              Participar
-            </button>
-            <p className="mt-4 text-lg font-semibold">Tu mejor salto en el gym</p>
-            <p className="mt-1 text-sm text-text-dim">@campeona_del_barrio_2026</p>
-            <span className="mt-3 inline-block rounded-full border border-line px-3 py-1 text-2xs text-text-dim">
-              Fitness
-            </span>
-          </div>
-          <ol className="text-sm text-text-dim md:w-56">
-            {[
-              "Importe del premio",
-              "Tiempo restante",
-              "Botón de acción",
-              "Título del reto",
-              "Autor / avatar",
-              "Categoría",
-            ].map((item, i) => (
-              <li
-                key={item}
-                className="flex items-baseline gap-3 border-b border-line py-2 last:border-b-0"
+        {/* LEY DE JERARQUIA */}
+        <Seccion etiqueta="Ley de jerarquía · requisito de producto">
+          <div className="grid gap-6 md:grid-cols-[1fr_auto]">
+            <div className="border border-line rounded-sm bg-surface p-5">
+              <p style={displayExpanded(800)} className="text-[52px] leading-none text-money">
+                <span className="align-top text-xl">$</span>25.00
+              </p>
+              <p style={displayExpanded(600, 110)} className="mt-2 text-2xl leading-none text-time">
+                6 d 04 h
+              </p>
+              <button
+                type="button"
+                className="mt-4 w-full rounded-sm bg-action px-4 py-3 text-sm font-semibold text-void transition-[filter] duration-150 ease-mechanical hover:brightness-110"
               >
-                <span className="tabular-nums text-text-dim">{i + 1}</span>
-                <span className={i === 0 ? "font-semibold text-text" : ""}>{item}</span>
+                Participar
+              </button>
+              <p className="mt-4 text-lg font-semibold">Tu mejor salto en el gym</p>
+              <p className="mt-1 text-sm text-text-dim">@campeona_del_barrio_2026</p>
+              <span className="mt-3 inline-block rounded-full border border-line px-3 py-1 text-2xs text-text-dim">
+                Fitness
+              </span>
+            </div>
+            <ol className="text-sm text-text-dim md:w-56">
+              {[
+                "Importe del premio",
+                "Tiempo restante",
+                "Botón de acción",
+                "Título del reto",
+                "Autor / avatar",
+                "Categoría",
+              ].map((item, i) => (
+                <li
+                  key={item}
+                  className="flex items-baseline gap-3 border-b border-line py-2 last:border-b-0"
+                >
+                  <span className="tabular-nums text-text-dim">{i + 1}</span>
+                  <span className={i === 0 ? "font-semibold text-text" : ""}>{item}</span>
+                </li>
+              ))}
+              <li className="pt-3 text-2xs">
+                Prueba: miniaturiza hasta no leer el texto. Lo primero que se distinga debe ser el
+                importe.
               </li>
-            ))}
-            <li className="pt-3 text-2xs">
-              Prueba: miniaturiza hasta no leer el texto. Lo primero que se distinga debe ser el
-              importe.
-            </li>
-          </ol>
-        </div>
-      </Seccion>
+            </ol>
+          </div>
+        </Seccion>
 
-      {/* COLOR — semanticos */}
-      <Seccion etiqueta="Color · un solo trabajo cada uno">
-        <p className="mb-4 text-sm text-text-dim">
-          Dos valores por token: <span className="text-text">tema oscuro · tema claro</span>. El
-          trabajo de cada color no cambia entre temas; el valor, sí. La muestra de arriba está
-          pintada con el token, así que enseña el del tema que estés viendo.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {COLORES.map((c) => (
-            <div key={c.u} className="border border-line rounded-sm bg-surface">
-              {/* texto NEGRO sobre el relleno: cumple AA; el blanco no (brief, sección 4) */}
+        {/* COLOR — semanticos */}
+        <Seccion etiqueta="Color · un solo trabajo cada uno">
+          <p className="mb-4 text-sm text-text-dim">
+            Dos valores por token: <span className="text-text">tema oscuro · tema claro</span>. El
+            trabajo de cada color no cambia entre temas; el valor, sí. La muestra de arriba está
+            pintada con el token, así que enseña el del tema que estés viendo.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {COLORES.map((c) => (
+              <div key={c.u} className="border border-line rounded-sm bg-surface">
+                {/* texto NEGRO sobre el relleno: cumple AA; el blanco no (brief, sección 4) */}
+                <div
+                  className="flex items-end justify-between rounded-t-sm px-3 py-4"
+                  style={{ backgroundColor: `var(--color-${c.u})` }}
+                >
+                  <span className="font-semibold text-void">Aa · 1,234</span>
+                  <span className="text-xs text-void/70">
+                    {c.hex} · {c.hexClaro}
+                  </span>
+                </div>
+                <div className="p-3">
+                  <p className="font-mono text-xs" style={{ color: `var(--color-${c.u})` }}>
+                    --df-{c.u}
+                  </p>
+                  <p className="mt-2 text-sm">
+                    <span className="text-text-dim">Solo:</span> {c.solo}
+                  </p>
+                  <p className="text-sm">
+                    <span className="text-text-dim">Nunca:</span> {c.nunca}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Regla critica: texto sobre relleno = NEGRO */}
+          <div className="mt-6 flex flex-wrap items-center gap-4 border border-line rounded-sm bg-surface p-4">
+            <span className="rounded-sm bg-action px-4 py-2 text-sm font-semibold text-void">
+              VOTAR
+            </span>
+            <span className="rounded-sm bg-action px-4 py-2 text-sm font-semibold text-[#ffffff] line-through decoration-alarm decoration-2">
+              VOTAR
+            </span>
+            <p className="max-w-prose text-sm text-text-dim">
+              El texto sobre cualquier color relleno va en <span className="text-text">negro</span>{" "}
+              (--df-void), nunca en blanco: el blanco falla AA. Contraintuitivo, medido y no
+              negociable.
+            </p>
+          </div>
+        </Seccion>
+
+        {/* PROFUNDIDAD por luminosidad */}
+        <Seccion etiqueta="Superficies · profundidad por luminosidad, no por sombra">
+          <div className="flex flex-wrap gap-px border border-line rounded-sm bg-line">
+            {[
+              { u: "void", n: "#070b08", t: "fondo de página" },
+              { u: "surface", n: "#0f1511", t: "tarjetas, hojas" },
+              { u: "raised", n: "#19211b", t: "elevado, activo" },
+            ].map((s) => (
               <div
-                className="flex items-end justify-between rounded-t-sm px-3 py-4"
-                style={{ backgroundColor: `var(--color-${c.u})` }}
+                key={s.u}
+                className="min-w-[9rem] flex-1 p-4"
+                style={{ backgroundColor: `var(--color-${s.u})` }}
               >
-                <span className="font-semibold text-void">Aa · 1,234</span>
-                <span className="text-xs text-void/70">
-                  {c.hex} · {c.hexClaro}
+                <p className="font-mono text-xs text-text-dim">--df-{s.u}</p>
+                <p className="mt-1 text-sm">{s.n}</p>
+                <p className="text-xs text-text-dim">{s.t}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 max-w-prose text-sm text-text-dim">
+            Si parece que hace falta una sombra, lo que hace falta es subir de{" "}
+            <span className="text-text">surface</span> a <span className="text-text">raised</span>.
+            Cero <span className="text-text">box-shadow</span>.
+          </p>
+        </Seccion>
+
+        {/* TIPOGRAFIA */}
+        <Seccion etiqueta="Tipografía · dos familias">
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div className="border border-line rounded-sm bg-surface p-4">
+              <p className="text-2xs uppercase tracking-widest text-text-dim">Display · Archivo</p>
+              <p style={displayExpanded(800)} className="mt-2 text-3xl leading-none">
+                1,234,567
+              </p>
+              <p style={displayExpanded(600, 100)} className="text-xl leading-tight">
+                Cifras y titulares
+              </p>
+            </div>
+            <div className="border border-line rounded-sm bg-surface p-4">
+              <p className="text-2xs uppercase tracking-widest text-text-dim">
+                Texto · IBM Plex Sans
+              </p>
+              <p className="mt-2 text-lg">Cuerpo, etiquetas, formularios y textos legales.</p>
+              <p className="text-sm text-text-dim">
+                Prohibidas como cara del producto: Inter, Geist, Roboto, Poppins.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 divide-y divide-line border border-line rounded-sm bg-surface">
+            {ESCALA.map((t) => (
+              <div key={t.u} className="flex items-baseline gap-4 px-4 py-2.5">
+                <span className="w-24 shrink-0 font-mono text-xs text-text-dim">{t.u}</span>
+                <span className="w-8 shrink-0 tabular-nums text-xs text-text-dim">{t.px}</span>
+                <span
+                  className="truncate"
+                  style={{
+                    fontSize: t.rem,
+                    lineHeight: t.lh,
+                    ...(t.u === "text-hero" ? displayExpanded(800) : {}),
+                  }}
+                >
+                  {t.ej}
                 </span>
               </div>
-              <div className="p-3">
-                <p className="font-mono text-xs" style={{ color: `var(--color-${c.u})` }}>
-                  --df-{c.u}
-                </p>
-                <p className="mt-2 text-sm">
-                  <span className="text-text-dim">Solo:</span> {c.solo}
-                </p>
-                <p className="text-sm">
-                  <span className="text-text-dim">Nunca:</span> {c.nunca}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Regla critica: texto sobre relleno = NEGRO */}
-        <div className="mt-6 flex flex-wrap items-center gap-4 border border-line rounded-sm bg-surface p-4">
-          <span className="rounded-sm bg-action px-4 py-2 text-sm font-semibold text-void">
-            VOTAR
-          </span>
-          <span className="rounded-sm bg-action px-4 py-2 text-sm font-semibold text-[#ffffff] line-through decoration-alarm decoration-2">
-            VOTAR
-          </span>
-          <p className="max-w-prose text-sm text-text-dim">
-            El texto sobre cualquier color relleno va en <span className="text-text">negro</span>{" "}
-            (--df-void), nunca en blanco: el blanco falla AA. Contraintuitivo, medido y no
-            negociable.
-          </p>
-        </div>
-      </Seccion>
-
-      {/* PROFUNDIDAD por luminosidad */}
-      <Seccion etiqueta="Superficies · profundidad por luminosidad, no por sombra">
-        <div className="flex flex-wrap gap-px border border-line rounded-sm bg-line">
-          {[
-            { u: "void", n: "#070b08", t: "fondo de página" },
-            { u: "surface", n: "#0f1511", t: "tarjetas, hojas" },
-            { u: "raised", n: "#19211b", t: "elevado, activo" },
-          ].map((s) => (
-            <div
-              key={s.u}
-              className="min-w-[9rem] flex-1 p-4"
-              style={{ backgroundColor: `var(--color-${s.u})` }}
-            >
-              <p className="font-mono text-xs text-text-dim">--df-{s.u}</p>
-              <p className="mt-1 text-sm">{s.n}</p>
-              <p className="text-xs text-text-dim">{s.t}</p>
-            </div>
-          ))}
-        </div>
-        <p className="mt-4 max-w-prose text-sm text-text-dim">
-          Si parece que hace falta una sombra, lo que hace falta es subir de{" "}
-          <span className="text-text">surface</span> a <span className="text-text">raised</span>.
-          Cero <span className="text-text">box-shadow</span>.
-        </p>
-      </Seccion>
-
-      {/* TIPOGRAFIA */}
-      <Seccion etiqueta="Tipografía · dos familias">
-        <div className="grid gap-6 sm:grid-cols-2">
-          <div className="border border-line rounded-sm bg-surface p-4">
-            <p className="text-2xs uppercase tracking-widest text-text-dim">Display · Archivo</p>
-            <p style={displayExpanded(800)} className="mt-2 text-3xl leading-none">
-              1,234,567
-            </p>
-            <p style={displayExpanded(600, 100)} className="text-xl leading-tight">
-              Cifras y titulares
-            </p>
-          </div>
-          <div className="border border-line rounded-sm bg-surface p-4">
-            <p className="text-2xs uppercase tracking-widest text-text-dim">
-              Texto · IBM Plex Sans
-            </p>
-            <p className="mt-2 text-lg">Cuerpo, etiquetas, formularios y textos legales.</p>
-            <p className="text-sm text-text-dim">
-              Prohibidas como cara del producto: Inter, Geist, Roboto, Poppins.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-6 divide-y divide-line border border-line rounded-sm bg-surface">
-          {ESCALA.map((t) => (
-            <div key={t.u} className="flex items-baseline gap-4 px-4 py-2.5">
-              <span className="w-24 shrink-0 font-mono text-xs text-text-dim">{t.u}</span>
-              <span className="w-8 shrink-0 tabular-nums text-xs text-text-dim">{t.px}</span>
-              <span
-                className="truncate"
-                style={{
-                  fontSize: t.rem,
-                  lineHeight: t.lh,
-                  ...(t.u === "text-hero" ? displayExpanded(800) : {}),
-                }}
-              >
-                {t.ej}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* tabular-nums: los digitos se alinean en columna */}
-        <div className="mt-6 border border-line rounded-sm bg-surface p-4">
-          <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
-            Cifras tabulares · obligatorias en premios, votos, contadores, puestos y saldos
-          </p>
-          <p className="tabular-nums text-xl leading-tight" style={displayExpanded(600, 100)}>
-            1,111
-            <br />
-            8,888
-          </p>
-          <p className="mt-1 text-xs text-text-dim">
-            Los dígitos ocupan lo mismo: un reloj cuyos números bailan al cambiar es un reloj roto.
-          </p>
-        </div>
-      </Seccion>
-
-      {/* GEOMETRIA */}
-      <Seccion etiqueta="Geometría · radios, filetes, sin sombras">
-        <div className="flex flex-wrap gap-4">
-          {RADIOS.map((r) => (
-            <div key={r.u} className="text-center">
-              <div
-                className="h-20 w-20 border border-line bg-raised"
-                style={{ borderRadius: `${r.px}px` }}
-              />
-              <p className="mt-2 font-mono text-xs text-text-dim">{r.px}px</p>
-              <p className="w-24 text-2xs text-text-dim">{r.uso}</p>
-            </div>
-          ))}
-        </div>
-        <p className="mt-4 max-w-prose text-sm text-text-dim">
-          Prohibidos 12, 16, 20 y 24 px: no existen en el sistema. Los planos se separan con un{" "}
-          <span className="text-text">filete de 1 px</span> (--df-line), no con sombra ni con aire.
-        </p>
-      </Seccion>
-
-      {/* ESPACIADO */}
-      <Seccion etiqueta="Espaciado · escala de base 4 px">
-        <div className="space-y-1.5">
-          {ESPACIOS.map((n) => (
-            <div key={n} className="flex items-center gap-3">
-              <span className="w-14 shrink-0 tabular-nums text-xs text-text-dim">{n * 4}px</span>
-              {/* barra de MEDIDA = neutro. NUNCA un color semantico (no es dinero/accion/etc.). */}
-              <span className="h-3 bg-text-dim" style={{ width: `${n * 4}px` }} />
-            </div>
-          ))}
-        </div>
-      </Seccion>
-
-      {/* MOVIMIENTO */}
-      <Seccion etiqueta="Movimiento · rápido y mecánico">
-        <div className="flex flex-wrap items-center gap-6">
-          <button
-            type="button"
-            className="rounded-sm border border-line bg-surface px-5 py-3 text-sm transition-transform duration-150 ease-mechanical hover:-translate-y-0.5 hover:bg-raised"
-          >
-            Pásame el cursor (150 ms)
-          </button>
-          <p className="max-w-prose text-sm text-text-dim">
-            120–180 ms, cubic-bezier(0.2, 0, 0, 1). Nada de rebotes ni muelles. El voto se confirma
-            con un golpe seco, no con una animación mona.{" "}
-            <span className="text-text">prefers-reduced-motion</span> se respeta siempre.
-          </p>
-        </div>
-      </Seccion>
-
-      {/* ==================== PRIMITIVAS · PASO B (ENTREGA 1) ==================== */}
-
-      <Seccion etiqueta="Primitiva · importe de premio (escala de lista a héroe)">
-        <div className="flex flex-wrap items-end gap-x-10 gap-y-6">
-          {(["lista", "tarjeta", "heroe"] as const).map((t, i) => (
-            <div key={t}>
-              <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">{t}</p>
-              <ImportePremio idioma={idioma} cents={[2000, 25000, 125000][i]!} tamano={t} />
-            </div>
-          ))}
-        </div>
-        <p className="mt-6 max-w-prose text-sm text-text-dim">
-          Misma estructura, solo cambia el tamaño. Archivo Expanded, tabular-nums, SOLO --df-money
-          (texto en --df-money, nunca relleno). Los puntos no son dinero: no usan esta pieza.
-        </p>
-      </Seccion>
-
-      <Seccion etiqueta="Primitiva · cuenta atrás (--df-time → --df-alarm por debajo de 24 h)">
-        <div className="flex flex-wrap items-end gap-x-10 gap-y-6">
-          <div>
-            <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
-              &gt; 24 h · time
-            </p>
-            <CuentaAtrasEnVivo offsetMs={6 * 24 * 3_600_000 + 4 * 3_600_000} />
-          </div>
-          <div>
-            <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
-              &lt; 24 h · alarm
-            </p>
-            <CuentaAtrasEnVivo offsetMs={23 * 3_600_000} />
-          </div>
-          <div>
-            <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
-              por vencer · alarm
-            </p>
-            <CuentaAtrasEnVivo offsetMs={45_000} />
-          </div>
-        </div>
-        <p className="mt-6 max-w-prose text-sm text-text-dim">
-          El paso a alarma por debajo de 24 h es un EVENTO de producto (transición lenta, 300 ms),
-          no un adorno. Tictac cada segundo; prefers-reduced-motion respetado.
-        </p>
-      </Seccion>
-
-      <Seccion etiqueta="Primitiva firma · el marcador (premio + tiempo, nunca separados)">
-        <div className="space-y-7">
-          <MarcadorEnVivo cents={2000} offsetMs={8 * 24 * 3_600_000} tamano="lista" />
-          <MarcadorEnVivo
-            cents={25000}
-            offsetMs={6 * 24 * 3_600_000 + 4 * 3_600_000}
-            tamano="tarjeta"
-          />
-          <MarcadorEnVivo cents={125000} offsetMs={18 * 3_600_000} tamano="heroe" apilarEnMovil />
-        </div>
-        <p className="mt-7 max-w-prose text-sm text-text-dim">
-          Misma estructura de la tarjeta pequeña al héroe: filete de 1 px, sin fondo ni caja. El de
-          abajo está por debajo de 24 h, así que el reloj va en alarma.
-        </p>
-      </Seccion>
-
-      <Seccion etiqueta="Primitiva · contador de votos (golpe seco al votar, incremento lento)">
-        <VotoDemo inicial={1248} />
-        <p className="mt-6 max-w-prose text-sm text-text-dim">
-          Color NEUTRO (los votos no son un color semántico). El voto se confirma con un golpe seco
-          y la marca en --df-ok, no con una animación mona.
-        </p>
-      </Seccion>
-
-      <Seccion etiqueta="Primitiva · fila de puesto (--df-rank solo en 1/2/3)">
-        <div className="max-w-md rounded-sm border border-line bg-surface">
-          {/* Sin foto (`imagen={null}`): la guía no tiene avatares de nadie; enseña la inicial. */}
-          <FilaPuesto
-            idioma={idioma}
-            puesto={1}
-            username="campeona_del_barrio_2026"
-            imagen={null}
-            cifra={9}
-            unidad="victorias"
-          />
-          <FilaPuesto
-            idioma={idioma}
-            puesto={2}
-            username="leo"
-            imagen={null}
-            cifra={7}
-            unidad="victorias"
-          />
-          <FilaPuesto
-            idioma={idioma}
-            puesto={3}
-            username="maria_fit"
-            imagen={null}
-            cifra={4}
-            unidad="victorias"
-          />
-          <FilaPuesto
-            idioma={idioma}
-            puesto={4}
-            username="dancer_xx"
-            imagen={null}
-            cifra={2}
-            unidad="victorias"
-          />
-          <FilaPuesto
-            idioma={idioma}
-            puesto={7}
-            username="un_nombre_de_usuario_larguisimo_2026"
-            imagen={null}
-            cifra={1}
-            unidad="victoria"
-            activo
-          />
-        </div>
-        <p className="mt-6 max-w-prose text-sm text-text-dim">
-          Oro SOLO en el podio (1/2/3); del 4 en adelante, neutro. Los puntos van en neutro, jamás
-          en --df-money. Nombres largos y cortos, cifras tabulares.
-        </p>
-      </Seccion>
-
-      {/* ==================== PRIMITIVAS · PASO B (ENTREGA 2) ==================== */}
-
-      <Seccion etiqueta="Primitiva · botón (una acción principal por pantalla)">
-        <div className="flex flex-wrap items-center gap-4">
-          <Boton variante="principal">Participar</Boton>
-          <Boton variante="secundario">Ver reto</Boton>
-          <Boton variante="fantasma">Cancelar</Boton>
-          <Boton variante="peligro">Eliminar vídeo</Boton>
-          <Boton variante="principal" disabled>
-            Participar
-          </Boton>
-        </div>
-        <p className="mt-6 max-w-prose text-sm text-text-dim">
-          Principal (--df-action de relleno + texto NEGRO; UNA por pantalla), secundario (filete de
-          1 px), fantasma (solo texto), peligro (--df-alarm). Zona táctil de 44 px, foco visible
-          global, deshabilitado sobrio (el último, a la derecha).
-        </p>
-      </Seccion>
-
-      <Seccion etiqueta="Primitiva · campo (label real, error que dice qué y cómo)">
-        <div className="grid max-w-md gap-5">
-          <Campo id="sg-usuario" label="Nombre de usuario" placeholder="@tu_usuario" />
-          <Campo
-            id="sg-email"
-            label="Correo"
-            type="email"
-            defaultValue="nombre@ejemplo"
-            error="Ese correo no tiene un formato válido. Escríbelo como nombre@dominio.com."
-          />
-          <Campo
-            id="sg-premio"
-            label="Premio del reto (USD)"
-            inputMode="numeric"
-            defaultValue="$3.00"
-            error="El premio mínimo es $5.00. Sube la cifra para poder publicar el reto."
-          />
-        </div>
-        <p className="mt-6 max-w-prose text-sm text-text-dim">
-          La etiqueta es un elemento label real, no el placeholder. Al enfocar, el fondo pasa a
-          --df-raised y el filete se aclara. El error va en --df-alarm y dice qué pasó y cómo se
-          arregla, sin pedir perdón ni vaguedades.
-        </p>
-      </Seccion>
-
-      <Seccion etiqueta="Primitivas · tarjeta, píldora de categoría y avatar">
-        <div className="flex flex-wrap items-start gap-8">
-          <Tarjeta className="w-full max-w-xs">
-            <div className="flex items-center gap-3">
-              <Avatar nombre="Campeona del Barrio" tamano="md" puntos={600} />
-              <div className="min-w-0">
-                <p className="truncate font-semibold">@campeona_del_barrio_2026</p>
-                <p className="text-sm tabular-nums text-text-dim">1,204 seguidores</p>
-              </div>
-            </div>
-            <p className="mt-3 font-medium">Tu mejor salto en el gym</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <PildoraCategoria>Fitness</PildoraCategoria>
-              <PildoraCategoria>Reto de la semana</PildoraCategoria>
-            </div>
-          </Tarjeta>
-          {/* LOS CINCO NIVELES, para poder mirarlos juntos en los dos temas: es lo que hace útil una
-              guía de estilo. Rookie no lleva anillo (es el estándar); los demás, el suyo y su glifo. */}
-          <div className="flex flex-wrap items-end gap-4">
-            {NIVELES.map((n) => (
-              <span key={n.clave} className="flex flex-col items-center gap-2">
-                <Avatar nombre={n.nombre} tamano="lg" puntos={n.minimo} />
-                <span className="text-2xs text-text-dim">{n.nombre}</span>
-              </span>
             ))}
           </div>
-        </div>
-        <p className="mt-6 max-w-prose text-sm text-text-dim">
-          Tarjeta: superficie + filete de 1 px, sin sombra (la profundidad es luminosidad). Píldora:
-          radius-full, filete, NEUTRA (jamás un color semántico). Avatar: radius-full, placeholder
-          con la inicial.
-        </p>
-      </Seccion>
 
-      <Seccion etiqueta="Primitiva · navegación (móvil inferior / escritorio lateral)">
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
-          <div>
+          {/* tabular-nums: los digitos se alinean en columna */}
+          <div className="mt-6 border border-line rounded-sm bg-surface p-4">
             <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
-              móvil · inferior
+              Cifras tabulares · obligatorias en premios, votos, contadores, puestos y saldos
             </p>
-            <div className="w-[320px] overflow-hidden rounded-lg border border-line">
-              <div className="flex h-40 items-center justify-center bg-void text-sm text-text-dim">
-                contenido
+            <p className="tabular-nums text-xl leading-tight" style={displayExpanded(600, 100)}>
+              1,111
+              <br />
+              8,888
+            </p>
+            <p className="mt-1 text-xs text-text-dim">
+              Los dígitos ocupan lo mismo: un reloj cuyos números bailan al cambiar es un reloj
+              roto.
+            </p>
+          </div>
+        </Seccion>
+
+        {/* GEOMETRIA */}
+        <Seccion etiqueta="Geometría · radios, filetes, sin sombras">
+          <div className="flex flex-wrap gap-4">
+            {RADIOS.map((r) => (
+              <div key={r.u} className="text-center">
+                <div
+                  className="h-20 w-20 border border-line bg-raised"
+                  style={{ borderRadius: `${r.px}px` }}
+                />
+                <p className="mt-2 font-mono text-xs text-text-dim">{r.px}px</p>
+                <p className="w-24 text-2xs text-text-dim">{r.uso}</p>
               </div>
-              <NavegacionInferior activo="feed" rol={null} />
-            </div>
+            ))}
           </div>
-          <div>
-            <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
-              escritorio · lateral
+          <p className="mt-4 max-w-prose text-sm text-text-dim">
+            Prohibidos 12, 16, 20 y 24 px: no existen en el sistema. Los planos se separan con un{" "}
+            <span className="text-text">filete de 1 px</span> (--df-line), no con sombra ni con
+            aire.
+          </p>
+        </Seccion>
+
+        {/* ESPACIADO */}
+        <Seccion etiqueta="Espaciado · escala de base 4 px">
+          <div className="space-y-1.5">
+            {ESPACIOS.map((n) => (
+              <div key={n} className="flex items-center gap-3">
+                <span className="w-14 shrink-0 tabular-nums text-xs text-text-dim">{n * 4}px</span>
+                {/* barra de MEDIDA = neutro. NUNCA un color semantico (no es dinero/accion/etc.). */}
+                <span className="h-3 bg-text-dim" style={{ width: `${n * 4}px` }} />
+              </div>
+            ))}
+          </div>
+        </Seccion>
+
+        {/* MOVIMIENTO */}
+        <Seccion etiqueta="Movimiento · rápido y mecánico">
+          <div className="flex flex-wrap items-center gap-6">
+            <button
+              type="button"
+              className="rounded-sm border border-line bg-surface px-5 py-3 text-sm transition-transform duration-150 ease-mechanical hover:-translate-y-0.5 hover:bg-raised"
+            >
+              Pásame el cursor (150 ms)
+            </button>
+            <p className="max-w-prose text-sm text-text-dim">
+              120–180 ms, cubic-bezier(0.2, 0, 0, 1). Nada de rebotes ni muelles. El voto se
+              confirma con un golpe seco, no con una animación mona.{" "}
+              <span className="text-text">prefers-reduced-motion</span> se respeta siempre.
             </p>
-            <div className="inline-block overflow-hidden rounded-lg border border-line">
-              <NavegacionLateral activo="feed" />
+          </div>
+        </Seccion>
+
+        {/* ==================== PRIMITIVAS · PASO B (ENTREGA 1) ==================== */}
+
+        <Seccion etiqueta="Primitiva · importe de premio (escala de lista a héroe)">
+          <div className="flex flex-wrap items-end gap-x-10 gap-y-6">
+            {(["lista", "tarjeta", "heroe"] as const).map((t, i) => (
+              <div key={t}>
+                <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">{t}</p>
+                <ImportePremio idioma={idioma} cents={[2000, 25000, 125000][i]!} tamano={t} />
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 max-w-prose text-sm text-text-dim">
+            Misma estructura, solo cambia el tamaño. Archivo Expanded, tabular-nums, SOLO --df-money
+            (texto en --df-money, nunca relleno). Los puntos no son dinero: no usan esta pieza.
+          </p>
+        </Seccion>
+
+        <Seccion etiqueta="Primitiva · cuenta atrás (--df-time → --df-alarm por debajo de 24 h)">
+          <div className="flex flex-wrap items-end gap-x-10 gap-y-6">
+            <div>
+              <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
+                &gt; 24 h · time
+              </p>
+              <CuentaAtrasEnVivo offsetMs={6 * 24 * 3_600_000 + 4 * 3_600_000} />
+            </div>
+            <div>
+              <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
+                &lt; 24 h · alarm
+              </p>
+              <CuentaAtrasEnVivo offsetMs={23 * 3_600_000} />
+            </div>
+            <div>
+              <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
+                por vencer · alarm
+              </p>
+              <CuentaAtrasEnVivo offsetMs={45_000} />
             </div>
           </div>
-        </div>
-        <p className="mt-6 max-w-prose text-sm text-text-dim">
-          Los mismos cinco destinos, mismo orden y nombres (Inicio · Retos · [+] · Ranking ·
-          Perfil). El [+] central es la única acción de --df-action. Zonas táctiles de 44 px. Los
-          destinos son las rutas ANTICIPADAS del Paso C; hoy solo existe «/».
-        </p>
-      </Seccion>
-    </main>
+          <p className="mt-6 max-w-prose text-sm text-text-dim">
+            El paso a alarma por debajo de 24 h es un EVENTO de producto (transición lenta, 300 ms),
+            no un adorno. Tictac cada segundo; prefers-reduced-motion respetado.
+          </p>
+        </Seccion>
+
+        <Seccion etiqueta="Primitiva firma · el marcador (premio + tiempo, nunca separados)">
+          <div className="space-y-7">
+            <MarcadorEnVivo cents={2000} offsetMs={8 * 24 * 3_600_000} tamano="lista" />
+            <MarcadorEnVivo
+              cents={25000}
+              offsetMs={6 * 24 * 3_600_000 + 4 * 3_600_000}
+              tamano="tarjeta"
+            />
+            <MarcadorEnVivo cents={125000} offsetMs={18 * 3_600_000} tamano="heroe" apilarEnMovil />
+          </div>
+          <p className="mt-7 max-w-prose text-sm text-text-dim">
+            Misma estructura de la tarjeta pequeña al héroe: filete de 1 px, sin fondo ni caja. El
+            de abajo está por debajo de 24 h, así que el reloj va en alarma.
+          </p>
+        </Seccion>
+
+        <Seccion etiqueta="Primitiva · contador de votos (golpe seco al votar, incremento lento)">
+          <VotoDemo inicial={1248} />
+          <p className="mt-6 max-w-prose text-sm text-text-dim">
+            Color NEUTRO (los votos no son un color semántico). El voto se confirma con un golpe
+            seco y la marca en --df-ok, no con una animación mona.
+          </p>
+        </Seccion>
+
+        <Seccion etiqueta="Primitiva · fila de puesto (--df-rank solo en 1/2/3)">
+          <div className="max-w-md rounded-sm border border-line bg-surface">
+            {/* Sin foto (`imagen={null}`): la guía no tiene avatares de nadie; enseña la inicial. */}
+            <FilaPuesto
+              idioma={idioma}
+              puesto={1}
+              username="campeona_del_barrio_2026"
+              imagen={null}
+              cifra={9}
+              unidad="victorias"
+            />
+            <FilaPuesto
+              idioma={idioma}
+              puesto={2}
+              username="leo"
+              imagen={null}
+              cifra={7}
+              unidad="victorias"
+            />
+            <FilaPuesto
+              idioma={idioma}
+              puesto={3}
+              username="maria_fit"
+              imagen={null}
+              cifra={4}
+              unidad="victorias"
+            />
+            <FilaPuesto
+              idioma={idioma}
+              puesto={4}
+              username="dancer_xx"
+              imagen={null}
+              cifra={2}
+              unidad="victorias"
+            />
+            <FilaPuesto
+              idioma={idioma}
+              puesto={7}
+              username="un_nombre_de_usuario_larguisimo_2026"
+              imagen={null}
+              cifra={1}
+              unidad="victoria"
+              activo
+            />
+          </div>
+          <p className="mt-6 max-w-prose text-sm text-text-dim">
+            Oro SOLO en el podio (1/2/3); del 4 en adelante, neutro. Los puntos van en neutro, jamás
+            en --df-money. Nombres largos y cortos, cifras tabulares.
+          </p>
+        </Seccion>
+
+        {/* ==================== PRIMITIVAS · PASO B (ENTREGA 2) ==================== */}
+
+        <Seccion etiqueta="Primitiva · botón (una acción principal por pantalla)">
+          <div className="flex flex-wrap items-center gap-4">
+            <Boton variante="principal">Participar</Boton>
+            <Boton variante="secundario">Ver reto</Boton>
+            <Boton variante="fantasma">Cancelar</Boton>
+            <Boton variante="peligro">Eliminar vídeo</Boton>
+            <Boton variante="principal" disabled>
+              Participar
+            </Boton>
+          </div>
+          <p className="mt-6 max-w-prose text-sm text-text-dim">
+            Principal (--df-action de relleno + texto NEGRO; UNA por pantalla), secundario (filete
+            de 1 px), fantasma (solo texto), peligro (--df-alarm). Zona táctil de 44 px, foco
+            visible global, deshabilitado sobrio (el último, a la derecha).
+          </p>
+        </Seccion>
+
+        <Seccion etiqueta="Primitiva · campo (label real, error que dice qué y cómo)">
+          <div className="grid max-w-md gap-5">
+            <Campo id="sg-usuario" label="Nombre de usuario" placeholder="@tu_usuario" />
+            <Campo
+              id="sg-email"
+              label="Correo"
+              type="email"
+              defaultValue="nombre@ejemplo"
+              error="Ese correo no tiene un formato válido. Escríbelo como nombre@dominio.com."
+            />
+            <Campo
+              id="sg-premio"
+              label="Premio del reto (USD)"
+              inputMode="numeric"
+              defaultValue="$3.00"
+              error="El premio mínimo es $5.00. Sube la cifra para poder publicar el reto."
+            />
+          </div>
+          <p className="mt-6 max-w-prose text-sm text-text-dim">
+            La etiqueta es un elemento label real, no el placeholder. Al enfocar, el fondo pasa a
+            --df-raised y el filete se aclara. El error va en --df-alarm y dice qué pasó y cómo se
+            arregla, sin pedir perdón ni vaguedades.
+          </p>
+        </Seccion>
+
+        <Seccion etiqueta="Primitivas · tarjeta, píldora de categoría y avatar">
+          <div className="flex flex-wrap items-start gap-8">
+            <Tarjeta className="w-full max-w-xs">
+              <div className="flex items-center gap-3">
+                <Avatar nombre="Campeona del Barrio" tamano="md" puntos={600} />
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">@campeona_del_barrio_2026</p>
+                  <p className="text-sm tabular-nums text-text-dim">1,204 seguidores</p>
+                </div>
+              </div>
+              <p className="mt-3 font-medium">Tu mejor salto en el gym</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <PildoraCategoria>Fitness</PildoraCategoria>
+                <PildoraCategoria>Reto de la semana</PildoraCategoria>
+              </div>
+            </Tarjeta>
+            {/* LOS CINCO NIVELES, para poder mirarlos juntos en los dos temas: es lo que hace útil una
+              guía de estilo. Rookie no lleva anillo (es el estándar); los demás, el suyo y su glifo. */}
+            <div className="flex flex-wrap items-end gap-4">
+              {NIVELES.map((n) => (
+                <span key={n.clave} className="flex flex-col items-center gap-2">
+                  <Avatar nombre={n.nombre} tamano="lg" puntos={n.minimo} />
+                  <span className="text-2xs text-text-dim">{n.nombre}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+          <p className="mt-6 max-w-prose text-sm text-text-dim">
+            Tarjeta: superficie + filete de 1 px, sin sombra (la profundidad es luminosidad).
+            Píldora: radius-full, filete, NEUTRA (jamás un color semántico). Avatar: radius-full,
+            placeholder con la inicial.
+          </p>
+        </Seccion>
+
+        <Seccion etiqueta="Primitiva · navegación (móvil inferior / escritorio lateral)">
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-start">
+            <div>
+              <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
+                móvil · inferior
+              </p>
+              <div className="w-[320px] overflow-hidden rounded-lg border border-line">
+                <div className="flex h-40 items-center justify-center bg-void text-sm text-text-dim">
+                  contenido
+                </div>
+                <NavegacionInferior activo="feed" rol={null} />
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-2xs uppercase tracking-widest text-text-dim">
+                escritorio · lateral
+              </p>
+              <div className="inline-block overflow-hidden rounded-lg border border-line">
+                <NavegacionLateral activo="feed" />
+              </div>
+            </div>
+          </div>
+          <p className="mt-6 max-w-prose text-sm text-text-dim">
+            Los mismos cinco destinos, mismo orden y nombres (Inicio · Retos · [+] · Ranking ·
+            Perfil). El [+] central es la única acción de --df-action. Zonas táctiles de 44 px. Los
+            destinos son las rutas ANTICIPADAS del Paso C; hoy solo existe «/».
+          </p>
+        </Seccion>
+      </main>
+    </TextosProvider>
   );
 }

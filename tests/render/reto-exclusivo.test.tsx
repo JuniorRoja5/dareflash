@@ -20,7 +20,11 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: 
 
 import { BotonParticipar } from "@/app/(app)/(shell)/retos/[codigo]/participar";
 import { TarjetaReto } from "@/app/(app)/(shell)/retos/tarjeta-reto";
-import { CTA_RETO_SOLO_VIP } from "@/config/constants";
+// Desde la P5b1 el CTA vive en los textos (`participar.hazteVip`).
+import { es } from "@/textos/es";
+import { TEXTOS_TARJETA } from "../helpers/textos-prueba";
+
+const CTA_RETO_SOLO_VIP = es.participar.hazteVip;
 import type { RetoPublicoVista } from "@/server/services/retos-publico";
 
 afterEach(cleanup);
@@ -41,7 +45,7 @@ const BASE: RetoPublicoVista = {
 };
 
 const pintar = (over: Partial<RetoPublicoVista> = {}) =>
-  render(<TarjetaReto idioma="es" reto={{ ...BASE, ...over }} />).container;
+  render(<TarjetaReto idioma="es" reto={{ ...BASE, ...over }} textos={TEXTOS_TARJETA} />).container;
 
 const marco = (c: HTMLElement) => c.querySelector("[data-reto-exclusivo]");
 const chapa = (c: HTMLElement) => c.querySelector("[data-reto-chapa-vip]");

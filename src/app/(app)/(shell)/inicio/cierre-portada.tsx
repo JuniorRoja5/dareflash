@@ -1,5 +1,6 @@
 import { Boton } from "@/components/ui/boton";
 import type { CtaPrincipal } from "@/lib/cta-principal";
+import { textos } from "@/textos/servidor";
 
 /**
  * EL CIERRE DE LA PORTADA (rediseño de /inicio): una franja con UNA acción, para quien ha bajado hasta
@@ -9,8 +10,15 @@ import type { CtaPrincipal } from "@/lib/cta-principal";
  *  - `participar` (invitado y participante): a subir su vídeo.
  *  - `portal` (empresa, que solo mira): a SU portal.
  */
-export function CierrePortada({ tipo, cta }: { tipo: "participar" | "portal"; cta: CtaPrincipal }) {
+export async function CierrePortada({
+  tipo,
+  cta,
+}: {
+  tipo: "participar" | "portal";
+  cta: CtaPrincipal;
+}) {
   const portal = tipo === "portal";
+  const [t, tc] = await Promise.all([textos("inicio"), textos("cta")]);
   return (
     <section
       aria-labelledby="cierre-portada"
@@ -29,16 +37,14 @@ export function CierrePortada({ tipo, cta }: { tipo: "participar" | "portal"; ct
           fontVariationSettings: '"wght" 820, "wdth" 120',
         }}
       >
-        {portal ? "Lleva tu marca a los retos" : "Tu próximo vídeo puede ganar"}
+        {portal ? t("cierrePortalTitulo") : t("cierreTitulo")}
       </h2>
       <p className="mx-auto mt-3 max-w-prose text-sm text-text-dim lg:text-base">
-        {portal
-          ? "Desde tu portal propones retos con premio y lanzas tu publicidad donde está tu gente."
-          : "Elige un reto abierto, sube tu vídeo antes del cierre y deja que vote la comunidad."}
+        {portal ? t("cierrePortalTexto") : t("cierreTexto")}
       </p>
       <Boton href={cta.href} variante="principal" className="mt-6 shadow-[var(--df-cta-lift)]">
         {cta.crea ? <span className="text-lg leading-none font-bold">+</span> : null}
-        <span>{cta.texto}</span>
+        <span>{tc(cta.clave)}</span>
       </Boton>
     </section>
   );

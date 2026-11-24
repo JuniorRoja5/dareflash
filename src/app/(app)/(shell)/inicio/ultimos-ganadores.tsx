@@ -6,6 +6,7 @@ import { NombreUsuario } from "@/components/ui/identidad-usuario";
 import { centimosAImporte } from "@/lib/dinero";
 import type { Tema } from "@/lib/tema";
 import type { GanadorPortada } from "@/server/services/portada";
+import { textos } from "@/textos/servidor";
 
 /**
  * «ÚLTIMOS GANADORES» (rediseño de /inicio): los puestos 1 REALES más recientes y lo que cobraron
@@ -15,14 +16,21 @@ import type { GanadorPortada } from "@/server/services/portada";
  * El trofeo va con el oro del podio (`--df-rank`); el premio, en `--df-money` —dinero y solo dinero—,
  * y los dos no se tocan (MARCA.md §4: el dinero y el podio son dos dorados distintos a propósito).
  */
-export function UltimosGanadores({ ganadores, tema }: { ganadores: GanadorPortada[]; tema: Tema }) {
+export async function UltimosGanadores({
+  ganadores,
+  tema,
+}: {
+  ganadores: GanadorPortada[];
+  tema: Tema;
+}) {
   if (ganadores.length === 0) return null;
+  const t = await textos("inicio");
   return (
     <section aria-labelledby="ultimos-ganadores">
       <div className="flex items-center gap-3">
         <Imagen3d pieza="trofeo" tema={tema} tamano={56} className="df-glow-podio w-12 lg:w-14" />
         <h2 id="ultimos-ganadores" className="text-xl font-semibold text-text lg:text-2xl">
-          Últimos ganadores
+          {t("ganadoresTitulo")}
         </h2>
       </div>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -45,7 +53,7 @@ export function UltimosGanadores({ ganadores, tema }: { ganadores: GanadorPortad
                 />
               </Enlace>
               <p className="truncate text-2xs text-text-dim">
-                ganó{" "}
+                {t("gano")}{" "}
                 <Enlace href={g.retoHref} className="text-text hover:underline">
                   {g.retoTitulo}
                 </Enlace>

@@ -163,6 +163,10 @@ describe("3 · el censo de las variantes con nombre propio", () => {
       "src/app/panel/formato-panel.ts",
       "src/server/services/resumen-admin.ts",
       "src/server/jobs/aviso-capacidad.ts",
+      // P5b1: el panel (no se traduce) y la página interna de verificación reciben sus textos de
+      // cliente siempre en el idioma del equipo.
+      "src/app/panel/layout.tsx",
+      "src/app/reproduccion-test/[id]/page.tsx",
     ];
     expect(usan(/\bIDIOMA_DEL_EQUIPO\b/).filter((r) => !PERMITIDOS.includes(r))).toEqual([]);
   });
@@ -196,7 +200,10 @@ describe("4 · la zona de quien mira: cookie escrita en el navegador, validada y
 
   it("el layout raíz pone el script de la cookie en el <head> y el proveedor alrededor del cuerpo", () => {
     expect(layout).toMatch(/<script dangerouslySetInnerHTML=\{\{ __html: SCRIPT_ZONA \}\} \/>/);
-    expect(layout).toMatch(/<FormatoProvider idioma=\{idioma\} zona=\{zona\}>/);
+    // P5b1: además, el idioma de los textos (el pseudo-idioma `xx` en desarrollo).
+    expect(layout).toMatch(
+      /<FormatoProvider idioma=\{idioma\} zona=\{zona\} idiomaTextos=\{idiomaTextos\}>/,
+    );
   });
 
   it("el script lee la zona del navegador y escribe la cookie, sin romper nada si falla", () => {

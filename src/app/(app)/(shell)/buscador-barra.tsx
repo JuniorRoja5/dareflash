@@ -2,6 +2,7 @@
 
 import { Enlace } from "@/components/enlace";
 import { useNavegar } from "@/components/enlace";
+import { useTextos } from "@/components/textos-provider";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -70,6 +71,7 @@ interface ResultadoSug {
  */
 export function BuscadorBarra() {
   const navegar = useNavegar();
+  const t = useTextos("buscador");
   const [q, setQ] = useState("");
   const [resultado, setResultado] = useState<ResultadoSug>({ clave: "", items: [] });
   const [abierto, setAbierto] = useState(false);
@@ -169,8 +171,8 @@ export function BuscadorBarra() {
           aria-controls={listboxId}
           aria-autocomplete="list"
           aria-activedescendant={activo >= 0 ? `${listboxId}-opt-${activo}` : undefined}
-          placeholder="Buscar retos, personas…"
-          aria-label="Buscar"
+          placeholder={t("placeholder")}
+          aria-label={t("etiqueta")}
           autoComplete="off"
           className="min-h-[44px] w-full rounded-full border border-line bg-raised pr-4 pl-11 text-sm text-text placeholder:text-text-dim focus:border-text focus:outline-none"
         />
@@ -180,7 +182,7 @@ export function BuscadorBarra() {
         <ul
           role="listbox"
           id={listboxId}
-          aria-label="Sugerencias"
+          aria-label={t("sugerencias")}
           className="absolute top-full right-0 left-0 z-40 mt-2 overflow-hidden rounded-sm border border-line bg-surface py-1 shadow-[var(--df-shadow-md)]"
         >
           {items.map((s, i) => (
@@ -235,7 +237,7 @@ export function BuscadorBarra() {
               onClick={() => setAbierto(false)}
               className="block px-3 py-2 text-sm font-medium text-text-dim hover:text-text"
             >
-              Ver todos los resultados de «{termino}»
+              {t("verTodos", { termino })}
             </Enlace>
           </li>
         </ul>

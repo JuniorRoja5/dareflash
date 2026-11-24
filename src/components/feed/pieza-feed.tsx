@@ -1,5 +1,6 @@
 import { Denunciar } from "@/components/ui/denunciar";
 import type { PiezaEntregada } from "@/server/services/publicidad-entrega";
+import { useTextos } from "@/components/textos-provider";
 
 /**
  * UNA PIEZA DE PUBLICIDAD EN EL FEED (Fase 9 · P7): una diapositiva más del scroll, con la MISMA altura
@@ -26,6 +27,7 @@ export function PiezaFeed({
    */
   denuncia?: { haySesion: boolean; emailVerificado: boolean } | null;
 }) {
+  const t = useTextos("anuncio");
   const esCasa = pieza.tipo === "casa";
   return (
     <section
@@ -93,7 +95,7 @@ export function PiezaFeed({
               </span>
             ) : null}
           </a>
-          {esCasa ? null : <p className="text-2xs text-text-dim">Se abre en una pestaña nueva.</p>}
+          {esCasa ? null : <p className="text-2xs text-text-dim">{t("pestanaNueva")}</p>}
         </div>
       </div>
     </section>

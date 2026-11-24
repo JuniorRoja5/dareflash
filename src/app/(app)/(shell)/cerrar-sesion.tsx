@@ -1,5 +1,6 @@
 "use client";
 
+import { useTextos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 
 import { useCerrarSesion } from "./usar-cerrar-sesion";
@@ -10,6 +11,7 @@ import { useCerrarSesion } from "./usar-cerrar-sesion";
  * Solo se monta en el perfil propio, que ya exige sesión.
  */
 export function CerrarSesion({ className = "" }: { className?: string }) {
+  const t = useTextos("cuenta");
   const { salir, cargando, error } = useCerrarSesion();
   return (
     <div className={className}>
@@ -20,7 +22,7 @@ export function CerrarSesion({ className = "" }: { className?: string }) {
         disabled={cargando}
         aria-busy={cargando}
       >
-        {cargando ? "Cerrando sesión…" : "Cerrar sesión"}
+        {cargando ? t("cerrando") : t("cerrarSesion")}
       </Boton>
       {error ? (
         <p role="alert" className="mt-2 text-center text-sm text-alarm">

@@ -4,6 +4,7 @@
  * un tercer sitio con su propio texto por donde el CTA podía volver a divergir.
  */
 import { render, screen } from "@testing-library/react";
+import { es } from "@/textos/es";
 import { describe, expect, it, vi } from "vitest";
 
 // `next/link` necesita el contexto del router; aquí basta un <a> con sus props.
@@ -33,7 +34,7 @@ describe("el [+] de la nav móvil", () => {
     for (const rol of ["USER", "MODERATOR", null]) {
       const { unmount } = render(<NavegacionInferior rol={rol} />);
       expect(mas().getAttribute("href")).toBe(CTA_USUARIO.href);
-      expect(mas().getAttribute("aria-label")).toBe(CTA_USUARIO.texto);
+      expect(mas().getAttribute("aria-label")).toBe(es.cta[CTA_USUARIO.clave]);
       unmount();
     }
   });
@@ -41,7 +42,7 @@ describe("el [+] de la nav móvil", () => {
   it("ADMIN -> crear un reto, en el panel", () => {
     render(<NavegacionInferior rol="ADMIN" />);
     expect(mas().getAttribute("href")).toBe(CTA_ADMIN.href);
-    expect(mas().getAttribute("aria-label")).toBe(CTA_ADMIN.texto);
+    expect(mas().getAttribute("aria-label")).toBe(es.cta[CTA_ADMIN.clave]);
   });
 
   it("en móvil el icono de PERFIL lleva las no-leídas (neutro, con el mismo tope que la campana)", () => {

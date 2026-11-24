@@ -25,6 +25,20 @@ export function esIdioma(valor: unknown): valor is Idioma {
   return typeof valor === "string" && (IDIOMAS as readonly string[]).includes(valor);
 }
 
+/**
+ * EL PSEUDO-IDIOMA (Fase 11 · P5b1): `/xx/…` pinta los textos del castellano transformados (acentos,
+ * +30 % de largo, corchetes; ver `textos/pseudo`) para cazar a ojo lo que no pasa por `t()` y lo que
+ * desborda. SOLO en desarrollo: en producción el proxy lo trata como un idioma no publicado (404). No
+ * es un `Idioma` (no se guarda en ninguna cuenta ni formatea nada): formatea como el castellano.
+ */
+export const IDIOMA_PSEUDO = "xx";
+/** El idioma de los TEXTOS de una página: uno del catálogo o el pseudo-idioma. */
+export type IdiomaDeTextos = Idioma | typeof IDIOMA_PSEUDO;
+
+export function esIdiomaDeTextos(valor: unknown): valor is IdiomaDeTextos {
+  return valor === IDIOMA_PSEUDO || esIdioma(valor);
+}
+
 /** ¿`ruta` es (o cuelga de) `base`? Por SEGMENTO: `/destacados` no cuelga de `/de`. */
 function cuelgaDe(ruta: string, base: string): boolean {
   return ruta === base || ruta.startsWith(`${base}/`);
@@ -39,9 +53,9 @@ export function esRutaSinIdioma(ruta: string): boolean {
  * `/retos` → `{ prefijo: null, resto: "/retos" }`; `/en` → `{ prefijo: "en", resto: "/" }`. Solo mira el
  * PRIMER segmento y solo si es un idioma del catálogo (`/destacados` no es `/de`).
  */
-export function separarIdioma(ruta: string): { prefijo: Idioma | null; resto: string } {
+export function separarIdioma(ruta: string): { prefijo: IdiomaDeTextos | null; resto: string } {
   const m = /^\/([^/?#]+)(.*)$/.exec(ruta);
-  if (m && esIdioma(m[1])) {
+  if (m && esIdiomaDeTextos(m[1])) {
     const resto = m[2] ?? "";
     return { prefijo: m[1], resto: resto === "" || resto.startsWith("?") ? `/${resto}` : resto };
   }
@@ -79,7 +93,7 @@ export function alternativasDeIdioma(
  * no es una ruta interna (`https://…`, `mailto:`, `#ancla`, `?query`, `//host`) ni las rutas sin
  * idioma (panel, API, `/ir`).
  */
-export function ruta(idioma: Idioma, href: string): string {
+export function ruta(idioma: IdiomaDeTextos, href: string): string {
   if (!href.startsWith("/") || href.startsWith("//")) return href;
   if (separarIdioma(href).prefijo !== null) return href;
   if (esRutaSinIdioma(href.split(/[?#]/, 1)[0] ?? href)) return href;

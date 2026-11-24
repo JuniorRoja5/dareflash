@@ -1,6 +1,7 @@
 "use client";
 
 import { Enlace } from "@/components/enlace";
+import { useTextos } from "@/components/textos-provider";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -79,6 +80,7 @@ export function ParticipacionesReto({
   /** Id de MI participación (si participo): marca la mía con "Tú" sin consultar la sesión aquí. */
   miSubmissionId?: string | null;
 }) {
+  const t = useTextos("participaciones");
   const [items, setItems] = useState<ParticipacionUI[]>(participaciones);
   const [cursor, setCursor] = useState<string | null>(cursorInicial);
   const [cargando, setCargando] = useState(false);
@@ -149,9 +151,7 @@ export function ParticipacionesReto({
   if (items.length === 0) {
     return (
       <p className="rounded-sm border border-line bg-surface/40 p-8 text-center text-sm text-text-dim">
-        {soloMirar
-          ? "Aún no hay participaciones en este reto."
-          : "Aún no hay participaciones en este reto. Sé el primero."}
+        {soloMirar ? t("vacio") : t("vacioInvita")}
       </p>
     );
   }
@@ -183,11 +183,11 @@ export function ParticipacionesReto({
             disabled={cargando}
             className="rounded-sm border border-line bg-surface/60 px-5 py-2 text-sm font-medium text-text backdrop-blur-md transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised disabled:opacity-50"
           >
-            {cargando ? "Cargando…" : "Ver más participaciones"}
+            {cargando ? t("cargando") : t("verMas")}
           </button>
           {error ? (
             <p role="status" className="text-2xs text-alarm">
-              No se pudieron cargar más. Inténtalo de nuevo.
+              {t("errorMas")}
             </p>
           ) : null}
         </div>
@@ -244,6 +244,7 @@ function FeedDelReto({
   soloMirar: boolean;
   onCerrar: () => void;
 }) {
+  const t = useTextos("participaciones");
   const posts: PostFeed[] = items.map((p) => p.post);
 
   // PORTAL A <body>, y no es cosmético: la capa se monta dentro de una `<section className="df-rise">`,
@@ -256,7 +257,7 @@ function FeedDelReto({
       className="fixed inset-0 z-50 bg-void"
       role="dialog"
       aria-modal="true"
-      aria-label="Vídeos del reto"
+      aria-label={t("videosDelReto")}
     >
       <FeedVertical
         postsIniciales={posts}
@@ -270,7 +271,7 @@ function FeedDelReto({
       <button
         type="button"
         onClick={onCerrar}
-        aria-label="Volver al reto"
+        aria-label={t("volverAlReto")}
         className="absolute top-4 left-4 z-[60] grid h-10 w-10 place-items-center rounded-full bg-void/60 text-white backdrop-blur-sm transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-void/80"
         style={{ top: "calc(1rem + env(safe-area-inset-top))" }}
       >
@@ -311,8 +312,11 @@ function Celda({
   /** Abre el FEED DEL RETO por esta participación. La celda no reproduce nada por su cuenta. */
   onAbrir: () => void;
 }) {
+  const t = useTextos("participaciones");
   const autor = textoNombre(p.displayName, p.username);
-  const etiqueta = p.title?.trim() ? `Reproducir «${p.title}»` : `Reproducir el vídeo de ${autor}`;
+  const etiqueta = p.title?.trim()
+    ? t("reproducirTitulo", { titulo: p.title })
+    : t("reproducirDe", { autor });
   const fondo = `url("${p.poster}")`;
 
   return (
@@ -350,7 +354,7 @@ function Celda({
               </span>
               {esMio ? (
                 <span className="pointer-events-none absolute top-2 right-2 rounded-full border border-line bg-void/70 px-2 py-0.5 text-2xs font-semibold tracking-wide text-text backdrop-blur-sm">
-                  Tú
+                  {t("tu")}
                 </span>
               ) : null}
               {/* Votos: NEUTROS (la primitiva manda). No llevan `--df-money`: ese color es del DINERO, y un voto
@@ -364,7 +368,7 @@ function Celda({
                      que es lo que `votosMostrados` necesita para reconciliar sin acumular deltas. */
                   miVoto={p.miVoto}
                 />
-                <span>{p.votos === 1 ? "voto" : "votos"}</span>
+                <span>{t("unidadVoto", { n: p.votos })}</span>
               </span>
             </>
           }
