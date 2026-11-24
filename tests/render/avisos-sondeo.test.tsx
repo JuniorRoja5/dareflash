@@ -72,7 +72,7 @@ function montar(inicial: number, activo = true) {
   return render(
     <ProveedorAvisos inicial={inicial} activo={activo}>
       <CampanaNotificaciones />
-      <NavInferiorActiva rol="USER" />
+      <NavInferiorActiva rol="USER" esCuentaEmpresa={false} />
     </ProveedorAvisos>,
   );
 }

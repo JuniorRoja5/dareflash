@@ -275,7 +275,8 @@ describe("la marca no se anima: el feed es lo más caro que hay", () => {
   it("ni la marca ni el nombre", () => {
     render(<NombreUsuario username="ana" prefijo esVip colorNombre="lima" />);
     for (const el of [gema()!, nombreVip()!]) {
-      expect(el.className.baseVal ?? el.className).not.toMatch(
+      // `getAttribute`, no `className`: la gema es un SVG, y ahí `className` es un objeto, no el texto.
+      expect(el.getAttribute("class") ?? "").not.toMatch(
         /animate-|df-float|df-sheen|df-respira|pulse/,
       );
       expect(el.getAttribute("style") ?? "").not.toMatch(/animation|transition/);

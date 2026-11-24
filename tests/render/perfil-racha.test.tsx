@@ -27,7 +27,7 @@ afterEach(cleanup);
 
 /** El perfil propio tiene que RENDERIZAR de verdad; si no, las aserciones de ausencia mienten. */
 function pintar(props: Parameters<typeof PerfilVista>[0]): HTMLElement {
-  const c = render(<PerfilVista idioma="es" {...props} />).container;
+  const c = render(<PerfilVista {...props} />).container;
   expect(c.textContent, "el perfil no renderizó: las aserciones de ausencia no valdrían").toContain(
     props.handle,
   );
@@ -46,6 +46,10 @@ const base = {
   retosGanados: 2,
   totalVideos: 3,
   videos: [],
+  // Obligatorias en la vista. `videosUrl` solo se pide al cargar MÁS vídeos: con `videos: []` y sin
+  // cursor no se llama nunca, pero el tipo la exige igual que en las dos páginas reales.
+  idioma: "es" as const,
+  videosUrl: "/api/perfil/videos",
 };
 
 describe("en MI perfil", () => {

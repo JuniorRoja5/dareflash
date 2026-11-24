@@ -53,7 +53,8 @@ describe("lo que nombra el producto sigue a la marca", () => {
     // EL HTML SE LEE SIN ETIQUETAS, como lo lee una persona: el logotipo del correo estuvo escrito a
     // mano partido en dos («DARE» + un `<span>` con «FLASH») y ningún buscador de texto lo veía, ni
     // este mismo caso, que antes miraba el HTML crudo (Fase 11 · PM2).
-    const leido = c.html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
+    expect(c.html, "el correo de verificación salió sin HTML").toBeTypeOf("string");
+    const leido = (c.html ?? "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ");
     expect(leido).toContain("Revol Flash");
     const sinSeparadores = `${c.subject} ${c.text} ${leido}`.toLowerCase().replace(/[\s._-]+/g, "");
     expect(sinSeparadores, "el correo sigue diciendo la marca vieja").not.toContain("dareflash");

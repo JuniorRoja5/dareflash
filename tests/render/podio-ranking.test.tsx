@@ -20,6 +20,8 @@ const persona = (n: number, victorias: number, image: string | null = null): Fil
   image,
   victorias,
   puntos: victorias * 40,
+  esVip: false,
+  colorNombre: null,
 });
 
 /** Los números de puesto pintados, sin duplicar (el podio se pinta dos veces: escritorio y móvil). */

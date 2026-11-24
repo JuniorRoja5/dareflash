@@ -40,6 +40,11 @@ const post = (puntos: number): PostFeed => ({
   retoAbierto: false,
   miVoto: null,
   esMio: false,
+  likes: 0,
+  miLike: false,
+  autorDestacado: false,
+  autorVip: false,
+  colorNombre: null,
 });
 
 beforeAll(() => {

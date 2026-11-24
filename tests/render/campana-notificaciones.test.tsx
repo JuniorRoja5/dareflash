@@ -148,7 +148,7 @@ describe("el menú del INVITADO", () => {
   });
 
   it("con sesión, su avatar (la inicial de SU nombre)", () => {
-    render(<MenuCuenta usuario={{ nombre: "Lucía", imagen: null }} />);
+    render(<MenuCuenta usuario={{ nombre: "Lucía", imagen: null, puntos: 0 }} />);
     expect(screen.getByRole("button").getAttribute("aria-label")).toBe("Tu cuenta");
     expect(screen.getByText("L")).toBeDefined();
   });

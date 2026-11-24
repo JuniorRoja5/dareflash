@@ -28,7 +28,14 @@ const comentario = (id: string, extra: Partial<ComentarioVista> = {}): Comentari
   id,
   texto: `Texto ${id}`,
   creadoMs: Date.now() - 60_000,
-  autor: { username: `autor_${id}`, displayName: null, image: null },
+  autor: {
+    username: `autor_${id}`,
+    displayName: null,
+    image: null,
+    pointsBalance: 0,
+    esVip: false,
+    colorNombre: null,
+  },
   esMio: false,
   ...extra,
 });

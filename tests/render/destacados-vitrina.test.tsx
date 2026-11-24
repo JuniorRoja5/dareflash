@@ -42,6 +42,9 @@ const perfil = (n: number, extra: Partial<PerfilDestacado> = {}): PerfilDestacad
   puntos: n * 100,
   destacadoDesdeMs: Date.now() - n * 60_000,
   expiraEnMs: Date.now() + 60 * 60_000,
+  esVip: false,
+  carril: 0,
+  colorNombre: null,
   ...extra,
 });
 

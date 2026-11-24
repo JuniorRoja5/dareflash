@@ -42,6 +42,7 @@ const BASE: RetoPublicoVista = {
   deadlineMs: Date.now() + 86_400_000,
   coverImage: null,
   soloVip: false,
+  sponsor: null,
 };
 
 const pintar = (over: Partial<RetoPublicoVista> = {}) =>

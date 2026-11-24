@@ -40,11 +40,15 @@ const base = {
   retosGanados: 2,
   totalVideos: 3,
   videos: [],
+  // Obligatorias en la vista. `videosUrl` solo se pide al cargar MÁS vídeos: con `videos: []` y sin
+  // cursor no se llama nunca, pero el tipo la exige igual que en las dos páginas reales.
+  idioma: "es" as const,
+  videosUrl: "/api/perfil/videos",
 };
 
 /** Tiene que RENDERIZAR de verdad; si no, las aserciones de ausencia mienten. */
 function pintar(props: Parameters<typeof PerfilVista>[0]): HTMLElement {
-  const c = render(<PerfilVista idioma="es" {...props} />).container;
+  const c = render(<PerfilVista {...props} />).container;
   expect(c.textContent, "el perfil no renderizó: lo de abajo no mediría nada").toContain(
     props.handle,
   );
@@ -196,7 +200,7 @@ describe("cero UI muerta: el control del toque solo donde se puede dar", () => {
       { ...base, esPropio: false, esVip: true },
       { ...base, esPropio: true },
     ]) {
-      const { container, unmount } = render(<PerfilVista idioma="es" {...props} />);
+      const { container, unmount } = render(<PerfilVista {...props} />);
       expect(controlesDeToque(container), "un botón que no hace nada").toEqual([]);
       unmount();
     }

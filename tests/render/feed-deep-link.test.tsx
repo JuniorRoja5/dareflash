@@ -33,6 +33,8 @@ const post = (id: string): PostFeed => ({
   id,
   displayName: null,
   username: `autor_${id}`,
+  imagen: null,
+  puntos: 0,
   retoTitulo: "Reto",
   categoria: null,
   votos: 0,
@@ -43,6 +45,12 @@ const post = (id: string): PostFeed => ({
   retoId: null,
   retoAbierto: false,
   miVoto: null,
+  esMio: false,
+  likes: 0,
+  miLike: false,
+  autorDestacado: false,
+  autorVip: false,
+  colorNombre: null,
 });
 
 beforeAll(() => {

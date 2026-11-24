@@ -30,7 +30,16 @@ const TITULO_LARGO = "50 abdominales en un minuto sin parar y sin apoyar las rod
 function datos(reto: DatosRanking["reto"]): DatosRanking {
   return {
     mensual: [
-      { userId: "u1", username: "lucia", displayName: null, image: null, victorias: 2, puntos: 80 },
+      {
+        userId: "u1",
+        username: "lucia",
+        displayName: null,
+        image: null,
+        victorias: 2,
+        puntos: 80,
+        esVip: false,
+        colorNombre: null,
+      },
     ],
     cursorInicial: null,
     reto,
@@ -41,7 +50,18 @@ function datos(reto: DatosRanking["reto"]): DatosRanking {
 const conTop = (titulo = TITULO_LARGO): DatosRanking["reto"] => ({
   titulo,
   codigo: "ABC234",
-  top: [{ submissionId: "s1", userId: "u2", username: "mario", image: null, votos: 7, puesto: 1 }],
+  top: [
+    {
+      submissionId: "s1",
+      userId: "u2",
+      username: "mario",
+      image: null,
+      votos: 7,
+      puesto: 1,
+      esVip: false,
+      colorNombre: null,
+    },
+  ],
 });
 
 const conmutador = () => screen.queryByRole("group", { name: "Vista de la clasificación" });
@@ -106,6 +126,8 @@ describe("los avatares llegan a TODAS las filas", () => {
     image,
     victorias: 10 - n,
     puntos: 40,
+    esVip: false,
+    colorNombre: null,
   });
   const foto = (n: number) => `/avatars/persona${n}.webp`;
   const srcs = (c: HTMLElement) => [...c.querySelectorAll("img")].map((i) => i.getAttribute("src"));
@@ -166,8 +188,19 @@ describe("los avatares llegan a TODAS las filas", () => {
               image: foto(2),
               votos: 7,
               puesto: 1,
+              esVip: false,
+              colorNombre: null,
             },
-            { submissionId: "s2", userId: "u3", username: "ana", image: null, votos: 3, puesto: 2 },
+            {
+              submissionId: "s2",
+              userId: "u3",
+              username: "ana",
+              image: null,
+              votos: 3,
+              puesto: 2,
+              esVip: false,
+              colorNombre: null,
+            },
           ],
         })}
       />,
