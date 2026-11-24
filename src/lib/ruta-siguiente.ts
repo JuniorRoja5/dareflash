@@ -18,7 +18,7 @@ export function esRutaLocalSegura(destino: string | null | undefined): destino i
   // tabuladores y los saltos de línea de una URL antes de resolverla, así que "/\t/evil.example" pasaba
   // todas las comprobaciones de abajo y acababa en "//evil.example": otro dominio. Y la «\» la trata
   // como «/» en http(s). Una ruta nuestra no lleva ninguno de los dos (van codificados: %09, %5C).
-  if (/[\u0000- \u007f\\]/.test(destino)) return false;
+  if (/[\x00-\x20\x7f\\]/.test(destino)) return false;
   if (!destino.startsWith("/")) return false;
   if (destino.startsWith("//")) return false;
   if (destino.startsWith("/\\")) return false;
