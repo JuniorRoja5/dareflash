@@ -35,7 +35,8 @@ import { NavegacionInferior } from "@/components/ui/navegacion";
 import { MARCA } from "@/config/marca";
 import type { RetoPortada } from "@/server/services/portada";
 
-const RETO = {
+// Con su forma ENTERA (un `as` taparía un campo que falta): un reto normal y ABIERTO, sin sponsor.
+const RETO: RetoPortada = {
   publicCode: "abc12345",
   slug: "reto",
   titulo: "Reto",
@@ -45,7 +46,10 @@ const RETO = {
   votos: 5,
   premioCents: 5000,
   deadlineMs: Date.now() + 5 * 86_400_000,
-} as unknown as RetoPortada;
+  startsAtMs: Date.now() - 86_400_000,
+  soloVip: false,
+  sponsor: null,
+};
 
 /** El `<p>` de debajo del hero: lo que dice por qué ESE reto está ahí. */
 async function pieDelHero(elegido: boolean): Promise<string> {

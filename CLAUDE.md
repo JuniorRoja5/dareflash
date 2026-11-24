@@ -397,6 +397,11 @@ borran para "limpiar"**:
   acepta una clave con marcas. Una marca nueva entra en el catálogo solo si hace falta de verdad. El
   marcado de las frases convertidas lo fija `render/textos-ricos-marcado` (HTML exacto, de antes de
   convertirlas), y `render/textos-ricos` que un `<script>` del diccionario se pinta como texto.
+- `tsconfig-tests-cubre-tsx` (PTT) — `tsconfig.test.json` cubre TODO `tests/`, también los `.tsx`: se le
+  pide a TypeScript la lista de ficheros del proyecto y cada `.ts`/`.tsx` del disco tiene que estar.
+  Vitest no comprueba tipos, así que un test de render fuera de `tsc` corre verde con la fixture de una
+  forma que ya no existe (había 37 errores escondidos en 14). Una fixture se tipa con su forma entera,
+  nunca con un `as`.
 - `reloj-rate-limit` — todo test que lleva una ruta real hasta el 429 congela el reloj
   (`congelarReloj()` de [tests/helpers/reloj.ts](tests/helpers/reloj.ts)). Ver la trampa de abajo.
 
