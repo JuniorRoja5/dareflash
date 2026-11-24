@@ -129,6 +129,13 @@ rate-limit y cola de trabajos.
 - **[src/proxy.ts](src/proxy.ts)** — el antiguo `middleware` (renombrado en Next 16). Solo hace
   UX: enruta `/` por dispositivo (móvil → `/feed`, resto → `/inicio`) y manda a los anónimos de
   rutas protegidas a `/entrar?siguiente=…`. La seguridad real la aplica siempre el servidor.
+  Y el IDIOMA (Fase 11 · P5a): el castellano vive en la raíz y `en`/`de` con prefijo (`/en/feed`); el
+  proxy quita el prefijo, reescribe a la ruta de siempre y pasa `x-df-idioma` y `x-df-ruta` (pisando
+  las del cliente). `/es/…` → 308; un idioma fuera de `IDIOMAS_PUBLICADOS` y `/en/panel|api|ir` → 404.
+  Sin carpeta `[idioma]`, sin E/S. Los enlaces conservan el idioma por los envoltorios de
+  [src/components/enlace.tsx](src/components/enlace.tsx) (`Enlace`, `useNavegar`, `useNavegarDuro`,
+  `useRutaSinIdioma`) y [src/server/redirigir.ts](src/server/redirigir.ts); la canónica y el
+  `hreflang` salen del layout raíz. El panel, la API y `/ir` no llevan idioma.
 
 ### Mutaciones: `mutatingRoute` es obligatorio
 
@@ -255,8 +262,18 @@ borran para "limpiar"**:
   pura y reutilizable). Volver cuesta lo mismo que ir. Si otra lista necesita "Anterior", es ahí.
 - `navegacion-dura` — login y logout navegan en DURO (`navegarDuro`), nunca con `router.push`: el
   router de cliente guarda lo pre-cargado como invitado y devolvía al logueado al login.
-- `proxy-gate` — con cookie, `/crear` pasa; sin ella, a `/entrar?siguiente=`; y `/entrar` nunca pasa
-  por el proxy (el redirect del login tiene que terminar).
+- `proxy-gate` — con cookie, `/crear` pasa; sin ella, a `/entrar?siguiente=`; y el proxy nunca
+  REDIRIGE `/entrar` (el redirect del login tiene que terminar). Desde la P5a `/entrar` sí pasa por el
+  proxy (necesita su idioma y su canónica), así que se fija la propiedad, no el matcher.
+- `proxy-idioma` / `idioma-ruta` / `canonica-idioma` / `enlaces-con-idioma` / `idioma-sin-consultas`
+  (Fase 11 · P5a) — todas las URL de hoy (sacadas del árbol de `src/app`) pasan por el proxy, sin
+  redirección, en «es» y con su `x-df-ruta`; `/es/…` → 308; lo no publicado y `/en/panel|api|ir` →
+  404; las cabeceras del cliente no llegan. La canónica y el `hreflang` (publicados + `x-default`) salen
+  SOLO del layout raíz, y `<html lang>` es el de la petición. Por AST: fuera del panel, la API y los
+  envoltorios, nadie importa `next/link` ni `redirect`, ni llama a `router.push/replace` ni al
+  `navegarDuro` de `lib`, ni escribe un `href` interno literal fuera de `Enlace`/`Boton`, ni compara
+  con `usePathname()` a secas. Y el idioma no cuesta ni una consulta. El `siguiente=` rechaza también
+  espacios, caracteres de control y `\` (el navegador quita tabuladores: `/<tab>/evil` era otro dominio).
 - `cta-principal` — "Crear reto" es solo del admin: el CTA sale de `ctaPrincipal` y nadie fuera del
   panel escribe el literal ni enlaza a `/crear` a mano.
 - `panel-roles` / `panel-guard-paginas` — cada página del panel exige el rol de SU sección, y cada
