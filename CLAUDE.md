@@ -381,8 +381,10 @@ borran para "limpiar"**:
   `textos/servidor`: un componente de servidor pinta con `await textos("<espacio>")`; uno de cliente recibe
   SOLO sus espacios por `TextosProvider` (`textosParaCliente`, listas en `textos/espacios`); y uno que se
   pinta en los DOS lados (la tarjeta de un reto, el marcador) recibe sus textos POR PROP. Ningún
-  `"use client"` llega a un diccionario (grafo de imports; y la marca `__idioma` no puede aparecer en
-  `.next/static`: lo miran `ci-revisar-imagenes.sh` y `check-build-sin-env`). En las zonas extraídas no hay
+  `"use client"` llega a un diccionario (grafo de imports; y en `.next/static` no puede aparecer ni la
+  marca `__idioma` ni ningún CENTINELA —texto largo que solo vive en los diccionarios, porque Turbopack
+  pliega `es.x.y` a un literal y una fuga parcial no arrastra la marca—, de
+  `scripts/centinelas-textos.mjs`: lo miran `ci-revisar-imagenes.sh` y `check-build-sin-env`). En las zonas extraídas no hay
   texto a mano en JSX (censo por AST); lo que falta vive en `PENDIENTES_P5B2`, que solo puede menguar. El
   pseudo-idioma `/xx/…` (acentos, +30 %, corchetes) solo se sirve en desarrollo; en producción, 404.
 - `reloj-rate-limit` — todo test que lleva una ruta real hasta el 429 congela el reloj
