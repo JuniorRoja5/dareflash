@@ -177,6 +177,16 @@ export const es = conMarcasConocidas({
   carga: {
     cargando: "Cargando…",
   },
+  /**
+   * Cómo se dice la duración de un Boost (`duracionBoostHumana`, vía `palabrasDuracion`): la unidad la
+   * elige la función; aquí, las palabras. Va en el armazón: la pintan servidor y cliente.
+   */
+  duracion: {
+    minutos: { one: "{n} minuto", other: "{n} minutos" },
+    horas: { one: "{n} hora", other: "{n} horas" },
+    horasMinutos: "{horas} h {minutos} min",
+    enCrudo: "{valor} minutos",
+  },
   /** Los pasos de una lista paginada (`PasosKeyset`, de servidor). */
   paginacion: {
     aria: "Paginación",
@@ -432,6 +442,11 @@ export const es = conMarcasConocidas({
     cambiarEmail: "Confirmar tu nuevo correo",
     perfil: "Perfil",
     editarPerfil: "Editar perfil",
+    notificaciones: "Notificaciones",
+    buscar: "Buscar",
+    destacados: "Perfiles Boost",
+    ranking: "Ranking",
+    crear: "Crear",
   },
 
   // ── Acceso (P5b2a): entrar, crear cuenta, recuperar, restablecer, verificar, reactivar, correo ─────
@@ -562,6 +577,113 @@ export const es = conMarcasConocidas({
       "Pulsa para confirmar que esta dirección es tuya. Al hacerlo se cerrarán tus sesiones abiertas.",
     confirmando: "Confirmando…",
     confirmar: "Confirmar mi correo",
+  },
+
+  // ── Notificaciones, buscar, destacados, ranking y crear (P5b2a) ──────────────────────────────────
+  notificaciones: {
+    titulo: "Notificaciones",
+    vacioAntiguos: "No hay avisos más antiguos.",
+    vacio: "Aún no tienes avisos. Sube un vídeo o participa en un reto y aquí verás lo que pase.",
+    volverRecientes: "Volver a las más recientes",
+    explorarRetos: "Explorar retos",
+    avisoNuevo: "{oculto:Nuevo: }{texto}",
+    paginasAria: "Páginas de avisos",
+    verAntiguas: "Ver más antiguas",
+  },
+  buscar: {
+    titulo: "Buscar",
+    sinConexion: "No hemos podido conectar. Revisa tu conexión e inténtalo de nuevo.",
+    tiposAria: "Tipo de búsqueda",
+    tab_usuarios: "Usuarios",
+    tab_retos: "Retos",
+    tab_categorias: "Categorías",
+    placeholder_usuarios: "Buscar personas…",
+    placeholder_retos: "Buscar retos…",
+    etiqueta: "Buscar",
+    minimo: "Escribe al menos 2 caracteres para buscar.",
+    buscando: "Buscando…",
+    sinResultados: "Sin resultados para «{termino}».",
+    cargando: "Cargando…",
+    cargarMas: "Cargar más",
+  },
+  /** /destacados, la vitrina de Boost (servidor). */
+  destacados: {
+    /** El corte de línea es del titular: va DENTRO (`{salto:}`), y al traducir cae donde toque. */
+    titular: "Bajo los focos{salto:}ahora mismo",
+    intro:
+      "Quien enciende un Boost sube al escenario durante {duracion}. No se gana ganando retos: se gana apareciendo. El último en activar entra arriba.",
+    destacar: "Destacar mi perfil",
+    destacarDetalle: "Consigue visibilidad ahora",
+    vacioTitulo: "Ahora mismo no hay ningún perfil destacado.",
+    vacioTexto:
+      "Cuando alguien gaste un Boost, aparecerá aquí y en la portada. Puedes ser el primero.",
+    noEsRanking:
+      "Esto no es el ranking: aquí se aparece por haber gastado un Boost, no por ganar retos. {enlace:Ver el ranking del mes}.",
+  },
+  /** /ranking: el conmutador, la lista y el podio (islas de CLIENTE). */
+  ranking: {
+    titulo: "Clasificación",
+    /** Etiquetas FIJAS del conmutador: el título del reto va en su cabecera, no en el botón. */
+    vista_mensual: "Este mes",
+    vista_reto: "Último reto",
+    vistaAria: "Vista de la clasificación",
+    cabeceraReto: "Clasificación de «{titulo}»",
+    vacioTitulo: "Aún no ha ganado nadie este mes",
+    vacioDetalle:
+      "La clasificación se llena cuando cierra el primer reto. Participa y sé el primero en ganar.",
+    listaAria: "Clasificación (del {n}º en adelante)",
+    unidadVictoria: { one: "victoria", other: "victorias" },
+    unidadVoto: { one: "voto", other: "votos" },
+    cargando: "Cargando…",
+    verMas: "Ver más",
+    sinParticipaciones: "Ese reto cerró sin participaciones publicadas.",
+  },
+  /** /crear (servidor). */
+  crear: {
+    titulo: "Subir tu vídeo",
+    intro:
+      "Comparte tu vídeo (máx. 90 segundos). Se procesa y aparece en tu perfil cuando esté listo.",
+  },
+  /**
+   * La ventana de subir un vídeo (`ModalSubida`, isla de CLIENTE: /crear y la ficha de un reto). Los
+   * mensajes de cada ESTADO de la subida («Subiendo tu vídeo…», «en cola»…) siguen en `copySubida`
+   * (lib/estado-subida), que comparte con los avisos del servidor: van a la P5b3.
+   */
+  subida: {
+    lanzar: "Subir un vídeo",
+    tituloParticipar: "Participar con tu vídeo",
+    tituloSubir: "Subir tu vídeo",
+    cerrar: "Cerrar",
+    demasiadoGrande:
+      "El vídeo supera el límite de {gb} GB. Elige uno más corto o de menor calidad.",
+    /** Tal cual estaba (sin tildes): la P5b2 no cambia ni una letra. */
+    duracionExcedida: "Tu video reto supera los 90 segundos. Ajustalo y empieza el reto de nuevo",
+    miniaturaTipo: "La miniatura debe ser una imagen JPG, PNG o WebP.",
+    miniaturaGrande: "La miniatura es demasiado grande. Prueba con una imagen más ligera.",
+    miniaturaFallo: "No se pudo aplicar la miniatura; se usará una automática.",
+    tituloVacio: "El título no puede estar vacío. Escribe de qué va tu vídeo.",
+    sinVideo: "Elige o graba un vídeo primero.",
+    sinSesion: "Inicia sesión para publicar tu vídeo.",
+    noSePudo: "No se pudo preparar la subida. Inténtalo de nuevo.",
+    duracionMaxima: "Duración máxima: 90 segundos",
+    /** Las entradas de vídeo de cada dispositivo (`entradasVideo`), y cuando ya hay uno elegido. */
+    entrada_grabar: "Grabar",
+    entrada_galeria: "Galería",
+    entrada_elegir: "Elegir vídeo",
+    entradaOtro_grabar: "Grabar otro",
+    entradaOtro_galeria: "Galería otro",
+    entradaOtro_elegir: "Elegir vídeo otro",
+    titulo: "Título",
+    tituloPlaceholder: "Ej.: Mi mejor salto en caja",
+    categoria: "Categoría",
+    miniatura: "Miniatura {resaltado:(opcional)}",
+    previaMiniatura: "Vista previa de la miniatura",
+    cambiarImagen: "Cambiar imagen",
+    elegirImagen: "Elegir imagen",
+    /** El estado (de `copySubida`) con el porcentaje: «Subiendo tu vídeo… 45 %». */
+    conProgreso: "{estado} {porcentaje} %",
+    reintentar: "Reintentar",
+    publicar: "Publicar",
   },
 
   // ── Perfil (P5b2a): el propio y el público comparten la vista ────────────────────────────────────

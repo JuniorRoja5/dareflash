@@ -26,13 +26,6 @@ export function excedeTope(sizeBytes: number): boolean {
 export const DURACION_TOLERANCIA_SEC = 0.5;
 
 /**
- * Copy HUMANO (sin codigos) cuando el pre-check de cliente rechaza un video por durar de mas. Texto
- * EXACTO del brief; fuente unica para UI y test.
- */
-export const MENSAJE_DURACION_EXCEDIDA =
-  "Tu video reto supera los 90 segundos. Ajustalo y empieza el reto de nuevo";
-
-/**
  * Decision PURA del pre-check de duracion en CLIENTE: dada la duracion (segundos) leida del <video>,
  * ¿hay que RECHAZAR antes de subir? Es SOLO UX (fallo rapido); la autoridad sigue siendo el SERVIDOR
  * (worker -> FAILED/TOO_LONG). Por eso, si la duracion no es un numero FINITO (Infinity/NaN: formato

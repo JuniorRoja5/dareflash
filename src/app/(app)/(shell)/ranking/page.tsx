@@ -1,6 +1,11 @@
+import { TextosProvider } from "@/components/textos-provider";
+import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
+
 import { type DatosRanking, RankingVistas } from "./ranking-vistas";
 
-export const metadata = { title: "Ranking" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("ranking") };
+}
 export const dynamic = "force-dynamic";
 
 /**
@@ -76,7 +81,9 @@ export default async function RankingPage() {
         className="pointer-events-none absolute inset-0 -z-10 opacity-70"
         style={{ background: "var(--df-glow-accion)" }}
       />
-      <RankingVistas datos={datos} />
+      <TextosProvider textos={await textosClienteDeLaPeticion(["ranking"] as const)}>
+        <RankingVistas datos={datos} />
+      </TextosProvider>
     </div>
   );
 }

@@ -36,6 +36,7 @@ export const ESPACIOS_ARMAZON = [
   "copiar",
   "toque",
   "carga",
+  "duracion",
 ] as const satisfies readonly NombreEspacio[];
 
 /**

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Upload } from "tus-js-client";
 
+import { useTextos, useTextosRicos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { AVATAR_TIPOS, avatarExcedeTope } from "@/app/(app)/(shell)/perfil/perfil-logic";
@@ -20,6 +21,10 @@ import {
   type EstadoVideoSondeo,
 } from "@/lib/estado-subida";
 
+import { nombreDeCategoria } from "@/textos/categoria";
+import { formatearNumero } from "@/lib/formato";
+import { useFormato } from "@/components/formato-provider";
+
 import { CATEGORIAS } from "../retos/retos-datos";
 import { tituloEsValido } from "./crear-logic";
 import { entradasVideo } from "./entrada-video";
@@ -28,7 +33,6 @@ import {
   duracionExcedeLimite,
   excedeTope,
   LIMITE_TAMANO_BYTES,
-  MENSAJE_DURACION_EXCEDIDA,
   opcionesTus,
 } from "./subida-tus";
 
@@ -88,6 +92,10 @@ export function ModalSubida({
   onCerrar: () => void;
   onSubido?: (videoDbId: string) => void;
 }) {
+  const t = useTextos("subida");
+  const tr = useTextosRicos("subida");
+  const tc = useTextos("categorias");
+  const { idioma } = useFormato();
   const [titulo, setTitulo] = useState("");
   const [categoria, setCategoria] = useState<string>(CATEGORIAS[0]?.clave ?? "");
   const [errorTitulo, setErrorTitulo] = useState<string | undefined>(undefined);
@@ -178,14 +186,14 @@ export function ModalSubida({
     if (excedeTope(f.size)) {
       setFichero(null);
       setErrorFichero(
-        `El vídeo supera el límite de ${LIMITE_TAMANO_BYTES / (1024 * MB)} GB. Elige uno más corto o de menor calidad.`,
+        t("demasiadoGrande", { gb: formatearNumero(LIMITE_TAMANO_BYTES / (1024 * MB), idioma) }),
       );
       return;
     }
     const duracion = await leerDuracionVideo(f);
     if (duracionExcedeLimite(duracion)) {
       setFichero(null);
-      setErrorFichero(MENSAJE_DURACION_EXCEDIDA);
+      setErrorFichero(t("duracionExcedida"));
       return;
     }
     setErrorFichero(undefined);
@@ -199,11 +207,11 @@ export function ModalSubida({
       // BUG QUE SE ARREGLA DE PASO: estos dos avisos se escribían en el estado de error de la SUBIDA,
       // que solo se pintaba en la fase "error". Elegir una miniatura no pone el modal en esa fase, así
       // que el mensaje se guardaba y no lo veía nadie: la imagen se rechazaba en silencio.
-      setErrorPrevio("La miniatura debe ser una imagen JPG, PNG o WebP.");
+      setErrorPrevio(t("miniaturaTipo"));
       return;
     }
     if (f && avatarExcedeTope(f.size)) {
-      setErrorPrevio("La miniatura es demasiado grande. Prueba con una imagen más ligera.");
+      setErrorPrevio(t("miniaturaGrande"));
       return;
     }
     setErrorPrevio(undefined);
@@ -273,22 +281,22 @@ export function ModalSubida({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setAviso(mensajeDe(data) || "No se pudo aplicar la miniatura; se usará una automática.");
+        setAviso(mensajeDe(data) || t("miniaturaFallo"));
       }
     } catch {
-      setAviso("No se pudo aplicar la miniatura; se usará una automática.");
+      setAviso(t("miniaturaFallo"));
     }
   };
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     if (!tituloEsValido(titulo)) {
-      setErrorTitulo("El título no puede estar vacío. Escribe de qué va tu vídeo.");
+      setErrorTitulo(t("tituloVacio"));
       return;
     }
     setErrorTitulo(undefined);
     if (!fichero) {
-      setErrorFichero("Elige o graba un vídeo primero.");
+      setErrorFichero(t("sinVideo"));
       return;
     }
 
@@ -313,14 +321,12 @@ export function ModalSubida({
         // El servidor ya explica en humano por qué no (sesión, elegibilidad, reto cerrado…). Se usa SU
         // mensaje: repetirlo aquí sería una segunda fuente de verdad que se queda vieja.
         throw new Error(
-          cred.status === 401
-            ? "Inicia sesión para publicar tu vídeo."
-            : mensajeDe(cred.data) || "No se pudo preparar la subida. Inténtalo de nuevo.",
+          cred.status === 401 ? t("sinSesion") : mensajeDe(cred.data) || t("noSePudo"),
         );
       }
       const credencial: unknown = cred.data;
       if (!credencialValida(credencial)) {
-        throw new Error("No se pudo preparar la subida. Inténtalo de nuevo.");
+        throw new Error(t("noSePudo"));
       }
       const videoDbId = cred.data.videoDbId ?? null;
       const esReemplazo = cred.data.esReemplazo === true;
@@ -372,11 +378,7 @@ export function ModalSubida({
       upload.start();
     } catch (err) {
       // Fallo ANTES de que salga un byte: no es un estado de subida, es el servidor diciendo que no.
-      setErrorPrevio(
-        err instanceof Error && err.message
-          ? err.message
-          : "No se pudo preparar la subida. Inténtalo de nuevo.",
-      );
+      setErrorPrevio(err instanceof Error && err.message ? err.message : t("noSePudo"));
       setEstado(null);
     }
   };
@@ -404,13 +406,13 @@ export function ModalSubida({
       >
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 id={tituloId} className="text-lg font-semibold text-text">
-            {challengeId ? "Participar con tu vídeo" : "Subir tu vídeo"}
+            {challengeId ? t("tituloParticipar") : t("tituloSubir")}
           </h2>
           <button
             ref={cerrarRef}
             type="button"
             onClick={onCerrar}
-            aria-label="Cerrar"
+            aria-label={t("cerrar")}
             disabled={ocupado}
             className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-line text-text transition-colors duration-150 ease-mechanical hover:bg-raised disabled:opacity-40"
           >
@@ -431,7 +433,7 @@ export function ModalSubida({
               </>
             ) : (
               <span className="text-2xs tracking-widest text-text-dim uppercase">
-                Duración máxima: 90 segundos
+                {t("duracionMaxima")}
               </span>
             )}
             <div className="flex flex-wrap justify-center gap-2">
@@ -440,7 +442,7 @@ export function ModalSubida({
                   key={ent.clave}
                   className={`inline-flex min-h-[40px] cursor-pointer items-center rounded-sm border border-line bg-surface px-4 text-sm font-medium text-text transition-colors duration-150 ease-mechanical hover:bg-raised ${ocupado ? "pointer-events-none opacity-60" : ""}`}
                 >
-                  {fichero ? `${ent.label} otro` : ent.label}
+                  {fichero ? t(`entradaOtro_${ent.clave}`) : t(`entrada_${ent.clave}`)}
                   <input
                     type="file"
                     accept="video/*"
@@ -458,8 +460,8 @@ export function ModalSubida({
           <div className="mt-5 space-y-5">
             <Campo
               id="subida-titulo"
-              label="Título"
-              placeholder="Ej.: Mi mejor salto en caja"
+              label={t("titulo")}
+              placeholder={t("tituloPlaceholder")}
               value={titulo}
               onChange={(e) => setTitulo(e.target.value)}
               error={errorTitulo}
@@ -473,7 +475,7 @@ export function ModalSubida({
                   htmlFor="subida-categoria"
                   className="mb-1.5 block text-sm font-medium text-text"
                 >
-                  Categoría
+                  {t("categoria")}
                 </label>
                 <select
                   id="subida-categoria"
@@ -484,7 +486,7 @@ export function ModalSubida({
                 >
                   {CATEGORIAS.map((c) => (
                     <option key={c.clave} value={c.clave}>
-                      {c.nombre}
+                      {nombreDeCategoria(tc, c.clave)}
                     </option>
                   ))}
                 </select>
@@ -494,7 +496,7 @@ export function ModalSubida({
             {/* MINIATURA opcional. */}
             <div>
               <label className="mb-1.5 block text-sm font-medium text-text">
-                Miniatura <span className="text-text-dim">(opcional)</span>
+                {tr("miniatura", { resaltado: { className: "text-text-dim" } })}
               </label>
               <div className="flex items-center gap-4">
                 <div className="h-16 w-28 shrink-0 overflow-hidden rounded-sm border border-line bg-raised">
@@ -502,7 +504,7 @@ export function ModalSubida({
                     // eslint-disable-next-line @next/next/no-img-element -- previa local (object URL)
                     <img
                       src={previaMini}
-                      alt="Vista previa de la miniatura"
+                      alt={t("previaMiniatura")}
                       className="h-full w-full object-cover"
                     />
                   ) : null}
@@ -510,7 +512,7 @@ export function ModalSubida({
                 <label
                   className={`inline-flex min-h-[40px] cursor-pointer items-center rounded-sm border border-line bg-surface px-4 text-sm font-medium text-text transition-colors duration-150 ease-mechanical hover:bg-raised ${ocupado ? "pointer-events-none opacity-60" : ""}`}
                 >
-                  {miniatura ? "Cambiar imagen" : "Elegir imagen"}
+                  {miniatura ? t("cambiarImagen") : t("elegirImagen")}
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
@@ -533,7 +535,10 @@ export function ModalSubida({
                 />
               </div>
               <p className="mt-1.5 text-sm tabular-nums text-text-dim">
-                {copySubida("subiendo")} {progreso} %
+                {t("conProgreso", {
+                  estado: copySubida("subiendo"),
+                  porcentaje: formatearNumero(progreso, idioma),
+                })}
               </p>
             </div>
           ) : null}
@@ -560,7 +565,7 @@ export function ModalSubida({
                 onClick={onCerrar}
                 className="mt-3 w-full py-3"
               >
-                Cerrar
+                {t("cerrar")}
               </Boton>
             </div>
           ) : (
@@ -571,12 +576,15 @@ export function ModalSubida({
               className="mt-5 w-full py-4"
             >
               {estado === "subiendo"
-                ? `${copySubida("subiendo")} ${progreso} %`
+                ? t("conProgreso", {
+                    estado: copySubida("subiendo"),
+                    porcentaje: formatearNumero(progreso, idioma),
+                  })
                 : estado === "preparando"
                   ? copySubida("preparando")
                   : estado !== null && puedeReintentar(estado)
-                    ? "Reintentar"
-                    : "Publicar"}
+                    ? t("reintentar")
+                    : t("publicar")}
             </Boton>
           )}
 

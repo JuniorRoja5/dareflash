@@ -99,3 +99,19 @@ describe("plurales y números, como en `t`", () => {
     expect(pinta(1234).innerHTML).toBe('<p>1234<span class="sr-only"> abiertos</span></p>');
   });
 });
+
+describe("la marca `salto` (P5b2a): el corte de línea de un titular", () => {
+  it("pinta un `<br>` donde la plantilla lo dice, y nada más", () => {
+    const t = crearTRico(es.destacados, "es");
+    const { container } = render(<h1>{t("titular", { salto: {} })}</h1>);
+    expect(container.innerHTML).toBe("<h1>Bajo los focos<br>ahora mismo</h1>");
+  });
+
+  it("y el pseudo-idioma la conserva (si no, el titular saldría sin corte en `xx`)", () => {
+    const pseudo = pseudoDiccionario(es).destacados.titular;
+    expect(pseudo).toContain("{salto:}");
+    const t = crearTRico({ titular: pseudo }, "es");
+    const { container } = render(<h1>{t("titular", { salto: {} })}</h1>);
+    expect(container.querySelectorAll("br")).toHaveLength(1);
+  });
+});

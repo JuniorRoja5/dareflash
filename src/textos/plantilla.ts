@@ -49,7 +49,9 @@ type NombresDe<S extends string> = S extends `${string}{${infer R}`
  *  - `resaltado`: un `<span>` con la clase que diga quien lo pinta (las palabras que pesan de la frase);
  *  - `enlace`: un enlace interno (`Enlace`), con el destino y la clase que diga quien lo pinta (y, si
  *    hace falta, su `onClick`: el de la casilla de consentimiento corta el clic para no marcarla);
- *  - `oculto`: un `<span class="sr-only">` (lo que solo oye un lector de pantalla).
+ *  - `oculto`: un `<span class="sr-only">` (lo que solo oye un lector de pantalla);
+ *  - `salto`: un `<br>`, VACÍA (`{salto:}`): el corte de línea de un titular, que en otro idioma va en
+ *    otro sitio (P5b2a, el titular de /destacados). Solo en titulares: en un párrafo corta el texto.
  * El diccionario solo NOMBRA la marca: la etiqueta, la clase y el destino los pone el código. Nunca HTML.
  */
 export type PropsDeMarca = {
@@ -60,6 +62,7 @@ export type PropsDeMarca = {
     onClick?: (e: MouseEvent<HTMLAnchorElement>) => void;
   };
   oculto: Record<string, never>;
+  salto: Record<string, never>;
 };
 export type MarcaRica = keyof PropsDeMarca;
 

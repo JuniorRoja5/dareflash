@@ -25,6 +25,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { es } from "../src/textos/es";
+
 const RAIZ = path.resolve(__dirname, "..");
 const leer = (rel: string): string => readFileSync(path.resolve(RAIZ, rel), "utf8");
 /** Sin comentarios: un docblock que NOMBRE la capa no la monta. */
@@ -151,16 +153,18 @@ describe("la vitrina sigue pidiendo UNA sola cosa", () => {
 
   it("el titular y su promesa están, y la duración NO está escrita a mano", () => {
     const v = codigo(PAGINA);
-    expect(v).toMatch(/Bajo los focos/);
-    expect(v).toMatch(/ahora mismo/);
-    expect(v, "la duración se escribió a mano").toContain(
-      "duracionBoostHumana(BOOST_DURACION_MIN)",
+    // Desde la P5b2a el titular vive en el diccionario (con su corte de línea dentro) y la página lo pinta.
+    expect(es.destacados.titular).toMatch(/Bajo los focos\{salto:\}ahora mismo/);
+    expect(v).toContain('tr("titular"');
+    expect(v, "la duración se escribió a mano").toMatch(
+      /duracionBoostHumana\(BOOST_DURACION_MIN, palabrasDuracion\(/,
     );
   });
 
   it("y el vacío sigue siendo honesto: ni una cifra inventada cuando no hay nadie", () => {
     const v = codigo(PAGINA);
     expect(v).toMatch(/perfiles\.length === 0/);
-    expect(v).toMatch(/no hay ning[úu]n perfil destacado/i);
+    expect(v).toContain('t("vacioTitulo")');
+    expect(es.destacados.vacioTitulo).toMatch(/no hay ning[úu]n perfil destacado/i);
   });
 });

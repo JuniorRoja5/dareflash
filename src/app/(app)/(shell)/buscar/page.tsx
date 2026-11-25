@@ -1,6 +1,11 @@
+import { TextosProvider } from "@/components/textos-provider";
+import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
+
 import { BuscarCliente } from "./buscar-cliente";
 
-export const metadata = { title: "Buscar" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("buscar") };
+}
 
 /**
  * /buscar — buscador PÚBLICO (dentro del shell, que ya deja pasar invitados). Lee `?q`/`?tipo` de la
@@ -17,6 +22,10 @@ export default async function BuscarPage({
   const qInicial = typeof sp.q === "string" ? sp.q : "";
   const tipoInicial =
     sp.tipo === "retos" ? "retos" : sp.tipo === "categorias" ? "categorias" : "usuarios";
+  const [t, textosBuscar] = await Promise.all([
+    textos("buscar"),
+    textosClienteDeLaPeticion(["buscar"] as const),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-8 lg:px-8 lg:py-12">
@@ -27,9 +36,11 @@ export default async function BuscarPage({
           fontVariationSettings: '"wght" 720, "wdth" 112',
         }}
       >
-        Buscar
+        {t("titulo")}
       </h1>
-      <BuscarCliente qInicial={qInicial} tipoInicial={tipoInicial} />
+      <TextosProvider textos={textosBuscar}>
+        <BuscarCliente qInicial={qInicial} tipoInicial={tipoInicial} />
+      </TextosProvider>
     </div>
   );
 }

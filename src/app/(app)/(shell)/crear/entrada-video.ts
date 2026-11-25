@@ -10,7 +10,6 @@ export type ClaveEntrada = "grabar" | "galeria" | "elegir";
 
 export interface EntradaVideo {
   clave: ClaveEntrada;
-  label: string;
   /** `true` => el <input> lleva `capture="user"` (abre cámara en móvil). */
   capture: boolean;
 }
@@ -18,9 +17,9 @@ export interface EntradaVideo {
 export function entradasVideo(esTactil: boolean): EntradaVideo[] {
   if (esTactil) {
     return [
-      { clave: "grabar", label: "Grabar", capture: true },
-      { clave: "galeria", label: "Galería", capture: false },
+      { clave: "grabar", capture: true },
+      { clave: "galeria", capture: false },
     ];
   }
-  return [{ clave: "elegir", label: "Elegir vídeo", capture: false }];
+  return [{ clave: "elegir", capture: false }];
 }

@@ -1,17 +1,20 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
-import { Enlace } from "@/components/enlace";
 
 import { Boton } from "@/components/ui/boton";
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { TarjetaDestacado } from "@/components/ui/tarjeta-destacado";
 import { BOOST_DURACION_MIN } from "@/config/constants";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
+import { palabrasDuracion } from "@/textos/duracion";
+import { textos, textosRicos } from "@/textos/servidor";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 
 import { FondoRayos } from "./fondo-rayos";
 import { FondoRescoldo } from "./fondo-rescoldo";
 
-export const metadata = { title: "Perfiles Boost" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("destacados") };
+}
 // Depende del RELOJ: quién está destacado cambia minuto a minuto. Nunca cacheada.
 export const dynamic = "force-dynamic";
 
@@ -60,6 +63,12 @@ export default async function DestacadosPage({
 
   const pagina = await paginaDestacados(prisma, { cursor: aqui.cursor });
   const perfiles = pagina.items;
+  const [t, tr, tdur, idioma] = await Promise.all([
+    textos("destacados"),
+    textosRicos("destacados"),
+    textos("duracion"),
+    import("@/server/formato-peticion").then((m) => m.idiomaDeLaPeticion()),
+  ]);
 
   return (
     <>
@@ -85,14 +94,12 @@ export default async function DestacadosPage({
                 fontVariationSettings: '"wght" 900, "wdth" 115',
               }}
             >
-              Bajo los focos
-              <br />
-              ahora mismo
+              {tr("titular", { salto: {} })}
             </h1>
             <p className="mt-4 max-w-[52ch] text-sm leading-relaxed text-text-dim sm:text-base">
-              Quien enciende un Boost sube al escenario durante{" "}
-              {duracionBoostHumana(BOOST_DURACION_MIN)}. No se gana ganando retos: se gana
-              apareciendo. El último en activar entra arriba.
+              {t("intro", {
+                duracion: duracionBoostHumana(BOOST_DURACION_MIN, palabrasDuracion(tdur, idioma)),
+              })}
             </p>
           </div>
 
@@ -110,20 +117,16 @@ export default async function DestacadosPage({
             className="shadow-[var(--df-cta-lift)] transition-shadow duration-[var(--df-dur-fast)] ease-mechanical hover:shadow-[var(--df-glow-hover)]"
           >
             <span className="flex flex-col items-start gap-0.5 text-left">
-              <span>Destacar mi perfil</span>
-              <span className="text-2xs font-medium opacity-75">Consigue visibilidad ahora</span>
+              <span>{t("destacar")}</span>
+              <span className="text-2xs font-medium opacity-75">{t("destacarDetalle")}</span>
             </span>
           </Boton>
         </header>
 
         {perfiles.length === 0 ? (
           <div className="mt-10 rounded-sm border border-line bg-surface/40 p-10 text-center">
-            <p className="text-base font-medium text-text">
-              Ahora mismo no hay ningún perfil destacado.
-            </p>
-            <p className="mx-auto mt-2 max-w-prose text-sm text-text-dim">
-              Cuando alguien gaste un Boost, aparecerá aquí y en la portada. Puedes ser el primero.
-            </p>
+            <p className="text-base font-medium text-text">{t("vacioTitulo")}</p>
+            <p className="mx-auto mt-2 max-w-prose text-sm text-text-dim">{t("vacioTexto")}</p>
           </div>
         ) : (
           <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -149,11 +152,9 @@ export default async function DestacadosPage({
         )}
 
         <p className="mt-10 text-2xs text-text-dim">
-          Esto no es el ranking: aquí se aparece por haber gastado un Boost, no por ganar retos.{" "}
-          <Enlace href="/ranking" className="underline underline-offset-2 hover:text-text">
-            Ver el ranking del mes
-          </Enlace>
-          .
+          {tr("noEsRanking", {
+            enlace: { href: "/ranking", className: "underline underline-offset-2 hover:text-text" },
+          })}
         </p>
       </div>
     </>

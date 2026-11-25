@@ -16,6 +16,12 @@ import type { PerfilDestacado } from "@/server/services/boost-destacados";
 const H = vi.hoisted(() => ({ perfiles: [] as unknown[] }));
 
 vi.mock("@/server/db/client", () => ({ prisma: {} }));
+// La página pide el idioma de la petición (para decir la duración de un Boost, P5b2a): sin petición
+// aquí, castellano.
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers(),
+  cookies: async () => ({ get: () => undefined }),
+}));
 // La vitrina es pública: se pinta para un invitado. (Una cuenta de empresa la tiene apartada —ver
 // `solo-participante`—, y eso se prueba allí, no aquí.)
 vi.mock("@/server/auth/current-user", () => ({ getCurrentUser: async () => null }));

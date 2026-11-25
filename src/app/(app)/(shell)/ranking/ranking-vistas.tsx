@@ -9,6 +9,7 @@ import { primerPuestoDeLista } from "@/lib/podio";
 
 import { type FilaPodio, PodioRanking } from "./podio-ranking";
 import { useFormato } from "@/components/formato-provider";
+import { useTextos } from "@/components/textos-provider";
 
 /** Una fila del ranking mensual tal y como llega del servidor. */
 export interface FilaRanking extends FilaPodio {
@@ -42,26 +43,13 @@ export interface DatosRanking {
 
 type Vista = "mensual" | "reto";
 
-/**
- * Etiquetas del conmutador: FUENTE ÚNICA, cortas y FIJAS. El título del reto NO va aquí: metido en el
- * botón hacía una pestaña de ancho variable que enseñaba títulos largos y de prueba. "De qué reto" lo
- * responde la cabecera dentro de su vista (`cabeceraReto`). El copy final es de Junior/Sergio.
+/*
+ * Las etiquetas del conmutador (`ranking.vista_*`) son FIJAS y cortas: el título del reto NO va en el
+ * botón (hacía una pestaña de ancho variable que enseñaba títulos largos y de prueba). "De qué reto" lo
+ * responde la cabecera dentro de su vista (`ranking.cabeceraReto`): "Clasificación de", no "Ganadores
+ * de" —un reto cerrado con participaciones puede no tener ganador, y aun con ganador la lista es el top
+ * por votos, no la lista de premiados—. Desde la P5b2a, las dos viven en el diccionario.
  */
-export const ETIQUETAS_VISTA: Record<Vista, string> = {
-  mensual: "Este mes",
-  reto: "Último reto",
-};
-
-/**
- * Cabecera de la vista del reto: aquí SÍ va su título, que es donde contesta "de cuál".
- *
- * "Clasificación de", no "Ganadores de": un reto cerrado con participaciones puede no tener ganador
- * (no alcanzó el mínimo, o hay un empate esperando al admin), y aun con ganador la lista es el top por
- * votos, no la lista de premiados. "Ganadores" mentiría en los dos casos.
- */
-export function cabeceraReto(titulo: string): string {
-  return `Clasificación de «${titulo}»`;
-}
 
 /**
  * CLASIFICACIÓN — conmutador (Este mes / Último reto) + PODIO + lista.
@@ -78,6 +66,7 @@ export function cabeceraReto(titulo: string): string {
  */
 export function RankingVistas({ datos }: { datos: DatosRanking }) {
   const { idioma } = useFormato();
+  const t = useTextos("ranking");
   const [vista, setVista] = useState<Vista>("mensual");
   const [filas, setFilas] = useState<FilaRanking[]>(datos.mensual);
   const [cursor, setCursor] = useState<string | null>(datos.cursorInicial);
@@ -114,7 +103,7 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
             fontVariationSettings: '"wght" 780, "wdth" 118',
           }}
         >
-          Clasificación
+          {t("titulo")}
         </h1>
 
         {/* Conmutador NEUTRO (no hay acción: nada de acento), con etiquetas fijas de fuente única.
@@ -122,7 +111,7 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
         {reto ? (
           <div
             role="group"
-            aria-label="Vista de la clasificación"
+            aria-label={t("vistaAria")}
             className="inline-flex rounded-sm border border-line bg-surface/60 p-1 shadow-[var(--df-shadow-sm)] backdrop-blur-md"
           >
             {(["mensual", "reto"] as const).map((clave) => (
@@ -137,7 +126,7 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
                     : "text-text-dim hover:text-text"
                 }`}
               >
-                {ETIQUETAS_VISTA[clave]}
+                {t(`vista_${clave}`)}
               </button>
             ))}
           </div>
@@ -146,16 +135,13 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
 
       {vista === "mensual" || !reto ? (
         filas.length === 0 ? (
-          <VacioHonesto
-            titulo="Aún no ha ganado nadie este mes"
-            detalle="La clasificación se llena cuando cierra el primer reto. Participa y sé el primero en ganar."
-          />
+          <VacioHonesto titulo={t("vacioTitulo")} detalle={t("vacioDetalle")} />
         ) : (
           <>
             <PodioRanking top={enPodio} />
             {enLista.length > 0 ? (
               <div
-                aria-label={`Clasificación (del ${desde}º en adelante)`}
+                aria-label={t("listaAria", { n: desde })}
                 className="df-rise mt-8 overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md"
               >
                 {enLista.map((fila, i) => (
@@ -166,7 +152,7 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
                     username={fila.username}
                     imagen={fila.image}
                     cifra={fila.victorias}
-                    unidad={fila.victorias === 1 ? "victoria" : "victorias"}
+                    unidad={t("unidadVictoria", { n: fila.victorias })}
                     activo={fila.userId === datos.yo}
                     insignia={<InsigniaNivel puntos={fila.puntos} />}
                     puntos={fila.puntos}
@@ -184,26 +170,24 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
                   disabled={cargando}
                   className="min-h-[44px] rounded-sm border border-line bg-surface/60 px-6 text-sm text-text backdrop-blur-md transition-colors duration-150 ease-mechanical hover:bg-raised disabled:opacity-50"
                 >
-                  {cargando ? "Cargando…" : "Ver más"}
+                  {cargando ? t("cargando") : t("verMas")}
                 </button>
               </div>
             ) : null}
           </>
         )
       ) : (
-        <section aria-label={cabeceraReto(reto.titulo)} className="df-rise mt-8">
+        <section aria-label={t("cabeceraReto", { titulo: reto.titulo })} className="df-rise mt-8">
           {/* Aquí, y solo aquí, el título REAL: la cabecera contesta "de qué reto". Puede ser largo:
               se parte en líneas en vez de estirar nada. */}
           <h2 className="text-lg font-semibold text-balance break-words text-text">
-            {cabeceraReto(reto.titulo)}
+            {t("cabeceraReto", { titulo: reto.titulo })}
           </h2>
           <div className="mt-4 overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-md)] backdrop-blur-md">
             {reto.top.length === 0 ? (
               // DEFENSA MUDA: inalcanzable desde el conmutador (sin top no hay pestaña). Se conserva por
               // si otro camino llegara a pintar esta vista con un top vacío: mejor decirlo que un hueco.
-              <p className="p-6 text-center text-sm text-text-dim">
-                Ese reto cerró sin participaciones publicadas.
-              </p>
+              <p className="p-6 text-center text-sm text-text-dim">{t("sinParticipaciones")}</p>
             ) : (
               reto.top.map((f) => (
                 <FilaPuesto
@@ -213,7 +197,7 @@ export function RankingVistas({ datos }: { datos: DatosRanking }) {
                   username={f.username}
                   imagen={f.image}
                   cifra={f.votos}
-                  unidad={f.votos === 1 ? "voto" : "votos"}
+                  unidad={t("unidadVoto", { n: f.votos })}
                   activo={f.userId === datos.yo}
                   esVip={f.esVip}
                   colorNombre={f.colorNombre}

@@ -1,7 +1,12 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
+import { TextosProvider } from "@/components/textos-provider";
+import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
+
 import { LanzadorSubida } from "./lanzador-subida";
 
-export const metadata = { title: "Crear" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("crear") };
+}
 // Lee la sesión (una cuenta de empresa no sube vídeos: va a su portal) -> por petición.
 export const dynamic = "force-dynamic";
 
@@ -12,6 +17,10 @@ export const dynamic = "force-dynamic";
  */
 export default async function CrearPage() {
   await apartarCuentaEmpresa();
+  const [t, textosSubida] = await Promise.all([
+    textos("crear"),
+    textosClienteDeLaPeticion(["subida", "categorias"] as const),
+  ]);
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-8 lg:px-8 lg:py-12">
       <h1
@@ -21,13 +30,13 @@ export default async function CrearPage() {
           fontVariationSettings: '"wght" 720, "wdth" 112',
         }}
       >
-        Subir tu vídeo
+        {t("titulo")}
       </h1>
-      <p className="mb-6 text-sm text-text-dim">
-        Comparte tu vídeo (máx. 90 segundos). Se procesa y aparece en tu perfil cuando esté listo.
-      </p>
+      <p className="mb-6 text-sm text-text-dim">{t("intro")}</p>
       <div className="df-rise lg:rounded-sm lg:border lg:border-line lg:bg-surface/60 lg:p-8 lg:shadow-[var(--df-shadow-md)] lg:backdrop-blur-md">
-        <LanzadorSubida />
+        <TextosProvider textos={textosSubida}>
+          <LanzadorSubida />
+        </TextosProvider>
       </div>
     </div>
   );

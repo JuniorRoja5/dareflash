@@ -18,12 +18,13 @@ import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ getJson: vi.fn() }));
 vi.mock("@/lib/cliente-http", () => ({ getJson: mocks.getJson }));
 
-import {
-  cabeceraReto,
-  type DatosRanking,
-  ETIQUETAS_VISTA,
-  RankingVistas,
-} from "@/app/(app)/(shell)/ranking/ranking-vistas";
+import { type DatosRanking, RankingVistas } from "@/app/(app)/(shell)/ranking/ranking-vistas";
+import { es } from "@/textos/es";
+import { crearT } from "@/textos/plantilla";
+
+// Las etiquetas FIJAS del conmutador y la cabecera del reto viven en el diccionario desde la P5b2a.
+const ETIQUETAS_VISTA = { mensual: es.ranking.vista_mensual, reto: es.ranking.vista_reto };
+const cabeceraReto = (titulo: string) => crearT(es.ranking, "es")("cabeceraReto", { titulo });
 
 const TITULO_LARGO = "50 abdominales en un minuto sin parar y sin apoyar las rodillas (prueba)";
 
@@ -213,15 +214,21 @@ describe("los avatares llegan a TODAS las filas", () => {
 });
 
 describe("fuente única de las etiquetas (estructural)", () => {
-  it('"Este mes" y "Último reto" se escriben UNA vez en /ranking, en la constante', () => {
+  it('"Este mes" y "Último reto" se escriben UNA vez: en el diccionario, y ninguna en /ranking', () => {
     const dir = path.resolve(__dirname, "..", "..", "src", "app", "(app)", "(shell)", "ranking");
     const codigo = ["ranking-vistas.tsx", "page.tsx", "podio-ranking.tsx"]
       .map((f) => readFileSync(path.join(dir, f), "utf8"))
       .join("\n")
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/^\s*\/\/.*$/gm, "");
+    // Desde la P5b2a la fuente única es `es.ts` (`ranking.vista_*`): ahí una vez, y en /ranking ninguna.
+    const diccionario = readFileSync(
+      path.resolve(__dirname, "..", "..", "src", "textos", "es.ts"),
+      "utf8",
+    );
     for (const etiqueta of [ETIQUETAS_VISTA.mensual, ETIQUETAS_VISTA.reto]) {
-      expect(codigo.split(`"${etiqueta}"`).length - 1, etiqueta).toBe(1);
+      expect(codigo.split(`"${etiqueta}"`).length - 1, etiqueta).toBe(0);
+      expect(diccionario.split(`"${etiqueta}"`).length - 1, etiqueta).toBe(1);
     }
   });
 });

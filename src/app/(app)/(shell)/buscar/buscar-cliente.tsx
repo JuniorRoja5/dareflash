@@ -3,6 +3,7 @@
 import { Enlace } from "@/components/enlace";
 import { useEffect, useRef, useState } from "react";
 
+import { useTextos } from "@/components/textos-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { PildoraCategoria } from "@/components/ui/pildora";
 import { PildoraFiltro } from "@/components/ui/pildora-filtro";
@@ -15,8 +16,9 @@ import {
 } from "@/components/ui/identidad-usuario";
 import { mensajeError, MSG_BUSCAR } from "@/lib/mensajes-error";
 import type { PaginaBusqueda, RetoBusqueda, UsuarioBusqueda } from "@/server/services/buscar";
+import { nombreDeCategoria } from "@/textos/categoria";
 
-import { CATEGORIAS, nombreCategoria } from "../retos/retos-datos";
+import { CATEGORIAS } from "../retos/retos-datos";
 import { consultaValida, hrefCategoria, type TipoBusqueda, urlBuscar } from "./buscar-logica";
 
 /** La `deadline` de un reto llega como string en el JSON de la respuesta. */
@@ -31,7 +33,6 @@ interface Resultado {
 }
 
 const DEBOUNCE_MS = 300;
-const SIN_CONEXION = "No hemos podido conectar. Revisa tu conexión e inténtalo de nuevo.";
 
 /** Clave que identifica una búsqueda; "" = no hay que buscar (categorías o consulta corta). */
 function claveDe(tab: Tab, q: string): string {
@@ -52,6 +53,8 @@ export function BuscarCliente({
   qInicial?: string;
   tipoInicial?: Tab;
 }) {
+  const t = useTextos("buscar");
+  const tc = useTextos("categorias");
   const [q, setQ] = useState(qInicial);
   const [tab, setTab] = useState<Tab>(tipoInicial);
   const [res, setRes] = useState<Resultado>({ clave: "", items: [], cursor: null });
@@ -68,7 +71,7 @@ export function BuscarCliente({
     const termino = q.trim();
     const tipo = tab as TipoBusqueda;
     const id = ++peticionRef.current;
-    const t = setTimeout(async () => {
+    const temporizador = setTimeout(async () => {
       setEstado("buscando");
       try {
         const r = await getJson<PaginaBusqueda<Item>>(urlBuscar({ q: termino, tipo }));
@@ -82,12 +85,12 @@ export function BuscarCliente({
         setEstado("idle");
       } catch {
         if (id !== peticionRef.current) return;
-        setError(SIN_CONEXION);
+        setError(t("sinConexion"));
         setEstado("error");
       }
     }, DEBOUNCE_MS);
-    return () => clearTimeout(t);
-  }, [q, tab, claveActual]);
+    return () => clearTimeout(temporizador);
+  }, [q, tab, claveActual, t]);
 
   async function cargarMas(): Promise<void> {
     if (!res.cursor) return;
@@ -111,7 +114,7 @@ export function BuscarCliente({
       setEstado("idle");
     } catch {
       if (id !== peticionRef.current) return;
-      setError(SIN_CONEXION);
+      setError(t("sinConexion"));
       setEstado("error");
     }
   }
@@ -126,15 +129,15 @@ export function BuscarCliente({
   return (
     <div className="space-y-6">
       {/* Pestañas (neutras, activo elevado — nunca el acento). */}
-      <div role="tablist" aria-label="Tipo de búsqueda" className="flex gap-2">
+      <div role="tablist" aria-label={t("tiposAria")} className="flex gap-2">
         <PildoraFiltro activo={tab === "usuarios"} onClick={() => cambiarTab("usuarios")}>
-          Usuarios
+          {t("tab_usuarios")}
         </PildoraFiltro>
         <PildoraFiltro activo={tab === "retos"} onClick={() => cambiarTab("retos")}>
-          Retos
+          {t("tab_retos")}
         </PildoraFiltro>
         <PildoraFiltro activo={tab === "categorias"} onClick={() => cambiarTab("categorias")}>
-          Categorías
+          {t("tab_categorias")}
         </PildoraFiltro>
       </div>
 
@@ -147,8 +150,8 @@ export function BuscarCliente({
             setQ(e.target.value);
             if (error) setError("");
           }}
-          placeholder={tab === "usuarios" ? "Buscar personas…" : "Buscar retos…"}
-          aria-label="Buscar"
+          placeholder={tab === "usuarios" ? t("placeholder_usuarios") : t("placeholder_retos")}
+          aria-label={t("etiqueta")}
           autoComplete="off"
           className="min-h-[44px] w-full rounded-full border border-line bg-raised px-5 text-sm text-text placeholder:text-text-dim focus:border-text focus:outline-none"
         />
@@ -163,7 +166,7 @@ export function BuscarCliente({
               href={hrefCategoria(c.clave)}
               className="inline-flex min-h-[44px] items-center rounded-full border border-line px-4 text-sm text-text-dim transition-colors duration-150 ease-mechanical hover:bg-raised hover:text-text"
             >
-              {c.nombre}
+              {nombreDeCategoria(tc, c.clave)}
             </Enlace>
           ))}
         </div>
@@ -172,12 +175,12 @@ export function BuscarCliente({
           {error}
         </p>
       ) : !consultaValida(q) ? (
-        <p className="text-sm text-text-dim">Escribe al menos 2 caracteres para buscar.</p>
+        <p className="text-sm text-text-dim">{t("minimo")}</p>
       ) : !frescos ? (
-        <p className="text-sm text-text-dim">Buscando…</p>
+        <p className="text-sm text-text-dim">{t("buscando")}</p>
       ) : res.items.length === 0 ? (
         <p className="rounded-sm border border-line bg-surface/40 p-6 text-center text-sm text-text-dim">
-          Sin resultados para «{q.trim()}».
+          {t("sinResultados", { termino: q.trim() })}
         </p>
       ) : (
         <>
@@ -222,7 +225,7 @@ export function BuscarCliente({
                     >
                       <span className="truncate font-semibold text-text">{r.title}</span>
                       <span>
-                        <PildoraCategoria>{nombreCategoria(r.category)}</PildoraCategoria>
+                        <PildoraCategoria>{nombreDeCategoria(tc, r.category)}</PildoraCategoria>
                       </span>
                     </Enlace>
                   </li>
@@ -236,7 +239,7 @@ export function BuscarCliente({
               disabled={estado === "cargando"}
               className="mx-auto block min-h-[44px] rounded-full border border-line px-5 text-sm text-text-dim transition-colors duration-150 ease-mechanical hover:bg-raised hover:text-text disabled:opacity-60"
             >
-              {estado === "cargando" ? "Cargando…" : "Cargar más"}
+              {estado === "cargando" ? t("cargando") : t("cargarMas")}
             </button>
           ) : null}
         </>

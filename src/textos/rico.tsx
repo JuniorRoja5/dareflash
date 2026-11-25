@@ -119,6 +119,9 @@ function pintar(
           </Enlace>,
         );
         return;
+      case "salto":
+        salida.push(<br key={clave} />);
+        return;
       case "oculto":
         salida.push(
           <span key={clave} className="sr-only">

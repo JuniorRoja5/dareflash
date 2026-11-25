@@ -106,7 +106,13 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
     textos("categorias"),
     textos("marcador"),
     textos("tarjetaReto"),
-    textosClienteDeLaPeticion(["participar", "participaciones", "feed", "comentarios"] as const),
+    textosClienteDeLaPeticion([
+      "participar",
+      "participaciones",
+      "feed",
+      "comentarios",
+      "subida",
+    ] as const),
   ]);
   const contextoReto = { titulo: reto.titulo, categoria: nombreDeCategoria(tcat, reto.categoria) };
   const participacionesUI: ParticipacionUI[] = pagina.items.map((p) => {

@@ -4,10 +4,13 @@ import { redirigir } from "@/server/redirigir";
 import { Boton } from "@/components/ui/boton";
 import { NOTIF_PAGINA } from "@/config/constants";
 import { haceCuanto } from "@/lib/notificaciones-vista";
+import { textos, textosRicos } from "@/textos/servidor";
 
 import { MarcarLeidasAlVer } from "./marcar-leidas";
 
-export const metadata = { title: "Notificaciones" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("notificaciones") };
+}
 export const dynamic = "force-dynamic";
 
 /** "Ahora" del render. Fuera del componente: el reloj es de la petición, no un efecto del pintado. */
@@ -46,6 +49,7 @@ export default async function NotificacionesPage({
   const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
   const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
   const sinLeer = pagina.items.filter((i) => !i.leida).map((i) => i.id);
+  const [t, tr] = await Promise.all([textos("notificaciones"), textosRicos("notificaciones")]);
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
@@ -56,23 +60,19 @@ export default async function NotificacionesPage({
           fontVariationSettings: '"wght" 720, "wdth" 112',
         }}
       >
-        Notificaciones
+        {t("titulo")}
       </h1>
 
       {pagina.items.length === 0 ? (
         // Vacío = invitación a actuar (brief v2), no un mensaje triste.
         <div className="rounded-sm border border-line bg-surface/40 p-8 text-center">
-          <p className="text-sm text-text-dim">
-            {cursor
-              ? "No hay avisos más antiguos."
-              : "Aún no tienes avisos. Sube un vídeo o participa en un reto y aquí verás lo que pase."}
-          </p>
+          <p className="text-sm text-text-dim">{cursor ? t("vacioAntiguos") : t("vacio")}</p>
           <Boton
             href={cursor ? "/notificaciones" : "/retos"}
             variante="secundario"
             className="mt-4"
           >
-            {cursor ? "Volver a las más recientes" : "Explorar retos"}
+            {cursor ? t("volverRecientes") : t("explorarRetos")}
           </Boton>
         </div>
       ) : (
@@ -91,8 +91,7 @@ export default async function NotificacionesPage({
                 />
                 <span className="min-w-0 flex-1">
                   <span className={`block text-sm ${i.leida ? "text-text-dim" : "text-text"}`}>
-                    {i.leida ? null : <span className="sr-only">Nuevo: </span>}
-                    {i.texto}
+                    {i.leida ? i.texto : tr("avisoNuevo", { oculto: {} }, { texto: i.texto })}
                   </span>
                   <span className="mt-1 block text-2xs text-text-dim">
                     {haceCuanto(i.creadaMs, ahoraMs, idioma, zona)}
@@ -105,10 +104,10 @@ export default async function NotificacionesPage({
       )}
 
       {pagina.items.length > 0 && (cursor || pagina.nextCursor) ? (
-        <nav aria-label="Páginas de avisos" className="mt-8 flex flex-wrap gap-3">
+        <nav aria-label={t("paginasAria")} className="mt-8 flex flex-wrap gap-3">
           {cursor ? (
             <Boton href="/notificaciones" variante="secundario">
-              Volver a las más recientes
+              {t("volverRecientes")}
             </Boton>
           ) : null}
           {pagina.nextCursor ? (
@@ -116,7 +115,7 @@ export default async function NotificacionesPage({
               href={`/notificaciones?cursor=${encodeURIComponent(pagina.nextCursor)}`}
               variante="secundario"
             >
-              Ver más antiguas
+              {t("verAntiguas")}
             </Boton>
           ) : null}
         </nav>
