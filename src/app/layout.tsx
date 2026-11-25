@@ -14,7 +14,7 @@ import {
 // los ficheros y sus licencias, en `./fuentes`.
 import { variablesFuentes } from "./fuentes";
 import "./globals.css";
-import { MARCA, TITULO_RAIZ } from "@/config/marca";
+import { TITULO_RAIZ } from "@/config/marca";
 
 /**
  * LA MARCA DE LOS TÍTULOS VIVE AQUÍ, una vez (`TITULO_RAIZ`, de `config/marca`): cada página pone solo
@@ -27,9 +27,12 @@ import { MARCA, TITULO_RAIZ } from "@/config/marca";
  */
 export async function generateMetadata(): Promise<Metadata> {
   const { alternativasDeLaPeticion } = await import("@/server/metadatos-idioma");
+  const { textos } = await import("@/textos/servidor");
   return {
     title: TITULO_RAIZ,
-    description: `${MARCA} — retos en vídeo corto con premios reales.`,
+    // La descripción del sitio (la que enseña un buscador) sale del diccionario, en el idioma de la
+    // petición (Fase 11 · P5b2a). `{marca}` la pone `t`.
+    description: (await textos("titulos"))("descripcionSitio"),
     alternates: await alternativasDeLaPeticion(),
   };
 }

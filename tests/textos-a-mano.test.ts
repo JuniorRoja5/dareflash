@@ -86,6 +86,25 @@ describe("el texto de la interfaz sale de t()", () => {
     ).toEqual([]);
   });
 
+  it("y ve el texto que llega a la pantalla por otro camino (P5b2a), sin confundirlo con un código", () => {
+    // El título de una pestaña, el de un objeto que se pinta y lo que recibe un `set…` de React: por
+    // ahí se escaparon a la P5b1 los estados de un vídeo y los títulos de cada página.
+    expect(textosAMano("x.tsx", 'export const metadata = { title: "Mis puntos" };')).toEqual([
+      '1: "Mis puntos"',
+    ]);
+    expect(textosAMano("x.tsx", 'const C = { texto: "Publicado", tono: "ok" };')).toEqual([
+      '1: "Publicado"',
+    ]);
+    expect(textosAMano("x.tsx", 'setError(msg || "No se pudo."); setAviso(`Hola ${n}`);')).toEqual([
+      '1: "No se pudo."',
+      "1: `Hola ${n}`",
+    ]);
+    // Y los CÓDIGOS que viajan por los mismos caminos no cuentan: no tienen forma de frase.
+    expect(
+      textosAMano("x.tsx", 'setEstado("enviando"); const C = { titulo: "idle", tono: "ok" };'),
+    ).toEqual([]);
+  });
+
   it("ninguna zona extraída tiene texto escrito a mano", () => {
     const culpables = [...aMano]
       .filter(([f, t]) => t.length > 0 && !PENDIENTES_P5B2.includes(f))

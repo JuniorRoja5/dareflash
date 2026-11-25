@@ -6,7 +6,11 @@
  *  - un atributo que se lee u oye (`aria-label`, `alt`, `title`, `placeholder`, `label`) con una cadena
  *    literal con letras, o con una cadena en una de sus ramas (`aria-label={x ? "a" : "b"}`);
  *  - una cadena con letras que se PINTA desde una expresión de JSX: `{"Hola"}`, `{x ? "a" : "b"}`,
- *    `{x || "otro"}`, `{x && "algo"}`, o una plantilla con letras (`{`${n} votos`}`).
+ *    `{x || "otro"}`, `{x && "algo"}`, o una plantilla con letras (`{`${n} votos`}`);
+ *  - (P5b2a) una cadena que LLEGA a la pantalla por otro camino: el valor de una propiedad con nombre de
+ *    texto (`{ titulo: "…" }`, `{ etiqueta: "…" }`, el `title` de un `metadata`) o lo que se le pasa a
+ *    un `set…` de React (`setError("…")`, `setError(msg || "…")`). Así se escaparon a la P5b1 el estado
+ *    de cada vídeo del perfil y los títulos de pestaña: no estaban en el JSX, llegaban a él.
  * NO cuenta: comparaciones (`estado === "votado"`), clases, rutas ni nada que no se pinta.
  */
 import ts from "typescript";
@@ -21,8 +25,35 @@ const ATRIBUTOS = new Set([
 ]);
 const LETRA = /\p{L}/u;
 
-/** ¿El nodo es lo que se PINTA de una expresión? Sube por ramas de condicional y `||`/`??`/`&&`. */
-function sePinta(n: ts.Node): boolean {
+/** Propiedades cuyo valor es, por su nombre, un texto que se enseña. */
+const PROPIEDADES_DE_TEXTO = new Set([
+  "title",
+  "titulo",
+  "texto",
+  "etiqueta",
+  "label",
+  "mensaje",
+  "descripcion",
+  "description",
+  "detalle",
+  "pie",
+  "nota",
+  "placeholder",
+]);
+/** Un `set…` de React: lo que recibe acaba pintado. */
+const SETTER = /^set[A-Z]/;
+/**
+ * Por esos dos caminos también viajan CÓDIGOS (`setEstado("enviando")`, `{ tono: "ok" }`): ahí solo
+ * cuenta lo que tiene forma de frase —un espacio, o empieza por mayúscula, `¿` o `¡`—. Un código no la
+ * tiene; una frase o una etiqueta, siempre.
+ */
+const PROSA = /\s|^[\p{Lu}¿¡]/u;
+
+/**
+ * ¿El nodo es lo que se PINTA? Sube por ramas de condicional y `||`/`??`/`&&`. `"si-es-prosa"`: llega a
+ * la pantalla por una propiedad de texto o un `set…`, y cuenta solo si tiene forma de frase (`PROSA`).
+ */
+function sePinta(n: ts.Node): boolean | "si-es-prosa" {
   let hijo: ts.Node = n;
   let p = n.parent;
   while (p) {
@@ -54,6 +85,14 @@ function sePinta(n: ts.Node): boolean {
       if (ts.isJsxAttribute(dueno)) return ATRIBUTOS.has(dueno.name.getText());
       return false;
     }
+    if (ts.isPropertyAssignment(p) && p.initializer === hijo) {
+      return PROPIEDADES_DE_TEXTO.has(p.name.getText().replace(/^["']|["']$/g, ""))
+        ? "si-es-prosa"
+        : false;
+    }
+    if (ts.isCallExpression(p) && p.arguments.includes(hijo as ts.Expression)) {
+      return SETTER.test(p.expression.getText()) ? "si-es-prosa" : false;
+    }
     return false;
   }
   return false;
@@ -67,6 +106,11 @@ export function textosAMano(fichero: string, codigo: string): string[] {
     salida.push(
       `${src.getLineAndCharacterOfPosition(n.getStart()).line + 1}: ${t.trim().replace(/\s+/g, " ")}`,
     );
+  /** ¿Cuenta este literal? Por el JSX, siempre; por los caminos nuevos, si tiene forma de frase. */
+  const cuenta = (n: ts.Node, texto: string) => {
+    const via = sePinta(n);
+    return via === true || (via === "si-es-prosa" && PROSA.test(texto));
+  };
   const visita = (n: ts.Node) => {
     // Una entidad HTML (`&nbsp;`) no es texto que se lea: se quita antes de buscar letras.
     if (ts.isJsxText(n) && LETRA.test(n.text.replace(/&[a-z]+;|&#\d+;/gi, ""))) apunta(n, n.text);
@@ -81,13 +125,13 @@ export function textosAMano(fichero: string, codigo: string): string[] {
     else if (
       (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) &&
       LETRA.test(n.text) &&
-      sePinta(n)
+      cuenta(n, n.text)
     )
       apunta(n, JSON.stringify(n.text));
     else if (
       ts.isTemplateExpression(n) &&
       LETRA.test(n.head.text + n.templateSpans.map((s) => s.literal.text).join("")) &&
-      sePinta(n)
+      cuenta(n, n.getText().slice(1, -1))
     )
       apunta(n, n.getText());
     ts.forEachChild(n, visita);

@@ -438,6 +438,8 @@ export const es = conMarcasConocidas({
 
   // ── Títulos de pestaña (P5b2a): solo los pide el servidor (`generateMetadata`) ─────────────────────
   titulos: {
+    /** La descripción del sitio (`<meta name="description">`, layout raíz). */
+    descripcionSitio: "{marca} — retos en vídeo corto con premios reales.",
     entrar: "Iniciar sesión",
     recuperar: "Recuperar contraseña",
     restablecer: "Restablecer contraseña",
