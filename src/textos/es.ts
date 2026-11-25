@@ -159,6 +159,8 @@ export const es = conMarcasConocidas({
     texto:
       "Ha fallado algo de nuestro lado, no de lo que has hecho. Vuelve a intentarlo en un momento; si sigue igual, escríbenos.",
     reintentar: "Reintentar",
+    /** El título de cada sección que tiene su `error.tsx`. */
+    titulo_puntos: "No hemos podido cargar tus puntos",
   },
   /** Un campo de solo lectura con su botón de copiar (`CampoCopiable`). */
   copiar: {
@@ -447,6 +449,8 @@ export const es = conMarcasConocidas({
     destacados: "Perfiles Boost",
     ranking: "Ranking",
     crear: "Crear",
+    puntos: "Mis puntos",
+    referidos: "Mis referidos",
   },
 
   // ── Acceso (P5b2a): entrar, crear cuenta, recuperar, restablecer, verificar, reactivar, correo ─────
@@ -684,6 +688,96 @@ export const es = conMarcasConocidas({
     conProgreso: "{estado} {porcentaje} %",
     reintentar: "Reintentar",
     publicar: "Publicar",
+  },
+
+  // ── Puntos y referidos (P5b2a, servidor) ─────────────────────────────────────────────────────────
+  puntos: {
+    /** El H1 es la cifra; esto es lo que oye un lector de pantalla delante (UNA frase, P5b2a). */
+    tusPuntosOculto: "{oculto:Tus puntos: }{puntos}",
+    tusPuntos: "Tus puntos",
+    racha: { one: "Racha de {n} día", other: "Racha de {n} días" },
+    empiezaRacha: "Empieza tu racha hoy",
+    maximo: "Nivel máximo. No hay nada por encima de {nivel}.",
+    progresoAria: "Progreso hacia {nivel}",
+    /** UNA frase con sus dos cifras resaltadas dentro (antes, cinco trozos). */
+    progreso: {
+      one: "{resaltado:{porcentaje}%} · faltan {resaltado:{n}} punto para {nivel}",
+      other: "{resaltado:{porcentaje}%} · faltan {resaltado:{n}} puntos para {nivel}",
+    },
+    metricaTotales: "Puntos totales",
+    metricaNivel: "Nivel actual",
+    piePartida: "El punto de partida",
+    pieDesde: "Desde {n} puntos",
+    metricaProgreso: "Progreso al siguiente",
+    pieMaximo: "Ya estás en el nivel más alto",
+    pieFaltan: "Faltan {n} para {nivel}",
+    escalera: "Los cinco niveles",
+    desdePrimerDia: "Desde el primer día",
+    estasAqui: "Estás aquí",
+    comoGanar: "Cómo ganar puntos",
+    fase: "Fase {n}",
+    proximamente: "Próximamente",
+    historial: "Tu historial de puntos",
+    historialVacio:
+      "Todavía no tienes movimientos. Gana un reto o invita a alguien y aparecerán aquí.",
+    col_fecha: "Fecha",
+    col_concepto: "Concepto",
+    col_detalle: "Detalle",
+    col_puntos: "Puntos",
+    /** Cada acción del catálogo (`ACCIONES_PUNTOS`), por su razón. La cifra sale de la config. */
+    accion_WIN_CHALLENGE: "Ganar un reto",
+    accion_TOP20: "Entrar en el top 20 de un reto",
+    accion_VIDEOS_PUBLICADOS: "Publicar {n} vídeos",
+    accion_INVITE_FRIEND: "Invitar a alguien que verifica su correo",
+    accion_REGISTERED_WITH_REFERRAL: "Registrarte con la invitación de alguien",
+    accion_RACHA_7_DIAS: "Racha de {n} días seguidos",
+    accion_VIDEO_50_LIKES: "Recibir {n} likes en un vídeo",
+  },
+  /**
+   * El motivo de cada movimiento en el historial PROPIO (segunda persona). Qué frase toca lo decide
+   * `claveRazonPropia` (lib/razones-puntos). El AJUSTE del equipo se dice por su signo —el usuario no
+   * tiene por qué deducir del número qué le ha pasado— y NO dice por qué (el porqué es la nota interna
+   * del ajuste, escrita para el equipo) ni repite la cifra (va en su columna). `propia_ADMIN_AJUSTE` es
+   * la frase neutra, para cuando no se sabe el importe. El panel habla en tercera persona y no pasa
+   * por aquí.
+   */
+  razonesPuntos: {
+    propia_WIN_CHALLENGE: "Ganaste un reto",
+    propia_TOP20: "Entraste en el top 20",
+    propia_VIDEOS_PUBLICADOS: "Publicaste vídeos suficientes para un hito",
+    propia_INVITE_FRIEND: "Invitaste a alguien que verificó su correo",
+    propia_REGISTERED_WITH_REFERRAL: "Te registraste con una invitación",
+    propia_RACHA_7_DIAS: "Mantuviste una racha de 7 días",
+    propia_VIDEO_50_LIKES: "Tu vídeo llegó a 50 likes",
+    propia_ADMIN_AJUSTE: "Ajuste del equipo",
+    propia_ajusteSuma: "El equipo te añadió puntos",
+    propia_ajusteResta: "El equipo te retiró puntos",
+  },
+  referidos: {
+    titulo: "Invita y gana puntos",
+    /** UNA frase con la recompensa resaltada dentro (en un `<strong>`: lo elige el código). */
+    recompensa: {
+      one: "Ganas {resaltado:{n} punto} cuando tu invitado verifica su correo. Tu invitado gana otros tantos.",
+      other:
+        "Ganas {resaltado:{n} puntos} cuando tu invitado verifica su correo. Tu invitado gana otros tantos.",
+    },
+    tuEnlace: "Tu enlace",
+    tuCodigo: "Tu código",
+    sinEnlace: "No hemos podido cargar tu enlace. Recarga la página.",
+    qr: "Código QR con tu enlace de invitación",
+    escanear: "O que lo escaneen desde tu pantalla",
+    metricaInvitados: "Invitados",
+    metricaPuntos: "Puntos ganados",
+    piePuntos: "Por invitaciones que ya verificaron",
+    metricaPendientes: "Pendientes de verificar",
+    piePendientes: "Todavía no te han dado puntos",
+    historial: "A quién has invitado",
+    vacio: "Todavía no se ha registrado nadie con tu enlace. Compártelo y aparecerán aquí.",
+    vacioMasAdelante: "No queda nadie más por aquí.",
+    seUnio: "Se unió el {fecha}",
+    ganados: "+{n} ganados",
+    pendiente: "Pendiente de verificar",
+    formas: "Invitar es una de las formas de ganar puntos. {enlace:Ver todas y tu nivel}.",
   },
 
   // ── Perfil (P5b2a): el propio y el público comparten la vista ────────────────────────────────────

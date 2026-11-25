@@ -35,53 +35,35 @@ const EN_TERCERA: Record<string, string> = {
   [RAZON_AJUSTE_ADMIN]: "Ajuste manual",
 };
 
-/**
- * Copy del DUEÑO: segunda persona.
- *
- * EL AJUSTE MANUAL NO TIENE UN SOLO TEXTO, y ese era el problema: "Ajuste del equipo" era neutro
- * porque un ajuste puede SUMAR o RESTAR, y no se podía decir cuál sin mirar el importe. Pero el
- * usuario no tiene por qué deducir de un número qué le ha pasado — ver `razonHumanaPropia`, que
- * elige por el signo. Esta entrada es el texto de reserva, para cuando no se sabe el importe.
- */
-const EN_SEGUNDA: Record<string, string> = {
-  WIN_CHALLENGE: "Ganaste un reto",
-  TOP20: "Entraste en el top 20",
-  VIDEOS_PUBLICADOS: "Publicaste vídeos suficientes para un hito",
-  INVITE_FRIEND: "Invitaste a alguien que verificó su correo",
-  REGISTERED_WITH_REFERRAL: "Te registraste con una invitación",
-  RACHA_7_DIAS: "Mantuviste una racha de 7 días",
-  VIDEO_50_LIKES: "Tu vídeo llegó a 50 likes",
-  [RAZON_AJUSTE_ADMIN]: "Ajuste del equipo",
-};
-
 /** Motivo en tercera persona (panel). Una razón desconocida se devuelve tal cual. */
 export function razonHumana(razon: string): string {
   return EN_TERCERA[razon] ?? razon;
 }
 
 /**
- * El ajuste del equipo, dicho por su SIGNO. Es lo único que el usuario necesita saber de él.
- *
- * NO DICE POR QUÉ, y eso no es un olvido: el porqué es la nota interna del ajuste, escrita para el
- * equipo y en voz de moderación, y no viaja al historial del dueño (ver `VozHistorial`). Si algún
- * día hay que explicarle el motivo, será un campo nuevo escrito para él, no esta línea.
- *
- * Tampoco repite la cifra: el importe ya va en su columna, al lado.
+ * LA VOZ PROPIA («Ganaste un reto»), la del historial de cada persona. Desde la P5b2a sus palabras viven
+ * en el diccionario (`razonesPuntos.propia_*`) y las pone `razonPropia` (src/textos/razones-puntos.ts):
+ * aquí queda la DECISIÓN de qué frase toca, que es lo que se prueba. El ajuste del equipo se dice por su
+ * SIGNO —«te añadió» o «te retiró»—, sin repetir la cifra ni contar el porqué (la nota es interna); sin
+ * importe, la frase neutra. Una razón desconocida no tiene clave: se dice TAL CUAL (`null`).
  */
-const AJUSTE_POR_SIGNO = {
-  suma: "El equipo te añadió puntos",
-  resta: "El equipo te retiró puntos",
-} as const;
+export type ClaveRazonPropia =
+  | "WIN_CHALLENGE"
+  | "TOP20"
+  | "VIDEOS_PUBLICADOS"
+  | "INVITE_FRIEND"
+  | "REGISTERED_WITH_REFERRAL"
+  | "RACHA_7_DIAS"
+  | "VIDEO_50_LIKES"
+  | "ADMIN_AJUSTE"
+  | "ajusteSuma"
+  | "ajusteResta";
 
-/**
- * Motivo dirigido al dueño de la cuenta (su propio historial).
- *
- * `delta` es OPCIONAL y solo lo usa el ajuste manual, que es el único motivo que puede ir en las
- * dos direcciones. Sin él se cae al texto neutro, que sigue siendo cierto — solo que menos útil.
- */
-export function razonHumanaPropia(razon: string, delta?: number): string {
+const PROPIAS = new Set<string>(RAZONES_CONOCIDAS);
+
+export function claveRazonPropia(razon: string, delta?: number): ClaveRazonPropia | null {
   if (razon === RAZON_AJUSTE_ADMIN && typeof delta === "number" && delta !== 0) {
-    return delta > 0 ? AJUSTE_POR_SIGNO.suma : AJUSTE_POR_SIGNO.resta;
+    return delta > 0 ? "ajusteSuma" : "ajusteResta";
   }
-  return EN_SEGUNDA[razon] ?? razon;
+  return PROPIAS.has(razon) ? (razon as ClaveRazonPropia) : null;
 }

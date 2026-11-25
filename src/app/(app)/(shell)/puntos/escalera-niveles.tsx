@@ -1,6 +1,7 @@
 import { EmblemaDeNivel } from "@/components/ui/emblema-nivel";
 import { NIVELES, nivelPorPuntos } from "@/lib/niveles";
-import { formatearNumero, type Idioma } from "@/lib/formato";
+import type { Idioma } from "@/lib/formato";
+import { textos } from "@/textos/servidor";
 
 /**
  * LA ESCALERA — los cinco niveles y el umbral de cada uno, con el tuyo marcado.
@@ -14,13 +15,14 @@ import { formatearNumero, type Idioma } from "@/lib/formato";
  *
  * Los umbrales salen de `NIVELES`: mover uno mueve esta lista sin tocar este fichero.
  */
-export function EscaleraNiveles({ puntos, idioma }: { puntos: number; idioma: Idioma }) {
+export async function EscaleraNiveles({ puntos }: { puntos: number; idioma: Idioma }) {
   const actual = nivelPorPuntos(puntos);
+  const t = await textos("puntos");
 
   return (
     <section aria-labelledby="escalera">
       <h2 id="escalera" className="text-sm font-semibold tracking-widest text-text-dim uppercase">
-        Los cinco niveles
+        {t("escalera")}
       </h2>
       <ol className="mt-4 divide-y divide-line overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-sm)] backdrop-blur-md">
         {NIVELES.map((n) => {
@@ -58,9 +60,7 @@ export function EscaleraNiveles({ puntos, idioma }: { puntos: number; idioma: Id
                   {n.nombre}
                 </span>
                 <span className="block text-2xs text-text-dim">
-                  {n.minimo === 0
-                    ? "Desde el primer día"
-                    : `Desde ${formatearNumero(n.minimo, idioma)} puntos`}
+                  {n.minimo === 0 ? t("desdePrimerDia") : t("pieDesde", { n: n.minimo })}
                 </span>
               </span>
               {esActual ? (
@@ -75,7 +75,7 @@ export function EscaleraNiveles({ puntos, idioma }: { puntos: number; idioma: Id
                       : undefined
                   }
                 >
-                  Estás aquí
+                  {t("estasAqui")}
                 </span>
               ) : null}
             </li>

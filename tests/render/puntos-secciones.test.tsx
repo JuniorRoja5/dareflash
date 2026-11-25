@@ -14,6 +14,11 @@
 import { cleanup, render, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { resolverServidor } from "../helpers/render-servidor";
+
+/** Estos componentes son de servidor y ASÍNCRONOS desde la P5b2a (piden sus textos). */
+const pintarServidor = async (nodo: React.ReactNode) => render(await resolverServidor(nodo));
+
 import { ACCIONES_PUNTOS } from "@/config/constants";
 import { NIVELES } from "@/lib/niveles";
 
@@ -58,8 +63,8 @@ describe.each(TEMAS)("tema %s", (tema) => {
   });
 
   describe("hero de nivel", () => {
-    it("un nivel intermedio enseña su nombre, sus puntos y su barra", () => {
-      const c = render(<HeroNivel idioma="es" puntos={750} racha={0} />).container;
+    it("un nivel intermedio enseña su nombre, sus puntos y su barra", async () => {
+      const c = (await pintarServidor(<HeroNivel idioma="es" puntos={750} racha={0} />)).container;
       expect(c.textContent).toContain("Pro");
       expect(c.textContent).toContain("750");
       const barra = c.querySelector('[role="progressbar"]');
@@ -72,16 +77,18 @@ describe.each(TEMAS)("tema %s", (tema) => {
       expect(c.textContent).toContain("Elite");
     });
 
-    it("en el nivel MÁXIMO no hay barra, hay techo", () => {
-      const c = render(<HeroNivel idioma="es" puntos={legend.minimo + 500} racha={0} />).container;
+    it("en el nivel MÁXIMO no hay barra, hay techo", async () => {
+      const c = (
+        await pintarServidor(<HeroNivel idioma="es" puntos={legend.minimo + 500} racha={0} />)
+      ).container;
       expect(c.querySelector('[role="progressbar"]'), "Legend no debe tener barra").toBeNull();
       expect(c.querySelector('[data-progreso="maximo"]')).not.toBeNull();
       expect(c.textContent).toContain("Nivel máximo");
       expect(c.textContent).not.toContain("faltan");
     });
 
-    it("ROOKIE no tiene emblema: en su hueco va el medidor, no un hueco vacío", () => {
-      const c = render(<HeroNivel idioma="es" puntos={0} racha={0} />).container;
+    it("ROOKIE no tiene emblema: en su hueco va el medidor, no un hueco vacío", async () => {
+      const c = (await pintarServidor(<HeroNivel idioma="es" puntos={0} racha={0} />)).container;
       expect(c.textContent).toContain(rookie.nombre);
       // Sin emblema (no hay `role="img"` de nivel) pero con algo dibujado dentro del aro.
       expect(c.querySelector('svg[role="img"]')).toBeNull();
@@ -91,39 +98,41 @@ describe.each(TEMAS)("tema %s", (tema) => {
       expect(aro!.querySelectorAll("span > span").length).toBe(NIVELES.length);
     });
 
-    it("enseña la racha cuando la hay, con el plural bien", () => {
+    it("enseña la racha cuando la hay, con el plural bien", async () => {
       // Se lee el CHIP ENTERO, no se busca dentro del texto de la página: "Racha de 1 día" está
       // CONTENIDO en "Racha de 1 días", así que un `toContain` daba verde con el plural roto.
-      const chip = (racha: number) =>
-        render(<HeroNivel idioma="es" puntos={750} racha={racha} />).container.querySelector(
-          "[data-racha]",
-        )?.textContent;
-      expect(chip(5)).toBe("Racha de 5 días");
+      const chip = async (racha: number) =>
+        (
+          await pintarServidor(<HeroNivel idioma="es" puntos={750} racha={racha} />)
+        ).container.querySelector("[data-racha]")?.textContent;
+      expect(await chip(5)).toBe("Racha de 5 días");
       cleanup();
-      expect(chip(1)).toBe("Racha de 1 día");
+      expect(await chip(1)).toBe("Racha de 1 día");
     });
 
-    it("y sin racha INVITA, no pinta un cero muerto", () => {
-      const c = render(<HeroNivel idioma="es" puntos={750} racha={0} />).container;
+    it("y sin racha INVITA, no pinta un cero muerto", async () => {
+      const c = (await pintarServidor(<HeroNivel idioma="es" puntos={750} racha={0} />)).container;
       expect(c.textContent).toContain("Empieza tu racha hoy");
       expect(c.textContent, "un 0 en la cara no dice qué hacer").not.toContain("Racha de 0");
     });
 
-    it("la insignia flota con la clase del sistema (la que apaga `prefers-reduced-motion`)", () => {
-      const c = render(<HeroNivel idioma="es" puntos={750} racha={0} />).container;
+    it("la insignia flota con la clase del sistema (la que apaga `prefers-reduced-motion`)", async () => {
+      const c = (await pintarServidor(<HeroNivel idioma="es" puntos={750} racha={0} />)).container;
       expect(c.querySelector(".df-float"), "el medallón no lleva df-float").not.toBeNull();
       expect(c.querySelector(".df-barra"), "la barra no se llena al entrar").not.toBeNull();
     });
 
-    it("el halo toma el color del nivel, y en Rookie se queda sin color (no se lo inventa)", () => {
-      const conColor = render(<HeroNivel idioma="es" puntos={750} racha={0} />).container;
+    it("el halo toma el color del nivel, y en Rookie se queda sin color (no se lo inventa)", async () => {
+      const conColor = (await pintarServidor(<HeroNivel idioma="es" puntos={750} racha={0} />))
+        .container;
       expect(conColor.querySelector(".df-halo"), "falta la capa de halo").not.toBeNull();
       expect(conColor.querySelector("section")?.getAttribute("style")).toContain("--df-halo-color");
       cleanup();
 
       // Rookie no tiene color de nivel: la clase cae en su gris neutro por defecto, definido en el
       // CSS, en vez de recibir un color prestado de otro nivel.
-      const rookieC = render(<HeroNivel idioma="es" puntos={0} racha={0} />).container;
+      const rookieC = (await pintarServidor(<HeroNivel idioma="es" puntos={0} racha={0} />))
+        .container;
       expect(
         rookieC.querySelector(".df-halo"),
         "Rookie tampoco se queda sin cuerpo",
@@ -133,11 +142,12 @@ describe.each(TEMAS)("tema %s", (tema) => {
       );
     });
 
-    it("y no fija ni un color: todo sale de un token, en los cinco niveles", () => {
+    it("y no fija ni un color: todo sale de un token, en los cinco niveles", async () => {
       // Los cinco, no una muestra: el halo y el aro se construyen con el token del nivel, y Rookie
       // (sin token) y Legend (que usa el oro del podio) son justo los dos casos raros.
       for (const n of NIVELES) {
-        const c = render(<HeroNivel idioma="es" puntos={n.minimo} racha={0} />).container;
+        const c = (await pintarServidor(<HeroNivel idioma="es" puntos={n.minimo} racha={0} />))
+          .container;
         const decls = declaracionesInline(c);
         expect(decls.length, `${n.clave}: no hay estilos que mirar`).toBeGreaterThan(0);
         for (const d of decls) {
@@ -152,7 +162,7 @@ describe.each(TEMAS)("tema %s", (tema) => {
       }
     });
 
-    it("y el detector de color fijo NO está roto", () => {
+    it("y el detector de color fijo NO está roto", async () => {
       // Sin esto, un `fijaUnColor` que devolviera siempre false dejaría lo de arriba en verde.
       expect(fijaUnColor("border-color: #22c55e")).toBe(true);
       expect(fijaUnColor("box-shadow: 0 0 4px rgb(0 0 0 / 0.5)")).toBe(true);
@@ -162,8 +172,8 @@ describe.each(TEMAS)("tema %s", (tema) => {
   });
 
   describe("escalera de niveles", () => {
-    it("están los cinco, y solo uno es el actual", () => {
-      const c = render(<EscaleraNiveles idioma="es" puntos={750} />).container;
+    it("están los cinco, y solo uno es el actual", async () => {
+      const c = (await pintarServidor(<EscaleraNiveles idioma="es" puntos={750} />)).container;
       expect(c.querySelectorAll("[data-nivel]")).toHaveLength(NIVELES.length);
       const actuales = c.querySelectorAll('[data-estado="actual"]');
       expect(actuales).toHaveLength(1);
@@ -171,8 +181,8 @@ describe.each(TEMAS)("tema %s", (tema) => {
       expect(actuales[0]?.getAttribute("aria-current")).toBe("step");
     });
 
-    it("distingue lo conseguido de lo que queda", () => {
-      const c = render(<EscaleraNiveles idioma="es" puntos={750} />).container;
+    it("distingue lo conseguido de lo que queda", async () => {
+      const c = (await pintarServidor(<EscaleraNiveles idioma="es" puntos={750} />)).container;
       const estado = (clave: string) =>
         c.querySelector(`[data-nivel="${clave}"]`)?.getAttribute("data-estado");
       expect(estado("rookie")).toBe("conseguido");
@@ -182,8 +192,8 @@ describe.each(TEMAS)("tema %s", (tema) => {
       expect(estado("legend")).toBe("pendiente");
     });
 
-    it("enseña el umbral de cada uno, de la config y no a mano", () => {
-      const c = render(<EscaleraNiveles idioma="es" puntos={0} />).container;
+    it("enseña el umbral de cada uno, de la config y no a mano", async () => {
+      const c = (await pintarServidor(<EscaleraNiveles idioma="es" puntos={0} />)).container;
       for (const n of NIVELES) {
         if (n.minimo === 0) continue;
         expect(c.textContent, n.clave).toContain(n.minimo.toLocaleString("es-ES"));
@@ -192,27 +202,27 @@ describe.each(TEMAS)("tema %s", (tema) => {
   });
 
   describe("tabla de cómo ganar puntos", () => {
-    it("salen todas las acciones del catálogo", () => {
-      const c = render(<TablaPuntos />).container;
+    it("salen todas las acciones del catálogo", async () => {
+      const c = (await pintarServidor(<TablaPuntos />)).container;
       expect(c.querySelectorAll("[data-accion]")).toHaveLength(ACCIONES_PUNTOS.length);
       for (const a of ACCIONES_PUNTOS) {
         expect(c.querySelector(`[data-accion="${a.razon}"]`), a.razon).not.toBeNull();
       }
     });
 
-    it("HOY son 7 filas y NINGUNA dice «Próximamente» (la decisión de Sergio, en la pantalla)", () => {
+    it("HOY son 7 filas y NINGUNA dice «Próximamente» (la decisión de Sergio, en la pantalla)", async () => {
       // Con cifra ESCRITA, porque el caso de abajo —que deriva la cuenta de la config— se quedó
       // HUECO al retirar las dos acciones futuras: recorre una lista vacía y pasa sin comprobar
       // nada. Se conserva porque vuelve a morder en cuanto exista otra fila por llegar; mientras
       // no exista, lo que vigila la pantalla es este caso.
-      const c = render(<TablaPuntos />).container;
+      const c = (await pintarServidor(<TablaPuntos />)).container;
       expect(c.querySelectorAll('[data-estado="activa"]')).toHaveLength(7);
       expect(c.querySelectorAll('[data-estado="proximamente"]')).toHaveLength(0);
       expect(c.textContent).not.toContain("Próximamente");
     });
 
-    it("una fila que aún no paga NO ofrece nada: sin CTA y con su estado dicho", () => {
-      const c = render(<TablaPuntos />).container;
+    it("una fila que aún no paga NO ofrece nada: sin CTA y con su estado dicho", async () => {
+      const c = (await pintarServidor(<TablaPuntos />)).container;
       const proximas = [...c.querySelectorAll<HTMLElement>('[data-estado="proximamente"]')];
       expect(proximas.length).toBe(ACCIONES_PUNTOS.filter((a) => !a.activa).length);
       for (const fila of proximas) {
@@ -226,8 +236,8 @@ describe.each(TEMAS)("tema %s", (tema) => {
       }
     });
 
-    it("y el importe de una fila activa sale de la config", () => {
-      const c = render(<TablaPuntos />).container;
+    it("y el importe de una fila activa sale de la config", async () => {
+      const c = (await pintarServidor(<TablaPuntos />)).container;
       for (const a of ACCIONES_PUNTOS.filter((x) => x.activa)) {
         const fila = c.querySelector(`[data-accion="${a.razon}"]`);
         expect(fila?.textContent, a.razon).toContain(`+${a.puntos}`);
@@ -245,25 +255,36 @@ describe.each(TEMAS)("tema %s", (tema) => {
       referencia,
     });
 
-    it("un ajuste del equipo se lee distinto si suma o si resta", () => {
+    it("un ajuste del equipo se lee distinto si suma o si resta", async () => {
       // Lo que el usuario leía antes era "Ajuste del equipo" en los dos casos, y tenía que deducir
       // del número si le habían dado o quitado puntos.
-      const texto = (delta: number) =>
-        render(
-          <HistorialMisPuntos zona={null} idioma="es" items={[mov("a", delta, "ADMIN_AJUSTE")]} />,
+      const texto = async (delta: number) =>
+        (
+          await pintarServidor(
+            <HistorialMisPuntos
+              zona={null}
+              idioma="es"
+              items={[mov("a", delta, "ADMIN_AJUSTE")]}
+            />,
+          )
         ).container.textContent ?? "";
-      expect(texto(40)).toContain("El equipo te añadió puntos");
+      expect(await texto(40)).toContain("El equipo te añadió puntos");
       cleanup();
-      expect(texto(-20)).toContain("El equipo te retiró puntos");
+      expect(await texto(-20)).toContain("El equipo te retiró puntos");
     });
 
-    it("traduce el motivo y enseña el signo", () => {
-      const c = render(
-        <HistorialMisPuntos
-          zona={null}
-          idioma="es"
-          items={[mov("a", 30, "WIN_CHALLENGE", "El reto del agua"), mov("b", -5, "ADMIN_AJUSTE")]}
-        />,
+    it("traduce el motivo y enseña el signo", async () => {
+      const c = (
+        await pintarServidor(
+          <HistorialMisPuntos
+            zona={null}
+            idioma="es"
+            items={[
+              mov("a", 30, "WIN_CHALLENGE", "El reto del agua"),
+              mov("b", -5, "ADMIN_AJUSTE"),
+            ]}
+          />,
+        )
       ).container;
       expect(c.textContent).toContain("Ganaste un reto");
       expect(c.textContent).toContain("+30");
@@ -274,15 +295,18 @@ describe.each(TEMAS)("tema %s", (tema) => {
       expect(c.textContent).not.toContain("ADMIN_AJUSTE");
     });
 
-    it("una referencia vacía no deja un guion suelto en la fila", () => {
-      const c = render(
-        <HistorialMisPuntos zona={null} idioma="es" items={[mov("a", 5, "VIDEOS_PUBLICADOS")]} />,
+    it("una referencia vacía no deja un guion suelto en la fila", async () => {
+      const c = (
+        await pintarServidor(
+          <HistorialMisPuntos zona={null} idioma="es" items={[mov("a", 5, "VIDEOS_PUBLICADOS")]} />,
+        )
       ).container;
       expect(c.textContent).not.toContain("· —");
     });
 
-    it("sin movimientos, invita a hacer algo en vez de dejar un hueco", () => {
-      const c = render(<HistorialMisPuntos zona={null} idioma="es" items={[]} />).container;
+    it("sin movimientos, invita a hacer algo en vez de dejar un hueco", async () => {
+      const c = (await pintarServidor(<HistorialMisPuntos zona={null} idioma="es" items={[]} />))
+        .container;
       expect(c.textContent).toMatch(/Gana un reto o invita/);
     });
   });

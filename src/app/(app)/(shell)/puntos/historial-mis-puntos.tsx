@@ -1,7 +1,8 @@
 import type { MovimientoPuntos } from "@/server/services/dareup-admin";
 
 import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "@/lib/formato";
-import { razonHumanaPropia } from "@/lib/razones-puntos";
+import { razonPropia } from "@/textos/razones-puntos";
+import { textos } from "@/textos/servidor";
 
 /**
  * MI HISTORIAL DE PUNTOS — de dónde salió cada punto, del más nuevo al más viejo.
@@ -14,7 +15,7 @@ import { razonHumanaPropia } from "@/lib/razones-puntos";
  * siempre y en tono normal —sin verde ni rojo—: un color aquí diría "bueno/malo" sobre una cifra que
  * solo es un movimiento. El único color de esta pantalla es el del nivel, arriba.
  */
-export function HistorialMisPuntos({
+export async function HistorialMisPuntos({
   items,
   idioma,
   zona,
@@ -23,10 +24,11 @@ export function HistorialMisPuntos({
   idioma: Idioma;
   zona: ZonaHoraria | null;
 }) {
+  const [t, tr] = await Promise.all([textos("puntos"), textos("razonesPuntos")]);
   if (items.length === 0) {
     return (
       <p className="mt-4 rounded-sm border border-line bg-surface/40 p-6 text-sm text-text-dim">
-        Todavía no tienes movimientos. Gana un reto o invita a alguien y aparecerán aquí.
+        {t("historialVacio")}
       </p>
     );
   }
@@ -45,10 +47,10 @@ export function HistorialMisPuntos({
         <table className="w-full border-collapse text-left text-sm">
           <thead className="border-b border-line">
             <tr>
-              <th className={`pl-4 ${TH}`}>Fecha</th>
-              <th className={TH}>Concepto</th>
-              {hayDetalle ? <th className={TH}>Detalle</th> : null}
-              <th className={`pr-4 text-right ${TH}`}>Puntos</th>
+              <th className={`pl-4 ${TH}`}>{t("col_fecha")}</th>
+              <th className={TH}>{t("col_concepto")}</th>
+              {hayDetalle ? <th className={TH}>{t("col_detalle")}</th> : null}
+              <th className={`pr-4 text-right ${TH}`}>{t("col_puntos")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
@@ -59,7 +61,7 @@ export function HistorialMisPuntos({
                 </td>
                 {/* El importe viaja con el motivo: un ajuste del equipo se lee distinto si suma o
                     si resta, y el usuario no tiene por qué deducirlo del número de al lado. */}
-                <td className="py-3 pr-4 text-text">{razonHumanaPropia(m.razon, m.delta)}</td>
+                <td className="py-3 pr-4 text-text">{razonPropia(tr, m.razon, m.delta)}</td>
                 {hayDetalle ? (
                   <td className="max-w-[20rem] py-3 pr-4 break-words text-text-dim">
                     {referencia(m) ?? ""}
@@ -81,9 +83,7 @@ export function HistorialMisPuntos({
           return (
             <li key={m.id} data-movimiento-movil={m.id} className="flex items-start gap-3 p-4">
               <span className="min-w-0 flex-1">
-                <span className="block text-sm text-text">
-                  {razonHumanaPropia(m.razon, m.delta)}
-                </span>
+                <span className="block text-sm text-text">{razonPropia(tr, m.razon, m.delta)}</span>
                 <span className="block text-2xs break-words text-text-dim">
                   {formatearFechaParaQuienMira(m.creadoEnMs, idioma, zona, "diaFijoMesAno")}
                   {ref ? ` · ${ref}` : ""}

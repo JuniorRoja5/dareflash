@@ -46,7 +46,8 @@ type NombresDe<S extends string> = S extends `${string}{${infer R}`
  * LAS MARCAS DE FORMATO, catálogo CERRADO (`tRico`, src/textos/rico.tsx). Una frase es UNA clave; si
  * lleva un formato en medio, va DENTRO de la plantilla: «El {resaltado:mayor premio} en juego ahora
  * mismo». Al traducir, la marca viaja con sus palabras, estén donde estén en la frase de ese idioma.
- *  - `resaltado`: un `<span>` con la clase que diga quien lo pinta (las palabras que pesan de la frase);
+ *  - `resaltado`: un `<span>` con la clase que diga quien lo pinta (las palabras que pesan de la frase),
+ *    o un `<strong>` si lo pide (`como: "strong"`): la etiqueta la elige el código, no el diccionario;
  *  - `enlace`: un enlace interno (`Enlace`), con el destino y la clase que diga quien lo pinta (y, si
  *    hace falta, su `onClick`: el de la casilla de consentimiento corta el clic para no marcarla);
  *  - `oculto`: un `<span class="sr-only">` (lo que solo oye un lector de pantalla);
@@ -55,7 +56,7 @@ type NombresDe<S extends string> = S extends `${string}{${infer R}`
  * El diccionario solo NOMBRA la marca: la etiqueta, la clase y el destino los pone el código. Nunca HTML.
  */
 export type PropsDeMarca = {
-  resaltado: { className: string };
+  resaltado: { className: string; como?: "strong" };
   enlace: {
     href: string;
     className?: string;

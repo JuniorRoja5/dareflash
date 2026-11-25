@@ -1,4 +1,6 @@
 import { ACCIONES_PUNTOS } from "@/config/constants";
+import { etiquetaAccion } from "@/textos/razones-puntos";
+import { textos } from "@/textos/servidor";
 
 /**
  * CÓMO GANAR PUNTOS — la tabla entera, con el estado de cada fila.
@@ -15,14 +17,15 @@ import { ACCIONES_PUNTOS } from "@/config/constants";
  * Y los importes salen de `POINTS`, nunca escritos en el JSX: un número a mano aquí sería un segundo
  * catálogo esperando a discrepar del que se paga.
  */
-export function TablaPuntos() {
+export async function TablaPuntos() {
+  const t = await textos("puntos");
   const activas = ACCIONES_PUNTOS.filter((a) => a.activa);
   const proximas = ACCIONES_PUNTOS.filter((a) => !a.activa);
 
   return (
     <section aria-labelledby="como-ganar">
       <h2 id="como-ganar" className="text-sm font-semibold tracking-widest text-text-dim uppercase">
-        Cómo ganar puntos
+        {t("comoGanar")}
       </h2>
 
       {/* Mismo idioma de tarjeta que el resto del producto (glass + sombra suave). Eso no es
@@ -36,7 +39,7 @@ export function TablaPuntos() {
             data-estado="activa"
             className="flex items-center gap-3 p-4 transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised/60"
           >
-            <span className="min-w-0 flex-1 text-sm text-text">{a.etiqueta}</span>
+            <span className="min-w-0 flex-1 text-sm text-text">{etiquetaAccion(t, a.razon)}</span>
             {/* El importe, en un chip recesado: la cifra se encuentra de un vistazo bajando por la
                 columna derecha, en vez de tener que leer cada fila entera. */}
             <span className="shrink-0 rounded-xs bg-raised px-2 py-1 text-sm font-semibold tabular-nums text-text">
@@ -55,14 +58,14 @@ export function TablaPuntos() {
             className="flex flex-wrap items-center gap-3 p-4 text-text-dim"
           >
             <span className="min-w-0 flex-1 text-sm">
-              {a.etiqueta}
+              {etiquetaAccion(t, a.razon)}
               {a.nota ? <span className="mt-0.5 block text-2xs">{a.nota}</span> : null}
             </span>
             {/* "Fase 6" dice CUÁNDO; "Próximamente" solo dice que no es hoy. Se enseña la fase
                 cuando está decidida, y el genérico cuando no — antes que inventarse una, que el
                 usuario leería como un compromiso. */}
             <span className="shrink-0 rounded-xs border border-line px-2 py-0.5 text-2xs tracking-wide uppercase">
-              {a.fase ? `Fase ${a.fase}` : "Próximamente"}
+              {a.fase ? t("fase", { n: a.fase }) : t("proximamente")}
             </span>
             <span className="shrink-0 text-sm tabular-nums">+{a.puntos}</span>
           </li>

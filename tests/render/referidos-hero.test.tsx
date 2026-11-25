@@ -13,6 +13,11 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { resolverServidor } from "../helpers/render-servidor";
+
+/** Estos componentes son de servidor y ASÍNCRONOS desde la P5b2a (piden sus textos). */
+const pintarServidor = async (nodo: React.ReactNode) => render(await resolverServidor(nodo));
+
 import { HeroInvitacion } from "@/app/(app)/(shell)/referidos/hero-invitacion";
 import { POINTS } from "@/config/constants";
 
@@ -38,29 +43,29 @@ describe.each(["dark", "light"] as const)("tema %s", (tema) => {
     document.documentElement.setAttribute("data-theme", tema);
   });
 
-  it("dice la recompensa con el importe del catálogo, no con un número a mano", () => {
-    const c = render(<HeroInvitacion enlace={ENLACE} codigo={CODIGO} />).container;
+  it("dice la recompensa con el importe del catálogo, no con un número a mano", async () => {
+    const c = (await pintarServidor(<HeroInvitacion enlace={ENLACE} codigo={CODIGO} />)).container;
     expect(c.textContent).toContain(`${POINTS.INVITE_FRIEND} puntos`);
   });
 
-  it("enseña el enlace y el código en campos separados, cada uno con su botón", () => {
-    const c = render(<HeroInvitacion enlace={ENLACE} codigo={CODIGO} />).container;
+  it("enseña el enlace y el código en campos separados, cada uno con su botón", async () => {
+    const c = (await pintarServidor(<HeroInvitacion enlace={ENLACE} codigo={CODIGO} />)).container;
     const campos = [...c.querySelectorAll<HTMLInputElement>('input[type="text"]')];
     expect(campos.map((i) => i.value)).toEqual([ENLACE, CODIGO]);
     expect(c.querySelectorAll("button")).toHaveLength(2);
   });
 
-  it("y solo UNO de los dos botones es la acción principal", () => {
+  it("y solo UNO de los dos botones es la acción principal", async () => {
     // `--df-action` es uno por pantalla: el enlace es lo que se comparte, el código es el plan B.
-    const c = render(<HeroInvitacion enlace={ENLACE} codigo={CODIGO} />).container;
+    const c = (await pintarServidor(<HeroInvitacion enlace={ENLACE} codigo={CODIGO} />)).container;
     const principales = [...c.querySelectorAll("button")].filter((b) =>
       b.className.includes("bg-action"),
     );
     expect(principales).toHaveLength(1);
   });
 
-  it("pinta el QR del enlace, con módulos de verdad", () => {
-    const c = render(<HeroInvitacion enlace={ENLACE} codigo={CODIGO} />).container;
+  it("pinta el QR del enlace, con módulos de verdad", async () => {
+    const c = (await pintarServidor(<HeroInvitacion enlace={ENLACE} codigo={CODIGO} />)).container;
     const svg = c.querySelector('svg[role="img"]');
     expect(svg, "no hay QR").not.toBeNull();
     const d = svg!.querySelector("path")?.getAttribute("d") ?? "";
@@ -69,8 +74,8 @@ describe.each(["dark", "light"] as const)("tema %s", (tema) => {
     expect(svg!.getAttribute("aria-label")).toMatch(/invitación/i);
   });
 
-  it("el QR NO sigue al tema: placa clara y tinta oscura en los dos", () => {
-    const c = render(<HeroInvitacion enlace={ENLACE} codigo={CODIGO} />).container;
+  it("el QR NO sigue al tema: placa clara y tinta oscura en los dos", async () => {
+    const c = (await pintarServidor(<HeroInvitacion enlace={ENLACE} codigo={CODIGO} />)).container;
     const svg = c.querySelector('svg[role="img"]')!;
     expect(svg.querySelector("rect")?.getAttribute("fill")).toBe("var(--df-qr-fondo)");
     expect(svg.querySelector("path")?.getAttribute("fill")).toBe("var(--df-qr-tinta)");
@@ -78,16 +83,16 @@ describe.each(["dark", "light"] as const)("tema %s", (tema) => {
     expect(svg.innerHTML).not.toContain("--df-surface");
   });
 
-  it("lleva el halo del acento, como el hero de /puntos lleva el de su nivel", () => {
-    const c = render(<HeroInvitacion enlace={ENLACE} codigo={CODIGO} />).container;
+  it("lleva el halo del acento, como el hero de /puntos lleva el de su nivel", async () => {
+    const c = (await pintarServidor(<HeroInvitacion enlace={ENLACE} codigo={CODIGO} />)).container;
     expect(c.querySelector(".df-halo")).not.toBeNull();
     expect(c.querySelector("section")?.getAttribute("style")).toContain(
       "--df-halo-color: var(--df-action)",
     );
   });
 
-  it("no fija ni un color: todo sale de un token", () => {
-    const c = render(<HeroInvitacion enlace={ENLACE} codigo={CODIGO} />).container;
+  it("no fija ni un color: todo sale de un token", async () => {
+    const c = (await pintarServidor(<HeroInvitacion enlace={ENLACE} codigo={CODIGO} />)).container;
     const decls = declaraciones(c);
     expect(decls.length).toBeGreaterThan(0);
     for (const d of decls) {
@@ -99,8 +104,8 @@ describe.each(["dark", "light"] as const)("tema %s", (tema) => {
     }
   });
 
-  it("sin enlace no finge: lo dice y dice qué hacer, y no pinta un QR vacío", () => {
-    const c = render(<HeroInvitacion enlace={null} codigo={null} />).container;
+  it("sin enlace no finge: lo dice y dice qué hacer, y no pinta un QR vacío", async () => {
+    const c = (await pintarServidor(<HeroInvitacion enlace={null} codigo={null} />)).container;
     expect(c.textContent).toMatch(/Recarga la página/);
     expect(
       c.querySelector('svg[role="img"]'),

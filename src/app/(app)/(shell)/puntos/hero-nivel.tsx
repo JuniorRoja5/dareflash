@@ -4,6 +4,7 @@ import { EmblemaDeNivel } from "@/components/ui/emblema-nivel";
 import { TOTAL_TIERS } from "@/lib/niveles";
 import { progresoNivel } from "@/lib/progreso-nivel";
 import { formatearNumero, type Idioma } from "@/lib/formato";
+import { textos, textosRicos } from "@/textos/servidor";
 
 /**
  * HERO DE NIVEL — quién eres, en grande.
@@ -31,7 +32,7 @@ import { formatearNumero, type Idioma } from "@/lib/formato";
  * va el medidor de barras y el halo cae en gris neutro: sigue teniendo cuerpo, sin inventarle una
  * insignia que no ha ganado.
  */
-export function HeroNivel({
+export async function HeroNivel({
   puntos,
   racha,
   idioma,
@@ -44,6 +45,8 @@ export function HeroNivel({
   const color = nivel.tokenColor ? `var(${nivel.tokenColor})` : "var(--df-line)";
   // Legend no tiene color propio: usa el oro del podio, y el halo va con él (ver `lib/niveles`).
   const halo = nivel.tokenColor ? { "--df-halo-color": `var(${nivel.tokenColor})` } : undefined;
+  const [t, tr] = await Promise.all([textos("puntos"), textosRicos("puntos")]);
+  const CIFRA = { className: "font-medium tabular-nums text-text" };
 
   return (
     <section
@@ -88,7 +91,7 @@ export function HeroNivel({
           {/* La etiqueta es visual: el título de abajo ya la dice para quien escucha, y repetirla
               haría que un lector de pantalla anunciara "Tus puntos. Tus puntos: 905". */}
           <p className="text-2xs tracking-widest text-text-dim uppercase" aria-hidden>
-            Tus puntos
+            {t("tusPuntos")}
           </p>
           {/* LA CIFRA, en la tipografía de display (la del logotipo): es lo único de la pantalla que
               se lee como un titular y no como un dato. Es el H1 de la página, y por eso lleva el
@@ -101,8 +104,7 @@ export function HeroNivel({
               fontVariationSettings: '"wght" 800, "wdth" 125',
             }}
           >
-            <span className="sr-only">Tus puntos: </span>
-            {formatearNumero(puntos, idioma)}
+            {tr("tusPuntosOculto", { oculto: {} }, { puntos: formatearNumero(puntos, idioma) })}
           </h1>
 
           {/* El nombre del nivel, en su color y con su emblema: el chip es donde el color de nivel
@@ -127,9 +129,7 @@ export function HeroNivel({
               data-racha={racha}
               className="inline-flex items-center rounded-full border border-line px-3 py-1 text-sm text-text-dim"
             >
-              {racha > 0
-                ? `Racha de ${racha} ${racha === 1 ? "día" : "días"}`
-                : "Empieza tu racha hoy"}
+              {racha > 0 ? t("racha", { n: racha }) : t("empiezaRacha")}
             </span>
           </p>
 
@@ -137,7 +137,7 @@ export function HeroNivel({
             // SIN BARRA en el techo. Una barra al 100% permanente invita a buscar el siguiente
             // nivel, y no hay siguiente: decirlo cuesta una línea y no engaña a nadie.
             <p data-progreso="maximo" className="mt-5 text-sm font-medium text-text">
-              Nivel máximo. No hay nada por encima de {nivel.nombre}.
+              {t("maximo", { nivel: nivel.nombre })}
             </p>
           ) : (
             <div className="mt-5" data-progreso="parcial">
@@ -147,7 +147,7 @@ export function HeroNivel({
                 aria-valuenow={porcentaje}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-label={`Progreso hacia ${siguiente?.nombre}`}
+                aria-label={t("progresoAria", { nivel: siguiente?.nombre ?? "" })}
               >
                 {/* El ancho final va en el `style`; `df-barra` solo lo escala al entrar. */}
                 <div
@@ -160,11 +160,11 @@ export function HeroNivel({
                 />
               </div>
               <p className="mt-2.5 text-sm text-text-dim">
-                <span className="font-medium tabular-nums text-text">{porcentaje}%</span> · faltan{" "}
-                <span className="font-medium tabular-nums text-text">
-                  {formatearNumero(faltan, idioma)}
-                </span>{" "}
-                {faltan === 1 ? "punto" : "puntos"} para {siguiente?.nombre}
+                {tr(
+                  "progreso",
+                  { resaltado: CIFRA },
+                  { n: faltan, porcentaje: String(porcentaje), nivel: siguiente?.nombre ?? "" },
+                )}
               </p>
             </div>
           )}

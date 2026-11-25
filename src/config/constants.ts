@@ -915,7 +915,8 @@ export const RAZON_REGISTRO_CON_REFERIDO = "REGISTERED_WITH_REFERRAL";
 export interface AccionPuntos {
   /** `reason` de la fila del PointsLedger. Es la clave que ata la fila a lo que de verdad la paga. */
   razon: string;
-  etiqueta: string;
+  // Su ETIQUETA no vive aquí desde la P5b2a: está en el diccionario (`puntos.accion_<razon>`), con su
+  // cifra desde esta config (`etiquetaAccion`, src/textos/razones-puntos.ts).
   puntos: number;
   /** ¿Se otorga HOY? Lo vigila el test contra `server/services`. */
   activa: boolean;
@@ -933,34 +934,29 @@ export interface AccionPuntos {
 }
 
 export const ACCIONES_PUNTOS: readonly AccionPuntos[] = [
-  { razon: "WIN_CHALLENGE", etiqueta: "Ganar un reto", puntos: POINTS.WIN_CHALLENGE, activa: true },
+  { razon: "WIN_CHALLENGE", puntos: POINTS.WIN_CHALLENGE, activa: true },
   {
     razon: "TOP20",
-    etiqueta: "Entrar en el top 20 de un reto",
     puntos: POINTS.TOP20,
     activa: true,
   },
   {
     razon: RAZON_HITO_VIDEOS,
-    etiqueta: `Publicar ${VIDEOS_POR_HITO} vídeos`,
     puntos: POINTS.VIDEOS_PUBLICADOS_HITO,
     activa: true,
   },
   {
     razon: RAZON_INVITO_AMIGO,
-    etiqueta: "Invitar a alguien que verifica su correo",
     puntos: POINTS.INVITE_FRIEND,
     activa: true,
   },
   {
     razon: RAZON_REGISTRO_CON_REFERIDO,
-    etiqueta: "Registrarte con la invitación de alguien",
     puntos: POINTS.INVITE_FRIEND,
     activa: true,
   },
   {
     razon: RAZON_RACHA,
-    etiqueta: `Racha de ${RACHA_DIAS_PREMIO} días seguidos`,
     puntos: POINTS.RACHA_7_DIAS,
     // ACTIVA desde que la racha existe. Como en los likes, no se gira a mano: el test de
     // `acciones-puntos` contrasta esta config contra lo que de verdad otorga `server/services`.
@@ -968,7 +964,6 @@ export const ACCIONES_PUNTOS: readonly AccionPuntos[] = [
   },
   {
     razon: RAZON_HITO_LIKES,
-    etiqueta: `Recibir ${LIKES_PARA_HITO} likes en un vídeo`,
     puntos: POINTS.VIDEO_50_LIKES,
     // ACTIVA desde que existen los likes. No se gira a mano: el test de `acciones-puntos` contrasta
     // esta config contra lo que de verdad otorga `server/services`, asi que dejarla en `false`

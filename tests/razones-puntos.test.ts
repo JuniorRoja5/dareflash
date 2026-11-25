@@ -15,7 +15,14 @@
 import { describe, expect, it } from "vitest";
 
 import { ACCIONES_PUNTOS, RAZON_AJUSTE_ADMIN } from "../src/config/constants";
-import { razonHumana, razonHumanaPropia, RAZONES_CONOCIDAS } from "../src/lib/razones-puntos";
+import { razonHumana, RAZONES_CONOCIDAS } from "../src/lib/razones-puntos";
+import { es } from "../src/textos/es";
+import { crearT } from "../src/textos/plantilla";
+import { etiquetaAccion, razonPropia } from "../src/textos/razones-puntos";
+
+/** La voz PROPIA, con sus palabras del diccionario desde la P5b2a (la decisión sigue en el lib). */
+const tRazones = crearT(es.razonesPuntos, "es");
+const razonHumanaPropia = (razon: string, delta?: number) => razonPropia(tRazones, razon, delta);
 
 describe("el catálogo de razones está completo", () => {
   it("son las nueve acciones más el ajuste manual, sin repetidos", () => {
@@ -88,6 +95,19 @@ describe("el ajuste del equipo se dice por su SIGNO", () => {
     for (const razon of RAZONES_CONOCIDAS) {
       if (razon === RAZON_AJUSTE_ADMIN) continue;
       expect(razonHumanaPropia(razon, 10), razon).toBe(razonHumanaPropia(razon, -10));
+    }
+  });
+});
+
+describe("la tabla «Cómo ganar puntos» (P5b2a)", () => {
+  it("cada acción del catálogo tiene su etiqueta en el diccionario, con la cifra de la config", () => {
+    // Una acción nueva sin su clave saldría en la tabla con su código (`VIDEO_50_LIKES`) y nada se
+    // pondría rojo: `etiquetaAccion` cae a la razón tal cual, que es lo correcto para un dato raro.
+    const t = crearT(es.puntos, "es");
+    for (const a of ACCIONES_PUNTOS) {
+      const etiqueta = etiquetaAccion(t, a.razon);
+      expect(etiqueta, `sin etiqueta: ${a.razon}`).not.toBe(a.razon);
+      expect(etiqueta, a.razon).not.toMatch(/\{n\}/);
     }
   });
 });

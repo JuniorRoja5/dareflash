@@ -23,7 +23,14 @@ import { extname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { ACCIONES_PUNTOS, POINTS, RAZON_AJUSTE_ADMIN } from "../src/config/constants";
-import { razonHumana, razonHumanaPropia, RAZONES_CONOCIDAS } from "../src/lib/razones-puntos";
+import { razonHumana, RAZONES_CONOCIDAS } from "../src/lib/razones-puntos";
+import { es } from "../src/textos/es";
+import { crearT } from "../src/textos/plantilla";
+import { razonPropia } from "../src/textos/razones-puntos";
+
+/** La voz PROPIA, con sus palabras del diccionario desde la P5b2a (la decisión sigue en el lib). */
+const tRazones = crearT(es.razonesPuntos, "es");
+const razonHumanaPropia = (razon: string, delta?: number) => razonPropia(tRazones, razon, delta);
 
 describe("los importes firmados", () => {
   it("son EXACTAMENTE estos: cifras escritas, no leidas de POINTS", () => {

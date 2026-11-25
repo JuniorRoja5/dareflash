@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { CampoCopiable } from "@/components/ui/campo-copiable";
 import { CodigoQr } from "@/components/ui/codigo-qr";
 import { POINTS } from "@/config/constants";
+import { textos, textosRicos } from "@/textos/servidor";
 
 /**
  * HERO DE REFERIDOS — lo que compartes, con el mismo cuerpo que el hero de /puntos.
@@ -21,13 +22,15 @@ import { POINTS } from "@/config/constants";
  * una bio). Y el QR es para cuando quien invita y quien se apunta están en la misma habitación con
  * dos teléfonos, que es como pasa la mitad de las veces.
  */
-export function HeroInvitacion({
+export async function HeroInvitacion({
   enlace,
   codigo,
 }: {
   enlace: string | null;
   codigo: string | null;
 }) {
+  // `CampoCopiable` lee su espacio (`copiar`) del proveedor del armazón.
+  const [t, tr] = await Promise.all([textos("referidos"), textosRicos("referidos")]);
   return (
     <section
       aria-labelledby="invitar"
@@ -46,26 +49,29 @@ export function HeroInvitacion({
               fontVariationSettings: '"wght" 800, "wdth" 110',
             }}
           >
-            Invita y gana puntos
+            {t("titulo")}
           </h1>
           {/* LA RECOMPENSA, EN UNA LÍNEA. El importe sale de `POINTS`, nunca escrito aquí: un número
               a mano sería un segundo catálogo esperando a discrepar del que se paga. */}
           <p className="mt-3 max-w-prose text-sm text-text-dim">
-            Ganas <strong className="font-semibold text-text">{POINTS.INVITE_FRIEND} puntos</strong>{" "}
-            cuando tu invitado verifica su correo. Tu invitado gana otros tantos.
+            {tr(
+              "recompensa",
+              { resaltado: { className: "font-semibold text-text", como: "strong" } },
+              { n: POINTS.INVITE_FRIEND },
+            )}
           </p>
 
           {enlace && codigo ? (
             <div className="mt-7 space-y-4">
               {/* EL ÚNICO ACENTO DE LA PANTALLA: el sistema reserva `--df-action` para una acción
                   por pantalla, y esta es. El código va secundario porque es el plan B. */}
-              <CampoCopiable id="ref-enlace" etiqueta="Tu enlace" valor={enlace} principal />
-              <CampoCopiable id="ref-codigo" etiqueta="Tu código" valor={codigo} />
+              <CampoCopiable id="ref-enlace" etiqueta={t("tuEnlace")} valor={enlace} principal />
+              <CampoCopiable id="ref-codigo" etiqueta={t("tuCodigo")} valor={codigo} />
             </div>
           ) : (
             // Un fallo se dice y se dice qué hacer, no se deja un hueco donde había algo.
             <p className="mt-7 rounded-sm border border-line bg-raised p-4 text-sm text-text-dim">
-              No hemos podido cargar tu enlace. Recarga la página.
+              {t("sinEnlace")}
             </p>
           )}
         </div>
@@ -82,14 +88,10 @@ export function HeroInvitacion({
                   "0 0 0 1px color-mix(in srgb, var(--df-action) 35%, transparent), var(--df-shadow-sm)",
               }}
             >
-              <CodigoQr
-                valor={enlace}
-                etiqueta="Código QR con tu enlace de invitación"
-                clase="h-32 w-32 lg:h-36 lg:w-36"
-              />
+              <CodigoQr valor={enlace} etiqueta={t("qr")} clase="h-32 w-32 lg:h-36 lg:w-36" />
             </div>
             <p className="max-w-[9rem] text-center text-2xs text-text-dim lg:text-right">
-              O que lo escaneen desde tu pantalla
+              {t("escanear")}
             </p>
           </div>
         ) : null}

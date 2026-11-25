@@ -102,9 +102,15 @@ function pintar(
     switch (nodo.marca) {
       case "resaltado":
         salida.push(
-          <span key={clave} className={marcas.resaltado?.className}>
-            {hijos}
-          </span>,
+          marcas.resaltado?.como === "strong" ? (
+            <strong key={clave} className={marcas.resaltado.className}>
+              {hijos}
+            </strong>
+          ) : (
+            <span key={clave} className={marcas.resaltado?.className}>
+              {hijos}
+            </span>
+          ),
         );
         return;
       case "enlace":

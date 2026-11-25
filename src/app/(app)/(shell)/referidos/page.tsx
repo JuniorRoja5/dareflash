@@ -1,5 +1,4 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
-import { Enlace } from "@/components/enlace";
 import { redirigir } from "@/server/redirigir";
 
 import { Avatar } from "@/components/ui/avatar";
@@ -11,8 +10,11 @@ import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 
 import { HeroInvitacion } from "./hero-invitacion";
 import { formatearNumero, formatearFechaParaQuienMira } from "@/lib/formato";
+import { textos, textosRicos } from "@/textos/servidor";
 
-export const metadata = { title: "Mis referidos" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("referidos") };
+}
 // Lee la sesión y consulta por cursor: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 
@@ -66,22 +68,26 @@ export default async function ReferidosPage({
 
   const enlace = yo ? enlaceReferido(env.APP_URL, yo.referralCode) : null;
   const primeraPagina = aqui.cursor === null;
+  const [t, tr] = await Promise.all([textos("referidos"), textosRicos("referidos")]);
 
   return (
     <div className="df-rise mx-auto w-full max-w-5xl px-4 py-8 lg:px-8 lg:py-12">
       <HeroInvitacion enlace={enlace} codigo={yo?.referralCode ?? null} />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <TarjetaMetrica etiqueta="Invitados" valor={formatearNumero(resumen.invitados, idioma)} />
         <TarjetaMetrica
-          etiqueta="Puntos ganados"
-          valor={formatearNumero(resumen.puntosGanados, idioma)}
-          pie="Por invitaciones que ya verificaron"
+          etiqueta={t("metricaInvitados")}
+          valor={formatearNumero(resumen.invitados, idioma)}
         />
         <TarjetaMetrica
-          etiqueta="Pendientes de verificar"
+          etiqueta={t("metricaPuntos")}
+          valor={formatearNumero(resumen.puntosGanados, idioma)}
+          pie={t("piePuntos")}
+        />
+        <TarjetaMetrica
+          etiqueta={t("metricaPendientes")}
           valor={formatearNumero(resumen.pendientes, idioma)}
-          pie={resumen.pendientes > 0 ? "Todavía no te han dado puntos" : undefined}
+          pie={resumen.pendientes > 0 ? t("piePendientes") : undefined}
         />
       </div>
 
@@ -94,14 +100,12 @@ export default async function ReferidosPage({
             id="historial"
             className="text-sm font-semibold tracking-widest text-text-dim uppercase"
           >
-            A quién has invitado
+            {t("historial")}
           </h2>
 
           {pagina.items.length === 0 ? (
             <p className="mt-4 rounded-sm border border-line bg-surface/40 p-6 text-sm text-text-dim">
-              {primeraPagina
-                ? "Todavía no se ha registrado nadie con tu enlace. Compártelo y aparecerán aquí."
-                : "No queda nadie más por aquí."}
+              {primeraPagina ? t("vacio") : t("vacioMasAdelante")}
             </p>
           ) : (
             <ul className="mt-4 divide-y divide-line overflow-hidden rounded-sm border border-line bg-surface/60 shadow-[var(--df-shadow-sm)] backdrop-blur-md">
@@ -128,17 +132,19 @@ export default async function ReferidosPage({
                       clase="block truncate text-sm font-medium text-text"
                     />
                     <span className="block truncate text-2xs text-text-dim">
-                      Se unió el {formatearFechaParaQuienMira(r.altaMs, idioma, zona, "numerica")}
+                      {t("seUnio", {
+                        fecha: formatearFechaParaQuienMira(r.altaMs, idioma, zona, "numerica"),
+                      })}
                     </span>
                   </span>
                   {/* EL ESTADO SALE DEL LEDGER, no de si verificó: lo que se pinta al lado de una
                       cifra tiene que ser lo que de verdad se cobró. */}
                   {r.cobrado ? (
                     <span className="shrink-0 rounded-xs bg-raised px-2 py-1 text-sm font-medium tabular-nums text-text">
-                      +{POINTS.INVITE_FRIEND} ganados
+                      {t("ganados", { n: POINTS.INVITE_FRIEND })}
                     </span>
                   ) : (
-                    <span className="shrink-0 text-2xs text-text-dim">Pendiente de verificar</span>
+                    <span className="shrink-0 text-2xs text-text-dim">{t("pendiente")}</span>
                   )}
                 </li>
               ))}
@@ -150,11 +156,12 @@ export default async function ReferidosPage({
           <PasosKeyset base="/referidos" aqui={aqui} proximoCursor={pagina.proximoCursor} />
 
           <p className="mt-6 text-2xs text-text-dim">
-            Invitar es una de las formas de ganar puntos.{" "}
-            <Enlace href="/puntos" className="underline underline-offset-2 hover:text-text">
-              Ver todas y tu nivel
-            </Enlace>
-            .
+            {tr("formas", {
+              enlace: {
+                href: "/puntos",
+                className: "underline underline-offset-2 hover:text-text",
+              },
+            })}
           </p>
         </section>
       </div>

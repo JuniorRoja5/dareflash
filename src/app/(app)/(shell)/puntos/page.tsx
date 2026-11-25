@@ -12,8 +12,11 @@ import { HeroNivel } from "./hero-nivel";
 import { HistorialMisPuntos } from "./historial-mis-puntos";
 import { TablaPuntos } from "./tabla-puntos";
 import { formatearNumero } from "@/lib/formato";
+import { textos } from "@/textos/servidor";
 
-export const metadata = { title: "Mis puntos" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("puntos") };
+}
 // Lee la sesión y consulta por cursor: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 
@@ -70,6 +73,7 @@ export default async function PuntosPage({
 
   const puntos = yo?.pointsBalance ?? 0;
   const { nivel, siguiente, faltan, porcentaje, esMaximo } = progresoNivel(puntos);
+  const t = await textos("puntos");
 
   return (
     <div className="df-rise mx-auto w-full max-w-6xl px-4 py-8 lg:px-8 lg:py-12">
@@ -77,28 +81,24 @@ export default async function PuntosPage({
 
       {/* LAS CIFRAS EXACTAS, debajo del hero. El hero dice quién eres; estas dicen cuánto. */}
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <TarjetaMetrica etiqueta="Puntos totales" valor={formatearNumero(puntos, idioma)} />
+        <TarjetaMetrica etiqueta={t("metricaTotales")} valor={formatearNumero(puntos, idioma)} />
         <TarjetaMetrica
-          etiqueta="Nivel actual"
+          etiqueta={t("metricaNivel")}
           valor={nivel.nombre}
           destacado={nivel.tokenColor}
           // El emblema geométrico del nivel, el mismo que lleva el avatar. Rookie no tiene y aquí
           // tampoco se le inventa uno: la tarjeta se queda sin icono, que es lo que significa.
           icono={nivel.emblema ? <EmblemaDeNivel nivel={nivel} clase="h-8 w-8" /> : undefined}
-          pie={
-            nivel.minimo === 0
-              ? "El punto de partida"
-              : `Desde ${formatearNumero(nivel.minimo, idioma)} puntos`
-          }
+          pie={nivel.minimo === 0 ? t("piePartida") : t("pieDesde", { n: nivel.minimo })}
         />
         <TarjetaMetrica
-          etiqueta="Progreso al siguiente"
+          etiqueta={t("metricaProgreso")}
           valor={esMaximo ? "—" : `${porcentaje}%`}
           destacado={esMaximo ? null : nivel.tokenColor}
           pie={
             esMaximo
-              ? "Ya estás en el nivel más alto"
-              : `Faltan ${formatearNumero(faltan, idioma)} para ${siguiente?.nombre}`
+              ? t("pieMaximo")
+              : t("pieFaltan", { n: faltan, nivel: siguiente?.nombre ?? "" })
           }
         />
       </div>
@@ -117,7 +117,7 @@ export default async function PuntosPage({
           id="historial"
           className="text-sm font-semibold tracking-widest text-text-dim uppercase"
         >
-          Tu historial de puntos
+          {t("historial")}
         </h2>
         <HistorialMisPuntos items={pagina.items} idioma={idioma} zona={zona} />
         <PasosKeyset base="/puntos" aqui={aqui} proximoCursor={pagina.nextCursor} />
