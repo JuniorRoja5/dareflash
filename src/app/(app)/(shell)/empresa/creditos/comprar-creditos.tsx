@@ -4,13 +4,10 @@ import { useCallback, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { ImportePremio } from "@/components/ui/importe-premio";
-import {
-  DEFAULT_CURRENCY,
-  MSG_CREDITOS_CONDICIONES,
-  MSG_CREDITOS_PAGO_NO_DISPONIBLE,
-} from "@/config/constants";
+import { DEFAULT_CURRENCY, MSG_CREDITOS_PAGO_NO_DISPONIBLE } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { useFormato } from "@/components/formato-provider";
+import { useTextos } from "@/components/textos-provider";
 import { formatearNumero } from "@/lib/formato";
 
 export interface PaqueteEnVenta {
@@ -44,33 +41,37 @@ export function ComprarCreditos({
   motivoBloqueo: string | null;
 }) {
   const { idioma } = useFormato();
+  const t = useTextos("creditosCompra");
   const [comprando, setComprando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const comprar = useCallback(async (packageId: string) => {
-    setError(null);
-    setComprando(packageId);
-    try {
-      const r = await postJsonCsrf<{ url?: string }>("/api/empresa/creditos/checkout", {
-        packageId,
-      });
-      if (r.ok && typeof r.data.url === "string") {
-        // Sin limpiar `comprando`: la pestaña se va, y un segundo clic abriría un segundo pago.
-        window.location.assign(r.data.url);
-        return;
+  const comprar = useCallback(
+    async (packageId: string) => {
+      setError(null);
+      setComprando(packageId);
+      try {
+        const r = await postJsonCsrf<{ url?: string }>("/api/empresa/creditos/checkout", {
+          packageId,
+        });
+        if (r.ok && typeof r.data.url === "string") {
+          // Sin limpiar `comprando`: la pestaña se va, y un segundo clic abriría un segundo pago.
+          window.location.assign(r.data.url);
+          return;
+        }
+        setError(mensajeDe(r.data) || MSG_CREDITOS_PAGO_NO_DISPONIBLE);
+        setComprando(null);
+      } catch {
+        setError(t("sinConexion"));
+        setComprando(null);
       }
-      setError(mensajeDe(r.data) || MSG_CREDITOS_PAGO_NO_DISPONIBLE);
-      setComprando(null);
-    } catch {
-      setError("No hemos podido conectar. Inténtalo otra vez.");
-      setComprando(null);
-    }
-  }, []);
+    },
+    [t],
+  );
 
   return (
     <section aria-labelledby="comprar" className="space-y-4">
       <h2 id="comprar" className="text-base font-semibold text-text">
-        Comprar créditos
+        {t("titulo")}
       </h2>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -91,7 +92,7 @@ export function ComprarCreditos({
                 (sm+), para que las tres se lean como una fila; apiladas en móvil, sobraría. */}
             {p.mejorPrecio ? (
               <p className="mb-2 text-2xs font-semibold tracking-widest text-text-dim uppercase">
-                Mejor precio
+                {t("mejorPrecio")}
               </p>
             ) : (
               <p aria-hidden className="mb-2 hidden text-2xs sm:block">
@@ -100,7 +101,7 @@ export function ComprarCreditos({
             )}
             <p className="text-2xl font-semibold text-text tabular-nums">
               {formatearNumero(p.creditos, idioma)}
-              <span className="ml-1.5 text-sm font-medium text-text-dim">créditos</span>
+              <span className="ml-1.5 text-sm font-medium text-text-dim">{t("unidad")}</span>
             </p>
             <p className="mt-3">
               <ImportePremio
@@ -110,7 +111,9 @@ export function ComprarCreditos({
                 tamano="tarjeta"
               />
             </p>
-            <p className="mt-1 text-2xs text-text-dim">{p.porCredito} por crédito</p>
+            <p className="mt-1 text-2xs text-text-dim">
+              {t("porCredito", { precio: p.porCredito })}
+            </p>
             {puedeComprar ? (
               <Boton
                 type="button"
@@ -119,7 +122,7 @@ export function ComprarCreditos({
                 disabled={comprando !== null}
                 onClick={() => void comprar(p.clave)}
               >
-                {comprando === p.clave ? "Abriendo el pago…" : "Comprar"}
+                {comprando === p.clave ? t("abriendo") : t("comprar")}
               </Boton>
             ) : null}
           </div>
@@ -139,7 +142,7 @@ export function ComprarCreditos({
           {error}
         </p>
       ) : null}
-      <p className="max-w-prose text-2xs text-text-dim">{MSG_CREDITOS_CONDICIONES}</p>
+      <p className="max-w-prose text-2xs text-text-dim">{t("condiciones")}</p>
     </section>
   );
 }

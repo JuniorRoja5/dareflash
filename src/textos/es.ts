@@ -460,6 +460,9 @@ export const es = conMarcasConocidas({
     boosts: "Mis Boosts",
     empezar: "Empezar",
     altaEmpresa: "Registrar mi empresa",
+    miEmpresa: "Mi empresa",
+    creditosEmpresa: "Créditos de publicidad",
+    cuentaEmpresa: "Cuenta",
   },
 
   // ── Acceso (P5b2a): entrar, crear cuenta, recuperar, restablecer, verificar, reactivar, correo ─────
@@ -1059,6 +1062,30 @@ export const es = conMarcasConocidas({
     tipoNegocio_FISICO: "Negocio físico",
     tipoNegocio_ONLINE: "Negocio online",
     tipoNegocio_MARCA_O_DIGITAL: "Marca o producto digital",
+    /** Un tipo guardado fuera del catálogo: se dice, no se inventa (`etiquetaTipoNegocio` del panel). */
+    tipoNegocioSinClasificar: "Tipo de negocio sin clasificar",
+    /** El estado en una palabra (`ETIQUETA_ESTADO_EMPRESA`, que el panel sigue leyendo en castellano). */
+    estado_PENDIENTE: "Pendiente",
+    estado_VERIFICADA: "Verificada",
+    estado_RECHAZADA: "Rechazada",
+    estado_SUSPENDIDA: "Suspendida",
+    /** El motivo de un rechazo (`MSG_MOTIVO_RECHAZO_EMPRESA`, que leen el panel y el correo). */
+    motivo_DATOS_INSUFICIENTES: "Nos faltan datos para comprobar que el negocio existe.",
+    motivo_WEB_NO_VALIDA: "No hemos podido comprobar la web que nos has dado.",
+    motivo_ACTIVIDAD_NO_PERMITIDA: "Esta actividad no encaja con lo que podemos publicar.",
+    motivo_SOSPECHA_FRAUDE: "No hemos podido verificar la cuenta.",
+    motivo_DUPLICADA: "Ya tenemos registrado este negocio.",
+    /**
+     * Lo que cuesta un día en lo que ESE negocio puede comprar (`fraseQueEsUnCredito` del panel y el
+     * correo): la unidad solo en el primer tramo («1 crédito en una ciudad y 2 en una región»).
+     */
+    tarifa: "Un día de campaña cuesta {tramos}, y se descuenta cada día que se muestra.",
+    tarifaPrimera: { one: "{n} crédito {donde}", other: "{n} créditos {donde}" },
+    tarifaOtra: "{n} {donde}",
+    tarifaEn_CIUDAD: "en una ciudad",
+    tarifaEn_ESTADO: "en una región",
+    tarifaEn_PAIS: "por país",
+    tarifaEn_GLOBAL: "en todo el mundo",
   },
   /** /empezar: los dos caminos (servidor). */
   empezar: {
@@ -1132,6 +1159,94 @@ export const es = conMarcasConocidas({
     paso1: "Te enviamos un correo para confirmar tu dirección.",
     paso2: "Revisamos tu empresa a mano, una por una.",
     paso3: "Te escribimos en cuanto la decidamos. Si no podemos verificarla, te decimos por qué.",
+  },
+
+  // ── Portal de empresa (P5b2b) ────────────────────────────────────────────────────────────────────
+  /** La navegación del portal (cliente: la monta el layout del portal). */
+  portal: {
+    navegacion: "Portal de empresa",
+    seccion_resumen: "Resumen",
+    seccion_retos: "Retos",
+    seccion_publicidad: "Publicidad",
+    seccion_creditos: "Créditos",
+    seccion_cuenta: "Cuenta",
+  },
+  /** El correo sin verificar, contado en las pantallas del portal (servidor). */
+  portalAviso: {
+    titulo: "Antes, confirma tu correo",
+    texto:
+      "Verifica tu correo para entrar al portal. Es la misma barrera que protege todo lo que tiene efectos.",
+    cta: "Ir a mi cuenta",
+  },
+  /** /empresa: el Resumen (servidor). */
+  empresaResumen: {
+    tituloSinVerificar: "Tu empresa",
+    estado: "Estado",
+    creditos: "Créditos de publicidad",
+    verMovimientos: "Ver movimientos",
+    enRevision: "Propuestas en revisión",
+    verRetos: "Ver mis retos",
+    /** El estado contado al dueño: qué significa, no el caso concreto (eso es el motivo). */
+    relato_PENDIENTE_titulo: "Estamos revisando tu empresa",
+    relato_PENDIENTE_cuerpo:
+      "La revisamos a mano, una por una. Te escribimos en cuanto esté: no hace falta que vuelvas a enviarla.",
+    relato_VERIFICADA_titulo: "Tu empresa está verificada",
+    relato_VERIFICADA_cuerpo:
+      "Ya puedes usar el portal. Lo que se puede hacer desde aquí irá creciendo.",
+    relato_RECHAZADA_titulo: "No hemos podido verificar tu empresa",
+    relato_RECHAZADA_cuerpo: "Si crees que es un error, escríbenos y lo miramos otra vez.",
+    relato_SUSPENDIDA_titulo: "Tu empresa está suspendida",
+    relato_SUSPENDIDA_cuerpo:
+      "Puedes seguir viendo tus datos, pero no crear nada nuevo. Escríbenos y lo revisamos.",
+    datosTitulo: "Los datos que nos diste",
+    dato_nombre: "Nombre",
+    dato_tipoCuenta: "Tipo de cuenta",
+    dato_tipoNegocio: "Tipo de negocio",
+    dato_pais: "País",
+    dato_contacto: "Contacto",
+    dato_alta: "Alta",
+    dato_ciudad: "Ciudad",
+    dato_web: "Web",
+    dato_redes: "Redes",
+    dato_direccion: "Dirección",
+    dato_verificada: "Verificada",
+    cambiarDatos: "Para cambiar cualquiera de estos datos, escríbenos: los revisamos a mano.",
+  },
+  /** /empresa/creditos: el saldo y su historial (servidor). */
+  creditosEmpresa: {
+    titulo: "Créditos de publicidad",
+    todosMovimientos: "Aquí tienes todos tus movimientos.",
+    aviso_ok:
+      "Pago recibido. Los créditos aparecen en tu saldo en cuanto Stripe nos lo confirma; suele ser al momento.",
+    aviso_cancelada: "Has cancelado el pago. No se te ha cobrado nada.",
+    aviso_noDisponible:
+      "No hemos podido abrir el recibo ahora mismo. Inténtalo en un rato; también te llegó por correo.",
+    saldo: "Saldo",
+    saldoPie: { one: "crédito de publicidad", other: "créditos de publicidad" },
+    movimientos: "Movimientos",
+    vacio: "Todavía no tienes movimientos. Aquí verás cada crédito de publicidad que recibas.",
+    fecha: "Fecha",
+    concepto: "Concepto",
+    columnaCreditos: "Créditos",
+    /** «Recibo», nunca «Factura». */
+    recibo: "Recibo",
+  },
+  /** La compra de créditos (cliente). */
+  creditosCompra: {
+    titulo: "Comprar créditos",
+    mejorPrecio: "Mejor precio",
+    unidad: "créditos",
+    porCredito: "{precio} por crédito",
+    abriendo: "Abriendo el pago…",
+    comprar: "Comprar",
+    sinConexion: "No hemos podido conectar. Inténtalo otra vez.",
+    condiciones:
+      "Los créditos de publicidad no caducan y no son reembolsables, salvo que la ley lo exija. Pagas con Stripe; puedes añadir tu número fiscal y descargar el recibo desde aquí.",
+  },
+  /** /empresa/cuenta (servidor). */
+  cuentaEmpresa: {
+    titulo: "Cuenta",
+    subtitulo: "El correo con el que entras es también donde te escribimos sobre tu empresa.",
   },
 
   // ── Perfil (P5b2a): el propio y el público comparten la vista ────────────────────────────────────

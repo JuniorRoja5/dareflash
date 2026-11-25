@@ -1,12 +1,14 @@
 import { TextosProvider } from "@/components/textos-provider";
 import { redirigir } from "@/server/redirigir";
-import { textosClienteDeLaPeticion } from "@/textos/servidor";
+import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
 
 import { CerrarSesion } from "../../cerrar-sesion";
 import { CambiarEmail } from "../../perfil/editar/cambiar-email";
 import { CambiarPassword } from "../../perfil/editar/cambiar-password";
 
-export const metadata = { title: "Cuenta" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("cuentaEmpresa") };
+}
 // Lee la sesión y el correo de la cuenta: por petición.
 export const dynamic = "force-dynamic";
 
@@ -42,12 +44,11 @@ export default async function CuentaEmpresaPage() {
     select: { email: true, emailPendiente: true },
   });
 
+  const t = await textos("cuentaEmpresa");
   return (
     <div className="df-rise">
-      <h1 className="text-2xl text-text">Cuenta</h1>
-      <p className="mt-1 max-w-prose text-sm text-text-dim">
-        El correo con el que entras es también donde te escribimos sobre tu empresa.
-      </p>
+      <h1 className="text-2xl text-text">{t("titulo")}</h1>
+      <p className="mt-1 max-w-prose text-sm text-text-dim">{t("subtitulo")}</p>
 
       {/* LADO A LADO EN ESCRITORIO (fase9-diseno): son dos formularios independientes y cortos; uno
           debajo del otro dejaban media pantalla vacía. Los componentes son los del perfil, sin tocar. */}

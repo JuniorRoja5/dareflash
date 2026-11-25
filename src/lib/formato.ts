@@ -158,6 +158,21 @@ export function formaDePlural(n: number, idioma: Idioma): "one" | "other" {
   return r.select(n) === "one" ? "one" : "other";
 }
 
+const listas = new Map<Idioma, Intl.ListFormat>();
+
+/**
+ * UNA ENUMERACIÓN con la conjunción del idioma («a y b», «a, b y c»; «a and b» en inglés). Para los
+ * textos que juntan tramos calculados (la tarifa de un negocio, P5b2b): la «y» no se escribe a mano.
+ */
+export function formatearLista(partes: readonly string[], idioma: Idioma): string {
+  let f = listas.get(idioma);
+  if (!f) {
+    f = new Intl.ListFormat(LOCALE[idioma], { type: "conjunction", style: "long" });
+    listas.set(idioma, f);
+  }
+  return f.format(partes);
+}
+
 /** Un número corriente: un saldo de puntos, un recuento («1234», «12.345» en español). */
 export function formatearNumero(n: number, idioma: Idioma): string {
   return formatoNumero(LOCALE[idioma]).format(n);

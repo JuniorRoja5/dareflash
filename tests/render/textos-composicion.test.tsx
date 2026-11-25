@@ -29,8 +29,10 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/server/auth/solo-participante", () => ({ apartarCuentaEmpresa: async () => {} }));
+const H = vi.hoisted(() => ({ anonimo: false }));
 vi.mock("@/server/auth/current-user", () => ({
-  getCurrentUser: async () => ({ userId: "u1", esCuentaEmpresa: true, emailVerified: new Date() }),
+  getCurrentUser: async () =>
+    H.anonimo ? null : { userId: "u1", esCuentaEmpresa: true, emailVerified: new Date() },
 }));
 vi.mock("@/server/db/client", () => ({
   prisma: {
@@ -51,8 +53,38 @@ vi.mock("@/server/db/client", () => ({
   },
 }));
 
+// El portal de empresa (P5b2b): la empresa del chokepoint, su saldo y la tarifa.
+vi.mock("@/app/(app)/(shell)/empresa/portal-guard", () => ({ protegerPortal: async () => {} }));
+vi.mock("@/server/auth/empresa-actual", () => ({
+  SinEmpresa: class extends Error {},
+  requireEmpresa: async () => ({ user: { userId: "u1" }, empresaId: "e1", estado: "VERIFICADA" }),
+}));
+vi.mock("@/server/services/empresas", () => ({
+  miEmpresa: async () => ({ tipoNegocio: "FISICO" }),
+}));
+vi.mock("@/server/services/creditos", () => ({
+  misCreditos: async () => ({ saldo: 3, movimientos: [], nextCursor: null }),
+}));
+vi.mock("@/config/env", async (original) => {
+  const { env } = await original<typeof import("../../src/config/env")>();
+  // Con pagos configurados: así se pintan los botones de compra (la isla entera).
+  return {
+    env: new Proxy(env, {
+      get: (o, k) => (k === "STRIPE_SECRET_KEY" ? "configurado" : Reflect.get(o, k)),
+    }),
+  };
+});
+vi.mock("@/server/formato-peticion", async (original) => ({
+  ...(await original<typeof import("../../src/server/formato-peticion")>()),
+  idiomaDeLaPeticion: async () => "es",
+  zonaDeLaPeticion: async () => "Europe/Madrid",
+}));
+
 import CrearPage from "@/app/(app)/(shell)/crear/page";
+import PaginaAltaEmpresa from "@/app/(app)/(shell)/empezar/empresa/page";
+import PaginaCreditos from "@/app/(app)/(shell)/empresa/creditos/page";
 import CuentaEmpresaPage from "@/app/(app)/(shell)/empresa/cuenta/page";
+import LayoutPortal from "@/app/(app)/(shell)/empresa/layout";
 import EditarPerfilPage from "@/app/(app)/(shell)/perfil/editar/page";
 import { TextosProvider } from "@/components/textos-provider";
 import { es } from "@/textos/es";
@@ -86,5 +118,29 @@ describe("las islas que se montan en más de una página reciben sus textos en t
     });
     expect(document.body.textContent).toContain(es.subida.tituloSubir);
     expect(c.textContent).toContain(es.crear.titulo);
+  });
+});
+
+describe("el portal de empresa y su alta (P5b2b)", () => {
+  it("el layout del portal: la navegación recibe su espacio", async () => {
+    const c = await enElArmazon(await LayoutPortal({ children: null }));
+    expect(c.querySelector("nav")?.getAttribute("aria-label")).toBe(es.portal.navegacion);
+    expect(c.textContent).toContain(es.portal.seccion_creditos);
+  });
+
+  it("los créditos: la compra recibe el suyo", async () => {
+    const c = await enElArmazon(await PaginaCreditos({ searchParams: Promise.resolve({}) }));
+    expect(c.textContent).toContain(es.creditosCompra.titulo);
+    expect(c.textContent).toContain(es.creditosCompra.condiciones);
+  });
+
+  it("el alta (sin sesión, quien la ve): el formulario recibe el suyo", async () => {
+    H.anonimo = true;
+    try {
+      const c = await enElArmazon(await PaginaAltaEmpresa());
+      expect(c.textContent).toContain(es.altaFormulario.crear);
+    } finally {
+      H.anonimo = false;
+    }
   });
 });

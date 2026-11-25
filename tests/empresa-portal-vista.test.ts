@@ -121,7 +121,11 @@ describe("lo que el portal no pinta", () => {
   });
 
   it("y el motivo del rechazo SÍ se le enseña (sin motivo, un correo de soporte por caso)", () => {
-    expect(leer("src/app/(app)/(shell)/empresa/page.tsx")).toContain("MSG_MOTIVO_RECHAZO_EMPRESA");
+    // Desde la P5b2b, con la frase del diccionario (`negocio.motivo_*`, igual a la del panel y el
+    // correo: lo exige `empresa-reglas`).
+    expect(leer("src/app/(app)/(shell)/empresa/page.tsx")).toContain(
+      "motivoRechazo(tn, empresa.motivoRechazo)",
+    );
   });
 });
 

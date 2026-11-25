@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 
+import { TextosProvider } from "@/components/textos-provider";
+import { textosClienteDeLaPeticion } from "@/textos/servidor";
+
 import { NavPortal } from "./nav-portal";
 import { protegerPortal } from "./portal-guard";
 
@@ -19,9 +22,13 @@ import { protegerPortal } from "./portal-guard";
  */
 export default async function LayoutPortal({ children }: { children: ReactNode }) {
   await protegerPortal();
+  // La navegación es una isla cliente: recibe SOLO su espacio (P5b2b). Las páginas ponen los suyos.
+  const textosNav = await textosClienteDeLaPeticion(["portal"] as const);
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:items-start lg:gap-10 lg:px-8 lg:py-12">
-      <NavPortal />
+      <TextosProvider textos={textosNav}>
+        <NavPortal />
+      </TextosProvider>
       <div className="mt-6 min-w-0 lg:mt-0">{children}</div>
     </div>
   );

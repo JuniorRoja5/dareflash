@@ -4,21 +4,23 @@ import { redirigir } from "@/server/redirigir";
 
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { TarjetaMetrica } from "@/components/ui/tarjeta-metrica";
-import {
-  ETIQUETA_ESTADO_EMPRESA,
-  ETIQUETA_TIPO_CUENTA,
-  MSG_ESTADO_EMPRESA,
-  MSG_MOTIVO_RECHAZO_EMPRESA,
-  fraseCreditoPublica,
-  fraseQueEsUnCredito,
-} from "@/config/constants";
-import { etiquetaTipoNegocio } from "@/lib/empresa";
 import { nombrePais } from "@/lib/paises";
+import {
+  creditoDia,
+  estadoEmpresa,
+  motivoRechazo,
+  queEsUnCredito,
+  tipoCuenta,
+  tipoNegocio,
+} from "@/textos/empresa";
+import { textos } from "@/textos/servidor";
 
 import { AvisoVerificar } from "./aviso-verificar";
 import { formatearNumero, formatearFechaParaQuienMira } from "@/lib/formato";
 
-export const metadata = { title: "Mi empresa" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("miEmpresa") };
+}
 // Lee la sesión y la fila de la empresa: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 
@@ -50,6 +52,7 @@ export default async function PaginaMiEmpresa() {
   const { AuthError } = await import("@/server/auth/rbac");
   const { SinEmpresa, requireEmpresa } = await import("@/server/auth/empresa-actual");
 
+  const [t, tn] = await Promise.all([textos("empresaResumen"), textos("negocio")]);
   let ambito;
   try {
     ambito = await requireEmpresa();
@@ -58,7 +61,7 @@ export default async function PaginaMiEmpresa() {
     if (e instanceof AuthError && e.code === "EMAIL_NOT_VERIFIED") {
       return (
         <div className="df-rise">
-          <h1 className="text-2xl text-text">Tu empresa</h1>
+          <h1 className="text-2xl text-text">{t("tituloSinVerificar")}</h1>
           <div className="mt-6">
             <AvisoVerificar />
           </div>
@@ -84,13 +87,15 @@ export default async function PaginaMiEmpresa() {
   // Solo si la fila desapareció entre el guard y la lectura. No se inventa una pantalla vacía.
   if (!empresa) notFound();
 
-  const relato = MSG_ESTADO_EMPRESA[empresa.estado];
+  const estado = estadoEmpresa(tn, empresa.estado);
+  const cuenta = tipoCuenta(tn, empresa.tipoCuenta);
+  const negocio = tipoNegocio(tn, empresa.tipoNegocio);
 
   return (
     <div className="df-rise">
       <h1 className="text-2xl text-text">{empresa.nombre}</h1>
       <p className="mt-1 text-sm text-text-dim">
-        {ETIQUETA_TIPO_CUENTA[empresa.tipoCuenta]} · {etiquetaTipoNegocio(empresa.tipoNegocio)}
+        {cuenta} · {negocio}
       </p>
 
       {/* ┌─ TRES CIFRAS ARRIBA, EN REJILLA ─────────────────────────────────────────────────────┐
@@ -99,9 +104,9 @@ export default async function PaginaMiEmpresa() {
           │ créditos, siempre con ese nombre —nunca «puntos»—; sus movimientos, en «Créditos».  │
           └─────────────────────────────────────────────────────────────────────────────────────┘ */}
       <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <TarjetaMetrica etiqueta="Estado" valor={ETIQUETA_ESTADO_EMPRESA[empresa.estado]} />
+        <TarjetaMetrica etiqueta={t("estado")} valor={estado} />
         <TarjetaMetrica
-          etiqueta="Créditos de publicidad"
+          etiqueta={t("creditos")}
           valor={
             <span data-creditos-saldo={creditos.saldo}>
               {formatearNumero(creditos.saldo, idioma)}
@@ -111,20 +116,20 @@ export default async function PaginaMiEmpresa() {
             <>
               {/* Con un tipo fuera del catálogo, la horquilla pública: decidido, no por defecto. */}
               {empresa.tipoNegocio
-                ? fraseQueEsUnCredito(empresa.tipoNegocio)
-                : fraseCreditoPublica()}
+                ? queEsUnCredito(tn, empresa.tipoNegocio, idioma)
+                : creditoDia(tn, idioma)}
               <Enlace href="/empresa/creditos" className={`mt-1 block ${ENLACE}`}>
-                Ver movimientos
+                {t("verMovimientos")}
               </Enlace>
             </>
           }
         />
         <TarjetaMetrica
-          etiqueta="Propuestas en revisión"
+          etiqueta={t("enRevision")}
           valor={formatearNumero(enRevision, idioma)}
           pie={
             <Enlace href="/empresa/retos" className={ENLACE}>
-              Ver mis retos
+              {t("verRetos")}
             </Enlace>
           }
         />
@@ -135,40 +140,48 @@ export default async function PaginaMiEmpresa() {
       <div className="mt-6 grid gap-4 lg:grid-cols-2 lg:items-start">
         <Tarjeta className="p-5 lg:p-6">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-base font-semibold text-text">{relato.titulo}</h2>
+            <h2 className="text-base font-semibold text-text">
+              {t(`relato_${empresa.estado}_titulo`)}
+            </h2>
             <span className="rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim">
-              {ETIQUETA_ESTADO_EMPRESA[empresa.estado]}
+              {estado}
             </span>
           </div>
-          <p className="mt-2 max-w-prose text-sm text-text-dim">{relato.cuerpo}</p>
+          <p className="mt-2 max-w-prose text-sm text-text-dim">
+            {t(`relato_${empresa.estado}_cuerpo`)}
+          </p>
           {/* EL MOTIVO SÍ SE LE ENSEÑA. Un rechazo sin motivo genera un correo de soporte por cada
               caso; la nota interna del equipo, en cambio, no sale de la base de datos. */}
           {empresa.motivoRechazo ? (
             <p className="mt-3 max-w-prose text-sm text-text">
-              {MSG_MOTIVO_RECHAZO_EMPRESA[empresa.motivoRechazo]}
+              {motivoRechazo(tn, empresa.motivoRechazo)}
             </p>
           ) : null}
         </Tarjeta>
 
         <Tarjeta className="p-5 lg:p-6">
-          <h2 className="text-base font-semibold text-text">Los datos que nos diste</h2>
+          <h2 className="text-base font-semibold text-text">{t("datosTitulo")}</h2>
           <dl className="mt-3 grid gap-4 sm:grid-cols-2">
-            <Dato etiqueta="Nombre" valor={empresa.nombre} />
-            <Dato etiqueta="Tipo de cuenta" valor={ETIQUETA_TIPO_CUENTA[empresa.tipoCuenta]} />
-            <Dato etiqueta="Tipo de negocio" valor={etiquetaTipoNegocio(empresa.tipoNegocio)} />
-            <Dato etiqueta="País" valor={nombrePais(empresa.paisIso)} />
-            <Dato etiqueta="Contacto" valor={empresa.personaContacto} />
+            <Dato etiqueta={t("dato_nombre")} valor={empresa.nombre} />
+            <Dato etiqueta={t("dato_tipoCuenta")} valor={cuenta} />
+            <Dato etiqueta={t("dato_tipoNegocio")} valor={negocio} />
+            <Dato etiqueta={t("dato_pais")} valor={nombrePais(empresa.paisIso)} />
+            <Dato etiqueta={t("dato_contacto")} valor={empresa.personaContacto} />
             <Dato
-              etiqueta="Alta"
+              etiqueta={t("dato_alta")}
               valor={formatearFechaParaQuienMira(empresa.creadaMs, idioma, zona, "diaMesLargoAno")}
             />
-            {empresa.ciudadTexto ? <Dato etiqueta="Ciudad" valor={empresa.ciudadTexto} /> : null}
-            {empresa.webUrl ? <Dato etiqueta="Web" valor={empresa.webUrl} /> : null}
-            {empresa.redes ? <Dato etiqueta="Redes" valor={empresa.redes} /> : null}
-            {empresa.direccion ? <Dato etiqueta="Dirección" valor={empresa.direccion} /> : null}
+            {empresa.ciudadTexto ? (
+              <Dato etiqueta={t("dato_ciudad")} valor={empresa.ciudadTexto} />
+            ) : null}
+            {empresa.webUrl ? <Dato etiqueta={t("dato_web")} valor={empresa.webUrl} /> : null}
+            {empresa.redes ? <Dato etiqueta={t("dato_redes")} valor={empresa.redes} /> : null}
+            {empresa.direccion ? (
+              <Dato etiqueta={t("dato_direccion")} valor={empresa.direccion} />
+            ) : null}
             {empresa.verificadaMs !== null ? (
               <Dato
-                etiqueta="Verificada"
+                etiqueta={t("dato_verificada")}
                 valor={formatearFechaParaQuienMira(
                   empresa.verificadaMs,
                   idioma,
@@ -178,9 +191,7 @@ export default async function PaginaMiEmpresa() {
               />
             ) : null}
           </dl>
-          <p className="mt-4 text-2xs text-text-dim">
-            Para cambiar cualquiera de estos datos, escríbenos: los revisamos a mano.
-          </p>
+          <p className="mt-4 text-2xs text-text-dim">{t("cambiarDatos")}</p>
         </Tarjeta>
       </div>
     </div>

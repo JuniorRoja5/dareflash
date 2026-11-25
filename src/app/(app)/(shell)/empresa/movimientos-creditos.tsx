@@ -1,4 +1,5 @@
 import type { MovimientoCreditoEmpresa } from "@/server/services/creditos";
+import { textos } from "@/textos/servidor";
 import {
   formatearNumero,
   formatearFechaParaQuienMira,
@@ -13,7 +14,7 @@ const CABECERA = "text-2xs font-semibold tracking-widest text-text-dim uppercase
  * Stripe, otro origen—, y en pestaña nueva para no sacar a la empresa de su historial. «Recibo», nunca
  * «Factura».
  */
-function EnlaceRecibo({ href }: { href: string }) {
+function EnlaceRecibo({ href, texto }: { href: string; texto: string }) {
   return (
     <a
       href={href}
@@ -21,7 +22,7 @@ function EnlaceRecibo({ href }: { href: string }) {
       rel="noopener noreferrer"
       className="inline-flex min-h-[44px] items-center text-sm text-text underline underline-offset-2 hover:text-text-dim lg:min-h-0"
     >
-      Recibo
+      {texto}
     </a>
   );
 }
@@ -36,7 +37,7 @@ const cantidad = (delta: number, idioma: Idioma) =>
  * TABLA EN ESCRITORIO (fecha · concepto · créditos, la cifra alineada a la derecha para que se lean
  * en columna) y FILAS APILADAS EN MÓVIL, donde tres columnas no caben con el concepto entero.
  */
-export function MovimientosCreditos({
+export async function MovimientosCreditos({
   movimientos,
   idioma,
   zona,
@@ -45,21 +46,18 @@ export function MovimientosCreditos({
   idioma: Idioma;
   zona: ZonaHoraria | null;
 }) {
+  const t = await textos("creditosEmpresa");
   if (movimientos.length === 0) {
-    return (
-      <p className="text-sm text-text-dim">
-        Todavía no tienes movimientos. Aquí verás cada crédito de publicidad que recibas.
-      </p>
-    );
+    return <p className="text-sm text-text-dim">{t("vacio")}</p>;
   }
   return (
     <>
       <table className="hidden w-full border-collapse text-left text-sm md:table">
         <thead className="border-b border-line">
           <tr>
-            <th className={`py-2 pr-4 ${CABECERA}`}>Fecha</th>
-            <th className={`py-2 pr-4 ${CABECERA}`}>Concepto</th>
-            <th className={`py-2 text-right ${CABECERA}`}>Créditos</th>
+            <th className={`py-2 pr-4 ${CABECERA}`}>{t("fecha")}</th>
+            <th className={`py-2 pr-4 ${CABECERA}`}>{t("concepto")}</th>
+            <th className={`py-2 text-right ${CABECERA}`}>{t("columnaCreditos")}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
@@ -73,7 +71,7 @@ export function MovimientosCreditos({
                 {m.recibo ? (
                   <>
                     {" · "}
-                    <EnlaceRecibo href={m.recibo} />
+                    <EnlaceRecibo href={m.recibo} texto={t("recibo")} />
                   </>
                 ) : null}
               </td>
@@ -92,7 +90,7 @@ export function MovimientosCreditos({
               <span className="block text-2xs text-text-dim tabular-nums">
                 {formatearFechaParaQuienMira(m.creadoMs, idioma, zona, "diaMesAno")}
               </span>
-              {m.recibo ? <EnlaceRecibo href={m.recibo} /> : null}
+              {m.recibo ? <EnlaceRecibo href={m.recibo} texto={t("recibo")} /> : null}
             </span>
             <span className="shrink-0 text-sm font-semibold text-text tabular-nums">
               {cantidad(m.delta, idioma)}

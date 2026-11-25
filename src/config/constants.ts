@@ -1896,7 +1896,10 @@ export const ETIQUETA_TIPO_NEGOCIO: Record<TipoNegocio, string> = {
   ONLINE: "Negocio online",
   MARCA_O_DIGITAL: "Marca o producto digital",
 };
-/** Una palabra para el estado (la lista del panel y la píldora del portal). El relato va en `MSG_ESTADO_EMPRESA`. */
+/**
+ * Una palabra para el estado, la del PANEL. El portal lee la suya del diccionario (`negocio.estado_*`,
+ * P5b2b) con su relato; un test exige que digan lo mismo.
+ */
 export const ETIQUETA_ESTADO_EMPRESA: Record<EstadoEmpresa, string> = {
   PENDIENTE: "Pendiente",
   VERIFICADA: "Verificada",
@@ -2236,9 +2239,10 @@ export const MSG_CUENTA_EMPRESA_NO_PARTICIPA =
  */
 export const MSG_EMPRESA_SOLO_MIRA = "Las cuentas de empresa no participan.";
 
-/** Copy del portal y del panel de empresas. En humano, como el resto. */
-export const MSG_EMPRESA_SIN_VERIFICAR =
-  "Verifica tu correo para entrar al portal. Es la misma barrera que protege todo lo que tiene efectos.";
+/**
+ * Copy del portal y del panel de empresas. En humano, como el resto. (El aviso de correo sin verificar
+ * del portal vive en el diccionario desde la P5b2b: `portalAviso`.)
+ */
 export const MSG_EMPRESA_DATOS_INVALIDOS =
   "Revisa los datos: faltan el nombre, el país o la persona de contacto, o la web no es una dirección válida.";
 /**
@@ -2259,30 +2263,9 @@ export const MSG_EMPRESA_NO_ENCONTRADA = "Esa empresa no existe.";
 export const MSG_SIN_PERMISO_EMPRESAS = "No tienes permiso para gestionar empresas.";
 export const MSG_EMPRESA_MOTIVO_INVALIDO = "Elige un motivo de la lista para rechazar.";
 
-/**
- * EL ESTADO, CONTADO AL DUEÑO. Un estado que el portal no sabe explicar es un estado que genera un
- * correo preguntando. El motivo del rechazo se añade aparte (`MSG_MOTIVO_RECHAZO_EMPRESA`): aqui va
- * lo que significa el estado, no el caso concreto.
- */
-export const MSG_ESTADO_EMPRESA: Record<EstadoEmpresa, { titulo: string; cuerpo: string }> = {
-  PENDIENTE: {
-    titulo: "Estamos revisando tu empresa",
-    cuerpo:
-      "La revisamos a mano, una por una. Te escribimos en cuanto esté: no hace falta que vuelvas a enviarla.",
-  },
-  VERIFICADA: {
-    titulo: "Tu empresa está verificada",
-    cuerpo: "Ya puedes usar el portal. Lo que se puede hacer desde aquí irá creciendo.",
-  },
-  RECHAZADA: {
-    titulo: "No hemos podido verificar tu empresa",
-    cuerpo: "Si crees que es un error, escríbenos y lo miramos otra vez.",
-  },
-  SUSPENDIDA: {
-    titulo: "Tu empresa está suspendida",
-    cuerpo: "Puedes seguir viendo tus datos, pero no crear nada nuevo. Escríbenos y lo revisamos.",
-  },
-};
+// EL ESTADO, CONTADO AL DUEÑO (título y relato de cada estado), vive en el diccionario desde la P5b2b
+// (`empresaResumen.relato_<ESTADO>_*`): solo lo pinta el portal. Un estado que el portal no sabe
+// explicar genera un correo preguntando; que cada uno tenga el suyo lo exige `empresa-reglas`.
 
 /**
  * EL AVISO AL ADMIN de que hay una empresa esperando. Es de los que SI exigen algo: bloquea a un
@@ -2583,9 +2566,8 @@ export const REF_CREDITOS_STRIPE = "STRIPE_CHECKOUT";
 export const MSG_CREDITOS_PAGO_NO_DISPONIBLE = `La compra de créditos todavía no está disponible. Mientras tanto, los créditos llegan como regalo de Socio Fundador o del equipo de ${MARCA}.`;
 export const MSG_CREDITOS_SIN_VERIFICAR =
   "Podrás comprar créditos en cuanto verifiquemos tu empresa.";
-/** Las condiciones, junto al botón de compra: lo que de verdad pasa con lo que se compra. */
-export const MSG_CREDITOS_CONDICIONES =
-  "Los créditos de publicidad no caducan y no son reembolsables, salvo que la ley lo exija. Pagas con Stripe; puedes añadir tu número fiscal y descargar el recibo desde aquí.";
+// Las condiciones, junto al botón de compra, viven en el diccionario desde la P5b2b
+// (`creditosCompra.condiciones`): solo las pinta el portal.
 
 /**
  * Dónde guarda la BASE el primer día que se cobra (P9). Lo escribe la migración del cobro con el día

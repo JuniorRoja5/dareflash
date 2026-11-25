@@ -9,7 +9,8 @@
  * Censo de las CUATRO vías por las que algo le llega a una empresa:
  *  1. EL CÓDIGO DEL PORTAL (`src/app/(app)/(shell)/empresa/**`), sin comentarios: un comentario que
  *     EXPLICA la regla no le llega a nadie.
- *  2. LOS TEXTOS QUE ESE PORTAL PINTA desde `constants` (estado, motivos, pago, etiquetas).
+ *  2. LOS TEXTOS QUE ESE PORTAL PINTA desde `constants` (estado, motivos, pago, etiquetas) y, desde la
+ *     P5b2b, desde el diccionario: cada espacio que su código pide, entero.
  *  3. LOS CORREOS que se le escriben (decisión de su propuesta, de su verificación, el aviso de cuenta
  *     existente), generados DE VERDAD contra la base de datos y leídos de la cola.
  *  4. LOS DTO que viajan al portal: sus CLAVES (con igualdad exacta) y sus VALORES.
@@ -24,6 +25,7 @@ import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import * as C from "../src/config/constants";
+import { es } from "../src/textos/es";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { extractoDeEmpresa } from "../src/server/services/patrocinios";
 import { avisarCuentaExistente } from "../src/server/services/aviso-cuenta-existente";
@@ -98,14 +100,35 @@ describe("el portal no habla de comisiones", () => {
           v,
         ]),
       ),
-      ...Object.fromEntries(
-        Object.entries(C.MSG_ESTADO_EMPRESA).map(([k, v]) => [
-          `MSG_ESTADO_EMPRESA.${k}`,
-          `${v.titulo} ${v.cuerpo}`,
-        ]),
-      ),
     };
     const culpables = Object.entries(textos)
+      .filter(([, v]) => PROHIBIDO.test(v))
+      .map(([k]) => k);
+    expect(culpables).toEqual([]);
+  });
+
+  it("los espacios del diccionario que el portal pinta (P5b2b), enteros", () => {
+    // Qué espacios pinta: los que su código pide (servidor o cliente). Un espacio nuevo entra solo.
+    const portal = path.join(RAIZ, "src", "app", "(app)", "(shell)", "empresa");
+    const codigo = fuentes(portal)
+      .map((f) => soloCodigo(readFileSync(f, "utf8")))
+      .join("\n");
+    const nombres = new Set<string>(["negocio"]); // el de `textos/empresa`, que el portal llama
+    for (const m of codigo.matchAll(
+      /\b(?:textos|textosRicos|useTextos|useTextosRicos)\("(\w+)"\)/g,
+    ))
+      nombres.add(m[1]!);
+    for (const m of codigo.matchAll(/textosClienteDeLaPeticion\(\[([^\]]*)\]/g))
+      for (const n of m[1]!.matchAll(/"(\w+)"/g)) nombres.add(n[1]!);
+    expect([...nombres]).toEqual(expect.arrayContaining(["empresaResumen", "creditosCompra"]));
+    const hojas = (v: unknown, k: string): [string, string][] =>
+      typeof v === "string"
+        ? [[k, v]]
+        : v && typeof v === "object"
+          ? Object.entries(v).flatMap(([h, w]) => hojas(w, `${k}.${h}`))
+          : [];
+    const culpables = [...nombres]
+      .flatMap((n) => hojas((es as Record<string, unknown>)[n], n))
       .filter(([, v]) => PROHIBIDO.test(v))
       .map(([k]) => k);
     expect(culpables).toEqual([]);

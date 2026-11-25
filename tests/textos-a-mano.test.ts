@@ -34,13 +34,6 @@ const FUERA = [
 
 /** Lo que aún tiene texto a mano y se extrae en la P5b2. Solo puede menguar. */
 const PENDIENTES_P5B2 = [
-  "src/app/(app)/(shell)/empresa/aviso-verificar.tsx",
-  "src/app/(app)/(shell)/empresa/creditos/comprar-creditos.tsx",
-  "src/app/(app)/(shell)/empresa/creditos/page.tsx",
-  "src/app/(app)/(shell)/empresa/cuenta/page.tsx",
-  "src/app/(app)/(shell)/empresa/movimientos-creditos.tsx",
-  "src/app/(app)/(shell)/empresa/nav-portal.tsx",
-  "src/app/(app)/(shell)/empresa/page.tsx",
   "src/app/(app)/(shell)/empresa/publicidad/nueva/buscador-ciudad.tsx",
   "src/app/(app)/(shell)/empresa/publicidad/nueva/formulario-campana.tsx",
   "src/app/(app)/(shell)/empresa/publicidad/nueva/page.tsx",

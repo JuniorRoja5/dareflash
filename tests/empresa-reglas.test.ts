@@ -14,7 +14,7 @@
  *
  * Para romperlo a propósito: meter CIUDAD en `MARCA_O_DIGITAL` (rojo el primero y el del espacio);
  * cambiar `puedeOperarEmpresa` por `estado !== "SUSPENDIDA"` (rojo el de la lista blanca); borrar una
- * entrada de `MSG_ESTADO_EMPRESA` (rojo el del copy); quitar el `+02:00` de la fecha de Socio
+ * entrada `relato_<ESTADO>_*` de `empresaResumen` en el diccionario (rojo el del copy); quitar el `+02:00` de la fecha de Socio
  * Fundador (rojo el del instante).
  */
 import { readFileSync } from "node:fs";
@@ -27,7 +27,6 @@ import {
   ETIQUETA_ESTADO_EMPRESA,
   ETIQUETA_TIPO_CUENTA,
   ETIQUETA_TIPO_NEGOCIO,
-  MSG_ESTADO_EMPRESA,
   MSG_MOTIVO_RECHAZO_EMPRESA,
   SOCIO_FUNDADOR_CREDITOS,
   SOCIO_FUNDADOR_HASTA_ISO,
@@ -46,6 +45,7 @@ import {
   puedeComprarAlcance,
   puedeOperarEmpresa,
 } from "../src/lib/empresa";
+import { es } from "../src/textos/es";
 
 describe("qué puede comprar cada tipo de negocio", () => {
   it("el negocio FÍSICO compra lo local, y SOLO lo local", () => {
@@ -126,17 +126,28 @@ describe("qué puede hacer según su estado", () => {
 
 describe("el copy cubre todas las uniones", () => {
   it("cada estado tiene etiqueta Y relato", () => {
+    // Desde la P5b2b el relato y la etiqueta del portal viven en el diccionario; la del panel, aquí.
+    const relatos = es.empresaResumen as Record<string, string>;
+    const palabras = es.negocio as Record<string, unknown>;
     for (const e of EstadoEmpresaSchema.options) {
       expect(ETIQUETA_ESTADO_EMPRESA[e], e).toBeTruthy();
-      expect(MSG_ESTADO_EMPRESA[e]?.titulo, e).toBeTruthy();
-      expect(MSG_ESTADO_EMPRESA[e]?.cuerpo, e).toBeTruthy();
+      expect(palabras[`estado_${e}`], e).toBe(ETIQUETA_ESTADO_EMPRESA[e]);
+      expect(relatos[`relato_${e}_titulo`], e).toBeTruthy();
+      expect(relatos[`relato_${e}_cuerpo`], e).toBeTruthy();
     }
-    expect(Object.keys(MSG_ESTADO_EMPRESA).sort()).toEqual([...EstadoEmpresaSchema.options].sort());
+    // Y ningún relato de un estado que ya no existe.
+    const conRelato = Object.keys(relatos)
+      .filter((k) => k.startsWith("relato_"))
+      .map((k) => k.split("_")[1]);
+    expect([...new Set(conRelato)].sort()).toEqual([...EstadoEmpresaSchema.options].sort());
   });
 
   it("cada motivo de rechazo tiene su frase (es lo que LEE quien se registró)", () => {
+    const palabras = es.negocio as Record<string, unknown>;
     for (const m of MotivoRechazoEmpresaSchema.options) {
       expect(MSG_MOTIVO_RECHAZO_EMPRESA[m], m).toBeTruthy();
+      // El portal lee el del diccionario (P5b2b); el panel y el correo, este: los dos, lo mismo.
+      expect(palabras[`motivo_${m}`], m).toBe(MSG_MOTIVO_RECHAZO_EMPRESA[m]);
     }
     expect(Object.keys(MSG_MOTIVO_RECHAZO_EMPRESA).sort()).toEqual(
       [...MotivoRechazoEmpresaSchema.options].sort(),

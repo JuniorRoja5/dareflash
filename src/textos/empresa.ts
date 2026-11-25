@@ -5,15 +5,24 @@
  * panel y los servicios siguen con su castellano en la config, y un test exige que digan lo mismo.
  */
 import {
+  ALCANCES_POR_NEGOCIO,
   alcanceMasBarato,
   CREDITOS_POR_DIA,
   diasDeRegalo,
   SOCIO_FUNDADOR_CREDITOS,
   SOCIO_FUNDADOR_HASTA_ISO,
+  type EstadoEmpresa,
+  type MotivoRechazoEmpresa,
   type TipoCuentaEmpresa,
   type TipoNegocio,
 } from "@/config/constants";
-import { formatearFecha, formatearNumero, ZONA_MADRID, type Idioma } from "@/lib/formato";
+import {
+  formatearFecha,
+  formatearLista,
+  formatearNumero,
+  ZONA_MADRID,
+  type Idioma,
+} from "@/lib/formato";
 
 import type { FuncionT } from "./plantilla";
 import type { Textos } from "./servidor";
@@ -42,5 +51,22 @@ export function creditoDia(t: T, idioma: Idioma): string {
   });
 }
 
+/**
+ * Lo que cuesta un día en lo que ESE negocio puede comprar (`ALCANCES_POR_NEGOCIO`), con su tarifa. El
+ * tipo es obligatorio, como en `fraseQueEsUnCredito`: quien no lo conoce pide `creditoDia`.
+ */
+export function queEsUnCredito(t: T, tipo: TipoNegocio, idioma: Idioma): string {
+  const tramos = ALCANCES_POR_NEGOCIO[tipo].map((a, i) => {
+    const n = CREDITOS_POR_DIA[a];
+    const donde = t(`tarifaEn_${a}`);
+    return i === 0 ? t("tarifaPrimera", { n, donde }) : t("tarifaOtra", { n, donde });
+  });
+  return t("tarifa", { tramos: formatearLista(tramos, idioma) });
+}
+
 export const tipoCuenta = (t: T, c: TipoCuentaEmpresa) => t(`tipoCuenta_${c}`);
-export const tipoNegocio = (t: T, n: TipoNegocio) => t(`tipoNegocio_${n}`);
+/** Un tipo guardado fuera del catálogo llega como `null` (`tipoNegocioDe`): se dice, no se inventa. */
+export const tipoNegocio = (t: T, n: TipoNegocio | null) =>
+  n ? t(`tipoNegocio_${n}`) : t("tipoNegocioSinClasificar");
+export const estadoEmpresa = (t: T, e: EstadoEmpresa) => t(`estado_${e}`);
+export const motivoRechazo = (t: T, m: MotivoRechazoEmpresa) => t(`motivo_${m}`);

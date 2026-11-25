@@ -1,12 +1,8 @@
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { TarjetaMetrica } from "@/components/ui/tarjeta-metrica";
-import {
-  MSG_CREDITOS_PAGO_NO_DISPONIBLE,
-  MSG_CREDITOS_SIN_VERIFICAR,
-  fraseCreditoPublica,
-  fraseQueEsUnCredito,
-} from "@/config/constants";
+import { TextosProvider } from "@/components/textos-provider";
+import { MSG_CREDITOS_PAGO_NO_DISPONIBLE, MSG_CREDITOS_SIN_VERIFICAR } from "@/config/constants";
 import { paquetesCreditosEnVenta } from "@/lib/creditos-precio";
 import { puedeOperarEmpresa } from "@/lib/empresa";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
@@ -16,21 +12,29 @@ import { AvisoVerificar } from "../aviso-verificar";
 import { MovimientosCreditos } from "../movimientos-creditos";
 import { ComprarCreditos } from "./comprar-creditos";
 import { formatearNumero, formatearImporte } from "@/lib/formato";
+import { creditoDia, queEsUnCredito } from "@/textos/empresa";
+import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
 
-export const metadata = { title: "Créditos de publicidad" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("creditosEmpresa") };
+}
 // Lee la sesión y el ledger de la empresa: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 
 const texto = (v: string | string[] | undefined): string =>
   typeof v === "string" ? v.trim().slice(0, 80) : "";
 
-/** Lo que se dice al volver de Stripe (`?compra=`) o de un recibo que no se pudo abrir (`?recibo=`). */
-const AVISOS: Record<string, string> = {
-  ok: "Pago recibido. Los créditos aparecen en tu saldo en cuanto Stripe nos lo confirma; suele ser al momento.",
-  cancelada: "Has cancelado el pago. No se te ha cobrado nada.",
-  "no-disponible":
-    "No hemos podido abrir el recibo ahora mismo. Inténtalo en un rato; también te llegó por correo.",
-};
+/**
+ * Lo que se dice al volver de Stripe (`?compra=`) o de un recibo que no se pudo abrir (`?recibo=`): la
+ * clave de su frase en `creditosEmpresa`. Lo que no está aquí no se dice.
+ */
+const AVISOS = {
+  ok: "aviso_ok",
+  cancelada: "aviso_cancelada",
+  "no-disponible": "aviso_noDisponible",
+} as const;
+const claveAviso = (v: string) =>
+  Object.hasOwn(AVISOS, v) ? AVISOS[v as keyof typeof AVISOS] : null;
 
 /**
  * /empresa/creditos — LOS CRÉDITOS DE PUBLICIDAD: el saldo y el historial ENTERO, paginado por keyset
@@ -49,10 +53,11 @@ export default async function PaginaCreditos({
   // El idioma y la zona de la empresa que mira (Fase 11): cifras y fechas salen de `lib/formato`.
   const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
   const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
+  const [t, tn] = await Promise.all([textos("creditosEmpresa"), textos("negocio")]);
   if (ambito === null) {
     return (
       <div className="df-rise">
-        <h1 className="text-2xl text-text">Créditos de publicidad</h1>
+        <h1 className="text-2xl text-text">{t("titulo")}</h1>
         <div className="mt-6">
           <AvisoVerificar />
         </div>
@@ -89,18 +94,19 @@ export default async function PaginaCreditos({
     porCredito: formatearImporte(p.porCreditoCents, idioma),
     mejorPrecio: p.mejorPrecio,
   }));
-  const aviso = AVISOS[texto(sp["compra"]) || texto(sp["recibo"])] ?? null;
+  const clave = claveAviso(texto(sp["compra"]) || texto(sp["recibo"]));
+  const aviso = clave ? t(clave) : null;
 
   return (
     <div className="df-rise space-y-6">
       <div>
-        <h1 className="text-2xl text-text">Créditos de publicidad</h1>
+        <h1 className="text-2xl text-text">{t("titulo")}</h1>
         <p className="mt-1 max-w-prose text-sm text-text-dim">
           {/* DECIDIDO: sin tipo conocido (o fuera del catálogo), la horquilla pública. */}
           {empresa?.tipoNegocio
-            ? fraseQueEsUnCredito(empresa.tipoNegocio)
-            : fraseCreditoPublica()}{" "}
-          Aquí tienes todos tus movimientos.
+            ? queEsUnCredito(tn, empresa.tipoNegocio, idioma)
+            : creditoDia(tn, idioma)}{" "}
+          {t("todosMovimientos")}
         </p>
       </div>
 
@@ -118,25 +124,27 @@ export default async function PaginaCreditos({
       <div className="grid gap-6 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
         <div className="lg:sticky lg:top-24">
           <TarjetaMetrica
-            etiqueta="Saldo"
+            etiqueta={t("saldo")}
             valor={formatearNumero(creditos.saldo, idioma)}
-            pie={creditos.saldo === 1 ? "crédito de publicidad" : "créditos de publicidad"}
+            pie={t("saldoPie", { n: creditos.saldo })}
           />
         </div>
 
         <div className="min-w-0 space-y-6">
           <Tarjeta className="p-5 lg:p-6">
-            <ComprarCreditos
-              paquetes={paquetes}
-              puedeComprar={motivoBloqueo === null}
-              motivoBloqueo={motivoBloqueo}
-            />
+            <TextosProvider textos={await textosClienteDeLaPeticion(["creditosCompra"] as const)}>
+              <ComprarCreditos
+                paquetes={paquetes}
+                puedeComprar={motivoBloqueo === null}
+                motivoBloqueo={motivoBloqueo}
+              />
+            </TextosProvider>
           </Tarjeta>
 
           <section aria-labelledby="movimientos" className="min-w-0">
             <Tarjeta className="p-5 lg:p-6">
               <h2 id="movimientos" className="text-base font-semibold text-text">
-                Movimientos
+                {t("movimientos")}
               </h2>
               <div className="mt-3">
                 <MovimientosCreditos

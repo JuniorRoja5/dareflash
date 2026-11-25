@@ -1,6 +1,7 @@
 "use client";
 
 import { Enlace, useRutaSinIdioma } from "@/components/enlace";
+import { useTextos } from "@/components/textos-provider";
 
 import { SECCIONES_PORTAL, seccionPortalActiva } from "./secciones-portal";
 
@@ -17,9 +18,10 @@ import { SECCIONES_PORTAL, seccionPortalActiva } from "./secciones-portal";
  */
 export function NavPortal() {
   const activa = seccionPortalActiva(useRutaSinIdioma());
+  const t = useTextos("portal");
   return (
     <nav
-      aria-label="Portal de empresa"
+      aria-label={t("navegacion")}
       className="-mx-4 flex gap-1 overflow-x-auto border-b border-line px-4 [scrollbar-width:none] lg:sticky lg:top-24 lg:mx-0 lg:flex-col lg:overflow-visible lg:border-b-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
     >
       {SECCIONES_PORTAL.map((s) => {
@@ -35,7 +37,7 @@ export function NavPortal() {
                 : "border-transparent text-text-dim hover:text-text lg:hover:bg-raised/60"
             }`}
           >
-            {s.nombre}
+            {t(`seccion_${s.clave}`)}
           </Enlace>
         );
       })}

@@ -10,18 +10,19 @@
  */
 export interface SeccionPortal {
   readonly href: string;
-  readonly nombre: string;
+  /** Su nombre en pantalla sale del diccionario (`portal.seccion_<clave>`, P5b2b). */
+  readonly clave: "resumen" | "retos" | "publicidad" | "creditos" | "cuenta";
 }
 
 export const SECCIONES_PORTAL: readonly SeccionPortal[] = [
-  { href: "/empresa", nombre: "Resumen" },
+  { href: "/empresa", clave: "resumen" },
   // Fase 9 · P3: sus propuestas de reto patrocinado y su extracto. Entra con su página, como dice arriba.
-  { href: "/empresa/retos", nombre: "Retos" },
+  { href: "/empresa/retos", clave: "retos" },
   // Fase 9 · P6: sus campañas de publicidad (crear, activar o programar, pausar, terminar).
-  { href: "/empresa/publicidad", nombre: "Publicidad" },
+  { href: "/empresa/publicidad", clave: "publicidad" },
   // fase9-diseno: el historial entero de créditos de publicidad, paginado. El Resumen enseña el saldo.
-  { href: "/empresa/creditos", nombre: "Créditos" },
-  { href: "/empresa/cuenta", nombre: "Cuenta" },
+  { href: "/empresa/creditos", clave: "creditos" },
+  { href: "/empresa/cuenta", clave: "cuenta" },
 ];
 
 /**

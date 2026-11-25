@@ -30,11 +30,17 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import * as c from "../src/config/constants";
 import type { AlcancePublicidad, TipoNegocio } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
-import { alcancesPermitidos, tipoNegocioDe } from "../src/lib/empresa";
+import { alcancesPermitidos, etiquetaTipoNegocio, tipoNegocioDe } from "../src/lib/empresa";
 import { formatearFecha, ZONA_MADRID } from "../src/lib/formato";
 import { fichaEmpresa, miEmpresa, verificarEmpresa } from "../src/server/services/empresas";
 import { campanaSchema, crearBorrador, PublicidadError } from "../src/server/services/publicidad";
-import { creditoDia, socioFundador, tipoCuenta, tipoNegocio } from "../src/textos/empresa";
+import {
+  creditoDia,
+  queEsUnCredito,
+  socioFundador,
+  tipoCuenta,
+  tipoNegocio,
+} from "../src/textos/empresa";
 import { es } from "../src/textos/es";
 import { crearT } from "../src/textos/plantilla";
 
@@ -127,9 +133,27 @@ describe("la tarifa y el regalo, por tipo de negocio", () => {
     );
   });
 
+  it("la tarifa de cada negocio: la del portal (diccionario) dice lo mismo que la del panel y el correo", () => {
+    const t = crearT(es.negocio, "es");
+    const comparar = () => {
+      for (const n of TIPOS) expect(queEsUnCredito(t, n, "es"), n).toBe(c.fraseQueEsUnCredito(n));
+    };
+    comparar();
+    const antes = { ...c.CREDITOS_POR_DIA };
+    try {
+      // Con otras cifras también (el singular de «crédito» en el primer tramo incluido).
+      Object.assign(c.CREDITOS_POR_DIA, { CIUDAD: 2, ESTADO: 1, PAIS: 1, GLOBAL: 40 });
+      comparar();
+    } finally {
+      Object.assign(c.CREDITOS_POR_DIA, antes);
+    }
+  });
+
   it("las etiquetas de tipo: el diccionario dice lo mismo que el panel (`ETIQUETA_TIPO_*`)", () => {
     const t = crearT(es.negocio, "es");
     for (const n of TIPOS) expect(tipoNegocio(t, n), n).toBe(c.ETIQUETA_TIPO_NEGOCIO[n]);
+    // Y el tipo guardado fuera del catálogo se dice igual en los dos sitios.
+    expect(tipoNegocio(t, null)).toBe(etiquetaTipoNegocio(null));
     for (const k of c.VALORES_TIPO_CUENTA_EMPRESA) {
       expect(tipoCuenta(t, k), k).toBe(c.ETIQUETA_TIPO_CUENTA[k]);
     }

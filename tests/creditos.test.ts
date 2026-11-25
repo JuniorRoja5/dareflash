@@ -43,6 +43,7 @@ import {
   misCreditos,
 } from "../src/server/services/creditos";
 import { rechazarEmpresa, verificarEmpresa } from "../src/server/services/empresas";
+import { es } from "../src/textos/es";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 import { MARCA } from "@/config/marca";
@@ -445,16 +446,23 @@ describe("estructural", () => {
   });
 
   it("en pantalla son «créditos de publicidad», nunca «puntos»", () => {
-    const ficheros = [
-      ["src", "app", "panel", "empresas", "creditos-empresa.tsx"],
-      ["src", "app", "(app)", "(shell)", "empresa", "page.tsx"],
+    // El panel lo escribe en su castellano; el portal, desde la P5b2b, lo lee del diccionario: la clave
+    // en el código y el texto en `es.ts` (y ni una palabra de «puntos» en los espacios que pinta).
+    const ficheros: [string[], RegExp][] = [
+      [["src", "app", "panel", "empresas", "creditos-empresa.tsx"], /Créditos de publicidad/],
+      [["src", "app", "(app)", "(shell)", "empresa", "page.tsx"], /etiqueta=\{t\("creditos"\)\}/],
       // fase9-diseno: su sección propia, con el historial entero.
-      ["src", "app", "(app)", "(shell)", "empresa", "creditos", "page.tsx"],
+      [["src", "app", "(app)", "(shell)", "empresa", "creditos", "page.tsx"], /\{t\("titulo"\)\}/],
     ];
-    for (const f of ficheros) {
+    for (const [f, nombre] of ficheros) {
       const src = soloCodigo(readFileSync(path.join(RAIZ, ...f), "utf8"));
       expect(src, f.join("/")).not.toMatch(/punto/i);
-      expect(src, f.join("/")).toMatch(/Créditos de publicidad/);
+      expect(src, f.join("/")).toMatch(nombre);
+    }
+    expect(es.empresaResumen.creditos).toBe("Créditos de publicidad");
+    expect(es.creditosEmpresa.titulo).toBe("Créditos de publicidad");
+    for (const espacio of [es.empresaResumen, es.creditosEmpresa, es.creditosCompra]) {
+      expect(JSON.stringify(espacio)).not.toMatch(/punto/i);
     }
     // Y los conceptos que ve la empresa, tampoco.
     const c = readFileSync(path.join(RAIZ, "src", "config", "constants.ts"), "utf8");
