@@ -25,6 +25,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { es } from "../src/textos/es";
+
 const RAIZ = path.resolve(__dirname, "..");
 const leer = (rel: string): string => readFileSync(path.resolve(RAIZ, rel), "utf8");
 /** Sin comentarios: un docblock que EXPLIQUE la regla no la aplica. */
@@ -84,8 +86,10 @@ describe("la casilla del registro: leerla no cambia lo que aceptas", () => {
   const v = codigo(REGISTRO);
 
   it("nombra la política y la enlaza", () => {
-    expect(v).toMatch(/href="\/privacidad"/);
-    expect(v).toMatch(/política de privacidad/);
+    // Desde la P5b2a la frase vive en el diccionario con el enlace DENTRO, y el destino lo pone el código.
+    expect(v).toMatch(/tr\("consentimiento"/);
+    expect(v).toMatch(/href: "\/privacidad"/);
+    expect(es.registro.consentimiento).toMatch(/\{enlace:política de privacidad\}/);
   });
 
   it("y el enlace CORTA el clic antes de que llegue a la etiqueta", () => {
@@ -95,7 +99,7 @@ describe("la casilla del registro: leerla no cambia lo que aceptas", () => {
     // │ al revés de como lo dejaste. Se ata a la FORMA concreta y junto al `href`, no sueltos.    │
     // └───────────────────────────────────────────────────────────────────────────────────────────┘
     expect(v, "el enlace ya no corta la propagación del clic").toMatch(
-      /href="\/privacidad"[\s\S]{0,200}?stopPropagation\(\)/,
+      /href: "\/privacidad",[\s\S]{0,200}?stopPropagation\(\)/,
     );
   });
 

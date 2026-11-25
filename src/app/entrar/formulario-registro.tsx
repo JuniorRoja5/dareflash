@@ -1,9 +1,9 @@
 "use client";
 
-import { Enlace } from "@/components/enlace";
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
+import { useTextos, useTextosRicos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import {
@@ -51,6 +51,10 @@ export function FormularioRegistro() {
   // aqui ni se le ensena nada al usuario: si el enlace fuera malo, el alta sigue igual (lo decide el
   // servidor) y avisar de un enlace roto en mitad del registro solo le daria una razon para dudar.
   const refCode = useSearchParams().get(PARAM_REFERIDO);
+  const t = useTextos("registro");
+  const tr = useTextosRicos("registro");
+  const tf = useTextos("formAcceso");
+  const ta = useTextos("acceso");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nacimiento, setNacimiento] = useState("");
@@ -87,7 +91,7 @@ export function FormularioRegistro() {
       setError(mensajeError(r.status, r.code, MSG_REGISTRO));
       setEstado("idle");
     } catch {
-      setError("No se pudo crear la cuenta. Reintenta.");
+      setError(t("errorConexion"));
       setEstado("idle");
     }
   }
@@ -111,11 +115,11 @@ export function FormularioRegistro() {
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
       <Campo
         id="registro-email"
-        label="Correo"
+        label={tf("correo")}
         type="email"
         autoComplete="email"
         required
-        placeholder="tu@correo.com"
+        placeholder={tf("placeholderCorreo")}
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         disabled={ocupado}
@@ -123,12 +127,12 @@ export function FormularioRegistro() {
 
       <Campo
         id="registro-password"
-        label="Contraseña"
+        label={tf("etiquetaClave")}
         type={verVisible ? "text" : "password"}
         autoComplete="new-password"
         required
         minLength={10}
-        placeholder="Mínimo 10 caracteres"
+        placeholder={tf("minimo10")}
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         disabled={ocupado}
@@ -137,7 +141,7 @@ export function FormularioRegistro() {
             type="button"
             onClick={() => setVerVisible((v) => !v)}
             disabled={ocupado}
-            aria-label={verVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
+            aria-label={verVisible ? tf("ocultarContrasena") : tf("mostrarContrasena")}
             className="grid h-8 w-8 place-items-center rounded-xs text-text-dim transition-colors duration-150 ease-mechanical hover:text-text"
           >
             <IconoOjo abierto={verVisible} />
@@ -146,16 +150,14 @@ export function FormularioRegistro() {
       />
       {/* Pista de UX (el SERVIDOR es el gate real): guía sin prometer "segura". */}
       {password.length > 0 && password.length < 10 ? (
-        <p className="-mt-3 text-xs text-text-dim">Usa al menos 10 caracteres.</p>
+        <p className="-mt-3 text-xs text-text-dim">{t("pistaCorta")}</p>
       ) : password.length >= 10 ? (
-        <p className="-mt-3 text-xs text-text-dim">
-          Mejor si es larga y no contiene palabras o secuencias obvias.
-        </p>
+        <p className="-mt-3 text-xs text-text-dim">{t("pistaLarga")}</p>
       ) : null}
 
       <Campo
         id="registro-nacimiento"
-        label="Fecha de nacimiento"
+        label={t("nacimiento")}
         type="date"
         autoComplete="bday"
         required
@@ -187,22 +189,21 @@ export function FormularioRegistro() {
           className="mt-0.5 h-4 w-4 shrink-0 rounded-xs border-line accent-action"
         />
         <span>
-          Confirmo que soy mayor de edad y acepto los términos y la{" "}
           {/* ┌─ EL ENLACE PARA EL CLIC ANTES DE QUE LLEGUE A LA ETIQUETA ──────────────────────┐
               │ Un enlace DENTRO de un `<label>` hereda su comportamiento: al pulsarlo, el       │
               │ navegador marca o desmarca la casilla ADEMÁS de navegar. En una casilla          │
               │ cualquiera sería una molestia; en una de CONSENTIMIENTO es un fallo: ir a leer   │
               │ la política te cambiaría lo que has consentido, y al volver estaría distinto de  │
               │ como lo dejaste. `stopPropagation` corta el clic antes de que la etiqueta lo vea.│
-              └────────────────────────────────────────────────────────────────────────────────┘ */}
-          <Enlace
-            href="/privacidad"
-            onClick={(e) => e.stopPropagation()}
-            className="underline underline-offset-2 hover:text-text"
-          >
-            política de privacidad
-          </Enlace>
-          .
+              └────────────────────────────────────────────────────────────────────────────────┘
+              UNA frase con el enlace dentro (P5b2a): al traducir, el enlace va donde caiga. */}
+          {tr("consentimiento", {
+            enlace: {
+              href: "/privacidad",
+              onClick: (e) => e.stopPropagation(),
+              className: "underline underline-offset-2 hover:text-text",
+            },
+          })}
         </span>
       </label>
 
@@ -219,12 +220,12 @@ export function FormularioRegistro() {
         disabled={ocupado}
         className="w-full py-3.5 shadow-[var(--df-cta-lift)]"
       >
-        {ocupado ? "Creando…" : "Crear cuenta"}
+        {ocupado ? t("creando") : ta("crearCuenta")}
       </Boton>
 
       {/* La edad ya la dice la casilla de arriba; repetir "debes tener 18" aquí sería decirlo dos
           veces. Y el número NO se escribe en el copy: viviría separado de `EDAD_MIN_USO`. */}
-      <p className="text-xs text-text-dim">Te enviaremos un correo para verificar tu cuenta.</p>
+      <p className="text-xs text-text-dim">{t("teEnviaremos")}</p>
 
       {/* LA OTRA PUERTA, A LA ALTURA DEL REGISTRO y como botón, no como letra pequeña al pie. Esta
           cuenta es de PARTICIPANTE y no se puede convertir después (una cuenta de empresa no

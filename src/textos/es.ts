@@ -422,4 +422,143 @@ export const es = conMarcasConocidas({
     destino_vip: "Hazte VIP Mythic",
     destino_cuenta: "Cuenta",
   },
+
+  // ── Títulos de pestaña (P5b2a): solo los pide el servidor (`generateMetadata`) ─────────────────────
+  titulos: {
+    entrar: "Iniciar sesión",
+    recuperar: "Recuperar contraseña",
+    restablecer: "Restablecer contraseña",
+    verificar: "Verificar tu cuenta",
+    cambiarEmail: "Confirmar tu nuevo correo",
+  },
+
+  // ── Acceso (P5b2a): entrar, crear cuenta, recuperar, restablecer, verificar, reactivar, correo ─────
+  /** Lo que comparten los formularios de acceso: los campos y el ojo de la contraseña. */
+  formAcceso: {
+    correo: "Correo",
+    /** La etiqueta del campo. (No se llama `contrasena`: el escáner de secretos lee clave + literal.) */
+    etiquetaClave: "Contraseña",
+    placeholderCorreo: "tu@correo.com",
+    minimo10: "Mínimo 10 caracteres",
+    mostrarContrasena: "Mostrar contraseña",
+    ocultarContrasena: "Ocultar contraseña",
+    iniciarSesion: "Iniciar sesión",
+  },
+  /**
+   * La tarjeta de /entrar, con el cambio entre entrar y crear cuenta. «¿Nuevo por aquí?» y «Crear
+   * cuenta» son DOS piezas, no una frase partida: una pregunta y, al lado, un BOTÓN con su propio
+   * nombre (el mismo que el del panel de escritorio).
+   */
+  acceso: {
+    introEntrar: "Entra para votar, comentar y subir tus retos.",
+    nuevoPorAqui: "¿Nuevo por aquí?",
+    crearCuenta: "Crear cuenta",
+    introRegistro: "Únete y compite por premios de verdad. Es gratis.",
+    yaTienesCuenta: "¿Ya tienes cuenta?",
+    panelEntrar: "Inicia sesión y sigue compitiendo por premios de verdad.",
+    panelRegistro: "Únete y compite por premios de verdad. Creas tu cuenta en segundos.",
+  },
+  login: {
+    errorConexion: "No se pudo iniciar sesión. Reintenta.",
+    demasiados: "Demasiados intentos. Espera un momento.",
+    reenviado: "Si corresponde, te hemos reenviado el correo de verificación.",
+    reenvioSinConexion: "No se pudo conectar. Reinténtalo más tarde.",
+    verificaAntes: "Verifica tu correo antes de entrar.",
+    reenviar: "Reenviar el correo de verificación",
+    entrando: "Entrando…",
+    olvidada: "He olvidado mi contraseña",
+  },
+  registro: {
+    errorConexion: "No se pudo crear la cuenta. Reintenta.",
+    pistaCorta: "Usa al menos 10 caracteres.",
+    pistaLarga: "Mejor si es larga y no contiene palabras o secuencias obvias.",
+    nacimiento: "Fecha de nacimiento",
+    /** UNA frase con el enlace dentro (antes, trozo + enlace + «.»). */
+    consentimiento:
+      "Confirmo que soy mayor de edad y acepto los términos y la {enlace:política de privacidad}.",
+    creando: "Creando…",
+    teEnviaremos: "Te enviaremos un correo para verificar tu cuenta.",
+  },
+  recuperar: {
+    titulo: "Recuperar contraseña",
+    intro: "Escribe tu correo y te enviaremos un enlace para elegir una contraseña nueva.",
+    yaTeAcuerdas: "¿Ya te acuerdas? {enlace:Iniciar sesión}",
+    demasiados: "Demasiados intentos. Espera un momento antes de volver a probar.",
+    noSePudo: "No se pudo enviar el enlace. Revisa el correo y reinténtalo.",
+    sinConexion: "No se pudo conectar. Inténtalo de nuevo más tarde.",
+    revisaCorreo: "Revisa tu correo.",
+    hecho:
+      "Si esa cuenta existe, te hemos enviado un enlace para restablecer la contraseña. Revisa tu correo. El enlace caduca en 30 minutos.",
+    enviando: "Enviando…",
+    enviar: "Enviar enlace",
+  },
+  restablecer: {
+    titulo: "Nueva contraseña",
+    hecho: "Contraseña actualizada. Ya puedes iniciar sesión con la nueva.",
+    ocupado: "El servicio está ocupado. Reinténtalo en unos segundos.",
+    validacion: "Elige una contraseña de al menos 10 caracteres, larga y poco predecible.",
+    caducado: "El enlace para restablecer la contraseña es inválido o ha caducado.",
+    sinConexion: "No se pudo conectar. Inténtalo de nuevo más tarde.",
+    faltaToken: "Falta el token en el enlace. Abre el enlace completo del correo de recuperación.",
+    pedirNuevo: "Pedir un enlace nuevo",
+    listo: "Listo.",
+    yaUsado:
+      "Si ya has cambiado tu contraseña, este enlace deja de funcionar: inicia sesión con la nueva. Si ha caducado, pide otro.",
+    elige: "Elige una contraseña nueva para tu cuenta.",
+    nuevaContrasena: "Nueva contraseña",
+    guardando: "Guardando…",
+    guardar: "Guardar contraseña",
+    cargando: "Cargando…",
+  },
+  /**
+   * /unlock. Los textos van TAL CUAL se veían, también sin tildes («sesion», «invalido»): la P5b2 no
+   * cambia ni una letra del castellano. Corregirlos es un cambio visible y se hace aparte.
+   */
+  desbloquear: {
+    titulo: "Reactivar tu cuenta",
+    hecho: "Cuenta reactivada. Ya puedes intentar iniciar sesion de nuevo.",
+    error: "El enlace de desbloqueo es invalido o ha caducado.",
+    sinConexion: "No se pudo conectar. Intentalo de nuevo mas tarde.",
+    faltaToken: "Falta el token en el enlace. Abre el enlace completo del correo de desbloqueo.",
+    frenada: "Tu cuenta se freno temporalmente por demasiados intentos. Pulsa para reactivarla.",
+    reactivando: "Reactivando...",
+    reactivar: "Reactivar mi cuenta",
+    vuelveAIntentar: "Vuelve a intentar iniciar sesion.",
+    volverInicio: "Volver al inicio",
+    yaUsado:
+      "Si ya has reactivado tu cuenta, este enlace deja de funcionar: vuelve a intentar iniciar sesion. Si el enlace ha caducado y sigues bloqueado, al intentarlo de nuevo te enviaremos uno nuevo.",
+    cargando: "Cargando...",
+  },
+  /** /verify. Igual que /unlock: los textos sin tilde van tal cual se veían. */
+  verificar: {
+    titulo: "Verificar tu cuenta",
+    cargando: "Cargando…",
+    hecho: "Cuenta verificada. Ya puedes iniciar sesion.",
+    error: "El enlace de verificacion es invalido o ha caducado.",
+    sinConexion: "No se pudo conectar. Intentalo de nuevo mas tarde.",
+    faltaToken: "Falta el token en el enlace. Abre el enlace completo del correo de verificación.",
+    pulsa: "Pulsa el botón para confirmar tu dirección de correo.",
+    verificando: "Verificando…",
+    verificar: "Verificar mi cuenta",
+    yaUsado:
+      "Si ya has verificado tu cuenta, este enlace deja de funcionar: puedes iniciar sesión directamente.",
+    reenviado: "Si corresponde, te hemos reenviado el correo de verificación.",
+    demasiados: "Demasiados intentos. Intenta más tarde.",
+    reenvioSinConexion: "No se pudo conectar. Inténtalo de nuevo más tarde.",
+    reenviarEtiqueta: "Reenviar el correo de verificación",
+    enviando: "Enviando…",
+    reenviar: "Reenviar",
+  },
+  cambioEmail: {
+    titulo: "Confirmar tu correo",
+    hecho: "Correo actualizado. Vuelve a iniciar sesión con tu nueva dirección.",
+    noValido: "Este enlace ya no es válido.",
+    sinConexion: "No hemos podido conectar. Inténtalo de nuevo.",
+    faltaToken:
+      "Falta el token en el enlace. Ábrelo completo desde el correo que te hemos enviado.",
+    pulsa:
+      "Pulsa para confirmar que esta dirección es tuya. Al hacerlo se cerrarán tus sesiones abiertas.",
+    confirmando: "Confirmando…",
+    confirmar: "Confirmar mi correo",
+  },
 } as const);

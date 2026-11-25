@@ -98,18 +98,7 @@ const PENDIENTES_P5B2 = [
   "src/app/(app)/(shell)/wallet/movimientos-monedero.tsx",
   "src/app/(app)/(shell)/wallet/page.tsx",
   "src/app/(app)/(shell)/wallet/pedir-cobro.tsx",
-  "src/app/cambiar-email/tarjeta-cambio-email.tsx",
-  "src/app/entrar/formulario-login.tsx",
-  "src/app/entrar/formulario-registro.tsx",
-  "src/app/entrar/tarjeta-acceso.tsx",
   "src/app/privacidad/page.tsx",
-  "src/app/recuperar/formulario-recuperar.tsx",
-  "src/app/recuperar/page.tsx",
-  "src/app/restablecer/formulario-restablecer.tsx",
-  "src/app/restablecer/page.tsx",
-  "src/app/unlock/page.tsx",
-  "src/app/verify/page.tsx",
-  "src/app/verify/tarjeta-verificacion.tsx",
 ];
 
 function tsx(dir: string): string[] {

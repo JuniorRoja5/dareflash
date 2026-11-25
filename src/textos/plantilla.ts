@@ -15,6 +15,8 @@
  * │   se pinta con `tRico` (rico.tsx). Las marcas son un catálogo cerrado (`PropsDeMarca`, abajo).   │
  * └──────────────────────────────────────────────────────────────────────────────────────────────────┘
  */
+import type { MouseEvent } from "react";
+
 import { MARCA } from "@/config/marca";
 import { formaDePlural, formatearNumero, type Idioma } from "@/lib/formato";
 
@@ -45,13 +47,18 @@ type NombresDe<S extends string> = S extends `${string}{${infer R}`
  * lleva un formato en medio, va DENTRO de la plantilla: «El {resaltado:mayor premio} en juego ahora
  * mismo». Al traducir, la marca viaja con sus palabras, estén donde estén en la frase de ese idioma.
  *  - `resaltado`: un `<span>` con la clase que diga quien lo pinta (las palabras que pesan de la frase);
- *  - `enlace`: un enlace interno (`Enlace`), con el destino y la clase que diga quien lo pinta;
+ *  - `enlace`: un enlace interno (`Enlace`), con el destino y la clase que diga quien lo pinta (y, si
+ *    hace falta, su `onClick`: el de la casilla de consentimiento corta el clic para no marcarla);
  *  - `oculto`: un `<span class="sr-only">` (lo que solo oye un lector de pantalla).
  * El diccionario solo NOMBRA la marca: la etiqueta, la clase y el destino los pone el código. Nunca HTML.
  */
 export type PropsDeMarca = {
   resaltado: { className: string };
-  enlace: { href: string; className?: string };
+  enlace: {
+    href: string;
+    className?: string;
+    onClick?: (e: MouseEvent<HTMLAnchorElement>) => void;
+  };
   oculto: Record<string, never>;
 };
 export type MarcaRica = keyof PropsDeMarca;

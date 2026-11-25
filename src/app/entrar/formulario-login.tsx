@@ -3,6 +3,7 @@
 import { Enlace } from "@/components/enlace";
 import { type FormEvent, useState } from "react";
 
+import { useTextos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { postJson } from "@/lib/cliente-http";
@@ -27,6 +28,8 @@ type Estado = "idle" | "enviando";
 
 export function FormularioLogin() {
   const navegarDuro = useNavegarDuro();
+  const t = useTextos("login");
+  const tf = useTextos("formAcceso");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [verVisible, setVerVisible] = useState(false);
@@ -71,7 +74,7 @@ export function FormularioLogin() {
       }
       setEstado("idle");
     } catch {
-      setError("No se pudo iniciar sesión. Reintenta.");
+      setError(t("errorConexion"));
       setEstado("idle");
     }
   }
@@ -80,13 +83,9 @@ export function FormularioLogin() {
     try {
       const r = await postJson("/api/auth/resend-verification", { email: email.trim() });
       // Respuesta UNIFORME (sin enumeración), como el endpoint.
-      setReenviado(
-        r.status === 429
-          ? "Demasiados intentos. Espera un momento."
-          : "Si corresponde, te hemos reenviado el correo de verificación.",
-      );
+      setReenviado(r.status === 429 ? t("demasiados") : t("reenviado"));
     } catch {
-      setReenviado("No se pudo conectar. Reinténtalo más tarde.");
+      setReenviado(t("reenvioSinConexion"));
     }
   }
 
@@ -94,11 +93,11 @@ export function FormularioLogin() {
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
       <Campo
         id="login-email"
-        label="Correo"
+        label={tf("correo")}
         type="email"
         autoComplete="email"
         required
-        placeholder="tu@correo.com"
+        placeholder={tf("placeholderCorreo")}
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         disabled={ocupado}
@@ -106,7 +105,7 @@ export function FormularioLogin() {
 
       <Campo
         id="login-password"
-        label="Contraseña"
+        label={tf("etiquetaClave")}
         type={verVisible ? "text" : "password"}
         autoComplete="current-password"
         required
@@ -118,7 +117,7 @@ export function FormularioLogin() {
             type="button"
             onClick={() => setVerVisible((v) => !v)}
             disabled={ocupado}
-            aria-label={verVisible ? "Ocultar contraseña" : "Mostrar contraseña"}
+            aria-label={verVisible ? tf("ocultarContrasena") : tf("mostrarContrasena")}
             className="grid h-8 w-8 place-items-center rounded-xs text-text-dim transition-colors duration-150 ease-mechanical hover:text-text"
           >
             <IconoOjo abierto={verVisible} />
@@ -137,7 +136,7 @@ export function FormularioLogin() {
           role="alert"
           className="rounded-sm border border-line bg-surface/60 p-3 text-sm text-text-dim"
         >
-          Verifica tu correo antes de entrar.{" "}
+          {t("verificaAntes")}{" "}
           {reenviado ? (
             <span className="mt-1 block text-text">{reenviado}</span>
           ) : (
@@ -146,7 +145,7 @@ export function FormularioLogin() {
               onClick={reenviarVerificacion}
               className="mt-1 block rounded-xs text-text underline underline-offset-2"
             >
-              Reenviar el correo de verificación
+              {t("reenviar")}
             </button>
           )}
         </div>
@@ -159,7 +158,7 @@ export function FormularioLogin() {
         disabled={ocupado}
         className="w-full py-3.5 shadow-[var(--df-cta-lift)]"
       >
-        {ocupado ? "Entrando…" : "Iniciar sesión"}
+        {ocupado ? t("entrando") : tf("iniciarSesion")}
       </Boton>
 
       {/* El cambio a "Crear cuenta" lo gestiona la tarjeta (toggle); aquí solo el reset de contraseña. */}
@@ -167,7 +166,7 @@ export function FormularioLogin() {
         href="/recuperar"
         className="rounded-xs text-sm text-text-dim transition-colors duration-150 ease-mechanical hover:text-text"
       >
-        He olvidado mi contraseña
+        {t("olvidada")}
       </Enlace>
     </form>
   );

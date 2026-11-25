@@ -10,6 +10,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { es } from "../src/textos/es";
+
 const raiz = path.resolve(__dirname, "..");
 const leer = (rel: string): string => readFileSync(path.join(raiz, rel), "utf8");
 
@@ -43,6 +45,8 @@ describe("destino tras verificar", () => {
     // El mensaje ya decía "Ya puedes iniciar sesion" mientras el botón mandaba a la home: la pantalla
     // se contradecía a sí misma.
     expect(leer(RUTA)).toMatch(/iniciar sesion/i);
-    expect(bloqueOk()).toMatch(/Iniciar sesión/i);
+    // Desde la P5b2a la palabra sale del diccionario: el botón pinta `formAcceso.iniciarSesion`.
+    expect(bloqueOk()).toContain('tf("iniciarSesion")');
+    expect(es.formAcceso.iniciarSesion).toMatch(/Iniciar sesión/i);
   });
 });

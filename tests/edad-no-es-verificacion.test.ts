@@ -23,6 +23,7 @@ import { describe, expect, it } from "vitest";
 
 import * as CONSTANTES from "../src/config/constants";
 import { EDAD_MIN_USO } from "../src/config/constants";
+import { es } from "../src/textos/es";
 
 const RAIZ = process.cwd();
 const leer = (...p: string[]) => readFileSync(join(RAIZ, ...p), "utf8");
@@ -32,6 +33,11 @@ const codigo = (...p: string[]) => soloCodigo(leer(...p));
 
 const RUTA_REGISTRO = ["src", "app", "api", "auth", "register", "route.ts"];
 const FORMULARIO = ["src", "app", "entrar", "formulario-registro.tsx"];
+/**
+ * Lo que el formulario DICE: desde la P5b2a sus frases viven en el diccionario (`registro`), así que lo
+ * que se juzga es su código MÁS esas frases. Si no, el veto se quedaba mirando un fichero sin copy.
+ */
+const COPY_REGISTRO = Object.values(es.registro).join("\n");
 
 describe("una sola constante de edad", () => {
   it("vale 18 y SOLO hay un umbral de edad en la config", () => {
@@ -84,7 +90,7 @@ describe("el número no se escribe a mano", () => {
   });
 
   it("el formulario tampoco: el copy habla de 'mayor de edad', no de un número", () => {
-    const form = codigo(...FORMULARIO);
+    const form = `${codigo(...FORMULARIO)}\n${COPY_REGISTRO}`;
     expect(form).toMatch(/mayor de edad/i);
     expect(form, "un número suelto en el copy se queda desfasado").not.toMatch(/\b1[0-9]\s*años/);
   });
@@ -117,11 +123,11 @@ describe("el número no se escribe a mano", () => {
 
 describe("declarada, nunca 'verificada'", () => {
   it("ni la ruta ni el formulario dicen que la edad esté verificada", () => {
-    for (const f of [RUTA_REGISTRO, FORMULARIO]) {
+    for (const f of [RUTA_REGISTRO, FORMULARIO, ["src", "textos", "es.ts → registro"]]) {
       // SIN COMENTARIOS: el docblock del formulario dice "LA EDAD ES DECLARADA, NO VERIFICADA" —
       // o sea, explica la regla— y el guard lo leía como una infracción. Lo que se juzga es lo que
       // llega al usuario, no lo que se le cuenta al siguiente que lea el fichero.
-      const src = soloCodigo(leer(...f));
+      const src = f === FORMULARIO || f === RUTA_REGISTRO ? soloCodigo(leer(...f)) : COPY_REGISTRO;
       // "verificar tu cuenta" (el correo) SÍ vale; lo que no puede existir es la edad verificada.
       const frases = src.match(/[^.\n]*verific[^.\n]*/gi) ?? [];
       for (const frase of frases) {

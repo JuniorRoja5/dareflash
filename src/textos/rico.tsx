@@ -109,7 +109,12 @@ function pintar(
         return;
       case "enlace":
         salida.push(
-          <Enlace key={clave} href={marcas.enlace!.href} className={marcas.enlace?.className}>
+          <Enlace
+            key={clave}
+            href={marcas.enlace!.href}
+            className={marcas.enlace?.className}
+            onClick={marcas.enlace?.onClick}
+          >
             {hijos}
           </Enlace>,
         );

@@ -1,8 +1,12 @@
+import { TextosProvider } from "@/components/textos-provider";
 import { PieLegal } from "@/components/ui/pie-legal";
+import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
 
 import { TarjetaAcceso } from "./tarjeta-acceso";
 
-export const metadata = { title: "Iniciar sesión" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("entrar") };
+}
 
 /**
  * ACCESO (/entrar) — ruta SUELTA, fuera del grupo (app), sin nav (como /verify y /unlock). Es el
@@ -14,7 +18,13 @@ export const metadata = { title: "Iniciar sesión" };
  * (brief v2): fondo void con glow de acción ambiental y tarjeta glass. UNA sola acción principal por
  * vista (la del formulario activo). El reset de contraseña es una pieza siguiente (enlace listo).
  */
-export default function EntrarPage() {
+export default async function EntrarPage() {
+  const textosAcceso = await textosClienteDeLaPeticion([
+    "acceso",
+    "formAcceso",
+    "login",
+    "registro",
+  ] as const);
   return (
     <div className="relative flex min-h-svh flex-col overflow-hidden bg-void">
       {/* Glow ambiental de marca (muy tenue) detrás de la tarjeta. */}
@@ -24,7 +34,9 @@ export default function EntrarPage() {
         style={{ background: "var(--df-glow-accion)" }}
       />
       <main className="relative grid flex-1 place-items-center px-4 py-10">
-        <TarjetaAcceso />
+        <TextosProvider textos={textosAcceso}>
+          <TarjetaAcceso />
+        </TextosProvider>
       </main>
       {/* EL PIE AQUÍ NO ES DECORACIÓN: esta es la pantalla donde se pide el consentimiento, así que
           es donde más falta hace poder abrir la política. Sin barra inferior: /entrar está fuera del

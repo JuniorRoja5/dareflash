@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
+import { useTextos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { mensajeDe, postJson } from "@/lib/cliente-http";
 
@@ -21,6 +22,8 @@ const estiloDisplay = {
  */
 export function TarjetaCambioEmail() {
   const token = useSearchParams().get("token") ?? "";
+  const t = useTextos("cambioEmail");
+  const tf = useTextos("formAcceso");
   const [estado, setEstado] = useState<"listo" | "enviando" | "ok" | "error">("listo");
   const [mensaje, setMensaje] = useState("");
 
@@ -29,14 +32,14 @@ export function TarjetaCambioEmail() {
     try {
       const r = await postJson("/api/auth/confirmar-email", { token });
       if (r.ok) {
-        setMensaje("Correo actualizado. Vuelve a iniciar sesión con tu nueva dirección.");
+        setMensaje(t("hecho"));
         setEstado("ok");
         return;
       }
-      setMensaje(mensajeDe(r.data) || "Este enlace ya no es válido.");
+      setMensaje(mensajeDe(r.data) || t("noValido"));
       setEstado("error");
     } catch {
-      setMensaje("No hemos podido conectar. Inténtalo de nuevo.");
+      setMensaje(t("sinConexion"));
       setEstado("error");
     }
   }
@@ -44,13 +47,11 @@ export function TarjetaCambioEmail() {
   return (
     <div className="df-rise relative w-full max-w-md overflow-hidden rounded-lg border border-line bg-surface p-8 shadow-[var(--df-shadow-lg)] sm:p-10">
       <h1 className="mb-1.5 text-3xl text-text" style={estiloDisplay}>
-        Confirmar tu correo
+        {t("titulo")}
       </h1>
 
       {token === "" ? (
-        <p className="mt-4 text-sm text-text-dim">
-          Falta el token en el enlace. Ábrelo completo desde el correo que te hemos enviado.
-        </p>
+        <p className="mt-4 text-sm text-text-dim">{t("faltaToken")}</p>
       ) : estado === "ok" ? (
         <>
           <p role="status" className="mb-6 mt-1.5 text-sm text-ok">
@@ -61,15 +62,12 @@ export function TarjetaCambioEmail() {
             variante="principal"
             className="w-full py-3.5 shadow-[var(--df-cta-lift)]"
           >
-            Iniciar sesión
+            {tf("iniciarSesion")}
           </Boton>
         </>
       ) : (
         <>
-          <p className="mb-6 mt-1.5 text-sm text-text-dim">
-            Pulsa para confirmar que esta dirección es tuya. Al hacerlo se cerrarán tus sesiones
-            abiertas.
-          </p>
+          <p className="mb-6 mt-1.5 text-sm text-text-dim">{t("pulsa")}</p>
           <Boton
             type="button"
             variante="principal"
@@ -77,7 +75,7 @@ export function TarjetaCambioEmail() {
             disabled={estado === "enviando"}
             className="w-full py-3.5 shadow-[var(--df-cta-lift)]"
           >
-            {estado === "enviando" ? "Confirmando…" : "Confirmar mi correo"}
+            {estado === "enviando" ? t("confirmando") : t("confirmar")}
           </Boton>
           {estado === "error" ? (
             <p role="status" className="mt-4 text-sm text-alarm">

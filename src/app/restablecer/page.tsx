@@ -1,6 +1,11 @@
+import { TextosProvider } from "@/components/textos-provider";
+import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
+
 import { FormularioRestablecer } from "./formulario-restablecer";
 
-export const metadata = { title: "Restablecer contraseña" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("restablecer") };
+}
 
 const estiloDisplay = {
   fontFamily: "var(--font-display)",
@@ -18,7 +23,11 @@ const estiloDisplay = {
  *
  * Marca (brief v2): fondo void con glow de acción ambiental y tarjeta glass. UNA sola acción principal.
  */
-export default function RestablecerPage() {
+export default async function RestablecerPage() {
+  const [t, textosForm] = await Promise.all([
+    textos("restablecer"),
+    textosClienteDeLaPeticion(["formAcceso", "restablecer"] as const),
+  ]);
   return (
     <main className="relative grid min-h-svh place-items-center overflow-hidden bg-void px-4 py-10">
       {/* Glow ambiental de marca (muy tenue) detrás de la tarjeta. */}
@@ -29,9 +38,11 @@ export default function RestablecerPage() {
       />
       <div className="df-rise relative w-full max-w-md rounded-lg border border-line bg-surface p-8 shadow-[var(--df-shadow-lg)] sm:p-10">
         <h1 className="mb-1.5 text-3xl text-text" style={estiloDisplay}>
-          Nueva contraseña
+          {t("titulo")}
         </h1>
-        <FormularioRestablecer />
+        <TextosProvider textos={textosForm}>
+          <FormularioRestablecer />
+        </TextosProvider>
       </div>
     </main>
   );

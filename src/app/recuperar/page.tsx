@@ -1,8 +1,11 @@
-import { Enlace } from "@/components/enlace";
+import { TextosProvider } from "@/components/textos-provider";
+import { textos, textosClienteDeLaPeticion, textosRicos } from "@/textos/servidor";
 
 import { FormularioRecuperar } from "./formulario-recuperar";
 
-export const metadata = { title: "Recuperar contraseña" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("recuperar") };
+}
 
 const estiloDisplay = {
   fontFamily: "var(--font-display)",
@@ -18,7 +21,12 @@ const estiloDisplay = {
  * (la del formulario). La respuesta es UNIFORME (sin enumeración): el mismo mensaje exista o no la
  * cuenta, para no revelar qué direcciones tienen cuenta.
  */
-export default function RecuperarPage() {
+export default async function RecuperarPage() {
+  const [t, tr, textosForm] = await Promise.all([
+    textos("recuperar"),
+    textosRicos("recuperar"),
+    textosClienteDeLaPeticion(["formAcceso", "recuperar"] as const),
+  ]);
   return (
     <main className="relative grid min-h-svh place-items-center overflow-hidden bg-void px-4 py-10">
       {/* Glow ambiental de marca (muy tenue) detrás de la tarjeta. */}
@@ -29,20 +37,19 @@ export default function RecuperarPage() {
       />
       <div className="df-rise relative w-full max-w-md rounded-lg border border-line bg-surface p-8 shadow-[var(--df-shadow-lg)] sm:p-10">
         <h1 className="mb-1.5 text-3xl text-text" style={estiloDisplay}>
-          Recuperar contraseña
+          {t("titulo")}
         </h1>
-        <p className="mb-6 text-sm text-text-dim">
-          Escribe tu correo y te enviaremos un enlace para elegir una contraseña nueva.
-        </p>
-        <FormularioRecuperar />
+        <p className="mb-6 text-sm text-text-dim">{t("intro")}</p>
+        <TextosProvider textos={textosForm}>
+          <FormularioRecuperar />
+        </TextosProvider>
         <p className="mt-6 text-sm text-text-dim">
-          ¿Ya te acuerdas?{" "}
-          <Enlace
-            href="/entrar"
-            className="rounded-xs font-medium text-text underline underline-offset-2"
-          >
-            Iniciar sesión
-          </Enlace>
+          {tr("yaTeAcuerdas", {
+            enlace: {
+              href: "/entrar",
+              className: "rounded-xs font-medium text-text underline underline-offset-2",
+            },
+          })}
         </p>
       </div>
     </main>

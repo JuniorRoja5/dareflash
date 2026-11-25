@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useTextos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { CTA_NEGOCIO } from "@/config/constants";
 
@@ -28,6 +29,8 @@ const estiloDisplay = {
 } as const;
 
 export function TarjetaAcceso() {
+  const t = useTextos("acceso");
+  const tf = useTextos("formAcceso");
   const [modo, setModo] = useState<"login" | "registro">("login");
   const activo = modo === "registro";
   const irLogin = () => setModo("login");
@@ -46,21 +49,19 @@ export function TarjetaAcceso() {
       >
         <div className="lg:mx-auto lg:w-full lg:max-w-sm">
           <h1 className="mb-1.5 text-3xl text-text" style={estiloDisplay}>
-            Iniciar sesión
+            {tf("iniciarSesion")}
           </h1>
-          <p className="mb-6 text-sm text-text-dim">
-            Entra para votar, comentar y subir tus retos.
-          </p>
+          <p className="mb-6 text-sm text-text-dim">{t("introEntrar")}</p>
           <FormularioLogin />
           {/* Toggle SOLO móvil (en escritorio lo aporta el panel oscuro). */}
           <p className="mt-6 text-sm text-text-dim lg:hidden">
-            ¿Nuevo por aquí?{" "}
+            {t("nuevoPorAqui")}{" "}
             <button
               type="button"
               onClick={irRegistro}
               className="rounded-xs font-medium text-text underline underline-offset-2"
             >
-              Crear cuenta
+              {t("crearCuenta")}
             </button>
           </p>
           {/* LA PUERTA DEL NEGOCIO, visible YA en la vista inicial (móvil): quien viene a registrar
@@ -83,20 +84,18 @@ export function TarjetaAcceso() {
       >
         <div className="lg:mx-auto lg:w-full lg:max-w-sm">
           <h1 className="mb-1.5 text-3xl text-text" style={estiloDisplay}>
-            Crear cuenta
+            {t("crearCuenta")}
           </h1>
-          <p className="mb-6 text-sm text-text-dim">
-            Únete y compite por premios de verdad. Es gratis.
-          </p>
+          <p className="mb-6 text-sm text-text-dim">{t("introRegistro")}</p>
           <FormularioRegistro />
           <p className="mt-6 text-sm text-text-dim lg:hidden">
-            ¿Ya tienes cuenta?{" "}
+            {t("yaTienesCuenta")}{" "}
             <button
               type="button"
               onClick={irLogin}
               className="rounded-xs font-medium text-text underline underline-offset-2"
             >
-              Iniciar sesión
+              {tf("iniciarSesion")}
             </button>
           </p>
         </div>
@@ -119,15 +118,13 @@ export function TarjetaAcceso() {
         {/* El contenido cambia de lado con el panel: el botón (secundario) solo alterna la vista. */}
         <div className="pointer-events-auto relative flex h-full flex-col items-center justify-center gap-5 p-10 text-center xl:p-14">
           <h2 className="text-3xl text-text" style={estiloDisplay}>
-            {activo ? "¿Ya tienes cuenta?" : "¿Nuevo por aquí?"}
+            {activo ? t("yaTienesCuenta") : t("nuevoPorAqui")}
           </h2>
           <p className="max-w-[26ch] text-text-dim">
-            {activo
-              ? "Inicia sesión y sigue compitiendo por premios de verdad."
-              : "Únete y compite por premios de verdad. Creas tu cuenta en segundos."}
+            {activo ? t("panelEntrar") : t("panelRegistro")}
           </p>
           <Boton variante="secundario" onClick={activo ? irLogin : irRegistro}>
-            {activo ? "Iniciar sesión" : "Crear cuenta"}
+            {activo ? tf("iniciarSesion") : t("crearCuenta")}
           </Boton>
           {/* LA PUERTA DEL NEGOCIO, junto a «Crear cuenta» y en la vista inicial: es la otra forma de
               darse de alta. Cuando se ve el registro, la pone el propio formulario debajo del suyo. */}

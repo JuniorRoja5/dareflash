@@ -20,6 +20,7 @@
 import { useSearchParams } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
+import { useTextos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { postJson } from "@/lib/cliente-http";
@@ -33,6 +34,8 @@ type Estado = "sin-token" | "listo" | "enviando" | "ok" | "error";
 
 export function TarjetaVerificacion() {
   const token = useSearchParams().get("token");
+  const t = useTextos("verificar");
+  const tf = useTextos("formAcceso");
   const [estado, setEstado] = useState<Estado>(token ? "listo" : "sin-token");
   const [mensaje, setMensaje] = useState("");
 
@@ -44,14 +47,14 @@ export function TarjetaVerificacion() {
       const data: unknown = r.data;
       const msg = typeof data === "object" && data && "message" in data ? String(data.message) : "";
       if (r.ok) {
-        setMensaje(msg || "Cuenta verificada. Ya puedes iniciar sesion.");
+        setMensaje(msg || t("hecho"));
         setEstado("ok");
       } else {
-        setMensaje(msg || "El enlace de verificacion es invalido o ha caducado.");
+        setMensaje(msg || t("error"));
         setEstado("error");
       }
     } catch {
-      setMensaje("No se pudo conectar. Intentalo de nuevo mas tarde.");
+      setMensaje(t("sinConexion"));
       setEstado("error");
     }
   }
@@ -59,20 +62,14 @@ export function TarjetaVerificacion() {
   return (
     <div className="df-rise relative w-full max-w-md overflow-hidden rounded-lg border border-line bg-surface p-8 shadow-[var(--df-shadow-lg)] sm:p-10">
       <h1 className="mb-1.5 text-3xl text-text" style={estiloDisplay}>
-        Verificar tu cuenta
+        {t("titulo")}
       </h1>
 
-      {estado === "sin-token" && (
-        <p className="mt-4 text-sm text-text-dim">
-          Falta el token en el enlace. Abre el enlace completo del correo de verificación.
-        </p>
-      )}
+      {estado === "sin-token" && <p className="mt-4 text-sm text-text-dim">{t("faltaToken")}</p>}
 
       {(estado === "listo" || estado === "enviando") && (
         <>
-          <p className="mb-6 mt-1.5 text-sm text-text-dim">
-            Pulsa el botón para confirmar tu dirección de correo.
-          </p>
+          <p className="mb-6 mt-1.5 text-sm text-text-dim">{t("pulsa")}</p>
           {/* ÚNICA acción principal de la vista: plano (relleno de acción sólido) + realce --df-cta-lift. */}
           <Boton
             type="button"
@@ -81,7 +78,7 @@ export function TarjetaVerificacion() {
             disabled={estado === "enviando"}
             className="w-full py-3.5 shadow-[var(--df-cta-lift)]"
           >
-            {estado === "enviando" ? "Verificando…" : "Verificar mi cuenta"}
+            {estado === "enviando" ? t("verificando") : t("verificar")}
           </Boton>
         </>
       )}
@@ -100,7 +97,7 @@ export function TarjetaVerificacion() {
             variante="principal"
             className="w-full py-3.5 shadow-[var(--df-cta-lift)]"
           >
-            Iniciar sesión
+            {tf("iniciarSesion")}
           </Boton>
         </>
       )}
@@ -113,10 +110,7 @@ export function TarjetaVerificacion() {
           {/* El token es de UN SOLO USO: quien ya verifico y refresca /verify cae aqui. No se puede
               distinguir "ya verificado" de "token invalido" sin un oraculo (seria enumeracion), asi
               que se cubre con TEXTO. */}
-          <p className="mb-6 text-sm text-text-dim">
-            Si ya has verificado tu cuenta, este enlace deja de funcionar: puedes iniciar sesión
-            directamente.
-          </p>
+          <p className="mb-6 text-sm text-text-dim">{t("yaUsado")}</p>
           <Reenviar />
         </>
       )}
@@ -127,6 +121,8 @@ export function TarjetaVerificacion() {
 /** Reenvio del correo de verificacion (enlace caducado/invalido). Pide el email porque el token
  *  ya no sirve para identificar la cuenta. Respuesta uniforme (sin enumeracion), como el endpoint. */
 function Reenviar() {
+  const t = useTextos("verificar");
+  const tf = useTextos("formAcceso");
   const [email, setEmail] = useState("");
   const [resultado, setResultado] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -138,17 +134,17 @@ function Reenviar() {
       const r = await postJson("/api/auth/resend-verification", { email });
       if (r.ok) {
         // Respuesta UNIFORME: no revela si la cuenta existe (sin enumeracion).
-        setResultado("Si corresponde, te hemos reenviado el correo de verificación.");
+        setResultado(t("reenviado"));
       } else if (r.status === 429) {
         // Mostrar el 429 NO abre enumeracion: en resend-verification/route.ts los dos rateLimit()
         // se evaluan ANTES del findUnique, asi que el 429 es IDENTICO para una direccion real y
         // una inventada. No revela nada. No "arreglarlo" ocultandolo.
-        setResultado("Demasiados intentos. Intenta más tarde.");
+        setResultado(t("demasiados"));
       } else {
-        setResultado("No se pudo conectar. Inténtalo de nuevo más tarde.");
+        setResultado(t("reenvioSinConexion"));
       }
     } catch {
-      setResultado("No se pudo conectar. Inténtalo de nuevo más tarde.");
+      setResultado(t("reenvioSinConexion"));
     } finally {
       setEnviando(false);
     }
@@ -169,17 +165,17 @@ function Reenviar() {
     <form onSubmit={reenviar} noValidate className="flex flex-col gap-4">
       <Campo
         id="verify-reenviar-email"
-        label="Reenviar el correo de verificación"
+        label={t("reenviarEtiqueta")}
         type="email"
         autoComplete="email"
         required
-        placeholder="tu@correo.com"
+        placeholder={tf("placeholderCorreo")}
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         disabled={enviando}
       />
       <Boton type="submit" variante="secundario" disabled={enviando} className="w-full">
-        {enviando ? "Enviando…" : "Reenviar"}
+        {enviando ? t("enviando") : t("reenviar")}
       </Boton>
     </form>
   );

@@ -2,6 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 
+import { useTextos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { postJson } from "@/lib/cliente-http";
@@ -15,10 +16,9 @@ import { postJson } from "@/lib/cliente-http";
  */
 type Estado = "idle" | "enviando" | "hecho";
 
-const MENSAJE_UNIFORME =
-  "Si esa cuenta existe, te hemos enviado un enlace para restablecer la contraseña. Revisa tu correo.";
-
 export function FormularioRecuperar() {
+  const t = useTextos("recuperar");
+  const tf = useTextos("formAcceso");
   const [email, setEmail] = useState("");
   const [estado, setEstado] = useState<Estado>("idle");
   const [aviso, setAviso] = useState("");
@@ -34,7 +34,7 @@ export function FormularioRecuperar() {
       if (r.status === 429) {
         // Mostrarlo NO abre enumeración: los rate-limit se evalúan ANTES del findUnique, así que el
         // 429 es idéntico para una dirección real y una inventada.
-        setAviso("Demasiados intentos. Espera un momento antes de volver a probar.");
+        setAviso(t("demasiados"));
         setEstado("idle");
         return;
       }
@@ -42,10 +42,10 @@ export function FormularioRecuperar() {
         setEstado("hecho"); // respuesta uniforme (sin enumeración)
         return;
       }
-      setAviso("No se pudo enviar el enlace. Revisa el correo y reinténtalo.");
+      setAviso(t("noSePudo"));
       setEstado("idle");
     } catch {
-      setAviso("No se pudo conectar. Inténtalo de nuevo más tarde.");
+      setAviso(t("sinConexion"));
       setEstado("idle");
     }
   }
@@ -57,8 +57,8 @@ export function FormularioRecuperar() {
         role="status"
         className="rounded-sm border border-line bg-surface/60 p-4 text-sm text-text-dim"
       >
-        <p className="mb-1 font-medium text-text">Revisa tu correo.</p>
-        {MENSAJE_UNIFORME} El enlace caduca en 30 minutos.
+        <p className="mb-1 font-medium text-text">{t("revisaCorreo")}</p>
+        {t("hecho")}
       </div>
     );
   }
@@ -67,11 +67,11 @@ export function FormularioRecuperar() {
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
       <Campo
         id="recuperar-email"
-        label="Correo"
+        label={tf("correo")}
         type="email"
         autoComplete="email"
         required
-        placeholder="tu@correo.com"
+        placeholder={tf("placeholderCorreo")}
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         disabled={ocupado}
@@ -90,7 +90,7 @@ export function FormularioRecuperar() {
         disabled={ocupado}
         className="w-full py-3.5 shadow-[var(--df-cta-lift)]"
       >
-        {ocupado ? "Enviando…" : "Enviar enlace"}
+        {ocupado ? t("enviando") : t("enviar")}
       </Boton>
     </form>
   );
