@@ -17,6 +17,8 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { resolverServidor } from "../helpers/render-servidor";
+
 // Mismo motivo que en `perfil-racha`: el bloque del perfil propio monta un componente de SERVIDOR
 // que en jsdom suspende y dejaría el contenedor VACÍO — y un contenedor vacío hace pasar cualquier
 // aserción de "esto no está", que es justo la mitad de lo que se comprueba aquí.
@@ -47,8 +49,9 @@ const base = {
 };
 
 /** Tiene que RENDERIZAR de verdad; si no, las aserciones de ausencia mienten. */
-function pintar(props: Parameters<typeof PerfilVista>[0]): HTMLElement {
-  const c = render(<PerfilVista {...props} />).container;
+async function pintar(props: Parameters<typeof PerfilVista>[0]): Promise<HTMLElement> {
+  // PerfilVista es un componente de servidor ASÍNCRONO (pide sus textos, P5b2a).
+  const c = render(await resolverServidor(<PerfilVista {...props} />)).container;
   expect(c.textContent, "el perfil no renderizó: lo de abajo no mediría nada").toContain(
     props.handle,
   );
@@ -63,8 +66,8 @@ const palabra = (c: HTMLElement) => c.querySelector("[data-vip-palabra]");
 
 describe("un perfil NO VIP queda como estaba", () => {
   for (const esPropio of [true, false]) {
-    it(`${esPropio ? "el propio" : "el de otra persona"}: ni marco, ni emblema, ni chips`, () => {
-      const c = pintar({ ...base, esPropio });
+    it(`${esPropio ? "el propio" : "el de otra persona"}: ni marco, ni emblema, ni chips`, async () => {
+      const c = await pintar({ ...base, esPropio });
       expect(marco(c), "el no-VIP recibe el marco VIP").toBeNull();
       expect(emblemas(c)).toHaveLength(0);
       expect(palabra(c)).toBeNull();
@@ -73,9 +76,9 @@ describe("un perfil NO VIP queda como estaba", () => {
     });
   }
 
-  it("y la tarjeta es EL MISMO nodo de siempre, con las mismas clases", () => {
+  it("y la tarjeta es EL MISMO nodo de siempre, con las mismas clases", async () => {
     // La forma exacta de antes de la Fase 8. Si alguien envuelve esto "sin que se note", cae aquí.
-    const c = pintar({ ...base, esPropio: false });
+    const c = await pintar({ ...base, esPropio: false });
     const tarjeta = c.querySelector("aside > div")!;
     expect(tarjeta.className.split(" ").sort()).toEqual(
       [
@@ -94,8 +97,8 @@ describe("un perfil NO VIP queda como estaba", () => {
     expect(tarjeta.querySelector(".df-vip-tarjeta")).toBeNull();
   });
 
-  it("aunque traiga un color de nombre guardado (lo que caduca es verlo)", () => {
-    const c = pintar({ ...base, esPropio: false, esVip: false, colorNombre: "lima" });
+  it("aunque traiga un color de nombre guardado (lo que caduca es verlo)", async () => {
+    const c = await pintar({ ...base, esPropio: false, esVip: false, colorNombre: "lima" });
     expect(marco(c)).toBeNull();
     expect(c.innerHTML).not.toContain("--vip-name");
   });
@@ -104,23 +107,23 @@ describe("un perfil NO VIP queda como estaba", () => {
 describe("un perfil VIP monta el tratamiento completo", () => {
   const vip = { ...base, esPropio: false, esVip: true, colorNombre: "diamante" };
 
-  it("marco, borde y tarjeta: las tres capas", () => {
-    const c = pintar(vip);
+  it("marco, borde y tarjeta: las tres capas", async () => {
+    const c = await pintar(vip);
     const m = marco(c)!;
     expect(m, "no hay marco").not.toBeNull();
     // Las tres anidadas y en este orden: el bloom desborda fuera, el borde recorta dentro.
     expect(m.querySelector(".df-vip-borde > .df-vip-tarjeta")).not.toBeNull();
   });
 
-  it("emblema grande, la palabra MYTHIC y el aro del avatar", () => {
-    const c = pintar(vip);
+  it("emblema grande, la palabra MYTHIC y el aro del avatar", async () => {
+    const c = await pintar(vip);
     expect(emblemas(c)).toHaveLength(1);
     expect(palabra(c)!.textContent).toBe("Mythic");
     expect(aro(c)).not.toBeNull();
   });
 
-  it("los chips dicen qué trae el plan, y NO son controles", () => {
-    const c = pintar(vip);
+  it("los chips dicen qué trae el plan, y NO son controles", async () => {
+    const c = await pintar(vip);
     const lista = perks(c)!;
     expect(lista.tagName).toBe("UL");
     const textos = [...lista.querySelectorAll("li")].map((li) => li.textContent);
@@ -132,8 +135,8 @@ describe("un perfil VIP monta el tratamiento completo", () => {
     expect(lista.querySelector("button, a, input")).toBeNull();
   });
 
-  it("y el nombre sigue saliendo del componente compartido, con su color", () => {
-    const c = pintar(vip);
+  it("y el nombre sigue saliendo del componente compartido, con su color", async () => {
+    const c = await pintar(vip);
     const nombre = c.querySelector(".df-nombre-vip")!;
     expect(nombre.getAttribute("style")).toContain("var(--vip-nombre-diamante)");
     // La marca de junto al nombre es la de P2 y sigue ahí: el hero no la sustituye.
@@ -152,13 +155,13 @@ describe("un perfil VIP monta el tratamiento completo", () => {
  * dibujos distintos para la misma marca es como el sello y la gema acabaron divergiendo.
  */
 describe("el hero: uno, y la misma pieza que la compacta", () => {
-  it("hay exactamente UN emblema grande en la página", () => {
-    const c = pintar({ ...base, esPropio: true, esVip: true });
+  it("hay exactamente UN emblema grande en la página", async () => {
+    const c = await pintar({ ...base, esPropio: true, esVip: true });
     expect(c.querySelectorAll('[data-marca-vip="grande"]')).toHaveLength(1);
   });
 
-  it("y es la misma marca: dice 'VIP' en los dos tamaños", () => {
-    const c = pintar({ ...base, esPropio: true, esVip: true });
+  it("y es la misma marca: dice 'VIP' en los dos tamaños", async () => {
+    const c = await pintar({ ...base, esPropio: true, esVip: true });
     const marcas = [...c.querySelectorAll("[data-marca-vip]")];
     expect(marcas.length, "faltan marcas en el perfil VIP").toBe(2);
     for (const m of marcas) expect(m.textContent).toBe("VIP");
@@ -169,8 +172,8 @@ describe("el hero: uno, y la misma pieza que la compacta", () => {
     );
   });
 
-  it("y NO hay ni un SVG con id en el perfil VIP: el choque de ids ya no existe", () => {
-    const c = pintar({ ...base, esPropio: true, esVip: true });
+  it("y NO hay ni un SVG con id en el perfil VIP: el choque de ids ya no existe", async () => {
+    const c = await pintar({ ...base, esPropio: true, esVip: true });
     expect(c.querySelectorAll("linearGradient")).toHaveLength(0);
   });
 });
@@ -194,20 +197,20 @@ describe("cero UI muerta: el control del toque solo donde se puede dar", () => {
       /toque/i.test(n.textContent ?? ""),
     );
 
-  it("sin `puedeTocar` no hay NINGÚN control, ni en el propio ni en el de otra persona", () => {
+  it("sin `puedeTocar` no hay NINGÚN control, ni en el propio ni en el de otra persona", async () => {
     for (const props of [
       { ...base, esPropio: true, esVip: true },
       { ...base, esPropio: false, esVip: true },
       { ...base, esPropio: true },
     ]) {
-      const { container, unmount } = render(<PerfilVista {...props} />);
+      const { container, unmount } = render(await resolverServidor(<PerfilVista {...props} />));
       expect(controlesDeToque(container), "un botón que no hace nada").toEqual([]);
       unmount();
     }
   });
 
-  it("el chip que lo nombra describe el plan: no es pulsable", () => {
-    const c = pintar({ ...base, esPropio: false, esVip: true });
+  it("el chip que lo nombra describe el plan: no es pulsable", async () => {
+    const c = await pintar({ ...base, esPropio: false, esVip: true });
     const chip = [...perks(c)!.querySelectorAll("li")].find((li) =>
       /toque/i.test(li.textContent ?? ""),
     );
@@ -215,11 +218,23 @@ describe("cero UI muerta: el control del toque solo donde se puede dar", () => {
     expect(chip!.querySelector("button, a, input")).toBeNull();
   });
 
-  it("y con `puedeTocar` el control SÍ sale, pero solo en el perfil de OTRA persona", () => {
-    const otra = pintar({ ...base, esPropio: false, esVip: true, puedeTocar: true, userId: "u1" });
+  it("y con `puedeTocar` el control SÍ sale, pero solo en el perfil de OTRA persona", async () => {
+    const otra = await pintar({
+      ...base,
+      esPropio: false,
+      esVip: true,
+      puedeTocar: true,
+      userId: "u1",
+    });
     expect(controlesDeToque(otra).length, "el botón no sale donde sí se puede tocar").toBe(1);
 
-    const propio = pintar({ ...base, esPropio: true, esVip: true, puedeTocar: true, userId: "u1" });
+    const propio = await pintar({
+      ...base,
+      esPropio: true,
+      esVip: true,
+      puedeTocar: true,
+      userId: "u1",
+    });
     expect(controlesDeToque(propio), "se puede dar un toque a uno mismo").toEqual([]);
   });
 });

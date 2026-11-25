@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { BadgeAvisos } from "@/app/(app)/avisos-contexto";
+import { TextosProvider } from "@/components/textos-provider";
 import { ConmutadorTemaServidor } from "@/components/ui/conmutador-tema-servidor";
 import { Avatar } from "@/components/ui/avatar";
 import { Boton } from "@/components/ui/boton";
@@ -19,6 +20,8 @@ import { RejillaVideos } from "./rejilla-videos";
 
 import { CerrarSesion } from "../cerrar-sesion";
 import { formatearMarcador, type Idioma } from "@/lib/formato";
+import type { FuncionT } from "@/textos/plantilla";
+import { textos, textosClienteDeLaPeticion, type Textos } from "@/textos/servidor";
 
 /**
  * Celda de la rejilla. `poster` firmado cuando el vídeo está PUBLICADO; "" cuando no (aún no se
@@ -137,13 +140,13 @@ function TarjetaIdentidad({ esVip, children }: { esVip: boolean; children: React
  * │ botón, es la trampa que esta tarjeta ya tuvo una vez — algo que parece pulsable y no lo es.   │
  * └──────────────────────────────────────────────────────────────────────────────────────────────┘
  */
-function PerksVip() {
+function PerksVip({ t }: { t: FuncionT<Textos["perfil"]> }) {
   return (
     <ul data-vip-perks className="mt-4 flex flex-wrap justify-center gap-2">
       {[
-        { texto: "Boost semanal", cifra: "×1" },
-        { texto: "Toque a otros perfiles", cifra: null },
-        { texto: "Perfil animado", cifra: null },
+        { texto: t("perk_boost"), cifra: "×1" },
+        { texto: t("perk_toque"), cifra: null },
+        { texto: t("perk_animado"), cifra: null },
       ].map((p) => (
         <li
           key={p.texto}
@@ -164,7 +167,7 @@ function PerksVip() {
  * `InsigniaNivel` (medidor + nombre), coherente con el ranking. Boost = ÚNICO acento de la pantalla y
  * solo en el perfil propio (es una acción sobre uno mismo).
  */
-export function PerfilVista({
+export async function PerfilVista({
   displayName,
   handle,
   imagen,
@@ -235,6 +238,10 @@ export function PerfilVista({
   // displayName (si no, el @handle ES el nombre prominente). Fuente única: `NombreUsuario`.
   const nombre = textoNombre(displayName, handle);
   const conHandle = conHandleSecundario(displayName);
+  const [t, textosRejilla] = await Promise.all([
+    textos("perfil"),
+    textosClienteDeLaPeticion(["perfilVideos"] as const),
+  ]);
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
       <div className="lg:grid lg:grid-cols-[320px_1fr] lg:gap-8">
@@ -256,7 +263,7 @@ export function PerfilVista({
                     className="mt-1 text-2xs font-black tracking-[0.22em] text-[var(--vip-gold)] uppercase"
                     style={{ fontFamily: "var(--font-display)" }}
                   >
-                    Mythic
+                    {t("mythic")}
                   </p>
                 </>
               ) : null}
@@ -294,7 +301,7 @@ export function PerfilVista({
                     className="inline-flex items-center rounded-full border border-line px-2.5 py-1 text-2xs font-medium tracking-wide text-text-dim uppercase"
                   >
                     {/* El adjetivo concuerda también: con uno es "1 día seguido", no "seguidos". */}
-                    {racha} {racha === 1 ? "día seguido" : "días seguidos"}
+                    {t("racha", { n: racha })}
                   </span>
                 ) : null}
               </div>
@@ -313,26 +320,28 @@ export function PerfilVista({
                 ) : null}
                 {instagram ? (
                   <EnlaceExterno href={`https://instagram.com/${instagram}`}>
-                    Instagram
+                    {t("instagram")}
                   </EnlaceExterno>
                 ) : null}
                 {youtube ? (
-                  <EnlaceExterno href={`https://youtube.com/@${youtube}`}>YouTube</EnlaceExterno>
+                  <EnlaceExterno href={`https://youtube.com/@${youtube}`}>
+                    {t("youtube")}
+                  </EnlaceExterno>
                 ) : null}
               </div>
             ) : null}
 
             {/* stats NEUTRAS (panel recesado: profundidad por luminosidad, sin sombra) */}
             <div className="mt-6 flex divide-x divide-line rounded-sm border border-line bg-void">
-              <Estadistica idioma={idioma} valor={retosGanados} etiqueta="Retos ganados" />
-              <Estadistica idioma={idioma} valor={puntos} etiqueta="Puntos" />
-              <Estadistica idioma={idioma} valor={totalVideos} etiqueta="Vídeos" />
+              <Estadistica idioma={idioma} valor={retosGanados} etiqueta={t("retosGanados")} />
+              <Estadistica idioma={idioma} valor={puntos} etiqueta={t("puntos")} />
+              <Estadistica idioma={idioma} valor={totalVideos} etiqueta={t("videos")} />
             </div>
 
             {/* LO QUE INCLUYE EL PLAN. Son ETIQUETAS, no controles: dicen qué trae ser Mythic, y
                 por eso van en `<span>` y no en botones. Un chip que parece pulsable y no lo es es
                 la misma trampa que un botón mudo, y el perfil ya tuvo uno. */}
-            {esVip ? <PerksVip /> : null}
+            {esVip ? <PerksVip t={t} /> : null}
 
             {/* DAR UN TOQUE: en el perfil de OTRA persona y solo si quien mira es VIP. Nunca en el
                 propio —no tiene sentido y el servidor lo rechaza igual— y nunca sin `userId`, que
@@ -352,29 +361,29 @@ export function PerfilVista({
                   variante="principal"
                   className="mt-6 w-full py-4 shadow-[var(--df-cta-lift)]"
                 >
-                  Destacar mi perfil (Boost)
+                  {t("destacar")}
                 </Boton>
                 {/* Editar perfil: SECUNDARIO (el acento es Boost). Solo tu propio perfil es editable;
                     la pantalla de edición exige sesión y actúa siempre sobre el usuario de la sesión. */}
                 <Boton href="/perfil/editar" variante="secundario" className="mt-3 w-full py-3">
-                  Editar perfil
+                  {t("editar")}
                 </Boton>
                 {/* PUNTOS y REFERIDOS: en escritorio la entrada es la barra lateral, como cualquier
                     otra sección. En MÓVIL no hay lateral, así que esta es la vía — y por eso los
                     botones existen siempre (también en escritorio: quien llega aquí desde su perfil
                     no tiene por qué volver a la lateral a buscarlos). */}
                 <Boton href="/puntos" variante="secundario" className="mt-3 w-full py-3">
-                  Mis puntos y nivel
+                  {t("puntosNivel")}
                 </Boton>
                 {/* EL MONEDERO. Su puerta es ESTA, y no la barra lateral: cobrar no es algo que se
                     haga a menudo, así que vive donde una persona busca la configuración de su
                     cuenta —junto a editar perfil y cambiar contraseña— y no entre los destinos de
                     uso diario. En móvil, además, esta es la única vía. */}
                 <Boton href="/wallet" variante="secundario" className="mt-3 w-full py-3">
-                  Mi monedero
+                  {t("monedero")}
                 </Boton>
                 <Boton href="/referidos" variante="secundario" className="mt-3 w-full py-3">
-                  Ir a mis referidos
+                  {t("referidos")}
                 </Boton>
                 {/* Avisos: SOLO MÓVIL. En escritorio los da la campana de la barra; en móvil no hay
                     barra superior, y esta es la entrada (el icono de Perfil de la nav ya lleva el
@@ -384,7 +393,7 @@ export function PerfilVista({
                   variante="secundario"
                   className="mt-3 w-full py-3 lg:hidden"
                 >
-                  Notificaciones
+                  {t("notificaciones")}
                   {/* Del contador COMPARTIDO de avisos: el mismo número que el icono de Perfil y la
                       campana, y se refresca solo. */}
                   <BadgeAvisos className="flex h-5 min-w-5 items-center justify-center rounded-full bg-text-dim px-1.5 text-2xs font-semibold tabular-nums text-void" />
@@ -403,17 +412,19 @@ export function PerfilVista({
         {/* VIDEOS (columna principal): rejilla multicolumna 9:16 con el póster real. */}
         <section className="df-rise mt-8 lg:mt-0" style={{ animationDelay: "80ms" }}>
           <h2 className="mb-4 text-lg font-semibold text-text">
-            {esPropio ? "Mis vídeos" : "Vídeos"}
+            {esPropio ? t("misVideos") : t("videos")}
           </h2>
           {/* La rejilla PAGINA (keyset): el perfil ya no se trae todos los vídeos de la cuenta.
               La primera página la pinta el servidor; las siguientes las pide `RejillaVideos` al
               endpoint que le pasan — el propio y el público son dos, y no se mezclan. */}
-          <RejillaVideos
-            inicial={videos}
-            cursorInicial={videosCursor}
-            url={videosUrl}
-            esPropio={esPropio}
-          />
+          <TextosProvider textos={textosRejilla}>
+            <RejillaVideos
+              inicial={videos}
+              cursorInicial={videosCursor}
+              url={videosUrl}
+              esPropio={esPropio}
+            />
+          </TextosProvider>
         </section>
       </div>
     </div>

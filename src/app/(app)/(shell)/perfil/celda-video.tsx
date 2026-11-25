@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useTextos } from "@/components/textos-provider";
 import { ModalReproductor } from "@/components/ui/modal-reproductor";
 
 import { nombreCategoria } from "../retos/retos-datos";
@@ -10,17 +11,18 @@ import type { EstadoVideo } from "./perfil-logic";
 import type { VideoCelda } from "./perfil-vista";
 
 /**
- * Copy HUMANO de cada estado (el usuario nunca ve PENDING/FAILED/TOO_LONG). `tono` elige el color
+ * Copy HUMANO de cada estado (el usuario nunca ve PENDING/FAILED/TOO_LONG): las palabras, en el
+ * diccionario (`perfilVideos.estado_*`, P5b2a); aquí solo el tono. `tono` elige el color
  * semántico: menta SOLO para la confirmación (Publicado), rojo para lo que no saldrá; "Procesando"
  * es neutro (el ámbar está reservado a tiempo restante, no se toca aquí).
  */
-const COPY_ESTADO: Record<EstadoVideo, { texto: string; tono: "neutro" | "ok" | "alarma" }> = {
-  procesando: { texto: "Procesando", tono: "neutro" },
-  publicado: { texto: "Publicado", tono: "ok" },
-  "demasiado-largo": { texto: "No publicado: supera los 90 segundos", tono: "alarma" },
+const TONO_ESTADO: Record<EstadoVideo, "neutro" | "ok" | "alarma"> = {
+  procesando: "neutro",
+  publicado: "ok",
+  "demasiado-largo": "alarma",
   // Parte C: estuvo publicado pero su objeto en Bunny desapareció. NO es un fallo de proceso.
-  "no-disponible": { texto: "Este vídeo ya no está disponible", tono: "alarma" },
-  error: { texto: "No se pudo procesar", tono: "alarma" },
+  "no-disponible": "alarma",
+  error: "alarma",
 };
 
 const TONO_TEXTO: Record<"neutro" | "ok" | "alarma", string> = {
@@ -40,10 +42,15 @@ const TONO_TEXTO: Record<"neutro" | "ok" | "alarma", string> = {
  * reproducible responde 404 y el modal muestra "no disponible", nunca un player roto.
  */
 export function CeldaVideo({ video, esPropio = false }: { video: VideoCelda; esPropio?: boolean }) {
+  const t = useTextos("perfilVideos");
   const [abierto, setAbierto] = useState(false);
-  const info = video.estado ? COPY_ESTADO[video.estado] : null;
+  const info = video.estado
+    ? { texto: t(`estado_${video.estado}`), tono: TONO_ESTADO[video.estado] }
+    : null;
   const publicado = video.poster !== "";
-  const etiqueta = video.title?.trim() ? `Reproducir «${video.title}»` : "Reproducir vídeo";
+  const etiqueta = video.title?.trim()
+    ? t("reproducirTitulo", { titulo: video.title })
+    : t("reproducir");
 
   return (
     <div className="relative flex flex-col">

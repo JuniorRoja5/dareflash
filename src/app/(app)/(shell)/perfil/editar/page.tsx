@@ -1,13 +1,17 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
 import { Enlace } from "@/components/enlace";
 
+import { TextosProvider } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
+import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
 
 import { CambiarEmail } from "./cambiar-email";
 import { CambiarPassword } from "./cambiar-password";
 import { FormularioEditarPerfil } from "./formulario-editar-perfil";
 
-export const metadata = { title: "Editar perfil" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("editarPerfil") };
+}
 
 // Lee la sesión (cookie) -> render dinámico por petición. Explícito para no depender de la inferencia.
 export const dynamic = "force-dynamic";
@@ -31,16 +35,15 @@ export default async function EditarPerfilPage() {
   const { prisma } = await import("@/server/db/client");
 
   const sesion = await getCurrentUser();
+  const [t, tf] = await Promise.all([textos("editarPerfil"), textos("formAcceso")]);
 
   if (!sesion) {
     return (
       <div className="mx-auto w-full max-w-md px-4 py-16 text-center">
-        <h1 className="text-2xl font-semibold text-text">Edita tu perfil</h1>
-        <p className="mt-3 text-text-dim">
-          Inicia sesión para cambiar tu nombre y tu foto. Solo tú puedes editar tu perfil.
-        </p>
+        <h1 className="text-2xl font-semibold text-text">{t("sinSesionTitulo")}</h1>
+        <p className="mt-3 text-text-dim">{t("sinSesionTexto")}</p>
         <Boton href="/entrar" variante="principal" className="mt-6 px-6 py-3">
-          Iniciar sesión
+          {tf("iniciarSesion")}
         </Boton>
       </div>
     );
@@ -68,35 +71,44 @@ export default async function EditarPerfilPage() {
     // formulario a todo el ancho: es una maqueta de dos columnas intencional (como perfil-vista).
     <div className="mx-auto w-full max-w-5xl px-4 py-8 lg:px-8 lg:py-12">
       <div className="mb-6 flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold text-text">Editar perfil</h1>
+        <h1 className="text-2xl font-semibold text-text">{t("titulo")}</h1>
         <Enlace
           href="/perfil"
           className="rounded-xs text-sm text-text-dim transition-colors duration-150 ease-mechanical hover:text-text"
         >
-          Volver al perfil
+          {t("volver")}
         </Enlace>
       </div>
 
-      <FormularioEditarPerfil
-        nombreInicial={perfil?.displayName ?? ""}
-        usuario={perfil?.username ?? ""}
-        puntos={perfil?.pointsBalance ?? 0}
-        imagenInicial={perfil?.image ?? null}
-        bioInicial={perfil?.bio ?? ""}
-        websiteInicial={perfil?.website ?? ""}
-        instagramInicial={perfil?.instagram ?? ""}
-        youtubeInicial={perfil?.youtube ?? ""}
+      <TextosProvider
+        textos={await textosClienteDeLaPeticion([
+          "editarPerfil",
+          "cambioCorreo",
+          "cambioClave",
+          "formAcceso",
+        ] as const)}
       >
-        {/* Contraseña: va en la columna DERECHA bajo Perfil (el form la coloca). Sesión ya exigida
+        <FormularioEditarPerfil
+          nombreInicial={perfil?.displayName ?? ""}
+          usuario={perfil?.username ?? ""}
+          puntos={perfil?.pointsBalance ?? 0}
+          imagenInicial={perfil?.image ?? null}
+          bioInicial={perfil?.bio ?? ""}
+          websiteInicial={perfil?.website ?? ""}
+          instagramInicial={perfil?.instagram ?? ""}
+          youtubeInicial={perfil?.youtube ?? ""}
+        >
+          {/* Contraseña: va en la columna DERECHA bajo Perfil (el form la coloca). Sesión ya exigida
             arriba; el endpoint re-verifica (mutatingRoute). */}
-        {/* Correo ANTES que contrasena: es el dato que el usuario no podia ni ver, y el que manda
+          {/* Correo ANTES que contrasena: es el dato que el usuario no podia ni ver, y el que manda
             en su identidad de acceso. */}
-        <CambiarEmail
-          emailActual={perfil?.email ?? "—"}
-          pendienteInicial={perfil?.emailPendiente ?? null}
-        />
-        <CambiarPassword />
-      </FormularioEditarPerfil>
+          <CambiarEmail
+            emailActual={perfil?.email ?? "—"}
+            pendienteInicial={perfil?.emailPendiente ?? null}
+          />
+          <CambiarPassword />
+        </FormularioEditarPerfil>
+      </TextosProvider>
     </div>
   );
 }

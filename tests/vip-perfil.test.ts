@@ -40,6 +40,8 @@ const TODOS = ficheros(SRC)
 
 const PERFIL = "app/(app)/(shell)/perfil/perfil-vista.tsx";
 const IDENTIDAD = "components/ui/identidad-usuario.tsx";
+/** La marca VIP y el emblema grande viven en su hoja de cliente desde la P5b2a. */
+const MARCA_VIP = "components/ui/marca-vip.tsx";
 const HERO_VIP = "app/(app)/(shell)/vip/hero-vip.tsx";
 
 describe("el emblema grande: uno, y solo donde toca", () => {
@@ -47,11 +49,13 @@ describe("el emblema grande: uno, y solo donde toca", () => {
     expect(TODOS.length).toBeGreaterThan(100);
   });
 
-  it("lo DEFINE un solo fichero: el módulo de identidad", () => {
+  it("lo DEFINE un solo fichero: el de la marca", () => {
     const definen = TODOS.filter((x) => x.codigo.includes("export function EmblemaVipGrande")).map(
       (x) => x.f,
     );
-    expect(definen).toEqual([IDENTIDAD]);
+    // Desde la P5b2a, `marca-vip.tsx` (hoja de cliente, lee su texto del diccionario); el módulo de
+    // identidad la reexporta.
+    expect(definen).toEqual([MARCA_VIP]);
   });
 
   /**
@@ -92,7 +96,7 @@ describe("el emblema grande: uno, y solo donde toca", () => {
    * que queda.
    */
   it("la marca es UNA pieza: los dos tamaños salen del mismo componente", () => {
-    const identidad = sinComentarios(leer(IDENTIDAD));
+    const identidad = sinComentarios(leer(MARCA_VIP));
     expect(identidad).toContain("export function MarcaVip");
 
     // El hero es un envoltorio de la misma pieza, no un dibujo aparte. Se mira el CUERPO de la
@@ -254,11 +258,13 @@ describe("lo que NO entra en esta pieza", () => {
       .map((x) => x.f)
       .sort();
     expect(conToque, "el texto del botón se escribió en un sitio nuevo").toEqual(
-      // Dos, y cada uno con su trabajo: la PIEZA (su etiqueta) y el catálogo de copy (los
-      // mensajes que manda el servidor). Un tercero sería el botón escrito a mano otra vez.
-      ["components/ui/dar-toque.tsx", "config/constants.ts"].sort(),
+      // Dos, y cada uno con su trabajo: el DICCIONARIO (la etiqueta de la pieza, desde la P5b2a) y
+      // el catálogo de copy (los mensajes que manda el servidor). Un tercero sería el botón escrito
+      // a mano otra vez.
+      ["config/constants.ts", "textos/es.ts"].sort(),
     );
     const boton = sinComentarios(leer("components/ui/dar-toque.tsx"));
+    expect(boton, "el botón ya no pinta su etiqueta del diccionario").toContain('t("dar")');
     expect(boton, "el botón no llama a ninguna ruta").toContain('"/api/toques"');
     // Y con CSRF, como toda mutación: `route-csrf` vigila la ruta; esto, al que la llama.
     expect(boton).toContain("postJsonCsrf");

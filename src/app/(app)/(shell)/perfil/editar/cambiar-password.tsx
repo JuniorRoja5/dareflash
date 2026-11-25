@@ -2,6 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 
+import { useTextos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
@@ -16,6 +17,8 @@ import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 type Estado = "idle" | "enviando" | "hecho";
 
 export function CambiarPassword() {
+  const t = useTextos("cambioClave");
+  const tf = useTextos("formAcceso");
   const [actual, setActual] = useState("");
   const [nueva, setNueva] = useState("");
   const [confirmar, setConfirmar] = useState("");
@@ -30,11 +33,11 @@ export function CambiarPassword() {
     setError("");
     // UX: coincidencia y pista de longitud (el servidor manda la fuerza real).
     if (nueva !== confirmar) {
-      setError("La nueva contraseña y su confirmación no coinciden.");
+      setError(t("noCoinciden"));
       return;
     }
     if (nueva.length < 10) {
-      setError("La nueva contraseña debe tener al menos 10 caracteres.");
+      setError(t("corta"));
       return;
     }
     setEstado("enviando");
@@ -51,21 +54,21 @@ export function CambiarPassword() {
         return;
       }
       if (r.status === 429) {
-        setError("Demasiados intentos. Espera un momento.");
+        setError(t("demasiados"));
       } else if (r.status === 503) {
-        setError("El servicio está ocupado. Reinténtalo en unos segundos.");
+        setError(t("ocupado"));
       } else if (r.status === 403 || r.status === 400) {
         // 403 = contraseña actual incorrecta; 400 = política débil. En ambos el servidor da el copy.
-        setError(mensajeDe(r.data) || "No se pudo cambiar la contraseña. Revisa los datos.");
+        setError(mensajeDe(r.data) || t("revisa"));
       } else {
-        setError("No se pudo cambiar la contraseña. Reintenta.");
+        setError(t("reintenta"));
       }
       setEstado("idle");
     } catch (err) {
       setError(
         err instanceof Error && err.message === "SIN_SESION"
-          ? "Tu sesión ha caducado. Vuelve a iniciar sesión."
-          : "No hemos podido conectar. Revisa tu conexión e inténtalo de nuevo.",
+          ? t("sesionCaducada")
+          : t("sinConexion"),
       );
       setEstado("idle");
     }
@@ -77,12 +80,14 @@ export function CambiarPassword() {
       noValidate
       className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md"
     >
-      <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">Contraseña</h2>
+      <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">
+        {t("titulo")}
+      </h2>
 
       <div className="mt-4 flex flex-col gap-5">
         <Campo
           id="pw-actual"
-          label="Contraseña actual"
+          label={t("actual")}
           type="password"
           autoComplete="current-password"
           required
@@ -92,12 +97,12 @@ export function CambiarPassword() {
         />
         <Campo
           id="pw-nueva"
-          label="Nueva contraseña"
+          label={t("nueva")}
           type={verNueva ? "text" : "password"}
           autoComplete="new-password"
           required
           minLength={10}
-          placeholder="Mínimo 10 caracteres"
+          placeholder={tf("minimo10")}
           value={nueva}
           onChange={(e) => {
             setNueva(e.target.value);
@@ -109,7 +114,7 @@ export function CambiarPassword() {
               type="button"
               onClick={() => setVerNueva((v) => !v)}
               disabled={ocupado}
-              aria-label={verNueva ? "Ocultar contraseña" : "Mostrar contraseña"}
+              aria-label={verNueva ? tf("ocultarContrasena") : tf("mostrarContrasena")}
               className="grid h-8 w-8 place-items-center rounded-xs text-text-dim transition-colors duration-150 ease-mechanical hover:text-text"
             >
               <IconoOjo abierto={verNueva} />
@@ -118,7 +123,7 @@ export function CambiarPassword() {
         />
         <Campo
           id="pw-confirmar"
-          label="Repite la nueva contraseña"
+          label={t("repite")}
           type={verNueva ? "text" : "password"}
           autoComplete="new-password"
           required
@@ -141,12 +146,12 @@ export function CambiarPassword() {
         disabled={ocupado}
         className="mt-5 w-full py-3.5 shadow-[var(--df-cta-lift)]"
       >
-        {ocupado ? "Cambiando…" : "Cambiar contraseña"}
+        {ocupado ? t("cambiando") : t("cambiar")}
       </Boton>
 
       {estado === "hecho" ? (
         <p role="status" className="mt-3 text-center text-sm text-ok">
-          Contraseña cambiada.
+          {t("hecho")}
         </p>
       ) : null}
     </form>

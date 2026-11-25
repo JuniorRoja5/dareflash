@@ -1,9 +1,12 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
 import { redirigir } from "@/server/redirigir";
+import { textos } from "@/textos/servidor";
 
 import { PerfilVista } from "./perfil-vista";
 
-export const metadata = { title: "Perfil" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("perfil") };
+}
 export const dynamic = "force-dynamic";
 
 /**

@@ -26,6 +26,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { es } from "../src/textos/es";
+
 import { NAV_DESTINOS, NAV_ESCRITORIO, NAV_MOVIL, NAV_MOVIL_MAS } from "../src/components/ui/logic";
 
 const RAIZ = process.cwd();
@@ -123,7 +125,9 @@ describe("se entra por el perfil, NO por la barra", () => {
     // para un destino que a propósito no está en la nav.
     const perfil = sinComentarios(readFileSync(join(SHELL, "perfil", "perfil-vista.tsx"), "utf8"));
     expect(perfil, "el perfil ya no lleva al monedero").toContain('href="/wallet"');
-    expect(perfil).toMatch(/Mi monedero/);
+    // La etiqueta sale del diccionario desde la P5b2a: la clave en el perfil, el texto en `perfil`.
+    expect(perfil).toContain('t("monedero")');
+    expect(es.perfil.monedero).toMatch(/Mi monedero/);
   });
 });
 

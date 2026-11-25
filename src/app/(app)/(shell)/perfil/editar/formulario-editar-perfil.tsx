@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
+import { useTextos } from "@/components/textos-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
@@ -56,6 +57,7 @@ export function FormularioEditarPerfil({
   children?: ReactNode;
 }) {
   const router = useRouter();
+  const t = useTextos("editarPerfil");
   const [nombre, setNombre] = useState(nombreInicial);
   const [username, setUsername] = useState(usuario);
   const [errorUsername, setErrorUsername] = useState<string | undefined>(undefined);
@@ -87,16 +89,12 @@ export function FormularioEditarPerfil({
     e.preventDefault();
     setEstadoNombre("idle");
     if (!nombreEsValido(nombre)) {
-      setErrorNombre(
-        "Escribe un nombre de entre 2 y 40 letras o números. Sin símbolos raros ni emojis.",
-      );
+      setErrorNombre(t("errorNombre"));
       return;
     }
     setErrorNombre(undefined);
     if (!usernameEsValido(username)) {
-      setErrorUsername(
-        "El nombre de usuario debe tener 3-30 caracteres: minúsculas, números, punto o guion bajo.",
-      );
+      setErrorUsername(t("errorUsuario"));
       return;
     }
     setErrorUsername(undefined);
@@ -118,22 +116,20 @@ export function FormularioEditarPerfil({
         return;
       }
       if (r.status === 401) {
-        setErrorNombre("Tu sesión ha caducado. Vuelve a iniciar sesión para guardar.");
+        setErrorNombre(t("sesionCaducadaGuardar"));
       } else if (r.code === "USERNAME_TAKEN") {
-        setErrorUsername("Ese nombre de usuario ya está en uso.");
+        setErrorUsername(t("usuarioOcupado"));
       } else if (r.status === 429) {
-        setErrorNombre("Has guardado muchas veces seguidas. Espera un momento.");
+        setErrorNombre(t("demasiadasVeces"));
       } else {
-        setErrorNombre(
-          mensajeDe(r.data) || "No hemos podido guardar el nombre. Inténtalo de nuevo.",
-        );
+        setErrorNombre(mensajeDe(r.data) || t("errorGuardar"));
       }
       setEstadoNombre("idle");
     } catch (err) {
       setErrorNombre(
         err instanceof Error && err.message === "SIN_SESION"
-          ? "Inicia sesión para guardar los cambios."
-          : "No hemos podido conectar. Revisa tu conexión e inténtalo de nuevo.",
+          ? t("sinSesionGuardar")
+          : t("sinConexion"),
       );
       setEstadoNombre("idle");
     }
@@ -146,12 +142,12 @@ export function FormularioEditarPerfil({
     if (!f) return;
     if (!AVATAR_TIPOS.includes(f.type as (typeof AVATAR_TIPOS)[number])) {
       setFicheroAvatar(null);
-      setErrorAvatar("Elige una imagen JPG, PNG o WebP.");
+      setErrorAvatar(t("fotoTipo"));
       return;
     }
     if (avatarExcedeTope(f.size)) {
       setFicheroAvatar(null);
-      setErrorAvatar("La imagen es demasiado grande. El máximo son 5 MB.");
+      setErrorAvatar(t("fotoGrande"));
       return;
     }
     if (previaRef.current) URL.revokeObjectURL(previaRef.current);
@@ -163,7 +159,7 @@ export function FormularioEditarPerfil({
 
   async function subirAvatar(): Promise<void> {
     if (!ficheroAvatar) {
-      setErrorAvatar("Elige primero una imagen.");
+      setErrorAvatar(t("fotoPrimero"));
       return;
     }
     setErrorAvatar(undefined);
@@ -181,22 +177,22 @@ export function FormularioEditarPerfil({
         body: cuerpo,
       });
       if (res.ok) {
-        setAvisoAvatar("Foto actualizada.");
+        setAvisoAvatar(t("fotoHecha"));
         setEstadoAvatar("idle");
         router.refresh(); // revalida los Server Components -> el avatar nuevo se ve en /perfil, nav…
         return;
       }
       const msg = mensajeDe(await res.json().catch(() => ({})));
       if (res.status === 401) {
-        setErrorAvatar("Tu sesión ha caducado. Vuelve a iniciar sesión.");
+        setErrorAvatar(t("sesionCaducada"));
       } else if (res.status === 429) {
-        setErrorAvatar("Has subido muchas imágenes seguidas. Espera un momento.");
+        setErrorAvatar(t("fotoDemasiadas"));
       } else {
-        setErrorAvatar(msg || "No hemos podido subir la imagen. Prueba con otra.");
+        setErrorAvatar(msg || t("fotoError"));
       }
       setEstadoAvatar("idle");
     } catch {
-      setErrorAvatar("No hemos podido conectar. Revisa tu conexión e inténtalo de nuevo.");
+      setErrorAvatar(t("sinConexion"));
       setEstadoAvatar("idle");
     }
   }
@@ -212,20 +208,22 @@ export function FormularioEditarPerfil({
         {/* COLUMNA IZQUIERDA — FOTO. Previsualización + selector. Acción SECUNDARIA (el acento único es
           "Guardar perfil"). */}
         <section className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md">
-          <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">Foto</h2>
+          <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">
+            {t("foto")}
+          </h2>
           <div className="mt-4 flex items-center gap-5">
             {previa ? (
               // eslint-disable-next-line @next/next/no-img-element -- previsualización local (object URL), no un remoto
               <img
                 src={previa}
-                alt="Vista previa de tu nueva foto"
+                alt={t("fotoPrevia")}
                 className="h-20 w-20 shrink-0 rounded-full object-cover"
               />
             ) : imagenInicial ? (
               // eslint-disable-next-line @next/next/no-img-element -- avatar actual del usuario
               <img
                 src={imagenInicial}
-                alt="Tu foto actual"
+                alt={t("fotoActual")}
                 className="h-20 w-20 shrink-0 rounded-full object-cover"
               />
             ) : (
@@ -237,7 +235,7 @@ export function FormularioEditarPerfil({
                 htmlFor="avatar-file"
                 className={`inline-flex min-h-[44px] cursor-pointer items-center rounded-sm border border-line bg-raised px-4 text-sm font-semibold text-text transition-colors duration-150 ease-mechanical hover:bg-surface ${avatarOcupado ? "pointer-events-none opacity-60" : ""}`}
               >
-                Elegir imagen
+                {t("elegirImagen")}
               </label>
               <input
                 id="avatar-file"
@@ -248,7 +246,7 @@ export function FormularioEditarPerfil({
                 onChange={onElegirAvatar}
               />
               <p className="mt-2 text-2xs tracking-widest text-text-dim uppercase">
-                JPG, PNG o WebP · máx. 5 MB
+                {t("formatosFoto")}
               </p>
             </div>
           </div>
@@ -261,7 +259,7 @@ export function FormularioEditarPerfil({
               onClick={subirAvatar}
               className="mt-4 py-3"
             >
-              {avatarOcupado ? "Subiendo…" : "Guardar foto"}
+              {avatarOcupado ? t("subiendo") : t("guardarFoto")}
             </Boton>
           ) : null}
 
@@ -287,12 +285,14 @@ export function FormularioEditarPerfil({
           className="df-rise rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-md)] backdrop-blur-md"
           style={{ animationDelay: "60ms" }}
         >
-          <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">Perfil</h2>
+          <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">
+            {t("seccionPerfil")}
+          </h2>
           <div className="mt-4 flex flex-col gap-5">
             <Campo
               id="perfil-nombre"
-              label="Nombre visible"
-              placeholder="Ej.: Ana Gómez"
+              label={t("nombreVisible")}
+              placeholder={t("nombrePlaceholder")}
               maxLength={NOMBRE_MAX}
               value={nombre}
               onChange={(e) => {
@@ -304,8 +304,8 @@ export function FormularioEditarPerfil({
             />
             <Campo
               id="perfil-username"
-              label="Nombre de usuario"
-              placeholder="tu_usuario"
+              label={t("nombreUsuario")}
+              placeholder={t("usuarioPlaceholder")}
               maxLength={USERNAME_MAX}
               value={username}
               onChange={(e) => {
@@ -321,8 +321,8 @@ export function FormularioEditarPerfil({
             />
             <Campo
               id="perfil-bio"
-              label="Biografía"
-              placeholder="Cuenta algo sobre ti"
+              label={t("biografia")}
+              placeholder={t("bioPlaceholder")}
               maxLength={BIO_MAX}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
@@ -330,26 +330,26 @@ export function FormularioEditarPerfil({
             />
             <Campo
               id="perfil-website"
-              label="Sitio web"
+              label={t("web")}
               type="url"
               inputMode="url"
-              placeholder="https://tu-web.com"
+              placeholder={t("webPlaceholder")}
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
               disabled={nombreOcupado}
             />
             <Campo
               id="perfil-instagram"
-              label="Instagram"
-              placeholder="tu_usuario (sin @)"
+              label={t("instagram")}
+              placeholder={t("instagramPlaceholder")}
               value={instagram}
               onChange={(e) => setInstagram(e.target.value)}
               disabled={nombreOcupado}
             />
             <Campo
               id="perfil-youtube"
-              label="YouTube"
-              placeholder="@tucanal"
+              label={t("youtube")}
+              placeholder={t("youtubePlaceholder")}
               value={youtube}
               onChange={(e) => setYoutube(e.target.value)}
               disabled={nombreOcupado}
@@ -362,12 +362,12 @@ export function FormularioEditarPerfil({
             disabled={nombreOcupado}
             className="mt-5 w-full py-3.5 shadow-[var(--df-cta-lift)]"
           >
-            {nombreOcupado ? "Guardando…" : "Guardar perfil"}
+            {nombreOcupado ? t("guardando") : t("guardar")}
           </Boton>
 
           {estadoNombre === "guardado" ? (
             <p role="status" className="mt-3 text-center text-sm text-ok">
-              Perfil guardado.
+              {t("guardado")}
             </p>
           ) : null}
         </form>

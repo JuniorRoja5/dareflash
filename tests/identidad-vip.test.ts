@@ -41,6 +41,12 @@ const leer = (rel: string): string => readFileSync(path.join(SRC, rel), "utf8");
 
 /** El ÚNICO fichero que puede pintar un nombre. Todo lo demás pasa por él. */
 const MODULO = "components/ui/identidad-usuario.tsx";
+/**
+ * La MARCA (P5b2a): vive en su propio fichero, una hoja de cliente que lee «VIP Mythic» del
+ * diccionario, y `identidad-usuario` la reexporta. Sigue siendo el módulo de identidad: los dos
+ * ficheros quedan fuera de las superficies que se vigilan.
+ */
+const MARCA_VIP = "components/ui/marca-vip.tsx";
 
 function ficheros(dir: string): string[] {
   return readdirSync(dir).flatMap((n) => {
@@ -57,7 +63,7 @@ const sinComentarios = (s: string): string =>
 /** Todo lo de usuario: `app` y `components`, menos el panel y menos el propio módulo. */
 const SUPERFICIES = [...ficheros(path.join(SRC, "app")), ...ficheros(path.join(SRC, "components"))]
   .map((f) => path.relative(SRC, f).split(path.sep).join("/"))
-  .filter((f) => !f.startsWith("app/panel/") && f !== MODULO)
+  .filter((f) => !f.startsWith("app/panel/") && f !== MODULO && f !== MARCA_VIP)
   .map((f) => ({ f, codigo: sinComentarios(leer(f)) }));
 
 describe("el candado: nadie pinta un nombre fuera del componente compartido", () => {
@@ -236,7 +242,7 @@ describe("la puerta del color: solo pasa un token nuestro, entero", () => {
     // La decisión es "el oro no colorea texto", no "fuera el oro": el sello y la gema se separan
     // del podio por FORMA —estrella con gema contra medalla redonda—, así que ahí no chocan.
     expect(Object.keys(COLORES_NOMBRE_VIP)).not.toContain("oro");
-    expect(leer("components/ui/identidad-usuario.tsx")).toContain("var(--vip-gold)");
+    expect(leer(MARCA_VIP)).toContain("var(--vip-gold)");
   });
 
   /**

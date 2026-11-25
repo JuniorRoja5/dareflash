@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useTextos } from "@/components/textos-provider";
 import { getJson } from "@/lib/cliente-http";
 
 import { CeldaVideo } from "./celda-video";
@@ -36,6 +37,7 @@ export function RejillaVideos({
   url: string;
   esPropio: boolean;
 }) {
+  const t = useTextos("perfilVideos");
   const [items, setItems] = useState<VideoCelda[]>(inicial);
   const [cursor, setCursor] = useState<string | null>(cursorInicial);
   const [cargando, setCargando] = useState(false);
@@ -64,9 +66,7 @@ export function RejillaVideos({
     <>
       {items.length === 0 ? (
         <p className="rounded-sm border border-line bg-surface/40 p-8 text-center text-sm text-text-dim">
-          {esPropio
-            ? "Todavía no has publicado ningún vídeo. Cuando publiques uno, aparecerá aquí."
-            : "Este perfil aún no tiene vídeos publicados."}
+          {esPropio ? t("vacioPropio") : t("vacioAjeno")}
         </p>
       ) : (
         <div className="grid grid-cols-3 items-start gap-x-1.5 gap-y-3 sm:grid-cols-4 lg:grid-cols-5">
@@ -87,7 +87,7 @@ export function RejillaVideos({
           disabled={cargando}
           className="mt-4 w-full rounded-sm border border-line py-2 text-sm text-text-dim transition-colors hover:bg-raised hover:text-text disabled:opacity-40"
         >
-          {cargando ? "Cargando…" : "Ver más vídeos"}
+          {cargando ? t("cargando") : t("verMas")}
         </button>
       ) : null}
     </>

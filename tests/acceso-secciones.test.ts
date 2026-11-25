@@ -20,6 +20,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { es } from "../src/textos/es";
+
 import {
   destinoActivo,
   NAV_DESTINOS,
@@ -87,7 +89,11 @@ describe.each(SECCIONES)("$clave: la entrada de móvil es el perfil propio", ({ 
   it("el perfil enlaza a la sección, y solo en el propio", () => {
     const perfil = leer("src", "app", "(app)", "(shell)", "perfil", "perfil-vista.tsx");
     expect(perfil).toContain(`href="${ruta}"`);
-    expect(perfil).toContain(boton);
+    // Desde la P5b2a la etiqueta sale del diccionario: el texto tiene que estar en `perfil` y el
+    // perfil tiene que pintar ESA clave.
+    const clave = Object.entries(es.perfil).find(([, v]) => v === boton)?.[0];
+    expect(clave, `«${boton}» ya no está en el diccionario del perfil`).toBeDefined();
+    expect(perfil).toContain(`t("${clave}")`);
     // Va dentro del bloque de `esPropio`, con Editar perfil: no se le ofrece a quien mira a otro.
     const propio = perfil.slice(perfil.indexOf("esPropio ? ("));
     expect(propio).toContain(`href="${ruta}"`);

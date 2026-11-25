@@ -23,6 +23,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { es } from "../src/textos/es";
+
 const RAIZ = process.cwd();
 const VISTA = join(RAIZ, "src", "app", "(app)", "(shell)", "perfil", "perfil-vista.tsx");
 
@@ -79,7 +81,9 @@ describe("todos los botones del perfil llevan a algún sitio", () => {
   });
 
   it("y el CTA de Boost lleva a /boosts, que es la pantalla donde se compran", () => {
-    const cta = botones().find((b) => etiquetaDe(b).includes("Destacar mi perfil"));
+    // Desde la P5b2a la etiqueta sale del diccionario (`perfil.destacar`).
+    expect(es.perfil.destacar).toContain("Destacar mi perfil");
+    const cta = botones().find((b) => etiquetaDe(b).includes('t("destacar")'));
     expect(cta, "ya no existe el CTA de Boost en el perfil").toBeDefined();
     expect(cta).toContain('href="/boosts"');
     // Y sigue siendo el principal: es la acción de pago, el único magenta del perfil propio.

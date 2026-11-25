@@ -2,6 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 
+import { useTextos, useTextosRicos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { delCsrf, mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
@@ -23,6 +24,8 @@ export function CambiarEmail({
   /** Dirección pedida y aún sin confirmar, si la hay. */
   pendienteInicial: string | null;
 }) {
+  const t = useTextos("cambioCorreo");
+  const tr = useTextosRicos("cambioCorreo");
   const [pendiente, setPendiente] = useState(pendienteInicial);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,10 +47,10 @@ export function CambiarEmail({
         setEstado("hecho");
         return;
       }
-      setError(mensajeDe(r.data) || "No se pudo pedir el cambio. Inténtalo de nuevo.");
+      setError(mensajeDe(r.data) || t("errorPedir"));
       setEstado("idle");
     } catch {
-      setError("No hemos podido conectar. Inténtalo de nuevo.");
+      setError(t("sinConexion"));
       setEstado("idle");
     }
   }
@@ -64,25 +67,24 @@ export function CambiarEmail({
 
   return (
     <section className="rounded-sm border border-line bg-surface/60 p-5">
-      <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">Tu correo</h2>
+      <h2 className="text-sm font-semibold tracking-widest text-text-dim uppercase">
+        {t("titulo")}
+      </h2>
       <p className="mt-2 text-sm text-text">{emailActual}</p>
 
       {pendiente ? (
         <div className="mt-4 rounded-sm border border-line bg-raised/50 p-3">
           <p className="text-sm text-text">
-            Pendiente de confirmar: <span className="font-medium">{pendiente}</span>
+            {tr("pendiente", { resaltado: { className: "font-medium" } }, { correo: pendiente })}
           </p>
-          <p className="mt-1 text-2xs text-text-dim">
-            Te hemos enviado un enlace a esa dirección. Hasta que la confirmes, tu cuenta sigue con
-            la de arriba.
-          </p>
+          <p className="mt-1 text-2xs text-text-dim">{t("enlaceEnviado")}</p>
           <button
             type="button"
             onClick={() => void cancelar()}
             disabled={ocupado}
             className="mt-3 min-h-[36px] rounded-sm border border-line px-3 text-sm text-text-dim transition-colors hover:bg-raised hover:text-text disabled:opacity-40"
           >
-            Cancelar el cambio
+            {t("cancelar")}
           </button>
         </div>
       ) : null}
@@ -90,7 +92,7 @@ export function CambiarEmail({
       <form onSubmit={(e) => void onSubmit(e)} className="mt-4 space-y-3">
         <Campo
           id="email-nuevo"
-          label="Nueva dirección"
+          label={t("nueva")}
           type="email"
           value={email}
           disabled={ocupado}
@@ -100,7 +102,7 @@ export function CambiarEmail({
         />
         <Campo
           id="email-password"
-          label="Tu contraseña"
+          label={t("tuContrasena")}
           type="password"
           value={password}
           disabled={ocupado}
@@ -108,11 +110,7 @@ export function CambiarEmail({
           autoComplete="current-password"
           required
         />
-        <p className="text-2xs text-text-dim">
-          Pedimos tu contraseña porque con el correo se entra en tu cuenta y se recupera. Te
-          enviaremos un enlace a la dirección nueva: el cambio solo se aplica al confirmarlo, y
-          entonces se cerrarán tus sesiones.
-        </p>
+        <p className="text-2xs text-text-dim">{t("explicacion")}</p>
         {error ? (
           <p role="status" className="text-sm text-alarm">
             {error}
@@ -120,11 +118,11 @@ export function CambiarEmail({
         ) : null}
         {estado === "hecho" ? (
           <p role="status" className="text-sm text-ok">
-            Te hemos enviado un enlace de confirmación. Ábrelo desde tu nueva dirección.
+            {t("hecho")}
           </p>
         ) : null}
         <Boton type="submit" variante="secundario" disabled={ocupado} className="w-full">
-          {ocupado ? "Enviando…" : "Cambiar mi correo"}
+          {ocupado ? t("enviando") : t("cambiar")}
         </Boton>
       </form>
     </section>
