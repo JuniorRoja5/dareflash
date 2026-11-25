@@ -6,7 +6,9 @@ import { type FormEvent, type SVGProps, useMemo, useState } from "react";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { delCsrf, mensajeDe, postJsonCsrf, putJsonCsrf } from "@/lib/cliente-http";
-import { nombreDeMetodo, validarDestino, type DestinoRetirada } from "@/lib/retirada";
+import { validarDestino, type DestinoRetirada } from "@/lib/retirada";
+import { useTextos } from "@/components/textos-provider";
+import { nombreMetodo } from "@/textos/cobros";
 import type { MetodoPagoPropio } from "@/server/services/metodos-pago";
 
 /**
@@ -76,6 +78,7 @@ export function MetodosDeCobro({
   saldoCents: number;
 }) {
   const router = useRouter();
+  const t = useTextos("cobros");
   /** `null` = cerrado; `""` = añadiendo uno nuevo; un id = reemplazando ese. */
   const [editando, setEditando] = useState<string | null>(metodos.length === 0 ? "" : null);
   const [iban, setIban] = useState("");
@@ -117,7 +120,7 @@ export function MetodosDeCobro({
       : await postJsonCsrf("/api/metodos-pago", destino);
     setOcupado(false);
     if (!r.ok) {
-      setError(mensajeDe(r.data) || "No hemos podido guardar ese método.");
+      setError(mensajeDe(r.data) || t("errorGuardar"));
       return;
     }
     limpiar();
@@ -131,7 +134,7 @@ export function MetodosDeCobro({
     const r = await delCsrf(`/api/metodos-pago/${metodoId}`);
     setBorrando(null);
     if (!r.ok) {
-      setError(mensajeDe(r.data) || "No hemos podido borrar ese método.");
+      setError(mensajeDe(r.data) || t("errorBorrar"));
       return;
     }
     if (editando === metodoId) setEditando(null);
@@ -142,11 +145,11 @@ export function MetodosDeCobro({
     <section aria-labelledby="donde-cobrar">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 id="donde-cobrar" className="font-medium text-text">
-          Dónde cobrar
+          {t("dondeCobrar")}
         </h2>
         {metodos.length > 0 ? (
           <span className="rounded-full border border-line px-2.5 py-0.5 text-2xs tracking-widest text-text-dim uppercase">
-            {metodos.length === 1 ? "1 método" : `${metodos.length} métodos`}
+            {t("nMetodos", { n: metodos.length })}
           </span>
         ) : null}
       </div>
@@ -165,7 +168,7 @@ export function MetodosDeCobro({
               <IconoBanco />
             </span>
             <span className="min-w-[9rem] flex-1">
-              <span className="block text-sm font-medium text-text">{nombreDeMetodo(m)}</span>
+              <span className="block text-sm font-medium text-text">{nombreMetodo(t, m)}</span>
               <span className="block font-mono text-xs text-text-dim">····{m.pista}</span>
             </span>
             <span className="ml-auto flex shrink-0 gap-1">
@@ -174,14 +177,14 @@ export function MetodosDeCobro({
                   servidor ni para su dueño. Lo que ocurre de verdad es que se escribe otro y
                   sustituye al anterior, así que eso es lo que dice el botón. */}
               <Boton variante="fantasma" onClick={() => abrirReemplazo(m)}>
-                Reemplazar
+                {t("reemplazar")}
               </Boton>
               <Boton
                 variante="fantasma"
                 onClick={() => void borrar(m.id)}
                 disabled={borrando !== null}
               >
-                {borrando === m.id ? "…" : "Borrar"}
+                {borrando === m.id ? "…" : t("borrar")}
               </Boton>
             </span>
           </li>
@@ -194,29 +197,27 @@ export function MetodosDeCobro({
           onClick={abrirNuevo}
           className="mt-2 w-full rounded-sm border border-dashed border-line p-4 text-sm font-medium text-text-dim transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised hover:text-text"
         >
-          + Añadir método de cobro
+          {t("anadir")}
         </button>
       ) : null}
 
       <p className="mt-3 max-w-prose text-xs leading-relaxed text-text-dim">
-        {saldoCents > 0
-          ? "Se guardan cifrados; el equipo solo los ve al procesar un cobro tuyo."
-          : "Déjalos listos aunque todavía no tengas saldo: cuando ganes, cobras sin fricción. Se guardan cifrados; el equipo solo los ve al procesar un cobro tuyo."}
+        {saldoCents > 0 ? t("cifradosConSaldo") : t("cifradosSinSaldo")}
       </p>
 
       {editando !== null ? (
         <form
           onSubmit={guardar}
           className="mt-4 space-y-5 rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-sm)] backdrop-blur-md"
-          aria-label={reemplazando ? "Reemplazar método de cobro" : "Añadir método de cobro"}
+          aria-label={reemplazando ? t("formAria_reemplazar") : t("formAria_anadir")}
         >
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h3 className="font-medium text-text">
-              {reemplazando ? "Reemplazar este método" : "Nuevo método de cobro"}
+              {reemplazando ? t("tituloReemplazar") : t("tituloNuevo")}
             </h3>
             {metodos.length > 0 ? (
               <Boton variante="fantasma" onClick={() => setEditando(null)}>
-                Cancelar
+                {t("cancelar")}
               </Boton>
             ) : null}
           </div>
@@ -225,23 +226,21 @@ export function MetodosDeCobro({
             // Decirlo evita la pregunta "¿por qué está vacío?" y, sobre todo, evita que alguien crea
             // que el campo en blanco significa "déjalo como estaba".
             <p className="max-w-prose text-xs leading-relaxed text-text-dim">
-              Escríbelo entero otra vez: guardamos los datos cifrados y no vuelven a salir del
-              servidor, ni siquiera para rellenar este formulario. Al guardar, reemplaza al anterior
-              — y no cambia a dónde va un cobro que ya hayas pedido.
+              {t("reemplazoAviso")}
             </p>
           ) : null}
 
           <Campo
             id="iban"
-            label="IBAN"
+            label={t("iban")}
             value={iban}
             onChange={(e) => setIban(e.target.value)}
             autoComplete="off"
-            placeholder="ES00 0000 0000 0000 0000 0000"
+            placeholder={t("ibanPlaceholder")}
           />
           <Campo
             id="titular"
-            label="Nombre del titular"
+            label={t("titular")}
             value={titular}
             onChange={(e) => setTitular(e.target.value)}
             autoComplete="off"
@@ -254,7 +253,7 @@ export function MetodosDeCobro({
           ) : null}
 
           <Boton type="submit" variante="secundario" disabled={!puede}>
-            {ocupado ? "Guardando…" : reemplazando ? "Reemplazar método" : "Guardar método"}
+            {ocupado ? t("guardando") : reemplazando ? t("reemplazarMetodo") : t("guardarMetodo")}
           </Boton>
         </form>
       ) : null}

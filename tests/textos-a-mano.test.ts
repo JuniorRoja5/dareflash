@@ -68,13 +68,6 @@ const PENDIENTES_P5B2 = [
   "src/app/(app)/(shell)/vip/cta-vip.tsx",
   "src/app/(app)/(shell)/vip/hero-vip.tsx",
   "src/app/(app)/(shell)/vip/tarjeta-eres-vip.tsx",
-  "src/app/(app)/(shell)/wallet/hero-monedero.tsx",
-  "src/app/(app)/(shell)/wallet/historial-retiradas.tsx",
-  "src/app/(app)/(shell)/wallet/informacion-cobro.tsx",
-  "src/app/(app)/(shell)/wallet/metodos-de-cobro.tsx",
-  "src/app/(app)/(shell)/wallet/movimientos-monedero.tsx",
-  "src/app/(app)/(shell)/wallet/page.tsx",
-  "src/app/(app)/(shell)/wallet/pedir-cobro.tsx",
   "src/app/privacidad/page.tsx",
 ];
 

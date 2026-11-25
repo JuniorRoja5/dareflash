@@ -4,7 +4,11 @@ import { useState } from "react";
 
 import { getJson } from "@/lib/cliente-http";
 import { importeConMoneda } from "@/lib/dinero";
-import { ETIQUETA_ESTADO, nombreDeMetodo, pasosDe, type EstadoRetirada } from "@/lib/retirada";
+import { pasosDe, type EstadoRetirada } from "@/lib/retirada";
+import { useTextos, useTextosRicos } from "@/components/textos-provider";
+import { nombreMetodo } from "@/textos/cobros";
+import type { FuncionT } from "@/textos/plantilla";
+import type { Textos } from "@/textos/servidor";
 import type { RetiradaPropia } from "@/server/services/retirada";
 import { useFormato } from "@/components/formato-provider";
 import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "@/lib/formato";
@@ -45,10 +49,14 @@ const CHIP: Record<EstadoRetirada, string> = {
   REJECTED: "border-alarm/40 text-alarm",
 };
 
-/** Mismo nombre que las tarjetas y el selector (`nombreDeMetodo`), con su pista detrás. */
-function destinoDe(r: RetiradaPropia): string {
-  return `${nombreDeMetodo(r)} ····${r.pista}`;
+/** Mismo nombre que las tarjetas y el selector (`nombreMetodo`), con su pista detrás. */
+function destinoDe(t: FuncionT<Textos["cobros"]>, r: RetiradaPropia): string {
+  return t("destino", { metodo: nombreMetodo(t, r), pista: r.pista });
 }
+
+/** La palabra de un estado (el chip) y la de un evento (el recorrido): no son la misma. */
+const estadoDe = (t: FuncionT<Textos["cobros"]>, e: EstadoRetirada) => t(`estado_${e}`);
+const eventoDe = (t: FuncionT<Textos["cobros"]>, e: EstadoRetirada) => t(`evento_${e}`);
 
 /**
  * Las fechas, en la zona de quien mira: un cobro es suyo y de su día. Antes se formateaban con la zona
@@ -87,6 +95,7 @@ function Dato({ etiqueta, children }: { etiqueta: string; children: React.ReactN
  * del punto actual mueren ahí, y los pasos se quedan en su sitio, que es lo que importa).
  */
 function Recorrido({ estado }: { estado: EstadoRetirada }) {
+  const t = useTextos("cobros");
   const recorrido = pasosDe(estado);
   if (!recorrido) return null;
 
@@ -119,7 +128,7 @@ function Recorrido({ estado }: { estado: EstadoRetirada }) {
               p.situacion === "pendiente" ? "text-text-dim" : "font-medium text-text"
             }`}
           >
-            {p.etiqueta}
+            {eventoDe(t, p.estado)}
           </span>
         </span>
       ))}
@@ -129,6 +138,8 @@ function Recorrido({ estado }: { estado: EstadoRetirada }) {
 
 function Fila({ r }: { r: RetiradaPropia }) {
   const { idioma, zona } = useFormato();
+  const t = useTextos("cobros");
+  const tr = useTextosRicos("cobros");
   const estado = r.status as EstadoRetirada;
   const rechazada = estado === "REJECTED";
 
@@ -147,12 +158,12 @@ function Fila({ r }: { r: RetiradaPropia }) {
           {importeConMoneda(r.amountCents, idioma, r.currency)}
         </span>
         <span className="min-w-0 flex-1 truncate text-xs text-text-dim md:order-2 md:text-sm md:whitespace-normal">
-          {destinoDe(r)}
+          {destinoDe(t, r)}
         </span>
         <span
           className={`shrink-0 justify-self-start rounded-full border px-2.5 py-0.5 text-2xs font-medium md:order-4 ${CHIP[estado] ?? "border-line text-text-dim"}`}
         >
-          {ETIQUETA_ESTADO[estado] ?? r.status}
+          {estado in CHIP ? estadoDe(t, estado) : r.status}
         </span>
         {/* El giro es CSS: la regla global de movimiento reducido lo apaga sin que nada avise. */}
         <span
@@ -167,22 +178,21 @@ function Fila({ r }: { r: RetiradaPropia }) {
         <Recorrido estado={estado} />
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <Dato etiqueta="Importe">
-            {rechazada ? (
-              <>
-                {importeConMoneda(r.amountCents, idioma, r.currency)}{" "}
-                <span className="text-text-dim">· devuelto a tu saldo</span>
-              </>
-            ) : (
-              importeConMoneda(r.amountCents, idioma, r.currency)
-            )}
+          <Dato etiqueta={t("col_importe")}>
+            {rechazada
+              ? tr(
+                  "devuelto",
+                  { resaltado: { className: "text-text-dim" } },
+                  { importe: importeConMoneda(r.amountCents, idioma, r.currency) },
+                )
+              : importeConMoneda(r.amountCents, idioma, r.currency)}
           </Dato>
-          <Dato etiqueta="Método">{destinoDe(r)}</Dato>
-          <Dato etiqueta="Pedida el">{cuando(r.createdAt, idioma, zona)}</Dato>
+          <Dato etiqueta={t("col_metodo")}>{destinoDe(t, r)}</Dato>
+          <Dato etiqueta={t("pedidaEl")}>{cuando(r.createdAt, idioma, zona)}</Dato>
           {/* UNA SOLA FECHA DE MOVIMIENTO, no una por paso: la fila guarda `procesadaEn`, que es
               cuándo se movió POR ÚLTIMA VEZ. Pintar "aceptada el X" y "pagada el Y" con un solo
               dato sería inventar una de las dos. */}
-          <Dato etiqueta={rechazada ? "Rechazada el" : "Última actualización"}>
+          <Dato etiqueta={rechazada ? t("rechazadaEl") : t("ultimaActualizacion")}>
             {r.actualizadaEn ? cuando(r.actualizadaEn, idioma, zona) : "—"}
           </Dato>
         </div>
@@ -193,17 +203,13 @@ function Fila({ r }: { r: RetiradaPropia }) {
                 que aquí no se interpreta ninguna clave ni se elige frase: lo que viene es lo que
                 se lee. Las rechazadas de antes de que esto existiera no traen motivo, y entonces
                 se dice lo único cierto — volvió el dinero— sin inventar una razón. */}
-            {r.motivoRechazo ? (
-              <>
-                <span className="text-text">{r.motivoRechazo}</span> El importe volvió entero a tu
-                monedero.
-              </>
-            ) : (
-              <>
-                No hemos podido completar este cobro y el importe volvió entero a tu monedero. Si no
-                sabes por qué se rechazó, escríbenos.
-              </>
-            )}
+            {r.motivoRechazo
+              ? tr(
+                  "conMotivo",
+                  { resaltado: { className: "text-text" } },
+                  { motivo: r.motivoRechazo },
+                )
+              : t("sinMotivo")}
           </p>
         ) : null}
       </div>
@@ -218,6 +224,7 @@ export function HistorialRetiradas({
   inicial: RetiradaPropia[];
   cursorInicial: string | null;
 }) {
+  const t = useTextos("cobros");
   const [filas, setFilas] = useState(inicial);
   const [cursor, setCursor] = useState(cursorInicial);
   const [cargando, setCargando] = useState(false);
@@ -232,7 +239,7 @@ export function HistorialRetiradas({
     );
     setCargando(false);
     if (!r.ok) {
-      setError("No hemos podido cargar más. Inténtalo otra vez.");
+      setError(t("errorMas"));
       return;
     }
     // Se AÑADE, y el cursor avanza al de la respuesta: la página siguiente arranca donde acabó
@@ -242,7 +249,7 @@ export function HistorialRetiradas({
   }
 
   if (filas.length === 0) {
-    return <p className="mt-3 text-sm text-text-dim">Todavía no has pedido ningún cobro.</p>;
+    return <p className="mt-3 text-sm text-text-dim">{t("vacio")}</p>;
   }
 
   return (
@@ -253,10 +260,10 @@ export function HistorialRetiradas({
         aria-hidden
         className={`mt-3 hidden gap-3 px-4 text-2xs font-semibold tracking-widest text-text-dim uppercase md:grid ${COLUMNAS}`}
       >
-        <span>Fecha</span>
-        <span>Método</span>
-        <span className="text-right">Importe</span>
-        <span>Estado</span>
+        <span>{t("col_fecha")}</span>
+        <span>{t("col_metodo")}</span>
+        <span className="text-right">{t("col_importe")}</span>
+        <span>{t("col_estado")}</span>
         <span />
       </div>
       <ul className="mt-3 space-y-2 md:mt-2">
@@ -280,7 +287,7 @@ export function HistorialRetiradas({
           disabled={cargando}
           className="mx-auto mt-4 block min-h-[44px] rounded-full border border-line px-5 text-sm font-medium text-text-dim transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised hover:text-text disabled:opacity-60"
         >
-          {cargando ? "Cargando…" : "Ver más"}
+          {cargando ? t("cargando") : t("verMas")}
         </button>
       ) : null}
     </>

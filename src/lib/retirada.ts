@@ -161,9 +161,10 @@ export function devuelveDinero(hasta: EstadoRetirada): boolean {
 // ---------------------------------------------------------------------------
 
 /**
- * EL ESTADO, DICHO EN CASTELLANO. Una sola tabla para el panel y para el monedero del usuario: dos
- * mapas serían dos juegos de palabras libres de discrepar, y la persona que escribe a soporte
- * citaría una palabra que el admin no ve en su pantalla.
+ * EL ESTADO, DICHO EN CASTELLANO, para el PANEL (que no se traduce). El monedero de la persona lo dice
+ * desde el diccionario (`cobros.estado_*`, P5b2a), y un test exige que en castellano las dos tablas
+ * digan exactamente lo mismo: la persona que escribe a soporte cita la palabra que ve, y el admin
+ * tiene que ver esa misma.
  */
 export const ETIQUETA_ESTADO: Record<EstadoRetirada, string> = {
   PENDING: "Pendiente",
@@ -194,19 +195,12 @@ export const CAMINO_RETIRADA: readonly EstadoRetirada[] = (() => {
 
 /** Cómo está un paso del recorrido: ya ocurrió, está ocurriendo, o no ha llegado. */
 export type PasoRetirada = {
+  /**
+   * Su palabra la pone la vista (`cobros.evento_<estado>`, P5b2a): el EVENTO, no el estado. Un
+   * recorrido nombra lo que pasó ("Pedida"), el chip nombra dónde está ("Pendiente").
+   */
   estado: EstadoRetirada;
-  /** El EVENTO, no el estado: un recorrido nombra lo que pasó ("Pedida"), el chip nombra dónde está
-   *  ("Pendiente"). Son dos cosas distintas y por eso no comparten texto. */
-  etiqueta: string;
   situacion: "hecho" | "actual" | "pendiente";
-};
-
-const EVENTO: Record<EstadoRetirada, string> = {
-  PENDING: "Pedida",
-  APPROVED: "Aceptada",
-  PROCESSING: "En proceso",
-  PAID: "Pagada",
-  REJECTED: "Rechazada",
 };
 
 /**
@@ -231,7 +225,6 @@ export function pasosDe(
   const final = esEstadoFinal(estado);
   const pasos = CAMINO_RETIRADA.map<PasoRetirada>((e, j) => ({
     estado: e,
-    etiqueta: EVENTO[e],
     // El paso actual está "ocurriendo", no "hecho": "en proceso" no es "ya te lo hemos mandado".
     situacion: j < i || (j === i && final) ? "hecho" : j === i ? "actual" : "pendiente",
   }));
@@ -295,9 +288,9 @@ export function fraseDeRechazo(
 }
 
 /**
- * EL NOMBRE HUMANO DE UN MÉTODO DE COBRO, en un solo sitio: la tarjeta de "Dónde cobrar", el
- * selector de "Pedir un cobro", cada fila del historial y el panel decían lo mismo de varias
- * maneras. Es el mismo dato; se lee igual.
+ * EL NOMBRE HUMANO DE UN MÉTODO DE COBRO, para el PANEL. El monedero lo dice desde el diccionario
+ * (`nombreMetodo`, src/textos/cobros.ts, P5b2a) con el mismo criterio, y un test exige que en
+ * castellano coincidan: es el mismo dato y se lee igual en las dos pantallas.
  *
  * FAIL-OPEN con un nombre genérico para un método que ya no está en el catálogo: la migración que
  * retiró la cripto no deja ninguno, pero una pantalla de dinero no revienta por una fila rara.

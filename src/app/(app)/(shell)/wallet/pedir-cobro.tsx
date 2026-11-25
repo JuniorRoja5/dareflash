@@ -8,7 +8,9 @@ import { Campo } from "@/components/ui/campo";
 import { RETIRADA_MINIMA_CENTS } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { importeACentimos, importeConMoneda } from "@/lib/dinero";
-import { evaluarImporte, nombreDeMetodo } from "@/lib/retirada";
+import { evaluarImporte } from "@/lib/retirada";
+import { useTextos } from "@/components/textos-provider";
+import { nombreMetodo } from "@/textos/cobros";
 import type { MetodoPagoPropio } from "@/server/services/metodos-pago";
 import { useFormato } from "@/components/formato-provider";
 
@@ -34,6 +36,7 @@ export function PedirCobro({
   metodos: MetodoPagoPropio[];
 }) {
   const { idioma } = useFormato();
+  const t = useTextos("cobros");
   const router = useRouter();
   const [importe, setImporte] = useState("");
   const [metodoId, setMetodoId] = useState(metodos[0]?.id ?? "");
@@ -60,7 +63,7 @@ export function PedirCobro({
     if (!r.ok) {
       // El copy sale del servidor, no de un mapa duplicado aquí: dos juegos de mensajes son libres
       // de discrepar justo cuando más importa entenderse.
-      setError(mensajeDe(r.data) || "No hemos podido registrar tu solicitud.");
+      setError(mensajeDe(r.data) || t("errorPedir"));
       return;
     }
     // Intención COMPLETADA: a partir de aquí, pedir otra vez es otra intención y lleva otra clave.
@@ -74,14 +77,14 @@ export function PedirCobro({
     <form
       onSubmit={enviar}
       className="space-y-5 rounded-sm border border-line bg-surface/60 p-6 shadow-[var(--df-shadow-sm)] backdrop-blur-md"
-      aria-label="Pedir un cobro"
+      aria-label={t("pedirTitulo")}
     >
-      <h2 className="font-medium text-text">Pedir un cobro</h2>
+      <h2 className="font-medium text-text">{t("pedirTitulo")}</h2>
 
       <div>
         <Campo
           id="importe"
-          label="Importe"
+          label={t("importe")}
           value={importe}
           onChange={(e) => {
             setImporte(e.target.value);
@@ -90,14 +93,16 @@ export function PedirCobro({
           inputMode="decimal"
         />
         <p className="mt-1.5 text-xs text-text-dim">
-          Mínimo {importeConMoneda(RETIRADA_MINIMA_CENTS, idioma)} · disponible{" "}
-          {importeConMoneda(saldoCents, idioma)}
+          {t("minimoDisponible", {
+            minimo: importeConMoneda(RETIRADA_MINIMA_CENTS, idioma),
+            disponible: importeConMoneda(saldoCents, idioma),
+          })}
         </p>
       </div>
 
       <div>
         <label htmlFor="metodo" className="mb-1.5 block text-sm font-medium text-text">
-          A dónde
+          {t("aDonde")}
         </label>
         <select
           id="metodo"
@@ -109,7 +114,7 @@ export function PedirCobro({
             <option key={m.id} value={m.id}>
               {/* El MISMO nombre que la tarjeta de arriba (`nombreDeMetodo`): aquí llegó a decir
                   una cosa y allí otra. Dos formas de llamar a lo mismo en la misma pantalla. */}
-              {nombreDeMetodo(m)} ····{m.pista}
+              {t("destino", { metodo: nombreMetodo(t, m), pista: m.pista })}
             </option>
           ))}
         </select>
@@ -122,14 +127,14 @@ export function PedirCobro({
       ) : null}
       {hecho ? (
         <p role="status" className="text-sm text-ok">
-          Solicitud registrada. El importe ya ha salido de tu saldo y el equipo la revisará.
+          {t("hecho")}
         </p>
       ) : null}
 
       {/* ÚNICA acción principal de la pantalla: guardar un método es secundario, pedir el cobro es
           LA acción. Un acento por pantalla. */}
       <Boton type="submit" variante="principal" disabled={!puede} className="w-full sm:w-auto">
-        {ocupado ? "Enviando…" : "Pedir cobro"}
+        {ocupado ? t("enviando") : t("pedir")}
       </Boton>
     </form>
   );

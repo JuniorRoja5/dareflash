@@ -154,8 +154,11 @@ describe("los datos de pago no se nombran en la superficie", () => {
     // │ sustituye al anterior. El día que alguien "mejore" el copy a "Editar", lo siguiente que  │
     // │ parecerá razonable es devolver el dato para rellenarlo — y ahí se acabó la puerta.       │
     // └──────────────────────────────────────────────────────────────────────────────────────────┘
-    const src = codigo("metodos-de-cobro.tsx");
-    expect(src).toMatch(/>\s*Reemplazar\s*</);
+    // Desde la P5b2a la palabra vive en el diccionario (`cobros.reemplazar`): el botón pinta ESA clave,
+    // y lo que se juzga es el código MÁS las frases del espacio.
+    const src = `${codigo("metodos-de-cobro.tsx")}\n${Object.values(es.cobros).join("\n")}`;
+    expect(es.cobros.reemplazar).toBe("Reemplazar");
+    expect(src).toMatch(/>\s*\{t\("reemplazar"\)\}\s*</);
     // La palabra entera, no solo la del botón: la primera versión de este caso ataba la FORMA
     // `>Editar<` y dejaba pasar un `"Editar este método"` en el título del formulario, que promete
     // exactamente lo mismo. (`editando`/`setEditando` no casan: `\b` exige el corte después de
@@ -271,13 +274,16 @@ describe("la información que hay que leer antes de cobrar", () => {
   const plano = info.replace(/\{"\s*"\}/g, " ").replace(/\s+/g, " ");
 
   it("los dos textos están, literales", () => {
-    expect(plano).toContain(
+    // Desde la P5b2a viven en el diccionario, palabra por palabra, y la sección los pinta.
+    expect(es.monedero.comoFuncionaTexto).toBe(
       "Al pedir un cobro, ese importe sale de tu saldo al momento, el equipo lo revisa y te lo envía por el método que elijas. Puede tardar unos días. Si lo rechazamos, el dinero vuelve entero a tu monedero.",
     );
-    expect(plano).toContain(
-      // La marca sale de `config/marca` (Fase 11 · PM1); el texto pintado es el mismo.
-      "Las comisiones del banco corren por tu cuenta, no por la de {MARCA}. Recibirás el importe solicitado menos esas comisiones: si pides",
+    expect(es.monedero.comisionesTexto).toContain(
+      // La marca la pone `t` desde `config/marca` (Fase 11 · PM1); el texto pintado es el mismo.
+      "Las comisiones del banco corren por tu cuenta, no por la de {marca}. Recibirás el importe solicitado menos esas comisiones: si pides",
     );
+    expect(plano).toContain('t("comoFuncionaTexto")');
+    expect(plano).toContain('t("comisionesTexto"');
   });
 
   it("y las cifras del ejemplo de comisiones salen del formateador, no escritas a mano", () => {
@@ -285,6 +291,9 @@ describe("la información que hay que leer antes de cobrar", () => {
     expect(info).toMatch(/importeConMoneda\(5000, idioma\)/);
     expect(info).toMatch(/importeConMoneda\(4890, idioma\)/);
     expect(plano, "el importe del ejemplo está escrito a mano").not.toMatch(/\$\s?50\.00/);
+    expect(es.monedero.comisionesTexto, "el importe del ejemplo está escrito a mano").not.toMatch(
+      /\$\s?50\.00|\d/,
+    );
   });
 
   it("todo va dentro del desplegable: ya no queda un aviso que no se pueda plegar", () => {

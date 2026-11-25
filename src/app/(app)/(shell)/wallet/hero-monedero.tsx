@@ -4,6 +4,7 @@ import { ImportePremio } from "@/components/ui/importe-premio";
 import { MSG_RETIRADA_SIN_MINIMO, RETIRADA_MINIMA_CENTS } from "@/config/constants";
 import { importeConMoneda } from "@/lib/dinero";
 import type { Idioma } from "@/lib/formato";
+import { textos } from "@/textos/servidor";
 
 /**
  * EL HERO DEL MONEDERO — el saldo como figura de la pantalla.
@@ -29,7 +30,7 @@ import type { Idioma } from "@/lib/formato";
  * "Cobrado: $0.00" en una cuenta que nunca ha cobrado no informa de nada, ocupa el sitio de lo que
  * sí importa y, sobre todo, se parece a una maqueta.
  */
-export function HeroMonedero({
+export async function HeroMonedero({
   saldoCents,
   idioma,
   enRevisionCents,
@@ -43,6 +44,7 @@ export function HeroMonedero({
   cobradoCents: number;
 }) {
   const llegaAlMinimo = saldoCents >= RETIRADA_MINIMA_CENTS;
+  const t = await textos("monedero");
 
   return (
     <section
@@ -56,42 +58,39 @@ export function HeroMonedero({
         {/* `aria-hidden`: lo que dice ya va en el `sr-only` del titular, y repetirlo hace que un
             lector de pantalla lea la pantalla dos veces antes de llegar a la cifra. */}
         <p className="text-2xs tracking-widest text-text-dim uppercase" aria-hidden>
-          Tu monedero
+          {t("tuMonedero")}
         </p>
         <h1 id="mi-saldo" className="mt-1 leading-none">
-          <span className="sr-only">Saldo disponible: </span>
+          <span className="sr-only">{t("saldoOculto")} </span>
           <ImportePremio idioma={idioma} cents={saldoCents} tamano="heroe" className="block" />
         </h1>
 
-        <p className="mt-3 max-w-prose text-sm text-text-dim">
-          Lo que ganas en los retos se acumula aquí. Cuando llegues al mínimo, puedes pedir que te
-          lo enviemos al banco.
-        </p>
+        <p className="mt-3 max-w-prose text-sm text-text-dim">{t("intro")}</p>
 
         {/* EL ESTADO, EN CHIPS Y NO EN LETRA PEQUEÑA. El mínimo es la única restricción del producto
             y decide si la mitad de esta pantalla sirve de algo: enterarse al final es tarde. */}
         <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
           <span className="inline-flex items-center rounded-full border border-line px-3 py-1 text-text-dim">
             {llegaAlMinimo
-              ? `Puedes cobrar desde ${importeConMoneda(RETIRADA_MINIMA_CENTS, idioma)}`
-              : `Te faltan ${importeConMoneda(RETIRADA_MINIMA_CENTS - saldoCents, idioma)} para el mínimo`}
+              ? t("puedesCobrar", { importe: importeConMoneda(RETIRADA_MINIMA_CENTS, idioma) })
+              : t("faltanMinimo", {
+                  importe: importeConMoneda(RETIRADA_MINIMA_CENTS - saldoCents, idioma),
+                })}
           </span>
           {enRevisionCents > 0 ? (
             <span className="inline-flex items-center rounded-full border border-line px-3 py-1 text-text-dim">
-              {importeConMoneda(enRevisionCents, idioma)} en curso
+              {t("enCurso", { importe: importeConMoneda(enRevisionCents, idioma) })}
             </span>
           ) : null}
           {cobradoCents > 0 ? (
             <span className="inline-flex items-center rounded-full border border-line px-3 py-1 text-text-dim">
-              {importeConMoneda(cobradoCents, idioma)} cobrados
+              {t("cobrados", { importe: importeConMoneda(cobradoCents, idioma) })}
             </span>
           ) : null}
         </div>
 
         {saldoCents === 0 ? (
-          <p className="mt-4 max-w-prose text-sm text-text-dim">
-            Todavía no has ganado nada. Gana un reto y el premio aparecerá aquí.
-          </p>
+          <p className="mt-4 max-w-prose text-sm text-text-dim">{t("sinGanar")}</p>
         ) : llegaAlMinimo ? null : (
           <p className="mt-4 max-w-prose text-sm text-text-dim">{MSG_RETIRADA_SIN_MINIMO}</p>
         )}

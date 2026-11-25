@@ -19,8 +19,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   AJUSTE_NOTA_MIN,
   AJUSTE_SALDO_CENTS_MAX,
-  CONCEPTO_MOVIMIENTO,
-  CONCEPTO_MOVIMIENTO_OTRO,
   REF_WALLET_AJUSTE_ADMIN,
 } from "@/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -30,6 +28,7 @@ import {
   claveAjusteSaldo,
   fichaMonedero,
 } from "../src/server/services/monedero-admin";
+import { es } from "../src/textos/es";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
@@ -260,6 +259,17 @@ describe("el motivo y el admin NO llegan al dueño de la cuenta", () => {
     expect(await misMovimientosMonedero(prisma, userId)).toHaveLength(1);
   });
 });
+
+/**
+ * Las frases de cada concepto viven en el diccionario desde la P5b2a (`monedero.concepto_<refType>` y
+ * `monedero.conceptoOtro`): se leen de ahí, con las mismas exigencias que tenían en la config.
+ */
+const CONCEPTO_MOVIMIENTO: Record<string, string> = Object.fromEntries(
+  Object.entries(es.monedero)
+    .filter(([k]) => k.startsWith("concepto_"))
+    .map(([k, v]) => [k.slice("concepto_".length), v]),
+);
+const CONCEPTO_MOVIMIENTO_OTRO = es.monedero.conceptoOtro;
 
 describe("el ajuste se llama por su nombre", () => {
   it("no se disfraza de premio, ni comparte frase con ningún otro concepto", () => {

@@ -1,4 +1,5 @@
-import { CONCEPTO_MOVIMIENTO, CONCEPTO_MOVIMIENTO_OTRO } from "@/config/constants";
+import type { FuncionT } from "@/textos/plantilla";
+import { textos, type Textos } from "@/textos/servidor";
 import { importeConMoneda } from "@/lib/dinero";
 import type { MovimientoMonedero } from "@/server/services/retirada";
 import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "@/lib/formato";
@@ -17,7 +18,7 @@ import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "@/li
  * es traza interna y vive en el `AuditLog` —misma disciplina que la nota del ajuste de puntos—, y
  * por eso el DTO ni siquiera trae el `refId`, que en un ajuste es el id del admin.
  *
- * LA FRASE LA PONE EL COPY, NO LA FILA (`CONCEPTO_MOVIMIENTO`): la fila guarda el hecho —`refType`—
+ * LA FRASE LA PONE EL COPY, NO LA FILA (`monedero.concepto_*`): la fila guarda el hecho —`refType`—
  * así que reescribir el texto reescribe también los movimientos viejos en vez de congelarlos. Y un
  * `refType` que ya no esté en el catálogo cae en un genérico honesto en lugar de dejar un hueco.
  *
@@ -31,8 +32,21 @@ const TH =
 
 const fecha = (d: Date, idioma: Idioma, zona: ZonaHoraria | null) =>
   formatearFechaParaQuienMira(d, idioma, zona, "diaMesAno");
-const concepto = (m: MovimientoMonedero) =>
-  (m.concepto && CONCEPTO_MOVIMIENTO[m.concepto]) ?? CONCEPTO_MOVIMIENTO_OTRO;
+/** El concepto por su `refType`; uno que ya no está en el catálogo se dice con el genérico. */
+function concepto(t: FuncionT<Textos["monedero"]>, m: MovimientoMonedero): string {
+  switch (m.concepto) {
+    case "PRIZE":
+      return t("concepto_PRIZE");
+    case "WITHDRAWAL":
+      return t("concepto_WITHDRAWAL");
+    case "WITHDRAWAL_REFUND":
+      return t("concepto_WITHDRAWAL_REFUND");
+    case "ADMIN":
+      return t("concepto_ADMIN");
+    default:
+      return t("conceptoOtro");
+  }
+}
 
 /**
  * EL SIGNO SIEMPRE, también en lo que entra: en una lista donde hay de los dos, un importe sin signo
@@ -48,7 +62,7 @@ function Importe({ m, idioma }: { m: MovimientoMonedero; idioma: Idioma }) {
   );
 }
 
-export function MovimientosMonedero({
+export async function MovimientosMonedero({
   movimientos,
   idioma,
   zona,
@@ -57,15 +71,14 @@ export function MovimientosMonedero({
   idioma: Idioma;
   zona: ZonaHoraria | null;
 }) {
+  const t = await textos("monedero");
   return (
     <section aria-labelledby="movimientos">
       <h2 id="movimientos" className="font-medium text-text">
-        Últimos movimientos
+        {t("movimientos")}
       </h2>
       {movimientos.length === 0 ? (
-        <p className="mt-3 text-sm text-text-dim">
-          Todavía no hay movimientos. Aquí verás cada entrada y salida de tu saldo.
-        </p>
+        <p className="mt-3 text-sm text-text-dim">{t("movimientosVacio")}</p>
       ) : (
         <>
           {/* ESCRITORIO: TABLA. Fecha, concepto e importe en su columna, para bajar por la de los
@@ -74,9 +87,9 @@ export function MovimientosMonedero({
             <table className="w-full border-collapse text-left text-sm">
               <thead className="border-b border-line">
                 <tr>
-                  <th className={`pl-4 ${TH}`}>Fecha</th>
-                  <th className={TH}>Concepto</th>
-                  <th className={`text-right ${TH}`}>Importe</th>
+                  <th className={`pl-4 ${TH}`}>{t("col_fecha")}</th>
+                  <th className={TH}>{t("col_concepto")}</th>
+                  <th className={`text-right ${TH}`}>{t("col_importe")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -85,7 +98,7 @@ export function MovimientosMonedero({
                     <td className="py-3 pr-4 pl-4 whitespace-nowrap text-text-dim tabular-nums">
                       {fecha(m.createdAt, idioma, zona)}
                     </td>
-                    <td className="py-3 pr-4 text-text">{concepto(m)}</td>
+                    <td className="py-3 pr-4 text-text">{concepto(t, m)}</td>
                     <td className="py-3 pr-4 text-right whitespace-nowrap">
                       <Importe m={m} idioma={idioma} />
                     </td>
@@ -104,7 +117,7 @@ export function MovimientosMonedero({
                 className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm"
               >
                 <span className="min-w-0">
-                  <span className="block text-text">{concepto(m)}</span>
+                  <span className="block text-text">{concepto(t, m)}</span>
                   <span className="block text-2xs text-text-dim">
                     {fecha(m.createdAt, idioma, zona)}
                   </span>

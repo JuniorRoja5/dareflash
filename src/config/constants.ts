@@ -128,26 +128,6 @@ export const AJUSTE_SALDO_CENTS_MAX = 100_000;
 export const REF_WALLET_AJUSTE_ADMIN = "ADMIN";
 
 /**
- * QUE FUE CADA MOVIMIENTO DEL MONEDERO, dicho para su dueño. La clave sale de `refType`, y la frase
- * de aqui: la fila guarda el HECHO y el copy lo traduce, asi que reescribir esta frase reescribe
- * tambien los movimientos antiguos en vez de congelarlos (mismo patron que `nivelMinimo`).
- *
- * EL AJUSTE DEL ADMIN SE LLAMA POR SU NOMBRE. Disfrazarlo de premio seria mentir en el historial de
- * dinero de una persona; y al reves —no enseñarlo— deja un saldo que cambia solo. Lo que NO entra
- * aqui es el MOTIVO que escribio el admin ni QUIEN lo firmo: eso es traza interna y vive en el
- * `AuditLog` (ver la nota del ajuste de puntos, misma disciplina).
- */
-export const CONCEPTO_MOVIMIENTO: Record<string, string> = {
-  PRIZE: "Premio de un reto",
-  WITHDRAWAL: "Cobro solicitado",
-  WITHDRAWAL_REFUND: "Cobro devuelto",
-  ADMIN: "Ajuste del equipo",
-};
-
-/** Lo que se dice de un movimiento cuyo `refType` ya no esta en el catalogo. Honesto, no un hueco. */
-export const CONCEPTO_MOVIMIENTO_OTRO = "Movimiento";
-
-/**
  * POR QUE SE RECHAZO UN COBRO. Lista CERRADA, y esa es la decision.
  *
  * ┌─ POR QUE NO ES TEXTO LIBRE ───────────────────────────────────────────────────────────────────┐

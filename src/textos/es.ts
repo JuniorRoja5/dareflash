@@ -161,6 +161,7 @@ export const es = conMarcasConocidas({
     reintentar: "Reintentar",
     /** El título de cada sección que tiene su `error.tsx`. */
     titulo_puntos: "No hemos podido cargar tus puntos",
+    titulo_monedero: "No hemos podido cargar tu monedero",
   },
   /** Un campo de solo lectura con su botón de copiar (`CampoCopiable`). */
   copiar: {
@@ -451,6 +452,7 @@ export const es = conMarcasConocidas({
     crear: "Crear",
     puntos: "Mis puntos",
     referidos: "Mis referidos",
+    monedero: "Mi monedero",
   },
 
   // ── Acceso (P5b2a): entrar, crear cuenta, recuperar, restablecer, verificar, reactivar, correo ─────
@@ -778,6 +780,118 @@ export const es = conMarcasConocidas({
     ganados: "+{n} ganados",
     pendiente: "Pendiente de verificar",
     formas: "Invitar es una de las formas de ganar puntos. {enlace:Ver todas y tu nivel}.",
+  },
+
+  // ── El monedero (P5b2a) ──────────────────────────────────────────────────────────────────────────
+  /** Lo que pinta el SERVIDOR: el saldo, la información de los cobros y los movimientos. */
+  monedero: {
+    tuMonedero: "Tu monedero",
+    /** Lo que oye un lector de pantalla delante del importe (un componente, no texto: va aparte). */
+    saldoOculto: "Saldo disponible:",
+    intro:
+      "Lo que ganas en los retos se acumula aquí. Cuando llegues al mínimo, puedes pedir que te lo enviemos al banco.",
+    puedesCobrar: "Puedes cobrar desde {importe}",
+    faltanMinimo: "Te faltan {importe} para el mínimo",
+    enCurso: "{importe} en curso",
+    cobrados: "{importe} cobrados",
+    sinGanar: "Todavía no has ganado nada. Gana un reto y el premio aparecerá aquí.",
+    infoAria: "Información sobre los cobros",
+    infoResumen: "Cómo funciona el cobro y las comisiones",
+    comoFunciona: "Cómo funciona",
+    comoFuncionaTexto:
+      "Al pedir un cobro, ese importe sale de tu saldo al momento, el equipo lo revisa y te lo envía por el método que elijas. Puede tardar unos días. Si lo rechazamos, el dinero vuelve entero a tu monedero.",
+    comisiones: "Comisiones",
+    comisionesTexto:
+      "Las comisiones del banco corren por tu cuenta, no por la de {marca}. Recibirás el importe solicitado menos esas comisiones: si pides {pides}, pueden llegarte, por ejemplo, {llegan}.",
+    solicitudes: "Tus solicitudes",
+    movimientos: "Últimos movimientos",
+    movimientosVacio: "Todavía no hay movimientos. Aquí verás cada entrada y salida de tu saldo.",
+    col_fecha: "Fecha",
+    col_concepto: "Concepto",
+    col_importe: "Importe",
+    /**
+     * QUÉ FUE CADA MOVIMIENTO, dicho para su dueño, por su `refType` (antes `CONCEPTO_MOVIMIENTO`, en la
+     * config): la fila guarda el HECHO y esto lo traduce, así que reescribir una frase reescribe también
+     * los movimientos antiguos. El AJUSTE del admin se llama por su nombre —disfrazarlo de premio sería
+     * mentir en el historial de dinero de alguien— y aquí no entra ni su motivo ni quién lo firmó (eso
+     * es traza interna, en el `AuditLog`).
+     */
+    concepto_PRIZE: "Premio de un reto",
+    concepto_WITHDRAWAL: "Cobro solicitado",
+    concepto_WITHDRAWAL_REFUND: "Cobro devuelto",
+    concepto_ADMIN: "Ajuste del equipo",
+    /** Un `refType` que ya no está en el catálogo: honesto, no un hueco. */
+    conceptoOtro: "Movimiento",
+  },
+  /**
+   * Las islas de CLIENTE del monedero: las solicitudes, los métodos y el formulario de pedir. Los
+   * ESTADOS y el nombre de un método son el MISMO vocabulario que el panel (`ETIQUETA_ESTADO` y
+   * `nombreDeMetodo`, en lib/retirada, que el panel lee en castellano): un test exige que digan lo
+   * mismo, porque quien escribe a soporte cita la palabra que ve. El recorrido nombra EVENTOS («Pedida»)
+   * y el chip ESTADOS («Pendiente»): no son la misma palabra.
+   */
+  cobros: {
+    estado_PENDING: "Pendiente",
+    estado_APPROVED: "Aceptada",
+    estado_PROCESSING: "En proceso",
+    estado_PAID: "Pagada",
+    estado_REJECTED: "Rechazada",
+    evento_PENDING: "Pedida",
+    evento_APPROVED: "Aceptada",
+    evento_PROCESSING: "En proceso",
+    evento_PAID: "Pagada",
+    evento_REJECTED: "Rechazada",
+    metodo_BANK: "Cuenta bancaria",
+    metodoGenerico: "Método de cobro",
+    destino: "{metodo} ····{pista}",
+    col_fecha: "Fecha",
+    col_metodo: "Método",
+    col_importe: "Importe",
+    col_estado: "Estado",
+    pedidaEl: "Pedida el",
+    rechazadaEl: "Rechazada el",
+    ultimaActualizacion: "Última actualización",
+    devuelto: "{importe} {resaltado:· devuelto a tu saldo}",
+    /** El motivo llega YA en la frase del servidor (`fraseDeRechazo`); aquí solo se resalta. */
+    conMotivo: "{resaltado:{motivo}} El importe volvió entero a tu monedero.",
+    sinMotivo:
+      "No hemos podido completar este cobro y el importe volvió entero a tu monedero. Si no sabes por qué se rechazó, escríbenos.",
+    errorMas: "No hemos podido cargar más. Inténtalo otra vez.",
+    vacio: "Todavía no has pedido ningún cobro.",
+    cargando: "Cargando…",
+    verMas: "Ver más",
+    dondeCobrar: "Dónde cobrar",
+    nMetodos: { one: "{n} método", other: "{n} métodos" },
+    /** «Reemplazar», no «editar»: los datos no vuelven del servidor, así que no hay nada que editar. */
+    reemplazar: "Reemplazar",
+    borrar: "Borrar",
+    anadir: "+ Añadir método de cobro",
+    cifradosConSaldo: "Se guardan cifrados; el equipo solo los ve al procesar un cobro tuyo.",
+    cifradosSinSaldo:
+      "Déjalos listos aunque todavía no tengas saldo: cuando ganes, cobras sin fricción. Se guardan cifrados; el equipo solo los ve al procesar un cobro tuyo.",
+    formAria_reemplazar: "Reemplazar método de cobro",
+    formAria_anadir: "Añadir método de cobro",
+    tituloReemplazar: "Reemplazar este método",
+    tituloNuevo: "Nuevo método de cobro",
+    cancelar: "Cancelar",
+    reemplazoAviso:
+      "Escríbelo entero otra vez: guardamos los datos cifrados y no vuelven a salir del servidor, ni siquiera para rellenar este formulario. Al guardar, reemplaza al anterior — y no cambia a dónde va un cobro que ya hayas pedido.",
+    iban: "IBAN",
+    ibanPlaceholder: "ES00 0000 0000 0000 0000 0000",
+    titular: "Nombre del titular",
+    errorGuardar: "No hemos podido guardar ese método.",
+    errorBorrar: "No hemos podido borrar ese método.",
+    guardando: "Guardando…",
+    reemplazarMetodo: "Reemplazar método",
+    guardarMetodo: "Guardar método",
+    pedirTitulo: "Pedir un cobro",
+    importe: "Importe",
+    minimoDisponible: "Mínimo {minimo} · disponible {disponible}",
+    aDonde: "A dónde",
+    errorPedir: "No hemos podido registrar tu solicitud.",
+    hecho: "Solicitud registrada. El importe ya ha salido de tu saldo y el equipo la revisará.",
+    enviando: "Enviando…",
+    pedir: "Pedir cobro",
   },
 
   // ── Perfil (P5b2a): el propio y el público comparten la vista ────────────────────────────────────

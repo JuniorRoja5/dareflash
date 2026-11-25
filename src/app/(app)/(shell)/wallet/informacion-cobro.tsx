@@ -1,6 +1,6 @@
 import { importeConMoneda } from "@/lib/dinero";
 import { type Idioma } from "@/lib/formato";
-import { MARCA } from "@/config/marca";
+import { textos } from "@/textos/servidor";
 
 /**
  * INFORMACIÓN — lo que hay que saber antes de pedir un cobro: cómo funciona y quién paga las
@@ -19,16 +19,17 @@ import { MARCA } from "@/config/marca";
  * `<details>` NATIVO: abre y cierra sin JavaScript, y por tanto funciona en el primer pintado y con
  * el teclado sin que nadie tenga que implementarlo. Es un bloque de texto, no un widget.
  */
-export function InformacionCobro({ idioma }: { idioma: Idioma }) {
+export async function InformacionCobro({ idioma }: { idioma: Idioma }) {
+  const t = await textos("monedero");
   return (
     <section aria-labelledby="info-cobro">
       <h2 id="info-cobro" className="sr-only">
-        Información sobre los cobros
+        {t("infoAria")}
       </h2>
 
       <details className="group rounded-sm border border-line bg-surface/60 backdrop-blur-md">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-sm font-medium text-text [&::-webkit-details-marker]:hidden">
-          Cómo funciona el cobro y las comisiones
+          {t("infoResumen")}
           <span
             className="text-text-dim transition-transform duration-[var(--df-dur-fast)] ease-mechanical group-open:rotate-90"
             aria-hidden
@@ -38,19 +39,16 @@ export function InformacionCobro({ idioma }: { idioma: Idioma }) {
         </summary>
         <div className="space-y-4 border-t border-line p-4 text-sm text-text-dim">
           <div>
-            <h3 className="font-medium text-text">Cómo funciona</h3>
-            <p className="mt-1.5 max-w-prose leading-relaxed">
-              Al pedir un cobro, ese importe sale de tu saldo al momento, el equipo lo revisa y te
-              lo envía por el método que elijas. Puede tardar unos días. Si lo rechazamos, el dinero
-              vuelve entero a tu monedero.
-            </p>
+            <h3 className="font-medium text-text">{t("comoFunciona")}</h3>
+            <p className="mt-1.5 max-w-prose leading-relaxed">{t("comoFuncionaTexto")}</p>
           </div>
           <div>
-            <h3 className="font-medium text-text">Comisiones</h3>
+            <h3 className="font-medium text-text">{t("comisiones")}</h3>
             <p className="mt-1.5 max-w-prose leading-relaxed">
-              Las comisiones del banco corren por tu cuenta, no por la de {MARCA}. Recibirás el
-              importe solicitado menos esas comisiones: si pides {importeConMoneda(5000, idioma)},
-              pueden llegarte, por ejemplo, {importeConMoneda(4890, idioma)}.
+              {t("comisionesTexto", {
+                pides: importeConMoneda(5000, idioma),
+                llegan: importeConMoneda(4890, idioma),
+              })}
             </p>
           </div>
         </div>

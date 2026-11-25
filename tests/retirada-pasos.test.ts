@@ -26,6 +26,9 @@ import {
   siguientesEstados,
   type EstadoRetirada,
 } from "../src/lib/retirada";
+import { nombreMetodo } from "../src/textos/cobros";
+import { es } from "../src/textos/es";
+import { crearT } from "../src/textos/plantilla";
 
 describe("el camino sale de la tabla de transiciones", () => {
   it("es el que hay hoy, y de principio a fin", () => {
@@ -144,7 +147,28 @@ describe("las palabras", () => {
   it("el recorrido nombra EVENTOS y el chip nombra ESTADOS: no son la misma palabra", () => {
     // "Pedida" (pasó) frente a "Pendiente" (está). Mezclarlas hace que el primer paso de la barra
     // diga lo mismo que el chip de al lado y el recorrido deje de leerse como un recorrido.
-    expect(pasosDe("PENDING")!.pasos[0]!.etiqueta).toBe("Pedida");
+    // Desde la P5b2a las palabras del monedero están en el diccionario (`cobros.evento_*` / `estado_*`).
+    expect(pasosDe("PENDING")!.pasos[0]!.estado).toBe("PENDING");
+    expect(es.cobros.evento_PENDING).toBe("Pedida");
+    expect(es.cobros.estado_PENDING).toBe("Pendiente");
     expect(ETIQUETA_ESTADO.PENDING).toBe("Pendiente");
+  });
+});
+
+describe("el panel y el monedero dicen LA MISMA palabra (P5b2a)", () => {
+  // El panel lee `ETIQUETA_ESTADO` y `nombreDeMetodo` en castellano; el monedero, el diccionario. Quien
+  // escribe a soporte cita la palabra que ve, y el admin tiene que encontrar esa misma en su pantalla.
+  const t = crearT(es.cobros, "es");
+
+  it("cada estado", () => {
+    for (const e of ESTADOS_RETIRADA) {
+      expect(t(`estado_${e}`), e).toBe(ETIQUETA_ESTADO[e]);
+    }
+  });
+
+  it("el nombre de cada método, también el genérico", () => {
+    for (const metodo of ["BANK", "CRIPTO_RETIRADA", "OTRO"]) {
+      expect(nombreMetodo(t, { metodo }), metodo).toBe(nombreDeMetodo({ metodo }));
+    }
   });
 });
