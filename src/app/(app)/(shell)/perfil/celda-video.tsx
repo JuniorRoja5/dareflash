@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useTextos } from "@/components/textos-provider";
 import { ModalReproductor } from "@/components/ui/modal-reproductor";
 
-import { nombreCategoria } from "../retos/retos-datos";
+import { nombreDeCategoria } from "@/textos/categoria";
 import { BorrarVideo } from "./borrar-video";
 import type { EstadoVideo } from "./perfil-logic";
 import type { VideoCelda } from "./perfil-vista";
@@ -43,6 +43,7 @@ const TONO_TEXTO: Record<"neutro" | "ok" | "alarma", string> = {
  */
 export function CeldaVideo({ video, esPropio = false }: { video: VideoCelda; esPropio?: boolean }) {
   const t = useTextos("perfilVideos");
+  const tc = useTextos("categorias");
   const [abierto, setAbierto] = useState(false);
   const info = video.estado
     ? { texto: t(`estado_${video.estado}`), tono: TONO_ESTADO[video.estado] }
@@ -69,7 +70,7 @@ export function CeldaVideo({ video, esPropio = false }: { video: VideoCelda; esP
           </span>
           {video.categoria ? (
             <span className="absolute top-1.5 left-1.5 rounded-full bg-void/70 px-2 py-0.5 text-2xs font-semibold tracking-wide text-text backdrop-blur-sm">
-              {nombreCategoria(video.categoria)}
+              {nombreDeCategoria(tc, video.categoria)}
             </span>
           ) : null}
         </button>
