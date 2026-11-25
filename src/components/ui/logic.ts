@@ -42,13 +42,18 @@ export function tokenCuentaAtras(
 }
 
 /** Tiempo restante formateado: >=24 h -> "6 d 04 h"; <24 h -> "HH:MM:SS"; agotado -> "00:00:00". */
-export function formatearCuentaAtras(msRestantes: number): string {
+export function formatearCuentaAtras(
+  msRestantes: number,
+  diasHoras: (dias: number, horas: string) => string,
+): string {
   if (msRestantes <= 0) return "00:00:00";
   const totalSeg = Math.floor(msRestantes / 1000);
   if (msRestantes >= UMBRAL_ALARMA_MS) {
     const dias = Math.floor(totalSeg / 86_400);
     const horas = Math.floor((totalSeg % 86_400) / 3_600);
-    return `${dias} d ${String(horas).padStart(2, "0")} h`;
+    // Las PALABRAS («d», «h») y su orden los pone quien llama, desde el diccionario
+    // (`cuentaAtras.diasHoras`): esta función solo hace la cuenta.
+    return diasHoras(dias, String(horas).padStart(2, "0"));
   }
   const hh = String(Math.floor(totalSeg / 3_600)).padStart(2, "0");
   const mm = String(Math.floor((totalSeg % 3_600) / 60)).padStart(2, "0");

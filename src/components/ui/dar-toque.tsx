@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { MSG_TOQUE_ENVIADO } from "@/config/constants";
+import { useTextos } from "@/components/textos-provider";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 
 /**
@@ -21,6 +22,7 @@ import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
  * eso evita que alguien martillee contra un tope que ya conoce.
  */
 export function DarToque({ userId, className = "" }: { userId: string; className?: string }) {
+  const t = useTextos("toque");
   const [enviando, setEnviando] = useState(false);
   const [hecho, setHecho] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,9 +40,9 @@ export function DarToque({ userId, className = "" }: { userId: string; className
         setHecho(r.data.mensaje ?? MSG_TOQUE_ENVIADO);
         return;
       }
-      setError(mensajeDe(r.data) || "No se pudo dar el toque.");
+      setError(mensajeDe(r.data) || t("error"));
     } catch {
-      setError("No hemos podido conectar. Inténtalo de nuevo.");
+      setError(t("sinConexion"));
     } finally {
       setEnviando(false);
     }
@@ -67,7 +69,7 @@ export function DarToque({ userId, className = "" }: { userId: string; className
         disabled={enviando}
         className="w-full rounded-sm bg-action px-4 py-3 text-sm font-semibold text-void transition-[filter] duration-[var(--df-dur-fast)] ease-mechanical hover:brightness-110 disabled:opacity-60"
       >
-        {enviando ? "Enviando…" : "Dar un toque"}
+        {enviando ? t("enviando") : t("dar")}
       </button>
       {error ? (
         <p role="alert" className="mt-2 text-center text-2xs text-alarm">

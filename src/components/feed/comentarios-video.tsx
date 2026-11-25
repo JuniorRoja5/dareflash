@@ -215,8 +215,7 @@ export function ComentariosVideo({
           </p>
         ) : lista.length === 0 ? (
           <p className="text-sm text-text-dim">
-            {t("vacio")}
-            {haySesion && !soloMirar ? t("seElPrimero") : ""}
+            {haySesion && !soloMirar ? t("vacioInvita") : t("vacio")}
           </p>
         ) : (
           <ul className="space-y-4">

@@ -27,6 +27,8 @@
  */
 import type { ReactNode } from "react";
 
+import { TextoCargando } from "./texto-cargando";
+
 /**
  * Los dos tonos de relleno, y por qué hacen falta DOS.
  *
@@ -159,7 +161,7 @@ export function PantallaCargando({
         sinContenedor ? "w-full" : `mx-auto w-full ${ancho} px-4 ${aireMovil} lg:px-8 lg:py-12`
       }
     >
-      <span className="sr-only">Cargando…</span>
+      <TextoCargando />
       {children}
     </div>
   );

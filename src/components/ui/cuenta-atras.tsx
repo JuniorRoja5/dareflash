@@ -2,6 +2,10 @@
 
 import { type CSSProperties, useEffect, useState } from "react";
 
+import { useFormato } from "@/components/formato-provider";
+import { useTextos } from "@/components/textos-provider";
+import { formatearNumero } from "@/lib/formato";
+
 import { type CuentaHacia, formatearCuentaAtras, tokenCuentaAtras } from "./logic";
 
 const TAMANO_PX = { lista: 14, tarjeta: 22, heroe: 40 } as const;
@@ -36,6 +40,8 @@ export function CuentaAtras({
   className?: string;
 }) {
   const [ms, setMs] = useState<number | null>(null);
+  const t = useTextos("cuentaAtras");
+  const { idioma } = useFormato();
 
   useEffect(() => {
     if (deadlineMs === null) return;
@@ -60,7 +66,11 @@ export function CuentaAtras({
   };
   return (
     <span className={`tabular-nums ${className}`} style={estilo} role="timer">
-      {ms === null ? PLACEHOLDER : formatearCuentaAtras(ms)}
+      {ms === null
+        ? PLACEHOLDER
+        : formatearCuentaAtras(ms, (dias, horas) =>
+            t("diasHoras", { dias: formatearNumero(dias, idioma), horas }),
+          )}
     </span>
   );
 }

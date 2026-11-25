@@ -1,4 +1,10 @@
+"use client";
+
+// Hoja de CLIENTE (Fase 11 · P5b2a): «Boost» sale del diccionario (`marcas`) y estas piezas las pintan
+// componentes de servidor y de cliente; así lo leen del proveedor sin que nadie se lo pase.
 import type { CSSProperties, ReactNode } from "react";
+
+import { useTextos } from "@/components/textos-provider";
 
 import { Avatar, type TamanoAvatar } from "./avatar";
 import { conHandleSecundario, HandleUsuario, NombreUsuario } from "./identidad-usuario";
@@ -21,6 +27,7 @@ import { conHandleSecundario, HandleUsuario, NombreUsuario } from "./identidad-u
  * para lo que el producto usa ese color en el espacio destacado.
  */
 export function MarcaBoost({ className = "" }: { className?: string }) {
+  const t = useTextos("marcas");
   return (
     <span
       data-marca-boost
@@ -31,7 +38,7 @@ export function MarcaBoost({ className = "" }: { className?: string }) {
         backgroundColor: "color-mix(in srgb, var(--df-action) 12%, transparent)",
       }}
     >
-      Boost
+      {t("boost")}
     </span>
   );
 }

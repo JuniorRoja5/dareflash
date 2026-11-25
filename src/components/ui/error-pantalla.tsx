@@ -1,5 +1,7 @@
 "use client";
 
+import { useTextos } from "@/components/textos-provider";
+
 import { Boton } from "./boton";
 import { Tarjeta } from "./tarjeta";
 
@@ -14,16 +16,14 @@ import { Tarjeta } from "./tarjeta";
  * misma forma que el del portal de empresa.
  */
 export function ErrorPantalla({ titulo, retry }: { titulo: string; retry: () => void }) {
+  const t = useTextos("errorPantalla");
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-8 lg:px-8 lg:py-12">
       <Tarjeta className="max-w-prose p-5 lg:p-6" role="alert">
         <h1 className="text-base font-semibold text-text">{titulo}</h1>
-        <p className="mt-2 text-sm text-text-dim">
-          Ha fallado algo de nuestro lado, no de lo que has hecho. Vuelve a intentarlo en un
-          momento; si sigue igual, escríbenos.
-        </p>
+        <p className="mt-2 text-sm text-text-dim">{t("texto")}</p>
         <Boton variante="secundario" className="mt-4" onClick={() => retry()}>
-          Reintentar
+          {t("reintentar")}
         </Boton>
       </Tarjeta>
     </div>

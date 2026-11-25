@@ -1,4 +1,5 @@
 import { Enlace } from "@/components/enlace";
+import { textos } from "@/textos/servidor";
 
 import { anterior, enlacePaginado, siguiente, type Paginacion } from "@/lib/paginacion-pila";
 
@@ -23,7 +24,7 @@ const PASO =
  * —alguien borró algo entre medias—, "Anterior" tiene que seguir ahí o el usuario se queda encerrado
  * en una pantalla vacía sin salida.
  */
-export function PasosKeyset({
+export async function PasosKeyset({
   base,
   aqui,
   proximoCursor,
@@ -43,21 +44,22 @@ export function PasosKeyset({
   const atras = anterior(aqui);
   const adelante = proximoCursor ? siguiente(aqui, proximoCursor) : null;
   if (!atras && !adelante) return null;
+  const t = await textos("paginacion");
 
   return (
-    <nav aria-label="Paginación" className="mt-6 flex items-center justify-between gap-3">
+    <nav aria-label={t("aria")} className="mt-6 flex items-center justify-between gap-3">
       {/* Los huecos se rellenan con un `span` vacío para que `justify-between` mantenga a
           "Siguiente" a la derecha cuando no hay "Anterior". */}
       {atras ? (
         <Enlace href={enlacePaginado(base, atras, filtro)} rel="prev" className={PASO}>
-          <span aria-hidden="true">←</span> Anterior
+          <span aria-hidden="true">←</span> {t("anterior")}
         </Enlace>
       ) : (
         <span />
       )}
       {adelante ? (
         <Enlace href={enlacePaginado(base, adelante, filtro)} rel="next" className={PASO}>
-          Siguiente <span aria-hidden="true">→</span>
+          {t("siguiente")} <span aria-hidden="true">→</span>
         </Enlace>
       ) : (
         <span />

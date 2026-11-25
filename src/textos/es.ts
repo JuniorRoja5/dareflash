@@ -133,6 +133,56 @@ export const es = conMarcasConocidas({
     imagenNoCarga: "La imagen no se ha podido cargar.",
     pestanaNueva: "Se abre en una pestaña nueva.",
   },
+  /**
+   * Las MARCAS que salen junto a un nombre en cualquier pantalla (y en el panel): la de VIP, la de
+   * Boost y el emblema de nivel. Son hojas de cliente que leen este espacio del proveedor, porque las
+   * pintan tanto componentes de servidor como de cliente (un avatar sale en los dos).
+   * «VIP Mythic» es el nombre del plan; los nombres de nivel (Rookie, Pro…) son nombres propios del
+   * producto y no viven aquí.
+   */
+  marcas: {
+    vip: "VIP Mythic",
+    vipCorta: "VIP",
+    boost: "Boost",
+    nivel: "Nivel {nombre}",
+  },
+  /**
+   * La cuenta atrás de un reto. Con un día o más se lee en días y horas abreviados: una abreviatura no
+   * tiene plural, así que es UNA plantilla (y no dos plurales) con el orden dentro, para el idioma que
+   * lo diga al revés. Por debajo de un día es un reloj (`02:41:09`) y no lleva palabras.
+   */
+  cuentaAtras: {
+    diasHoras: "{dias} d {horas} h",
+  },
+  /** La pantalla de error de una sección (`ErrorPantalla`, en los `error.tsx`). */
+  errorPantalla: {
+    texto:
+      "Ha fallado algo de nuestro lado, no de lo que has hecho. Vuelve a intentarlo en un momento; si sigue igual, escríbenos.",
+    reintentar: "Reintentar",
+  },
+  /** Un campo de solo lectura con su botón de copiar (`CampoCopiable`). */
+  copiar: {
+    copiar: "Copiar",
+    copiado: "Copiado",
+    fallo: "No hemos podido copiarlo. Selecciónalo y cópialo a mano.",
+  },
+  /** El botón de dar un toque en el perfil de otra persona (`DarToque`). */
+  toque: {
+    dar: "Dar un toque",
+    enviando: "Enviando…",
+    error: "No se pudo dar el toque.",
+    sinConexion: "No hemos podido conectar. Inténtalo de nuevo.",
+  },
+  /** El «Cargando…» de las pantallas de carga (una hoja de cliente: `TextoCargando`). */
+  carga: {
+    cargando: "Cargando…",
+  },
+  /** Los pasos de una lista paginada (`PasosKeyset`, de servidor). */
+  paginacion: {
+    aria: "Paginación",
+    anterior: "Anterior",
+    siguiente: "Siguiente",
+  },
 
   // ── El feed ─────────────────────────────────────────────────────────────────────────────────────
   feed: {
@@ -163,7 +213,8 @@ export const es = conMarcasConocidas({
     cargando: "Cargando comentarios…",
     error: "No se pudieron cargar los comentarios.",
     vacio: "Aún no hay comentarios.",
-    seElPrimero: " Sé el primero.",
+    /** La misma frase, con la invitación: UNA clave, no «vacío» + « Sé el primero» pegados. */
+    vacioInvita: "Aún no hay comentarios. Sé el primero.",
     borrarPregunta: "¿Borrar tu comentario?",
     siBorrar: "Sí, borrar",
     no: "No",

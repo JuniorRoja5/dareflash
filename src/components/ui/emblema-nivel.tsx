@@ -1,3 +1,6 @@
+"use client";
+
+import { useTextos } from "@/components/textos-provider";
 import { nivelPorPuntos, type ClaveEmblema, type Nivel } from "@/lib/niveles";
 
 /**
@@ -41,13 +44,16 @@ export function EmblemaNivel({ puntos, clase = "" }: { puntos: number; clase?: s
 
 /** La misma pieza, cuando quien llama ya tiene el nivel resuelto (evita derivarlo dos veces). */
 export function EmblemaDeNivel({ nivel, clase = "" }: { nivel: Nivel; clase?: string }) {
+  // Hoja de CLIENTE (Fase 11 · P5b2a): la pinta `Avatar`, que sale en servidor y en cliente. «Nivel …»
+  // sale del diccionario (`marcas`); el nombre del nivel es un nombre propio y va tal cual.
+  const t = useTextos("marcas");
   if (!nivel.emblema || !nivel.tokenColor) return null;
   const color = `var(${nivel.tokenColor})`;
   return (
     <svg
       viewBox="0 0 24 24"
       role="img"
-      aria-label={`Nivel ${nivel.nombre}`}
+      aria-label={t("nivel", { nombre: nivel.nombre })}
       className={clase}
       style={{ color }}
     >

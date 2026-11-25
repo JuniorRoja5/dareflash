@@ -30,7 +30,23 @@ export const ESPACIOS_ARMAZON = [
   "reproductor",
   "modal",
   "anuncio",
+  "marcas",
+  "cuentaAtras",
+  "errorPantalla",
+  "copiar",
+  "toque",
+  "carga",
 ] as const satisfies readonly NombreEspacio[];
 
-/** El panel no se traduce: sus islas de cliente reciben estos espacios SIEMPRE en castellano. */
-export const ESPACIOS_PANEL = ["reproductor", "modal"] as const satisfies readonly NombreEspacio[];
+/**
+ * El panel no se traduce: sus islas de cliente reciben estos espacios SIEMPRE en castellano. `marcas`
+ * y `cuentaAtras` porque el panel pinta avatares, nombres VIP y marcadores, y `carga` por sus pantallas
+ * de carga (hojas de cliente que LANZAN si su espacio no llega).
+ */
+export const ESPACIOS_PANEL = [
+  "reproductor",
+  "modal",
+  "marcas",
+  "cuentaAtras",
+  "carga",
+] as const satisfies readonly NombreEspacio[];

@@ -122,8 +122,9 @@ describe("los controles de paso, donde de verdad viven", () => {
   it("`PasosKeyset` arma la URL con el cursor y la pila, y no numera páginas", () => {
     const pasos = soloCodigo(leer("src", "components", "ui", "pasos-keyset.tsx"));
     expect(pasos).toContain("enlacePaginado");
-    expect(pasos).toContain("Anterior");
-    expect(pasos).toContain("Siguiente");
+    // Los dos controles, hacia atrás y hacia delante (sus palabras salen del diccionario desde la P5b2a).
+    expect(pasos).toContain('t("anterior")');
+    expect(pasos).toContain('t("siguiente")');
     for (const prohibido of [OFFSET_SQL, /q\.set\("page"/, /IntersectionObserver/]) {
       expect(pasos, String(prohibido)).not.toMatch(prohibido);
     }

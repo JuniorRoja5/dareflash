@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { useTextos } from "@/components/textos-provider";
+
 import { Boton } from "./boton";
 
 /**
@@ -34,6 +36,7 @@ export function CampoCopiable({
    */
   principal?: boolean;
 }) {
+  const t = useTextos("copiar");
   const [copiado, setCopiado] = useState(false);
   const [fallo, setFallo] = useState(false);
 
@@ -73,12 +76,12 @@ export function CampoCopiable({
           className={`shrink-0 ${principal ? "shadow-[var(--df-cta-lift)]" : ""}`}
         >
           {/* El botón dice lo que pasó, no lo que se pidió: "Copiado" confirma sin un aviso aparte. */}
-          {copiado ? "Copiado" : "Copiar"}
+          {copiado ? t("copiado") : t("copiar")}
         </Boton>
       </div>
       {fallo ? (
         <p role="status" className="mt-1.5 text-2xs text-text-dim">
-          No hemos podido copiarlo. Selecciónalo y cópialo a mano.
+          {t("fallo")}
         </p>
       ) : null}
     </div>

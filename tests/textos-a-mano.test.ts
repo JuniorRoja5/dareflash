@@ -110,14 +110,6 @@ const PENDIENTES_P5B2 = [
   "src/app/unlock/page.tsx",
   "src/app/verify/page.tsx",
   "src/app/verify/tarjeta-verificacion.tsx",
-  "src/components/ui/campo-copiable.tsx",
-  "src/components/ui/dar-toque.tsx",
-  "src/components/ui/emblema-nivel.tsx",
-  "src/components/ui/error-pantalla.tsx",
-  "src/components/ui/esqueleto.tsx",
-  "src/components/ui/identidad-usuario.tsx",
-  "src/components/ui/marca-boost.tsx",
-  "src/components/ui/pasos-keyset.tsx",
 ];
 
 function tsx(dir: string): string[] {

@@ -23,6 +23,7 @@ import {
 import { formatearImporte } from "../src/lib/formato";
 import { CTA_USUARIO } from "../src/lib/cta-principal";
 import { es } from "../src/textos/es";
+import { crearT } from "../src/textos/plantilla";
 
 const H = 60 * 60 * 1000;
 
@@ -49,12 +50,17 @@ describe("cuenta atras: umbral de 24 h (--df-time <-> --df-alarm)", () => {
 });
 
 describe("cuenta atras: formato con cifras tabulares", () => {
+  // Las palabras salen del diccionario (`cuentaAtras.diasHoras`), con la `t` de verdad: así este caso
+  // fija también que la plantilla castellana dice lo de siempre.
+  const t = crearT(es.cuentaAtras, "es");
+  const DIAS_HORAS = (dias: number, horas: string) => t("diasHoras", { dias: String(dias), horas });
+
   it(">=24 h -> 'N d HH h'; <24 h -> HH:MM:SS; agotado -> 00:00:00", () => {
-    expect(formatearCuentaAtras(6 * 24 * H + 4 * H)).toBe("6 d 04 h");
-    expect(formatearCuentaAtras(2 * H + 41 * 60 * 1000 + 9 * 1000)).toBe("02:41:09");
-    expect(formatearCuentaAtras(45 * 1000)).toBe("00:00:45");
-    expect(formatearCuentaAtras(0)).toBe("00:00:00");
-    expect(formatearCuentaAtras(-1)).toBe("00:00:00");
+    expect(formatearCuentaAtras(6 * 24 * H + 4 * H, DIAS_HORAS)).toBe("6 d 04 h");
+    expect(formatearCuentaAtras(2 * H + 41 * 60 * 1000 + 9 * 1000, DIAS_HORAS)).toBe("02:41:09");
+    expect(formatearCuentaAtras(45 * 1000, DIAS_HORAS)).toBe("00:00:45");
+    expect(formatearCuentaAtras(0, DIAS_HORAS)).toBe("00:00:00");
+    expect(formatearCuentaAtras(-1, DIAS_HORAS)).toBe("00:00:00");
   });
 });
 
