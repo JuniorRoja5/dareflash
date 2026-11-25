@@ -1,4 +1,6 @@
+import { TextosProvider } from "@/components/textos-provider";
 import { redirigir } from "@/server/redirigir";
+import { textosClienteDeLaPeticion } from "@/textos/servidor";
 
 import { CerrarSesion } from "../../cerrar-sesion";
 import { CambiarEmail } from "../../perfil/editar/cambiar-email";
@@ -49,13 +51,23 @@ export default async function CuentaEmpresaPage() {
 
       {/* LADO A LADO EN ESCRITORIO (fase9-diseno): son dos formularios independientes y cortos; uno
           debajo del otro dejaban media pantalla vacía. Los componentes son los del perfil, sin tocar. */}
-      <div className="mt-6 grid gap-4 lg:grid-cols-2 lg:items-start">
-        <CambiarEmail
-          emailActual={cuenta?.email ?? "—"}
-          pendienteInicial={cuenta?.emailPendiente ?? null}
-        />
-        <CambiarPassword />
-      </div>
+      {/* Los dos formularios son los del perfil y piden SUS textos (P5b2a): sin este proveedor, la
+          cuenta de empresa se rompía al pintarlos. */}
+      <TextosProvider
+        textos={await textosClienteDeLaPeticion([
+          "cambioCorreo",
+          "cambioClave",
+          "formAcceso",
+        ] as const)}
+      >
+        <div className="mt-6 grid gap-4 lg:grid-cols-2 lg:items-start">
+          <CambiarEmail
+            emailActual={cuenta?.email ?? "—"}
+            pendienteInicial={cuenta?.emailPendiente ?? null}
+          />
+          <CambiarPassword />
+        </div>
+      </TextosProvider>
 
       <CerrarSesion className="mt-8" />
     </div>
