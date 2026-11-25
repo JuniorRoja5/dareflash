@@ -13,6 +13,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resolverServidor } from "../helpers/render-servidor";
+
 const mocks = vi.hoisted(() => ({ post: vi.fn(), refresh: vi.fn() }));
 
 vi.mock("@/lib/cliente-http", async (orig) => ({
@@ -24,16 +26,15 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: mocks.refresh }
 import { ActivarBoost } from "@/app/(app)/(shell)/boosts/activar-boost";
 import { HeroBoosts } from "@/app/(app)/(shell)/boosts/hero-boosts";
 import { PaquetesBoost } from "@/app/(app)/(shell)/boosts/paquetes-boost";
-import {
-  BOOST_DAILY_LIMIT,
-  BOOST_DURACION_MIN,
-  BOOST_MAX_SIMULTANEOS,
-  TITULO_BOOST_AGOTADO,
-} from "@/config/constants";
+import { BOOST_DAILY_LIMIT, BOOST_DURACION_MIN, BOOST_MAX_SIMULTANEOS } from "@/config/constants";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
 import { zonaHoraria } from "@/lib/formato";
 
 import { formatoDePrueba } from "../helpers/formato-prueba";
+import { es } from "@/textos/es";
+
+/** El titular del cupo lleno vive en el diccionario desde la P5b2a. */
+const TITULO_BOOST_AGOTADO = es.boostCliente.agotadoTitulo;
 
 const ok = (data: unknown, status = 200) => ({ ok: status < 400, status, code: "", data });
 
@@ -108,7 +109,7 @@ describe("el token es por INTENCIÓN, no por envío", () => {
 });
 
 describe("el cupo lleno se ve ANTES de pulsar", () => {
-  it("con el escaparate lleno el botón no se puede pulsar, y dice cuándo volver", () => {
+  it("con el escaparate lleno el botón no se puede pulsar, y dice cuándo volver", async () => {
     // Enterarse DESPUÉS de pulsar es la peor versión: la persona cree que ha gastado un Boost
     // (no lo ha gastado) y no sabe cuándo volver.
     montar({ cupo: { lleno: true, minutosParaHueco: 7 } });
@@ -118,12 +119,12 @@ describe("el cupo lleno se ve ANTES de pulsar", () => {
     expect(document.body.textContent, "no dice en cuántos minutos").toContain("7");
   });
 
-  it("y deja claro que el Boost sigue ahí", () => {
+  it("y deja claro que el Boost sigue ahí", async () => {
     montar({ cupo: { lleno: true, minutosParaHueco: 3 } });
     expect(document.body.textContent).toMatch(/sigue guardado/i);
   });
 
-  it("sin enseñar el máximo ni explicar el cupo: eso es cosa nuestra", () => {
+  it("sin enseñar el máximo ni explicar el cupo: eso es cosa nuestra", async () => {
     montar({ cupo: { lleno: true, minutosParaHueco: 3 } });
     expect(document.body.textContent).not.toContain(String(BOOST_MAX_SIMULTANEOS));
   });
@@ -134,7 +135,7 @@ describe("el cupo lleno se ve ANTES de pulsar", () => {
     expect(mocks.post).not.toHaveBeenCalled();
   });
 
-  it("el cupo manda sobre el límite del día: si no hay sitio, da igual cuántas te queden", () => {
+  it("el cupo manda sobre el límite del día: si no hay sitio, da igual cuántas te queden", async () => {
     montar({ cupo: { lleno: true, minutosParaHueco: 4 }, usadasHoy: BOOST_DAILY_LIMIT });
     expect(document.body.textContent).toContain(TITULO_BOOST_AGOTADO);
     expect(document.body.textContent, "gana el aviso del día").not.toMatch(/veces hoy/);
@@ -142,12 +143,12 @@ describe("el cupo lleno se ve ANTES de pulsar", () => {
 });
 
 describe("qué se ve según el estado", () => {
-  it("SIN saldo no hay botón: lo que hay que hacer es comprar, y eso está debajo", () => {
+  it("SIN saldo no hay botón: lo que hay que hacer es comprar, y eso está debajo", async () => {
     montar({ saldo: 0 });
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("con el límite del día gastado, deshabilitado y con el motivo ATADO", () => {
+  it("con el límite del día gastado, deshabilitado y con el motivo ATADO", async () => {
     montar({ usadasHoy: BOOST_DAILY_LIMIT });
     expect(boton()).toHaveProperty("disabled", true);
 
@@ -161,7 +162,7 @@ describe("qué se ve según el estado", () => {
     expect(motivo).not.toMatch(/UTC|mañana/i);
   });
 
-  it("con su zona, el motivo dice la hora del reinicio en SU hora (las 00:00 UTC en Tokio: 09:00)", () => {
+  it("con su zona, el motivo dice la hora del reinicio en SU hora (las 00:00 UTC en Tokio: 09:00)", async () => {
     formatoDePrueba.zona = zonaHoraria("Asia/Tokyo");
     montar({ usadasHoy: BOOST_DAILY_LIMIT });
     const motivo = document.getElementById(boton().getAttribute("aria-describedby")!)?.textContent;
@@ -169,13 +170,13 @@ describe("qué se ve según el estado", () => {
     expect(motivo).not.toMatch(/UTC/);
   });
 
-  it("y pulsarlo con el límite gastado no llama a nada", () => {
+  it("y pulsarlo con el límite gastado no llama a nada", async () => {
     montar({ usadasHoy: BOOST_DAILY_LIMIT });
     fireEvent.click(boton());
     expect(mocks.post).not.toHaveBeenCalled();
   });
 
-  it("si ya estás destacado, se puede reactivar y se dice QUÉ compras", () => {
+  it("si ya estás destacado, se puede reactivar y se dice QUÉ compras", async () => {
     // No hay regla de "uno a la vez": las reglas son el saldo y el límite diario. Reactivar sirve
     // para volver a encabezar y alargar la presencia, y eso es lo que el copy tiene que decir —
     // incluyendo que NO da dos sitios, porque la vitrina enseña uno por persona (`destacadosVigentes`).
@@ -186,7 +187,7 @@ describe("qué se ve según el estado", () => {
     expect(screen.getByText(/un solo sitio/)).toBeTruthy();
   });
 
-  it("la duración que promete sale de la constante", () => {
+  it("la duración que promete sale de la constante", async () => {
     montar();
     expect(screen.getByText(new RegExp(duracionBoostHumana(BOOST_DURACION_MIN)))).toBeTruthy();
   });
@@ -252,38 +253,41 @@ describe("un solo magenta en la pantalla, y el que toca", () => {
   const magentas = () =>
     [...document.querySelectorAll("button")].filter((b) => b.className.includes("bg-action"));
 
-  const pantalla = (saldo: number) =>
+  // `HeroBoosts` es de servidor y ASÍNCRONO desde la P5b2a (pide sus textos): se resuelve antes.
+  const pantalla = async (saldo: number) =>
     render(
-      <>
-        <HeroBoosts
-          idioma="es"
-          saldo={saldo}
-          usadasHoy={0}
-          vigenteHastaMs={null}
-          cupo={CUPO_LIBRE}
-        />
-        <PaquetesBoost puedeComprar cedeElAcento={saldo > 0} />
-      </>,
+      await resolverServidor(
+        <>
+          <HeroBoosts
+            idioma="es"
+            saldo={saldo}
+            usadasHoy={0}
+            vigenteHastaMs={null}
+            cupo={CUPO_LIBRE}
+          />
+          <PaquetesBoost puedeComprar cedeElAcento={saldo > 0} />
+        </>,
+      ),
     );
 
-  it("CON saldo, el magenta es DESTACAR y los paquetes ceden", () => {
-    pantalla(3);
+  it("CON saldo, el magenta es DESTACAR y los paquetes ceden", async () => {
+    await pantalla(3);
     expect(magentas()).toHaveLength(1);
     expect(magentas()[0]!.textContent).toMatch(/Destacar/);
   });
 
-  it("SIN saldo, el magenta es COMPRAR el paquete recomendado", () => {
-    pantalla(0);
+  it("SIN saldo, el magenta es COMPRAR el paquete recomendado", async () => {
+    await pantalla(0);
     expect(magentas()).toHaveLength(1);
     expect(magentas()[0]!.textContent).toMatch(/Comprar/);
     // Y está en la tarjeta del recomendado, no en una cualquiera.
     expect(document.querySelector("[data-mejor='si']")!.contains(magentas()[0]!)).toBe(true);
   });
 
-  it("nunca hay dos, y nunca hay cero", () => {
+  it("nunca hay dos, y nunca hay cero", async () => {
     for (const saldo of [0, 1, 7]) {
       cleanup();
-      pantalla(saldo);
+      await pantalla(saldo);
       expect(magentas(), `con saldo ${saldo}`).toHaveLength(1);
     }
   });

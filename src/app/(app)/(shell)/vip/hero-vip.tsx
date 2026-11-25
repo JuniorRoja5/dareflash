@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import { EmblemaVipGrande } from "@/components/ui/identidad-usuario";
 import { ImportePremio } from "@/components/ui/importe-premio";
 import { DEFAULT_CURRENCY, VIP_PRECIO_CENTS } from "@/config/constants";
-import { MARCA } from "@/config/marca";
+import { textos } from "@/textos/servidor";
 
 /**
  * HERO DE /vip — qué es Mythic, cuánto cuesta y qué pasa si te arrepientes.
@@ -36,7 +36,8 @@ import { MARCA } from "@/config/marca";
  * EL TÍTULO VA EN ORO, y eso está medido: `--vip-gold` sobre la superficie da 12,8:1 en oscuro y
  * 4,7:1 en claro (ver `MarcaVip`), de sobra para un texto de este tamaño en los dos temas.
  */
-export function HeroVip({ idioma }: { idioma: Idioma }) {
+export async function HeroVip({ idioma }: { idioma: Idioma }) {
+  const t = await textos("vip");
   return (
     <section
       aria-labelledby="vip-mythic"
@@ -69,12 +70,9 @@ export function HeroVip({ idioma }: { idioma: Idioma }) {
                 fontVariationSettings: '"wght" 800, "wdth" 110',
               }}
             >
-              VIP Mythic
+              {t("titulo")}
             </h1>
-            <p className="mt-3 max-w-[52ch] text-sm text-text-dim">
-              La membresía premium de {MARCA}. Tu nombre y tu perfil destacan en toda la plataforma,
-              y cada semana recibes un Boost para ponerte en el espacio destacado.
-            </p>
+            <p className="mt-3 max-w-[52ch] text-sm text-text-dim">{t("intro")}</p>
           </div>
         </div>
 
@@ -89,11 +87,9 @@ export function HeroVip({ idioma }: { idioma: Idioma }) {
               currency={DEFAULT_CURRENCY}
               tamano="tarjeta"
             />
-            <span className="text-sm text-text-dim">al mes</span>
+            <span className="text-sm text-text-dim">{t("alMes")}</span>
           </span>
-          <span className="text-xs text-text-dim">
-            Cancela cuando quieras · acceso hasta fin de periodo
-          </span>
+          <span className="text-xs text-text-dim">{t("cancelaCuando")}</span>
         </p>
       </div>
     </section>

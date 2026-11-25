@@ -1,6 +1,8 @@
-import { BOOST_DAILY_LIMIT, BOOST_DURACION_MIN, cuandoSeReinicia } from "@/config/constants";
+import { BOOST_DAILY_LIMIT, BOOST_DURACION_MIN } from "@/config/constants";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
-import type { Idioma, ZonaHoraria } from "@/lib/formato";
+import { horaDelReinicioDiario, type Idioma, type ZonaHoraria } from "@/lib/formato";
+import { palabrasDuracion } from "@/textos/duracion";
+import { textos } from "@/textos/servidor";
 
 /**
  * CÓMO FUNCIONA UN BOOST — las tres cosas que hay que saber antes de pagar.
@@ -22,21 +24,18 @@ import type { Idioma, ZonaHoraria } from "@/lib/formato";
  * │ obligaba a hacer, en vez de dejarlo puesto mintiendo al revés.                                 │
  * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
-export function ComoFunciona({ idioma, zona }: { idioma: Idioma; zona: ZonaHoraria | null }) {
+export async function ComoFunciona({ idioma, zona }: { idioma: Idioma; zona: ZonaHoraria | null }) {
+  const [t, tdur] = await Promise.all([textos("boosts"), textos("duracion")]);
   const pasos = [
+    { titulo: t("paso1Titulo"), texto: t("paso1Texto") },
     {
-      titulo: "Compras Boosts",
-      texto: "Se acreditan en tu saldo cuando el pago se confirma. No caducan nunca.",
+      titulo: t("paso2Titulo"),
+      texto: t("paso2Texto", {
+        duracion: duracionBoostHumana(BOOST_DURACION_MIN, palabrasDuracion(tdur, idioma)),
+        n: BOOST_DAILY_LIMIT,
+      }),
     },
-    {
-      titulo: "Gastas uno para destacar",
-      texto: `Cada Boost pone tu perfil en el espacio destacado ${duracionBoostHumana(BOOST_DURACION_MIN)}. Como máximo ${BOOST_DAILY_LIMIT} veces al día.`,
-    },
-    {
-      titulo: "Te ve quien entra",
-      texto:
-        "Sales en la portada, donde más gente pasa, y el último en activar aparece primero. No está escondido en una sección.",
-    },
+    { titulo: t("paso3Titulo"), texto: t("paso3Texto") },
   ];
 
   return (
@@ -48,7 +47,7 @@ export function ComoFunciona({ idioma, zona }: { idioma: Idioma; zona: ZonaHorar
         id="como-funciona"
         className="text-sm font-semibold tracking-widest text-text-dim uppercase"
       >
-        Cómo funciona
+        {t("comoFunciona")}
       </h2>
 
       <ol className="mt-4 space-y-4">
@@ -68,8 +67,12 @@ export function ComoFunciona({ idioma, zona }: { idioma: Idioma; zona: ZonaHorar
 
       <p className="mt-5 border-t border-line pt-4 text-2xs text-text-dim">
         {/* La hora del reinicio, en la de quien mira (Fase 11); el día se sigue contando en UTC. */}
-        El contador de {BOOST_DAILY_LIMIT} al día se reinicia{" "}
-        {cuandoSeReinicia(new Date(), idioma, zona)}. Los Boosts sin gastar no caducan.
+        {zona
+          ? t("reinicioConHora", {
+              n: BOOST_DAILY_LIMIT,
+              hora: horaDelReinicioDiario(new Date(), idioma, zona),
+            })
+          : t("reinicioSinHora", { n: BOOST_DAILY_LIMIT })}
       </p>
     </section>
   );

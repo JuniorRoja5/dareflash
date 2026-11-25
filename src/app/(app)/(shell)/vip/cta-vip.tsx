@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 
+import { useTextos } from "@/components/textos-provider";
 import { RELLENO_VIP } from "@/components/ui/logic";
 import { MSG_VIP_PAGO_NO_DISPONIBLE } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
@@ -44,6 +45,7 @@ export function CtaVip({
   /** Por qué no se puede, en copy de producto. Lo decide el servidor; aquí solo se enseña. */
   motivoBloqueo?: string | null;
 }) {
+  const t = useTextos("vipCliente");
   const [abriendo, setAbriendo] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,15 +65,15 @@ export function CtaVip({
     } catch {
       // Excepción de red, o `postJsonCsrf` lanzando SIN_SESION: el mismo mensaje, que es con lo que
       // el usuario puede hacer algo. El detalle no le sirve de nada.
-      setError("No hemos podido conectar. Inténtalo otra vez.");
+      setError(t("sinConexion"));
       setAbriendo(false);
     }
-  }, []);
+  }, [t]);
 
   return (
     <section aria-labelledby="vip-hazte" className="mt-10">
       <h2 id="vip-hazte" className="sr-only">
-        Hazte VIP Mythic
+        {t("hazte")}
       </h2>
 
       <button
@@ -86,14 +88,12 @@ export function CtaVip({
           boxShadow: `0 0 30px -8px color-mix(in srgb, ${RELLENO_VIP.backgroundColor} 45%, transparent)`,
         }}
       >
-        {abriendo ? "Abriendo el pago…" : "Hazte VIP Mythic"}
+        {abriendo ? t("abriendo") : t("hazte")}
       </button>
 
       {/* SIN CIFRAS: el precio está tres centímetros más arriba, en el hero, y sale de la constante.
           Repetirlo aquí a mano es cómo se acaba con dos precios distintos en la misma pantalla. */}
-      <p className="mt-3 text-xs text-text-dim">
-        Pago seguro con Stripe. Renovación mensual; cancelas cuando quieras.
-      </p>
+      <p className="mt-3 text-xs text-text-dim">{t("pagoSeguro")}</p>
 
       {/* EL MOTIVO DEL BLOQUEO, dicho una vez y debajo. El botón deshabilitado ya no promete nada;
           esto es lo que falta para poder usarlo. */}

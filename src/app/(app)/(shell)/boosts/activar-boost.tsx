@@ -9,13 +9,15 @@ import {
   fraseReinicioDiario,
   msgBoostAgotado,
   msgBoostLimiteDiario,
-  msgBoostQueRecibes,
   BOOST_DAILY_LIMIT,
   BOOST_DURACION_MIN,
-  TITULO_BOOST_AGOTADO,
+  BOOST_MIN_PORTADA,
 } from "@/config/constants";
+import { useTextos } from "@/components/textos-provider";
+import { palabrasDuracion } from "@/textos/duracion";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
+import { formatearNumero } from "@/lib/formato";
 
 /**
  * DESTACAR MI PERFIL — el botón que gasta un Boost.
@@ -63,6 +65,9 @@ export function ActivarBoost({
 }) {
   const router = useRouter();
   const { idioma, zona } = useFormato();
+  const t = useTextos("boostCliente");
+  const tdur = useTextos("duracion");
+  const duracion = duracionBoostHumana(BOOST_DURACION_MIN, palabrasDuracion(tdur, idioma));
   const [token, setToken] = useState(() => crypto.randomUUID());
   const [enviando, setEnviando] = useState(false);
   const [aviso, setAviso] = useState<{ tipo: "ok" | "error"; texto: string } | null>(null);
@@ -81,7 +86,7 @@ export function ActivarBoost({
       if (r.ok && r.data.estado === "activado") {
         setAviso({
           tipo: "ok",
-          texto: `Listo: tu perfil está destacado ${duracionBoostHumana(BOOST_DURACION_MIN)}.`,
+          texto: t("listo", { duracion }),
         });
         // Intención cumplida: la siguiente es otra. Y se repinta desde el servidor, que es quien
         // sabe el saldo y las apariciones de hoy de verdad.
@@ -91,7 +96,7 @@ export function ActivarBoost({
       }
       if (r.ok && r.data.estado === "repetida") {
         // No es un error: ya estaba hecho. Se repinta para que se vea el estado real.
-        setAviso({ tipo: "ok", texto: "Ya estaba hecho: no se ha gastado otro Boost." });
+        setAviso({ tipo: "ok", texto: t("repetida") });
         setToken(crypto.randomUUID());
         router.refresh();
         return;
@@ -99,18 +104,18 @@ export function ActivarBoost({
       // `sin-saldo` y `limite` llegan con 200 y su copy: son respuestas, no fallos del sistema.
       setAviso({
         tipo: "error",
-        texto: r.data.mensaje || mensajeDe(r.data) || "No se ha podido destacar tu perfil.",
+        texto: r.data.mensaje || mensajeDe(r.data) || t("errorActivar"),
       });
     } catch {
       setAviso({
         tipo: "error",
         // Lo importante: reintentar es seguro. El token es el mismo, así que no puede gastar dos.
-        texto: "No hemos podido conectar. Reinténtalo: si ya se activó, no se repetirá.",
+        texto: t("sinConexionActivar"),
       });
     } finally {
       setEnviando(false);
     }
-  }, [router, token]);
+  }, [router, token, t, duracion]);
 
   // SIN SALDO NO HAY BOTÓN. Un botón deshabilitado permanente junto a un saldo de cero no añade
   // nada: lo que hay que hacer es comprar, y eso está justo debajo con su propio acento.
@@ -125,7 +130,7 @@ export function ActivarBoost({
         disabled={!puedeActivar || enviando}
         aria-describedby={limiteGastado ? "boost-limite" : undefined}
       >
-        {enviando ? "Destacando…" : "Destacar mi perfil ahora"}
+        {enviando ? t("destacando") : t("destacar")}
       </Boton>
 
       {/* EL CUPO MANDA SOBRE LOS DEMÁS AVISOS: si no hay sitio, da igual cuántas te queden hoy. */}
@@ -133,7 +138,7 @@ export function ActivarBoost({
         <div id="boost-cupo" className="mt-2.5">
           {/* El titular dice QUÉ pasa y el texto QUÉ hacer. No sale el máximo ni por qué existe:
               para quien quiere destacarse ahora eso es información nuestra, no suya. */}
-          <p className="text-xs font-semibold text-text">{TITULO_BOOST_AGOTADO}</p>
+          <p className="text-xs font-semibold text-text">{t("agotadoTitulo")}</p>
           <p className="mt-1 text-2xs text-text-dim">
             {msgBoostAgotado(cupo.minutosParaHueco ?? 1)}
           </p>
@@ -145,16 +150,13 @@ export function ActivarBoost({
           {msgBoostLimiteDiario(fraseReinicioDiario(new Date(), idioma, zona))}
         </p>
       ) : vigenteHastaMs !== null ? (
-        <p className="mt-2.5 text-2xs text-text-dim">
-          Ya estás destacado ahora mismo. Si activas otro, se gasta un Boost, vuelves al primer
-          puesto y alargas tu presencia. Sigues ocupando un solo sitio.
-        </p>
+        <p className="mt-2.5 text-2xs text-text-dim">{t("yaDestacado")}</p>
       ) : (
         // QUÉ RECIBES, con las dos cifras: la hora en la sección y los minutos en portada. Las dos
         // salen de `constants`, nunca escritas aquí — prometer en la pantalla una cifra distinta de
         // la que aplica el servicio es el fallo que esas constantes existen para no poder cometer.
         <p className="mt-2.5 text-2xs text-text-dim">
-          {msgBoostQueRecibes(duracionBoostHumana(BOOST_DURACION_MIN))}
+          {t("queRecibes", { duracion, minutos: formatearNumero(BOOST_MIN_PORTADA, idioma) })}
         </p>
       )}
 

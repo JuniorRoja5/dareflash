@@ -9,6 +9,8 @@ import {
   MSG_BOOST_SIN_VERIFICAR,
 } from "@/config/constants";
 import { formatearNumero } from "@/lib/formato";
+import { TextosProvider } from "@/components/textos-provider";
+import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 
 import { AvisoCompra, type EstadoVuelta } from "./aviso-compra";
@@ -17,7 +19,9 @@ import { HeroBoosts } from "./hero-boosts";
 import { HistorialBoosts } from "./historial-boosts";
 import { PaquetesBoost } from "./paquetes-boost";
 
-export const metadata = { title: "Mis Boosts" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("boosts") };
+}
 // Lee la sesión y consulta por cursor: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 
@@ -103,75 +107,81 @@ export default async function BoostsPage({
    * paso real de quien está mirando, en vez de quedarse clavado en el que la maqueta eligió.
    */
   const destacarEsLaAccion = saldo > 0;
+  const [t, textosBoost] = await Promise.all([
+    textos("boosts"),
+    textosClienteDeLaPeticion(["boostCliente"] as const),
+  ]);
 
   return (
-    <div className="df-rise mx-auto w-full max-w-5xl px-4 py-8 lg:px-8 lg:py-12">
-      {/* LA VUELTA DE STRIPE, ARRIBA DE TODO: es la respuesta a "¿se ha cobrado?", y esa pregunta va
+    <TextosProvider textos={textosBoost}>
+      <div className="df-rise mx-auto w-full max-w-5xl px-4 py-8 lg:px-8 lg:py-12">
+        {/* LA VUELTA DE STRIPE, ARRIBA DE TODO: es la respuesta a "¿se ha cobrado?", y esa pregunta va
           antes que cualquier otra cosa de la pantalla. */}
-      {vuelta ? (
-        <div className="mb-6">
-          <AvisoCompra estado={vuelta} />
-        </div>
-      ) : null}
+        {vuelta ? (
+          <div className="mb-6">
+            <AvisoCompra estado={vuelta} />
+          </div>
+        ) : null}
 
-      <HeroBoosts
-        saldo={saldo}
-        idioma={idioma}
-        usadasHoy={estado.usadasHoy}
-        vigenteHastaMs={estado.vigenteHastaMs}
-        cupo={{ lleno: cupo.lleno, minutosParaHueco: cupo.minutosParaHueco }}
-      />
-
-      <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <TarjetaMetrica
-          etiqueta="Boosts disponibles"
-          valor={formatearNumero(saldo, idioma)}
-          pie={saldo === 0 ? "Compra uno para destacar" : "No caducan"}
+        <HeroBoosts
+          saldo={saldo}
+          idioma={idioma}
+          usadasHoy={estado.usadasHoy}
+          vigenteHastaMs={estado.vigenteHastaMs}
+          cupo={{ lleno: cupo.lleno, minutosParaHueco: cupo.minutosParaHueco }}
         />
-        {/* LA TARJETA DEL LÍMITE ENSEÑA LO QUE QUEDA, no el tope: el tope ya lo dice el hero, y lo
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <TarjetaMetrica
+            etiqueta={t("metricaDisponibles")}
+            valor={formatearNumero(saldo, idioma)}
+            pie={saldo === 0 ? t("pieCompra") : t("pieNoCaducan")}
+          />
+          {/* LA TARJETA DEL LÍMITE ENSEÑA LO QUE QUEDA, no el tope: el tope ya lo dice el hero, y lo
             que alguien necesita saber aquí es si puede destacar otra vez hoy. */}
-        <TarjetaMetrica
-          etiqueta="Te quedan hoy"
-          valor={formatearNumero(Math.max(BOOST_DAILY_LIMIT - estado.usadasHoy, 0), idioma)}
-          pie={`De ${BOOST_DAILY_LIMIT} apariciones al día`}
-        />
-        {/* COMPRADOS EN TOTAL, no "movimientos": el número sale de un `SUM` sobre las filas de
+          <TarjetaMetrica
+            etiqueta={t("metricaQuedan")}
+            valor={formatearNumero(Math.max(BOOST_DAILY_LIMIT - estado.usadasHoy, 0), idioma)}
+            pie={t("pieDe", { n: BOOST_DAILY_LIMIT })}
+          />
+          {/* COMPRADOS EN TOTAL, no "movimientos": el número sale de un `SUM` sobre las filas de
             compra (ver `boostsComprados`), así que es una cifra de verdad y no el largo de la
             página que se está viendo — que habría cambiado al pulsar "Siguiente". */}
-        <TarjetaMetrica
-          etiqueta="Comprados en total"
-          valor={comprados > 0 ? formatearNumero(comprados, idioma) : "—"}
-          pie={comprados > 0 ? "Desde que tienes la cuenta" : "Todavía ninguno"}
-        />
-      </div>
+          <TarjetaMetrica
+            etiqueta={t("metricaComprados")}
+            valor={comprados > 0 ? formatearNumero(comprados, idioma) : "—"}
+            pie={comprados > 0 ? t("pieDesde") : t("pieNinguno")}
+          />
+        </div>
 
-      <div className="mt-10">
-        <PaquetesBoost
-          puedeComprar={puedeComprar}
-          motivoBloqueo={motivoBloqueo}
-          cedeElAcento={destacarEsLaAccion}
-        />
-      </div>
+        <div className="mt-10">
+          <PaquetesBoost
+            puedeComprar={puedeComprar}
+            motivoBloqueo={motivoBloqueo}
+            cedeElAcento={destacarEsLaAccion}
+          />
+        </div>
 
-      {/* DOS COLUMNAS EN ESCRITORIO, el mismo reparto que /puntos: el panel corto (tres pasos) al
+        {/* DOS COLUMNAS EN ESCRITORIO, el mismo reparto que /puntos: el panel corto (tres pasos) al
           lado de la lista larga. En móvil se apilan en este orden — primero se entiende qué compras
           y luego se mira lo que ya compraste. */}
-      <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:gap-10">
-        <ComoFunciona idioma={idioma} zona={zona} />
+        <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] lg:gap-10">
+          <ComoFunciona idioma={idioma} zona={zona} />
 
-        <section aria-labelledby="historial">
-          <h2
-            id="historial"
-            className="text-sm font-semibold tracking-widest text-text-dim uppercase"
-          >
-            Tus movimientos de Boosts
-          </h2>
-          <HistorialBoosts items={pagina.items} idioma={idioma} zona={zona} />
-          {/* FUERA del `if` de la lista: si una página posterior se queda vacía, "Anterior" tiene
+          <section aria-labelledby="historial">
+            <h2
+              id="historial"
+              className="text-sm font-semibold tracking-widest text-text-dim uppercase"
+            >
+              {t("movimientos")}
+            </h2>
+            <HistorialBoosts items={pagina.items} idioma={idioma} zona={zona} />
+            {/* FUERA del `if` de la lista: si una página posterior se queda vacía, "Anterior" tiene
               que seguir ahí o el usuario se queda encerrado. */}
-          <PasosKeyset base="/boosts" aqui={aqui} proximoCursor={pagina.proximoCursor} />
-        </section>
+            <PasosKeyset base="/boosts" aqui={aqui} proximoCursor={pagina.proximoCursor} />
+          </section>
+        </div>
       </div>
-    </div>
+    </TextosProvider>
   );
 }

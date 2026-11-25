@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState, useTransition } from "react";
 
+import { useTextos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { MSG_VIP_CANCELADA_OK, MSG_VIP_PAGO_NO_DISPONIBLE } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
@@ -36,6 +37,7 @@ type Fase = "reposo" | "confirmando" | "enviando" | "pedida";
  */
 export function CancelarVip({ className = "" }: { className?: string }) {
   const router = useRouter();
+  const t = useTextos("vipCliente");
   const [fase, setFase] = useState<Fase>("reposo");
   const [mensaje, setMensaje] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
@@ -54,10 +56,10 @@ export function CancelarVip({ className = "" }: { className?: string }) {
       setError(mensajeDe(r.data) || MSG_VIP_PAGO_NO_DISPONIBLE);
       setFase("reposo");
     } catch {
-      setError("No hemos podido conectar. Inténtalo otra vez.");
+      setError(t("sinConexion"));
       setFase("reposo");
     }
-  }, []);
+  }, [t]);
 
   if (fase === "pedida") {
     return (
@@ -70,7 +72,7 @@ export function CancelarVip({ className = "" }: { className?: string }) {
           disabled={refrescando}
           onClick={() => refrescar(() => router.refresh())}
         >
-          {refrescando ? "Actualizando…" : "Actualizar"}
+          {refrescando ? t("actualizando") : t("actualizar")}
         </Boton>
       </div>
     );
@@ -80,28 +82,25 @@ export function CancelarVip({ className = "" }: { className?: string }) {
     <div className={`flex flex-col items-start gap-3 ${className}`}>
       {fase === "reposo" ? (
         <Boton variante="secundario" onClick={() => setFase("confirmando")}>
-          Cancelar suscripción
+          {t("cancelarSuscripcion")}
         </Boton>
       ) : (
         <>
-          <p className="max-w-[44ch] text-sm text-text-dim">
-            Seguirás siendo VIP Mythic hasta que acabe el periodo que ya has pagado. No hay
-            reembolso ni prorrateo.
-          </p>
+          <p className="max-w-[44ch] text-sm text-text-dim">{t("avisoBaja")}</p>
           <div className="flex flex-wrap gap-3">
             <Boton
               variante="peligro"
               disabled={fase === "enviando"}
               onClick={() => void confirmar()}
             >
-              {fase === "enviando" ? "Dando de baja…" : "Sí, dar de baja"}
+              {fase === "enviando" ? t("dandoDeBaja") : t("siBaja")}
             </Boton>
             <Boton
               variante="secundario"
               disabled={fase === "enviando"}
               onClick={() => setFase("reposo")}
             >
-              Seguir siendo VIP
+              {t("seguir")}
             </Boton>
           </div>
         </>

@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 
 import { useNavegar } from "@/components/enlace";
+import { useTextos } from "@/components/textos-provider";
 import { useCallback, useTransition } from "react";
 
 /** Los dos estados con los que Stripe nos devuelve. Cualquier otro valor no pinta nada. */
@@ -36,6 +37,7 @@ export type EstadoVuelta = "ok" | "cancelada";
  */
 export function AvisoSuscripcion({ estado }: { estado: EstadoVuelta }) {
   const navegar = useNavegar();
+  const t = useTextos("vipCliente");
   const pathname = usePathname();
   const [pendiente, iniciar] = useTransition();
 
@@ -46,14 +48,14 @@ export function AvisoSuscripcion({ estado }: { estado: EstadoVuelta }) {
   if (estado === "cancelada") {
     return (
       <div className="df-rise flex flex-wrap items-center justify-between gap-3 rounded-sm border border-line bg-raised p-4 text-sm text-text-dim">
-        <span className="min-w-0">No has completado el pago. No se te ha cobrado nada.</span>
+        <span className="min-w-0">{t("sinCompletar")}</span>
         <button
           type="button"
           onClick={descartar}
           disabled={pendiente}
           className="inline-flex min-h-[44px] shrink-0 items-center rounded-sm border border-line px-4 text-sm font-semibold text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {pendiente ? "Cerrando…" : "Cerrar"}
+          {pendiente ? t("cerrando") : t("cerrar")}
         </button>
       </div>
     );
@@ -70,11 +72,9 @@ export function AvisoSuscripcion({ estado }: { estado: EstadoVuelta }) {
     >
       <span className="min-w-0">
         <strong className="font-semibold" style={{ color: "var(--df-ok)" }}>
-          Pago recibido.
+          {t("pagoRecibido")}
         </strong>{" "}
-        <span className="text-text-dim">
-          Tu suscripción se confirma en unos segundos. Si no la ves aquí, actualiza.
-        </span>
+        <span className="text-text-dim">{t("confirmando")}</span>
       </span>
       <button
         type="button"
@@ -82,7 +82,7 @@ export function AvisoSuscripcion({ estado }: { estado: EstadoVuelta }) {
         disabled={pendiente}
         className="inline-flex min-h-[44px] shrink-0 items-center rounded-sm border border-line px-4 text-sm font-semibold text-text transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {pendiente ? "Actualizando…" : "Actualizar"}
+        {pendiente ? t("actualizando") : t("actualizar")}
       </button>
     </div>
   );

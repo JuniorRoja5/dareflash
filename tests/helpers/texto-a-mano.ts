@@ -68,7 +68,8 @@ export function textosAMano(fichero: string, codigo: string): string[] {
       `${src.getLineAndCharacterOfPosition(n.getStart()).line + 1}: ${t.trim().replace(/\s+/g, " ")}`,
     );
   const visita = (n: ts.Node) => {
-    if (ts.isJsxText(n) && LETRA.test(n.text)) apunta(n, n.text);
+    // Una entidad HTML (`&nbsp;`) no es texto que se lea: se quita antes de buscar letras.
+    if (ts.isJsxText(n) && LETRA.test(n.text.replace(/&[a-z]+;|&#\d+;/gi, ""))) apunta(n, n.text);
     else if (
       ts.isJsxAttribute(n) &&
       ATRIBUTOS.has(n.name.getText()) &&

@@ -1,6 +1,7 @@
 import { ImportePremio } from "@/components/ui/importe-premio";
 import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "@/lib/formato";
-import { razonBoostPropia } from "@/lib/razones-boost";
+import { razonBoost } from "@/textos/razones-boost";
+import { textos } from "@/textos/servidor";
 import type { MovimientoBoost } from "@/server/services/boost-historial";
 
 /**
@@ -16,7 +17,7 @@ import type { MovimientoBoost } from "@/server/services/boost-historial";
  * SIN IDS Y SIN NOMBRES: el servicio no trae ni `refType` ni `refId` (ver su cabecera), así que esta
  * vista no puede filtrar un cuid de Stripe ni el handle del admin que ajustó aunque se descuide.
  */
-export function HistorialBoosts({
+export async function HistorialBoosts({
   items,
   idioma,
   zona,
@@ -25,10 +26,11 @@ export function HistorialBoosts({
   idioma: Idioma;
   zona: ZonaHoraria | null;
 }) {
+  const [t, tr] = await Promise.all([textos("boosts"), textos("razonesBoost")]);
   if (items.length === 0) {
     return (
       <p className="mt-4 rounded-sm border border-line bg-surface/40 p-6 text-sm text-text-dim">
-        Todavía no tienes movimientos. Cuando compres Boosts, aparecerán aquí.
+        {t("historialVacio")}
       </p>
     );
   }
@@ -44,7 +46,7 @@ export function HistorialBoosts({
           <span className="min-w-0 flex-1">
             {/* El importe viaja con el motivo porque el ajuste del equipo se lee distinto si suma o
                 si resta, y el usuario no tiene por qué deducirlo del número de al lado. */}
-            <span className="block text-sm text-text">{razonBoostPropia(m.razon, m.delta)}</span>
+            <span className="block text-sm text-text">{razonBoost(tr, m.razon, m.delta)}</span>
             <span className="flex flex-wrap items-center gap-x-1.5 text-2xs text-text-dim">
               {formatearFechaParaQuienMira(m.creadoEnMs, idioma, zona, "diaFijoMesAno")}
               {/* LOS DOS O NINGUNO. Una cifra de dinero sin su moneda no es un importe, y el

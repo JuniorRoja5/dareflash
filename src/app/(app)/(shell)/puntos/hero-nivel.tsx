@@ -163,7 +163,11 @@ export async function HeroNivel({
                 {tr(
                   "progreso",
                   { resaltado: CIFRA },
-                  { n: faltan, porcentaje: String(porcentaje), nivel: siguiente?.nombre ?? "" },
+                  {
+                    n: faltan,
+                    porcentaje: formatearNumero(porcentaje, idioma),
+                    nivel: siguiente?.nombre ?? "",
+                  },
                 )}
               </p>
             </div>

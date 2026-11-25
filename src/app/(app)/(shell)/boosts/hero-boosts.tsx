@@ -3,6 +3,8 @@ import type { CSSProperties } from "react";
 import { BOOST_DAILY_LIMIT, BOOST_DURACION_MIN } from "@/config/constants";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
 import { formatearNumero, type Idioma } from "@/lib/formato";
+import { palabrasDuracion } from "@/textos/duracion";
+import { textos, textosRicos } from "@/textos/servidor";
 
 import { ActivarBoost } from "./activar-boost";
 
@@ -39,7 +41,7 @@ import { ActivarBoost } from "./activar-boost";
  * Boosts es el único acento de la pantalla; cuando no hay, no se pinta y el acento se va a los
  * paquetes (lo decide la página).
  */
-export function HeroBoosts({
+export async function HeroBoosts({
   saldo,
   idioma,
   usadasHoy,
@@ -54,6 +56,11 @@ export function HeroBoosts({
   /** Estado del cupo GLOBAL. Lo pinta `ActivarBoost`; ver su docblock. */
   cupo: { lleno: boolean; minutosParaHueco: number | null };
 }) {
+  const [t, tr, tdur] = await Promise.all([
+    textos("boosts"),
+    textosRicos("boosts"),
+    textos("duracion"),
+  ]);
   return (
     <section
       aria-labelledby="mis-boosts"
@@ -65,7 +72,7 @@ export function HeroBoosts({
       <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:gap-12">
         <div className="min-w-0">
           <p className="text-2xs tracking-widest text-text-dim uppercase" aria-hidden>
-            Tus Boosts
+            {t("tusBoosts")}
           </p>
           <h1
             id="mis-boosts"
@@ -75,14 +82,15 @@ export function HeroBoosts({
               fontVariationSettings: '"wght" 800, "wdth" 125',
             }}
           >
-            <span className="sr-only">Tus Boosts: </span>
-            {formatearNumero(saldo, idioma)}
+            {tr("tusBoostsOculto", { oculto: {} }, { saldo: formatearNumero(saldo, idioma) })}
           </h1>
 
           <p className="mt-3 max-w-prose text-sm text-text-dim">
-            Un Boost pone <strong className="font-semibold text-text">tu perfil</strong> en el
-            espacio destacado {duracionBoostHumana(BOOST_DURACION_MIN)}, donde lo ve quien entra. No
-            caducan: se quedan en tu saldo hasta que los uses.
+            {tr(
+              "queHace",
+              { resaltado: { className: "font-semibold text-text", como: "strong" } },
+              { duracion: duracionBoostHumana(BOOST_DURACION_MIN, palabrasDuracion(tdur, idioma)) },
+            )}
           </p>
 
           {/* EL LÍMITE, EN EL HERO Y NO EN LA LETRA PEQUEÑA. Es la única restricción del producto y
@@ -92,12 +100,15 @@ export function HeroBoosts({
           <p className="mt-4 inline-flex flex-wrap items-center gap-x-2 rounded-full border border-line px-3 py-1 text-sm text-text-dim">
             <span data-usadas-hoy={usadasHoy}>
               {usadasHoy > 0
-                ? `Has destacado ${usadasHoy} de ${BOOST_DAILY_LIMIT} veces hoy`
-                : `Máximo ${BOOST_DAILY_LIMIT} al día`}
+                ? t("usadasHoy", {
+                    usadas: formatearNumero(usadasHoy, idioma),
+                    limite: formatearNumero(BOOST_DAILY_LIMIT, idioma),
+                  })
+                : t("maximoDia", { n: BOOST_DAILY_LIMIT })}
             </span>
             {vigenteHastaMs !== null ? (
               <span data-destacado-ahora style={{ color: "var(--df-ok)" }}>
-                · Destacado ahora mismo
+                {t("destacadoAhora")}
               </span>
             ) : null}
           </p>
@@ -142,7 +153,7 @@ export function HeroBoosts({
               </span>
             ))}
           </div>
-          <p className="text-2xs text-text-dim">El espacio destacado</p>
+          <p className="text-2xs text-text-dim">{t("espacioDestacado")}</p>
         </div>
       </div>
     </section>

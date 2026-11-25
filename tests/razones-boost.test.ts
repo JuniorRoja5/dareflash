@@ -13,7 +13,14 @@ import { describe, expect, it } from "vitest";
 
 import { RAZON_BOOST_COMPRA } from "../src/config/constants";
 import { BoostReasonSchema } from "../src/config/esquemas";
-import { razonBoostPropia, RAZON_BOOST_AJUSTE } from "../src/lib/razones-boost";
+import { RAZON_BOOST_AJUSTE } from "../src/lib/razones-boost";
+import { es } from "../src/textos/es";
+import { crearT } from "../src/textos/plantilla";
+import { razonBoost } from "../src/textos/razones-boost";
+
+/** Las palabras salen del diccionario desde la P5b2a; la decisión de qué frase toca sigue en el lib. */
+const tRazones = crearT(es.razonesBoost, "es");
+const razonBoostPropia = (razon: string, delta?: number) => razonBoost(tRazones, razon, delta);
 
 const RAZONES = BoostReasonSchema.options;
 

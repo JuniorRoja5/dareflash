@@ -277,20 +277,10 @@ export const BOOST_MIN_PORTADA = BOOST_DURACION_MIN / BOOST_CARRILES;
  * cupo es información nuestra, no suya: lo que necesita es cuándo volver y que su Boost sigue ahí.
  * El razonamiento vive en los comentarios del código y en `BoostPlaza`, que es donde sirve.
  */
-export const TITULO_BOOST_AGOTADO = "Ahora mismo está todo lleno";
+// El TITULAR del cupo lleno vive en el diccionario (`boostCliente.agotadoTitulo`, P5b2a); el texto
+// sigue aquí porque también lo devuelve la ruta (va con los mensajes de la API, P5b3).
 export const msgBoostAgotado = (minutos: number) =>
   `Vuelve en ${minutos} min y habrá hueco para ti. Tu Boost sigue guardado.`;
-
-/**
- * Lo que recibe quien activa, para la pantalla.
- *
- * La DURACIÓN entra ya humanizada (`duracionBoostHumana`, que dice "1 hora" y no "60 minutos")
- * en vez de componerla aquí: ese humanizador vive en `lib` y es el que usan las demás pantallas,
- * y tener dos formas de escribir la misma duración es como acaban diciendo cosas distintas. Los
- * MINUTOS DE PORTADA sí salen de aquí, porque son una cifra que solo conoce esta configuración.
- */
-export const msgBoostQueRecibes = (duracion: string) =>
-  `Tu perfil destaca durante ${duracion}: siempre en Perfiles Boost y por turnos en la portada, al menos ${BOOST_MIN_PORTADA} minutos.`;
 
 /**
  * PAQUETES DE BOOST a la venta. FUENTE UNICA: de aqui salen el precio Y los creditos, tanto al
@@ -475,19 +465,21 @@ export const MSG_VIP_YA_CANCELADA = "Tu suscripción ya estaba cancelada.";
  * │ construyo va anotada al lado. Cuando exista uno nuevo, se añade aqui y sale en la pagina.   │
  * └──────────────────────────────────────────────────────────────────────────────────────────────┘
  */
-export const BENEFICIOS_VIP: readonly string[] = [
+export const BENEFICIOS_VIP = [
   // P5: el reparto semanal. El "valor 5$" del documento maestro NO se escribe: es copy de venta
   // y aqui pondria un importe al lado de algo que no mueve dinero.
-  "1 Boost gratis por semana",
+  "boostSemanal",
   // P2: el color del nombre, del catalogo cerrado.
-  "Nombre destacado con el color que elijas",
+  "colorNombre",
   // P2: la marca en las nueve superficies.
-  "Insignia Mythic en tu perfil, el feed y los comentarios",
+  "insignia",
   // P3: borde animado, bloom y barrido.
-  "Perfil animado con borde neón",
+  "perfilAnimado",
   // P4: dar un toque.
-  "Puedes dar un toque a otros perfiles",
-];
+  "toque",
+] as const;
+// Las CLAVES, no las frases (Fase 11 · P5b2a): cómo se dice cada una está en el diccionario
+// (`vip.beneficio_<clave>`). La lista sigue siendo la que decide qué se puede prometer.
 
 /**
  * TOQUES AL DIA POR PERSONA (Fase 8 · P4). Es el tope del EMISOR, y es la segunda capa del

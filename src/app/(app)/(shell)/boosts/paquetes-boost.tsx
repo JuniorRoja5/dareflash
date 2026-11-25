@@ -2,11 +2,13 @@
 
 import { useCallback, useState } from "react";
 
+import { useTextos, useTextosRicos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { ImportePremio } from "@/components/ui/importe-premio";
 import { DEFAULT_CURRENCY, MSG_BOOST_PAGO_NO_DISPONIBLE } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { paquetesEnVenta } from "@/lib/boost-precio";
+import { formatearNumero } from "@/lib/formato";
 import { useFormato } from "@/components/formato-provider";
 
 /**
@@ -51,39 +53,44 @@ export function PaquetesBoost({
   cedeElAcento?: boolean;
 }) {
   const { idioma } = useFormato();
+  const t = useTextos("boostCliente");
+  const tr = useTextosRicos("boostCliente");
   const paquetes = paquetesEnVenta();
   /** El recomendado solo lleva el acento si esta sección tiene el acento de la pantalla. */
   const conAcento = (mejorPrecio: boolean) => mejorPrecio && !cedeElAcento;
   const [comprando, setComprando] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const comprar = useCallback(async (packageId: string) => {
-    setError(null);
-    setComprando(packageId);
-    try {
-      const r = await postJsonCsrf<{ url?: string }>("/api/boost/checkout", { packageId });
-      if (r.ok && typeof r.data.url === "string") {
-        // A Stripe. No se limpia `comprando`: la pestaña se va, y dejar el botón "despierto" medio
-        // segundo invita a un segundo clic que abriría una segunda sesión de pago.
-        window.location.assign(r.data.url);
-        return;
+  const comprar = useCallback(
+    async (packageId: string) => {
+      setError(null);
+      setComprando(packageId);
+      try {
+        const r = await postJsonCsrf<{ url?: string }>("/api/boost/checkout", { packageId });
+        if (r.ok && typeof r.data.url === "string") {
+          // A Stripe. No se limpia `comprando`: la pestaña se va, y dejar el botón "despierto" medio
+          // segundo invita a un segundo clic que abriría una segunda sesión de pago.
+          window.location.assign(r.data.url);
+          return;
+        }
+        // El copy humano lo manda el servidor (`{ error: { code, message } }`); el fallback es para un
+        // fallo sin cuerpo (una red que se cae a medias). Cero códigos y cero jerga de Stripe aquí.
+        setError(mensajeDe(r.data) || MSG_BOOST_PAGO_NO_DISPONIBLE);
+        setComprando(null);
+      } catch {
+        // Excepción de red, o `postJsonCsrf` lanzando SIN_SESION: el mismo mensaje, que es lo que el
+        // usuario puede hacer algo con. El detalle no le sirve de nada.
+        setError(t("sinConexion"));
+        setComprando(null);
       }
-      // El copy humano lo manda el servidor (`{ error: { code, message } }`); el fallback es para un
-      // fallo sin cuerpo (una red que se cae a medias). Cero códigos y cero jerga de Stripe aquí.
-      setError(mensajeDe(r.data) || MSG_BOOST_PAGO_NO_DISPONIBLE);
-      setComprando(null);
-    } catch {
-      // Excepción de red, o `postJsonCsrf` lanzando SIN_SESION: el mismo mensaje, que es lo que el
-      // usuario puede hacer algo con. El detalle no le sirve de nada.
-      setError("No hemos podido conectar. Inténtalo otra vez.");
-      setComprando(null);
-    }
-  }, []);
+    },
+    [t],
+  );
 
   return (
     <section aria-labelledby="paquetes">
       <h2 id="paquetes" className="text-sm font-semibold tracking-widest text-text-dim uppercase">
-        Comprar Boosts
+        {t("comprarBoosts")}
       </h2>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3 sm:gap-4">
@@ -113,7 +120,7 @@ export function PaquetesBoost({
                   backgroundColor: "color-mix(in srgb, var(--df-action) 12%, transparent)",
                 }}
               >
-                Mejor precio
+                {t("mejorPrecio")}
               </p>
             ) : (
               // Hueco de la MISMA altura que la etiqueta: sin él, la tarjeta recomendada empuja su
@@ -130,10 +137,11 @@ export function PaquetesBoost({
                 fontVariationSettings: '"wght" 800, "wdth" 110',
               }}
             >
-              {p.boosts}
-              <span className="ml-1.5 text-base font-semibold">
-                {p.boosts === 1 ? "Boost" : "Boosts"}
-              </span>
+              {tr(
+                "unidades",
+                { resaltado: { className: "ml-1.5 text-base font-semibold" } },
+                { n: p.boosts },
+              )}
             </p>
 
             {/* EL IMPORTE, con el tratamiento del dinero del producto: el mismo componente que el
@@ -156,9 +164,11 @@ export function PaquetesBoost({
                 tamano="lista"
                 className="align-baseline"
               />{" "}
-              por Boost
+              {t("porBoost")}
               {p.ahorroPct > 0 ? (
-                <span className="ml-1.5 text-text">· ahorras un {p.ahorroPct}%</span>
+                <span className="ml-1.5 text-text">
+                  {t("ahorras", { porcentaje: formatearNumero(p.ahorroPct, idioma) })}
+                </span>
               ) : null}
             </p>
 
@@ -172,7 +182,7 @@ export function PaquetesBoost({
               disabled={!puedeComprar || comprando !== null}
               aria-describedby={puedeComprar ? undefined : "boost-bloqueo"}
             >
-              {comprando === p.clave ? "Abriendo el pago…" : "Comprar"}
+              {comprando === p.clave ? t("abriendo") : t("comprar")}
             </Boton>
           </div>
         ))}

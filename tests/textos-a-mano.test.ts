@@ -34,13 +34,6 @@ const FUERA = [
 
 /** Lo que aún tiene texto a mano y se extrae en la P5b2. Solo puede menguar. */
 const PENDIENTES_P5B2 = [
-  "src/app/(app)/(shell)/boosts/activar-boost.tsx",
-  "src/app/(app)/(shell)/boosts/aviso-compra.tsx",
-  "src/app/(app)/(shell)/boosts/como-funciona.tsx",
-  "src/app/(app)/(shell)/boosts/hero-boosts.tsx",
-  "src/app/(app)/(shell)/boosts/historial-boosts.tsx",
-  "src/app/(app)/(shell)/boosts/page.tsx",
-  "src/app/(app)/(shell)/boosts/paquetes-boost.tsx",
   "src/app/(app)/(shell)/empezar/empresa/formulario-alta.tsx",
   "src/app/(app)/(shell)/empezar/empresa/page.tsx",
   "src/app/(app)/(shell)/empezar/page.tsx",
@@ -62,12 +55,6 @@ const PENDIENTES_P5B2 = [
   "src/app/(app)/(shell)/empresa/retos/nuevo/formulario-propuesta.tsx",
   "src/app/(app)/(shell)/empresa/retos/nuevo/page.tsx",
   "src/app/(app)/(shell)/empresa/retos/page.tsx",
-  "src/app/(app)/(shell)/vip/aviso-suscripcion.tsx",
-  "src/app/(app)/(shell)/vip/beneficios-vip.tsx",
-  "src/app/(app)/(shell)/vip/cancelar-vip.tsx",
-  "src/app/(app)/(shell)/vip/cta-vip.tsx",
-  "src/app/(app)/(shell)/vip/hero-vip.tsx",
-  "src/app/(app)/(shell)/vip/tarjeta-eres-vip.tsx",
   "src/app/privacidad/page.tsx",
 ];
 

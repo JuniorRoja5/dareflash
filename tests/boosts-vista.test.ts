@@ -26,6 +26,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { BOOST_DAILY_LIMIT, PAQUETES_BOOST } from "../src/config/constants";
+import { es } from "../src/textos/es";
 
 const RAIZ = process.cwd();
 const BOOSTS = ["src", "app", "(app)", "(shell)", "boosts"];
@@ -117,7 +118,7 @@ describe("cero cifras inventadas", () => {
   it("el saldo del hero es el DATO, no un número de maqueta", () => {
     const hero = leer("hero-boosts.tsx");
     // Sale del formateador único (Fase 11), con el dato: `formatearNumero(saldo, idioma)`.
-    expect(hero).toMatch(/\{formatearNumero\(saldo, idioma\)\}/);
+    expect(hero).toMatch(/formatearNumero\(saldo, idioma\)/);
     // La cifra grande no puede ser un literal: una maqueta con "12" se queda puesta.
     expect(hero).not.toMatch(/>\s*\d+\s*</);
   });
@@ -225,19 +226,32 @@ describe("la página es honesta con el servidor", () => {
 
 describe("la vuelta de Stripe no miente", () => {
   const aviso = leer("aviso-compra.tsx");
+  /**
+   * LO QUE DICE el aviso: sus frases viven en el diccionario desde la P5b2a. Se juzgan las claves que
+   * el aviso PINTA (las que aparecen como `t("…")` en su código), con las mismas exigencias que tenía
+   * el texto escrito en el componente.
+   */
+  const clavesDelAviso = [...aviso.matchAll(/\bt\("(\w+)"\)/g)].map((m) => m[1]!);
+  const textosDelEspacio: Record<string, unknown> = es.boostCliente;
+  const copyDelAviso = clavesDelAviso
+    .map((k) => {
+      const v = textosDelEspacio[k];
+      return typeof v === "string" ? v : "";
+    })
+    .join(" ");
 
   it("«pago recibido» NO dice que los boosts ya estén", () => {
     // El webhook acredita por otro camino: al pintar esto, el saldo puede ser el de antes. Afirmar
     // el abono aquí es desmentirse a sí misma tres centímetros más arriba, en el hero.
-    expect(aviso, "afirma un abono que no ha visto").not.toMatch(
+    expect(copyDelAviso, "afirma un abono que no ha visto").not.toMatch(
       /acreditad|añadid|a[ñn]adido|ya tienes|se han sumado/i,
     );
-    expect(aviso).toMatch(/Pago recibido/);
+    expect(copyDelAviso).toMatch(/Pago recibido/);
   });
 
   it("ni repite un número de boosts", () => {
     // Un "+5 Boosts" aquí sería la cifra del paquete comprado... que esta pantalla no sabe cuál es.
-    const copy = [...aviso.matchAll(/>([^<>{}]{10,})</g)].map((m) => m[1]).join(" ");
+    const copy = copyDelAviso;
     // SIN ESTA LÍNEA EL CASO PASA EN VACÍO: si el extractor dejara de encontrar texto (otro
     // marcado, otro formateo), `copy` sería "" y "no contiene cifras" sería cierto por vacuidad.
     expect(copy.length, "el extractor de copy no encuentra nada que mirar").toBeGreaterThan(40);
@@ -254,7 +268,8 @@ describe("la vuelta de Stripe no miente", () => {
     expect(aviso, "vuelve el refresh que dejaba el aviso pegado a la URL").not.toMatch(
       /router\.refresh\(/,
     );
-    expect(aviso).toMatch(/Actualizar/);
+    expect(aviso).toContain('t("actualizar")');
+    expect(es.boostCliente.actualizar).toMatch(/Actualizar/);
   });
 
   it("el pendiente del botón es el de la TRANSICIÓN, no un estado propio", () => {
@@ -270,7 +285,8 @@ describe("la vuelta de Stripe no miente", () => {
     const bloqueCancelada = /estado === "cancelada"[\s\S]*?\n  \}/.exec(aviso)?.[0] ?? "";
     expect(bloqueCancelada.length, "no encuentro la rama de cancelada").toBeGreaterThan(50);
     expect(bloqueCancelada, "la cancelación va en color de alarma").not.toContain("--df-alarm");
-    expect(bloqueCancelada).toMatch(/No se te ha cobrado nada/);
+    expect(bloqueCancelada).toContain('t("sinCompletar")');
+    expect(es.boostCliente.sinCompletar).toMatch(/No se te ha cobrado nada/);
     // Sin botón se quedaba pegada a `?compra=cancelada` igual que la otra.
     expect(bloqueCancelada).toMatch(/onClick=\{descartar\}/);
   });

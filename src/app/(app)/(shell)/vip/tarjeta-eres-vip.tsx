@@ -1,5 +1,6 @@
 import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "@/lib/formato";
 import type { VipResuelto } from "@/lib/vip";
+import { textos } from "@/textos/servidor";
 
 import { CancelarVip } from "./cancelar-vip";
 
@@ -29,7 +30,7 @@ import { CancelarVip } from "./cancelar-vip";
  * │ diría el emblema.                                                                            │
  * └──────────────────────────────────────────────────────────────────────────────────────────────┘
  */
-export function TarjetaEresVip({
+export async function TarjetaEresVip({
   vip,
   idioma,
   zona,
@@ -42,6 +43,7 @@ export function TarjetaEresVip({
   const hasta = vip.hasta
     ? formatearFechaParaQuienMira(vip.hasta, idioma, zona, "diaFijoMesLargoAno")
     : null;
+  const t = await textos("vip");
 
   return (
     <section
@@ -62,16 +64,16 @@ export function TarjetaEresVip({
             fontVariationSettings: '"wght" 800, "wdth" 110',
           }}
         >
-          Eres VIP Mythic
+          {t("eresVip")}
         </h2>
         <p className="mt-2 text-sm text-text-dim">
           {vip.terminaAlFinal
             ? hasta
-              ? `Tu suscripción no se renovará. Mantienes el VIP hasta el ${hasta}.`
-              : "Tu suscripción no se renovará. Mantienes el VIP hasta el fin del periodo."
+              ? t("terminaConFecha", { fecha: hasta })
+              : t("terminaSinFecha")
             : hasta
-              ? `Activa. Se renueva el ${hasta}.`
-              : "Activa."}
+              ? t("renuevaConFecha", { fecha: hasta })
+              : t("renuevaSinFecha")}
         </p>
       </div>
 

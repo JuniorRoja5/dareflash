@@ -28,7 +28,6 @@ import {
   BOOST_DURACION_MIN,
   BOOST_MAX_SIMULTANEOS,
   msgBoostAgotado,
-  TITULO_BOOST_AGOTADO,
 } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import {
@@ -44,6 +43,10 @@ import {
 } from "../src/server/services/boost-destacados";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
+import { es } from "../src/textos/es";
+
+/** El titular del cupo lleno vive en el diccionario desde la P5b2a. */
+const TITULO_BOOST_AGOTADO = es.boostCliente.agotadoTitulo;
 
 let prisma: PrismaClient;
 

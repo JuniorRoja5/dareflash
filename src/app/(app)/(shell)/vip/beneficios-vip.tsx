@@ -1,4 +1,5 @@
 import { BENEFICIOS_VIP } from "@/config/constants";
+import { textos } from "@/textos/servidor";
 
 /**
  * UN TIC, NO UNA GEMA. La maqueta pone una gemita delante de cada línea, que es el icono de la
@@ -40,14 +41,15 @@ function Tic() {
  * MISMO IDIOMA DE TARJETA QUE EL RESTO DE LISTAS del producto (superficie al 60%, filete, sombra
  * pequeña): la vida va en el hero, no en cada fila. `tests/simetria-secciones` lo exige.
  */
-export function BeneficiosVip() {
+export async function BeneficiosVip() {
+  const t = await textos("vip");
   return (
     <section aria-labelledby="vip-incluye" className="mt-8">
       <h2
         id="vip-incluye"
         className="text-sm font-semibold tracking-widest text-text-dim uppercase"
       >
-        Lo que incluye
+        {t("incluye")}
       </h2>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {BENEFICIOS_VIP.map((b) => (
@@ -57,7 +59,7 @@ export function BeneficiosVip() {
             className="flex items-start gap-3 rounded-sm border border-line bg-surface/60 p-4 text-sm text-text shadow-[var(--df-shadow-sm)] backdrop-blur-md"
           >
             <Tic />
-            <span>{b}</span>
+            <span>{t(`beneficio_${b}`)}</span>
           </li>
         ))}
       </ul>

@@ -34,6 +34,7 @@ import {
 } from "../src/components/ui/logic";
 import { BENEFICIOS_VIP, VIP_PRECIO_CENTS } from "../src/config/constants";
 import { esVipActivo } from "../src/lib/vip";
+import { es } from "../src/textos/es";
 
 const RAIZ = process.cwd();
 const SHELL = ["src", "app", "(app)", "(shell)"];
@@ -167,10 +168,15 @@ describe("quién es VIP lo dice el CHOKEPOINT, no la URL", () => {
     // El webhook escribe la suscripción por otro camino: al pintar esto, la página puede seguir
     // enseñando el botón de suscribirse un centímetro más abajo.
     const aviso = leer("aviso-suscripcion.tsx");
-    expect(aviso, "afirma un estado que no ha visto").not.toMatch(
+    // Lo que DICE el aviso vive en el diccionario desde la P5b2a: se juzgan las claves que pinta.
+    const copy = [...aviso.matchAll(/\bt\("(\w+)"\)/g)]
+      .map((m) => (es.vipCliente as Record<string, string>)[m[1]!] ?? "")
+      .join(" ");
+    expect(copy.length, "no encuentro el copy del aviso").toBeGreaterThan(40);
+    expect(copy, "afirma un estado que no ha visto").not.toMatch(
       /ya eres|eres vip|ya tienes|activado|acreditad/i,
     );
-    expect(aviso).toMatch(/Pago recibido/);
+    expect(copy).toMatch(/Pago recibido/);
     // Y limpia la query, que es lo que de verdad trae el estado nuevo (un `refresh` la dejaría
     // pegada a la URL: el fallo que ya se cometió en el aviso de Boost).
     // Desde la P5a, por `useNavegar` (conserva el idioma; ver `enlaces-con-idioma`).
@@ -291,18 +297,30 @@ describe("cero promesas de lo que no existe", () => {
     expect(ben).toMatch(/BENEFICIOS_VIP\.map\(/);
     // Ni un beneficio escrito en el JSX: ahí es donde entraría el que no existe.
     for (const b of BENEFICIOS_VIP) {
-      expect(ben, `«${b}» escrito a mano en la vista`).not.toContain(b);
+      const frase = (es.vip as Record<string, string>)[`beneficio_${b}`] ?? b;
+      expect(ben, `«${frase}» escrito a mano en la vista`).not.toContain(frase);
     }
   });
 
   it("ninguna vista de /vip promete nada de la deuda", () => {
-    const todo = VISTAS.map(leer).join("\n");
+    // Las vistas MÁS sus frases, que desde la P5b2a viven en el diccionario.
+    const todo = [
+      ...VISTAS.map(leer),
+      ...Object.values(es.vip),
+      ...Object.values(es.vipCliente),
+    ].join("\n");
     expect(todo.match(DEUDA)?.[0], "hay una promesa de algo que no existe").toBeUndefined();
   });
 
-  it("ni la constante", () => {
+  it("ni la constante, ni cómo se dice cada beneficio", () => {
+    // La constante son CLAVES desde la P5b2a: lo que se promete es su frase en el diccionario, y cada
+    // clave tiene la suya (sin ella, la pantalla enseñaría el código).
     expect(BENEFICIOS_VIP.length, "la lista se ha quedado vacía").toBeGreaterThan(3);
-    for (const b of BENEFICIOS_VIP) expect(b, b).not.toMatch(DEUDA);
+    for (const b of BENEFICIOS_VIP) {
+      const frase = (es.vip as Record<string, string>)[`beneficio_${b}`];
+      expect(frase, `«${b}» no tiene frase`).toBeTruthy();
+      expect(frase, b).not.toMatch(DEUDA);
+    }
   });
 
   it("ni los chips del perfil, que prometían «acceso anticipado» por su cuenta", () => {
@@ -311,7 +329,13 @@ describe("cero promesas de lo que no existe", () => {
     const perfil = leerRuta(...SHELL, "perfil", "perfil-vista.tsx");
     const chips = /data-vip-perks[\s\S]*?\]\.map/.exec(perfil)?.[0];
     expect(chips, "no encuentro los chips del perfil").toBeTruthy();
-    expect(chips!.match(DEUDA)?.[0]).toBeUndefined();
+    // Las palabras de los chips viven en el diccionario desde la P5b2a (`perfil.perk_*`).
+    const perks = Object.entries(es.perfil)
+      .filter(([k]) => k.startsWith("perk_"))
+      .map(([, v]) => v)
+      .join("\n");
+    expect(perks.length, "no encuentro las frases de los chips").toBeGreaterThan(20);
+    expect(`${chips}\n${perks}`.match(DEUDA)?.[0]).toBeUndefined();
   });
 });
 
@@ -338,8 +362,9 @@ describe("cero cifras inventadas", () => {
 
   it("la letra pequeña del hero dice lo que pasa al cancelar", () => {
     const hero = leer("hero-vip.tsx");
-    expect(hero).toMatch(/Cancela cuando quieras/);
-    expect(hero).toMatch(/acceso hasta fin de periodo/);
+    expect(hero).toContain('t("cancelaCuando")');
+    expect(es.vip.cancelaCuando).toMatch(/Cancela cuando quieras/);
+    expect(es.vip.cancelaCuando).toMatch(/acceso hasta fin de periodo/);
   });
 });
 

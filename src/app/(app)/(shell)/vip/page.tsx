@@ -2,6 +2,8 @@ import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
 import { redirigir } from "@/server/redirigir";
 
 import { MSG_VIP_PAGO_NO_DISPONIBLE, MSG_VIP_SIN_VERIFICAR } from "@/config/constants";
+import { TextosProvider } from "@/components/textos-provider";
+import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
 
 import { AvisoSuscripcion, type EstadoVuelta } from "./aviso-suscripcion";
 import { BeneficiosVip } from "./beneficios-vip";
@@ -9,7 +11,9 @@ import { CtaVip } from "./cta-vip";
 import { HeroVip } from "./hero-vip";
 import { TarjetaEresVip } from "./tarjeta-eres-vip";
 
-export const metadata = { title: "VIP Mythic" };
+export async function generateMetadata() {
+  return { title: (await textos("titulos"))("vip") };
+}
 // Lee la sesión y la suscripción: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 
@@ -78,26 +82,29 @@ export default async function VipPage({
       ? MSG_VIP_SIN_VERIFICAR
       : null;
 
+  const textosVip = await textosClienteDeLaPeticion(["vipCliente"] as const);
   return (
-    <div className="df-rise w-full px-4 py-8 lg:px-8 lg:py-12">
-      {/* LA VUELTA DE STRIPE, ARRIBA DE TODO: es la respuesta a "¿se ha cobrado?", y esa pregunta
+    <TextosProvider textos={textosVip}>
+      <div className="df-rise w-full px-4 py-8 lg:px-8 lg:py-12">
+        {/* LA VUELTA DE STRIPE, ARRIBA DE TODO: es la respuesta a "¿se ha cobrado?", y esa pregunta
           va antes que cualquier otra cosa de la pantalla. */}
-      {vuelta ? (
-        <div className="mb-6">
-          <AvisoSuscripcion estado={vuelta} />
-        </div>
-      ) : null}
+        {vuelta ? (
+          <div className="mb-6">
+            <AvisoSuscripcion estado={vuelta} />
+          </div>
+        ) : null}
 
-      <HeroVip idioma={idioma} />
+        <HeroVip idioma={idioma} />
 
-      <BeneficiosVip />
+        <BeneficiosVip />
 
-      {/* LA ÚNICA DECISIÓN DE ESTADO DE LA PÁGINA, y la toma el chokepoint. Ver la cabecera. */}
-      {vip.activo ? (
-        <TarjetaEresVip vip={vip} idioma={idioma} zona={zona} />
-      ) : (
-        <CtaVip puedeSuscribirse={puedeSuscribirse} motivoBloqueo={motivoBloqueo} />
-      )}
-    </div>
+        {/* LA ÚNICA DECISIÓN DE ESTADO DE LA PÁGINA, y la toma el chokepoint. Ver la cabecera. */}
+        {vip.activo ? (
+          <TarjetaEresVip vip={vip} idioma={idioma} zona={zona} />
+        ) : (
+          <CtaVip puedeSuscribirse={puedeSuscribirse} motivoBloqueo={motivoBloqueo} />
+        )}
+      </div>
+    </TextosProvider>
   );
 }

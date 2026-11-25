@@ -453,6 +453,8 @@ export const es = conMarcasConocidas({
     puntos: "Mis puntos",
     referidos: "Mis referidos",
     monedero: "Mi monedero",
+    vip: "VIP Mythic",
+    boosts: "Mis Boosts",
   },
 
   // ── Acceso (P5b2a): entrar, crear cuenta, recuperar, restablecer, verificar, reactivar, correo ─────
@@ -892,6 +894,130 @@ export const es = conMarcasConocidas({
     hecho: "Solicitud registrada. El importe ya ha salido de tu saldo y el equipo la revisará.",
     enviando: "Enviando…",
     pedir: "Pedir cobro",
+  },
+
+  // ── VIP y Boost (P5b2a) ──────────────────────────────────────────────────────────────────────────
+  /** Lo que pinta el SERVIDOR en /vip. */
+  vip: {
+    titulo: "VIP Mythic",
+    intro:
+      "La membresía premium de {marca}. Tu nombre y tu perfil destacan en toda la plataforma, y cada semana recibes un Boost para ponerte en el espacio destacado.",
+    alMes: "al mes",
+    cancelaCuando: "Cancela cuando quieras · acceso hasta fin de periodo",
+    incluye: "Lo que incluye",
+    /**
+     * LO QUE INCLUYE, por la clave de `BENEFICIOS_VIP` (config): esa lista SOLO puede nombrar lo que
+     * existe; aquí está cómo se dice cada cosa. El «valor 5$» del documento maestro no se escribe.
+     */
+    beneficio_boostSemanal: "1 Boost gratis por semana",
+    beneficio_colorNombre: "Nombre destacado con el color que elijas",
+    beneficio_insignia: "Insignia Mythic en tu perfil, el feed y los comentarios",
+    beneficio_perfilAnimado: "Perfil animado con borde neón",
+    beneficio_toque: "Puedes dar un toque a otros perfiles",
+    eresVip: "Eres VIP Mythic",
+    terminaConFecha: "Tu suscripción no se renovará. Mantienes el VIP hasta el {fecha}.",
+    terminaSinFecha: "Tu suscripción no se renovará. Mantienes el VIP hasta el fin del periodo.",
+    renuevaConFecha: "Activa. Se renueva el {fecha}.",
+    renuevaSinFecha: "Activa.",
+  },
+  /** Las islas de CLIENTE de /vip: suscribirse, darse de baja y la vuelta de Stripe. */
+  vipCliente: {
+    hazte: "Hazte VIP Mythic",
+    abriendo: "Abriendo el pago…",
+    sinConexion: "No hemos podido conectar. Inténtalo otra vez.",
+    pagoSeguro: "Pago seguro con Stripe. Renovación mensual; cancelas cuando quieras.",
+    cancelarSuscripcion: "Cancelar suscripción",
+    avisoBaja:
+      "Seguirás siendo VIP Mythic hasta que acabe el periodo que ya has pagado. No hay reembolso ni prorrateo.",
+    dandoDeBaja: "Dando de baja…",
+    siBaja: "Sí, dar de baja",
+    seguir: "Seguir siendo VIP",
+    actualizando: "Actualizando…",
+    actualizar: "Actualizar",
+    sinCompletar: "No has completado el pago. No se te ha cobrado nada.",
+    cerrando: "Cerrando…",
+    cerrar: "Cerrar",
+    pagoRecibido: "Pago recibido.",
+    confirmando: "Tu suscripción se confirma en unos segundos. Si no la ves aquí, actualiza.",
+  },
+  /** Lo que pinta el SERVIDOR en /boosts. */
+  boosts: {
+    tusBoosts: "Tus Boosts",
+    tusBoostsOculto: "{oculto:Tus Boosts: }{saldo}",
+    /** UNA frase con «tu perfil» resaltado (en un `<strong>`) y la duración dentro. */
+    queHace:
+      "Un Boost pone {resaltado:tu perfil} en el espacio destacado {duracion}, donde lo ve quien entra. No caducan: se quedan en tu saldo hasta que los uses.",
+    usadasHoy: "Has destacado {usadas} de {limite} veces hoy",
+    maximoDia: "Máximo {n} al día",
+    destacadoAhora: "· Destacado ahora mismo",
+    espacioDestacado: "El espacio destacado",
+    metricaDisponibles: "Boosts disponibles",
+    pieCompra: "Compra uno para destacar",
+    pieNoCaducan: "No caducan",
+    metricaQuedan: "Te quedan hoy",
+    pieDe: "De {n} apariciones al día",
+    metricaComprados: "Comprados en total",
+    pieDesde: "Desde que tienes la cuenta",
+    pieNinguno: "Todavía ninguno",
+    movimientos: "Tus movimientos de Boosts",
+    historialVacio: "Todavía no tienes movimientos. Cuando compres Boosts, aparecerán aquí.",
+    comoFunciona: "Cómo funciona",
+    paso1Titulo: "Compras Boosts",
+    paso1Texto: "Se acreditan en tu saldo cuando el pago se confirma. No caducan nunca.",
+    paso2Titulo: "Gastas uno para destacar",
+    paso2Texto:
+      "Cada Boost pone tu perfil en el espacio destacado {duracion}. Como máximo {n} veces al día.",
+    paso3Titulo: "Te ve quien entra",
+    paso3Texto:
+      "Sales en la portada, donde más gente pasa, y el último en activar aparece primero. No está escondido en una sección.",
+    /**
+     * Cuándo se reinicia el contador: con la hora de quien mira, o «cada día» si no sabemos su zona.
+     * DOS frases enteras (antes, una frase con «a las 01:00» / «cada día» empalmado en medio).
+     */
+    reinicioConHora:
+      "El contador de {n} al día se reinicia a las {hora}. Los Boosts sin gastar no caducan.",
+    reinicioSinHora:
+      "El contador de {n} al día se reinicia cada día. Los Boosts sin gastar no caducan.",
+  },
+  /** El motivo de cada movimiento de Boosts en el historial PROPIO (como `razonesPuntos`). */
+  razonesBoost: {
+    propia_PURCHASE: "Compraste Boosts",
+    propia_VIP_WEEKLY: "Boost de tu VIP semanal",
+    propia_ACTIVATION: "Destacaste tu perfil",
+    propia_REFUND: "Devolución de una compra",
+    propia_ADMIN_ADJUST: "Ajuste del equipo",
+    propia_ajusteSuma: "El equipo te añadió Boosts",
+    propia_ajusteResta: "El equipo te retiró Boosts",
+  },
+  /** Las islas de CLIENTE de /boosts: activar, comprar y la vuelta de la compra. */
+  boostCliente: {
+    listo: "Listo: tu perfil está destacado {duracion}.",
+    repetida: "Ya estaba hecho: no se ha gastado otro Boost.",
+    errorActivar: "No se ha podido destacar tu perfil.",
+    sinConexionActivar: "No hemos podido conectar. Reinténtalo: si ya se activó, no se repetirá.",
+    destacando: "Destacando…",
+    destacar: "Destacar mi perfil ahora",
+    /** El titular dice QUÉ pasa; el texto (lo manda también la ruta) dice QUÉ hacer. */
+    agotadoTitulo: "Ahora mismo está todo lleno",
+    yaDestacado:
+      "Ya estás destacado ahora mismo. Si activas otro, se gasta un Boost, vuelves al primer puesto y alargas tu presencia. Sigues ocupando un solo sitio.",
+    queRecibes:
+      "Tu perfil destaca durante {duracion}: siempre en Perfiles Boost y por turnos en la portada, al menos {minutos} minutos.",
+    comprarBoosts: "Comprar Boosts",
+    mejorPrecio: "Mejor precio",
+    unidades: { one: "{n}{resaltado:Boost}", other: "{n}{resaltado:Boosts}" },
+    porBoost: "por Boost",
+    ahorras: "· ahorras un {porcentaje}%",
+    abriendo: "Abriendo el pago…",
+    comprar: "Comprar",
+    sinConexion: "No hemos podido conectar. Inténtalo otra vez.",
+    sinCompletar: "No has completado el pago. No se te ha cobrado nada.",
+    cerrando: "Cerrando…",
+    cerrar: "Cerrar",
+    pagoRecibido: "Pago recibido.",
+    aparecen: "Tus Boosts aparecen en el saldo en unos segundos. Si no los ves, actualiza.",
+    actualizando: "Actualizando…",
+    actualizar: "Actualizar",
   },
 
   // ── Perfil (P5b2a): el propio y el público comparten la vista ────────────────────────────────────
