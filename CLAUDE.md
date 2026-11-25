@@ -397,6 +397,15 @@ borran para "limpiar"**:
   acepta una clave con marcas. Una marca nueva entra en el catálogo solo si hace falta de verdad. El
   marcado de las frases convertidas lo fija `render/textos-ricos-marcado` (HTML exacto, de antes de
   convertirlas), y `render/textos-ricos` que un `<script>` del diccionario se pinta como texto.
+  **P5b2:** el censo ve también la cadena con forma de frase que llega a la pantalla por una propiedad de
+  texto (`titulo`, `etiqueta`, `mensaje`, el `title` de un `metadata`…) o por un `set…` de React; un
+  código (`setEstado("enviando")`) no cuenta. El catálogo suma `salto` (`{salto:}`, un `<br>` vacío, solo
+  en titulares), `resaltado` acepta `como: "strong"` y `enlace` un `onClick`. Lo que se pinta a los dos
+  lados y vive en muchas pantallas (marca VIP, Boost, nivel, «Cargando…», cuenta atrás) es una hoja de
+  cliente que lee su espacio del proveedor del armazón y del panel. Donde el PANEL lee el mismo
+  vocabulario en castellano (estado de un cobro, nombre del método, duración de un Boost), un test exige
+  que el diccionario diga exactamente lo mismo. El marcado de cada zona está fijado en
+  `render/marcado-p5b2a-*` (snapshots tomados del código de ANTES de extraer).
 - `tsconfig-tests-cubre-tsx` (PTT) — `tsconfig.test.json` cubre TODO `tests/`, también los `.tsx`: se le
   pide a TypeScript la lista de ficheros del proyecto y cada `.ts`/`.tsx` del disco tiene que estar.
   Vitest no comprueba tipos, así que un test de render fuera de `tsc` corre verde con la fixture de una
