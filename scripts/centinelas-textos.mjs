@@ -43,7 +43,10 @@ export function centinelasTextos(raiz) {
     // Solo los valores: las cadenas entre comillas dobles (los comentarios usan «» y `…`).
     const sinComentarios = readFileSync(f, "utf8")
       .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/\/\/.*$/gm, "");
+      // Solo los comentarios que EMPIEZAN una línea (los únicos que usan los diccionarios): un `//` dentro de
+      // una cadena —«https://tu-web.com»— se comía el resto de la línea con su comilla de cierre, y las
+      // comillas se emparejaban mal (salían «centinelas» como «,» que casan con cualquier trozo de JS).
+      .replace(/^\s*\/\/.*$/gm, "");
     for (const m of sinComentarios.matchAll(/"((?:[^"\\]|\\.)*)"/g)) {
       for (const trozo of m[1].split(/\{\w+\}/)) {
         const t = trozo.trim();

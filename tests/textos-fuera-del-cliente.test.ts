@@ -89,5 +89,10 @@ describe("los diccionarios no llegan al cliente", () => {
     // por ese otro fichero y daría un rojo falso.
     expect(c).not.toContain("No hemos podido conectar. Inténtalo de nuevo.");
     expect(c.every((x) => x === "__idioma" || x.length >= 20)).toBe(true);
+    // Cada centinela es UN texto de una línea: uno con saltos o comillas es que las comillas se han
+    // emparejado mal (un `//` dentro de una URL lo hizo, y `grep -f` casaba con cualquier fichero).
+    expect(c.filter((x) => /[\n"]/.test(x))).toEqual([]);
+    // Y el texto de la misma línea que una URL sigue siendo centinela (el «//» ya no se lo come).
+    expect(c).toContain("Ej.: Mi mejor salto en caja");
   });
 });
