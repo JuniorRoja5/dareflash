@@ -31,8 +31,12 @@ import * as c from "../src/config/constants";
 import type { AlcancePublicidad, TipoNegocio } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { alcancesPermitidos, tipoNegocioDe } from "../src/lib/empresa";
+import { formatearFecha, ZONA_MADRID } from "../src/lib/formato";
 import { fichaEmpresa, miEmpresa, verificarEmpresa } from "../src/server/services/empresas";
 import { campanaSchema, crearBorrador, PublicidadError } from "../src/server/services/publicidad";
+import { creditoDia, socioFundador, tipoCuenta, tipoNegocio } from "../src/textos/empresa";
+import { es } from "../src/textos/es";
+import { crearT } from "../src/textos/plantilla";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
 
@@ -115,7 +119,39 @@ describe("la tarifa y el regalo, por tipo de negocio", () => {
     expect(frase).toMatch(NOMBRA.CIUDAD);
     expect(frase).toMatch(NOMBRA.PAIS);
     expect(frase).toMatch(/online/i);
-    expect(c.msgSocioFundador("es")).toContain(frase);
+    // El aviso de la pantalla sale del diccionario (P5b2b) y el correo de esta frase: los dos, lo mismo.
+    const aviso = socioFundador(crearT(es.negocio, "es"), "es");
+    const hasta = formatearFecha(c.SOCIO_FUNDADOR_HASTA_ISO, "es", ZONA_MADRID, "diaMesLargoAno");
+    expect(aviso).toBe(
+      `Socios Fundadores: las empresas que verifiquemos antes del ${hasta} se llevan ${frase}.`,
+    );
+  });
+
+  it("las etiquetas de tipo: el diccionario dice lo mismo que el panel (`ETIQUETA_TIPO_*`)", () => {
+    const t = crearT(es.negocio, "es");
+    for (const n of TIPOS) expect(tipoNegocio(t, n), n).toBe(c.ETIQUETA_TIPO_NEGOCIO[n]);
+    for (const k of c.VALORES_TIPO_CUENTA_EMPRESA) {
+      expect(tipoCuenta(t, k), k).toBe(c.ETIQUETA_TIPO_CUENTA[k]);
+    }
+  });
+
+  it("y el coste de un día de campaña: el del diccionario dice lo mismo que el del panel", () => {
+    const t = crearT(es.negocio, "es");
+    expect(creditoDia(t, "es")).toBe(c.fraseCreditoPublica());
+    const antes = { ...c.CREDITOS_POR_DIA };
+    try {
+      // Con otras cifras también (el singular de «crédito» incluido).
+      for (const [ciudad, global] of [
+        [1, 15],
+        [2, 40],
+      ] as const) {
+        c.CREDITOS_POR_DIA.CIUDAD = ciudad;
+        c.CREDITOS_POR_DIA.GLOBAL = global;
+        expect(creditoDia(t, "es"), `${ciudad}/${global}`).toBe(c.fraseCreditoPublica());
+      }
+    } finally {
+      Object.assign(c.CREDITOS_POR_DIA, antes);
+    }
   });
 
   it("el catálogo: todo tipo de negocio compra ALGO (una lista vacía dejaría sin frase ni producto)", () => {
@@ -363,8 +399,10 @@ const soloCodigo = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\
  * está aquí con su motivo; uno nuevo se pone rojo y obliga a decidirlo.
  */
 const PUBLICAS_PERMITIDAS: Record<string, string> = {
-  // Donde se definen (y `msgSocioFundador`, el aviso público, las compone).
+  // Donde se definen.
   "src/config/constants.ts": "las define",
+  // Las mismas frases en el idioma de la página (P5b2b): `creditoDia` y `socioFundador`.
+  "src/textos/empresa.ts": "las define en el diccionario",
   // Superficie ANÓNIMA: el alta de empresa, antes de saber qué negocio es.
   "src/app/(app)/(shell)/empezar/empresa/page.tsx": "alta pública",
   // RESPALDOS DECIDIDOS: sin empresa resuelta (correo sin confirmar) o con un tipo fuera del catálogo.
@@ -377,7 +415,7 @@ const PUBLICAS_PERMITIDAS: Record<string, string> = {
 
 /** El aviso de Socios Fundadores con los dos casos: SOLO en las superficies anónimas. */
 const AVISO_PUBLICO_PERMITIDO = [
-  "src/config/constants.ts",
+  "src/textos/empresa.ts",
   "src/app/(app)/(shell)/empezar/page.tsx",
   "src/app/(app)/(shell)/empezar/empresa/page.tsx",
   "src/app/(app)/(shell)/inicio/page.tsx",
@@ -393,7 +431,7 @@ describe("el censo de las frases PÚBLICAS", () => {
 
   it("las frases sin tipo solo donde se ha decidido usarlas", () => {
     const usan = todos
-      .filter((f) => /\b(?:fraseCreditoPublica|fraseRegaloPublico)\(/.test(f.codigo))
+      .filter((f) => /\b(?:fraseCreditoPublica|fraseRegaloPublico|creditoDia)\(/.test(f.codigo))
       .map((f) => f.rel);
     expect(usan.length).toBeGreaterThanOrEqual(3);
     expect(usan.filter((r) => !(r in PUBLICAS_PERMITIDAS))).toEqual([]);
@@ -407,7 +445,10 @@ describe("el censo de las frases PÚBLICAS", () => {
   });
 
   it("el aviso público de Socios Fundadores, solo en /empezar, /empezar/empresa e /inicio", () => {
-    const usan = todos.filter((f) => /\bmsgSocioFundador\(/.test(f.codigo)).map((f) => f.rel);
+    // Desde la P5b2b es `socioFundador` (del diccionario); el nombre viejo tampoco puede volver.
+    const usan = todos
+      .filter((f) => /\b(?:msgSocioFundador|socioFundador)\(/.test(f.codigo))
+      .map((f) => f.rel);
     expect(usan.length).toBeGreaterThanOrEqual(3);
     expect(usan.filter((r) => !AVISO_PUBLICO_PERMITIDO.includes(r))).toEqual([]);
   });

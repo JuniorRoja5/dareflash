@@ -1,6 +1,7 @@
 import { Enlace } from "@/components/enlace";
 
-import { CAMINO_EMPRESA, CTA_NEGOCIO, msgSocioFundador } from "@/config/constants";
+import { CTA_NEGOCIO } from "@/config/constants";
+import { socioFundador } from "@/textos/empresa";
 import { Boton } from "@/components/ui/boton";
 import { FilaPuesto } from "@/components/ui/fila-puesto";
 import { TarjetaAnuncio } from "@/components/ui/tarjeta-anuncio";
@@ -95,10 +96,11 @@ export default async function InicioPage() {
   // El idioma de quien mira (Fase 11): cifras e importes salen de `lib/formato`.
   const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
   const idioma = await idiomaDeLaPeticion();
-  const [t, tc, textosCifras] = await Promise.all([
+  const [t, tc, textosCifras, tn] = await Promise.all([
     textos("inicio"),
     textos("cta"),
     textosClienteDeLaPeticion(["inicioCifras"] as const),
+    textos("negocio"),
   ]);
 
   // ¿HA PARTICIPADO ALGUNA VEZ? Solo para un participante (el invitado no tiene, y a la empresa no le
@@ -301,8 +303,8 @@ export default async function InicioPage() {
               <h2 id="para-negocios" className="text-xl text-text">
                 {t("tienesNegocio")}
               </h2>
-              <p className="mt-2 max-w-prose text-sm text-text-dim">{CAMINO_EMPRESA.cuerpo}</p>
-              <p className="mt-2 max-w-prose text-sm text-text">{msgSocioFundador(idioma)}</p>
+              <p className="mt-2 max-w-prose text-sm text-text-dim">{tn("caminoCuerpo")}</p>
+              <p className="mt-2 max-w-prose text-sm text-text">{socioFundador(tn, idioma)}</p>
             </div>
             <Boton href={CTA_NEGOCIO.href} variante="secundario" className="mt-4 shrink-0 lg:mt-0">
               {t("registrarEmpresa")}

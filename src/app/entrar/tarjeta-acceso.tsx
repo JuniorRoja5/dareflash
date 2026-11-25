@@ -29,6 +29,7 @@ const estiloDisplay = {
 } as const;
 
 export function TarjetaAcceso() {
+  const tn = useTextos("negocio");
   const t = useTextos("acceso");
   const tf = useTextos("formAcceso");
   const [modo, setModo] = useState<"login" | "registro">("login");
@@ -68,7 +69,7 @@ export function TarjetaAcceso() {
               una empresa no tiene por qué adivinar que está detrás de «Crear cuenta», que además es
               la cuenta equivocada para él. En escritorio la aporta el panel oscuro. */}
           <Boton variante="secundario" href={CTA_NEGOCIO.href} className="mt-4 w-full lg:hidden">
-            {CTA_NEGOCIO.texto}
+            {tn("cta")}
           </Boton>
         </div>
       </div>
@@ -130,7 +131,7 @@ export function TarjetaAcceso() {
               darse de alta. Cuando se ve el registro, la pone el propio formulario debajo del suyo. */}
           {activo ? null : (
             <Boton variante="secundario" href={CTA_NEGOCIO.href}>
-              {CTA_NEGOCIO.texto}
+              {tn("cta")}
             </Boton>
           )}
         </div>

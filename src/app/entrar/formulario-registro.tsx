@@ -51,6 +51,7 @@ export function FormularioRegistro() {
   // aqui ni se le ensena nada al usuario: si el enlace fuera malo, el alta sigue igual (lo decide el
   // servidor) y avisar de un enlace roto en mitad del registro solo le daria una razon para dudar.
   const refCode = useSearchParams().get(PARAM_REFERIDO);
+  const tn = useTextos("negocio");
   const t = useTextos("registro");
   const tr = useTextosRicos("registro");
   const tf = useTextos("formAcceso");
@@ -232,7 +233,7 @@ export function FormularioRegistro() {
           participa), así que el desvío tiene que estar ANTES de crearla y tiene que verse. Es
           secundario: la acción principal de esta vista sigue siendo «Crear cuenta». */}
       <Boton variante="secundario" href={CTA_NEGOCIO.href} className="w-full">
-        {CTA_NEGOCIO.texto}
+        {tn("cta")}
       </Boton>
     </form>
   );

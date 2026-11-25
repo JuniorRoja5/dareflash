@@ -1,9 +1,10 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { Enlace } from "@/components/enlace";
 
+import { useTextos, useTextosRicos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
+import { tipoCuenta as etiquetaCuenta, tipoNegocio as etiquetaNegocio } from "@/textos/empresa";
 import { Campo } from "@/components/ui/campo";
 import { BarraEnviar, BloqueFormulario as Bloque } from "@/components/ui/formulario";
 import { Tarjeta } from "@/components/ui/tarjeta";
@@ -16,8 +17,6 @@ import {
   EMPRESA_NOMBRE_MIN,
   EMPRESA_REDES_MAX,
   EMPRESA_WEB_MAX,
-  ETIQUETA_TIPO_CUENTA,
-  ETIQUETA_TIPO_NEGOCIO,
   MSG_EMPRESA_CORREO_NUEVO,
   MSG_EMPRESA_WEB_O_REDES,
   MSG_REVISA_CORREO_EMPRESA,
@@ -118,16 +117,19 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
   const [error, setError] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
 
+  const t = useTextos("altaFormulario");
+  const tr = useTextosRicos("altaFormulario");
+  const tn = useTextos("negocio");
   const nombreLimpio = nombre.trim();
   const tieneContacto = webUrl.trim().length > 0 || redes.trim().length > 0;
   // Lo que falta, en el orden del formulario. `valido` sale de aquí: una sola lista de condiciones.
   const faltan = [
-    nombreLimpio.length >= EMPRESA_NOMBRE_MIN ? null : "el nombre",
-    personaContacto.trim().length > 1 ? null : "la persona de contacto",
-    tieneContacto ? null : "la web o las redes",
-    email.trim().length > 3 ? null : "el correo",
-    password.length > 0 ? null : "la contraseña",
-    acepta ? null : "aceptar la política de privacidad",
+    nombreLimpio.length >= EMPRESA_NOMBRE_MIN ? null : t("falta_nombre"),
+    personaContacto.trim().length > 1 ? null : t("falta_contacto"),
+    tieneContacto ? null : t("falta_webRedes"),
+    email.trim().length > 3 ? null : t("falta_correo"),
+    password.length > 0 ? null : t("falta_clave"),
+    acepta ? null : t("falta_acepta"),
   ].filter((f): f is string => f !== null);
   const valido = faltan.length === 0;
 
@@ -156,9 +158,9 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
         setEnviado(true);
         return;
       }
-      setError(mensajeDe(r.data) || "No hemos podido registrar la empresa.");
+      setError(mensajeDe(r.data) || t("errorRegistrar"));
     } catch {
-      setError("No hemos podido conectar. Reinténtalo.");
+      setError(t("sinConexion"));
     }
     setEnviando(false);
   }
@@ -170,7 +172,7 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
   if (enviado) {
     return (
       <Tarjeta className="p-5 lg:p-6" role="status">
-        <p className="text-base font-semibold text-text">Recibido.</p>
+        <p className="text-base font-semibold text-text">{t("recibido")}</p>
         <p className="mt-2 max-w-prose text-sm text-text">{MSG_REVISA_CORREO_EMPRESA}</p>
       </Tarjeta>
     );
@@ -184,47 +186,47 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
         if (valido && !enviando) void enviar();
       }}
     >
-      <Bloque titulo="Tu negocio">
+      <Bloque titulo={t("bloqueNegocio")}>
         <Campo
           id="nombre"
-          label="Nombre comercial"
+          label={t("nombre")}
           className="sm:col-span-2"
           value={nombre}
           maxLength={EMPRESA_NOMBRE_MAX}
           autoComplete="organization"
-          placeholder="Como te conoce la gente"
+          placeholder={t("nombrePlaceholder")}
           onChange={(e) => setNombre(e.target.value)}
         />
         <Selector
           id="tipoCuenta"
-          label="¿Quién firma la cuenta?"
+          label={t("quienFirma")}
           value={tipoCuenta}
           onChange={(v) => setTipoCuenta(unoDe(VALORES_TIPO_CUENTA_EMPRESA, v))}
         >
-          {VALORES_TIPO_CUENTA_EMPRESA.map((t) => (
-            <option key={t} value={t}>
-              {ETIQUETA_TIPO_CUENTA[t]}
+          {VALORES_TIPO_CUENTA_EMPRESA.map((tc) => (
+            <option key={tc} value={tc}>
+              {etiquetaCuenta(tn, tc)}
             </option>
           ))}
         </Selector>
         <Selector
           id="tipoNegocio"
-          label="¿Qué clase de negocio es?"
+          label={t("claseNegocio")}
           value={tipoNegocio}
           onChange={(v) => setTipoNegocio(unoDe(VALORES_TIPO_NEGOCIO, v))}
         >
-          {VALORES_TIPO_NEGOCIO.map((t) => (
-            <option key={t} value={t}>
-              {ETIQUETA_TIPO_NEGOCIO[t]}
+          {VALORES_TIPO_NEGOCIO.map((tc) => (
+            <option key={tc} value={tc}>
+              {etiquetaNegocio(tn, tc)}
             </option>
           ))}
         </Selector>
       </Bloque>
 
-      <Bloque titulo="Ubicación">
+      <Bloque titulo={t("bloqueUbicacion")}>
         <Selector
           id="paisIso"
-          label="País"
+          label={t("pais")}
           value={paisIso}
           autoComplete="country"
           onChange={setPaisIso}
@@ -237,82 +239,79 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
         </Selector>
         <Campo
           id="ciudadTexto"
-          label="Ciudad (opcional)"
+          label={t("ciudad")}
           value={ciudadTexto}
           maxLength={EMPRESA_CIUDAD_MAX}
           autoComplete="address-level2"
-          placeholder="Dónde estáis"
+          placeholder={t("ciudadPlaceholder")}
           onChange={(e) => setCiudadTexto(e.target.value)}
         />
         <div className="sm:col-span-2">
           <Campo
             id="direccion"
-            label="Dirección (opcional)"
+            label={t("direccion")}
             value={direccion}
             maxLength={EMPRESA_DIRECCION_MAX}
             autoComplete="street-address"
-            placeholder="Calle y número"
+            placeholder={t("direccionPlaceholder")}
             onChange={(e) => setDireccion(e.target.value)}
           />
-          <p className={`mt-1.5 ${AYUDA}`}>Solo para comprobar quién eres: no se publica.</p>
+          <p className={`mt-1.5 ${AYUDA}`}>{t("direccionAyuda")}</p>
         </div>
       </Bloque>
 
-      <Bloque titulo="Contacto" descripcion={MSG_EMPRESA_WEB_O_REDES}>
+      <Bloque titulo={t("bloqueContacto")} descripcion={MSG_EMPRESA_WEB_O_REDES}>
         <Campo
           id="personaContacto"
-          label="Persona de contacto"
+          label={t("persona")}
           value={personaContacto}
           maxLength={EMPRESA_CONTACTO_MAX}
           autoComplete="name"
-          placeholder="Con quién hablamos"
+          placeholder={t("personaPlaceholder")}
           onChange={(e) => setPersonaContacto(e.target.value)}
         />
         {/* Hueco a propósito: la persona es un nombre, no necesita las dos columnas. */}
         <span className="hidden sm:block" aria-hidden />
         <Campo
           id="webUrl"
-          label="Web"
+          label={t("web")}
           type="url"
           inputMode="url"
           autoComplete="url"
           value={webUrl}
           maxLength={EMPRESA_WEB_MAX}
-          placeholder="https://…"
+          placeholder={t("webPlaceholder")}
           onChange={(e) => setWebUrl(e.target.value)}
         />
         <Campo
           id="redes"
-          label="Redes"
+          label={t("redes")}
           value={redes}
           maxLength={EMPRESA_REDES_MAX}
-          placeholder="@tunegocio, un enlace…"
+          placeholder={t("redesPlaceholder")}
           onChange={(e) => setRedes(e.target.value)}
         />
       </Bloque>
 
-      <Bloque
-        titulo="Datos fiscales (opcional)"
-        descripcion="La identificación fiscal solo la vemos nosotros al verificarte: no sale en ningún listado ni en ningún correo."
-      >
+      <Bloque titulo={t("bloqueFiscal")} descripcion={t("fiscalDescripcion")}>
         <Campo
           id="fiscalId"
-          label="Identificación fiscal"
+          label={t("fiscal")}
           value={fiscalId}
           maxLength={EMPRESA_FISCAL_MAX}
           autoComplete="off"
-          placeholder="NIF, CIF, RUT, RFC…"
+          placeholder={t("fiscalPlaceholder")}
           onChange={(e) => setFiscalId(e.target.value)}
         />
         {fiscalId.trim() ? (
           <Selector
             id="fiscalPaisIso"
-            label="País que la emite"
+            label={t("fiscalPais")}
             value={fiscalPaisIso}
             autoComplete="off"
             onChange={setFiscalPaisIso}
           >
-            <option value="">Sin indicar</option>
+            <option value="">{t("sinIndicar")}</option>
             {paises.map((p) => (
               <option key={p.iso} value={p.iso}>
                 {p.nombre}
@@ -322,10 +321,10 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
         ) : null}
       </Bloque>
 
-      <Bloque titulo="Acceso" descripcion={MSG_EMPRESA_CORREO_NUEVO}>
+      <Bloque titulo={t("bloqueAcceso")} descripcion={MSG_EMPRESA_CORREO_NUEVO}>
         <Campo
           id="email"
-          label="Correo"
+          label={t("correo")}
           type="email"
           inputMode="email"
           autoComplete="email"
@@ -335,7 +334,7 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
         />
         <Campo
           id="password"
-          label="Contraseña"
+          label={t("etiquetaClave")}
           type="password"
           autoComplete="new-password"
           value={password}
@@ -351,11 +350,9 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
             className="mt-0.5 h-5 w-5 shrink-0"
           />
           <span>
-            Acepto la{" "}
-            <Enlace href="/privacidad" className="underline underline-offset-2">
-              política de privacidad
-            </Enlace>{" "}
-            y los términos.
+            {tr("acepto", {
+              enlace: { href: "/privacidad", className: "underline underline-offset-2" },
+            })}
           </span>
         </label>
       </Bloque>
@@ -371,10 +368,13 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
             // ancho, la lista entera.
             <p className={AYUDA} aria-live="polite">
               <span className="sm:hidden">
-                Falta: {faltan[0]}
-                {faltan.length > 1 ? ` y ${faltan.length - 1} más` : ""}.
+                {faltan.length > 1
+                  ? t("faltaYMas", { campo: faltan[0]!, n: faltan.length - 1 })
+                  : t("faltaUno", { campo: faltan[0]! })}
               </span>
-              <span className="hidden sm:inline">Falta: {faltan.join(", ")}.</span>
+              <span className="hidden sm:inline">
+                {t("faltaLista", { lista: faltan.join(", ") })}
+              </span>
             </p>
           ) : null
         }
@@ -384,7 +384,7 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
           disabled={!valido || enviando}
           className="w-full shrink-0 whitespace-nowrap sm:w-auto"
         >
-          {enviando ? "Enviando…" : "Crear cuenta de empresa"}
+          {enviando ? t("enviando") : t("crear")}
         </Boton>
       </BarraEnviar>
     </form>

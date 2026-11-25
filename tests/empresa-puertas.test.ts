@@ -38,7 +38,8 @@ describe("las puertas van al alta, desde una sola fuente", () => {
     // Quien pulsa «tengo un negocio» ya ha elegido: mandarle a elegir otra vez es un paso de más.
     expect(CTA_NEGOCIO.href).toBe("/empezar/empresa");
     expect(ENLACE_PIE_EMPRESAS.href).toBe("/empezar/empresa");
-    expect(CTA_NEGOCIO.texto).toBe("¿Tienes un negocio? Regístralo aquí");
+    // Desde la P5b2b el texto del botón vive en los textos: `negocio.cta`.
+    expect(es.negocio.cta).toBe("¿Tienes un negocio? Regístralo aquí");
     // Desde la P5b1 el texto vive en los textos (una sola fuente igual): `pie.paraEmpresas`.
     expect(es.pie.paraEmpresas).toBe("Para empresas");
   });
@@ -79,7 +80,8 @@ describe("la portada", () => {
     // Desde la P5b1 el título vive en los textos (`inicio.tienesNegocio`).
     expect(portada).toContain('t("tienesNegocio")');
     expect(es.inicio.tienesNegocio).toBe("¿Tienes un negocio?");
-    expect(portada).toContain("msgSocioFundador(idioma)");
+    // Desde la P5b2b el aviso sale del diccionario con las cifras de la config (`textos/empresa`).
+    expect(portada).toContain("socioFundador(tn, idioma)");
     expect(portada).toContain("href={CTA_NEGOCIO.href}");
   });
 

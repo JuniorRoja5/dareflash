@@ -4,13 +4,7 @@
  * Las reglas de producto que aun no ha cerrado el propietario van aqui con un
  * comentario `// PENDIENTE`, nunca esparcidas por el codigo.
  */
-import {
-  formatearFecha,
-  horaDelReinicioDiario,
-  type Idioma,
-  ZONA_MADRID,
-  type ZonaHoraria,
-} from "@/lib/formato";
+import { horaDelReinicioDiario, type Idioma, type ZonaHoraria } from "@/lib/formato";
 import { contieneMarcaVetada, MARCA, MARCAS_VETADAS } from "./marca";
 
 /**
@@ -2472,17 +2466,9 @@ export const SOCIO_FUNDADOR_HASTA_ISO = "2027-06-30T23:59:59.999+02:00";
  */
 export const SOCIO_FUNDADOR_CREDITOS = 90;
 
-/**
- * EL AVISO DE SOCIOS FUNDADORES, construido con las dos constantes y no escrito a mano. Si la
- * fecha o la cifra se mueven, el copy se mueve con ellas; escrito a mano, la pantalla seguiria
- * prometiendo lo de antes y nadie lo notaria hasta que alguien lo reclamara.
- */
-export function msgSocioFundador(idioma: Idioma): string {
-  // El fin de la oferta se fijó en hora de MADRID (ver `SOCIO_FUNDADOR_HASTA_ISO`): la fecha se dice
-  // en esa zona a cualquiera, porque es la del contrato, no la de quien lee.
-  const hasta = formatearFecha(SOCIO_FUNDADOR_HASTA_ISO, idioma, ZONA_MADRID, "diaMesLargoAno");
-  return `Socios Fundadores: las empresas que verifiquemos antes del ${hasta} se llevan ${fraseRegaloPublico()}.`;
-}
+// EL AVISO DE SOCIOS FUNDADORES (el público, antes de registrarse) vive desde la P5b2b en el diccionario:
+// `socioFundador` de `textos/empresa`, construido con estas mismas constantes. Un test exige que diga
+// exactamente lo que `fraseRegaloPublico`, que sigue aquí para el correo.
 
 /**
  * LO QUE SE REGALA, dicho sin prometer de más (P10): «N días de publicidad» solo era cierto en una
@@ -2503,7 +2489,7 @@ export function fraseRegaloSocioFundador(tipoNegocio: TipoNegocio): string {
 
 /**
  * EL REGALO DICHO A QUIEN AÚN NO SABEMOS QUÉ NEGOCIO TIENE: el aviso público de Socios Fundadores
- * (`msgSocioFundador`, antes de registrarse). Quien lo lee puede ser cualquiera de los dos, así que se
+ * (`socioFundador` de `textos/empresa`, antes de registrarse). Quien lo lee puede ser cualquiera de los dos, así que se
  * dicen LOS DOS casos: prometer solo «tu ciudad» se lo prometería también a quien vende online.
  * Un censo exige que solo lo usen las superficies anónimas (y el respaldo del correo con un tipo roto).
  */
@@ -2514,7 +2500,7 @@ export function fraseRegaloPublico(): string {
 }
 
 const REGALO = `${SOCIO_FUNDADOR_CREDITOS} créditos de publicidad de regalo`;
-const diasDeRegalo = (a: AlcancePublicidad) =>
+export const diasDeRegalo = (a: AlcancePublicidad) =>
   Math.floor(SOCIO_FUNDADOR_CREDITOS / CREDITOS_POR_DIA[a]);
 const enDias = (n: number) => `${n} ${n === 1 ? "día" : "días"}`;
 
@@ -2530,7 +2516,7 @@ const REGALO_EN_ALCANCE: Record<AlcancePublicidad, string> = {
 };
 
 /** El alcance más barato que puede comprar un tipo de negocio (con el que el regalo da más días). */
-function alcanceMasBarato(tipoNegocio: TipoNegocio): AlcancePublicidad {
+export function alcanceMasBarato(tipoNegocio: TipoNegocio): AlcancePublicidad {
   return [...ALCANCES_POR_NEGOCIO[tipoNegocio]].sort(
     (a, b) => CREDITOS_POR_DIA[a] - CREDITOS_POR_DIA[b],
   )[0]!;
@@ -2960,14 +2946,9 @@ export const ANUNCIO_CASA_DESTINO = {
 // principal: se lleva el UNICO acento de accion de la pantalla.
 // ----------------------------------------------------------------------------
 
-export const TITULO_EMPEZAR = `¿Cómo quieres usar ${MARCA}?`;
-export const SUBTITULO_EMPEZAR =
-  "Dos cuentas distintas, y no se pueden mezclar: elige con cuál entras.";
-
+// Las PALABRAS de /empezar (título, subtítulo y los dos caminos) viven en el diccionario desde la P5b2b
+// (`empezar`, `negocio`): aquí solo los destinos.
 export const CAMINO_PARTICIPANTE = {
-  titulo: "Quiero participar",
-  cuerpo: "Sube tus vídeos, compite en los retos y gana premios de verdad.",
-  cta: "Crear mi cuenta",
   href: "/entrar?registro=1",
 } as const;
 
@@ -2983,7 +2964,7 @@ export const CAMINO_PARTICIPANTE = {
  * negocio» ya ha elegido.
  */
 export const CTA_NEGOCIO = {
-  texto: "¿Tienes un negocio? Regístralo aquí",
+  // Su texto, en el diccionario (`negocio.cta`, P5b2b).
   href: "/empezar/empresa",
 } as const;
 
@@ -2992,10 +2973,7 @@ export const CTA_NEGOCIO = {
 export const ENLACE_PIE_EMPRESAS = { href: "/empezar/empresa" } as const;
 
 export const CAMINO_EMPRESA = {
-  titulo: "Soy un negocio",
-  cuerpo:
-    "Patrocina retos y anúnciate donde está tu gente. Una cuenta de empresa lo ve todo, pero no participa: ni sube vídeos ni vota.",
-  cta: "Registrar mi empresa",
+  // Sus palabras, en el diccionario (`negocio.camino*`, P5b2b).
   href: "/empezar/empresa",
 } as const;
 

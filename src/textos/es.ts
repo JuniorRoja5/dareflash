@@ -458,6 +458,8 @@ export const es = conMarcasConocidas({
     monedero: "Mi monedero",
     vip: "VIP Mythic",
     boosts: "Mis Boosts",
+    empezar: "Empezar",
+    altaEmpresa: "Registrar mi empresa",
   },
 
   // ── Acceso (P5b2a): entrar, crear cuenta, recuperar, restablecer, verificar, reactivar, correo ─────
@@ -1021,6 +1023,115 @@ export const es = conMarcasConocidas({
     aparecen: "Tus Boosts aparecen en el saldo en unos segundos. Si no los ves, actualiza.",
     actualizando: "Actualizando…",
     actualizar: "Actualizar",
+  },
+
+  // ── Empresas: el camino de entrada (P5b2b) ───────────────────────────────────────────────────────
+  /**
+   * Lo que se le dice a un NEGOCIO fuera de su portal: el botón de /entrar y de la portada, el camino
+   * de /empezar y el aviso de Socios Fundadores. Las CIFRAS (créditos, días, la fecha) salen de la
+   * config; aquí, cómo se dicen. El panel y los servicios siguen con su castellano en la config
+   * (`fraseRegaloPublico`, `fraseCreditoPublica`, `ETIQUETA_TIPO_*`): un test exige que digan
+   * exactamente lo mismo.
+   */
+  negocio: {
+    cta: "¿Tienes un negocio? Regístralo aquí",
+    caminoTitulo: "Soy un negocio",
+    caminoCuerpo:
+      "Patrocina retos y anúnciate donde está tu gente. Una cuenta de empresa lo ve todo, pero no participa: ni sube vídeos ni vota.",
+    caminoCta: "Registrar mi empresa",
+    /** UNA frase entera (antes, cuatro trozos empalmados en la config). */
+    socioFundador:
+      "Socios Fundadores: las empresas que verifiquemos antes del {fecha} se llevan {creditos} créditos de publicidad de regalo: hasta {diasLocal} {alcanceLocal} si tienes un local, o {diasFuera} {alcanceFuera} si vendes online o eres una marca.",
+    dias: { one: "{n} día", other: "{n} días" },
+    regaloEn_CIUDAD: "anunciándote en tu ciudad",
+    regaloEn_ESTADO: "anunciándote en tu región",
+    regaloEn_PAIS: "anunciándote en un país",
+    regaloEn_GLOBAL: "anunciándote en todo el mundo",
+    /** Cuánto cuesta un día de campaña, con las cifras de `CREDITOS_POR_DIA`. */
+    creditoDia: {
+      one: "Un día de campaña cuesta {n} crédito en una ciudad y {global} en todo el mundo, y se descuenta cada día que se muestra.",
+      other:
+        "Un día de campaña cuesta {n} créditos en una ciudad y {global} en todo el mundo, y se descuenta cada día que se muestra.",
+    },
+    /** Las etiquetas de los tipos (`ETIQUETA_TIPO_*`, que el panel sigue leyendo en castellano). */
+    tipoCuenta_EMPRESA: "Empresa",
+    tipoCuenta_MARCA_PERSONAL: "Marca personal",
+    tipoNegocio_FISICO: "Negocio físico",
+    tipoNegocio_ONLINE: "Negocio online",
+    tipoNegocio_MARCA_O_DIGITAL: "Marca o producto digital",
+  },
+  /** /empezar: los dos caminos (servidor). */
+  empezar: {
+    titulo: "¿Cómo quieres usar {marca}?",
+    subtitulo: "Dos cuentas distintas, y no se pueden mezclar: elige con cuál entras.",
+    participante: "Participante",
+    negocio: "Negocio",
+    participarTitulo: "Quiero participar",
+    participarCuerpo: "Sube tus vídeos, compite en los retos y gana premios de verdad.",
+    participarCta: "Crear mi cuenta",
+  },
+  /** El formulario del alta de empresa (isla de CLIENTE; los tipos, del espacio `negocio`). */
+  altaFormulario: {
+    falta_nombre: "el nombre",
+    falta_contacto: "la persona de contacto",
+    falta_webRedes: "la web o las redes",
+    falta_correo: "el correo",
+    falta_clave: "la contraseña",
+    falta_acepta: "aceptar la política de privacidad",
+    errorRegistrar: "No hemos podido registrar la empresa.",
+    sinConexion: "No hemos podido conectar. Reinténtalo.",
+    recibido: "Recibido.",
+    bloqueNegocio: "Tu negocio",
+    nombre: "Nombre comercial",
+    nombrePlaceholder: "Como te conoce la gente",
+    quienFirma: "¿Quién firma la cuenta?",
+    claseNegocio: "¿Qué clase de negocio es?",
+    bloqueUbicacion: "Ubicación",
+    pais: "País",
+    ciudad: "Ciudad (opcional)",
+    ciudadPlaceholder: "Dónde estáis",
+    direccion: "Dirección (opcional)",
+    direccionPlaceholder: "Calle y número",
+    direccionAyuda: "Solo para comprobar quién eres: no se publica.",
+    bloqueContacto: "Contacto",
+    persona: "Persona de contacto",
+    personaPlaceholder: "Con quién hablamos",
+    web: "Web",
+    webPlaceholder: "https://…",
+    redes: "Redes",
+    redesPlaceholder: "@tunegocio, un enlace…",
+    bloqueFiscal: "Datos fiscales (opcional)",
+    fiscalDescripcion:
+      "La identificación fiscal solo la vemos nosotros al verificarte: no sale en ningún listado ni en ningún correo.",
+    fiscal: "Identificación fiscal",
+    fiscalPlaceholder: "NIF, CIF, RUT, RFC…",
+    fiscalPais: "País que la emite",
+    sinIndicar: "Sin indicar",
+    bloqueAcceso: "Acceso",
+    correo: "Correo",
+    etiquetaClave: "Contraseña",
+    /** UNA frase con el enlace dentro. */
+    acepto: "Acepto la {enlace:política de privacidad} y los términos.",
+    /** En móvil, lo primero que falta y cuántos más; con ancho, la lista entera. */
+    faltaUno: "Falta: {campo}.",
+    faltaYMas: "Falta: {campo} y {n} más.",
+    faltaLista: "Falta: {lista}.",
+    enviando: "Enviando…",
+    crear: "Crear cuenta de empresa",
+  },
+  /** /empezar/empresa: la página (servidor). */
+  altaEmpresa: {
+    titulo: "Registra tu empresa",
+    intro:
+      "Las revisamos a mano, una por una. Cuéntanos quién eres y te escribimos en cuanto esté.",
+    queTeLlevas: "Qué te llevas",
+    llevaRetos: "Patrocina retos con tu marca: tú pones el reto y el premio.",
+    llevaCreditos: "Créditos de publicidad: {frase}",
+    llevaNoParticipas: "Lo ves todo, pero no participas: ni subes vídeos ni votas.",
+    despues: "Después de enviar",
+    paso1: "Te enviamos un correo para confirmar tu dirección.",
+    paso2: "Revisamos tu empresa a mano, una por una.",
+    paso3: "Te escribimos en cuanto la decidamos. Si no podemos verificarla, te decimos por qué.",
   },
 
   // ── Perfil (P5b2a): el propio y el público comparten la vista ────────────────────────────────────

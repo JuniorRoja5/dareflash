@@ -24,6 +24,7 @@ export default async function EntrarPage() {
     "formAcceso",
     "login",
     "registro",
+    "negocio",
   ] as const);
   return (
     <div className="relative flex min-h-svh flex-col overflow-hidden bg-void">
