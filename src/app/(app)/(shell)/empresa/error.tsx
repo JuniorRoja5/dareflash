@@ -1,5 +1,6 @@
 "use client";
 
+import { useTextos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { Tarjeta } from "@/components/ui/tarjeta";
 
@@ -20,15 +21,15 @@ export default function ErrorPortal({
   error: Error & { digest?: string };
   retry: () => void;
 }) {
+  // El MISMO texto que `ErrorPantalla` (espacio `errorPantalla`, en el armazón): aquí sin su contenedor,
+  // porque vive dentro del layout del portal.
+  const t = useTextos("errorPantalla");
   return (
     <Tarjeta className="max-w-prose p-5 lg:p-6" role="alert">
-      <h1 className="text-base font-semibold text-text">No hemos podido cargar esta sección</h1>
-      <p className="mt-2 text-sm text-text-dim">
-        Ha fallado algo de nuestro lado, no de lo que has hecho. Vuelve a intentarlo en un momento;
-        si sigue igual, escríbenos.
-      </p>
+      <h1 className="text-base font-semibold text-text">{t("titulo_empresa")}</h1>
+      <p className="mt-2 text-sm text-text-dim">{t("texto")}</p>
       <Boton variante="secundario" className="mt-4" onClick={() => retry()}>
-        Reintentar
+        {t("reintentar")}
       </Boton>
     </Tarjeta>
   );

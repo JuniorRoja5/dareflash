@@ -162,6 +162,7 @@ export const es = conMarcasConocidas({
     /** El título de cada sección que tiene su `error.tsx`. */
     titulo_puntos: "No hemos podido cargar tus puntos",
     titulo_monedero: "No hemos podido cargar tu monedero",
+    titulo_empresa: "No hemos podido cargar esta sección",
   },
   /** Un campo de solo lectura con su botón de copiar (`CampoCopiable`). */
   copiar: {

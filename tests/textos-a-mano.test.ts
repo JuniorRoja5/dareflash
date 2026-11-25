@@ -41,7 +41,6 @@ const PENDIENTES_P5B2 = [
   "src/app/(app)/(shell)/empresa/creditos/comprar-creditos.tsx",
   "src/app/(app)/(shell)/empresa/creditos/page.tsx",
   "src/app/(app)/(shell)/empresa/cuenta/page.tsx",
-  "src/app/(app)/(shell)/empresa/error.tsx",
   "src/app/(app)/(shell)/empresa/movimientos-creditos.tsx",
   "src/app/(app)/(shell)/empresa/nav-portal.tsx",
   "src/app/(app)/(shell)/empresa/page.tsx",
