@@ -60,8 +60,32 @@ vi.mock("@/server/auth/empresa-actual", () => ({
   requireEmpresa: async () => ({ user: { userId: "u1" }, empresaId: "e1", estado: "VERIFICADA" }),
 }));
 vi.mock("@/server/services/empresas", () => ({
-  miEmpresa: async () => ({ tipoNegocio: "FISICO" }),
+  miEmpresa: async () => ({ tipoNegocio: "FISICO", paisIso: "ES" }),
 }));
+vi.mock("@/server/services/publicidad", () => ({
+  saldoCreditosDe: async () => ({ saldo: 10, comprometido: 0 }),
+  regionesDePais: async () => [],
+  paisesDelCatalogo: async () => new Set<string>(),
+  estimacionDeMiPublicidad: async () => null,
+  miPublicidad: async () => ({
+    id: "campana0000001",
+    nombre: "Pan",
+    estado: "BORRADOR",
+    alcance: "CIUDAD",
+    zona: "Sevilla",
+    texto: "Pan",
+    destinoUrl: "https://bar.test",
+    imagen: null,
+    inicioMs: Date.UTC(2030, 0, 1),
+    finMs: null,
+    diasContratados: 7,
+    diasTenidos: 0,
+    creditosPorDia: 1,
+    creadaMs: 0,
+    motivoRetirada: null,
+  }),
+}));
+vi.mock("@/server/services/publicidad-metricas", () => ({ informeDeMiCampana: async () => null }));
 vi.mock("@/server/services/creditos", () => ({
   misCreditos: async () => ({ saldo: 3, movimientos: [], nextCursor: null }),
 }));
@@ -85,6 +109,8 @@ import PaginaAltaEmpresa from "@/app/(app)/(shell)/empezar/empresa/page";
 import PaginaCreditos from "@/app/(app)/(shell)/empresa/creditos/page";
 import CuentaEmpresaPage from "@/app/(app)/(shell)/empresa/cuenta/page";
 import LayoutPortal from "@/app/(app)/(shell)/empresa/layout";
+import PaginaCampana from "@/app/(app)/(shell)/empresa/publicidad/[id]/page";
+import PaginaNuevaCampana from "@/app/(app)/(shell)/empresa/publicidad/nueva/page";
 import EditarPerfilPage from "@/app/(app)/(shell)/perfil/editar/page";
 import { TextosProvider } from "@/components/textos-provider";
 import { es } from "@/textos/es";
@@ -132,6 +158,22 @@ describe("el portal de empresa y su alta (P5b2b)", () => {
     const c = await enElArmazon(await PaginaCreditos({ searchParams: Promise.resolve({}) }));
     expect(c.textContent).toContain(es.creditosCompra.titulo);
     expect(c.textContent).toContain(es.creditosCompra.condiciones);
+  });
+
+  it("nueva campaña: el formulario y el buscador de ciudad reciben los suyos", async () => {
+    const c = await enElArmazon(await PaginaNuevaCampana());
+    expect(c.textContent).toContain(es.campanaFormulario.crear);
+    expect(c.textContent).toContain(es.buscadorCiudad.ayuda);
+  });
+
+  it("la ficha de una campaña: las acciones reciben el suyo", async () => {
+    const c = await enElArmazon(
+      await PaginaCampana({
+        params: Promise.resolve({ id: "campana0000001" }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+    expect(c.textContent).toContain(es.accionesCampana.programar);
   });
 
   it("el alta (sin sesión, quien la ve): el formulario recibe el suyo", async () => {

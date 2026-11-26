@@ -8,27 +8,19 @@ import { Boton } from "@/components/ui/boton";
 import { delCsrf, mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import type { AccionPublicidad } from "@/lib/publicidad";
 import { useFormato } from "@/components/formato-provider";
+import { useTextos, useTextosRicos } from "@/components/textos-provider";
 import { formatearDiaClave, type Idioma } from "@/lib/formato";
 
 /** La primera fecha libre es una CLAVE de día UTC de la campaña: etiqueta de calendario, sin zona. */
 const fechaLarga = (iso: string, idioma: Idioma) =>
   formatearDiaClave(iso, idioma, "diaMesLargoAno");
 
-/** El texto de cada botón. La acción principal de la ficha va en el botón principal; el resto, no. */
-const TEXTO: Record<AccionPublicidad, string> = {
-  ACTIVAR: "Activar",
-  PAUSAR: "Pausar",
-  REANUDAR: "Reanudar",
-  TERMINAR: "Terminar ya",
-  BORRAR: "Borrar borrador",
-};
-
-/** Lo que se confirma antes de hacer algo que no tiene vuelta atrás. */
-const CONFIRMAR: Partial<Record<AccionPublicidad, string>> = {
-  TERMINAR:
-    "¿Terminar la campaña ya? Sus días por venir quedarán libres para otras campañas y no se puede reanudar.",
-  BORRAR: "¿Borrar este borrador? No se puede deshacer.",
-};
+/**
+ * Lo que se confirma antes de hacer algo que no tiene vuelta atrás (terminar, borrar): su pregunta es
+ * `accionesCampana.confirmar_<ACCIÓN>`. El texto de cada botón, `accion_<ACCIÓN>`.
+ */
+const SIN_VUELTA_ATRAS = (a: AccionPublicidad): a is "TERMINAR" | "BORRAR" =>
+  a === "TERMINAR" || a === "BORRAR";
 
 /**
  * LO QUE LA EMPRESA PUEDE HACER CON SU CAMPAÑA (Fase 9 · P6). Los botones salen de `accionesPublicidad`
@@ -49,6 +41,8 @@ export function AccionesCampana({
   empiezaHoy: boolean;
 }) {
   const { idioma } = useFormato();
+  const t = useTextos("accionesCampana");
+  const tr = useTextosRicos("accionesCampana");
   const router = useRouter();
   const navegar = useNavegar();
   const [enCurso, setEnCurso] = useState<AccionPublicidad | null>(null);
@@ -56,8 +50,7 @@ export function AccionesCampana({
   const [libre, setLibre] = useState<{ accion: AccionPublicidad; fecha: string } | null>(null);
 
   async function hacer(accion: AccionPublicidad, fechaInicio?: string): Promise<void> {
-    const aviso = CONFIRMAR[accion];
-    if (aviso && !window.confirm(aviso)) return;
+    if (SIN_VUELTA_ATRAS(accion) && !window.confirm(t(`confirmar_${accion}`))) return;
     setEnCurso(accion);
     setError(null);
     try {
@@ -79,10 +72,10 @@ export function AccionesCampana({
         setLibre(fecha ? { accion, fecha } : null);
         setError(mensajeDe(r.data));
       } else {
-        setError(mensajeDe(r.data) || "No hemos podido hacerlo. Inténtalo otra vez.");
+        setError(mensajeDe(r.data) || t("errorHacer"));
       }
     } catch {
-      setError("No hemos podido conectar. Revisa tu conexión e inténtalo de nuevo.");
+      setError(t("sinConexion"));
     }
     setEnCurso(null);
   }
@@ -108,10 +101,10 @@ export function AccionesCampana({
             className="w-full sm:w-auto"
           >
             {enCurso === a
-              ? "Un momento…"
+              ? t("unMomento")
               : a === "ACTIVAR" && !empiezaHoy
-                ? "Programar"
-                : TEXTO[a]}
+                ? t("programar")
+                : t(`accion_${a}`)}
           </Boton>
         ))}
       </div>
@@ -123,8 +116,11 @@ export function AccionesCampana({
       {libre ? (
         <div className="rounded-sm border border-line bg-raised p-4">
           <p className="text-sm text-text">
-            El primer hueco libre para todos sus días empieza el{" "}
-            <span className="font-semibold">{fechaLarga(libre.fecha, idioma)}</span>.
+            {tr(
+              "hueco",
+              { resaltado: { className: "font-semibold" } },
+              { fecha: fechaLarga(libre.fecha, idioma) },
+            )}
           </p>
           <Boton
             type="button"
@@ -133,7 +129,7 @@ export function AccionesCampana({
             disabled={enCurso !== null}
             onClick={() => void hacer(libre.accion, libre.fecha)}
           >
-            Programar para el {fechaLarga(libre.fecha, idioma)}
+            {t("programarPara", { fecha: fechaLarga(libre.fecha, idioma) })}
           </Boton>
         </div>
       ) : null}

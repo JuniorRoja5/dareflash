@@ -13,10 +13,16 @@ import { describe, expect, it } from "vitest";
 import {
   CAPITAL_DE_PAIS_CON_VARIAS_ZONAS,
   ZONA_HORARIA_PAIS,
-  fraseInicioDelDia,
   horaLocalDeInicio,
   inicioLocalDelDia,
 } from "../src/lib/zona-horaria-pais";
+import { es } from "../src/textos/es";
+import { crearT } from "../src/textos/plantilla";
+import { fraseInicioDelDia as fraseConT } from "../src/textos/publicidad";
+
+/** Desde la P5b2b la frase sale del diccionario (`campanaComun`); la hora y la capital, de `lib`. */
+const fraseInicioDelDia = (pais: string, dia: Date) =>
+  fraseConT(crearT(es.campanaComun, "es"), pais, dia);
 
 const INVIERNO = new Date("2026-11-07T10:00:00.000Z");
 const VERANO = new Date("2027-07-07T10:00:00.000Z");

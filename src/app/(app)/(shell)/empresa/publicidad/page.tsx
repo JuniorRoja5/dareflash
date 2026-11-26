@@ -3,15 +3,18 @@ import { Enlace } from "@/components/enlace";
 import { Boton } from "@/components/ui/boton";
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { Tarjeta } from "@/components/ui/tarjeta";
-import { ETIQUETA_ESTADO_PUBLICIDAD } from "@/config/constants";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
-import { fraseSaldo } from "@/lib/publicidad";
+import type { FuncionT } from "@/textos/plantilla";
+import { estadoCampana, fraseSaldo } from "@/textos/publicidad";
+import { textos, type Textos } from "@/textos/servidor";
 
 import { ambitoDelPortal } from "../ambito-portal";
 import { AvisoVerificar } from "../aviso-verificar";
 import { formatearDiaClave, type Idioma } from "@/lib/formato";
 
-export const metadata = { title: "Publicidad" };
+export async function generateMetadata() {
+  return { title: (await textos("publicidad"))("titulo") };
+}
 // Lee la sesión y las campañas de la empresa: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 
@@ -28,13 +31,17 @@ const texto = (v: string | string[] | undefined): string =>
 
 /** El calendario en una línea: «1 dic – 7 dic 2026» o, en un borrador, desde cuándo y cuántos días. */
 function calendario(
+  t: FuncionT<Textos["publicidad"]>,
   c: { estado: string; inicioMs: number; finMs: number | null; diasContratados: number },
   idioma: Idioma,
 ) {
   if (c.estado === "BORRADOR" || c.finMs === null) {
-    return `Desde ${fecha(c.inicioMs, idioma)} · ${c.diasContratados} ${c.diasContratados === 1 ? "día" : "días"}`;
+    return t("desde", {
+      fecha: fecha(c.inicioMs, idioma),
+      dias: t("dias", { n: c.diasContratados }),
+    });
   }
-  return `${fecha(c.inicioMs, idioma)} – ${fecha(c.finMs, idioma)}`;
+  return t("tramo", { desde: fecha(c.inicioMs, idioma), hasta: fecha(c.finMs, idioma) });
 }
 
 /**
@@ -52,10 +59,11 @@ export default async function PaginaPublicidad({
   const ambito = await ambitoDelPortal();
   const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
   const idioma = await idiomaDeLaPeticion();
+  const [t, tc] = await Promise.all([textos("publicidad"), textos("campanaComun")]);
   if (ambito === null) {
     return (
       <div className="df-rise">
-        <h1 className="text-2xl text-text">Publicidad</h1>
+        <h1 className="text-2xl text-text">{t("titulo")}</h1>
         <div className="mt-6">
           <AvisoVerificar />
         </div>
@@ -77,40 +85,38 @@ export default async function PaginaPublicidad({
     <div className="df-rise space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl text-text">Publicidad</h1>
-          <p className="mt-1 max-w-prose text-sm text-text-dim">
-            Tus campañas y los días que tiene reservados cada una.
-          </p>
+          <h1 className="text-2xl text-text">{t("titulo")}</h1>
+          <p className="mt-1 max-w-prose text-sm text-text-dim">{t("subtitulo")}</p>
           <p className="mt-1 max-w-prose text-sm text-text">
-            {fraseSaldo(saldo.saldo, saldo.comprometido, "todas")}
+            {fraseSaldo(tc, saldo.saldo, saldo.comprometido, "todas")}
           </p>
         </div>
         {/* SECUNDARIO: el acento de la pantalla es el CTA del cromo, y uno solo por pantalla. */}
         {verificada ? (
           <Boton href="/empresa/publicidad/nueva" variante="secundario">
-            Nueva campaña
+            {t("nueva")}
           </Boton>
         ) : null}
       </div>
 
       {!verificada ? (
         <p className="max-w-prose rounded-sm border border-line bg-surface p-4 text-sm text-text-dim">
-          Podrás crear campañas en cuanto verifiquemos tu empresa.
+          {t("sinVerificar")}
         </p>
       ) : null}
 
       <section aria-labelledby="campanas" className="space-y-3">
         <h2 id="campanas" className={CABECERA}>
-          Tus campañas
+          {t("tusCampanas")}
         </h2>
         {pagina.items.length === 0 ? (
           <Tarjeta className="p-5">
             <p className="max-w-prose text-sm text-text-dim">
               {aqui.cursor !== null
-                ? "No quedan más campañas por aquí."
+                ? t("vacioPosterior")
                 : verificada
-                  ? "Todavía no tienes ninguna campaña. Crea la primera: es un borrador hasta que tú la actives."
-                  : "Aquí verás tus campañas y los días de cada una."}
+                  ? t("vacioPrimera")
+                  : t("vacioSinVerificar")}
             </p>
           </Tarjeta>
         ) : (
@@ -119,11 +125,11 @@ export default async function PaginaPublicidad({
               <table className="w-full border-collapse text-left text-sm">
                 <thead className="border-b border-line">
                   <tr>
-                    <th className={`pl-5 ${TH}`}>Campaña</th>
-                    <th className={TH}>Zona</th>
-                    <th className={TH}>Días</th>
-                    <th className={`text-right ${TH}`}>Cr./día</th>
-                    <th className={`pr-5 ${TH}`}>Estado</th>
+                    <th className={`pl-5 ${TH}`}>{t("col_campana")}</th>
+                    <th className={TH}>{t("col_zona")}</th>
+                    <th className={TH}>{t("col_dias")}</th>
+                    <th className={`text-right ${TH}`}>{t("col_crDia")}</th>
+                    <th className={`pr-5 ${TH}`}>{t("col_estado")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -141,13 +147,13 @@ export default async function PaginaPublicidad({
                         {c.zona}
                       </td>
                       <td className="py-3 pr-4 whitespace-nowrap text-text-dim tabular-nums">
-                        {calendario(c, idioma)}
+                        {calendario(t, c, idioma)}
                       </td>
                       <td className="py-3 pr-4 text-right text-text tabular-nums">
                         {c.creditosPorDia}
                       </td>
                       <td className="py-3 pr-5">
-                        <span className={PILDORA}>{ETIQUETA_ESTADO_PUBLICIDAD[c.estado]}</span>
+                        <span className={PILDORA}>{estadoCampana(t, c.estado)}</span>
                       </td>
                     </tr>
                   ))}
@@ -164,11 +170,14 @@ export default async function PaginaPublicidad({
                         <h3 className="min-w-0 flex-1 text-sm font-semibold break-words text-text">
                           {c.nombre}
                         </h3>
-                        <span className={PILDORA}>{ETIQUETA_ESTADO_PUBLICIDAD[c.estado]}</span>
+                        <span className={PILDORA}>{estadoCampana(t, c.estado)}</span>
                       </div>
                       <p className="mt-1 text-2xs break-words text-text-dim">{c.zona}</p>
                       <p className="mt-1 text-2xs text-text-dim tabular-nums">
-                        {calendario(c, idioma)} · {c.creditosPorDia} cr./día
+                        {t("crDiaMovil", {
+                          calendario: calendario(t, c, idioma),
+                          tarifa: String(c.creditosPorDia),
+                        })}
                       </p>
                     </Tarjeta>
                   </Enlace>

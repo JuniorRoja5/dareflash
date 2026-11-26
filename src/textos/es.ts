@@ -1249,6 +1249,216 @@ export const es = conMarcasConocidas({
     subtitulo: "El correo con el que entras es también donde te escribimos sobre tu empresa.",
   },
 
+  // ── Publicidad del portal (P5b2b) ────────────────────────────────────────────────────────────────
+  /**
+   * Lo que comparten las pantallas de publicidad y el formulario (servidor Y cliente): el saldo en
+   * humano, el alcance, a qué hora empieza cada día. Las cifras de saldo van TAL CUAL (sin separador de
+   * miles), como antes: formatearlas sería un cambio visible que no se ha aprobado.
+   */
+  campanaComun: {
+    volver: "Publicidad",
+    creditosPalabra: { one: "crédito", other: "créditos" },
+    saldoSolo: "Tienes {saldo} {palabra} de publicidad.",
+    saldoComprometido:
+      "Tienes {saldo} {palabra} de publicidad; {comprometido} ya están comprometidos en {donde}, así que te quedan {quedan} para nuevas.",
+    donde_otras: "tus otras campañas",
+    donde_todas: "tus campañas activas y programadas",
+    /** `MSG_SALDO_NO_RETENIDO` (la cita el servicio); un test exige que digan lo mismo. */
+    saldoNoRetenido:
+      "Comprobamos que tienes créditos de publicidad para todos los días, pero no los apartamos: se descuentan cada día de campaña. Si cuando llegue un día no te quedan, la campaña se pausa.",
+    /** `ETIQUETA_ALCANCE_PUBLICIDAD` (el panel); un test exige que digan lo mismo. */
+    alcance_CIUDAD: "Una ciudad y alrededores",
+    alcance_ESTADO: "Una región entera",
+    alcance_PAIS: "Uno o varios países",
+    alcance_GLOBAL: "Todo el mundo",
+    /** «a la 1:00», «a las 19:00»: la forma la elige la hora con las reglas de plural del idioma. */
+    aLaHora: { one: "a la {hora}", other: "a las {hora}" },
+    inicioLocal: "Cada día de campaña empieza {cuando} en tu hora local.",
+    inicioLocalVispera: "Cada día de campaña empieza {cuando} del día anterior, en tu hora local.",
+    inicioCapital: "Cada día de campaña empieza {cuando}, hora de {capital}.",
+    inicioCapitalVispera:
+      "Cada día de campaña empieza {cuando} del día anterior, hora de {capital}.",
+  },
+  /** /empresa/publicidad y la ficha de una campaña (servidor). */
+  publicidad: {
+    titulo: "Publicidad",
+    subtitulo: "Tus campañas y los días que tiene reservados cada una.",
+    nueva: "Nueva campaña",
+    sinVerificar: "Podrás crear campañas en cuanto verifiquemos tu empresa.",
+    tusCampanas: "Tus campañas",
+    vacioPosterior: "No quedan más campañas por aquí.",
+    vacioPrimera:
+      "Todavía no tienes ninguna campaña. Crea la primera: es un borrador hasta que tú la actives.",
+    vacioSinVerificar: "Aquí verás tus campañas y los días de cada una.",
+    col_campana: "Campaña",
+    col_zona: "Zona",
+    col_dias: "Días",
+    col_crDia: "Cr./día",
+    col_estado: "Estado",
+    crDiaMovil: "{calendario} · {tarifa} cr./día",
+    dias: { one: "{n} día", other: "{n} días" },
+    desde: "Desde {fecha} · {dias}",
+    tramo: "{desde} – {hasta}",
+    /** `ETIQUETA_ESTADO_PUBLICIDAD` (el panel); un test exige que digan lo mismo. */
+    estado_BORRADOR: "Borrador",
+    estado_PROGRAMADA: "Programada",
+    estado_ACTIVA: "Activa",
+    estado_FINALIZADA: "Finalizada",
+    estado_PAUSADA: "Pausada",
+    estado_EN_REVISION: "En revisión",
+    estado_TERMINADA: "Terminada",
+    estado_RETIRADA: "Retirada",
+    /** Qué significa cada estado, contado a la empresa (solo lo pinta el portal). */
+    relato_BORRADOR: "Todavía no ocupa ningún día. Actívala o prográmala cuando quieras.",
+    relato_PROGRAMADA: "Tiene sus días reservados y empieza a mostrarse en la fecha indicada.",
+    relato_ACTIVA: "Se está mostrando en su zona, en el feed y en la portada.",
+    relato_FINALIZADA: "Ya pasaron sus días contratados.",
+    relato_PAUSADA:
+      "Está pausada. Sus días por venir quedaron libres para otras campañas; puedes reanudarla.",
+    relato_EN_REVISION:
+      "La hemos pausado mientras revisamos unas denuncias. Sus días por venir quedaron libres y no se te descuenta nada. Te escribiremos cuando lo hayamos decidido.",
+    relato_TERMINADA: "La terminaste antes de tiempo. Sus días por venir quedaron libres.",
+    relato_RETIRADA: "La hemos retirado y ya no se muestra.",
+    tituloFicha: "Campaña",
+    /** El motivo viene del servidor, ya en humano (P5b3); aquí, lo que se le añade. */
+    motivoRetirada: "{motivo} Si crees que es un error, contesta al correo que te enviamos.",
+    asiSeVera: "Así se verá",
+    llevaA: "Lleva a {resaltado:{url}}",
+    cuantaGente: "Cuánta gente la verá",
+    /** La cifra va resaltada DENTRO de la frase (con su espacio): antes eran dos trozos. */
+    estZona:
+      "{resaltado:unas {personas} }personas al día la verían, contando con las demás campañas de esas fechas.",
+    estMenosDeUna: "Con el tráfico de estos días, menos de una persona al día.",
+    estRespaldo:
+      "{resaltado:unas {personas} }personas al día ven publicidad en {nivel}. Todavía no tenemos tráfico medido en {zona}.",
+    estSinDatos: "Todavía no tenemos datos de {zona}: no podemos decirte cuánta gente la verá.",
+    estComo:
+      "Calculado con la gente que ha pasado por el feed en tu zona los últimos días, el peor día de tus fechas y redondeado a la baja.",
+    laCampana: "La campaña",
+    dato_alcance: "Alcance",
+    dato_zona: "Zona",
+    dato_empezaria: "Empezaría el",
+    dato_dias: "Días",
+    dato_crDia: "Créditos por día",
+    dato_coste: "Coste total",
+    dato_quedan: "Le quedan",
+    /** Como antes, «días» siempre (también con uno). */
+    borradorDias: "{fecha} · {dias} días",
+    costeBorrador: "{resaltado:{coste} créditos}",
+    costeQuedan: "{resaltado:{coste} créditos} ({dias} días)",
+    queHacer: "Qué quieres hacer",
+  },
+  /** /empresa/publicidad/nueva (servidor). */
+  nuevaCampana: {
+    titulo: "Nueva campaña",
+    sinRevision: "Sin revisión previa: la activas tú.",
+    sinVerificar:
+      "Podrás crear campañas en cuanto verifiquemos tu empresa. Te escribiremos cuando esté.",
+    comoFunciona: "Cómo funciona",
+    paso1: "Creas el borrador: todavía no ocupa días ni gasta créditos.",
+    paso2: "En su ficha ves cuánta gente la verá al día y cuánto cuesta.",
+    paso3: "La activas (o la programas para otro día) y reserva sus días.",
+    loQueCuesta: "Lo que cuesta un día",
+    tarifa_CIUDAD: "Ciudad (y 100 km)",
+    tarifa_ESTADO: "Región",
+    tarifa_PAIS: "Cada país",
+    tarifa_GLOBAL: "Todo el mundo",
+    cr: "{creditos} cr.",
+    limites:
+      "Como mucho {max} campañas por zona y día, para que cada una se vea. Puedes empezar hasta dentro de {dias} días.",
+  },
+  /** El formulario de una campaña nueva (cliente). */
+  campanaFormulario: {
+    falta_ciudad: "Elige la ciudad de la lista.",
+    falta_region: "Elige la región.",
+    falta_pais: "Añade al menos un país.",
+    falta_nombre: "Ponle un nombre a la campaña (al menos 3 caracteres).",
+    falta_texto: "Escribe el texto del anuncio.",
+    falta_destino: "El enlace tiene que ser una dirección web completa (https://…).",
+    falta_dias: "Elige entre {min} y {max} días.",
+    falta_imagen: "Sube la imagen de la campaña.",
+    errorCrear: "No hemos podido crear la campaña. Revisa los datos.",
+    sinConexion: "No hemos podido conectar. Revisa tu conexión e inténtalo de nuevo.",
+    donde: "Dónde",
+    dondeDescripcion: "Dónde se verá tu publicidad.",
+    alcance: "Alcance",
+    tarifaAlcance: "{tarifa} cr./día",
+    tarifaAlcancePais: "{tarifa} por país cr./día",
+    region: "Región",
+    elegirRegion: "Elige una región",
+    paises: "Países",
+    elegirPais: "Elige un país",
+    anadir: "Añadir",
+    paisesElegidos: "Países elegidos",
+    quitar: "Quitar {pais}",
+    avisoGlobal: "Con {paises} países pagas lo mismo que por Todo el mundo, que llega a más gente.",
+    cuando: "Cuándo",
+    cuandoDescripcion: "Se cuenta por días completos.",
+    empieza: "Empieza el",
+    dias: "Días",
+    pieza: "La pieza",
+    piezaDescripcion: "Lo que verá la gente en el feed.",
+    nombre: "Nombre de la campaña",
+    nombrePlaceholder: "Solo para ti: no lo ve nadie más",
+    texto: "Texto",
+    destino: "Enlace al pulsar",
+    imagen: "Imagen",
+    imagenAyuda: "PNG, JPG o WebP. Mejor en vertical: el feed se ve en el móvil.",
+    /** La barra del coste: UNA frase con su cifra resaltada dentro. */
+    costeConComprometido:
+      "{resaltado:{coste} créditos} en total · {tarifa} al día · te quedan {disponible} de {saldo} ({comprometido} ya comprometidos)",
+    costeSinComprometido:
+      "{resaltado:{coste} créditos} en total · {tarifa} al día · tienes {saldo}",
+    noLlega: "No te llega para todos los días: acórtala o libera otra campaña.",
+    creando: "Creando…",
+    crear: "Crear borrador",
+  },
+  /** El buscador de la ciudad de una campaña (cliente). */
+  buscadorCiudad: {
+    ciudad: "Ciudad",
+    placeholder: "Escribe el nombre de la ciudad",
+    buscando: "Buscando…",
+    error: "No hemos podido buscar. Inténtalo otra vez.",
+    sinResultados: "No encontramos esa ciudad en tu país.",
+    elegida: "Se verá en esta ciudad y en las que están a menos de 100 km.",
+    ayuda: "Ciudades de más de 15.000 habitantes de tu país.",
+  },
+  /** Lo que se puede hacer con una campaña (cliente). */
+  accionesCampana: {
+    accion_ACTIVAR: "Activar",
+    accion_PAUSAR: "Pausar",
+    accion_REANUDAR: "Reanudar",
+    accion_TERMINAR: "Terminar ya",
+    accion_BORRAR: "Borrar borrador",
+    programar: "Programar",
+    unMomento: "Un momento…",
+    confirmar_TERMINAR:
+      "¿Terminar la campaña ya? Sus días por venir quedarán libres para otras campañas y no se puede reanudar.",
+    confirmar_BORRAR: "¿Borrar este borrador? No se puede deshacer.",
+    errorHacer: "No hemos podido hacerlo. Inténtalo otra vez.",
+    sinConexion: "No hemos podido conectar. Revisa tu conexión e inténtalo de nuevo.",
+    hueco: "El primer hueco libre para todos sus días empieza el {resaltado:{fecha}}.",
+    programarPara: "Programar para el {fecha}",
+  },
+  /** Los resultados de una campaña (servidor). */
+  informeCampana: {
+    titulo: "Resultados",
+    explicacion:
+      "Veces que se mostró: las veces que la pusimos en el feed o en la portada. Clics: las veces que alguien la tocó para ir a tu web. Se actualizan cada {minutos} minutos.",
+    mostrada: "Veces que se mostró",
+    clics: "Clics",
+    porCien: "Clics por cada 100 veces que se mostró",
+    sinDiasAntiguos: "No hay días más antiguos.",
+    sinCifras: "Todavía no hay cifras. Aparecen en cuanto la campaña empieza a mostrarse.",
+    col_dia: "Día",
+    col_mostrada: "Veces que se mostró",
+    col_clics: "Clics",
+    col_porCien: "Clics por cada 100 veces",
+    veces: { one: "{n} vez", other: "{n} veces" },
+    clicsN: { one: "{n} clic", other: "{n} clics" },
+    movil: "se mostró {veces} · {clics}",
+  },
+
   // ── Perfil (P5b2a): el propio y el público comparten la vista ────────────────────────────────────
   /** Lo que pinta el SERVIDOR en la tarjeta del perfil (`PerfilVista`). */
   perfil: {

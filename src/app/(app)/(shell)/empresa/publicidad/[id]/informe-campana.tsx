@@ -4,6 +4,7 @@ import { PUBLICIDAD_METRICAS_CADENCIA_MS } from "@/config/constants";
 import type { Paginacion } from "@/lib/paginacion-pila";
 import { clicsPorCienVistas } from "@/lib/publicidad";
 import type { InformeDeCampana } from "@/server/services/publicidad-metricas";
+import { textos } from "@/textos/servidor";
 import { formatearNumero, formatearDecimal, formatearDiaClave, type Idioma } from "@/lib/formato";
 
 const CABECERA = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
@@ -31,7 +32,7 @@ const dia = (iso: string, idioma: Idioma) => formatearDiaClave(iso, idioma, "dia
  * hasta el hueco cuenta igual. «Vistas» prometería más de lo que mide. En el código sigue llamándose
  * `vistas` (la columna, el campo de Redis); lo que cambia es lo que lee la empresa.
  */
-export function InformeCampana({
+export async function InformeCampana({
   informe,
   aqui,
   base,
@@ -44,25 +45,22 @@ export function InformeCampana({
   idioma: Idioma;
 }) {
   const { totales, dias } = informe;
+  const t = await textos("informeCampana");
   return (
     <section aria-labelledby="resultados" className="space-y-3">
       <Tarjeta className="p-5 lg:p-6">
         <h2 id="resultados" className="text-base font-semibold text-text">
-          Resultados
+          {t("titulo")}
         </h2>
         <p className="mt-1 max-w-prose text-sm text-text-dim">
-          Veces que se mostró: las veces que la pusimos en el feed o en la portada. Clics: las veces
-          que alguien la tocó para ir a tu web. Se actualizan cada {MINUTOS} minutos.
+          {t("explicacion", { minutos: String(MINUTOS) })}
         </p>
 
         <dl className="mt-4 grid grid-cols-3 gap-3">
           {[
-            ["Veces que se mostró", cifra(totales.vistas, idioma)],
-            ["Clics", cifra(totales.clics, idioma)],
-            [
-              "Clics por cada 100 veces que se mostró",
-              porCien(totales.vistas, totales.clics, idioma),
-            ],
+            [t("mostrada"), cifra(totales.vistas, idioma)],
+            [t("clics"), cifra(totales.clics, idioma)],
+            [t("porCien"), porCien(totales.vistas, totales.clics, idioma)],
           ].map(([etiqueta, valor]) => (
             <div key={etiqueta} className="rounded-sm border border-line bg-surface p-3">
               <dt className="text-2xs text-text-dim">{etiqueta}</dt>
@@ -73,19 +71,17 @@ export function InformeCampana({
 
         {dias.length === 0 ? (
           <p className="mt-4 max-w-prose text-sm text-text-dim">
-            {aqui.cursor
-              ? "No hay días más antiguos."
-              : "Todavía no hay cifras. Aparecen en cuanto la campaña empieza a mostrarse."}
+            {aqui.cursor ? t("sinDiasAntiguos") : t("sinCifras")}
           </p>
         ) : (
           <>
             <table className="mt-5 hidden w-full border-collapse text-left text-sm md:table">
               <thead className="border-b border-line">
                 <tr>
-                  <th className={`py-2 pr-4 ${CABECERA}`}>Día</th>
-                  <th className={`py-2 pr-4 text-right ${CABECERA}`}>Veces que se mostró</th>
-                  <th className={`py-2 pr-4 text-right ${CABECERA}`}>Clics</th>
-                  <th className={`py-2 text-right ${CABECERA}`}>Clics por cada 100 veces</th>
+                  <th className={`py-2 pr-4 ${CABECERA}`}>{t("col_dia")}</th>
+                  <th className={`py-2 pr-4 text-right ${CABECERA}`}>{t("col_mostrada")}</th>
+                  <th className={`py-2 pr-4 text-right ${CABECERA}`}>{t("col_clics")}</th>
+                  <th className={`py-2 text-right ${CABECERA}`}>{t("col_porCien")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -113,8 +109,10 @@ export function InformeCampana({
                 <li key={d.dia} className="flex items-baseline justify-between gap-3 py-3">
                   <span className="text-sm text-text-dim tabular-nums">{dia(d.dia, idioma)}</span>
                   <span className="text-right text-sm text-text tabular-nums">
-                    se mostró {cifra(d.vistas, idioma)} {d.vistas === 1 ? "vez" : "veces"} ·{" "}
-                    {cifra(d.clics, idioma)} {d.clics === 1 ? "clic" : "clics"}
+                    {t("movil", {
+                      veces: t("veces", { n: d.vistas }),
+                      clics: t("clicsN", { n: d.clics }),
+                    })}
                   </span>
                 </li>
               ))}

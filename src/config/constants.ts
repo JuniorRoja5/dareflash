@@ -2744,23 +2744,9 @@ export const ETIQUETA_MOTIVO_RETIRADA_PUBLICIDAD: Record<MotivoRetiradaPublicida
 /** Página del listado de publicidad del panel. */
 export const PUBLICIDAD_PANEL_PAGINA = 25;
 
-/**
- * LA FRASE de cada estado. Desde P7 las campañas activas SE SIRVEN (feed y portada), así que ACTIVA ya
- * puede decir que se está mostrando. Lo que no promete es CUÁNTO: eso es la estimación, y las métricas
- * llegan en P10.
- */
-export const MSG_ESTADO_PUBLICIDAD: Record<EstadoVisiblePublicidad, string> = {
-  BORRADOR: "Todavía no ocupa ningún día. Actívala o prográmala cuando quieras.",
-  PROGRAMADA: "Tiene sus días reservados y empieza a mostrarse en la fecha indicada.",
-  ACTIVA: "Se está mostrando en su zona, en el feed y en la portada.",
-  FINALIZADA: "Ya pasaron sus días contratados.",
-  PAUSADA:
-    "Está pausada. Sus días por venir quedaron libres para otras campañas; puedes reanudarla.",
-  EN_REVISION:
-    "La hemos pausado mientras revisamos unas denuncias. Sus días por venir quedaron libres y no se te descuenta nada. Te escribiremos cuando lo hayamos decidido.",
-  TERMINADA: "La terminaste antes de tiempo. Sus días por venir quedaron libres.",
-  RETIRADA: "La hemos retirado y ya no se muestra.",
-};
+// LA FRASE de cada estado de una campaña (lo que significa, contado a la empresa) vive desde la P5b2b en
+// el diccionario (`publicidad.relato_*`): solo la pinta el portal. ACTIVA dice que se está mostrando;
+// lo que no promete es CUÁNTO: eso es la estimación.
 
 /**
  * CRÉDITOS POR DÍA de cada alcance (lo que cuesta un día en esa zona). En UN sitio: subir un precio es

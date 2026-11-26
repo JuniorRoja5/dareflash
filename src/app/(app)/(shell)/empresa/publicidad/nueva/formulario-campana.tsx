@@ -7,9 +7,9 @@ import { type FormEvent, useState } from "react";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { BarraEnviar, BloqueFormulario } from "@/components/ui/formulario";
+import { useTextos, useTextosRicos } from "@/components/textos-provider";
 import {
   type AlcancePublicidad,
-  ETIQUETA_ALCANCE_PUBLICIDAD,
   PUBLICIDAD_DESTINO_MAX,
   PUBLICIDAD_DIAS_MAX,
   PUBLICIDAD_DIAS_MIN,
@@ -19,7 +19,8 @@ import {
   PUBLICIDAD_TEXTO_MAX,
 } from "@/config/constants";
 import { mensajeDe, obtenerCsrfToken } from "@/lib/cliente-http";
-import { costeTotal, destinoValido, fraseSaldo, tarifaPorDia } from "@/lib/publicidad";
+import { costeTotal, destinoValido, tarifaPorDia } from "@/lib/publicidad";
+import { alcanceCampana, fraseSaldo } from "@/textos/publicidad";
 
 import { BuscadorCiudad } from "./buscador-ciudad";
 
@@ -28,6 +29,7 @@ const CONTROL =
 const AREA =
   "w-full rounded-sm border border-line bg-surface px-3.5 py-2.5 text-base text-text focus:bg-raised focus:border-text";
 const ETIQUETA = "mb-1.5 block text-sm font-medium text-text";
+const RESALTE_COSTE = { resaltado: { className: "font-semibold text-text" } };
 
 export interface PropsFormularioCampana {
   alcances: readonly AlcancePublicidad[];
@@ -58,6 +60,9 @@ export interface PropsFormularioCampana {
  * comprar (`alcancesPermitidos`, la misma regla que aplica la ruta).
  */
 export function FormularioCampana(props: PropsFormularioCampana) {
+  const t = useTextos("campanaFormulario");
+  const tr = useTextosRicos("campanaFormulario");
+  const tc = useTextos("campanaComun");
   const router = useRouter();
   const navegar = useNavegar();
   const [alcance, setAlcance] = useState<AlcancePublicidad>(props.alcances[0]!);
@@ -83,9 +88,9 @@ export function FormularioCampana(props: PropsFormularioCampana) {
   const nombreDePais = (iso: string) => props.paises.find((p) => p.iso === iso)?.nombre ?? iso;
 
   function zonaElegida(): string | null {
-    if (alcance === "CIUDAD" && !ciudad) return "Elige la ciudad de la lista.";
-    if (alcance === "ESTADO" && !region) return "Elige la región.";
-    if (alcance === "PAIS" && paises.length === 0) return "Añade al menos un país.";
+    if (alcance === "CIUDAD" && !ciudad) return t("falta_ciudad");
+    if (alcance === "ESTADO" && !region) return t("falta_region");
+    if (alcance === "PAIS" && paises.length === 0) return t("falta_pais");
     return null;
   }
 
@@ -94,13 +99,13 @@ export function FormularioCampana(props: PropsFormularioCampana) {
     setError(null);
     const falta =
       zonaElegida() ??
-      (nombre.trim().length < 3 ? "Ponle un nombre a la campaña (al menos 3 caracteres)." : null) ??
-      (texto.trim().length < 3 ? "Escribe el texto del anuncio." : null) ??
-      (!destinoValido(destino.trim())
-        ? "El enlace tiene que ser una dirección web completa (https://…)."
+      (nombre.trim().length < 3 ? t("falta_nombre") : null) ??
+      (texto.trim().length < 3 ? t("falta_texto") : null) ??
+      (!destinoValido(destino.trim()) ? t("falta_destino") : null) ??
+      (!diasValidos
+        ? t("falta_dias", { min: String(PUBLICIDAD_DIAS_MIN), max: String(PUBLICIDAD_DIAS_MAX) })
         : null) ??
-      (!diasValidos ? `Elige entre ${PUBLICIDAD_DIAS_MIN} y ${PUBLICIDAD_DIAS_MAX} días.` : null) ??
-      (!imagen ? "Sube la imagen de la campaña." : null);
+      (!imagen ? t("falta_imagen") : null);
     if (falta) {
       setError(falta);
       return;
@@ -134,18 +139,18 @@ export function FormularioCampana(props: PropsFormularioCampana) {
         router.refresh();
         return;
       }
-      setError(mensajeDe(data) || "No hemos podido crear la campaña. Revisa los datos.");
+      setError(mensajeDe(data) || t("errorCrear"));
     } catch {
-      setError("No hemos podido conectar. Revisa tu conexión e inténtalo de nuevo.");
+      setError(t("sinConexion"));
     }
     setEnviando(false);
   }
 
   return (
     <form onSubmit={(e) => void enviar(e)} className="space-y-4" noValidate>
-      <BloqueFormulario titulo="Dónde" descripcion="Dónde se verá tu publicidad.">
+      <BloqueFormulario titulo={t("donde")} descripcion={t("dondeDescripcion")}>
         <fieldset className="sm:col-span-2">
-          <legend className={ETIQUETA}>Alcance</legend>
+          <legend className={ETIQUETA}>{t("alcance")}</legend>
           <div className="grid gap-2 sm:grid-cols-2">
             {props.alcances.map((a) => (
               <label
@@ -163,10 +168,12 @@ export function FormularioCampana(props: PropsFormularioCampana) {
                     onChange={() => setAlcance(a)}
                     className="accent-current"
                   />
-                  {ETIQUETA_ALCANCE_PUBLICIDAD[a]}
+                  {alcanceCampana(tc, a)}
                 </span>
                 <span className="shrink-0 text-2xs text-text-dim tabular-nums">
-                  {a === "PAIS" ? `${tarifaPorDia("PAIS", 1)} por país` : tarifaPorDia(a)} cr./día
+                  {a === "PAIS"
+                    ? t("tarifaAlcancePais", { tarifa: String(tarifaPorDia("PAIS", 1)) })
+                    : t("tarifaAlcance", { tarifa: String(tarifaPorDia(a)) })}
                 </span>
               </label>
             ))}
@@ -182,7 +189,7 @@ export function FormularioCampana(props: PropsFormularioCampana) {
         {alcance === "ESTADO" ? (
           <div className="sm:col-span-2">
             <label htmlFor="region" className={ETIQUETA}>
-              Región
+              {t("region")}
             </label>
             <select
               id="region"
@@ -190,7 +197,7 @@ export function FormularioCampana(props: PropsFormularioCampana) {
               className={CONTROL}
               onChange={(e) => setRegion(e.target.value)}
             >
-              <option value="">Elige una región</option>
+              <option value="">{t("elegirRegion")}</option>
               {props.regiones.map((r) => (
                 <option key={r.codigo} value={r.codigo}>
                   {r.nombre}
@@ -203,7 +210,7 @@ export function FormularioCampana(props: PropsFormularioCampana) {
         {alcance === "PAIS" ? (
           <div className="sm:col-span-2">
             <label htmlFor="pais-anadir" className={ETIQUETA}>
-              Países
+              {t("paises")}
             </label>
             <div className="flex gap-2">
               <select
@@ -212,7 +219,7 @@ export function FormularioCampana(props: PropsFormularioCampana) {
                 className={CONTROL}
                 onChange={(e) => setPaisAnadir(e.target.value)}
               >
-                <option value="">Elige un país</option>
+                <option value="">{t("elegirPais")}</option>
                 {props.paises
                   .filter((p) => !paises.includes(p.iso))
                   .map((p) => (
@@ -231,18 +238,18 @@ export function FormularioCampana(props: PropsFormularioCampana) {
                   setPaisAnadir("");
                 }}
               >
-                Añadir
+                {t("anadir")}
               </Boton>
             </div>
             {paises.length > 0 ? (
-              <ul className="mt-3 flex flex-wrap gap-2" aria-label="Países elegidos">
+              <ul className="mt-3 flex flex-wrap gap-2" aria-label={t("paisesElegidos")}>
                 {paises.map((p) => (
                   <li key={p}>
                     <button
                       type="button"
                       onClick={() => setPaises((ps) => ps.filter((x) => x !== p))}
                       className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-line px-3 text-sm text-text hover:bg-raised"
-                      aria-label={`Quitar ${nombreDePais(p)}`}
+                      aria-label={t("quitar", { pais: nombreDePais(p) })}
                     >
                       {nombreDePais(p)} <span aria-hidden>×</span>
                     </button>
@@ -253,8 +260,7 @@ export function FormularioCampana(props: PropsFormularioCampana) {
             {paises.length >= PUBLICIDAD_PAISES_AVISO_GLOBAL &&
             props.alcances.includes("GLOBAL") ? (
               <p className="mt-2 text-sm text-text">
-                Con {paises.length} países pagas lo mismo que por Todo el mundo, que llega a más
-                gente.
+                {t("avisoGlobal", { paises: String(paises.length) })}
               </p>
             ) : null}
           </div>
@@ -262,12 +268,12 @@ export function FormularioCampana(props: PropsFormularioCampana) {
       </BloqueFormulario>
 
       <BloqueFormulario
-        titulo="Cuándo"
-        descripcion={props.inicioDelDia ?? "Se cuenta por días completos."}
+        titulo={t("cuando")}
+        descripcion={props.inicioDelDia ?? t("cuandoDescripcion")}
       >
         <Campo
           id="inicio"
-          label="Empieza el"
+          label={t("empieza")}
           type="date"
           value={inicio}
           min={props.hoy}
@@ -276,7 +282,7 @@ export function FormularioCampana(props: PropsFormularioCampana) {
         />
         <Campo
           id="dias"
-          label="Días"
+          label={t("dias")}
           type="number"
           inputMode="numeric"
           min={PUBLICIDAD_DIAS_MIN}
@@ -286,20 +292,20 @@ export function FormularioCampana(props: PropsFormularioCampana) {
         />
       </BloqueFormulario>
 
-      <BloqueFormulario titulo="La pieza" descripcion="Lo que verá la gente en el feed.">
+      <BloqueFormulario titulo={t("pieza")} descripcion={t("piezaDescripcion")}>
         <Campo
           id="nombre"
-          label="Nombre de la campaña"
+          label={t("nombre")}
           className="sm:col-span-2"
           value={nombre}
           maxLength={PUBLICIDAD_NOMBRE_MAX}
           autoComplete="off"
-          placeholder="Solo para ti: no lo ve nadie más"
+          placeholder={t("nombrePlaceholder")}
           onChange={(e) => setNombre(e.target.value)}
         />
         <div className="sm:col-span-2">
           <label htmlFor="texto" className={ETIQUETA}>
-            Texto
+            {t("texto")}
           </label>
           <textarea
             id="texto"
@@ -315,7 +321,7 @@ export function FormularioCampana(props: PropsFormularioCampana) {
         </div>
         <Campo
           id="destino"
-          label="Enlace al pulsar"
+          label={t("destino")}
           type="url"
           inputMode="url"
           autoComplete="url"
@@ -326,7 +332,7 @@ export function FormularioCampana(props: PropsFormularioCampana) {
         />
         <div className="sm:col-span-2">
           <label htmlFor="imagen" className={ETIQUETA}>
-            Imagen
+            {t("imagen")}
           </label>
           <input
             id="imagen"
@@ -335,9 +341,7 @@ export function FormularioCampana(props: PropsFormularioCampana) {
             className="block w-full text-sm text-text-dim file:mr-3 file:min-h-[44px] file:rounded-sm file:border file:border-line file:bg-surface file:px-4 file:text-sm file:text-text"
             onChange={(e) => setImagen(e.target.files?.[0] ?? null)}
           />
-          <p className="mt-1.5 text-2xs text-text-dim">
-            PNG, JPG o WebP. Mejor en vertical: el feed se ve en el móvil.
-          </p>
+          <p className="mt-1.5 text-2xs text-text-dim">{t("imagenAyuda")}</p>
         </div>
       </BloqueFormulario>
 
@@ -351,20 +355,26 @@ export function FormularioCampana(props: PropsFormularioCampana) {
             <p className="text-sm text-text-dim tabular-nums">
               {coste !== null ? (
                 <>
-                  <span className="font-semibold text-text">{coste} créditos</span> en total ·{" "}
-                  {tarifa} al día ·{" "}
                   {/* LO DISPONIBLE, no el saldo a secas: es contra lo que se comprobará al activar. */}
                   {props.comprometido > 0
-                    ? `te quedan ${disponible} de ${props.saldo} (${props.comprometido} ya comprometidos)`
-                    : `tienes ${props.saldo}`}
+                    ? tr("costeConComprometido", RESALTE_COSTE, {
+                        coste: String(coste),
+                        tarifa: String(tarifa),
+                        disponible: String(disponible),
+                        saldo: String(props.saldo),
+                        comprometido: String(props.comprometido),
+                      })
+                    : tr("costeSinComprometido", RESALTE_COSTE, {
+                        coste: String(coste),
+                        tarifa: String(tarifa),
+                        saldo: String(props.saldo),
+                      })}
                   {coste > disponible ? (
-                    <span className="block text-alarm">
-                      No te llega para todos los días: acórtala o libera otra campaña.
-                    </span>
+                    <span className="block text-alarm">{t("noLlega")}</span>
                   ) : null}
                 </>
               ) : (
-                fraseSaldo(props.saldo, props.comprometido)
+                fraseSaldo(tc, props.saldo, props.comprometido)
               )}
             </p>
           )
@@ -375,7 +385,7 @@ export function FormularioCampana(props: PropsFormularioCampana) {
           disabled={enviando}
           className="w-full shrink-0 whitespace-nowrap sm:w-auto"
         >
-          {enviando ? "Creando…" : "Crear borrador"}
+          {enviando ? t("creando") : t("crear")}
         </Boton>
       </BarraEnviar>
     </form>

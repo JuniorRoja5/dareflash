@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
+import { useTextos } from "@/components/textos-provider";
 import { CIUDADES_AUTOCOMPLETAR } from "@/config/constants";
 import { getJson } from "@/lib/cliente-http";
 
@@ -32,6 +33,7 @@ export function BuscadorCiudad({
   onElegir: (o: Opcion | null) => void;
 }) {
   const id = useId();
+  const t = useTextos("buscadorCiudad");
   const [texto, setTexto] = useState(elegida?.etiqueta ?? "");
   const [opciones, setOpciones] = useState<Opcion[]>([]);
   const [abierta, setAbierta] = useState(false);
@@ -78,7 +80,7 @@ export function BuscadorCiudad({
   return (
     <div className="relative">
       <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-text">
-        Ciudad
+        {t("ciudad")}
       </label>
       <input
         id={id}
@@ -92,7 +94,7 @@ export function BuscadorCiudad({
         autoComplete="off"
         className={CONTROL}
         value={texto}
-        placeholder="Escribe el nombre de la ciudad"
+        placeholder={t("placeholder")}
         onChange={(e) => {
           setTexto(e.target.value);
           if (elegida) onElegir(null);
@@ -142,14 +144,14 @@ export function BuscadorCiudad({
       ) : null}
       <p className="mt-1.5 text-2xs text-text-dim" aria-live="polite">
         {estado === "buscando"
-          ? "Buscando…"
+          ? t("buscando")
           : estado === "error"
-            ? "No hemos podido buscar. Inténtalo otra vez."
+            ? t("error")
             : abierta && visibles.length === 0 && texto.trim().length >= 2 && !elegida
-              ? "No encontramos esa ciudad en tu país."
+              ? t("sinResultados")
               : elegida
-                ? "Se verá en esta ciudad y en las que están a menos de 100 km."
-                : "Ciudades de más de 15.000 habitantes de tu país."}
+                ? t("elegida")
+                : t("ayuda")}
       </p>
     </div>
   );

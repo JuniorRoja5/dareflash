@@ -1,11 +1,9 @@
 import { Enlace } from "@/components/enlace";
 
+import { TextosProvider } from "@/components/textos-provider";
 import { Tarjeta } from "@/components/ui/tarjeta";
 import {
-  fraseCreditoPublica,
-  fraseQueEsUnCredito,
   CREDITOS_POR_DIA,
-  MSG_SALDO_NO_RETENIDO,
   MSG_TIPO_NEGOCIO_DESCONOCIDO,
   PUBLICIDAD_MAX_POR_ZONA,
   PUBLICIDAD_RESERVA_MAX_DIAS,
@@ -13,24 +11,24 @@ import {
 import { alcancesPermitidos } from "@/lib/empresa";
 import { paisesParaElegir } from "@/lib/paises";
 import { claveDia, diaDe, sumarDias } from "@/lib/publicidad";
-import { fraseInicioDelDia } from "@/lib/zona-horaria-pais";
+import { creditoDia, queEsUnCredito } from "@/textos/empresa";
+import { fraseInicioDelDia } from "@/textos/publicidad";
+import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
 
 import { ambitoDelPortal } from "../../ambito-portal";
 import { AvisoVerificar } from "../../aviso-verificar";
 import { FormularioCampana } from "./formulario-campana";
 
-export const metadata = { title: "Nueva campaña" };
+export async function generateMetadata() {
+  return { title: (await textos("nuevaCampana"))("titulo") };
+}
 // Lee la sesión, el saldo y el catálogo: por petición.
 export const dynamic = "force-dynamic";
 
 const CABECERA = "text-2xs font-semibold tracking-widest text-text-dim uppercase";
 
-/** Lo que pasa con una campaña, en orden. Lo que de verdad hace el flujo, ni un paso más. */
-const PASOS = [
-  "Creas el borrador: todavía no ocupa días ni gasta créditos.",
-  "En su ficha ves cuánta gente la verá al día y cuánto cuesta.",
-  "La activas (o la programas para otro día) y reserva sus días.",
-] as const;
+/** Lo que pasa con una campaña, en orden (`nuevaCampana.paso1..3`). Lo que de verdad hace el flujo. */
+const PASOS = ["paso1", "paso2", "paso3"] as const;
 
 /**
  * /empresa/publicidad/nueva — CREAR UNA CAMPAÑA (Fase 9 · P6).
@@ -51,6 +49,13 @@ export default async function PaginaNuevaCampana() {
   // SU tipo de negocio, ANTES de la cabecera: la tarifa que se le cuenta es solo la de lo que puede
   // comprar. Sin correo confirmado (`ambito === null`) aún no se sabe, y va la horquilla general.
   const empresa = ambito ? await miEmpresa(prisma, ambito.empresaId) : null;
+  const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
+  const idioma = await idiomaDeLaPeticion();
+  const [t, tn, tc] = await Promise.all([
+    textos("nuevaCampana"),
+    textos("negocio"),
+    textos("campanaComun"),
+  ]);
 
   const cabecera = (
     <div>
@@ -58,15 +63,18 @@ export default async function PaginaNuevaCampana() {
         href="/empresa/publicidad"
         className="inline-flex min-h-[44px] items-center text-sm text-text-dim underline underline-offset-2 hover:text-text"
       >
-        <span aria-hidden="true">←&nbsp;</span>Publicidad
+        <span aria-hidden="true">←&nbsp;</span>
+        {tc("volver")}
       </Enlace>
-      <h1 className="text-2xl text-text">Nueva campaña</h1>
+      <h1 className="text-2xl text-text">{t("titulo")}</h1>
       <p className="mt-1 max-w-prose text-sm text-text-dim">
         {/* DECIDIDO, no por defecto: sin empresa resuelta (correo sin confirmar) o con un tipo fuera
             del catálogo no se sabe qué puede comprar, y va la horquilla pública, que es verdad para
             cualquiera. Con tipo, solo sus alcances. */}
-        {empresa?.tipoNegocio ? fraseQueEsUnCredito(empresa.tipoNegocio) : fraseCreditoPublica()}{" "}
-        Sin revisión previa: la activas tú.
+        {empresa?.tipoNegocio
+          ? queEsUnCredito(tn, empresa.tipoNegocio, idioma)
+          : creditoDia(tn, idioma)}{" "}
+        {t("sinRevision")}
       </p>
     </div>
   );
@@ -79,9 +87,7 @@ export default async function PaginaNuevaCampana() {
           <AvisoVerificar />
         ) : (
           <Tarjeta className="max-w-prose p-5">
-            <p className="text-sm text-text-dim">
-              Podrás crear campañas en cuanto verifiquemos tu empresa. Te escribiremos cuando esté.
-            </p>
+            <p className="text-sm text-text-dim">{t("sinVerificar")}</p>
           </Tarjeta>
         )}
       </div>
@@ -119,54 +125,58 @@ export default async function PaginaNuevaCampana() {
       {cabecera}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-8">
         <div className="min-w-0">
-          <FormularioCampana
-            alcances={alcances}
-            pais={empresa.paisIso}
-            regiones={regiones}
-            paises={paises}
-            saldo={saldo.saldo}
-            comprometido={saldo.comprometido}
-            hoy={claveDia(hoy)}
-            ultimoInicio={claveDia(sumarDias(hoy, PUBLICIDAD_RESERVA_MAX_DIAS))}
-            inicioDelDia={fraseInicioDelDia(empresa.paisIso, hoy)}
-          />
+          <TextosProvider
+            textos={await textosClienteDeLaPeticion([
+              "campanaFormulario",
+              "campanaComun",
+              "buscadorCiudad",
+            ] as const)}
+          >
+            <FormularioCampana
+              alcances={alcances}
+              pais={empresa.paisIso}
+              regiones={regiones}
+              paises={paises}
+              saldo={saldo.saldo}
+              comprometido={saldo.comprometido}
+              hoy={claveDia(hoy)}
+              ultimoInicio={claveDia(sumarDias(hoy, PUBLICIDAD_RESERVA_MAX_DIAS))}
+              inicioDelDia={fraseInicioDelDia(tc, empresa.paisIso, hoy)}
+            />
+          </TextosProvider>
         </div>
-        <aside aria-label="Cómo funciona" className="space-y-4 lg:sticky lg:top-24">
+        <aside aria-label={t("comoFunciona")} className="space-y-4 lg:sticky lg:top-24">
           <Tarjeta className="p-5">
-            <h2 className={CABECERA}>Cómo funciona</h2>
+            <h2 className={CABECERA}>{t("comoFunciona")}</h2>
             <ol className="mt-3 space-y-2 text-sm text-text-dim">
               {PASOS.map((p, i) => (
                 <li key={p} className="flex gap-3">
                   <span className="w-4 shrink-0 font-semibold text-text tabular-nums">{i + 1}</span>
-                  <span>{p}</span>
+                  <span>{t(p)}</span>
                 </li>
               ))}
             </ol>
           </Tarjeta>
           <Tarjeta className="p-5">
-            <h2 className={CABECERA}>Lo que cuesta un día</h2>
+            <h2 className={CABECERA}>{t("loQueCuesta")}</h2>
             <dl className="mt-3 space-y-1.5 text-sm">
               {alcances.map((a) => (
                 <div key={a} className="flex justify-between gap-3">
-                  <dt className="text-text-dim">
-                    {a === "CIUDAD"
-                      ? "Ciudad (y 100 km)"
-                      : a === "ESTADO"
-                        ? "Región"
-                        : a === "PAIS"
-                          ? "Cada país"
-                          : "Todo el mundo"}
-                  </dt>
-                  <dd className="text-text tabular-nums">{CREDITOS_POR_DIA[a]} cr.</dd>
+                  <dt className="text-text-dim">{t(`tarifa_${a}`)}</dt>
+                  <dd className="text-text tabular-nums">
+                    {t("cr", { creditos: String(CREDITOS_POR_DIA[a]) })}
+                  </dd>
                 </div>
               ))}
             </dl>
             <p className="mt-3 text-2xs text-text-dim">
-              Como mucho {PUBLICIDAD_MAX_POR_ZONA} campañas por zona y día, para que cada una se
-              vea. Puedes empezar hasta dentro de {PUBLICIDAD_RESERVA_MAX_DIAS} días.
+              {t("limites", {
+                max: String(PUBLICIDAD_MAX_POR_ZONA),
+                dias: String(PUBLICIDAD_RESERVA_MAX_DIAS),
+              })}
             </p>
           </Tarjeta>
-          <p className="text-2xs text-text-dim">{MSG_SALDO_NO_RETENIDO}</p>
+          <p className="text-2xs text-text-dim">{tc("saldoNoRetenido")}</p>
         </aside>
       </div>
     </div>

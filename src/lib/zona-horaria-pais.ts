@@ -322,19 +322,5 @@ export function horaLocalDeInicio(paisIso: string, dia: Date): string | null {
   return inicioLocalDelDia(paisIso, dia)?.hora ?? null;
 }
 
-/**
- * LA FRASE para el formulario y la ficha de la campaña, o `null` si no se sabe la zona del país (mejor
- * no decir nada que decir una hora inventada). «a la 1:00» y «a las 19:00»: la una es singular. Y si
- * cae en la víspera, se dice («del día anterior»): «empieza a las 19:00» a secas se leería como las 19:00
- * del mismo día, y el anuncio ya llevaría cinco horas fuera.
- */
-export function fraseInicioDelDia(paisIso: string, dia: Date): string | null {
-  const inicio = inicioLocalDelDia(paisIso, dia);
-  if (!inicio) return null;
-  const articulo = inicio.hora.startsWith("1:") ? "a la" : "a las";
-  const cuando = `${articulo} ${inicio.hora}${inicio.diaAnterior ? " del día anterior" : ""}`;
-  const capital = CAPITAL_DE_PAIS_CON_VARIAS_ZONAS[paisIso.trim().toUpperCase()];
-  return capital
-    ? `Cada día de campaña empieza ${cuando}, hora de ${capital}.`
-    : `Cada día de campaña empieza ${cuando}${inicio.diaAnterior ? "," : ""} en tu hora local.`;
-}
+// LA FRASE para el formulario y la ficha de la campaña (`fraseInicioDelDia`) vive desde la P5b2b en
+// `textos/publicidad`, con sus palabras en el diccionario; aquí quedan la hora y la capital.

@@ -8,7 +8,15 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { CREDITOS_POR_DIA } from "../src/config/constants";
+import {
+  CREDITOS_POR_DIA,
+  ETIQUETA_ALCANCE_PUBLICIDAD,
+  ETIQUETA_ESTADO_PUBLICIDAD,
+  MSG_SALDO_NO_RETENIDO,
+} from "../src/config/constants";
+import { es } from "../src/textos/es";
+import { crearT } from "../src/textos/plantilla";
+import { alcanceCampana, estadoCampana, fraseSaldo as fraseSaldoT } from "../src/textos/publicidad";
 import type { Ubicacion } from "../src/lib/geo";
 import {
   type CampanaEnReparto,
@@ -24,7 +32,6 @@ import {
   espacioDelHueco,
   estadoVisiblePublicidad,
   estimacionDelCalendario,
-  fraseSaldo,
   huecosEnTramo,
   nivelesDeRespaldo,
   personasQueLeTocan,
@@ -234,6 +241,10 @@ describe("el reparto (P7), simulado", () => {
   });
 });
 
+/** Desde la P5b2b la frase del saldo sale del diccionario (`campanaComun`), con la misma regla. */
+const fraseSaldo = (saldo: number, comprometido: number, cuales?: "otras" | "todas") =>
+  fraseSaldoT(crearT(es.campanaComun, "es"), saldo, comprometido, cuales);
+
 describe("la frase del saldo", () => {
   it("sin nada comprometido, el saldo a secas; con algo, cuánto queda para nuevas", () => {
     expect(fraseSaldo(90, 0)).toBe("Tienes 90 créditos de publicidad.");
@@ -243,6 +254,26 @@ describe("la frase del saldo", () => {
     expect(fraseSaldo(1, 0)).toBe("Tienes 1 crédito de publicidad.");
     // Nunca un disponible negativo (el saldo pudo bajar por un ajuste después de comprometer).
     expect(fraseSaldo(10, 30, "todas")).toContain("te quedan 0 para nuevas");
+  });
+});
+
+describe("el portal dice lo mismo que el panel (P5b2b)", () => {
+  // El panel y el servicio leen su castellano de la config; el portal, del diccionario. Uno que se
+  // repinte solo en un sitio haría que el panel y la empresa llamaran distinto a lo mismo.
+  it("los estados, los alcances y el aviso de que el saldo no se aparta", () => {
+    const tp = crearT(es.publicidad, "es");
+    const tc = crearT(es.campanaComun, "es");
+    for (const [e, v] of Object.entries(ETIQUETA_ESTADO_PUBLICIDAD)) {
+      expect(estadoCampana(tp, e as keyof typeof ETIQUETA_ESTADO_PUBLICIDAD), e).toBe(v);
+    }
+    for (const [a, v] of Object.entries(ETIQUETA_ALCANCE_PUBLICIDAD)) {
+      expect(alcanceCampana(tc, a as keyof typeof ETIQUETA_ALCANCE_PUBLICIDAD), a).toBe(v);
+    }
+    expect(es.campanaComun.saldoNoRetenido).toBe(MSG_SALDO_NO_RETENIDO);
+    // Y cada estado tiene su relato.
+    for (const e of Object.keys(ETIQUETA_ESTADO_PUBLICIDAD)) {
+      expect((es.publicidad as Record<string, unknown>)[`relato_${e}`], e).toBeTruthy();
+    }
   });
 });
 

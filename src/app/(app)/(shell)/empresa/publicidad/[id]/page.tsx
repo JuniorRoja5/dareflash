@@ -3,16 +3,14 @@ import { notFound } from "next/navigation";
 
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { TarjetaAnuncio } from "@/components/ui/tarjeta-anuncio";
-import {
-  ETIQUETA_ALCANCE_PUBLICIDAD,
-  ETIQUETA_ESTADO_PUBLICIDAD,
-  MSG_ESTADO_PUBLICIDAD,
-  MSG_SALDO_NO_RETENIDO,
-} from "@/config/constants";
-import { accionesPublicidad, costeTotal, diasPorDelante, fraseSaldo } from "@/lib/publicidad";
+import { TextosProvider } from "@/components/textos-provider";
+import { accionesPublicidad, costeTotal, diasPorDelante } from "@/lib/publicidad";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
-import { fraseInicioDelDia } from "@/lib/zona-horaria-pais";
 import type { Estimacion } from "@/server/services/publicidad";
+import type { FuncionT } from "@/textos/plantilla";
+import type { FuncionTRico } from "@/textos/rico";
+import { alcanceCampana, estadoCampana, fraseInicioDelDia, fraseSaldo } from "@/textos/publicidad";
+import { textos, textosClienteDeLaPeticion, textosRicos, type Textos } from "@/textos/servidor";
 
 import { ambitoDelPortal } from "../../ambito-portal";
 import { AvisoVerificar } from "../../aviso-verificar";
@@ -20,7 +18,9 @@ import { AccionesCampana } from "./acciones-campana";
 import { InformeCampana } from "./informe-campana";
 import { formatearNumero, formatearDiaClave, type Idioma } from "@/lib/formato";
 
-export const metadata = { title: "Campaña" };
+export async function generateMetadata() {
+  return { title: (await textos("publicidad"))("tituloFicha") };
+}
 // Lee la sesión, la campaña y el aforo: por petición.
 export const dynamic = "force-dynamic";
 
@@ -37,25 +37,27 @@ const ID_VALIDO = /^[a-z0-9]{10,40}$/;
  * medido, la cifra de un nivel más amplio DICIENDO DE CUÁL; y si tampoco, se dice. Nunca un 0 sin
  * explicar: «menos de una persona al día» es lo que significa un 0 con datos.
  */
-function fraseEstimacion(e: Estimacion, idioma: Idioma): { cifra: string | null; frase: string } {
+function fraseEstimacion(
+  t: FuncionT<Textos["publicidad"]>,
+  tr: FuncionTRico<Textos["publicidad"]>,
+  e: Estimacion,
+  idioma: Idioma,
+): React.ReactNode {
+  // La cifra va resaltada DENTRO de su frase (una clave; antes, dos trozos con la etiqueta en medio).
+  const cifra = { resaltado: { className: "text-2xl font-semibold tabular-nums" } };
   if (e.tipo === "zona") {
     return e.personas === 0
-      ? { cifra: null, frase: "Con el tráfico de estos días, menos de una persona al día." }
-      : {
-          cifra: `unas ${formatearNumero(e.personas, idioma)}`,
-          frase: "personas al día la verían, contando con las demás campañas de esas fechas.",
-        };
+      ? t("estMenosDeUna")
+      : tr("estZona", cifra, { personas: formatearNumero(e.personas, idioma) });
   }
   if (e.tipo === "respaldo") {
-    return {
-      cifra: `unas ${formatearNumero(e.personas, idioma)}`,
-      frase: `personas al día ven publicidad en ${e.nivelNombre}. Todavía no tenemos tráfico medido en ${e.zonaSinDatos}.`,
-    };
+    return tr("estRespaldo", cifra, {
+      personas: formatearNumero(e.personas, idioma),
+      nivel: e.nivelNombre,
+      zona: e.zonaSinDatos,
+    });
   }
-  return {
-    cifra: null,
-    frase: `Todavía no tenemos datos de ${e.zonaSinDatos}: no podemos decirte cuánta gente la verá.`,
-  };
+  return t("estSinDatos", { zona: e.zonaSinDatos });
 }
 
 /**
@@ -77,10 +79,15 @@ export default async function PaginaCampana({
   const ambito = await ambitoDelPortal();
   const { idiomaDeLaPeticion } = await import("@/server/formato-peticion");
   const idioma = await idiomaDeLaPeticion();
+  const [t, tr, tc] = await Promise.all([
+    textos("publicidad"),
+    textosRicos("publicidad"),
+    textos("campanaComun"),
+  ]);
   if (ambito === null) {
     return (
       <div className="df-rise">
-        <h1 className="text-2xl text-text">Campaña</h1>
+        <h1 className="text-2xl text-text">{t("tituloFicha")}</h1>
         <div className="mt-6">
           <AvisoVerificar />
         </div>
@@ -118,9 +125,9 @@ export default async function PaginaCampana({
     new Date().getUTCMonth(),
     new Date().getUTCDate(),
   );
-  const est = estimacion ? fraseEstimacion(estimacion, idioma) : null;
+  const est = estimacion ? fraseEstimacion(t, tr, estimacion, idioma) : null;
   // A qué hora de SU país empieza cada día (los días son UTC; decir «UTC» a una empresa es jerga).
-  const inicioDelDia = empresa ? fraseInicioDelDia(empresa.paisIso, new Date()) : null;
+  const inicioDelDia = empresa ? fraseInicioDelDia(tc, empresa.paisIso, new Date()) : null;
 
   return (
     <div className="df-rise space-y-6">
@@ -129,19 +136,20 @@ export default async function PaginaCampana({
           href="/empresa/publicidad"
           className="inline-flex min-h-[44px] items-center text-sm text-text-dim underline underline-offset-2 hover:text-text"
         >
-          <span aria-hidden="true">←&nbsp;</span>Publicidad
+          <span aria-hidden="true">←&nbsp;</span>
+          {tc("volver")}
         </Enlace>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="min-w-0 text-2xl break-words text-text">{c.nombre}</h1>
           <span className="rounded-xs border border-line px-2 py-0.5 text-2xs text-text-dim">
-            {ETIQUETA_ESTADO_PUBLICIDAD[c.estado]}
+            {estadoCampana(t, c.estado)}
           </span>
         </div>
-        <p className="mt-1 max-w-prose text-sm text-text-dim">{MSG_ESTADO_PUBLICIDAD[c.estado]}</p>
+        <p className="mt-1 max-w-prose text-sm text-text-dim">{t(`relato_${c.estado}`)}</p>
         {/* P8: EL MOTIVO de la retirada, el de la lista cerrada (la nota interna no viaja al portal). */}
         {c.motivoRetirada ? (
           <p className="mt-2 max-w-prose rounded-sm border border-line bg-surface p-3 text-sm text-text">
-            {c.motivoRetirada} Si crees que es un error, contesta al correo que te enviamos.
+            {t("motivoRetirada", { motivo: c.motivoRetirada })}
           </p>
         ) : null}
       </div>
@@ -152,11 +160,11 @@ export default async function PaginaCampana({
           en móvil, la de móvil. `previa`: «Visitar» no navega ni cuenta un clic. */}
       <section aria-labelledby="pieza" className="space-y-2">
         <h2 id="pieza" className={CABECERA}>
-          Así se verá
+          {t("asiSeVera")}
         </h2>
         <TarjetaAnuncio pieza={piezaDeCampana(c)} previa />
         <p className="max-w-prose text-2xs break-words text-text-dim">
-          Lleva a <span className="text-text">{c.destinoUrl}</span>
+          {tr("llevaA", { resaltado: { className: "text-text" } }, { url: c.destinoUrl })}
         </p>
       </section>
 
@@ -164,58 +172,65 @@ export default async function PaginaCampana({
         <div className="min-w-0 space-y-6">
           {est ? (
             <Tarjeta className="p-5">
-              <h2 className={CABECERA}>Cuánta gente la verá</h2>
-              <p className="mt-2 text-sm text-text">
-                {est.cifra ? (
-                  <span className="text-2xl font-semibold tabular-nums">{est.cifra} </span>
-                ) : null}
-                {est.frase}
-              </p>
-              <p className="mt-2 text-2xs text-text-dim">
-                Calculado con la gente que ha pasado por el feed en tu zona los últimos días, el
-                peor día de tus fechas y redondeado a la baja.
-              </p>
+              <h2 className={CABECERA}>{t("cuantaGente")}</h2>
+              <p className="mt-2 text-sm text-text">{est}</p>
+              <p className="mt-2 text-2xs text-text-dim">{t("estComo")}</p>
             </Tarjeta>
           ) : null}
 
           <Tarjeta className="p-5">
-            <h2 className={CABECERA}>La campaña</h2>
+            <h2 className={CABECERA}>{t("laCampana")}</h2>
             <dl className="mt-3 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
               <div>
-                <dt className="text-2xs text-text-dim">Alcance</dt>
-                <dd className="text-text">{ETIQUETA_ALCANCE_PUBLICIDAD[c.alcance]}</dd>
+                <dt className="text-2xs text-text-dim">{t("dato_alcance")}</dt>
+                <dd className="text-text">{alcanceCampana(tc, c.alcance)}</dd>
               </div>
               <div>
-                <dt className="text-2xs text-text-dim">Zona</dt>
+                <dt className="text-2xs text-text-dim">{t("dato_zona")}</dt>
                 <dd className="break-words text-text">{c.zona}</dd>
               </div>
               <div>
                 <dt className="text-2xs text-text-dim">
-                  {c.estado === "BORRADOR" ? "Empezaría el" : "Días"}
+                  {c.estado === "BORRADOR" ? t("dato_empezaria") : t("dato_dias")}
                 </dt>
                 <dd className="text-text tabular-nums">
                   {c.estado === "BORRADOR" || c.finMs === null
-                    ? `${fecha(c.inicioMs, idioma)} · ${c.diasContratados} días`
-                    : `${fechaSinAno(c.inicioMs, idioma)} – ${fecha(c.finMs, idioma)}`}
+                    ? t("borradorDias", {
+                        fecha: fecha(c.inicioMs, idioma),
+                        dias: String(c.diasContratados),
+                      })
+                    : t("tramo", {
+                        desde: fechaSinAno(c.inicioMs, idioma),
+                        hasta: fecha(c.finMs, idioma),
+                      })}
                 </dd>
               </div>
               <div>
-                <dt className="text-2xs text-text-dim">Créditos por día</dt>
+                <dt className="text-2xs text-text-dim">{t("dato_crDia")}</dt>
                 <dd className="text-text tabular-nums">{c.creditosPorDia}</dd>
               </div>
               {porDelante > 0 ? (
                 <div className="sm:col-span-2">
                   <dt className="text-2xs text-text-dim">
-                    {c.estado === "BORRADOR" ? "Coste total" : "Le quedan"}
+                    {c.estado === "BORRADOR" ? t("dato_coste") : t("dato_quedan")}
                   </dt>
                   <dd className="text-text tabular-nums">
-                    <span className="font-semibold">{coste} créditos</span>
-                    {c.estado === "BORRADOR" ? "" : ` (${porDelante} días)`}
+                    {c.estado === "BORRADOR"
+                      ? tr(
+                          "costeBorrador",
+                          { resaltado: { className: "font-semibold" } },
+                          { coste: String(coste) },
+                        )
+                      : tr(
+                          "costeQuedan",
+                          { resaltado: { className: "font-semibold" } },
+                          { coste: String(coste), dias: String(porDelante) },
+                        )}
                   </dd>
                   {/* Antes de comprometer (borrador o pausada): contra lo DISPONIBLE se comprobará. */}
                   {c.estado === "BORRADOR" || c.estado === "PAUSADA" ? (
                     <dd className="mt-1 text-2xs text-text-dim">
-                      {fraseSaldo(saldo.saldo, saldo.comprometido)}
+                      {fraseSaldo(tc, saldo.saldo, saldo.comprometido)}
                     </dd>
                   ) : null}
                 </div>
@@ -228,12 +243,16 @@ export default async function PaginaCampana({
         <div className="min-w-0 space-y-6">
           {acciones.length > 0 ? (
             <Tarjeta className="p-5">
-              <h2 className={CABECERA}>Qué quieres hacer</h2>
+              <h2 className={CABECERA}>{t("queHacer")}</h2>
               <div className="mt-3">
-                <AccionesCampana id={c.id} acciones={acciones} empiezaHoy={c.inicioMs <= hoyMs} />
+                <TextosProvider
+                  textos={await textosClienteDeLaPeticion(["accionesCampana"] as const)}
+                >
+                  <AccionesCampana id={c.id} acciones={acciones} empiezaHoy={c.inicioMs <= hoyMs} />
+                </TextosProvider>
               </div>
               {c.estado === "BORRADOR" || c.estado === "PAUSADA" ? (
-                <p className="mt-3 text-2xs text-text-dim">{MSG_SALDO_NO_RETENIDO}</p>
+                <p className="mt-3 text-2xs text-text-dim">{tc("saldoNoRetenido")}</p>
               ) : null}
             </Tarjeta>
           ) : null}
