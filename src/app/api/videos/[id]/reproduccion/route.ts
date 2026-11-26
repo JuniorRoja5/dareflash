@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk, depsRuta } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -33,8 +34,9 @@ const ParamsSchema = z.object({ id: z.string().min(1).max(64) });
  * la sesión aquí: esta ruta es pública a propósito y no debe pagar una lectura de cookie por vídeo.
  */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const t = await textosApi(_req);
   const parsed = ParamsSchema.safeParse(await params);
-  if (!parsed.success) return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
+  if (!parsed.success) return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
   const { id } = parsed.data;
 
   const { env, prisma } = await depsRuta();
@@ -51,10 +53,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       claveToken: env.BUNNY_TOKEN_AUTH_KEY,
       expiraEnSeg: BUNNY_PLAYBACK_TTL_SEC,
     });
-    if (!urls) return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
+    if (!urls) return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
     return apiOk(urls);
   } catch (e) {
     console.error("[videos/reproduccion] fallo firmando la URL:", sanearError(e));
-    return apiError("PLAYBACK_FAILED", "No se pudo preparar el vídeo. Reintenta.", 502);
+    return apiError("PLAYBACK_FAILED", t("noSePudoPrepararEl"), 502);
   }
 }

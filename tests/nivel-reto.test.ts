@@ -13,6 +13,7 @@
  * contra `nivel.minimo` en vez de tiers (rojo en el caso del umbral movido); hacer que una clave
  * desconocida devuelva el tier más alto (rojo).
  */
+import { es } from "@/textos/es";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -127,9 +128,14 @@ describe("el default de la columna", () => {
 
 describe("el copy del veto", () => {
   it("nombra el nivel que falta, en humano y sin códigos", () => {
-    expect(mensajeNivelInsuficiente("pro")).toBe("Necesitas ser Pro para participar en este reto.");
-    expect(mensajeNivelInsuficiente("legend")).toContain("Legend");
+    // Desde la P5b3 es un DATO (la clave y el nombre del nivel) y la frase la compone quien la pinta.
+    const frase = (clave: string) => {
+      const m = mensajeNivelInsuficiente(clave);
+      return es.api[m.clave].replace("{nivel}", m.params.nivel);
+    };
+    expect(frase("pro")).toBe("Necesitas ser Pro para participar en este reto.");
+    expect(frase("legend")).toContain("Legend");
     // Nunca la clave interna en minúsculas ni un código.
-    expect(mensajeNivelInsuficiente("elite")).not.toMatch(/\belite\b/);
+    expect(frase("elite")).not.toMatch(/\belite\b/);
   });
 });

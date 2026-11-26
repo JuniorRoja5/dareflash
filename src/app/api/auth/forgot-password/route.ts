@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk, clientIpKey, rateLimitKey } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export const dynamic = "force-dynamic";
  * origin-check propio (no lo hacen ni register ni resend), no se inventa uno aqui.
  */
 export async function POST(req: Request) {
+  const t = await textosApi(req);
   const { env } = await import("@/config/env");
   const { RATE_LIMITS } = await import("@/config/constants");
   const { prisma } = await import("@/server/db/client");
@@ -34,10 +36,10 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return apiError("BAD_REQUEST", "Cuerpo de la peticion invalido.", 400);
+    return apiError("BAD_REQUEST", t("cuerpoDeLa"), 400);
   }
   const parsed = schema.safeParse(body);
-  if (!parsed.success) return apiError("VALIDATION", "Datos invalidos.", 400);
+  if (!parsed.success) return apiError("VALIDATION", t("datosInvalidosSinTilde"), 400);
   const email = parsed.data.email;
 
   // Rate limit POR IP y POR direccion (evita usar el reset como herramienta de acoso de buzon o para
@@ -51,7 +53,7 @@ export async function POST(req: Request) {
     ...RATE_LIMITS.FORGOT_PASSWORD_PER_EMAIL,
   });
   if (!perIp.allowed || !perEmail.allowed) {
-    return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
+    return apiError("RATE_LIMITED", t("demasiadosIntentosIntenta"), 429);
   }
 
   // Trabajo dependiente de existencia en segundo plano (ver cabecera: sin oraculo de tiempo). Solo
@@ -72,6 +74,6 @@ export async function POST(req: Request) {
 
   return apiOk({
     ok: true,
-    message: "Si esa cuenta existe, te hemos enviado un enlace para restablecer la contrasena.",
+    message: t("siEsaCuentaExiste"),
   });
 }

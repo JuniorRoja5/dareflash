@@ -17,7 +17,6 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { MSG_RETO_SOLO_VIP } from "../src/config/constants";
 import { es } from "../src/textos/es";
 
 const RAIZ = process.cwd();
@@ -170,10 +169,10 @@ describe("el CTA del exclusivo lleva a /vip, en humano", () => {
     expect(participar).toContain('href="/vip"');
     // Desde la P5b1 el copy del CTA vive en los textos (`participar.hazteVip`).
     expect(participar).toContain('t("hazteVip")');
-    expect(participar).toContain("MSG_RETO_SOLO_VIP");
+    expect(participar).toContain('t("soloVip")');
     expect(es.participar.hazteVip).toMatch(/VIP/);
     // Cero jerga: lo que se lee no puede ser el código del error.
-    expect(MSG_RETO_SOLO_VIP).not.toMatch(/SOLO_VIP|409/);
+    expect(es.participar.soloVip).not.toMatch(/SOLO_VIP|409/);
   });
 
   it("el NIVEL se dice ANTES que el VIP: no se vende una suscripción contra una pared", () => {

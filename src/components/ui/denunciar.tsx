@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 
 import {
   MOTIVOS_DENUNCIA,
-  MSG_DENUNCIA_SIN_VERIFICAR,
   type ReportReason,
   type ReportTargetDenunciable,
 } from "@/config/constants";
@@ -144,7 +143,7 @@ export function Denunciar({
               </>
             ) : veredicto === "sin_verificar" ? (
               <>
-                <p className="text-sm text-text-dim">{MSG_DENUNCIA_SIN_VERIFICAR}</p>
+                <p className="text-sm text-text-dim">{t("sinVerificar")}</p>
                 <button
                   type="button"
                   onClick={cerrar}

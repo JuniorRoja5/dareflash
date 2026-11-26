@@ -8,15 +8,9 @@
  *  - sin CSRF no se escribe nada.
  */
 import { falso } from "./helpers/valores-falsos";
+import { es } from "@/textos/es";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  MSG_DENUNCIA_GRACIAS,
-  MSG_DENUNCIA_NO_DISPONIBLE,
-  MSG_DENUNCIA_PROPIO,
-  MSG_DENUNCIA_SIN_VERIFICAR,
-  MSG_DENUNCIA_YA,
-} from "../src/config/constants";
 import { issueCsrfToken } from "../src/server/auth/csrf";
 
 const SECRET = falso("denuncias-secret-suficientemente-largo-de-verdad");
@@ -69,7 +63,7 @@ describe("registrar", () => {
     const res = await denunciar({ ...CUERPO, reporterId: "otra-persona" });
 
     expect(res.status).toBe(201);
-    expect(await res.json()).toEqual({ mensaje: MSG_DENUNCIA_GRACIAS });
+    expect(await res.json()).toEqual({ mensaje: es.api.denunciaGracias });
     expect(mocks.denunciar).toHaveBeenCalledWith(expect.anything(), {
       reporterId: "user-1",
       targetType: "VIDEO",
@@ -124,7 +118,7 @@ describe("lo que no entra", () => {
     const res = await denunciar(CUERPO);
 
     expect(res.status).toBe(403);
-    expect((await res.json()).error.message).toBe(MSG_DENUNCIA_SIN_VERIFICAR);
+    expect((await res.json()).error.message).toBe(es.api.verificaTuCorreoParaPoder);
     expect(mocks.denunciar).not.toHaveBeenCalled();
     // Ni siquiera gasta cubo de rate limit: la barrera va antes.
     expect(mocks.rateLimit).not.toHaveBeenCalled();
@@ -138,19 +132,19 @@ describe("lo que responde el servicio, en humano", () => {
     const res = await denunciar(CUERPO);
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ mensaje: MSG_DENUNCIA_YA });
+    expect(await res.json()).toEqual({ mensaje: es.api.denunciaYa });
   });
 
   it("lo propio -> 400 con su copy; lo que ya no está -> 404 con el suyo", async () => {
     mocks.denunciar.mockResolvedValueOnce({ estado: "rechazada", motivo: "PROPIO" });
     const propio = await denunciar(CUERPO);
     expect(propio.status).toBe(400);
-    expect((await propio.json()).error.message).toBe(MSG_DENUNCIA_PROPIO);
+    expect((await propio.json()).error.message).toBe(es.api.noPuedesDenunciar);
 
     mocks.denunciar.mockResolvedValueOnce({ estado: "rechazada", motivo: "NO_DISPONIBLE" });
     const ido = await denunciar(CUERPO);
     expect(ido.status).toBe(404);
-    expect((await ido.json()).error.message).toBe(MSG_DENUNCIA_NO_DISPONIBLE);
+    expect((await ido.json()).error.message).toBe(es.api.esteContenidoYa);
   });
 
   it("ninguna respuesta lleva códigos crudos al usuario", async () => {

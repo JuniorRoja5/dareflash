@@ -77,14 +77,13 @@ describe("zonaDeLaPeticion: cookie, si no la guardada, si no null", () => {
 });
 
 describe("la zona guardada llega por la sesión, no por una consulta propia", () => {
-  const codigo = readFileSync(
-    path.join(process.cwd(), "src", "server", "formato-peticion.ts"),
-    "utf8",
-  )
+  // Desde la P5b3 la función vive en `zona-peticion` (sin cabeceras, para que la use la API); se
+  // lee allí, y `formato-peticion` solo la reexporta.
+  const codigo = readFileSync(path.join(process.cwd(), "src", "server", "zona-peticion.ts"), "utf8")
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/^\s*\/\/.*$/gm, "");
 
-  it("formato-peticion no importa Prisma ni consulta nada: solo `getCurrentUser`", () => {
+  it("zona-peticion no importa Prisma ni consulta nada: solo `getCurrentUser`", () => {
     expect(codigo).not.toMatch(/@\/server\/db|prisma|\$queryRaw|findUnique|findFirst/);
     expect(codigo).toMatch(/await import\("@\/server\/auth\/current-user"\)/);
   });

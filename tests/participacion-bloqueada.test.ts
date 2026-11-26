@@ -10,11 +10,11 @@
  * mitades: que el dueño puede volver, y que el moderado NO.
  */
 import { readFileSync } from "node:fs";
+import { es } from "@/textos/es";
 import path from "node:path";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { MSG_PARTICIPACION_BLOQUEADA } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import {
   iniciarParticipacion,
@@ -163,8 +163,8 @@ describe("un moderador retira la participación", () => {
   it("el mensaje dice la VERDAD: nombra al moderador", async () => {
     // Ahora que el borrado propio ya no bloquea, si el bloqueo salta es SIEMPRE moderación. El copy
     // puede afirmarlo sin mentir — antes se lo comía también quien solo había borrado su vídeo.
-    expect(MSG_PARTICIPACION_BLOQUEADA).toMatch(/moderador/i);
-    expect(MSG_PARTICIPACION_BLOQUEADA.length).toBeGreaterThan(20);
+    expect(es.api.participacionBloqueada).toMatch(/moderador/i);
+    expect(es.api.participacionBloqueada.length).toBeGreaterThan(20);
   });
 });
 

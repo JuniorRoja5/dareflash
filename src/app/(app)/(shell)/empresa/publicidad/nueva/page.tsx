@@ -4,7 +4,6 @@ import { TextosProvider } from "@/components/textos-provider";
 import { Tarjeta } from "@/components/ui/tarjeta";
 import {
   CREDITOS_POR_DIA,
-  MSG_TIPO_NEGOCIO_DESCONOCIDO,
   PUBLICIDAD_MAX_POR_ZONA,
   PUBLICIDAD_RESERVA_MAX_DIAS,
 } from "@/config/constants";
@@ -106,7 +105,7 @@ export default async function PaginaNuevaCampana() {
       <div className="df-rise space-y-6">
         {cabecera}
         <Tarjeta className="max-w-prose p-5">
-          <p className="text-sm text-text-dim">{MSG_TIPO_NEGOCIO_DESCONOCIDO}</p>
+          <p className="text-sm text-text-dim">{t("tipoNegocioDesconocido")}</p>
         </Tarjeta>
       </div>
     );

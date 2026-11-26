@@ -17,6 +17,12 @@ export const IDIOMA_RAIZ: Idioma = "es";
 /** Las cabeceras que pone el proxy en la petición (y que pisa siempre si vienen del cliente). */
 export const CABECERA_IDIOMA = "x-df-idioma";
 export const CABECERA_RUTA = "x-df-ruta";
+/**
+ * EL IDIOMA PARA LA API (P5b3, decisión de Junior): `/api` no pasa por el proxy, así que no tiene
+ * prefijo ni cabeceras de idioma de fiar. El proxy deja en esta cookie el idioma de la última PÁGINA
+ * servida (solo si cambia) y la API la lee validada (`server/http/textos-api`).
+ */
+export const COOKIE_IDIOMA = "df-idioma";
 
 /** Rutas que no llevan idioma: ni se prefijan en un enlace ni existen con prefijo. */
 export const RUTAS_SIN_IDIOMA = ["/panel", "/api", "/ir", "/_next"] as const;

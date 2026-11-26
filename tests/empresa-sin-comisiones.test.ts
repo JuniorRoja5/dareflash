@@ -78,7 +78,7 @@ describe("el portal no habla de comisiones", () => {
     // El pago, el estado de una propuesta y su etiqueta viven desde la P5b2b en el diccionario: los lee
     // el caso de abajo, con todo espacio que el portal pide.
     const textos: Record<string, string> = {
-      MSG_EMPRESA_SOLO_MIRA: C.MSG_EMPRESA_SOLO_MIRA,
+      MSG_EMPRESA_SOLO_MIRA: es.comentarios.soloMira,
       MSG_CUENTA_EMPRESA_NO_PARTICIPA: C.MSG_CUENTA_EMPRESA_NO_PARTICIPA,
       ...Object.fromEntries(
         Object.entries(C.MSG_MOTIVO_RECHAZO_RETO).map(([k, v]) => [

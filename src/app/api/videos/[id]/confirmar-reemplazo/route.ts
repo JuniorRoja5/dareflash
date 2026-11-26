@@ -1,5 +1,6 @@
 import { apiError, apiOk } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export const dynamic = "force-dynamic";
  */
 export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (_req, { user, prisma }, { params }) => {
+    const t = await textosApi(_req);
     const { completarReemplazo } = await import("@/server/services/participacion");
     const { id } = await params;
 
@@ -24,10 +26,10 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
       select: { userId: true, status: true },
     });
     if (!video || video.userId !== user.userId) {
-      return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
+      return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
     }
     if (video.status !== "PUBLISHED") {
-      return apiError("NO_LISTO", "El vídeo aún se está procesando. Inténtalo en un momento.", 409);
+      return apiError("NO_LISTO", t("elVideoAun"), 409);
     }
 
     const { hecho } = await completarReemplazo(prisma, id);

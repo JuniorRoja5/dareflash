@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { apiError } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +16,11 @@ export const dynamic = "force-dynamic";
  *
  * Tampoco marca nada como leído: sondear y leer son cosas distintas. Sin sesión, 401 (y el sondeo para).
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const t = await textosApi(req);
   const { getCurrentUserSinTocar } = await import("@/server/auth/current-user");
   const user = await getCurrentUserSinTocar();
-  if (!user) return apiError("UNAUTHENTICATED", "Inicia sesión para ver tus avisos.", 401);
+  if (!user) return apiError("UNAUTHENTICATED", t("iniciaSesionPara"), 401);
 
   const { prisma } = await import("@/server/db/client");
   const { contarNoLeidas } = await import("@/server/services/notificaciones");

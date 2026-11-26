@@ -14,6 +14,7 @@
  * servidor para rechazar. La autoridad es el servidor, que la aplica sobre el `pointsBalance` de la
  * fila, nunca sobre lo que diga el cliente.
  */
+import type { MensajeApi } from "@/textos/mensaje-api";
 import { NIVELES, nivelPorPuntos, type ClaveNivel, type Nivel } from "@/lib/niveles";
 
 /** Sin restricción. Es `rookie` porque rookie empieza en 0 puntos: lo alcanza todo el mundo. */
@@ -49,10 +50,13 @@ export function puedeParticiparPorNivel(puntos: number, nivelMinimo: string): bo
 }
 
 /**
- * El COPY del veto, construido con el nombre del nivel. Vive aquí, al lado de la regla, porque
- * depende de los nombres de `niveles.ts`: en `constants.ts` sería una segunda lista de nombres
- * esperando a desincronizarse de la escalera.
+ * El veto, como DATO (P5b3): la clave de la frase y el nombre del nivel. Vive aquí, al lado de la
+ * regla, porque depende de los nombres de `niveles.ts` (son de marca: no se traducen). La frase la
+ * compone quien la pinta, en su idioma: la ficha del reto (`fraseDeLaPeticion`) y la ruta que rechaza
+ * la subida (`frase`). Una frase, UNA clave.
  */
-export function mensajeNivelInsuficiente(nivelMinimo: string): string {
-  return `Necesitas ser ${nivelDeClave(nivelMinimo).nombre} para participar en este reto.`;
+export function mensajeNivelInsuficiente(
+  nivelMinimo: string,
+): Extract<MensajeApi, { clave: "nivelInsuficiente" }> {
+  return { clave: "nivelInsuficiente", params: { nivel: nivelDeClave(nivelMinimo).nombre } };
 }

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk, clientIpKey, depsRuta, rateLimitKey } from "@/server/http/api";
+import { frase, textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -9,9 +10,9 @@ export const dynamic = "force-dynamic";
 // dentro de un handler, y esta tiene bordes de verdad: el dia del cumpleanos, el 29 de febrero.
 
 export async function POST(req: Request) {
+  const t = await textosApi(req);
   const { env, prisma } = await depsRuta();
-  const { MSG_EDAD_MINIMA, MSG_FECHA_NACIMIENTO_NO_VALIDA, MSG_TERMINOS_SIN_ACEPTAR, RATE_LIMITS } =
-    await import("@/config/constants");
+  const { RATE_LIMITS } = await import("@/config/constants");
   const { declaraEdadMinima, leerFechaNacimiento } = await import("@/lib/edad");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { registerUser } = await import("@/server/auth/registration");
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
     key: `register:ip:${clientIpKey(req, env.AUTH_SECRET)}`,
     ...RATE_LIMITS.REGISTER_PER_IP,
   });
-  if (!rl.allowed) return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
+  if (!rl.allowed) return apiError("RATE_LIMITED", t("demasiadosIntentosIntenta"), 429);
 
   const schema = z.object({
     email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return apiError("BAD_REQUEST", "Cuerpo de la peticion invalido.", 400);
+    return apiError("BAD_REQUEST", t("cuerpoDeLa"), 400);
   }
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
@@ -56,8 +57,8 @@ export async function POST(req: Request) {
     // abriria enumeracion por el email. La casilla es la excepcion util —el cliente ya sabe si la
     // marcó— y se distingue para poder decirle algo que sirva.
     const sinCasilla = parsed.error.issues.some((i) => i.path[0] === "aceptaTerminos");
-    if (sinCasilla) return apiError("TERMINOS", MSG_TERMINOS_SIN_ACEPTAR, 400);
-    return apiError("VALIDATION", "Datos de registro invalidos.", 400);
+    if (sinCasilla) return apiError("TERMINOS", t("tienesQueAceptar"), 400);
+    return apiError("VALIDATION", t("datosDeRegistro"), 400);
   }
 
   // LA PUERTA DE EDAD, EN UN SOLO SITIO Y EN EL SERVIDOR. El `<input type="date">` del formulario
@@ -66,8 +67,8 @@ export async function POST(req: Request) {
   // eso lo decidira Stripe Connect al reclamar, con documento. Ver `EDAD_MIN_USO`.
   const ahora = new Date();
   const nacimiento = leerFechaNacimiento(parsed.data.birthDate, ahora);
-  if (!nacimiento) return apiError("VALIDATION", MSG_FECHA_NACIMIENTO_NO_VALIDA, 400);
-  if (!declaraEdadMinima(nacimiento, ahora)) return apiError("EDAD_MINIMA", MSG_EDAD_MINIMA, 400);
+  if (!nacimiento) return apiError("VALIDATION", t("revisaTuFecha"), 400);
+  if (!declaraEdadMinima(nacimiento, ahora)) return apiError("EDAD_MINIMA", t("tienesQueSer"), 400);
 
   // Rate-limit POR DIRECCION (ademas del de IP de arriba). Sin esto, un atacante con muchas IPs
   // (botnet / IPv6 rotando) puede BOMBARDEAR el buzon de una victima con correos de verificacion. El
@@ -77,7 +78,7 @@ export async function POST(req: Request) {
     ...RATE_LIMITS.REGISTER_PER_EMAIL,
   });
   if (!rlEmail.allowed) {
-    return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
+    return apiError("RATE_LIMITED", t("demasiadosIntentosIntenta"), 429);
   }
 
   // POLITICA DE CONTRASENA FUERTE (server-side, misma regla que el reset): rechaza debiles/comunes/
@@ -86,7 +87,7 @@ export async function POST(req: Request) {
     password: parsed.data.password,
     email: parsed.data.email,
   });
-  if (!veredicto.ok) return apiError("VALIDATION", veredicto.mensaje, 400);
+  if (!veredicto.ok) return apiError("VALIDATION", frase(t, veredicto.mensaje), 400);
 
   // El argon2 del registro (que se ejecuta SIEMPRE, anti-enumeracion) va por el semaforo: si
   // esta saturado, 503, no 500. La respuesta uniforme se mantiene para el resto de casos.
@@ -103,7 +104,7 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     if (esArgon2Sobrecargado(e)) {
-      return apiError("OVERLOADED", "Servicio ocupado, reintenta en unos segundos.", 503);
+      return apiError("OVERLOADED", t("servicioOcupadoReintenta"), 503);
     }
     throw e;
   }
@@ -112,6 +113,5 @@ export async function POST(req: Request) {
   // los dos casos: si era nueva sale la verificacion, si no el aviso «ya tienes cuenta» (ver
   // `services/aviso-cuenta-existente`). Antes prometia "un correo de verificacion" tambien cuando
   // no habiamos enviado nada.
-  const { MSG_REVISA_CORREO_REGISTRO } = await import("@/config/constants");
-  return apiOk({ ok: true, message: MSG_REVISA_CORREO_REGISTRO });
+  return apiOk({ ok: true, message: t("revisaCorreoRegistro") });
 }

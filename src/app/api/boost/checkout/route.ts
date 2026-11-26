@@ -1,16 +1,11 @@
 import { z } from "zod";
 
-import {
-  MSG_BOOST_PAGO_NO_DISPONIBLE,
-  MSG_BOOST_SIN_VERIFICAR,
-  PAQUETES_BOOST,
-  DEFAULT_CURRENCY,
-  RATE_LIMITS,
-} from "@/config/constants";
+import { PAQUETES_BOOST, DEFAULT_CURRENCY, RATE_LIMITS } from "@/config/constants";
 import { PaqueteBoostSchema } from "@/config/esquemas";
 import { conTipo } from "@/lib/pago-tipo";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -35,15 +30,16 @@ const CuerpoSchema = z.object({ packageId: PaqueteBoostSchema });
  * confirma. Acreditar aquí sería regalar créditos a quien abre el formulario y lo cierra.
  */
 export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
+  const t = await textosApi(req);
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { clienteStripe, PagosNoDisponibles } = await import("@/server/pagos/stripe");
 
   if (user.emailVerified === null) {
-    return apiError("EMAIL_SIN_VERIFICAR", MSG_BOOST_SIN_VERIFICAR, 403);
+    return apiError("EMAIL_SIN_VERIFICAR", t("verificaTuCorreoPara"), 403);
   }
 
   const cuerpo = CuerpoSchema.safeParse(await req.json().catch(() => null));
-  if (!cuerpo.success) return apiError("VALIDATION", "Elige un paquete válido.", 400);
+  if (!cuerpo.success) return apiError("VALIDATION", t("eligeUnPaquete"), 400);
   const paquete = PAQUETES_BOOST[cuerpo.data.packageId];
 
   const rl = await rateLimit(prisma, {
@@ -51,7 +47,7 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     ...RATE_LIMITS.BOOST_CHECKOUT_PER_USER,
   });
   if (!rl.allowed) {
-    return apiError("RATE_LIMITED", "Demasiados intentos. Espera un momento.", 429);
+    return apiError("RATE_LIMITED", t("demasiadosIntentosEspera"), 429);
   }
 
   try {
@@ -84,7 +80,7 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
 
     if (!sesion.url) {
       console.error(`[boost] Stripe no devolvió URL para la sesión ${sesion.id}`);
-      return apiError("PAGO_NO_DISPONIBLE", MSG_BOOST_PAGO_NO_DISPONIBLE, 503);
+      return apiError("PAGO_NO_DISPONIBLE", t("losPagosNo"), 503);
     }
     return apiOk({ url: sesion.url });
   } catch (e) {
@@ -92,10 +88,6 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     // aparece ni "STRIPE_SECRET_KEY" ni el error del SDK.
     const porConfig = e instanceof PagosNoDisponibles;
     console.error(`[boost] abrir pago de ${user.userId}: ${e instanceof Error ? e.message : e}`);
-    return apiError(
-      porConfig ? "PAGO_NO_CONFIGURADO" : "PAGO_NO_DISPONIBLE",
-      MSG_BOOST_PAGO_NO_DISPONIBLE,
-      503,
-    );
+    return apiError(porConfig ? "PAGO_NO_CONFIGURADO" : "PAGO_NO_DISPONIBLE", t("losPagosNo"), 503);
   }
 });

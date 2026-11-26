@@ -14,6 +14,7 @@
  *    baja la confirma el webhook, no esta pantalla.
  */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { es } from "@/textos/es";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ post: vi.fn(), refresh: vi.fn() }));
@@ -28,7 +29,6 @@ vi.mock("next/navigation", () => ({
 
 import { CancelarVip } from "@/app/(app)/(shell)/vip/cancelar-vip";
 import { CtaVip } from "@/app/(app)/(shell)/vip/cta-vip";
-import { MSG_VIP_CANCELADA_OK } from "@/config/constants";
 
 const URL_STRIPE = "https://checkout.stripe.com/c/pay/cs_test_VIP#fidkbWxv";
 const ok = (data: unknown, status = 200) => ({ ok: status < 400, status, code: "", data });
@@ -202,7 +202,7 @@ describe("darse de baja", () => {
   });
 
   it("al confirmar, pide la baja con el cuerpo vacío", async () => {
-    mocks.post.mockResolvedValue(ok({ estado: "cancelada", mensaje: MSG_VIP_CANCELADA_OK }));
+    mocks.post.mockResolvedValue(ok({ estado: "cancelada", mensaje: es.vipCliente.canceladaOk }));
     montarBaja();
 
     fireEvent.click(boton(/Cancelar suscripción/));
@@ -229,7 +229,7 @@ describe("darse de baja", () => {
   });
 
   it("no se refresca solo: ofrece hacerlo cuando el webhook haya llegado", async () => {
-    mocks.post.mockResolvedValue(ok({ mensaje: MSG_VIP_CANCELADA_OK }));
+    mocks.post.mockResolvedValue(ok({ mensaje: es.vipCliente.canceladaOk }));
     montarBaja();
 
     fireEvent.click(boton(/Cancelar suscripción/));

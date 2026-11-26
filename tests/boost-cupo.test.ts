@@ -27,7 +27,6 @@ import {
   BOOST_DESTACADOS_PORTADA,
   BOOST_DURACION_MIN,
   BOOST_MAX_SIMULTANEOS,
-  msgBoostAgotado,
 } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import {
@@ -71,6 +70,10 @@ async function gente(cuantos: number): Promise<string[]> {
 
 const vigentes = (ahora = new Date()) =>
   prisma.boostActivation.count({ where: { expiresAt: { gt: ahora } } });
+
+/** La frase del cupo lleno, como la pinta la pantalla (P5b3: del diccionario). */
+const msgBoostAgotado = (minutos: number) =>
+  es.boostCliente.agotado.replace("{minutos}", String(minutos));
 
 describe("las plazas SON el cupo", () => {
   it("hay exactamente `BOOST_MAX_SIMULTANEOS`, y la constante no puede alejarse de las filas", () => {

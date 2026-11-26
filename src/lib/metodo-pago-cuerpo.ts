@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { MSG_RETIRADA_NO_DISPONIBLE } from "@/config/constants";
 import { MetodoRetiradaSchema } from "@/config/esquemas";
+import type { ClaveApi, MensajeApi } from "@/textos/mensaje-api";
 
 import type { DestinoRetirada } from "./retirada";
 
@@ -27,13 +27,16 @@ export const CuerpoMetodoPagoSchema = z.object({
  * El copy por motivo de rechazo. Lo que la persona puede hacer algo con, nunca el código: "IBAN
  * inválido" no le dice qué mirar, "revisa el IBAN: no parece completo" sí.
  */
-export const MENSAJE_METODO_PAGO: Record<string, string> = {
-  SIN_CIFRADO: MSG_RETIRADA_NO_DISPONIBLE,
-  DEMASIADOS:
-    "Ya tienes todos los métodos de cobro que se pueden guardar. Borra uno para añadir otro.",
-  IBAN_INVALIDO: "Revisa el IBAN: no parece completo.",
-  TITULAR_VACIO: "Falta el nombre del titular de la cuenta.",
-  METODO_DESCONOCIDO: "Solo puedes cobrar en una cuenta bancaria: añade su IBAN y el titular.",
+/**
+ * La frase de cada rechazo, como CLAVE del espacio `api` (P5b3): la compone la ruta, en el idioma de
+ * quien llama.
+ */
+export const MENSAJE_METODO_PAGO: Record<string, ClaveApi> = {
+  SIN_CIFRADO: "retiradaNoDisponible",
+  DEMASIADOS: "metodoPagoDemasiados",
+  IBAN_INVALIDO: "metodoPagoIbanInvalido",
+  TITULAR_VACIO: "metodoPagoTitularVacio",
+  METODO_DESCONOCIDO: "metodoPagoDesconocido",
 };
 
 /**
@@ -49,7 +52,7 @@ export function leerCuerpoMetodoPago(
   json: unknown,
 ):
   | { ok: true; destino: DestinoRetirada }
-  | { ok: false; codigo: "METODO_DESCONOCIDO" | "VALIDATION"; mensaje: string } {
+  | { ok: false; codigo: "METODO_DESCONOCIDO" | "VALIDATION"; mensaje: MensajeApi } {
   const cuerpo = CuerpoMetodoPagoSchema.safeParse(json);
   if (cuerpo.success) return { ok: true, destino: cuerpo.data };
   const metodo = (json as { metodo?: unknown } | null)?.metodo;
@@ -57,8 +60,8 @@ export function leerCuerpoMetodoPago(
     return {
       ok: false,
       codigo: "METODO_DESCONOCIDO",
-      mensaje: MENSAJE_METODO_PAGO.METODO_DESCONOCIDO!,
+      mensaje: { clave: "metodoPagoDesconocido" },
     };
   }
-  return { ok: false, codigo: "VALIDATION", mensaje: "No hemos podido procesar la petición." };
+  return { ok: false, codigo: "VALIDATION", mensaje: { clave: "noHemosPodido" } };
 }

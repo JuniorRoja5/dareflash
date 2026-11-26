@@ -1,3 +1,4 @@
+import { es } from "@/textos/es";
 import { describe, expect, it } from "vitest";
 
 import { evaluarPassword } from "../src/server/auth/password-policy";
@@ -73,8 +74,10 @@ describe("evaluarPassword", () => {
     const r = evaluar(`${PALABRA_COMUN}12`);
     expect(r.ok).toBe(false);
     if (!r.ok) {
-      expect(r.mensaje).toMatch(/adivinar|caracteres/i);
-      expect(r.mensaje).not.toMatch(/score|zxcvbn|\d{3}|VALIDATION/i);
+      // Desde la P5b3 el veredicto lleva un DATO; la frase es la de su clave en el diccionario.
+      const texto = es.api[r.mensaje.clave];
+      expect(texto).toMatch(/adivinar|caracteres/i);
+      expect(texto).not.toMatch(/score|zxcvbn|\d{3}|VALIDATION/i);
     }
   });
 });

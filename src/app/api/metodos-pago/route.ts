@@ -1,6 +1,7 @@
 import { leerCuerpoMetodoPago, MENSAJE_METODO_PAGO } from "@/lib/metodo-pago-cuerpo";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk } from "@/server/http/api";
+import { frase, textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ export const dynamic = "force-dynamic";
  * no los necesita de vuelta. Cada sitio por el que viaja un IBAN es un sitio donde puede quedarse.
  */
 export const POST = mutatingRoute(async (req, { prisma }) => {
+  const t = await textosApi(req);
   const { AuthError, requireVerifiedUser } = await import("@/server/auth/rbac");
   const { guardarMetodoPago } = await import("@/server/services/metodos-pago");
 
@@ -21,23 +23,19 @@ export const POST = mutatingRoute(async (req, { prisma }) => {
     userId = (await requireVerifiedUser()).userId;
   } catch (e) {
     if (e instanceof AuthError) {
-      return apiError(
-        "EMAIL_SIN_VERIFICAR",
-        "Verifica tu correo antes de configurar el cobro.",
-        403,
-      );
+      return apiError("EMAIL_SIN_VERIFICAR", t("verificaTuCorreoAntes"), 403);
     }
     throw e;
   }
 
   const cuerpo = leerCuerpoMetodoPago(await req.json().catch(() => null));
-  if (!cuerpo.ok) return apiError(cuerpo.codigo, cuerpo.mensaje, 400);
+  if (!cuerpo.ok) return apiError(cuerpo.codigo, frase(t, cuerpo.mensaje), 400);
 
   const r = await guardarMetodoPago(prisma, { userId, destino: cuerpo.destino });
   if (!r.ok) {
     return apiError(
       r.rechazo,
-      MENSAJE_METODO_PAGO[r.rechazo] ?? "No hemos podido guardar ese método.",
+      t(MENSAJE_METODO_PAGO[r.rechazo] ?? "noHemosPodidoGuardarMetodo"),
       409,
     );
   }

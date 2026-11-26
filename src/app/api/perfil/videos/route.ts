@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk, depsRuta } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +24,13 @@ const QuerySchema = z.object({
  * Sin sesión responde 401: no hay un "mi perfil" de un invitado.
  */
 export async function GET(req: Request) {
+  const t = await textosApi(req);
   const url = new URL(req.url);
   const parsed = QuerySchema.safeParse({
     cursor: url.searchParams.get("cursor") ?? undefined,
     limit: url.searchParams.get("limit") ?? undefined,
   });
-  if (!parsed.success) return apiError("BAD_REQUEST", "Parámetros de página inválidos.", 400);
+  if (!parsed.success) return apiError("BAD_REQUEST", t("parametrosDePagina"), 400);
 
   const { prisma } = await depsRuta();
   const { getCurrentUser } = await import("@/server/auth/current-user");
@@ -37,7 +39,7 @@ export async function GET(req: Request) {
   const { sanearError } = await import("@/server/observability/sanitize-error");
 
   const usuario = await getCurrentUser();
-  if (!usuario) return apiError("UNAUTHORIZED", "Inicia sesión para ver tus vídeos.", 401);
+  if (!usuario) return apiError("UNAUTHORIZED", t("iniciaSesionParaVer"), 401);
 
   try {
     const { items, nextCursor } = await misVideosPaginados(prisma, usuario.userId, {
@@ -62,6 +64,6 @@ export async function GET(req: Request) {
     });
   } catch (e) {
     console.error("[api/perfil/videos] fallo paginando:", sanearError(e));
-    return apiError("VIDEOS_FAILED", "No se pudieron cargar más vídeos.", 502);
+    return apiError("VIDEOS_FAILED", t("noSePudieron"), 502);
   }
 }

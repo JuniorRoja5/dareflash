@@ -1,5 +1,6 @@
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
+import { frase, textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export const dynamic = "force-dynamic";
  */
 export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (req, { user, env, prisma }, { params }) => {
+    const t = await textosApi(req);
     const { procesarImagen, ImagenInvalidaError } = await import("@/server/services/imagen");
     const { establecerMiniatura, clienteBunnyReal } = await import("@/server/services/bunny");
     const { rateLimit } = await import("@/server/security/rate-limit");
@@ -35,7 +37,7 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
       ...RATE_LIMITS.UPLOAD_THUMBNAIL_PER_USER,
     });
     if (!rl.allowed) {
-      return apiError("RATE_LIMITED", "Demasiadas miniaturas por ahora. Inténtalo más tarde.", 429);
+      return apiError("RATE_LIMITED", t("demasiadasMiniaturasPor"), 429);
     }
 
     // Vídeo del propio usuario (inexistente o ajeno -> el mismo 404, sin distinguir).
@@ -44,18 +46,18 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
       select: { userId: true, bunnyVideoId: true },
     });
     if (!video || video.userId !== user.userId) {
-      return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
+      return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
     }
 
     let form: FormData;
     try {
       form = await req.formData();
     } catch {
-      return apiError("BAD_REQUEST", "No hemos podido leer la imagen. Inténtalo de nuevo.", 400);
+      return apiError("BAD_REQUEST", t("noHemosPodidoLeerLaImagen"), 400);
     }
     const fichero = form.get("imagen");
     if (!(fichero instanceof File) || fichero.size === 0) {
-      return apiError("VALIDATION", "Elige una imagen para la miniatura.", 400);
+      return apiError("VALIDATION", t("eligeUnaImagenPara"), 400);
     }
 
     // Sanea la imagen (JPEG, modo contener). Errores tipados -> mensaje al cliente.
@@ -70,14 +72,14 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
       ).buffer;
     } catch (e) {
       if (e instanceof ImagenInvalidaError) {
-        return apiError(`MINIATURA_${e.motivo}`, e.message, e.motivo === "TAMANO" ? 413 : 400);
+        return apiError(
+          `MINIATURA_${e.motivo}`,
+          frase(t, e.mensaje),
+          e.motivo === "TAMANO" ? 413 : 400,
+        );
       }
       console.error("[videos/miniatura] fallo procesando la imagen:", sanearError(e));
-      return apiError(
-        "MINIATURA_ERROR",
-        "No hemos podido procesar la imagen. Prueba con otra.",
-        400,
-      );
+      return apiError("MINIATURA_ERROR", t("noHemosPodidoProcesar"), 400);
     }
 
     // Envía a Bunny (Set Thumbnail). Fallo de Bunny -> error suave (la subida NO depende de esto).
@@ -91,11 +93,7 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
       );
     } catch (e) {
       console.error("[videos/miniatura] Bunny Set Thumbnail falló:", sanearError(e));
-      return apiError(
-        "MINIATURA_BUNNY",
-        "No se pudo aplicar la miniatura. Se usará una automática; puedes reintentar.",
-        502,
-      );
+      return apiError("MINIATURA_BUNNY", t("noSePudoAplicar"), 502);
     }
 
     // Bunny NO guarda la miniatura personalizada como `thumbnail.jpg` (ese sigue siendo el frame

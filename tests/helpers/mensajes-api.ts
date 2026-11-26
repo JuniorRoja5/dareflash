@@ -91,6 +91,50 @@ export function leerMensajesApi(nombre: string, fuente: string, r: Resolutores):
         const v = r.clave(a.text);
         return [v ?? `‹clave api.${a.text} inexistente›`];
       }
+      // `t(MAPA[motivo] ?? "clave")`: cada entrada del mapa local (claves) y la de por defecto.
+      if (
+        a &&
+        ts.isBinaryExpression(a) &&
+        a.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken
+      ) {
+        const izq = a.left;
+        const entradas =
+          ts.isElementAccessExpression(izq) && ts.isIdentifier(izq.expression)
+            ? locales.get(izq.expression.text)
+            : undefined;
+        const porDefecto = ts.isStringLiteral(a.right) ? r.clave(a.right.text) : undefined;
+        if (entradas && ts.isObjectLiteralExpression(entradas) && porDefecto !== undefined) {
+          return [
+            porDefecto,
+            ...entradas.properties.flatMap((p) =>
+              ts.isPropertyAssignment(p) && ts.isStringLiteral(p.initializer)
+                ? [
+                    `[${p.name.getText(sf)}] ${r.clave(p.initializer.text) ?? "‹clave inexistente›"}`,
+                  ]
+                : [],
+            ),
+          ];
+        }
+        if (porDefecto !== undefined) return [`‹${izq.getText(sf)}›`, porDefecto];
+      }
+    }
+    // P5b3: `frase(t, dato)` dice lo que antes decía el error o el veredicto del que sale el dato
+    // (que llevaba la frase en `.message` / `.mensaje`; ahora lleva la clave en `.mensaje`).
+    if (ts.isCallExpression(e) && ts.isIdentifier(e.expression) && e.expression.text === "frase") {
+      const dato = e.arguments[1]?.getText(sf) ?? "";
+      return [`‹${dato.replace(/^e\.mensaje$/, "e.message")}›`];
+    }
+    // `mensajeDeValidacion(t, issue, t("clave"))`: el mensaje del esquema, o la frase por defecto.
+    if (
+      ts.isCallExpression(e) &&
+      ts.isIdentifier(e.expression) &&
+      e.expression.text === "mensajeDeValidacion"
+    ) {
+      const [, issue, porDefecto] = e.arguments;
+      return [
+        `‹${issue?.getText(sf)}?.message›`,
+        ...(porDefecto ? resolver(porDefecto, prof + 1) : []),
+      ];
     }
     // `MENSAJE[motivo]` con `MENSAJE` un objeto local: todas sus entradas, con su clave.
     if (ts.isElementAccessExpression(e) && ts.isIdentifier(e.expression)) {

@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 
 import { Boton } from "@/components/ui/boton";
 import { RELLENO_VIP } from "@/components/ui/logic";
-import { MSG_RETO_SOLO_VIP } from "@/config/constants";
 import { useTextos } from "@/components/textos-provider";
 import type { FaseReto } from "@/lib/reto-ventana";
 import { ModalSubida } from "@/app/(app)/(shell)/crear/modal-subida";
@@ -99,7 +98,7 @@ export function BotonParticipar({
           {t("hazteVip")}
         </Boton>
         <p role="status" className="mt-2 text-sm text-text-dim">
-          {MSG_RETO_SOLO_VIP}
+          {t("soloVip")}
         </p>
       </>
     );

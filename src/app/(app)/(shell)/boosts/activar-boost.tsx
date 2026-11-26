@@ -5,16 +5,10 @@ import { useCallback, useState } from "react";
 
 import { useFormato } from "@/components/formato-provider";
 import { Boton } from "@/components/ui/boton";
-import {
-  fraseReinicioDiario,
-  msgBoostAgotado,
-  msgBoostLimiteDiario,
-  BOOST_DAILY_LIMIT,
-  BOOST_DURACION_MIN,
-  BOOST_MIN_PORTADA,
-} from "@/config/constants";
+import { BOOST_DAILY_LIMIT, BOOST_DURACION_MIN, BOOST_MIN_PORTADA } from "@/config/constants";
 import { useTextos } from "@/components/textos-provider";
 import { palabrasDuracion } from "@/textos/duracion";
+import { fraseReinicioDiario } from "@/textos/reinicio-diario";
 import { duracionBoostHumana } from "@/lib/boost-duracion";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { formatearNumero } from "@/lib/formato";
@@ -67,6 +61,7 @@ export function ActivarBoost({
   const { idioma, zona } = useFormato();
   const t = useTextos("boostCliente");
   const tdur = useTextos("duracion");
+  const trein = useTextos("reinicioDiario");
   const duracion = duracionBoostHumana(BOOST_DURACION_MIN, palabrasDuracion(tdur, idioma));
   const [token, setToken] = useState(() => crypto.randomUUID());
   const [enviando, setEnviando] = useState(false);
@@ -140,14 +135,17 @@ export function ActivarBoost({
               para quien quiere destacarse ahora eso es información nuestra, no suya. */}
           <p className="text-xs font-semibold text-text">{t("agotadoTitulo")}</p>
           <p className="mt-1 text-2xs text-text-dim">
-            {msgBoostAgotado(cupo.minutosParaHueco ?? 1)}
+            {t("agotado", { minutos: String(cupo.minutosParaHueco ?? 1) })}
           </p>
         </div>
       ) : limiteGastado ? (
         <p id="boost-limite" className="mt-2.5 text-2xs text-text-dim">
           {/* La misma frase que devuelve la ruta: la cifra de la constante y la hora del reinicio en
               la de quien mira (Fase 11), con la zona que el layout comparte con el servidor. */}
-          {msgBoostLimiteDiario(fraseReinicioDiario(new Date(), idioma, zona))}
+          {t("limiteDiario", {
+            veces: String(BOOST_DAILY_LIMIT),
+            reinicio: fraseReinicioDiario(trein, new Date(), idioma, zona),
+          })}
         </p>
       ) : vigenteHastaMs !== null ? (
         <p className="mt-2.5 text-2xs text-text-dim">{t("yaDestacado")}</p>

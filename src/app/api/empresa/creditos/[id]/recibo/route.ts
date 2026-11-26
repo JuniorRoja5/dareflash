@@ -1,4 +1,5 @@
 import { apiError, depsRuta } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
+  const t = await textosApi(_req);
   const { env, prisma } = await depsRuta();
   const { requireEmpresa } = await import("@/server/auth/empresa-actual");
   const { compraDeMiEmpresa, reciboDeMiCompra } = await import("@/server/services/creditos-compra");
@@ -36,11 +38,11 @@ export async function GET(
   try {
     empresaId = (await requireEmpresa()).empresaId;
   } catch {
-    return apiError("NOT_FOUND", "No encontrado.", 404);
+    return apiError("NOT_FOUND", t("noEncontrado"), 404);
   }
   const { id } = await params;
   if (!ID_VALIDO.test(id) || !(await compraDeMiEmpresa(prisma, empresaId, id))) {
-    return apiError("NOT_FOUND", "No encontrado.", 404);
+    return apiError("NOT_FOUND", t("noEncontrado"), 404);
   }
 
   const volver = new URL("/empresa/creditos?recibo=no-disponible", env.APP_URL).toString();

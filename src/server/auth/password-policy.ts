@@ -3,6 +3,7 @@ import "server-only";
 import { ZxcvbnFactory } from "@zxcvbn-ts/core";
 import * as zxcvbnCommon from "@zxcvbn-ts/language-common";
 import { contieneMarcaVetada, MARCAS_VETADAS } from "@/config/marca";
+import { mensajeApi, type MensajeApi } from "@/textos/mensaje-api";
 
 /**
  * POLÍTICA DE CONTRASEÑA (server-side, COMPARTIDA por registro y restablecer). El registro aceptaba
@@ -31,11 +32,17 @@ const zxcvbn = new ZxcvbnFactory({
 export const LONGITUD_MINIMA = 10;
 const SCORE_MINIMO = 3; // 0..4; < 3 se considera adivinable
 
-const MENSAJE_DEBIL =
-  "Esa contraseña es demasiado fácil de adivinar. Prueba una más larga o menos predecible.";
-const MENSAJE_CORTA = `La contraseña debe tener al menos ${LONGITUD_MINIMA} caracteres.`;
+/**
+ * Los mensajes son DATOS (P5b3): la clave del espacio `api` y sus valores. La frase la compone la ruta,
+ * en el idioma de quien llama (`frase`).
+ */
+const MENSAJE_DEBIL = mensajeApi({ clave: "contrasenaDebil" });
+const MENSAJE_CORTA = mensajeApi({
+  clave: "contrasenaCorta",
+  params: { min: String(LONGITUD_MINIMA) },
+});
 
-export type VeredictoPassword = { ok: true } | { ok: false; mensaje: string };
+export type VeredictoPassword = { ok: true } | { ok: false; mensaje: MensajeApi };
 
 /** Parte local del email (antes de la @), en minúsculas. Solo si es lo bastante larga para que
  *  buscarla dentro de la contraseña tenga sentido (evita falsos positivos con locales de 1-3 letras). */

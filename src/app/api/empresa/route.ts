@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk, clientIpKey, depsRuta, rateLimitKey } from "@/server/http/api";
+import { frase, textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export const dynamic = "force-dynamic";
  * queda en `personaContacto`.
  */
 export async function POST(req: Request) {
+  const t = await textosApi(req);
   const { env, prisma } = await depsRuta();
   const {
     EMPRESA_CIUDAD_MAX,
@@ -39,8 +41,6 @@ export async function POST(req: Request) {
     EMPRESA_NOMBRE_MIN,
     EMPRESA_REDES_MAX,
     EMPRESA_WEB_MAX,
-    MSG_EMPRESA_DATOS_INVALIDOS,
-    MSG_TERMINOS_SIN_ACEPTAR,
     RATE_LIMITS,
   } = await import("@/config/constants");
   const { TipoCuentaEmpresaSchema, TipoNegocioSchema } = await import("@/config/esquemas");
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     key: `register:ip:${clientIpKey(req, env.AUTH_SECRET)}`,
     ...RATE_LIMITS.REGISTER_PER_IP,
   });
-  if (!rl.allowed) return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
+  if (!rl.allowed) return apiError("RATE_LIMITED", t("demasiadosIntentosIntenta"), 429);
 
   const pais = z.string().trim().length(2).refine(esPaisIso, "pais");
   const schema = z.object({
@@ -79,15 +79,15 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return apiError("BAD_REQUEST", "Cuerpo de la peticion invalido.", 400);
+    return apiError("BAD_REQUEST", t("cuerpoDeLa"), 400);
   }
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
     // La casilla se distingue (el cliente ya sabe si la marcó); el resto va con un mensaje común,
     // que es lo que no abre enumeración por el email.
     const sinCasilla = parsed.error.issues.some((i) => i.path[0] === "aceptaTerminos");
-    if (sinCasilla) return apiError("TERMINOS", MSG_TERMINOS_SIN_ACEPTAR, 400);
-    return apiError("VALIDATION", MSG_EMPRESA_DATOS_INVALIDOS, 400);
+    if (sinCasilla) return apiError("TERMINOS", t("tienesQueAceptar"), 400);
+    return apiError("VALIDATION", t("revisaLosDatos"), 400);
   }
 
   // Rate-limit POR DIRECCIÓN además del de IP: sin él, quien tenga muchas IPs puede bombardear el
@@ -97,14 +97,14 @@ export async function POST(req: Request) {
     ...RATE_LIMITS.REGISTER_PER_EMAIL,
   });
   if (!rlEmail.allowed) {
-    return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
+    return apiError("RATE_LIMITED", t("demasiadosIntentosIntenta"), 429);
   }
 
   const veredicto = evaluarPassword({
     password: parsed.data.password,
     email: parsed.data.email,
   });
-  if (!veredicto.ok) return apiError("VALIDATION", veredicto.mensaje, 400);
+  if (!veredicto.ok) return apiError("VALIDATION", frase(t, veredicto.mensaje), 400);
 
   const ahora = new Date();
   try {
@@ -139,9 +139,9 @@ export async function POST(req: Request) {
       ahora,
     );
   } catch (e) {
-    if (e instanceof EmpresaError) return apiError("VALIDATION", e.message, 400);
+    if (e instanceof EmpresaError) return apiError("VALIDATION", frase(t, e.mensaje), 400);
     if (esArgon2Sobrecargado(e)) {
-      return apiError("OVERLOADED", "Servicio ocupado, reintenta en unos segundos.", 503);
+      return apiError("OVERLOADED", t("servicioOcupadoReintenta"), 503);
     }
     throw e;
   }
@@ -149,6 +149,5 @@ export async function POST(req: Request) {
   // Respuesta UNIFORME: no revela si la direccion ya tenia cuenta (sin enumeracion). Y es VERDAD en
   // los dos casos: si era nueva sale la verificacion, si no el aviso «ya tienes cuenta». Antes decia
   // "te hemos enviado un correo de verificacion" tambien cuando no habiamos enviado nada.
-  const { MSG_REVISA_CORREO_EMPRESA } = await import("@/config/constants");
-  return apiOk({ ok: true, message: MSG_REVISA_CORREO_EMPRESA });
+  return apiOk({ ok: true, message: t("revisaCorreoEmpresa") });
 }

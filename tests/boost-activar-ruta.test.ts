@@ -10,15 +10,12 @@
  *  - NO TOCA STRIPE: esto gasta crédito interno.
  */
 import { randomUUID } from "node:crypto";
+import { es } from "@/textos/es";
 
 import { falso } from "./helpers/valores-falsos";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  BOOST_DAILY_LIMIT,
-  BOOST_DURACION_MIN,
-  MSG_BOOST_SIN_SALDO,
-} from "../src/config/constants";
+import { BOOST_DAILY_LIMIT, BOOST_DURACION_MIN } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
@@ -53,8 +50,8 @@ vi.mock("@/server/auth/current-user", () => ({
 
 // El idioma y la zona de la petición salen de una cookie (`next/headers`), que fuera de Next no
 // existe: se dobla SOLO eso. La frase la compone la ruta de verdad.
-vi.mock("@/server/formato-peticion", () => ({
-  idiomaDeLaPeticion: async () => "es",
+// La ruta lee la zona de `zona-peticion` (sin cabeceras, P5b3); el idioma, de la cookie.
+vi.mock("@/server/zona-peticion", () => ({
   zonaDeLaPeticion: async () => H.zona,
 }));
 
@@ -158,7 +155,7 @@ describe("sin saldo y límite son 200, con su copy", () => {
     const res = await pedir({ token: TOKEN });
 
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ estado: "sin-saldo", mensaje: MSG_BOOST_SIN_SALDO });
+    expect(await res.json()).toEqual({ estado: "sin-saldo", mensaje: es.api.boostSinSaldo });
   });
 
   it(`con las ${BOOST_DAILY_LIMIT} del día gastadas: 200, \`limite\` y su mensaje`, async () => {

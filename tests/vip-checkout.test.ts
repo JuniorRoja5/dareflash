@@ -16,9 +16,9 @@
  * la suscripción con el periodo vencido, que SÍ tiene que poder volver a suscribirse).
  */
 import { falso } from "./helpers/valores-falsos";
+import { es } from "@/textos/es";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MSG_VIP_PAGO_NO_DISPONIBLE } from "@/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 
 const H = vi.hoisted(() => ({
@@ -95,7 +95,7 @@ describe("el raíl está inerte", () => {
 
     expect(res.status).toBe(503);
     const cuerpo = await res.json();
-    expect(cuerpo.error.message).toBe(MSG_VIP_PAGO_NO_DISPONIBLE);
+    expect(cuerpo.error.message).toBe(es.api.lasSuscripcionesNo);
     // Ni el nombre de la variable ni el error del SDK llegan a la pantalla.
     expect(JSON.stringify(cuerpo)).not.toMatch(/STRIPE|Stripe|sk_/);
     expect(await prisma.subscription.count(), "abrir un pago activó el VIP").toBe(0);

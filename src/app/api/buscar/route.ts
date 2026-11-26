@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { BUSCAR_LIMITE } from "@/config/constants";
 import { apiError, apiOk, clientIpKey, depsRuta } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ const QuerySchema = z.object({
 });
 
 export async function GET(req: Request) {
+  const t = await textosApi(req);
   const url = new URL(req.url);
   const parsed = QuerySchema.safeParse({
     q: url.searchParams.get("q") ?? "",
@@ -36,11 +38,7 @@ export async function GET(req: Request) {
     pais: url.searchParams.get("pais") ?? undefined,
   });
   if (!parsed.success) {
-    return apiError(
-      "BAD_REQUEST",
-      "Búsqueda inválida. Escribe al menos 2 caracteres y elige un tipo.",
-      400,
-    );
+    return apiError("BAD_REQUEST", t("busquedaInvalidaEscribe"), 400);
   }
   const { q, tipo, cursor, limite, pais } = parsed.data;
 
@@ -57,7 +55,7 @@ export async function GET(req: Request) {
     ...RATE_LIMITS.BUSCAR_PER_IP,
   });
   if (!rl.allowed) {
-    return apiError("RATE_LIMITED", "Demasiadas búsquedas seguidas. Espera un momento.", 429);
+    return apiError("RATE_LIMITED", t("demasiadasBusquedasSeguidas"), 429);
   }
 
   try {
@@ -81,6 +79,6 @@ export async function GET(req: Request) {
     return apiOk(pagina as unknown as Record<string, unknown>);
   } catch (e) {
     console.error("[buscar] fallo:", sanearError(e));
-    return apiError("BUSCAR_FAILED", "No hemos podido buscar ahora mismo. Reinténtalo.", 502);
+    return apiError("BUSCAR_FAILED", t("noHemosPodidoBuscar"), 502);
   }
 }

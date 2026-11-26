@@ -1,12 +1,7 @@
-import {
-  MSG_VIP_CANCELADA_OK,
-  MSG_VIP_NO_ERES,
-  MSG_VIP_PAGO_NO_DISPONIBLE,
-  MSG_VIP_YA_CANCELADA,
-  RATE_LIMITS,
-} from "@/config/constants";
+import { RATE_LIMITS } from "@/config/constants";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +24,7 @@ export const dynamic = "force-dynamic";
  * superficie entera (cambiar tarjeta, ver facturas, reactivar) que todavía no está decidida.
  */
 export const POST = mutatingRoute(async (_req, { user, env, prisma }) => {
+  const t = await textosApi(_req);
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { clienteStripe, PagosNoDisponibles } = await import("@/server/pagos/stripe");
 
@@ -37,7 +33,7 @@ export const POST = mutatingRoute(async (_req, { user, env, prisma }) => {
     ...RATE_LIMITS.BOOST_CHECKOUT_PER_USER,
   });
   if (!rl.allowed) {
-    return apiError("RATE_LIMITED", "Demasiados intentos. Espera un momento.", 429);
+    return apiError("RATE_LIMITED", t("demasiadosIntentosEspera"), 429);
   }
 
   const sub = await prisma.subscription.findUnique({
@@ -49,30 +45,30 @@ export const POST = mutatingRoute(async (_req, { user, env, prisma }) => {
   // no se cancela (ya se acabó), y una CORTADA tampoco (no da acceso). Un no-VIP que llame a esto
   // —el botón no se le enseña, pero el endpoint existe— recibe un no, no una llamada a Stripe.
   const { esVipActivo } = await import("@/lib/vip");
-  if (!esVipActivo(sub, new Date())) return apiError("NO_ERES_VIP", MSG_VIP_NO_ERES, 409);
+  if (!esVipActivo(sub, new Date())) return apiError("NO_ERES_VIP", t("noTienesNinguna"), 409);
 
   // Ya pedida: es un no-op amable, no un error. Pulsar dos veces no es equivocarse.
   if (sub?.estado === "CANCELADA")
-    return apiOk({ estado: "ya-cancelada", mensaje: MSG_VIP_YA_CANCELADA });
+    return apiOk({ estado: "ya-cancelada", mensaje: t("vipYaCancelada") });
 
   // Sin el id de Stripe no hay a quién pedirle la baja. Pasa si la fila se creó a mano (un ajuste
   // del equipo): se dice que no se puede, en vez de fingir que se ha hecho.
   if (!sub?.stripeSubscriptionId) {
     console.error(`[vip] cancelar sin stripeSubscriptionId: ${user.userId}`);
-    return apiError("PAGO_NO_DISPONIBLE", MSG_VIP_PAGO_NO_DISPONIBLE, 503);
+    return apiError("PAGO_NO_DISPONIBLE", t("lasSuscripcionesNo"), 503);
   }
 
   try {
     const stripe = clienteStripe(env.STRIPE_SECRET_KEY);
     await stripe.subscriptions.update(sub.stripeSubscriptionId, { cancel_at_period_end: true });
     // NO se escribe nada aquí: lo hace el webhook. Ver la cabecera.
-    return apiOk({ estado: "cancelada", mensaje: MSG_VIP_CANCELADA_OK });
+    return apiOk({ estado: "cancelada", mensaje: t("vipCanceladaOk") });
   } catch (e) {
     const porConfig = e instanceof PagosNoDisponibles;
     console.error(`[vip] cancelar ${user.userId}: ${e instanceof Error ? e.message : e}`);
     return apiError(
       porConfig ? "PAGO_NO_CONFIGURADO" : "PAGO_NO_DISPONIBLE",
-      MSG_VIP_PAGO_NO_DISPONIBLE,
+      t("lasSuscripcionesNo"),
       503,
     );
   }

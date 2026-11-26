@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
  * el token de un solo uso antes de que el usuario haga clic.
  */
 export async function POST(req: Request) {
+  const t = await textosApi(req);
   const { prisma } = await import("@/server/db/client");
   const { confirmEmailVerification } = await import("@/server/services/email-verification");
 
@@ -18,14 +20,14 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return apiError("BAD_REQUEST", "Cuerpo de la peticion invalido.", 400);
+    return apiError("BAD_REQUEST", t("cuerpoDeLaPeticionInvalido"), 400);
   }
   const parsed = schema.safeParse(body);
-  if (!parsed.success) return apiError("VALIDATION", "Falta el token.", 400);
+  if (!parsed.success) return apiError("VALIDATION", t("faltaElToken"), 400);
 
   const result = await confirmEmailVerification(prisma, { rawToken: parsed.data.token });
   if (!result.verified) {
-    return apiError("INVALID_TOKEN", "El enlace de verificacion es invalido o ha caducado.", 400);
+    return apiError("INVALID_TOKEN", t("elEnlaceDeVerificacion"), 400);
   }
-  return apiOk({ ok: true, message: "Cuenta verificada. Ya puedes iniciar sesion." });
+  return apiOk({ ok: true, message: t("cuentaVerificada") });
 }

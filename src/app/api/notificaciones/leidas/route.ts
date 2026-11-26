@@ -3,6 +3,7 @@ import { z } from "zod";
 import { NOTIF_MARCAR_MAX, RATE_LIMITS } from "@/config/constants";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ const BodySchema = z.object({
  * no casa, no se toca y ni siquiera se sabe si existe. Idempotente: marcar dos veces no cambia nada.
  */
 export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
+  const t = await textosApi(req);
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { contarNoLeidas, marcarLeidas } = await import("@/server/services/notificaciones");
 
@@ -30,17 +32,17 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     ...RATE_LIMITS.NOTIF_LEER_PER_USER,
   });
   if (!rl.allowed) {
-    return apiError("RATE_LIMITED", "Demasiadas peticiones. Inténtalo en un momento.", 429);
+    return apiError("RATE_LIMITED", t("demasiadasPeticionesIntentalo"), 429);
   }
 
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return apiError("BAD_REQUEST", "No hemos podido leer la petición.", 400);
+    return apiError("BAD_REQUEST", t("noHemosPodidoLeerLa"), 400);
   }
   const parsed = BodySchema.safeParse(body);
-  if (!parsed.success) return apiError("VALIDATION", "Datos inválidos.", 400);
+  if (!parsed.success) return apiError("VALIDATION", t("datosInvalidos"), 400);
 
   const marcadas = await marcarLeidas(prisma, user.userId, parsed.data.ids);
   return apiOk({ ok: true, marcadas, noLeidas: await contarNoLeidas(prisma, user.userId) });

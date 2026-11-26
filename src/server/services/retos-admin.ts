@@ -4,6 +4,8 @@
  * DRAFT, con publicCode único reusando el generador ya testeado) y la publicación (DRAFT -> PUBLISHED,
  * idempotente). El guard de rol lo pone cada ENDPOINT (requireRole); este módulo no confía en la vista.
  */
+import { textosApiEnCastellano } from "@/server/http/textos-api";
+import type { ClaveApi } from "@/textos/mensaje-api";
 import "server-only";
 
 import { RETO_GRACIA_BORRADO_MS } from "@/config/constants";
@@ -72,51 +74,63 @@ const REGLAS_MAX = 4000;
  * UNA SOLA DEFINICIÓN para los dos: si el tope del título o la regla del premio vivieran copiados, la
  * propuesta aceptaría algo que el borrador que nace de ella no podría guardar —o al revés—.
  */
-export function camposDeReto() {
+export function camposDeReto(m: MensajeDeEsquema = enCastellano) {
   return {
     title: z
       .string()
       .trim()
-      .min(TITULO_MIN, `El título debe tener al menos ${TITULO_MIN} caracteres.`)
-      .max(TITULO_MAX, `El título no puede pasar de ${TITULO_MAX} caracteres.`),
+      .min(TITULO_MIN, m("retoTituloCorto", { min: String(TITULO_MIN) }))
+      .max(TITULO_MAX, m("retoTituloLargo", { max: String(TITULO_MAX) })),
     description: z
       .string()
       .trim()
-      .max(DESCRIPCION_MAX, "La descripción es demasiado larga.")
+      .max(DESCRIPCION_MAX, m("retoDescripcionLarga"))
       .optional()
       .transform((s) => (s ? s : null)),
-    category: z.enum(CATEGORY_KEYS, { message: "Elige una categoría de la lista." }),
+    category: z.enum(CATEGORY_KEYS, { message: m("retoCategoria") }),
     rules: z
       .string()
       .trim()
-      .max(REGLAS_MAX, "Las reglas son demasiado largas.")
+      .max(REGLAS_MAX, m("retoReglasLargas"))
       .optional()
       .transform((s) => (s ? s : null)),
     prizeAmountCents: z.coerce
-      .number({ message: "El premio debe ser un número." })
-      .int("El premio debe ser un número entero de céntimos.")
-      .min(0, "El premio no puede ser negativo."),
-    startsAt: z.coerce.date({ message: "La fecha de apertura no es válida." }),
-    deadline: z.coerce.date({ message: "La fecha de cierre no es válida." }),
+      .number({ message: m("retoPremioNumero") })
+      .int(m("retoPremioEntero"))
+      .min(0, m("retoPremioNegativo")),
+    startsAt: z.coerce.date({ message: m("retoAperturaNoValida") }),
+    deadline: z.coerce.date({ message: m("retoCierreNoValido") }),
     winnersCount: z.coerce
-      .number({ message: "El número de ganadores debe ser un número." })
-      .int("El número de ganadores debe ser entero.")
-      .min(1, "Debe haber al menos 1 ganador."),
+      .number({ message: m("retoGanadoresNumero") })
+      .int(m("retoGanadoresEntero"))
+      .min(1, m("retoGanadoresMinimo")),
   };
 }
+
+/**
+ * CÓMO DICE SUS MENSAJES UN ESQUEMA COMPARTIDO (P5b3). Por defecto, en CASTELLANO ya compuesto: así
+ * los usa el panel, que no se traduce, y su texto no cambia. La propuesta de una empresa lo pide con
+ * `claveDelMensaje`: el mensaje de zod es entonces la CLAVE del espacio `api`, y la ruta la compone en
+ * el idioma de quien llama (`mensajeDeValidacion`, que pone las cifras del propio error de zod).
+ */
+export type MensajeDeEsquema = (clave: ClaveApi, params?: Record<string, string>) => string;
+const enCastellano: MensajeDeEsquema = (clave, params) =>
+  (textosApiEnCastellano() as (c: string, p?: Record<string, string>) => string)(clave, params);
+export const claveDelMensaje: MensajeDeEsquema = (clave) => clave;
 
 /** Las dos reglas de fechas de todo reto: apertura antes que cierre, y cierre en el futuro. */
 export function conFechasDeReto<T extends { startsAt: Date; deadline: Date }, I>(
   schema: z.ZodType<T, I>,
   now: Date,
+  m: MensajeDeEsquema = enCastellano,
 ) {
   return schema
     .refine((d) => d.startsAt < d.deadline, {
-      message: "El cierre debe ser posterior a la apertura.",
+      message: m("retoCierreAntesDeApertura"),
       path: ["deadline"],
     })
     .refine((d) => d.deadline > now, {
-      message: "El cierre debe estar en el futuro.",
+      message: m("retoCierreEnElPasado"),
       path: ["deadline"],
     });
 }

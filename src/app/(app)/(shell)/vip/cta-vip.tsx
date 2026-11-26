@@ -4,7 +4,6 @@ import { useCallback, useState } from "react";
 
 import { useTextos } from "@/components/textos-provider";
 import { RELLENO_VIP } from "@/components/ui/logic";
-import { MSG_VIP_PAGO_NO_DISPONIBLE } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 
 /**
@@ -60,7 +59,7 @@ export function CtaVip({
         window.location.assign(r.data.url);
         return;
       }
-      setError(mensajeDe(r.data) || MSG_VIP_PAGO_NO_DISPONIBLE);
+      setError(mensajeDe(r.data) || t("pagoNoDisponible"));
       setAbriendo(false);
     } catch {
       // Excepción de red, o `postJsonCsrf` lanzando SIN_SESION: el mismo mensaje, que es con lo que

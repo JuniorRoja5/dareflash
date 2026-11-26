@@ -1,16 +1,11 @@
 import { z } from "zod";
 
-import {
-  DEFAULT_CURRENCY,
-  MSG_CREDITOS_PAGO_NO_DISPONIBLE,
-  MSG_CREDITOS_SIN_VERIFICAR,
-  PAQUETES_CREDITOS,
-  RATE_LIMITS,
-} from "@/config/constants";
+import { DEFAULT_CURRENCY, PAQUETES_CREDITOS, RATE_LIMITS } from "@/config/constants";
 import { PaqueteCreditosSchema } from "@/config/esquemas";
 import { conTipo } from "@/lib/pago-tipo";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +33,7 @@ const CuerpoSchema = z.object({ packageId: PaqueteCreditosSchema });
  */
 export const POST = mutatingRoute(
   async (req, { env, prisma }) => {
+    const t = await textosApi(req);
     const { requireEmpresa, SinEmpresa } = await import("@/server/auth/empresa-actual");
     const { AuthError } = await import("@/server/auth/rbac");
     const { rateLimit } = await import("@/server/security/rate-limit");
@@ -48,26 +44,25 @@ export const POST = mutatingRoute(
     try {
       ambito = await requireEmpresa();
     } catch (e) {
-      if (e instanceof SinEmpresa) return apiError("NOT_FOUND", "No encontrado.", 404);
+      if (e instanceof SinEmpresa) return apiError("NOT_FOUND", t("noEncontrado"), 404);
       if (e instanceof AuthError && e.code === "EMAIL_NOT_VERIFIED") {
-        return apiError("EMAIL_NOT_VERIFIED", "Confirma tu correo para comprar créditos.", 403);
+        return apiError("EMAIL_NOT_VERIFIED", t("confirmaTuCorreo"), 403);
       }
       throw e;
     }
     if (!puedeOperarEmpresa(ambito.estado)) {
-      return apiError("EMPRESA_NO_VERIFICADA", MSG_CREDITOS_SIN_VERIFICAR, 403);
+      return apiError("EMPRESA_NO_VERIFICADA", t("podrasComprarCreditos"), 403);
     }
 
     const cuerpo = CuerpoSchema.safeParse(await req.json().catch(() => null));
-    if (!cuerpo.success) return apiError("VALIDATION", "Elige un paquete válido.", 400);
+    if (!cuerpo.success) return apiError("VALIDATION", t("eligeUnPaquete"), 400);
     const paquete = PAQUETES_CREDITOS[cuerpo.data.packageId];
 
     const rl = await rateLimit(prisma, {
       key: `creditos:checkout:${rateLimitKey(env.AUTH_SECRET, ambito.empresaId)}`,
       ...RATE_LIMITS.CREDITOS_CHECKOUT_PER_EMPRESA,
     });
-    if (!rl.allowed)
-      return apiError("RATE_LIMITED", "Demasiados intentos. Espera un momento.", 429);
+    if (!rl.allowed) return apiError("RATE_LIMITED", t("demasiadosIntentosEspera"), 429);
 
     // El correo de la cuenta: rellena el Checkout y es adonde Stripe manda el recibo.
     const email =
@@ -106,7 +101,7 @@ export const POST = mutatingRoute(
       });
       if (!sesion.url) {
         console.error(`[creditos] Stripe no devolvió URL para la sesión ${sesion.id}`);
-        return apiError("PAGO_NO_DISPONIBLE", MSG_CREDITOS_PAGO_NO_DISPONIBLE, 503);
+        return apiError("PAGO_NO_DISPONIBLE", t("laCompraDe"), 503);
       }
       return apiOk({ url: sesion.url });
     } catch (e) {
@@ -117,7 +112,7 @@ export const POST = mutatingRoute(
       );
       return apiError(
         porConfig ? "PAGO_NO_CONFIGURADO" : "PAGO_NO_DISPONIBLE",
-        MSG_CREDITOS_PAGO_NO_DISPONIBLE,
+        t("laCompraDe"),
         503,
       );
     }

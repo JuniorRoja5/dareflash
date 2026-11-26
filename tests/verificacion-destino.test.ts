@@ -44,7 +44,9 @@ describe("destino tras verificar", () => {
   it("el botón y el mensaje del servidor dicen LO MISMO", () => {
     // El mensaje ya decía "Ya puedes iniciar sesion" mientras el botón mandaba a la home: la pantalla
     // se contradecía a sí misma.
-    expect(leer(RUTA)).toMatch(/iniciar sesion/i);
+    // Desde la P5b3 la frase de la ruta sale del diccionario (`api.cuentaVerificada`, con su tilde).
+    expect(leer(RUTA)).toContain('t("cuentaVerificada")');
+    expect(es.api.cuentaVerificada).toMatch(/iniciar sesión/i);
     // Desde la P5b2a la palabra sale del diccionario: el botón pinta `formAcceso.iniciarSesion`.
     expect(bloqueOk()).toContain('tf("iniciarSesion")');
     expect(es.formAcceso.iniciarSesion).toMatch(/Iniciar sesión/i);

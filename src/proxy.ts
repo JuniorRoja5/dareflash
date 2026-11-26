@@ -6,6 +6,7 @@ import { env } from "@/config/env";
 import {
   CABECERA_IDIOMA,
   CABECERA_RUTA,
+  COOKIE_IDIOMA,
   esRutaSinIdioma,
   IDIOMA_PSEUDO,
   IDIOMA_RAIZ,
@@ -41,6 +42,7 @@ function prefijoServido(prefijo: IdiomaDeTextos): boolean {
  *       - si no, la petición sigue a la ruta SIN prefijo (reescritura, la URL del navegador no cambia)
  *         con dos cabeceras: `x-df-idioma` (el idioma) y `x-df-ruta` (la ruta sin prefijo, para la
  *         canónica y el `hreflang`). Las dos se PISAN siempre: si las manda el cliente, no llegan.
+ *       - y la respuesta deja el idioma en la cookie `df-idioma` si ha cambiado, para la API (P5b3).
  *
  *  1) ENRUTADO de la RAIZ "/" por dispositivo (decidido en SERVIDOR -> sin parpadeo):
  *     escritorio entra a la portada `/inicio`, movil al `/feed` inmersivo. `userAgent()`
@@ -139,10 +141,27 @@ export function proxy(req: NextRequest): NextResponse {
   }
 
   const peticion = { request: { headers: cabeceras(req, idioma, resto) } };
-  if (prefijo === null) return NextResponse.next(peticion);
+  if (prefijo === null) return conCookieDeIdioma(req, NextResponse.next(peticion), idioma);
   const url = req.nextUrl.clone();
   url.pathname = resto;
-  return NextResponse.rewrite(url, peticion);
+  return conCookieDeIdioma(req, NextResponse.rewrite(url, peticion), idioma);
+}
+
+/**
+ * LA COOKIE `df-idioma` (P5b3): el idioma de la página que se sirve, para que la API —que no pasa por
+ * aquí— responda en él. SOLO SI CAMBIA: reescribirla en cada respuesta sería un `Set-Cookie` en cada
+ * página para nada (y una respuesta con `Set-Cookie` es más difícil de cachear). Sin script ni JS: la
+ * pone la respuesta. No es secreta ni identifica a nadie; `httpOnly` porque nadie en el navegador la lee.
+ */
+function conCookieDeIdioma(req: NextRequest, res: NextResponse, idioma: string): NextResponse {
+  if (req.cookies.get(COOKIE_IDIOMA)?.value === idioma) return res;
+  res.cookies.set(COOKIE_IDIOMA, idioma, {
+    path: "/",
+    sameSite: "lax",
+    httpOnly: true,
+    maxAge: 60 * 60 * 24 * 365,
+  });
+  return res;
 }
 
 /**

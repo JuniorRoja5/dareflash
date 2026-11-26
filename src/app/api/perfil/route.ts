@@ -1,5 +1,6 @@
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
+import { mensajeDeValidacion, textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
  * hace UX). Rate-limit por usuario para que el guardado no sea un amplificador de escrituras.
  */
 export const PATCH = mutatingRoute(async (req, { user, env, prisma }) => {
+  const t = await textosApi(req);
   const { RATE_LIMITS } = await import("@/config/constants");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { actualizarPerfilSchema, actualizarPerfil } = await import("@/server/services/perfil");
@@ -18,19 +20,19 @@ export const PATCH = mutatingRoute(async (req, { user, env, prisma }) => {
   const rlKey = `updateprofile:user:${rateLimitKey(env.AUTH_SECRET, user.userId)}`;
   const rl = await rateLimit(prisma, { key: rlKey, ...RATE_LIMITS.UPDATE_PROFILE_PER_USER });
   if (!rl.allowed) {
-    return apiError("RATE_LIMITED", "Has guardado muchas veces seguidas. Espera un momento.", 429);
+    return apiError("RATE_LIMITED", t("hasGuardadoMuchas"), 429);
   }
 
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return apiError("BAD_REQUEST", "No hemos podido leer los datos. Inténtalo de nuevo.", 400);
+    return apiError("BAD_REQUEST", t("noHemosPodidoLeer"), 400);
   }
   const parsed = actualizarPerfilSchema.safeParse(body);
   if (!parsed.success) {
     // Un solo mensaje humano (el primer problema); el detalle por campo lo cubre la UI antes de enviar.
-    const primero = parsed.error.issues[0]?.message ?? "Revisa el nombre.";
+    const primero = mensajeDeValidacion(t, parsed.error.issues[0], t("revisaElNombre"));
     return apiError("VALIDATION", primero, 400);
   }
 
@@ -43,7 +45,7 @@ export const PATCH = mutatingRoute(async (req, { user, env, prisma }) => {
     // deja escapar el error crudo. `esViolacionUnicaDeUsername` suena la forma real del adapter MariaDB.
     const { esViolacionUnicaDeUsername } = await import("@/server/auth/registration");
     if (esViolacionUnicaDeUsername(e)) {
-      return apiError("USERNAME_TAKEN", "Ese nombre de usuario ya está en uso.", 409);
+      return apiError("USERNAME_TAKEN", t("eseNombreDe"), 409);
     }
     throw e;
   }

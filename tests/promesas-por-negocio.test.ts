@@ -371,7 +371,7 @@ describe("el correo de la verificación (con el regalo), por tipo de negocio", (
     expect(error).toBeInstanceOf(PublicidadError);
     expect(error).toMatchObject({
       code: "TIPO_NEGOCIO_DESCONOCIDO",
-      message: c.MSG_TIPO_NEGOCIO_DESCONOCIDO,
+      mensaje: { clave: "publicidadTipoNegocioDesconocido" },
     });
     expect(await prisma.publicidad.count()).toBe(0);
     expect(avisos.some((a) => a.includes(e.id))).toBe(true);

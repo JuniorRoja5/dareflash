@@ -5,7 +5,7 @@ import { useCallback, useState } from "react";
 import { useTextos, useTextosRicos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { ImportePremio } from "@/components/ui/importe-premio";
-import { DEFAULT_CURRENCY, MSG_BOOST_PAGO_NO_DISPONIBLE } from "@/config/constants";
+import { DEFAULT_CURRENCY } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { paquetesEnVenta } from "@/lib/boost-precio";
 import { formatearNumero } from "@/lib/formato";
@@ -75,7 +75,7 @@ export function PaquetesBoost({
         }
         // El copy humano lo manda el servidor (`{ error: { code, message } }`); el fallback es para un
         // fallo sin cuerpo (una red que se cae a medias). Cero códigos y cero jerga de Stripe aquí.
-        setError(mensajeDe(r.data) || MSG_BOOST_PAGO_NO_DISPONIBLE);
+        setError(mensajeDe(r.data) || t("pagoNoDisponible"));
         setComprando(null);
       } catch {
         // Excepción de red, o `postJsonCsrf` lanzando SIN_SESION: el mismo mensaje, que es lo que el

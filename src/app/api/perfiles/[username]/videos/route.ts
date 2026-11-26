@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk, depsRuta } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -24,15 +25,16 @@ const ParamsSchema = z.object({ username: z.string().min(1).max(64) });
  * los tres casos (no se revela cuál de ellos es).
  */
 export async function GET(req: Request, ctx: { params: Promise<{ username: string }> }) {
+  const t = await textosApi(req);
   const params = ParamsSchema.safeParse(await ctx.params);
-  if (!params.success) return apiError("NOT_FOUND", "Perfil no disponible.", 404);
+  if (!params.success) return apiError("NOT_FOUND", t("perfilNoDisponible"), 404);
 
   const url = new URL(req.url);
   const parsed = QuerySchema.safeParse({
     cursor: url.searchParams.get("cursor") ?? undefined,
     limit: url.searchParams.get("limit") ?? undefined,
   });
-  if (!parsed.success) return apiError("BAD_REQUEST", "Parámetros de página inválidos.", 400);
+  if (!parsed.success) return apiError("BAD_REQUEST", t("parametrosDePagina"), 400);
 
   const { prisma } = await depsRuta();
   const { videosPublicosDe } = await import("@/server/services/perfil");
@@ -47,7 +49,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ username: strin
       where: { username: params.data.username, ...USUARIO_VISIBLE },
       select: { id: true },
     });
-    if (!duenyo) return apiError("NOT_FOUND", "Perfil no disponible.", 404);
+    if (!duenyo) return apiError("NOT_FOUND", t("perfilNoDisponible"), 404);
 
     const { items, nextCursor } = await videosPublicosDe(prisma, duenyo.id, {
       cursor: parsed.data.cursor ?? null,
@@ -67,6 +69,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ username: strin
     });
   } catch (e) {
     console.error("[api/perfiles/videos] fallo paginando:", sanearError(e));
-    return apiError("VIDEOS_FAILED", "No se pudieron cargar más vídeos.", 502);
+    return apiError("VIDEOS_FAILED", t("noSePudieron"), 502);
   }
 }

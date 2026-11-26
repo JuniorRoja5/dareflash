@@ -25,6 +25,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import * as constantes from "@/config/constants";
+import { MARCA } from "@/config/marca";
 import { es } from "@/textos/es";
 
 import { leerMensajesApi, normalizarHuecos, type Lectura } from "./helpers/mensajes-api";
@@ -74,7 +75,9 @@ const C = constantes as unknown as Record<string, unknown>;
 const API = (es as unknown as Record<string, Record<string, unknown> | undefined>)["api"] ?? {};
 const resolutores = {
   constante: (n: string) => (typeof C[n] === "string" ? (C[n] as string) : undefined),
-  clave: (k: string) => (typeof API[k] === "string" ? (API[k] as string) : undefined),
+  // En el diccionario la marca es `{marca}`; la constante de antes ya la llevaba puesta.
+  clave: (k: string) =>
+    typeof API[k] === "string" ? (API[k] as string).replaceAll("{marca}", MARCA) : undefined,
 };
 
 function leerHoy(): Record<string, Lectura> {
@@ -97,12 +100,58 @@ function cadenasDe(v: unknown): string[] {
  * Las tildes que Junior aprobó para /unlock y /verify (P5b2b, 25 nov): ahora que esos mensajes salen
  * de la API, se ven. CUALQUIER OTRA falta no se corrige: se lista en el informe.
  */
-const TILDES_APROBADAS: readonly (readonly [string, string])[] = [];
+const TILDES_APROBADAS: Record<string, readonly (readonly [string, string])[]> = {
+  "src/app/api/auth/unlock/route.ts": [
+    ["Cuerpo de la peticion invalido.", "Cuerpo de la petición inválido."],
+    ["desbloqueo es invalido", "desbloqueo es inválido"],
+    ["iniciar sesion de nuevo", "iniciar sesión de nuevo"],
+  ],
+  "src/app/api/auth/verify/route.ts": [
+    ["Cuerpo de la peticion invalido.", "Cuerpo de la petición inválido."],
+    ["El enlace de verificacion es invalido", "El enlace de verificación es inválido"],
+    ["Ya puedes iniciar sesion.", "Ya puedes iniciar sesión."],
+  ],
+};
 
 /** Lo que se BORRÓ a propósito: `GET /api/retiradas` (decisión de Junior, 26 nov). */
-const BORRADOS: Record<string, readonly string[]> = {};
+const BORRADOS: Record<string, readonly string[]> = {
+  "src/app/api/retiradas/route.ts": [
+    "UNAUTHENTICATED → Inicia sesión para ver tus cobros.",
+    "VALIDATION → Parámetros inválidos.",
+  ],
+};
 
-const corregir = (s: string) => TILDES_APROBADAS.reduce((a, [de, a2]) => a.replaceAll(de, a2), s);
+/**
+ * Pares cuya FORMA cambió sin cambiar el texto, uno a uno y con su porqué. El texto de cada uno lo
+ * fija el conjunto de frases (abajo) y su propio test.
+ */
+const EQUIVALENCIAS: Record<string, Readonly<Record<string, string>>> = {
+  // Antes era un alias local de la constante que el extractor no resolvía; ahora es su clave.
+  "src/app/api/videos/upload-credential/route.ts": {
+    "PARTICIPACION_BLOQUEADA → ‹MSG_BLOQUEADA›":
+      "PARTICIPACION_BLOQUEADA → Un moderador retiro tu participacion en este reto, asi que no puedes volver a participar.",
+  },
+  // El mapa de rechazos se importa de `lib/metodo-pago-cuerpo` (ahora claves; antes frases): no se
+  // resuelve aquí. Sus frases las fija el conjunto de frases y `metodos-pago`.
+  "src/app/api/metodos-pago/route.ts": {
+    "‹r.rechazo› → ‹MENSAJE_METODO_PAGO[r.rechazo]›":
+      "‹r.rechazo› → ‹MENSAJE_METODO_PAGO[r.rechazo]›",
+    "‹cuerpo.codigo› → ‹cuerpo.mensaje›": "‹cuerpo.codigo› → ‹cuerpo.mensaje›",
+  },
+  "src/app/api/metodos-pago/[id]/route.ts": {
+    "‹r.rechazo› → ‹MENSAJE_METODO_PAGO[r.rechazo]›":
+      "‹r.rechazo› → ‹MENSAJE_METODO_PAGO[r.rechazo]›",
+    "‹cuerpo.codigo› → ‹cuerpo.mensaje›": "‹cuerpo.codigo› → ‹cuerpo.mensaje›",
+  },
+};
+
+const corregir = (f: string, s: string) =>
+  (TILDES_APROBADAS[f] ?? []).reduce((a, [de, a2]) => a.replaceAll(de, a2), s);
+/** Todas las correcciones, para buscar una frase de antes que ya no se escribe igual. */
+const corregirEnCualquiera = (s: string) =>
+  Object.values(TILDES_APROBADAS)
+    .flat()
+    .reduce((a, [de, a2]) => a.replaceAll(de, a2), s);
 
 if (process.env.ACTUALIZAR_ANTES === "1") {
   writeFileSync(ANTES, JSON.stringify(leerHoy(), null, 1) + "\n");
@@ -123,7 +172,8 @@ describe("los mensajes de la API dicen lo mismo que antes", () => {
       if (!f.startsWith("src/app/api/") && !f.startsWith("src/server/")) continue;
       const esperado = l.pares
         .filter((p) => !(BORRADOS[f] ?? []).includes(p))
-        .map(corregir)
+        .map((p) => EQUIVALENCIAS[f]?.[p] ?? p)
+        .map((p) => corregir(f, p))
         .sort();
       const actual = [...(hoy[f]?.pares ?? [])].sort();
       if (JSON.stringify(esperado) !== JSON.stringify(actual)) {
@@ -143,7 +193,8 @@ describe("los mensajes de la API dicen lo mismo que antes", () => {
     const perdidas: string[] = [];
     for (const [f, l] of Object.entries(antes)) {
       for (const fr of l.frases) {
-        if (!existen.has(corregir(fr))) perdidas.push(`${f}: ${fr}`);
+        if (!existen.has(fr) && !existen.has(corregirEnCualquiera(fr)))
+          perdidas.push(`${f}: ${fr}`);
       }
     }
     expect(perdidas, perdidas.join("\n")).toEqual([]);

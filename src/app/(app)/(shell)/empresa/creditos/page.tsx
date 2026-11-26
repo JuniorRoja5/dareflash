@@ -2,7 +2,6 @@ import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { TarjetaMetrica } from "@/components/ui/tarjeta-metrica";
 import { TextosProvider } from "@/components/textos-provider";
-import { MSG_CREDITOS_PAGO_NO_DISPONIBLE, MSG_CREDITOS_SIN_VERIFICAR } from "@/config/constants";
 import { paquetesCreditosEnVenta } from "@/lib/creditos-precio";
 import { puedeOperarEmpresa } from "@/lib/empresa";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
@@ -81,10 +80,11 @@ export default async function PaginaCreditos({
   const { env } = await import("@/config/env");
   const pagosConfigurados = Boolean(env.STRIPE_SECRET_KEY);
   const verificada = puedeOperarEmpresa(ambito.estado);
+  const tCompra = await textos("creditosCompra");
   const motivoBloqueo = !pagosConfigurados
-    ? MSG_CREDITOS_PAGO_NO_DISPONIBLE
+    ? tCompra("pagoNoDisponible")
     : !verificada
-      ? MSG_CREDITOS_SIN_VERIFICAR
+      ? tCompra("sinVerificar")
       : null;
   const paquetes = paquetesCreditosEnVenta().map((p) => ({
     clave: p.clave,

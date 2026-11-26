@@ -14,6 +14,7 @@
  *
  * Devuelve el búfer saneado; NO lo almacena (eso lo hace el handler de la ruta: volumen + Caddy).
  */
+import type { MensajeApi } from "@/textos/mensaje-api";
 import "server-only";
 
 import sharp, { type OutputInfo } from "sharp";
@@ -29,8 +30,11 @@ export type MotivoImagenInvalida = "TAMANO" | "TIPO" | "CORRUPTO";
 /** La imagen subida no es aceptable. TIPADO a propósito: la ruta traduce `motivo` a un mensaje. */
 export class ImagenInvalidaError extends Error {
   readonly motivo: MotivoImagenInvalida;
-  constructor(motivo: MotivoImagenInvalida, mensaje: string) {
-    super(mensaje);
+  /** La frase como DATO (P5b3): la compone la ruta, en el idioma de quien sube la imagen. */
+  readonly mensaje: MensajeApi;
+  constructor(motivo: MotivoImagenInvalida, mensaje: MensajeApi) {
+    super(mensaje.clave);
+    this.mensaje = mensaje;
     this.name = "ImagenInvalidaError";
     this.motivo = motivo;
   }
@@ -74,10 +78,10 @@ export async function procesarImagen(
 
   // 1. Tamaño ANTES de decodificar.
   if (bytes.byteLength > opciones.maxBytes) {
-    throw new ImagenInvalidaError("TAMANO", "La imagen supera el tamaño máximo permitido.");
+    throw new ImagenInvalidaError("TAMANO", { clave: "imagenDemasiadoGrande" });
   }
   if (bytes.byteLength === 0) {
-    throw new ImagenInvalidaError("CORRUPTO", "El fichero está vacío.");
+    throw new ImagenInvalidaError("CORRUPTO", { clave: "imagenVacia" });
   }
 
   // 2. Tipo por CONTENIDO (bytes), nunca por lo que diga el cliente.
@@ -85,10 +89,10 @@ export async function procesarImagen(
   try {
     formato = (await sharp(Buffer.from(bytes), { failOn: "error" }).metadata()).format;
   } catch {
-    throw new ImagenInvalidaError("CORRUPTO", "No se pudo leer la imagen. ¿Está dañada?");
+    throw new ImagenInvalidaError("CORRUPTO", { clave: "imagenIlegible" });
   }
   if (!formato || !FORMATOS_ENTRADA.has(formato)) {
-    throw new ImagenInvalidaError("TIPO", "El archivo no es una imagen JPEG, PNG o WebP.");
+    throw new ImagenInvalidaError("TIPO", { clave: "imagenTipoNoValido" });
   }
 
   // 3+4. Reorienta (aplica EXIF a los píxeles), redimensiona según el modo, recomprime a WebP y —al NO
@@ -116,7 +120,7 @@ export async function procesarImagen(
   try {
     out = await codificado.toBuffer({ resolveWithObject: true });
   } catch {
-    throw new ImagenInvalidaError("CORRUPTO", "No se pudo procesar la imagen. Prueba con otra.");
+    throw new ImagenInvalidaError("CORRUPTO", { clave: "imagenNoProcesable" });
   }
 
   return {

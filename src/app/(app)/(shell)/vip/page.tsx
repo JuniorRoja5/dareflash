@@ -1,7 +1,6 @@
 import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
 import { redirigir } from "@/server/redirigir";
 
-import { MSG_VIP_PAGO_NO_DISPONIBLE, MSG_VIP_SIN_VERIFICAR } from "@/config/constants";
 import { TextosProvider } from "@/components/textos-provider";
 import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
 
@@ -76,10 +75,11 @@ export default async function VipPage({
   const correoVerificado = sesion.emailVerified !== null;
   const puedeSuscribirse = pagosConfigurados && correoVerificado;
   // EL ORDEN IMPORTA: si los pagos no están puestos, da igual el correo — no hay nada que intentar.
+  const tVip = await textos("vipCliente");
   const motivoBloqueo = !pagosConfigurados
-    ? MSG_VIP_PAGO_NO_DISPONIBLE
+    ? tVip("pagoNoDisponible")
     : !correoVerificado
-      ? MSG_VIP_SIN_VERIFICAR
+      ? tVip("sinVerificar")
       : null;
 
   const textosVip = await textosClienteDeLaPeticion(["vipCliente"] as const);

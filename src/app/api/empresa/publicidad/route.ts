@@ -2,6 +2,7 @@ import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 import { camposDelFormulario } from "@/server/http/form";
 import { imagenDelFormulario } from "@/server/http/imagen-subida";
+import { frase, mensajeDeValidacion, textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export const dynamic = "force-dynamic";
  */
 export const POST = mutatingRoute(
   async (req, { env, prisma }) => {
+    const t = await textosApi(req);
     const { requireEmpresa, SinEmpresa } = await import("@/server/auth/empresa-actual");
     const { AuthError } = await import("@/server/auth/rbac");
     const svc = await import("@/server/services/publicidad");
@@ -32,9 +34,9 @@ export const POST = mutatingRoute(
     try {
       ambito = await requireEmpresa();
     } catch (e) {
-      if (e instanceof SinEmpresa) return apiError("NOT_FOUND", "No encontrado.", 404);
+      if (e instanceof SinEmpresa) return apiError("NOT_FOUND", t("noEncontrado"), 404);
       if (e instanceof AuthError && e.code === "EMAIL_NOT_VERIFIED") {
-        return apiError("EMAIL_NOT_VERIFIED", "Confirma tu correo para crear campañas.", 403);
+        return apiError("EMAIL_NOT_VERIFIED", t("confirmaTuCorreoPara"), 403);
       }
       throw e;
     }
@@ -44,35 +46,34 @@ export const POST = mutatingRoute(
       ...RATE_LIMITS.CREAR_PUBLICIDAD_PER_USER,
     });
     if (!rl.allowed) {
-      return apiError(
-        "RATE_LIMITED",
-        "Has creado muchas campañas seguidas. Espera un momento.",
-        429,
-      );
+      return apiError("RATE_LIMITED", t("hasCreadoMuchas"), 429);
     }
 
     let form: FormData;
     try {
       form = await req.formData();
     } catch {
-      return apiError("BAD_REQUEST", "No hemos podido leer los datos. Inténtalo de nuevo.", 400);
+      return apiError("BAD_REQUEST", t("noHemosPodidoLeer"), 400);
     }
     const parsed = svc.campanaSchema.safeParse(camposDelFormulario(form));
     if (!parsed.success) {
       return apiError(
         "VALIDATION",
-        parsed.error.issues[0]?.message ?? "Revisa los datos de la campaña.",
+        mensajeDeValidacion(t, parsed.error.issues[0], t("revisaLosDatosCampana")),
         400,
       );
     }
 
-    const imagen = await imagenDelFormulario(form, "imagen", "IMAGEN", {
-      maxBytes: PORTADA_MAX_BYTES,
-      maxLado: PUBLICIDAD_IMAGEN_MAX_LADO,
-    });
+    const imagen = await imagenDelFormulario(
+      form,
+      "imagen",
+      "IMAGEN",
+      { maxBytes: PORTADA_MAX_BYTES, maxLado: PUBLICIDAD_IMAGEN_MAX_LADO },
+      t,
+    );
     if (imagen.tipo === "error") return apiError(imagen.code, imagen.mensaje, imagen.status);
     if (imagen.tipo === "ausente") {
-      return apiError("IMAGEN_FALTA", "Sube la imagen de la campaña.", 400);
+      return apiError("IMAGEN_FALTA", t("subeLaImagen"), 400);
     }
 
     let creada: { id: string };
@@ -80,7 +81,7 @@ export const POST = mutatingRoute(
       creada = await svc.crearBorrador(prisma, ambito.empresaId, parsed.data);
     } catch (e) {
       if (e instanceof svc.PublicidadError) {
-        return apiError(e.code, e.message, e.code === "EMPRESA_NO_OPERA" ? 403 : 400);
+        return apiError(e.code, frase(t, e.mensaje), e.code === "EMPRESA_NO_OPERA" ? 403 : 400);
       }
       throw e;
     }
@@ -94,11 +95,7 @@ export const POST = mutatingRoute(
     });
     if (!guardada) {
       await svc.borrarBorrador(prisma, ambito.empresaId, creada.id);
-      return apiError(
-        "IMAGEN_NO_GUARDADA",
-        "No hemos podido guardar la imagen. Inténtalo de nuevo en un momento.",
-        503,
-      );
+      return apiError("IMAGEN_NO_GUARDADA", t("noHemosPodidoGuardar"), 503);
     }
 
     return apiOk({ ok: true, id: creada.id });

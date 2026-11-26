@@ -1,10 +1,12 @@
 import { z } from "zod";
 
 import { apiError, apiOk, clientIpKey, rateLimitKey } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  const t = await textosApi(req);
   const { env } = await import("@/config/env");
   const { RATE_LIMITS } = await import("@/config/constants");
   const { prisma } = await import("@/server/db/client");
@@ -17,10 +19,10 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return apiError("BAD_REQUEST", "Cuerpo de la peticion invalido.", 400);
+    return apiError("BAD_REQUEST", t("cuerpoDeLa"), 400);
   }
   const parsed = schema.safeParse(body);
-  if (!parsed.success) return apiError("VALIDATION", "Datos invalidos.", 400);
+  if (!parsed.success) return apiError("VALIDATION", t("datosInvalidosSinTilde"), 400);
   const email = parsed.data.email;
 
   // Rate limit POR IP y POR direccion (evita usar el reenvio como herramienta de
@@ -34,7 +36,7 @@ export async function POST(req: Request) {
     ...RATE_LIMITS.RESEND_VERIFICATION_PER_EMAIL,
   });
   if (!perIp.allowed || !perEmail.allowed) {
-    return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
+    return apiError("RATE_LIMITED", t("demasiadosIntentosIntenta"), 429);
   }
 
   // SIN ENUMERACION por TIEMPO (arreglo del hallazgo de la auditoria): la respuesta uniforme se
@@ -60,6 +62,6 @@ export async function POST(req: Request) {
 
   return apiOk({
     ok: true,
-    message: "Si corresponde, te hemos reenviado el correo de verificacion.",
+    message: t("siCorrespondeReenviado"),
   });
 }

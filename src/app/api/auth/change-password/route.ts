@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
+import { frase, textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export const dynamic = "force-dynamic";
  */
 export const POST = mutatingRoute(
   async (req, { user, env, prisma }) => {
+    const t = await textosApi(req);
     const { RATE_LIMITS } = await import("@/config/constants");
     const { rateLimit, resetRateLimit } = await import("@/server/security/rate-limit");
     const { verifyPasswordConstantTime, esArgon2Sobrecargado, ejecutarConHueco } =
@@ -40,15 +42,15 @@ export const POST = mutatingRoute(
     try {
       body = await req.json();
     } catch {
-      return apiError("BAD_REQUEST", "Cuerpo de la peticion invalido.", 400);
+      return apiError("BAD_REQUEST", t("cuerpoDeLa"), 400);
     }
     const parsed = schema.safeParse(body);
-    if (!parsed.success) return apiError("VALIDATION", "Datos invalidos.", 400);
+    if (!parsed.success) return apiError("VALIDATION", t("datosInvalidosSinTilde"), 400);
 
     // POLITICA FUERTE sobre la NUEVA (misma que registro/reset), ANTES del rate-limit y el argon2: una
     // contrasena debil se rechaza sin gastar intento ni CPU. No mira la actual -> no abre oraculo.
     const veredicto = evaluarPassword({ password: parsed.data.newPassword });
-    if (!veredicto.ok) return apiError("VALIDATION", veredicto.mensaje, 400);
+    if (!veredicto.ok) return apiError("VALIDATION", frase(t, veredicto.mensaje), 400);
 
     const rlKey = `changepw:user:${rateLimitKey(env.AUTH_SECRET, user.userId)}`;
 
@@ -77,10 +79,10 @@ export const POST = mutatingRoute(
       });
 
       if (outcome.tipo === "BLOQUEADA") {
-        return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
+        return apiError("RATE_LIMITED", t("demasiadosIntentosIntenta"), 429);
       }
       if (outcome.tipo === "MAL") {
-        return apiError("INVALID_CREDENTIALS", "La contrasena actual no es correcta.", 403);
+        return apiError("INVALID_CREDENTIALS", t("laContrasenaActual"), 403);
       }
       const { session } = outcome;
       // Acierto: el cubo de este usuario se vacia (no acumula tras un cambio legitimo).
@@ -91,7 +93,7 @@ export const POST = mutatingRoute(
       return apiOk({ ok: true, csrfToken });
     } catch (e) {
       if (esArgon2Sobrecargado(e)) {
-        return apiError("OVERLOADED", "Servicio ocupado, reintenta en unos segundos.", 503);
+        return apiError("OVERLOADED", t("servicioOcupadoReintenta"), 503);
       }
       throw e;
     }

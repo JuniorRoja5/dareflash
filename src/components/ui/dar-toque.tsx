@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 
-import { MSG_TOQUE_ENVIADO } from "@/config/constants";
 import { useTextos } from "@/components/textos-provider";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 
@@ -37,7 +36,7 @@ export function DarToque({ userId, className = "" }: { userId: string; className
       });
       // `enviado`, `repetido` y `limite` son respuestas con copy, no fallos: se pintan igual.
       if (r.ok) {
-        setHecho(r.data.mensaje ?? MSG_TOQUE_ENVIADO);
+        setHecho(r.data.mensaje ?? t("enviado"));
         return;
       }
       setError(mensajeDe(r.data) || t("error"));

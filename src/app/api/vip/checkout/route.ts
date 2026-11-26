@@ -1,15 +1,8 @@
-import {
-  DEFAULT_CURRENCY,
-  MSG_VIP_PAGO_NO_DISPONIBLE,
-  MSG_VIP_SIN_VERIFICAR,
-  MSG_VIP_YA_ACTIVO,
-  PLAN_VIP,
-  RATE_LIMITS,
-  VIP_PRECIO_CENTS,
-} from "@/config/constants";
+import { DEFAULT_CURRENCY, PLAN_VIP, RATE_LIMITS, VIP_PRECIO_CENTS } from "@/config/constants";
 import { conTipo } from "@/lib/pago-tipo";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -29,16 +22,17 @@ export const dynamic = "force-dynamic";
  * pasa por el chokepoint (`esVipActivoDe`), no por mirar el estado a mano.
  */
 export const POST = mutatingRoute(async (_req, { user, env, prisma }) => {
+  const t = await textosApi(_req);
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { clienteStripe, PagosNoDisponibles } = await import("@/server/pagos/stripe");
   const { esVipActivoDe } = await import("@/server/services/vip");
 
   if (user.emailVerified === null) {
-    return apiError("EMAIL_SIN_VERIFICAR", MSG_VIP_SIN_VERIFICAR, 403);
+    return apiError("EMAIL_SIN_VERIFICAR", t("verificaTuCorreoParaPoderSuscribirte"), 403);
   }
 
   if (await esVipActivoDe(prisma, user.userId)) {
-    return apiError("YA_ACTIVO", MSG_VIP_YA_ACTIVO, 409);
+    return apiError("YA_ACTIVO", t("yaTienesVip"), 409);
   }
 
   const rl = await rateLimit(prisma, {
@@ -46,7 +40,7 @@ export const POST = mutatingRoute(async (_req, { user, env, prisma }) => {
     ...RATE_LIMITS.BOOST_CHECKOUT_PER_USER,
   });
   if (!rl.allowed) {
-    return apiError("RATE_LIMITED", "Demasiados intentos. Espera un momento.", 429);
+    return apiError("RATE_LIMITED", t("demasiadosIntentosEspera"), 429);
   }
 
   try {
@@ -77,7 +71,7 @@ export const POST = mutatingRoute(async (_req, { user, env, prisma }) => {
 
     if (!sesion.url) {
       console.error(`[vip] Stripe no devolvió URL para la sesión ${sesion.id}`);
-      return apiError("PAGO_NO_DISPONIBLE", MSG_VIP_PAGO_NO_DISPONIBLE, 503);
+      return apiError("PAGO_NO_DISPONIBLE", t("lasSuscripcionesNo"), 503);
     }
     return apiOk({ url: sesion.url });
   } catch (e) {
@@ -87,7 +81,7 @@ export const POST = mutatingRoute(async (_req, { user, env, prisma }) => {
     console.error(`[vip] abrir pago de ${user.userId}: ${e instanceof Error ? e.message : e}`);
     return apiError(
       porConfig ? "PAGO_NO_CONFIGURADO" : "PAGO_NO_DISPONIBLE",
-      MSG_VIP_PAGO_NO_DISPONIBLE,
+      t("lasSuscripcionesNo"),
       503,
     );
   }

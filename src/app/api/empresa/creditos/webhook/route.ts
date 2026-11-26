@@ -2,6 +2,7 @@ import type Stripe from "stripe";
 
 import { tipoDePago } from "@/lib/pago-tipo";
 import { apiError, apiOk, depsRuta } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ const EVENTOS: ReadonlySet<string> = new Set([
 ]);
 
 export async function POST(req: Request) {
+  const t = await textosApi(req);
   const { env, prisma } = await depsRuta();
   const { clienteStripe, eventoVerificado, PagosNoDisponibles } =
     await import("@/server/pagos/stripe");
@@ -49,10 +51,10 @@ export async function POST(req: Request) {
     if (e instanceof PagosNoDisponibles) {
       // Falta configuración NUESTRA: 503 para que Stripe reintente cuando esté puesta.
       console.error(`[creditos/webhook] ${e.message}`);
-      return apiError("PAGO_NO_CONFIGURADO", "Pagos no disponibles.", 503);
+      return apiError("PAGO_NO_CONFIGURADO", t("pagosNoDisponibles"), 503);
     }
     console.error(`[creditos/webhook] firma inválida: ${e instanceof Error ? e.message : e}`);
-    return apiError("FIRMA_INVALIDA", "Firma no válida.", 400);
+    return apiError("FIRMA_INVALIDA", t("firmaNoValida"), 400);
   }
 
   if (!EVENTOS.has(evento.type)) return apiOk({ ignorado: evento.type });
@@ -81,6 +83,6 @@ export async function POST(req: Request) {
     moneda: sesion.currency,
   });
 
-  if (r.estado === "error") return apiError("ERROR", "No se pudo procesar.", 500);
+  if (r.estado === "error") return apiError("ERROR", t("noSePudo"), 500);
   return apiOk({ estado: r.estado });
 }

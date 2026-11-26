@@ -53,7 +53,8 @@ import { renderCorreoHtml } from "@/server/email/plantilla";
 import { enqueueEmail } from "@/server/email/send";
 
 import { crearRetoConPublicCode } from "./reto-codigo";
-import { camposDeReto, conFechasDeReto } from "./retos-admin";
+import { camposDeReto, claveDelMensaje, conFechasDeReto } from "./retos-admin";
+import type { MensajeApi } from "@/textos/mensaje-api";
 
 // ---------------------------------------------------------------------------------------------------
 // Lo que propone
@@ -69,11 +70,12 @@ import { camposDeReto, conFechasDeReto } from "./retos-admin";
  */
 export function solicitudRetoSchema(now: Date) {
   return conFechasDeReto(
-    z.object(camposDeReto()).refine((d) => d.prizeAmountCents > 0, {
-      message: "Un reto patrocinado necesita un premio.",
+    z.object(camposDeReto(claveDelMensaje)).refine((d) => d.prizeAmountCents > 0, {
+      message: claveDelMensaje("retoPatrocinadoSinPremio"),
       path: ["prizeAmountCents"],
     }),
     now,
+    claveDelMensaje,
   );
 }
 export type SolicitudRetoInput = z.output<ReturnType<typeof solicitudRetoSchema>>;
@@ -81,9 +83,10 @@ export type SolicitudRetoInput = z.output<ReturnType<typeof solicitudRetoSchema>
 export class SolicitudRetoError extends Error {
   constructor(
     public readonly code: "NO_VERIFICADA" | "DEMASIADAS_PENDIENTES",
-    message: string,
+    /** La frase como DATO (P5b3): la compone la ruta, en el idioma de quien llama. */
+    public readonly mensaje: MensajeApi,
   ) {
-    super(message);
+    super(mensaje.clave);
     this.name = "SolicitudRetoError";
   }
 }
@@ -130,20 +133,17 @@ export async function crearSolicitudReto(
       select: { estado: true, nombre: true },
     });
     if (empresa?.estado !== "VERIFICADA") {
-      throw new SolicitudRetoError(
-        "NO_VERIFICADA",
-        "Podrás proponer retos en cuanto verifiquemos tu empresa.",
-      );
+      throw new SolicitudRetoError("NO_VERIFICADA", { clave: "retoNoVerificada" });
     }
     // Las PENDIENTES DE VERDAD, con el mismo filtro que la cola: una caducada ya no ocupa hueco.
     const pendientes = await tx.retoSolicitud.count({
       where: { empresaId: entrada.empresaId, ...filtroSolicitudesReto("PENDIENTE", ahora) },
     });
     if (pendientes >= RETO_SOLICITUDES_PENDIENTES_MAX) {
-      throw new SolicitudRetoError(
-        "DEMASIADAS_PENDIENTES",
-        `Ya tienes ${RETO_SOLICITUDES_PENDIENTES_MAX} propuestas esperando. En cuanto decidamos alguna, podrás enviar otra.`,
-      );
+      throw new SolicitudRetoError("DEMASIADAS_PENDIENTES", {
+        clave: "retoDemasiadasPendientes",
+        params: { max: String(RETO_SOLICITUDES_PENDIENTES_MAX) },
+      });
     }
 
     const s = await tx.retoSolicitud.create({

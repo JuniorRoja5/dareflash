@@ -4,7 +4,7 @@
  * Las reglas de producto que aun no ha cerrado el propietario van aqui con un
  * comentario `// PENDIENTE`, nunca esparcidas por el codigo.
  */
-import { horaDelReinicioDiario, type Idioma, type ZonaHoraria } from "@/lib/formato";
+import type { Idioma } from "@/lib/formato";
 import { contieneMarcaVetada, MARCA, MARCAS_VETADAS } from "./marca";
 
 /**
@@ -94,19 +94,6 @@ export const RETIRADA_MINIMA_CENTS = 5000;
  */
 export const VALORES_METODO_RETIRADA = ["BANK"] as const;
 export type MetodoRetirada = (typeof VALORES_METODO_RETIRADA)[number];
-
-/**
- * Copy de la retirada. Humano, y sin un solo codigo de error dentro.
- *
- * CON TILDES: esto lo LEE una persona, no es un comentario. Nacieron sin ellas —por el habito de
- * escribir sin acentos en los comentarios de este fichero— y se colaban asi a la pantalla; el resto
- * del copy de aqui (`MSG_BOOST_PAGO_NO_DISPONIBLE`) siempre las llevo.
- */
-export const MSG_RETIRADA_SIN_MINIMO =
-  "Todavía no llegas al mínimo para pedir un cobro. Sigue participando: el saldo se acumula.";
-export const MSG_RETIRADA_SIN_SALDO = "No tienes saldo suficiente para pedir ese importe.";
-export const MSG_RETIRADA_NO_DISPONIBLE =
-  "Ahora mismo no podemos aceptar datos de cobro. Vuelve a intentarlo en un rato.";
 
 /**
  * TOPE de un ajuste manual de saldo del monedero, en centimos (1.000 $).
@@ -272,9 +259,6 @@ export const BOOST_MIN_PORTADA = BOOST_DURACION_MIN / BOOST_CARRILES;
  * El razonamiento vive en los comentarios del código y en `BoostPlaza`, que es donde sirve.
  */
 // El TITULAR del cupo lleno vive en el diccionario (`boostCliente.agotadoTitulo`, P5b2a); el texto
-// sigue aquí porque también lo devuelve la ruta (va con los mensajes de la API, P5b3).
-export const msgBoostAgotado = (minutos: number) =>
-  `Vuelve en ${minutos} min y habrá hueco para ti. Tu Boost sigue guardado.`;
 
 /**
  * PAQUETES DE BOOST a la venta. FUENTE UNICA: de aqui salen el precio Y los creditos, tanto al
@@ -312,10 +296,7 @@ export const RAZON_BOOST_COMPRA = "PURCHASE";
 /** `refType` de la fila de ledger: a que apunta el movimiento. */
 export const REF_BOOST_STRIPE = "STRIPE_PAYMENT";
 
-/** Copy de la compra. Cero codigos ni jerga de Stripe en pantalla: eso va al log. */
-export const MSG_BOOST_PAGO_NO_DISPONIBLE = "Los pagos no están disponibles ahora mismo.";
 export const MSG_BOOST_PAQUETE_NO_VALIDO = "Ese paquete no existe.";
-export const MSG_BOOST_SIN_VERIFICAR = "Verifica tu correo para poder comprar.";
 
 /**
  * Razon del movimiento cuando el EQUIPO ajusta creditos de boost a mano. Coincide con
@@ -437,15 +418,6 @@ export type ColorNombre = (typeof VALORES_COLOR_NOMBRE)[number];
  */
 export const TOKEN_CSS = /^--[a-z][a-z0-9-]*$/;
 
-/** Copy de la suscripcion. Cero codigos ni jerga de Stripe en pantalla: eso va al log. */
-export const MSG_VIP_PAGO_NO_DISPONIBLE = "Las suscripciones no están disponibles ahora mismo.";
-export const MSG_VIP_SIN_VERIFICAR = "Verifica tu correo para poder suscribirte.";
-export const MSG_VIP_YA_ACTIVO = "Ya tienes VIP Mythic activo.";
-export const MSG_VIP_NO_ERES = "No tienes ninguna suscripción activa que cancelar.";
-export const MSG_VIP_CANCELADA_OK =
-  "Hemos pedido la baja. Sigues siendo VIP hasta que acabe el periodo que ya pagaste.";
-export const MSG_VIP_YA_CANCELADA = "Tu suscripción ya estaba cancelada.";
-
 /**
  * LO QUE INCLUYE EL PLAN, para la pagina /vip.
  *
@@ -508,17 +480,6 @@ export const REF_BOOST_VIP = "VIP_SUBSCRIPTION";
  */
 export const VIP_BOOST_SEMANAL_CADENCIA_MS = 60 * 60 * 1000;
 
-/** Copy del toque. Ninguno de estos casos es un error del sistema: son respuestas. */
-export const MSG_TOQUE_SOLO_VIP = "Dar un toque es de VIP Mythic. Hazte VIP para usarlo.";
-export const MSG_TOQUE_SIN_VERIFICAR = "Verifica tu correo para poder dar un toque.";
-export const MSG_TOQUE_A_TI_MISMO = "No puedes darte un toque a ti mismo.";
-export const MSG_TOQUE_REPETIDO = "Ya le has dado un toque hoy.";
-/** Mismo criterio que el limite de Boost: la hora de verdad, no un "vuelve mañana" que miente. */
-export function msgToqueLimiteDiario(reinicio: string): string {
-  return `Ya has dado ${TOQUE_MAX_DIA} toques hoy. ${reinicio}`;
-}
-export const MSG_TOQUE_ENVIADO = "Toque enviado.";
-
 /**
  * Tope de UN ajuste de creditos de boost, en cualquier sentido.
  *
@@ -535,34 +496,6 @@ export const MSG_TOQUE_ENVIADO = "Toque enviado.";
  * constante: un test que la lee sigue verde el dia que alguien la cambie, o sea que no la vigila.
  */
 export const AJUSTE_BOOST_DELTA_MAX = 10;
-
-/** Copy de la ACTIVACION. Lo que el usuario puede hacer algo con, nunca el codigo del rechazo. */
-export const MSG_BOOST_SIN_SALDO = "No te quedan Boosts. Compra uno para destacar tu perfil.";
-/**
- * EL LIMITE NO DICE "vuelve mañana", y no es un descuido: el contador se reinicia a medianoche UTC
- * (ver RESET_TIMEZONE), que para alguien en UTC+10 no es "mañana" sino esta misma tarde. Decir la
- * hora de verdad es menos redondo y no miente. Desde la Fase 11, esa hora en SU zona: ver
- * `fraseReinicioDiario`.
- */
-export function msgBoostLimiteDiario(reinicio: string): string {
-  return `Ya has destacado tu perfil ${BOOST_DAILY_LIMIT} veces hoy. ${reinicio}`;
-}
-
-/**
- * CUÁNDO SE REINICIAN LOS CONTADORES DIARIOS (Boost, toques), dicho en la hora de quien mira (Fase 11):
- * «El contador se reinicia a las 01:00.» El DÍA se sigue calculando en UTC (`RESET_TIMEZONE`): esto
- * cambia cómo se DICE, nunca cuándo se reinicia. A un usuario no se le dice «UTC», y sin su zona no se
- * inventa una hora: se dice que es cada día.
- */
-export function fraseReinicioDiario(ahora: Date, idioma: Idioma, zona: ZonaHoraria | null): string {
-  return `El contador se reinicia ${cuandoSeReinicia(ahora, idioma, zona)}.`;
-}
-
-/** Solo el CUÁNDO: «a las 01:00», o «cada día» si no sabemos su zona. Para frases con otra forma. */
-export function cuandoSeReinicia(ahora: Date, idioma: Idioma, zona: ZonaHoraria | null): string {
-  return zona ? `a las ${horaDelReinicioDiario(ahora, idioma, zona)}` : "cada día";
-}
-export const MSG_BOOST_ACTIVAR_SIN_VERIFICAR = "Verifica tu correo para poder destacar tu perfil.";
 
 // ============================================================================
 // DECISIONES DE PRODUCTO CONFIRMADAS POR EL PROPIETARIO
@@ -839,10 +772,6 @@ export const ACCIONES_RACHA: ReadonlyArray<{ servicio: string; que: string }> = 
   { servicio: "video-confirmacion.ts", que: "publicar un video" },
 ];
 
-/** Copy de los likes. El boton no dice numeros: el numero lo pone el contador. */
-export const MSG_LIKE_PROPIO = "No puedes dar me gusta a tu propio vídeo.";
-export const MSG_LIKE_NO_DISPONIBLE = "Este vídeo ya no está disponible.";
-
 /**
  * REFERIDOS. Una invitacion paga a los DOS lados con el MISMO importe (`POINTS.INVITE_FRIEND`), pero
  * con razones DISTINTAS, y eso es a proposito: las dos filas tienen `refType: "USER"` y se apuntan
@@ -1047,17 +976,6 @@ export const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000; // 30 min
 export const EDAD_MIN_USO = 18;
 
 /**
- * Lo que se le dice a quien declara ser menor. Humano y sin reganar: no ha hecho nada malo.
- * NO lleva el numero dentro ("mayor de edad", no "18 anos") a proposito: seria una segunda copia
- * de `EDAD_MIN_USO` esperando a quedarse desfasada el dia que el umbral se mueva.
- */
-export const MSG_EDAD_MINIMA = "Tienes que ser mayor de edad para registrarte.";
-/** Fecha con mala forma, inexistente, futura o imposible. */
-export const MSG_FECHA_NACIMIENTO_NO_VALIDA = "Revisa tu fecha de nacimiento.";
-/** La casilla es obligatoria: sin ella no hay alta. */
-export const MSG_TERMINOS_SIN_ACEPTAR = "Tienes que aceptar los términos para registrarte.";
-
-/**
  * GRACIA antes de que un reto borrado por el admin desaparezca del todo. Durante este plazo el reto ya
  * NO se ve en publico, pero sigue en el panel con su cuenta atras y se puede RESTAURAR: es la red
  * contra el borrado por error y contra las consecuencias de destruir algo que habia que conservar. El
@@ -1196,12 +1114,6 @@ export const VISTO_SEGUNDOS_MINIMOS = 3;
 export const VISTO_TTL_SEC = 30 * 60; // 30 min
 
 /**
- * Copy del rechazo cuando se vota sin haber visto el video. Se fija AQUI porque lo emite el servidor
- * (convencion de la API: `error.message` ya trae copy humano) y lo consumira la ruta de voto.
- */
-export const MSG_VOTO_SIN_VER = "Reproduce este vídeo para poder votarlo.";
-
-/**
  * Vídeo de fondo en bucle de la HOME, servido por la CDN de assets de Bunny.
  *
  * Es una CONSTANTE y no una variable de entorno a proposito: el asset es PUBLICO (sin Token Auth), asi
@@ -1209,20 +1121,6 @@ export const MSG_VOTO_SIN_VER = "Reproduce este vídeo para poder votarlo.";
  * SIN variables — promoverla a env obligatoria seria meter una URL publica en el camino que tumba el
  * despliegue si falta. Fuente UNICA: nadie la escribe en un JSX.
  */
-/**
- * Copy del bloqueo por MODERACION al intentar participar. Dice la verdad —ahora solo se bloquea si un
- * moderador retiro la participacion— y por eso NOMBRA al moderador: antes decia "fue retirada" a secas
- * y se le soltaba tambien a quien simplemente habia borrado su propio video, que no habia hecho nada.
- */
-export const MSG_PARTICIPACION_BLOQUEADA =
-  "Un moderador retiro tu participacion en este reto, asi que no puedes volver a participar.";
-
-/**
- * Copy del reto EXCLUSIVO para quien no es VIP (Fase 8 · P7). Dice QUE PASA y QUE FALTA, en humano:
- * el `409 SOLO_VIP` es para el log, no para la pantalla. Y no promete nada mas —ni descuentos ni
- * "proximamente"—: lo unico cierto es que este reto es de Mythic.
- */
-export const MSG_RETO_SOLO_VIP = "Este reto es exclusivo de VIP Mythic.";
 
 // ============================================================================
 // RETOS PATROCINADOS (Fase 9 · P1)
@@ -1249,24 +1147,6 @@ export const SPONSOR_NOMBRE_MAX = 60;
  * mismo y el limite de bytes protege la MEMORIA al decodificar, que no depende de para que sea).
  */
 export const SPONSOR_LOGO_MAX_LADO = 512;
-
-/**
- * Copy de los rechazos de la ruta de voto. Aqui, y no dentro de la ruta, por la misma razon que el de
- * arriba: el servidor emite copy humano ya listo (`error.message`), nunca un codigo crudo, y la Pieza 3
- * lo pinta tal cual sin traducir nada.
- *
- * `MSG_NO_DISPONIBLE` es DELIBERADAMENTE COMPARTIDO por "no existe" y "no esta publicada", y por TODAS
- * las rutas que hablan de una participacion (voto y visto). Es un invariante de seguridad, no estilo:
- * dos textos distintos —o dos `code` distintos— convertirian la respuesta en un oraculo con el que
- * enumerar que participaciones existen pero estan ocultas o retiradas. Por eso vive en un solo sitio:
- * separado en dos literales, alguien "mejoraria" uno y abriria el oraculo sin enterarse.
- */
-export const MSG_NO_DISPONIBLE = "Vídeo no disponible.";
-export const MSG_VOTO_AUTOVOTO = "No puedes votar tu propia participación.";
-export const MSG_VOTO_RETO_CERRADO = "Este reto ya no admite votos.";
-export const MSG_VOTO_SIN_VOTO = "No tienes ningún voto puesto aquí.";
-/** No es un error: es la pregunta que la Pieza 3 le hara al usuario para pedirle consentimiento. */
-export const MSG_VOTO_YA_VOTO_OTRA = "Ya has votado otra participación de este reto.";
 
 /**
  * Umbral de AVISO al admin por acumulacion de jobs FAILED. Al CRUZARLO (hacia arriba) el
@@ -1653,18 +1533,6 @@ export const MOTIVOS_DENUNCIA: ReadonlyArray<{ clave: ReportReason; texto: strin
   { clave: "DERECHOS", texto: "Usa contenido que no es suyo" },
   { clave: "OTRO", texto: "Otro motivo" },
 ];
-
-/**
- * Copy de la denuncia. Como el resto de `MSG_*`: lo emite el servidor ya en humano y la UI lo pinta
- * tal cual. `MSG_DENUNCIA_YA` NO es un error: es la respuesta amable a denunciar dos veces lo mismo.
- */
-export const MSG_DENUNCIA_GRACIAS = "Gracias por avisar. Lo revisaremos.";
-export const MSG_DENUNCIA_YA = "Ya nos habías avisado de esto. Gracias.";
-export const MSG_DENUNCIA_PROPIO = "No puedes denunciar tu propio contenido.";
-/** Uno solo para "no existe" y "ya no se ve": dos textos serían un oráculo (ver `MSG_NO_DISPONIBLE`). */
-export const MSG_DENUNCIA_NO_DISPONIBLE = "Este contenido ya no está disponible.";
-/** La misma barrera antifraude que votar o comentar. */
-export const MSG_DENUNCIA_SIN_VERIFICAR = "Verifica tu correo para poder denunciar.";
 
 /**
  * GOBIERNO DE CUENTAS — lo que queda escrito en `AuditLog` cuando se toca una cuenta. Unión cerrada
@@ -2204,24 +2072,6 @@ export const EMPRESA_NOTA_MAX = 500;
 export const EMPRESAS_PAGINA = 25;
 
 /**
- * LO QUE DICE LA PANTALLA TRAS UN ALTA — y es VERDAD en los dos casos.
- *
- * La regla: ninguna pantalla afirma algo que el servidor no sabe que es verdad. Antes, tras un alta
- * con un correo que ya tenía cuenta, la pantalla decía que habíamos enviado un enlace de
- * verificación y no habíamos enviado nada (lo encontró Junior en producción). Ahora SIEMPRE sale un
- * mensaje hacia esa dirección —la verificación si es nueva, el aviso «ya tienes cuenta» si no
- * (`services/aviso-cuenta-existente`)— y la frase dice solo eso: que hay un mensaje, no cuál.
- *
- * No dice «registrada» ni «enviado el enlace de verificación»: cualquiera de las dos sería mentira en
- * uno de los dos casos, y distinguirlos en pantalla sería el oráculo de enumeración que el alta
- * evita. La API devuelve el MISMO texto, para que no haya dos versiones de la verdad.
- */
-export const MSG_REVISA_CORREO_REGISTRO =
-  "Revisa tu correo. Te hemos enviado un mensaje para continuar con tu registro.";
-export const MSG_REVISA_CORREO_EMPRESA =
-  "Revisa tu correo. Te hemos enviado un mensaje para continuar con el registro de tu empresa.";
-
-/**
  * EL CANDADO: una cuenta de empresa MIRA Y NO PARTICIPA. Lo aplica `mutatingRoute` (una sola
  * puerta, no un `if` por pantalla), así que este texto sale para cualquier intento: subir, votar,
  * comentar, dar like, denunciar, comprar Boost o VIP, cobrar.
@@ -2232,25 +2082,6 @@ export const MSG_REVISA_CORREO_EMPRESA =
 export const MSG_CUENTA_EMPRESA_NO_PARTICIPA =
   "Esta es una cuenta de empresa: puede mirarlo todo, pero no participar. Si quieres subir vídeos y competir, crea una cuenta normal con otro correo.";
 
-/**
- * La línea CORTA que sustituye a un control de participación cuando una empresa mira una página
- * compartida (Fase 9, P2): en el sitio de la caja de comentar, o del botón "Participar" de un reto.
- * Corta porque va en el hueco de un control, no en un aviso; la larga, de arriba, es la del 403.
- */
-export const MSG_EMPRESA_SOLO_MIRA = "Las cuentas de empresa no participan.";
-
-/**
- * Copy del portal y del panel de empresas. En humano, como el resto. (El aviso de correo sin verificar
- * del portal vive en el diccionario desde la P5b2b: `portalAviso`.)
- */
-export const MSG_EMPRESA_DATOS_INVALIDOS =
-  "Revisa los datos: faltan el nombre, el país o la persona de contacto, o la web no es una dirección válida.";
-/**
- * «Web O redes, al menos uno». Son los dos datos con los que el admin verifica que el negocio
- * existe, y hay negocios —y marcas personales— sin web y con 50.000 seguidores.
- */
-export const MSG_EMPRESA_WEB_O_REDES =
-  "Déjanos tu web o tus redes: con uno de los dos nos basta para comprobar que existís.";
 /**
  * POR QUÉ EL ALTA DE EMPRESA PIDE UN CORREO NUEVO, contado ANTES de intentarlo.
  *
@@ -2535,13 +2366,6 @@ export type PaqueteCreditos = (typeof VALORES_PAQUETE_CREDITOS)[number];
 /** El `refType` de una compra en el ledger: el `refId` es el id de la SESIÓN de Checkout. */
 export const REF_CREDITOS_STRIPE = "STRIPE_CHECKOUT";
 
-/**
- * SIN CLAVES, LA COMPRA NO PROMETE NADA (como Boost y VIP): los paquetes se ven, el botón no se ofrece
- * y se dice por qué —y de dónde salen hoy los créditos—.
- */
-export const MSG_CREDITOS_PAGO_NO_DISPONIBLE = `La compra de créditos todavía no está disponible. Mientras tanto, los créditos llegan como regalo de Socio Fundador o del equipo de ${MARCA}.`;
-export const MSG_CREDITOS_SIN_VERIFICAR =
-  "Podrás comprar créditos en cuanto verifiquemos tu empresa.";
 // Las condiciones, junto al botón de compra, viven en el diccionario desde la P5b2b
 // (`creditosCompra.condiciones`): solo las pinta el portal.
 
@@ -2851,13 +2675,6 @@ export const PUBLICIDAD_CACHE_HOY_MS = 60_000;
  */
 export const ETIQUETA_PIEZA_CAMPANA = "Publicidad";
 export const ETIQUETA_PIEZA_CASA = `De ${MARCA}`;
-/**
- * UN TIPO DE NEGOCIO GUARDADO FUERA DEL CATÁLOGO (no debería pasar: el alta lo valida). La MISMA frase
- * en el aviso de «Nueva campaña» y en el rechazo del servicio (`TIPO_NEGOCIO_DESCONOCIDO`): la
- * pantalla y la ruta dicen lo mismo.
- */
-export const MSG_TIPO_NEGOCIO_DESCONOCIDO =
-  "No podemos ofrecerte campañas hasta revisar el tipo de negocio de tu empresa. Escríbenos contestando a cualquiera de nuestros correos y lo arreglamos.";
 
 /**
  * EL ANUNCIO DE LA CASA: el hueco vacío sirve para llenarse a sí mismo. Invita a anunciarse, nunca vende

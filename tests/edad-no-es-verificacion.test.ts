@@ -43,7 +43,7 @@ describe("una sola constante de edad", () => {
   it("vale 18 y SOLO hay un umbral de edad en la config", () => {
     expect(EDAD_MIN_USO).toBe(18);
     // Un umbral de edad es un NÚMERO de años. El filtro lo exige así, y por eso deja fuera dos
-    // cosas que no lo son: `MSG_EDAD_MINIMA` (un texto) y `SONDEO_MAX_EDAD_MS` (una duración en
+    // cosas que no lo son: `es.api.tienesQueSer` (un texto) y `SONDEO_MAX_EDAD_MS` (una duración en
     // milisegundos, la antigüedad de un sondeo). Un `/EDAD/` a secas los contaba a los tres.
     const umbrales = Object.entries(CONSTANTES).filter(
       ([k, v]) =>
@@ -116,8 +116,8 @@ describe("el número no se escribe a mano", () => {
   });
 
   it("y el mensaje de la config tampoco lo lleva", () => {
-    expect(CONSTANTES.MSG_EDAD_MINIMA).not.toMatch(/\d/);
-    expect(CONSTANTES.MSG_EDAD_MINIMA).toMatch(/mayor de edad/i);
+    expect(es.api.tienesQueSer).not.toMatch(/\d/);
+    expect(es.api.tienesQueSer).toMatch(/mayor de edad/i);
   });
 });
 

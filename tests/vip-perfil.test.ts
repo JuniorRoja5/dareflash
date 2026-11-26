@@ -258,10 +258,10 @@ describe("lo que NO entra en esta pieza", () => {
       .map((x) => x.f)
       .sort();
     expect(conToque, "el texto del botón se escribió en un sitio nuevo").toEqual(
-      // Dos, y cada uno con su trabajo: el DICCIONARIO (la etiqueta de la pieza, desde la P5b2a) y
-      // el catálogo de copy (los mensajes que manda el servidor). Un tercero sería el botón escrito
-      // a mano otra vez.
-      ["config/constants.ts", "textos/es.ts"].sort(),
+      // UNO: el DICCIONARIO, con la etiqueta de la pieza (desde la P5b2a) y, desde la P5b3, también
+      // los mensajes que manda el servidor (antes en `config/constants`). Un segundo sería el botón
+      // escrito a mano otra vez.
+      ["textos/es.ts"],
     );
     const boton = sinComentarios(leer("components/ui/dar-toque.tsx"));
     expect(boton, "el botón ya no pinta su etiqueta del diccionario").toContain('t("dar")');

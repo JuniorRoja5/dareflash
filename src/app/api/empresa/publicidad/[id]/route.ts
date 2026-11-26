@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
+import { frase, textosApi, type TApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -22,20 +23,17 @@ const CuerpoSchema = z.object({
 type Svc = typeof import("@/server/services/publicidad");
 
 /** La empresa del chokepoint, o la respuesta que toca (404 sin empresa; 403 sin correo confirmado). */
-async function ambitoORespuesta() {
+async function ambitoORespuesta(t: TApi) {
   const { requireEmpresa, SinEmpresa } = await import("@/server/auth/empresa-actual");
   const { AuthError } = await import("@/server/auth/rbac");
   try {
     return { ambito: await requireEmpresa() };
   } catch (e) {
-    if (e instanceof SinEmpresa) return { respuesta: apiError("NOT_FOUND", "No encontrado.", 404) };
+    if (e instanceof SinEmpresa)
+      return { respuesta: apiError("NOT_FOUND", t("noEncontrado"), 404) };
     if (e instanceof AuthError && e.code === "EMAIL_NOT_VERIFIED") {
       return {
-        respuesta: apiError(
-          "EMAIL_NOT_VERIFIED",
-          "Confirma tu correo para gestionar campañas.",
-          403,
-        ),
+        respuesta: apiError("EMAIL_NOT_VERIFIED", t("confirmaTuCorreoParaGestionar"), 403),
       };
     }
     throw e;
@@ -43,10 +41,10 @@ async function ambitoORespuesta() {
 }
 
 /** Traduce el rechazo esperable del servicio. Una campaña ajena es un 404, igual que una inexistente. */
-function respuestaDeError(svc: Svc, e: unknown): Response {
+function respuestaDeError(svc: Svc, e: unknown, t: TApi): Response {
   if (!(e instanceof svc.PublicidadError)) throw e;
   const estado = e.code === "NO_EXISTE" ? 404 : e.code === "EMPRESA_NO_OPERA" ? 403 : 409;
-  return apiError(e.code, e.message, estado);
+  return apiError(e.code, frase(t, e.mensaje), estado);
 }
 
 /**
@@ -61,26 +59,26 @@ function respuestaDeError(svc: Svc, e: unknown): Response {
  */
 export const POST = mutatingRoute<ContextoRuta>(
   async (req, { env, prisma }, { params }) => {
+    const t = await textosApi(req);
     const svc = await import("@/server/services/publicidad");
     const { RATE_LIMITS } = await import("@/config/constants");
     const { rateLimit } = await import("@/server/security/rate-limit");
 
-    const r = await ambitoORespuesta();
+    const r = await ambitoORespuesta(t);
     if (!r.ambito) return r.respuesta;
     const ambito = r.ambito;
 
     const p = ParamsSchema.safeParse(await params);
-    if (!p.success) return apiError("NOT_FOUND", "Esa campaña no existe.", 404);
+    if (!p.success) return apiError("NOT_FOUND", t("esaCampanaNo"), 404);
     const cuerpo = CuerpoSchema.safeParse(await req.json().catch(() => null));
-    if (!cuerpo.success)
-      return apiError("VALIDATION", "No hemos podido procesar la petición.", 400);
+    if (!cuerpo.success) return apiError("VALIDATION", t("noHemosPodido"), 400);
 
     const rl = await rateLimit(prisma, {
       key: `accionpublicidad:user:${rateLimitKey(env.AUTH_SECRET, ambito.user.userId)}`,
       ...RATE_LIMITS.ACCION_PUBLICIDAD_PER_USER,
     });
     if (!rl.allowed) {
-      return apiError("RATE_LIMITED", "Demasiadas acciones seguidas. Espera un momento.", 429);
+      return apiError("RATE_LIMITED", t("demasiadasAccionesSeguidas"), 429);
     }
 
     const { accion, fechaInicio } = cuerpo.data;
@@ -103,9 +101,7 @@ export const POST = mutatingRoute<ContextoRuta>(
           {
             error: {
               code: "ZONA_LLENA",
-              message: libre
-                ? "Esa zona ya tiene todas sus plazas ocupadas en esas fechas."
-                : "Esa zona tiene todas sus plazas ocupadas en los próximos días que se pueden reservar.",
+              message: libre ? t("zonaLlenaEnFechas") : t("zonaLlenaProximosDias"),
             },
             primeraLibre: libre,
           },
@@ -114,7 +110,7 @@ export const POST = mutatingRoute<ContextoRuta>(
       }
       return apiOk({ ok: true, inicio: resultado.inicio.toISOString().slice(0, 10) });
     } catch (e) {
-      return respuestaDeError(svc, e);
+      return respuestaDeError(svc, e, t);
     }
   },
   { cuentaEmpresa: "permite" },
@@ -126,15 +122,16 @@ export const POST = mutatingRoute<ContextoRuta>(
  */
 export const DELETE = mutatingRoute<ContextoRuta>(
   async (_req, { env, prisma }, { params }) => {
+    const t = await textosApi(_req);
     const svc = await import("@/server/services/publicidad");
-    const r = await ambitoORespuesta();
+    const r = await ambitoORespuesta(t);
     if (!r.ambito) return r.respuesta;
     const p = ParamsSchema.safeParse(await params);
-    if (!p.success) return apiError("NOT_FOUND", "Esa campaña no existe.", 404);
+    if (!p.success) return apiError("NOT_FOUND", t("esaCampanaNo"), 404);
 
     const borrada = await svc.borrarBorrador(prisma, r.ambito.empresaId, p.data.id);
     if (!borrada) {
-      return apiError("NOT_FOUND", "No hay ningún borrador con ese identificador.", 404);
+      return apiError("NOT_FOUND", t("noHayNingun"), 404);
     }
     try {
       const { unlink } = await import("node:fs/promises");

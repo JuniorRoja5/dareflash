@@ -1,14 +1,10 @@
 import { z } from "zod";
 
-import {
-  msgBoostAgotado,
-  MSG_BOOST_ACTIVAR_SIN_VERIFICAR,
-  fraseReinicioDiario,
-  msgBoostLimiteDiario,
-  MSG_BOOST_SIN_SALDO,
-} from "@/config/constants";
+import { BOOST_DAILY_LIMIT } from "@/config/constants";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk } from "@/server/http/api";
+import { idiomaDeFormatoDeLaApi, textosApi } from "@/server/http/textos-api";
+import { fraseReinicioDiario } from "@/textos/reinicio-diario";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +31,7 @@ const CuerpoSchema = z.object({ token: z.string().uuid() });
  * respuestas, con su copy humano. Lo que sí es 4xx es un cuerpo inválido o una sesión sin verificar.
  */
 export const POST = mutatingRoute(async (req, { prisma }) => {
+  const t = await textosApi(req);
   const { AuthError, requireVerifiedUser } = await import("@/server/auth/rbac");
   const { activarBoost } = await import("@/server/services/boost-activacion");
 
@@ -43,26 +40,32 @@ export const POST = mutatingRoute(async (req, { prisma }) => {
     userId = (await requireVerifiedUser()).userId;
   } catch (e) {
     if (e instanceof AuthError) {
-      return apiError("EMAIL_SIN_VERIFICAR", MSG_BOOST_ACTIVAR_SIN_VERIFICAR, 403);
+      return apiError("EMAIL_SIN_VERIFICAR", t("verificaTuCorreo"), 403);
     }
     throw e;
   }
 
   const cuerpo = CuerpoSchema.safeParse(await req.json().catch(() => null));
-  if (!cuerpo.success) return apiError("VALIDATION", "No hemos podido procesar la petición.", 400);
+  if (!cuerpo.success) return apiError("VALIDATION", t("noHemosPodido"), 400);
 
   const r = await activarBoost(prisma, { userId, token: cuerpo.data.token });
 
-  if (r.estado === "sin-saldo") return apiOk({ estado: r.estado, mensaje: MSG_BOOST_SIN_SALDO });
+  if (r.estado === "sin-saldo") return apiOk({ estado: r.estado, mensaje: t("boostSinSaldo") });
   if (r.estado === "limite") {
-    // La hora del reinicio, en la de quien pide (Fase 11): el día se sigue contando en UTC.
-    const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
+    // La hora del reinicio, en la de quien pide (Fase 11): el día se sigue contando en UTC. La MISMA
+    // frase que pinta la pantalla (`boostCliente.limiteDiario`): una frase, UNA clave (P5b3).
+    const { zonaDeLaPeticion } = await import("@/server/zona-peticion");
     const reinicio = fraseReinicioDiario(
+      await textosApi(req, "reinicioDiario"),
       new Date(),
-      await idiomaDeLaPeticion(),
+      await idiomaDeFormatoDeLaApi(req),
       await zonaDeLaPeticion(),
     );
-    return apiOk({ estado: r.estado, mensaje: msgBoostLimiteDiario(reinicio) });
+    const tb = await textosApi(req, "boostCliente");
+    return apiOk({
+      estado: r.estado,
+      mensaje: tb("limiteDiario", { veces: String(BOOST_DAILY_LIMIT), reinicio }),
+    });
   }
   // AGOTADO sale por `apiOk` y no por `apiError`, como los otros dos rechazos esperables: no ha
   // fallado nada, es el producto diciendo que ahora mismo no hay sitio. Y lo importante para quien
@@ -70,7 +73,9 @@ export const POST = mutatingRoute(async (req, { prisma }) => {
   if (r.estado === "agotado") {
     return apiOk({
       estado: r.estado,
-      mensaje: msgBoostAgotado(r.minutosParaHueco),
+      mensaje: (await textosApi(req, "boostCliente"))("agotado", {
+        minutos: String(r.minutosParaHueco),
+      }),
       minutosParaHueco: r.minutosParaHueco,
     });
   }

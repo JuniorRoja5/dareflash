@@ -1,5 +1,6 @@
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
+import { frase, textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export const dynamic = "force-dynamic";
  * `?v=` para invalidar la caché del navegador al cambiar de foto (el fichero se sobrescribe).
  */
 export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
+  const t = await textosApi(req);
   const { RATE_LIMITS } = await import("@/config/constants");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { procesarAvatar, AvatarInvalidoError } = await import("@/server/services/avatar");
@@ -28,7 +30,7 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
   const rlKey = `avatar:user:${rateLimitKey(env.AUTH_SECRET, user.userId)}`;
   const rl = await rateLimit(prisma, { key: rlKey, ...RATE_LIMITS.UPLOAD_AVATAR_PER_USER });
   if (!rl.allowed) {
-    return apiError("RATE_LIMITED", "Has subido muchas imágenes seguidas. Espera un momento.", 429);
+    return apiError("RATE_LIMITED", t("hasSubidoMuchas"), 429);
   }
 
   // 1. Recibir el fichero del formulario multipart. Sin fichero válido -> error humano.
@@ -38,10 +40,10 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     const campo = form.get("avatar");
     if (campo instanceof File) fichero = campo;
   } catch {
-    return apiError("BAD_REQUEST", "No hemos podido leer la imagen. Inténtalo de nuevo.", 400);
+    return apiError("BAD_REQUEST", t("noHemosPodidoLeerLaImagen"), 400);
   }
   if (!fichero) {
-    return apiError("VALIDATION", "Elige una imagen para tu foto de perfil.", 400);
+    return apiError("VALIDATION", t("eligeUnaImagen"), 400);
   }
 
   // 2. Validar + sanear (tipo por bytes, tamaño, recompresión, strip EXIF). Errores TIPADOS -> copy.
@@ -52,10 +54,10 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
   } catch (e) {
     if (e instanceof AvatarInvalidoError) {
       const status = e.motivo === "TAMANO" ? 413 : 400;
-      return apiError(`AVATAR_${e.motivo}`, e.message, status);
+      return apiError(`AVATAR_${e.motivo}`, frase(t, e.mensaje), status);
     }
     console.error("[perfil/avatar] fallo procesando la imagen:", sanearError(e));
-    return apiError("AVATAR_ERROR", "No hemos podido procesar la imagen. Prueba con otra.", 400);
+    return apiError("AVATAR_ERROR", t("noHemosPodidoProcesar"), 400);
   }
 
   // 3. ALMACENAR en el volumen persistente + apuntar `User.image` a la URL pública que sirve Caddy.
@@ -75,6 +77,6 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     // (p.ej. permisos del volumen). El mensaje al usuario sigue siendo humano; nada de errnos fuera.
     const code = e instanceof Error && "code" in e ? String((e as { code?: unknown }).code) : "?";
     console.error(`[perfil/avatar] fallo guardando la imagen (code=${code}):`, sanearError(e));
-    return apiError("AVATAR_ERROR", "No hemos podido guardar la imagen. Reintenta.", 500);
+    return apiError("AVATAR_ERROR", t("noHemosPodidoGuardarLa"), 500);
   }
 });

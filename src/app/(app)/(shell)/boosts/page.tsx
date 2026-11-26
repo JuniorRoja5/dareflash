@@ -3,11 +3,7 @@ import { redirigir } from "@/server/redirigir";
 
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { TarjetaMetrica } from "@/components/ui/tarjeta-metrica";
-import {
-  BOOST_DAILY_LIMIT,
-  MSG_BOOST_PAGO_NO_DISPONIBLE,
-  MSG_BOOST_SIN_VERIFICAR,
-} from "@/config/constants";
+import { BOOST_DAILY_LIMIT } from "@/config/constants";
 import { formatearNumero } from "@/lib/formato";
 import { TextosProvider } from "@/components/textos-provider";
 import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
@@ -92,10 +88,11 @@ export default async function BoostsPage({
   const correoVerificado = sesion.emailVerified !== null;
   const puedeComprar = pagosConfigurados && correoVerificado;
   // EL ORDEN IMPORTA: si los pagos no están puestos, da igual el correo — no hay nada que intentar.
+  const tCompra = await textos("boostCliente");
   const motivoBloqueo = !pagosConfigurados
-    ? MSG_BOOST_PAGO_NO_DISPONIBLE
+    ? tCompra("pagoNoDisponible")
     : !correoVerificado
-      ? MSG_BOOST_SIN_VERIFICAR
+      ? tCompra("sinVerificar")
       : null;
 
   /**
@@ -109,7 +106,7 @@ export default async function BoostsPage({
   const destacarEsLaAccion = saldo > 0;
   const [t, textosBoost] = await Promise.all([
     textos("boosts"),
-    textosClienteDeLaPeticion(["boostCliente"] as const),
+    textosClienteDeLaPeticion(["boostCliente", "reinicioDiario"] as const),
   ]);
 
   return (

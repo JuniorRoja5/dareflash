@@ -8,7 +8,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Denunciar } from "@/components/ui/denunciar";
 import { NombreUsuario } from "@/components/ui/identidad-usuario";
-import { COMENTARIO_TEXTO_MAX, MSG_EMPRESA_SOLO_MIRA } from "@/config/constants";
+import { COMENTARIO_TEXTO_MAX } from "@/config/constants";
 import { delCsrf, getJson, mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { limpiarComentario } from "@/lib/comentarios";
 import { haceCuanto } from "@/lib/notificaciones-vista";
@@ -314,7 +314,7 @@ export function ComentariosVideo({
         {soloMirar ? (
           // EN EL HUECO DE LA CAJA, la razón: una caja que falta sin más parece un fallo de carga.
           <p data-solo-mirar className="px-1 py-2 text-center text-sm text-text-dim">
-            {MSG_EMPRESA_SOLO_MIRA}
+            {t("soloMira")}
           </p>
         ) : haySesion ? (
           <form onSubmit={(e) => void publicar(e)} className="flex items-end gap-2">

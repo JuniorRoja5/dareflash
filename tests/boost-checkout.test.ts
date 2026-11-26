@@ -15,9 +15,10 @@
  *  - SIN CLAVE DE STRIPE no revienta: responde copy humano y manda el detalle al log.
  */
 import { falso } from "./helpers/valores-falsos";
+import { es } from "@/textos/es";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { MSG_BOOST_PAGO_NO_DISPONIBLE, PAQUETES_BOOST } from "../src/config/constants";
+import { PAQUETES_BOOST } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
@@ -211,7 +212,7 @@ describe("sin Stripe configurado", () => {
 
     expect(res.status).toBe(503);
     const cuerpo = (await res.json()) as { error: { code: string; message: string } };
-    expect(cuerpo.error.message).toBe(MSG_BOOST_PAGO_NO_DISPONIBLE);
+    expect(cuerpo.error.message).toBe(es.api.losPagosNo);
     expect(JSON.stringify(cuerpo)).not.toMatch(/STRIPE|sk_test|secret/i);
   });
 });

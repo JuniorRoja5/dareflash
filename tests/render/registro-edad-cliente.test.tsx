@@ -16,9 +16,10 @@
  * botón con el aviso (rojo), o avisar con una fecha a medias (rojo).
  */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { es } from "@/textos/es";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { EDAD_MIN_USO, MSG_EDAD_MINIMA } from "@/config/constants";
+import { EDAD_MIN_USO } from "@/config/constants";
 
 // El formulario lee `useSearchParams` (el `?ref=` del enlace de invitación). En jsdom no hay
 // router, así que se le da uno vacío: lo que se prueba aquí es la fecha, no los referidos.
@@ -47,13 +48,13 @@ function escribirFecha(valor: string): HTMLElement {
 describe("avisa al elegir la fecha", () => {
   it("una fecha de menor de edad dispara el aviso", () => {
     escribirFecha(naceHace(EDAD_MIN_USO - 1));
-    expect(screen.getByRole("status").textContent).toBe(MSG_EDAD_MINIMA);
+    expect(screen.getByRole("status").textContent).toBe(es.registro.edadMinima);
   });
 
   it("y el aviso es el MISMO texto que da el servidor", () => {
     // Si el cliente escribiera su propio mensaje, un día dirían cosas distintas por el mismo motivo.
     escribirFecha(naceHace(10));
-    expect(screen.getByRole("status").textContent).toBe(MSG_EDAD_MINIMA);
+    expect(screen.getByRole("status").textContent).toBe(es.registro.edadMinima);
   });
 
   it("con la edad mínima EXACTA no avisa de nada", () => {

@@ -1,8 +1,9 @@
 import { z } from "zod";
 
-import { MSG_NO_DISPONIBLE, RATE_LIMITS } from "@/config/constants";
+import { RATE_LIMITS } from "@/config/constants";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -30,11 +31,12 @@ const ParamsSchema = z.object({ id: z.string().min(1).max(64) });
  */
 export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (_req, { user, env, prisma }, { params }) => {
+    const t = await textosApi(_req);
     const { marcarVisto } = await import("@/server/services/visto");
     const { rateLimit } = await import("@/server/security/rate-limit");
 
     const parsed = ParamsSchema.safeParse(await params);
-    if (!parsed.success) return apiError("NOT_FOUND", MSG_NO_DISPONIBLE, 404);
+    if (!parsed.success) return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
 
     // Cubo por USUARIO (no por IP): la marca es por usuario y la sesión ya está resuelta. Generoso,
     // porque bajar por el feed la dispara muchas veces de forma legítima.
@@ -43,7 +45,7 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
       ...RATE_LIMITS.VISTO_PER_USER,
     });
     if (!rl.allowed) {
-      return apiError("RATE_LIMITED", "Demasiadas peticiones. Inténtalo en un momento.", 429);
+      return apiError("RATE_LIMITED", t("demasiadasPeticionesIntentalo"), 429);
     }
 
     const r = await marcarVisto(prisma, {
@@ -54,7 +56,7 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
     // Inexistente y no-publicada dan el MISMO 404, y el MISMO que da la ruta de voto (por eso el copy
     // sale de una constante compartida): una participación que no se ve públicamente no tiene por qué
     // revelar que existe, y dos textos distintos entre rutas serían un oráculo para enumerarlas.
-    if (!r.marcado) return apiError("NOT_FOUND", MSG_NO_DISPONIBLE, 404);
+    if (!r.marcado) return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
     return apiOk({ ok: true });
   },
 );

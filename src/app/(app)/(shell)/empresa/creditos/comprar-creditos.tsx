@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 
 import { Boton } from "@/components/ui/boton";
 import { ImportePremio } from "@/components/ui/importe-premio";
-import { DEFAULT_CURRENCY, MSG_CREDITOS_PAGO_NO_DISPONIBLE } from "@/config/constants";
+import { DEFAULT_CURRENCY } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 import { useFormato } from "@/components/formato-provider";
 import { useTextos } from "@/components/textos-provider";
@@ -58,7 +58,7 @@ export function ComprarCreditos({
           window.location.assign(r.data.url);
           return;
         }
-        setError(mensajeDe(r.data) || MSG_CREDITOS_PAGO_NO_DISPONIBLE);
+        setError(mensajeDe(r.data) || t("pagoNoDisponible"));
         setComprando(null);
       } catch {
         setError(t("sinConexion"));

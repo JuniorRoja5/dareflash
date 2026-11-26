@@ -14,8 +14,8 @@
  *  - el estado del botón se deriva del payload: correcto EN LA CARGA, no tras el primer tap.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { es } from "@/textos/es";
 
-import { MSG_VOTO_SIN_VER } from "../src/config/constants";
 import {
   accionQuitar,
   accionVotar,
@@ -275,8 +275,9 @@ describe("el optimismo se deshace ENTERO cuando el servidor dice que no", () => 
     expect(r.estado).toBe("rechazado");
     expect(votoEnReto(RETO)).toBeNull();
     expect(enPantalla(A, 5, null)).toBe(5); // el número vuelve a ser el del payload
-    // Copy humano, nunca el código: el mensaje no puede ser "RETO_CERRADO".
-    const mensaje = "mensaje" in r ? r.mensaje : "";
+    // Copy humano, nunca el código: el mensaje no puede ser "RETO_CERRADO". Sin frase del servidor
+    // (la red caída), la pone el botón de su espacio (`voto.errorVotar`, P5b3): es lo que se ve.
+    const mensaje = ("mensaje" in r ? r.mensaje : null) ?? es.voto.errorVotar;
     expect(mensaje).not.toMatch(/^[A-Z_]+$/);
     expect(mensaje.length).toBeGreaterThan(10);
   });
@@ -308,14 +309,14 @@ describe("el optimismo se deshace ENTERO cuando el servidor dice que no", () => 
   });
 
   it("el gate caducado se distingue del resto: pide reproducir, no reintentar", async () => {
-    const { transporte: t } = transporte({ votar: err("SIN_VER", MSG_VOTO_SIN_VER) });
+    const { transporte: t } = transporte({ votar: err("SIN_VER", es.api.reproduceEsteVideo) });
 
     const r = await accionVotar(
       { retoId: RETO, participacionId: A, miVoto: null },
       { transporte: t },
     );
 
-    expect(r).toEqual({ estado: "sin-ver", mensaje: MSG_VOTO_SIN_VER });
+    expect(r).toEqual({ estado: "sin-ver", mensaje: es.api.reproduceEsteVideo });
     expect(enPantalla(A, 5, null)).toBe(5);
   });
 });

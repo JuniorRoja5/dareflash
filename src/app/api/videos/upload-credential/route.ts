@@ -6,6 +6,7 @@ import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 // (la regla del despliegue sigue intacta; los VALORES se siguen importando dentro del handler).
 import type { MotivoBloqueo } from "@/server/services/participacion";
 import { MARCA } from "@/config/marca";
+import { frase, textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -20,14 +21,9 @@ export const dynamic = "force-dynamic";
  * credencial de corta duracion, NUNCA la clave de API.
  */
 export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
-  const {
-    RATE_LIMITS,
-    BUNNY_TUS_CREDENTIAL_TTL_SEC,
-    CONFIRM_WAKE_KEY,
-    CATEGORIES,
-    MSG_PARTICIPACION_BLOQUEADA: MSG_BLOQUEADA,
-    MSG_RETO_SOLO_VIP,
-  } = await import("@/config/constants");
+  const t = await textosApi(req);
+  const { RATE_LIMITS, BUNNY_TUS_CREDENTIAL_TTL_SEC, CONFIRM_WAKE_KEY, CATEGORIES } =
+    await import("@/config/constants");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { crearObjetoVideo, credencialSubidaTus, clienteBunnyReal } =
     await import("@/server/services/bunny");
@@ -43,12 +39,12 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
    */
   const rechazo = (motivo: MotivoBloqueo, nivelMinimo: string) => {
     if (motivo === "NIVEL") {
-      return apiError("NIVEL_INSUFICIENTE", mensajeNivelInsuficiente(nivelMinimo), 409);
+      return apiError("NIVEL_INSUFICIENTE", frase(t, mensajeNivelInsuficiente(nivelMinimo)), 409);
     }
     // El reto es de VIP Mythic. Copy humano: el codigo va al cuerpo para el cliente, pero lo que se
     // lee en pantalla no puede ser "SOLO_VIP".
-    if (motivo === "SOLO_VIP") return apiError("SOLO_VIP", MSG_RETO_SOLO_VIP, 409);
-    return apiError("PARTICIPACION_BLOQUEADA", MSG_BLOQUEADA, 409);
+    if (motivo === "SOLO_VIP") return apiError("SOLO_VIP", t("esteRetoEs"), 409);
+    return apiError("PARTICIPACION_BLOQUEADA", t("participacionBloqueada"), 409);
   };
 
   // Titulo OPCIONAL (metadato del objeto en Bunny; el titulo definitivo se fija al publicar). `challengeId`
@@ -65,7 +61,7 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     body = {};
   }
   const parsed = schema.safeParse(body ?? {});
-  if (!parsed.success) return apiError("VALIDATION", "Datos invalidos.", 400);
+  if (!parsed.success) return apiError("VALIDATION", t("datosInvalidosSinTilde"), 400);
   const challengeId = parsed.data.challengeId ?? null;
 
   // CATEGORIA: obligatoria en la subida LIBRE (sin reto) y debe ser una de las 14; en una PARTICIPACION
@@ -74,7 +70,7 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
   if (!challengeId) {
     const cat = parsed.data.category;
     const valida = cat !== undefined && CATEGORIES.some((c) => c.key === cat);
-    if (!valida) return apiError("VALIDATION", "Elige una categoria de la lista.", 400);
+    if (!valida) return apiError("VALIDATION", t("eligeUnaCategoria"), 400);
     categoriaLibre = cat;
   }
 
@@ -95,7 +91,7 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
       select: { status: true, deadline: true, nivelMinimo: true },
     });
     if (!reto || reto.status !== "PUBLISHED" || reto.deadline <= new Date()) {
-      return apiError("RETO_NO_DISPONIBLE", "Este reto no admite participaciones.", 409);
+      return apiError("RETO_NO_DISPONIBLE", t("esteRetoNo"), 409);
     }
     nivelMinimoReto = reto.nivelMinimo;
 
@@ -112,7 +108,7 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
   const rlKey = `createvideo:user:${rateLimitKey(env.AUTH_SECRET, user.userId)}`;
   const rl = await rateLimit(prisma, { key: rlKey, ...RATE_LIMITS.CREATE_VIDEO_PER_USER });
   if (!rl.allowed) {
-    return apiError("RATE_LIMITED", "Demasiadas subidas por ahora. Intentalo mas tarde.", 429);
+    return apiError("RATE_LIMITED", t("demasiadasSubidasPor"), 429);
   }
 
   const config = { libraryId: env.BUNNY_STREAM_LIBRARY_ID, apiKey: env.BUNNY_STREAM_API_KEY };
@@ -176,6 +172,6 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     });
   } catch (e) {
     console.error("[videos/upload-credential] fallo preparando la subida:", sanearError(e));
-    return apiError("UPLOAD_INIT_FAILED", "No se pudo preparar la subida. Reintenta.", 502);
+    return apiError("UPLOAD_INIT_FAILED", t("noSePudoPreparar"), 502);
   }
 });

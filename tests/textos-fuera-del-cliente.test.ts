@@ -62,6 +62,7 @@ describe("los diccionarios no llegan al cliente", () => {
     const servidor = path.join(RAIZ, "src/textos/servidor.ts");
     expect(cadenaHastaDiccionario(servidor)).toEqual([
       "src/textos/servidor.ts",
+      "src/textos/diccionarios.ts",
       "src/textos/es.ts",
     ]);
   });

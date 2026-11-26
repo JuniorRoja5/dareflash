@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export const dynamic = "force-dynamic";
  * `application/json` (una peticion cross-site no puede enviarlo sin preflight).
  */
 export async function POST(req: Request) {
+  const t = await textosApi(req);
   const { env } = await import("@/config/env");
   const { prisma } = await import("@/server/db/client");
   const { resetRateLimit } = await import("@/server/security/rate-limit");
@@ -27,10 +29,10 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return apiError("BAD_REQUEST", "Cuerpo de la peticion invalido.", 400);
+    return apiError("BAD_REQUEST", t("cuerpoDeLaPeticionInvalido"), 400);
   }
   const parsed = schema.safeParse(body);
-  if (!parsed.success) return apiError("VALIDATION", "Falta el token.", 400);
+  if (!parsed.success) return apiError("VALIDATION", t("faltaElToken"), 400);
 
   const r = await consumeEmailToken(prisma, {
     rawToken: parsed.data.token,
@@ -39,7 +41,7 @@ export async function POST(req: Request) {
   if (!r.ok) {
     // Generico (invalido/caducado igual): sin oraculo. El caso NORMAL aqui es el enlace YA USADO
     // (el dueño acaba de desbloquear y recarga); la pagina lo cubre con texto.
-    return apiError("INVALID_TOKEN", "El enlace de desbloqueo es invalido o ha caducado.", 400);
+    return apiError("INVALID_TOKEN", t("elEnlaceDe"), 400);
   }
 
   // Libera SOLO el cubo de CUENTA de esa direccion. JAMAS el cubo por IP (login:ip): es el guardian
@@ -71,6 +73,6 @@ export async function POST(req: Request) {
 
   return apiOk({
     ok: true,
-    message: "Cuenta reactivada. Ya puedes intentar iniciar sesion de nuevo.",
+    message: t("cuentaReactivada"),
   });
 }

@@ -15,14 +15,9 @@
  * devolver 200 cuando no es VIP (rojo: el 403 y el COUNT).
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { es } from "@/textos/es";
 
-import {
-  MSG_TOQUE_A_TI_MISMO,
-  MSG_TOQUE_REPETIDO,
-  MSG_TOQUE_SIN_VERIFICAR,
-  MSG_TOQUE_SOLO_VIP,
-  TOQUE_MAX_DIA,
-} from "@/config/constants";
+import { TOQUE_MAX_DIA } from "@/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 
 const H = vi.hoisted(() => ({
@@ -42,8 +37,8 @@ vi.mock("@/server/db/client", () => ({
 }));
 // El idioma y la zona de la petición salen de una cookie (`next/headers`), que fuera de Next no
 // existe: se dobla SOLO eso. Tokio: UTC+9, sin horario de verano (la hora esperada no depende del día).
-vi.mock("@/server/formato-peticion", () => ({
-  idiomaDeLaPeticion: async () => "es",
+// La ruta lee la zona de `zona-peticion` (sin cabeceras, P5b3); el idioma, de la cookie.
+vi.mock("@/server/zona-peticion", () => ({
   zonaDeLaPeticion: async () => "Asia/Tokyo",
 }));
 vi.mock("@/server/auth/mutating-route", () => ({
@@ -122,7 +117,7 @@ describe("el camino normal", () => {
     expect(res.status).toBe(200);
     const cuerpo = await res.json();
     expect(cuerpo.estado).toBe("repetido");
-    expect(cuerpo.mensaje).toBe(MSG_TOQUE_REPETIDO);
+    expect(cuerpo.mensaje).toBe(es.toque.repetido);
     expect(await cuantos()).toBe(1);
   });
 });
@@ -133,7 +128,7 @@ describe("el servidor no se fía de la UI", () => {
     await prisma.subscription.deleteMany({ where: { userId: H.user.userId } });
     const res = await tocar(otro);
     expect(res.status).toBe(403);
-    expect((await res.json()).error.message).toBe(MSG_TOQUE_SOLO_VIP);
+    expect((await res.json()).error.message).toBe(es.api.darUnToque);
     expect(await cuantos(), "un no-VIP escribió un toque").toBe(0);
   });
 
@@ -141,14 +136,14 @@ describe("el servidor no se fía de la UI", () => {
     H.user.emailVerified = null;
     const res = await tocar(otro);
     expect(res.status).toBe(403);
-    expect((await res.json()).error.message).toBe(MSG_TOQUE_SIN_VERIFICAR);
+    expect((await res.json()).error.message).toBe(es.api.verificaTuCorreoParaPoderDar);
     expect(await cuantos()).toBe(0);
   });
 
   it("a uno mismo: 400 y cero", async () => {
     const res = await tocar(H.user.userId);
     expect(res.status).toBe(400);
-    expect((await res.json()).error.message).toBe(MSG_TOQUE_A_TI_MISMO);
+    expect((await res.json()).error.message).toBe(es.api.noPuedesDarte);
     expect(await cuantos()).toBe(0);
   });
 

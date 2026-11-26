@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { apiError } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -21,16 +22,17 @@ const QuerySchema = z.object({
  * `no-store`: son datos personales y cambian a cada rato.
  */
 export async function GET(req: Request) {
+  const t = await textosApi(req);
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const user = await getCurrentUser();
-  if (!user) return apiError("UNAUTHENTICATED", "Inicia sesión para ver tus avisos.", 401);
+  if (!user) return apiError("UNAUTHENTICATED", t("iniciaSesionPara"), 401);
 
   const url = new URL(req.url);
   const q = QuerySchema.safeParse({
     cursor: url.searchParams.get("cursor") ?? undefined,
     limite: url.searchParams.get("limite") ?? undefined,
   });
-  if (!q.success) return apiError("VALIDATION", "Parámetros inválidos.", 400);
+  if (!q.success) return apiError("VALIDATION", t("parametrosInvalidos"), 400);
 
   const { prisma } = await import("@/server/db/client");
   const { contarNoLeidas, listarNotificaciones } = await import("@/server/services/notificaciones");

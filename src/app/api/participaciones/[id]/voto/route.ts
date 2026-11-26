@@ -1,18 +1,11 @@
 import { z } from "zod";
 
-import {
-  MSG_NO_DISPONIBLE,
-  MSG_VOTO_AUTOVOTO,
-  MSG_VOTO_RETO_CERRADO,
-  MSG_VOTO_SIN_VER,
-  MSG_VOTO_SIN_VOTO,
-  MSG_VOTO_YA_VOTO_OTRA,
-  RATE_LIMITS,
-} from "@/config/constants";
+import { RATE_LIMITS } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { apiError, apiOk, clientIpKey, rateLimitKey } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import type { MotivoRechazo, ResultadoVoto } from "@/server/services/votes";
+import { textosApi, type TApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -39,17 +32,17 @@ const BodySchema = z.object({ permitirMover: z.boolean().optional() });
  * pasa es que el estado actual no la admite. Un 400 diría "cliente mal escrito" y un 403 diría "no
  * eres quién", y ninguna de las dos es cierta cuando el reto simplemente se cerró.
  */
-function rechazo(motivo: Exclude<MotivoRechazo, "YA_VOTO_OTRA">) {
+function rechazo(motivo: Exclude<MotivoRechazo, "YA_VOTO_OTRA">, t: TApi) {
   switch (motivo) {
     case "SIN_PARTICIPACION":
     case "NO_PUBLICADA":
-      return apiError("NOT_FOUND", MSG_NO_DISPONIBLE, 404);
+      return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
     case "AUTOVOTO":
-      return apiError("AUTOVOTO", MSG_VOTO_AUTOVOTO, 409);
+      return apiError("AUTOVOTO", t("autovoto"), 409);
     case "RETO_CERRADO":
-      return apiError("RETO_CERRADO", MSG_VOTO_RETO_CERRADO, 409);
+      return apiError("RETO_CERRADO", t("retoCerradoVotos"), 409);
     case "SIN_VOTO":
-      return apiError("SIN_VOTO", MSG_VOTO_SIN_VOTO, 409);
+      return apiError("SIN_VOTO", t("sinVotoAqui"), 409);
   }
 }
 
@@ -60,16 +53,16 @@ function rechazo(motivo: Exclude<MotivoRechazo, "YA_VOTO_OTRA">) {
  * pueda nombrarla en vez de preguntar en abstracto. Es el voto del propio usuario, así que no revela
  * nada que él no sepa ya. Puede faltar (ver `ResultadoVoto`): quien lo pinte usa copy genérico.
  */
-function requiereMover(votoActualEn?: string) {
-  return apiOk({ estado: "requiere-mover", mensaje: MSG_VOTO_YA_VOTO_OTRA, votoActualEn });
+function requiereMover(t: TApi, votoActualEn?: string) {
+  return apiOk({ estado: "requiere-mover", mensaje: t("yaVotasteOtra"), votoActualEn });
 }
 
 /** El estado tipado del servicio se devuelve tal cual; la Pieza 3 decide qué pintar con él. */
-function respuesta(r: ResultadoVoto) {
+function respuesta(r: ResultadoVoto, t: TApi) {
   if (r.estado !== "rechazado") return apiOk({ ...r });
   // `YA_VOTO_OTRA` no es un rechazo hacia fuera: es la pregunta. El tipo lo separa del resto, así que
   // `rechazo()` ya no necesita una rama defensiva para él — el compilador garantiza que no llega.
-  return r.motivo === "YA_VOTO_OTRA" ? requiereMover(r.votoActualEn) : rechazo(r.motivo);
+  return r.motivo === "YA_VOTO_OTRA" ? requiereMover(t, r.votoActualEn) : rechazo(r.motivo, t);
 }
 
 /**
@@ -77,15 +70,13 @@ function respuesta(r: ResultadoVoto) {
  * fuera, y el límite se pondría de rodillas si cada verbo tuviera el suyo. Por usuario porque la sesión
  * ya está resuelta y es la identidad que de verdad importa aquí.
  */
-async function limitar(prisma: PrismaClient, secret: string, userId: string) {
+async function limitar(prisma: PrismaClient, secret: string, userId: string, t: TApi) {
   const { rateLimit } = await import("@/server/security/rate-limit");
   const rl = await rateLimit(prisma, {
     key: `voto:user:${rateLimitKey(secret, userId)}`,
     ...RATE_LIMITS.VOTO_PER_USER,
   });
-  return rl.allowed
-    ? null
-    : apiError("RATE_LIMITED", "Demasiadas peticiones. Inténtalo en un momento.", 429);
+  return rl.allowed ? null : apiError("RATE_LIMITED", t("demasiadasPeticionesIntentalo"), 429);
 }
 
 /**
@@ -112,11 +103,12 @@ async function limitar(prisma: PrismaClient, secret: string, userId: string) {
  */
 export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (req, { user, env, prisma }, { params }) => {
+    const t = await textosApi(req);
     const { emitirVoto, moverVoto } = await import("@/server/services/votes");
     const { haVisto, visibilidadParticipacion } = await import("@/server/services/visto");
 
     const parsed = ParamsSchema.safeParse(await params);
-    if (!parsed.success) return apiError("NOT_FOUND", MSG_NO_DISPONIBLE, 404);
+    if (!parsed.success) return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
     const submissionId = parsed.data.id;
 
     // Cuerpo OPCIONAL: sin cuerpo (o con uno ilegible) se vota SIN permiso para mover, que es el
@@ -129,10 +121,10 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
       /* sin cuerpo: se queda en {} */
     }
     const cuerpo = BodySchema.safeParse(body ?? {});
-    if (!cuerpo.success) return apiError("VALIDATION", "Datos inválidos.", 400);
+    if (!cuerpo.success) return apiError("VALIDATION", t("datosInvalidos"), 400);
     const permitirMover = cuerpo.data.permitirMover === true;
 
-    const limitado = await limitar(prisma, env.AUTH_SECRET, user.userId);
+    const limitado = await limitar(prisma, env.AUTH_SECRET, user.userId, t);
     if (limitado) return limitado;
 
     if (!(await haVisto({ userId: user.userId, submissionId }))) {
@@ -141,8 +133,8 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
       // esta ruta. La comprobación se hace SOLO en esta rama, así que el camino feliz no paga la
       // consulta extra: quien ha visto el vídeo ya demostró que existe.
       const v = await visibilidadParticipacion(prisma, submissionId);
-      if (!v.visible) return rechazo(v.motivo);
-      return apiError("SIN_VER", MSG_VOTO_SIN_VER, 409);
+      if (!v.visible) return rechazo(v.motivo, t);
+      return apiError("SIN_VER", t("reproduceEsteVideo"), 409);
     }
 
     // IP HASHEADA (HMAC), nunca en claro, con el mismo helper que el rate-limit: es el mismo dominio
@@ -153,16 +145,16 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
     const r = await emitirVoto(prisma, { userId: user.userId, submissionId, ipHash });
 
     if (r.estado === "rechazado" && r.motivo === "YA_VOTO_OTRA") {
-      if (!permitirMover) return requiereMover(r.votoActualEn);
+      if (!permitirMover) return requiereMover(t, r.votoActualEn);
       // Mover es una operación ENTERA del servicio, con sus dos filas bloqueadas en orden y todo
       // revalidado dentro de la transacción. La ruta ORQUESTA, no reimplementa: si entre las dos
       // llamadas cambia algo (el reto se cierra, o el usuario mueve su voto desde otra pestaña),
       // `moverVoto` lo ve y responde en consecuencia. No hay estado que se pueda quedar a medias:
       // `emitirVoto` no escribió nada al rechazar, así que aquí no hay nada que deshacer.
-      return respuesta(await moverVoto(prisma, { userId: user.userId, submissionId, ipHash }));
+      return respuesta(await moverVoto(prisma, { userId: user.userId, submissionId, ipHash }), t);
     }
 
-    return respuesta(r);
+    return respuesta(r, t);
   },
 );
 
@@ -179,16 +171,18 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
  */
 export const DELETE = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (_req, { user, env, prisma }, { params }) => {
+    const t = await textosApi(_req);
     const { quitarVoto } = await import("@/server/services/votes");
 
     const parsed = ParamsSchema.safeParse(await params);
-    if (!parsed.success) return apiError("NOT_FOUND", MSG_NO_DISPONIBLE, 404);
+    if (!parsed.success) return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
 
-    const limitado = await limitar(prisma, env.AUTH_SECRET, user.userId);
+    const limitado = await limitar(prisma, env.AUTH_SECRET, user.userId, t);
     if (limitado) return limitado;
 
     return respuesta(
       await quitarVoto(prisma, { userId: user.userId, submissionId: parsed.data.id }),
+      t,
     );
   },
 );

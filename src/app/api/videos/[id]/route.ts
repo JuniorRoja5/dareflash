@@ -4,6 +4,7 @@ import type { EstadoVideo } from "@/app/(app)/(shell)/perfil/perfil-logic";
 import type { EstadoVideoSondeo } from "@/lib/estado-subida";
 import { apiError, apiOk, depsRuta } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -40,8 +41,9 @@ const MAPA_SONDEO: Record<EstadoVideo, EstadoVideoSondeo> = {
  * misma que usa el perfil. Una sola regla, no dos que se separan.
  */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const t = await textosApi(_req);
   const parsed = ParamsSchema.safeParse(await params);
-  if (!parsed.success) return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
+  if (!parsed.success) return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
 
   const { requireUser } = await import("@/server/auth/rbac");
   const { estadoDeVideo } = await import("@/server/services/perfil");
@@ -53,7 +55,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     select: { userId: true, status: true, failureReason: true },
   });
   if (!video || video.userId !== user.userId) {
-    return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
+    return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
   }
   return apiOk({ estado: MAPA_SONDEO[estadoDeVideo(video.status, video.failureReason)] });
 }
@@ -77,8 +79,9 @@ const BUNNY_DELETE_VIDEO = "BUNNY_DELETE_VIDEO";
  */
 export const DELETE = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (_req, { user, prisma }, { params }) => {
+    const t = await textosApi(_req);
     const parsed = ParamsSchema.safeParse(await params);
-    if (!parsed.success) return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
+    if (!parsed.success) return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
     const { id } = parsed.data;
 
     const video = await prisma.video.findUnique({
@@ -87,7 +90,7 @@ export const DELETE = mutatingRoute<{ params: Promise<{ id: string }> }>(
     });
     // Inexistente O de otro usuario -> el MISMO 404 (sin distinguir): no se filtra si existe.
     if (!video || video.userId !== user.userId) {
-      return apiError("NOT_FOUND", "Vídeo no disponible.", 404);
+      return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
     }
     // Idempotente: ya borrado -> 200 sin repetir nada (ni re-encolar).
     if (video.status === "REMOVED") return apiOk({ ok: true });

@@ -223,7 +223,9 @@ describe("las puertas de pago son LAS MISMAS que las de /boosts", () => {
     // Lo único que puede diferir es de qué constante sale el copy (MSG_VIP_* / MSG_BOOST_*): el
     // resto —qué se mira primero— es la decisión, y tiene que ser la misma. Si no hay claves, da
     // igual el correo: no hay nada que intentar.
-    const forma = (s?: string) => s?.replace(/MSG_(VIP|BOOST)_/g, "MSG_");
+    // Desde la P5b3 el copy sale del espacio de cada pantalla (`tVip(…)` / `tCompra(…)`).
+    const forma = (s?: string) =>
+      s?.replace(/MSG_(VIP|BOOST)_/g, "MSG_").replace(/\bt(Vip|Compra)\(/g, "t(");
     expect(forma(expr(page, "motivoBloqueo"))).toBe(forma(expr(boosts, "motivoBloqueo")));
   });
 

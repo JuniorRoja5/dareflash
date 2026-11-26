@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk, depsRuta } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -26,12 +27,13 @@ const QuerySchema = z.object({
  * repite ni se salta. Esta ruta solo lo transporta.
  */
 export async function GET(req: Request) {
+  const t = await textosApi(req);
   const url = new URL(req.url);
   const parsed = QuerySchema.safeParse({
     cursor: url.searchParams.get("cursor") ?? undefined,
     limite: url.searchParams.get("limite") ?? undefined,
   });
-  if (!parsed.success) return apiError("INVALID_QUERY", "Petición no válida.", 400);
+  if (!parsed.success) return apiError("INVALID_QUERY", t("peticionNoValida"), 400);
 
   const { prisma } = await depsRuta();
   const { rankingMensual } = await import("@/server/services/ranking");

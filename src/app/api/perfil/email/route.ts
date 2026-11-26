@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 import { mutatingRoute } from "@/server/auth/mutating-route";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,7 @@ export const dynamic = "force-dynamic";
  */
 export const POST = mutatingRoute(
   async (req, { user, env, prisma }) => {
+    const t = await textosApi(req);
     const { RATE_LIMITS } = await import("@/config/constants");
     const { rateLimit } = await import("@/server/security/rate-limit");
     const { verifyPasswordConstantTime, esArgon2Sobrecargado, ejecutarConHueco } =
@@ -42,10 +44,10 @@ export const POST = mutatingRoute(
     try {
       body = await req.json();
     } catch {
-      return apiError("BAD_REQUEST", "Cuerpo de la peticion invalido.", 400);
+      return apiError("BAD_REQUEST", t("cuerpoDeLa"), 400);
     }
     const parsed = schema.safeParse(body);
-    if (!parsed.success) return apiError("VALIDATION", "Revisa el correo y la contrasena.", 400);
+    if (!parsed.success) return apiError("VALIDATION", t("revisaElCorreo"), 400);
 
     const rlKey = `cambiaremail:user:${rateLimitKey(env.AUTH_SECRET, user.userId)}`;
 
@@ -70,21 +72,21 @@ export const POST = mutatingRoute(
       });
 
       if (outcome.tipo === "BLOQUEADA") {
-        return apiError("RATE_LIMITED", "Demasiados intentos. Intentalo mas tarde.", 429);
+        return apiError("RATE_LIMITED", t("demasiadosIntentosIntentalo"), 429);
       }
       if (outcome.tipo === "MAL") {
-        return apiError("PASSWORD_INCORRECTA", "La contrasena no es correcta.", 403);
+        return apiError("PASSWORD_INCORRECTA", t("laContrasenaNo"), 403);
       }
       if (!outcome.r.ok) {
         return outcome.r.motivo === "MISMA"
-          ? apiError("MISMA_DIRECCION", "Esa ya es tu direccion de correo.", 409)
+          ? apiError("MISMA_DIRECCION", t("esaYaEs"), 409)
           : // NO se dice de quien es: seria enumerar usuarios.
-            apiError("OCUPADA", "Esa direccion no esta disponible.", 409);
+            apiError("OCUPADA", t("esaDireccionNo"), 409);
       }
       return apiOk({ ok: true });
     } catch (e) {
       if (esArgon2Sobrecargado(e)) {
-        return apiError("SOBRECARGA", "Ahora mismo no podemos procesarlo. Reintenta.", 503);
+        return apiError("SOBRECARGA", t("ahoraMismoNo"), 503);
       }
       throw e;
     }

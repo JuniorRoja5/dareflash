@@ -83,6 +83,10 @@ export const es = conMarcasConocidas({
     moverPregunta: "¿Mover tu voto aquí?",
     moverMiVoto: "Mover mi voto",
     cancelar: "Cancelar",
+    /** Las frases de reserva del botón, si el servidor no trae la suya (la ruta dice lo mismo). */
+    sinVer: "Reproduce este vídeo para poder votarlo.",
+    yaVotoOtra: "Ya has votado otra participación de este reto.",
+    errorVotar: "No se pudo registrar tu voto. Inténtalo de nuevo.",
   },
   like: {
     meGusta: "Me gusta ({cuenta})",
@@ -106,6 +110,7 @@ export const es = conMarcasConocidas({
     motivo_MENORES: "Pone en riesgo a un menor",
     motivo_DERECHOS: "Usa contenido que no es suyo",
     motivo_OTRO: "Otro motivo",
+    sinVerificar: "Verifica tu correo para poder denunciar.",
   },
   compartir: {
     compartir: "Compartir",
@@ -173,6 +178,10 @@ export const es = conMarcasConocidas({
   /** El botón de dar un toque en el perfil de otra persona (`DarToque`). */
   toque: {
     dar: "Dar un toque",
+    /** Las tres respuestas de la ruta que también pinta el botón (P5b3: una frase, UNA clave). */
+    enviado: "Toque enviado.",
+    repetido: "Ya le has dado un toque hoy.",
+    limiteDiario: "Ya has dado {veces} toques hoy. {reinicio}",
     enviando: "Enviando…",
     error: "No se pudo dar el toque.",
     sinConexion: "No hemos podido conectar. Inténtalo de nuevo.",
@@ -180,6 +189,12 @@ export const es = conMarcasConocidas({
   /** El «Cargando…» de las pantallas de carga (una hoja de cliente: `TextoCargando`). */
   carga: {
     cargando: "Cargando…",
+  },
+  /** Cuándo se reinician los contadores diarios (Boost, toques): `textos/reinicio-diario`. */
+  reinicioDiario: {
+    frase: "El contador se reinicia {cuando}.",
+    aLas: "a las {hora}",
+    cadaDia: "cada día",
   },
   /**
    * Cómo se dice la duración de un Boost (`duracionBoostHumana`, vía `palabrasDuracion`): la unidad la
@@ -243,6 +258,8 @@ export const es = conMarcasConocidas({
     errorPublicar: "No se pudo publicar el comentario.",
     errorBorrar: "No se pudo borrar el comentario.",
     sinConexion: "No hemos podido conectar. Inténtalo de nuevo.",
+    /** Una cuenta de empresa no participa: lo dicen la ficha del reto y los comentarios (una frase, UNA clave). */
+    soloMira: "Las cuentas de empresa no participan.",
   },
   // ── Retos: la lista (/retos) y la tarjeta ─────────────────────────────────────────────────────────
   retos: {
@@ -301,6 +318,7 @@ export const es = conMarcasConocidas({
     hazteVip: "Hazte VIP para participar",
     reemplazar: "Reemplazar mi vídeo",
     participar: "Participar",
+    soloVip: "Este reto es exclusivo de VIP Mythic.",
   },
   /** La rejilla de participaciones de la ficha y el feed del reto que abre (isla de CLIENTE). */
   participaciones: {
@@ -512,6 +530,8 @@ export const es = conMarcasConocidas({
       "Confirmo que soy mayor de edad y acepto los términos y la {enlace:política de privacidad}.",
     creando: "Creando…",
     teEnviaremos: "Te enviaremos un correo para verificar tu cuenta.",
+    edadMinima: "Tienes que ser mayor de edad para registrarte.",
+    revisaCorreo: "Revisa tu correo. Te hemos enviado un mensaje para continuar con tu registro.",
   },
   recuperar: {
     titulo: "Recuperar contraseña",
@@ -842,6 +862,8 @@ export const es = conMarcasConocidas({
     concepto_ADMIN: "Ajuste del equipo",
     /** Un `refType` que ya no está en el catálogo: honesto, no un hueco. */
     conceptoOtro: "Movimiento",
+    sinMinimo:
+      "Todavía no llegas al mínimo para pedir un cobro. Sigue participando: el saldo se acumula.",
   },
   /**
    * Las islas de CLIENTE del monedero: las solicitudes, los métodos y el formulario de pedir. Los
@@ -954,6 +976,11 @@ export const es = conMarcasConocidas({
     cerrar: "Cerrar",
     pagoRecibido: "Pago recibido.",
     confirmando: "Tu suscripción se confirma en unos segundos. Si no la ves aquí, actualiza.",
+    /** Lo mismo que dice la ruta (test de igualdad): la página elige el motivo y el botón lo usa de reserva. */
+    pagoNoDisponible: "Las suscripciones no están disponibles ahora mismo.",
+    sinVerificar: "Verifica tu correo para poder suscribirte.",
+    canceladaOk:
+      "Hemos pedido la baja. Sigues siendo VIP hasta que acabe el periodo que ya pagaste.",
   },
   /** Lo que pinta el SERVIDOR en /boosts. */
   boosts: {
@@ -1006,6 +1033,13 @@ export const es = conMarcasConocidas({
   },
   /** Las islas de CLIENTE de /boosts: activar, comprar y la vuelta de la compra. */
   boostCliente: {
+    /**
+     * EL LÍMITE NO DICE «vuelve mañana», y no es un descuido: el contador se reinicia a medianoche UTC,
+     * que para alguien en UTC+10 no es «mañana» sino esta misma tarde. La hora de verdad, en su zona
+     * (`reinicio`, de `reinicioDiario`). La MISMA frase la devuelve la ruta (P5b3).
+     */
+    limiteDiario: "Ya has destacado tu perfil {veces} veces hoy. {reinicio}",
+    agotado: "Vuelve en {minutos} min y habrá hueco para ti. Tu Boost sigue guardado.",
     listo: "Listo: tu perfil está destacado {duracion}.",
     repetida: "Ya estaba hecho: no se ha gastado otro Boost.",
     errorActivar: "No se ha podido destacar tu perfil.",
@@ -1033,6 +1067,9 @@ export const es = conMarcasConocidas({
     aparecen: "Tus Boosts aparecen en el saldo en unos segundos. Si no los ves, actualiza.",
     actualizando: "Actualizando…",
     actualizar: "Actualizar",
+    /** Por qué no se puede comprar ahora (la página lo elige; la ruta dice lo mismo: test de igualdad). */
+    pagoNoDisponible: "Los pagos no están disponibles ahora mismo.",
+    sinVerificar: "Verifica tu correo para poder comprar.",
   },
 
   // ── Empresas: el camino de entrada (P5b2b) ───────────────────────────────────────────────────────
@@ -1159,6 +1196,10 @@ export const es = conMarcasConocidas({
     faltaLista: "Falta: {lista}.",
     enviando: "Enviando…",
     crear: "Crear cuenta de empresa",
+    revisaCorreo:
+      "Revisa tu correo. Te hemos enviado un mensaje para continuar con el registro de tu empresa.",
+    webORedes:
+      "Déjanos tu web o tus redes: con uno de los dos nos basta para comprobar que existís.",
   },
   /** /empezar/empresa: la página (servidor). */
   altaEmpresa: {
@@ -1256,6 +1297,10 @@ export const es = conMarcasConocidas({
     sinConexion: "No hemos podido conectar. Inténtalo otra vez.",
     condiciones:
       "Los créditos de publicidad no caducan y no son reembolsables, salvo que la ley lo exija. Pagas con Stripe; puedes añadir tu número fiscal y descargar el recibo desde aquí.",
+    /** Lo mismo que dice la ruta (test de igualdad): la página elige el motivo y el botón lo usa de reserva. */
+    pagoNoDisponible:
+      "La compra de créditos todavía no está disponible. Mientras tanto, los créditos llegan como regalo de Socio Fundador o del equipo de {marca}.",
+    sinVerificar: "Podrás comprar créditos en cuanto verifiquemos tu empresa.",
   },
   /** /empresa/cuenta (servidor). */
   cuentaEmpresa: {
@@ -1380,6 +1425,8 @@ export const es = conMarcasConocidas({
     cr: "{creditos} cr.",
     limites:
       "Como mucho {max} campañas por zona y día, para que cada una se vea. Puedes empezar hasta dentro de {dias} días.",
+    tipoNegocioDesconocido:
+      "No podemos ofrecerte campañas hasta revisar el tipo de negocio de tu empresa. Escríbenos contestando a cualquiera de nuestros correos y lo arreglamos.",
   },
   /** El formulario de una campaña nueva (cliente). */
   campanaFormulario: {
@@ -1808,5 +1855,247 @@ export const es = conMarcasConocidas({
     cambiando: "Cambiando…",
     cambiar: "Cambiar contraseña",
     hecho: "Contraseña cambiada.",
+  },
+  // ── La API (P5b3) ─────────────────────────────────────────────────────────────────────────────────
+  /**
+   * LOS MENSAJES DE LA API: lo que devuelve una ruta en `{ error: { code, message } }` y la pantalla
+   * enseña tal cual. Server-only: solo los lee `server/http/textos-api` (la cookie `df-idioma` elige el
+   * idioma), y al navegador llega la frase ya compuesta, nunca el espacio. Las faltas de ortografía que
+   * hay aquí (tildes que faltan) están LISTADAS para que Junior decida: no se corrigen al extraer, salvo
+   * las de /unlock y /verify, aprobadas. El castellano lo fija `tests/mensajes-api-congelados`.
+   */
+  api: {
+    cuerpoDeLa: "Cuerpo de la peticion invalido.",
+    datosInvalidosSinTilde: "Datos invalidos.",
+    demasiadosIntentosIntenta: "Demasiados intentos. Intenta mas tarde.",
+    laContrasenaActual: "La contrasena actual no es correcta.",
+    servicioOcupadoReintenta: "Servicio ocupado, reintenta en unos segundos.",
+    faltaElToken: "Falta el token.",
+    esaDireccionYa: "Esa direccion ya no esta disponible.",
+    esteEnlaceYa: "Este enlace ya no es valido. Pide el cambio otra vez.",
+    verificaTuEmail: "Verifica tu email antes de iniciar sesion.",
+    credencialesInvalidas: "Credenciales invalidas.",
+    tienesQueAceptar: "Tienes que aceptar los términos para registrarte.",
+    datosDeRegistro: "Datos de registro invalidos.",
+    revisaTuFecha: "Revisa tu fecha de nacimiento.",
+    tienesQueSer: "Tienes que ser mayor de edad para registrarte.",
+    revisaElEnlace: "Revisa el enlace y la contrasena.",
+    elEnlacePara: "El enlace para restablecer la contrasena es invalido o ha caducado.",
+    elEnlaceDe: "El enlace de desbloqueo es inválido o ha caducado.",
+    elEnlaceDeVerificacion: "El enlace de verificación es inválido o ha caducado.",
+    verificaTuCorreo: "Verifica tu correo para poder destacar tu perfil.",
+    noHemosPodido: "No hemos podido procesar la petición.",
+    verificaTuCorreoPara: "Verifica tu correo para poder comprar.",
+    eligeUnPaquete: "Elige un paquete válido.",
+    demasiadosIntentosEspera: "Demasiados intentos. Espera un momento.",
+    losPagosNo: "Los pagos no están disponibles ahora mismo.",
+    pagosNoDisponibles: "Pagos no disponibles.",
+    firmaNoValida: "Firma no válida.",
+    noSePudo: "No se pudo procesar.",
+    busquedaInvalidaEscribe: "Búsqueda inválida. Escribe al menos 2 caracteres y elige un tipo.",
+    demasiadasBusquedasSeguidas: "Demasiadas búsquedas seguidas. Espera un momento.",
+    noHemosPodidoBuscar: "No hemos podido buscar ahora mismo. Reinténtalo.",
+    videoNoDisponible: "Vídeo no disponible.",
+    demasiadasPeticionesEspera: "Demasiadas peticiones. Espera un momento.",
+    eligeUnMotivo: "Elige un motivo para denunciar.",
+    verificaTuCorreoParaPoder: "Verifica tu correo para poder denunciar.",
+    estasDenunciandoMuy: "Estás denunciando muy seguido. Espera un momento.",
+    noPuedesDenunciar: "No puedes denunciar tu propio contenido.",
+    esteContenidoYa: "Este contenido ya no está disponible.",
+    noEncontrado: "No encontrado.",
+    confirmaTuCorreo: "Confirma tu correo para comprar créditos.",
+    podrasComprarCreditos: "Podrás comprar créditos en cuanto verifiquemos tu empresa.",
+    laCompraDe:
+      "La compra de créditos todavía no está disponible. Mientras tanto, los créditos llegan como regalo de Socio Fundador o del equipo de {marca}.",
+    confirmaTuCorreoPara: "Confirma tu correo para crear campañas.",
+    hasCreadoMuchas: "Has creado muchas campañas seguidas. Espera un momento.",
+    noHemosPodidoLeer: "No hemos podido leer los datos. Inténtalo de nuevo.",
+    subeLaImagen: "Sube la imagen de la campaña.",
+    noHemosPodidoGuardar: "No hemos podido guardar la imagen. Inténtalo de nuevo en un momento.",
+    esaCampanaNo: "Esa campaña no existe.",
+    demasiadasAccionesSeguidas: "Demasiadas acciones seguidas. Espera un momento.",
+    noHayNingun: "No hay ningún borrador con ese identificador.",
+    confirmaTuCorreoParaProponer: "Confirma tu correo para proponer retos.",
+    hasEnviadoMuchas: "Has enviado muchas propuestas seguidas. Espera un momento.",
+    revisaLosDatos:
+      "Revisa los datos: faltan el nombre, el país o la persona de contacto, o la web no es una dirección válida.",
+    parametrosDeFeed: "Parámetros de feed inválidos.",
+    noSePudoCargar: "No se pudo cargar el feed. Reintenta.",
+    verificaTuCorreoAntes: "Verifica tu correo antes de configurar el cobro.",
+    verificaTuCorreoAntesDe: "Verifica tu correo antes de tocar el cobro.",
+    eseMetodoYa: "Ese método ya no está.",
+    demasiadasPeticionesIntentalo: "Demasiadas peticiones. Inténtalo en un momento.",
+    noHemosPodidoLeerLa: "No hemos podido leer la petición.",
+    datosInvalidos: "Datos inválidos.",
+    iniciaSesionPara: "Inicia sesión para ver tus avisos.",
+    parametrosInvalidos: "Parámetros inválidos.",
+    reproduceEsteVideo: "Reproduce este vídeo para poder votarlo.",
+    hasSubidoMuchas: "Has subido muchas imágenes seguidas. Espera un momento.",
+    noHemosPodidoLeerLaImagen: "No hemos podido leer la imagen. Inténtalo de nuevo.",
+    eligeUnaImagen: "Elige una imagen para tu foto de perfil.",
+    noHemosPodidoProcesar: "No hemos podido procesar la imagen. Prueba con otra.",
+    noHemosPodidoGuardarLa: "No hemos podido guardar la imagen. Reintenta.",
+    revisaElCorreo: "Revisa el correo y la contrasena.",
+    demasiadosIntentosIntentalo: "Demasiados intentos. Intentalo mas tarde.",
+    laContrasenaNo: "La contrasena no es correcta.",
+    esaYaEs: "Esa ya es tu direccion de correo.",
+    esaDireccionNo: "Esa direccion no esta disponible.",
+    ahoraMismoNo: "Ahora mismo no podemos procesarlo. Reintenta.",
+    hasGuardadoMuchas: "Has guardado muchas veces seguidas. Espera un momento.",
+    eseNombreDe: "Ese nombre de usuario ya está en uso.",
+    parametrosDePagina: "Parámetros de página inválidos.",
+    iniciaSesionParaVer: "Inicia sesión para ver tus vídeos.",
+    noSePudieron: "No se pudieron cargar más vídeos.",
+    perfilNoDisponible: "Perfil no disponible.",
+    peticionNoValida: "Petición no válida.",
+    iniciaSesionParaVerTus: "Inicia sesión para ver tus cobros.",
+    verificaTuCorreoAntesDePedir: "Verifica tu correo antes de pedir un cobro.",
+    noSePudieronCargar: "No se pudieron cargar más retos cerrados.",
+    retoNoDisponible: "Reto no disponible.",
+    noSePudieronCargarMas: "No se pudieron cargar más participaciones.",
+    verificaTuCorreoParaPoderDar: "Verifica tu correo para poder dar un toque.",
+    darUnToque: "Dar un toque es de VIP Mythic. Hazte VIP para usarlo.",
+    noPuedesDarte: "No puedes darte un toque a ti mismo.",
+    esePerfilNo: "Ese perfil no está disponible.",
+    esteRetoEs: "Este reto es exclusivo de VIP Mythic.",
+    eligeUnaCategoria: "Elige una categoria de la lista.",
+    esteRetoNo: "Este reto no admite participaciones.",
+    demasiadasSubidasPor: "Demasiadas subidas por ahora. Intentalo mas tarde.",
+    noSePudoPreparar: "No se pudo preparar la subida. Reintenta.",
+    escribeElComentario: "Escribe el comentario.",
+    estasComentandoMuy: "Estás comentando muy seguido. Espera un momento.",
+    elComentarioNo: "El comentario no puede estar vacío ni ser tan largo.",
+    elVideoAun: "El vídeo aún se está procesando. Inténtalo en un momento.",
+    esteVideoYa: "Este vídeo ya no está disponible.",
+    demasiadasMiniaturasPor: "Demasiadas miniaturas por ahora. Inténtalo más tarde.",
+    eligeUnaImagenPara: "Elige una imagen para la miniatura.",
+    noSePudoAplicar: "No se pudo aplicar la miniatura. Se usará una automática; puedes reintentar.",
+    noSePudoPrepararEl: "No se pudo preparar el vídeo. Reintenta.",
+    noTienesNinguna: "No tienes ninguna suscripción activa que cancelar.",
+    lasSuscripcionesNo: "Las suscripciones no están disponibles ahora mismo.",
+    verificaTuCorreoParaPoderSuscribirte: "Verifica tu correo para poder suscribirte.",
+    yaTienesVip: "Ya tienes VIP Mythic activo.",
+    noAutenticado: "No autenticado.",
+    confirmaTuCorreoParaGestionar: "Confirma tu correo para gestionar campañas.",
+    autovoto: "No puedes votar tu propia participación.",
+    retoCerradoVotos: "Este reto ya no admite votos.",
+    sinVotoAqui: "No tienes ningún voto puesto aquí.",
+    yaVotasteOtra: "Ya has votado otra participación de este reto.",
+    likePropio: "No puedes dar me gusta a tu propio vídeo.",
+    likeNoDisponible: "Este vídeo ya no está disponible.",
+    publicidadNoOpera: "Tu empresa tiene que estar verificada para crear o activar campañas.",
+    publicidadTipoNegocioDesconocido:
+      "No podemos ofrecerte campañas hasta revisar el tipo de negocio de tu empresa. Escríbenos contestando a cualquiera de nuestros correos y lo arreglamos.",
+    publicidadAlcanceNoPermitido: "Tu tipo de negocio no puede comprar ese alcance.",
+    publicidadEligeCiudad: "Elige la ciudad de la lista.",
+    publicidadCiudadDeTuPais: "Elige una ciudad de tu país.",
+    publicidadRegionDeTuPais: "Elige una región de tu país.",
+    publicidadRegionDeLaLista: "Elige una región de la lista.",
+    publicidadAlMenosUnPais: "Elige al menos un país.",
+    publicidadMaxPaises: "Como mucho {max} países por campaña.",
+    publicidadPaisNoValido: "Alguno de los países no es válido.",
+    publicidadFechaFueraDePlazo: "La campaña tiene que empezar entre hoy y dentro de {dias} días.",
+    publicidadSinSaldoHoy: "No te quedan créditos de publicidad para el día de hoy.",
+    publicidadSaldoComprometido:
+      "Esta campaña necesita {coste} créditos de publicidad. Tienes {saldo}, pero {comprometido} ya están comprometidos en tus otras campañas: te quedan {quedan}.",
+    publicidadSaldoInsuficiente:
+      "Esta campaña necesita {coste} créditos de publicidad y tienes {saldo}.",
+    publicidadYaNoBorrador: "Esa campaña ya no es un borrador.",
+    publicidadSinImagen: "La campaña no tiene imagen. Bórrala y créala de nuevo.",
+    publicidadSoloPausarActiva: "Solo se puede pausar una campaña activa o programada.",
+    publicidadSoloReanudarPausada: "Solo se puede reanudar una campaña pausada.",
+    publicidadEnRevision:
+      "La estamos revisando por unas denuncias. Podrás reanudarla cuando terminemos.",
+    publicidadReanudarFueraDePlazo:
+      "Puede volver a empezar entre el {desde} y dentro de {dias} días.",
+    publicidadNoSePuedeTerminar: "Esa campaña ya no se puede terminar.",
+    imagenDemasiadoGrande: "La imagen supera el tamaño máximo permitido.",
+    imagenVacia: "El fichero está vacío.",
+    imagenIlegible: "No se pudo leer la imagen. ¿Está dañada?",
+    imagenTipoNoValido: "El archivo no es una imagen JPEG, PNG o WebP.",
+    imagenNoProcesable: "No se pudo procesar la imagen. Prueba con otra.",
+    revisaLosDatosCampana: "Revisa los datos de la campaña.",
+    campanaNombreCorto: "Ponle un nombre a la campaña (al menos 3 caracteres).",
+    campanaTextoCorto: "Escribe el texto del anuncio (al menos 3 caracteres).",
+    campanaDestinoNoValido: "El enlace tiene que ser una dirección web completa (https://…).",
+    campanaEligeDia: "Elige el día en que empieza.",
+    retoTituloCorto: "El título debe tener al menos {min} caracteres.",
+    retoTituloLargo: "El título no puede pasar de {max} caracteres.",
+    retoDescripcionLarga: "La descripción es demasiado larga.",
+    retoCategoria: "Elige una categoría de la lista.",
+    retoReglasLargas: "Las reglas son demasiado largas.",
+    retoPremioNumero: "El premio debe ser un número.",
+    retoPremioEntero: "El premio debe ser un número entero de céntimos.",
+    retoPremioNegativo: "El premio no puede ser negativo.",
+    retoAperturaNoValida: "La fecha de apertura no es válida.",
+    retoCierreNoValido: "La fecha de cierre no es válida.",
+    retoGanadoresNumero: "El número de ganadores debe ser un número.",
+    retoGanadoresEntero: "El número de ganadores debe ser entero.",
+    retoGanadoresMinimo: "Debe haber al menos 1 ganador.",
+    retoCierreAntesDeApertura: "El cierre debe ser posterior a la apertura.",
+    retoCierreEnElPasado: "El cierre debe estar en el futuro.",
+    retoPatrocinadoSinPremio: "Un reto patrocinado necesita un premio.",
+    revisaLosDatosReto: "Revisa los datos del reto.",
+    retoNoVerificada: "Podrás proponer retos en cuanto verifiquemos tu empresa.",
+    retoDemasiadasPendientes:
+      "Ya tienes {max} propuestas esperando. En cuanto decidamos alguna, podrás enviar otra.",
+    contrasenaDebil:
+      "Esa contraseña es demasiado fácil de adivinar. Prueba una más larga o menos predecible.",
+    contrasenaCorta: "La contraseña debe tener al menos {min} caracteres.",
+    empresaNombreLongitud: "El nombre tiene que tener entre {min} y {max} caracteres.",
+    empresaDatosInvalidos:
+      "Revisa los datos: faltan el nombre, el país o la persona de contacto, o la web no es una dirección válida.",
+    empresaWebORedes:
+      "Déjanos tu web o tus redes: con uno de los dos nos basta para comprobar que existís.",
+    retiradaNoDisponible:
+      "Ahora mismo no podemos aceptar datos de cobro. Vuelve a intentarlo en un rato.",
+    metodoPagoDemasiados:
+      "Ya tienes todos los métodos de cobro que se pueden guardar. Borra uno para añadir otro.",
+    metodoPagoIbanInvalido: "Revisa el IBAN: no parece completo.",
+    metodoPagoTitularVacio: "Falta el nombre del titular de la cuenta.",
+    metodoPagoDesconocido: "Solo puedes cobrar en una cuenta bancaria: añade su IBAN y el titular.",
+    noHemosPodidoGuardarMetodo: "No hemos podido guardar ese método.",
+    perfilNombreCorto: "El nombre es demasiado corto.",
+    perfilNombreLargo: "El nombre es demasiado largo.",
+    perfilNombreCaracteres: "El nombre tiene caracteres no permitidos.",
+    perfilWebProtocolo: "El sitio web debe empezar por http:// o https://",
+    perfilWebNoValida: "El sitio web debe ser una URL válida.",
+    perfilBioCaracteres: "La biografía tiene caracteres no permitidos.",
+    perfilInstagramNoValido: "El usuario de Instagram no es válido.",
+    perfilYoutubeNoValido: "El usuario de YouTube no es válido.",
+    perfilUsernameNoDisponible: "Ese nombre de usuario no está disponible.",
+    perfilUsernameFormato:
+      "El nombre de usuario debe tener entre 3 y 30 caracteres: minúsculas, números, punto o guion bajo.",
+    revisaElNombre: "Revisa el nombre.",
+    retiradaSinMinimo:
+      "Todavía no llegas al mínimo para pedir un cobro. Sigue participando: el saldo se acumula.",
+    retiradaSinSaldo: "No tienes saldo suficiente para pedir ese importe.",
+    retiradaImporteNoValido: "El importe no es válido.",
+    retiradaMetodoNoExiste: "Ese método de cobro ya no está. Elige otro o añade uno nuevo.",
+    retiradaNoRegistrada: "No hemos podido registrar tu solicitud.",
+    nivelInsuficiente: "Necesitas ser {nivel} para participar en este reto.",
+    participacionBloqueada:
+      "Un moderador retiro tu participacion en este reto, asi que no puedes volver a participar.",
+    boostSinSaldo: "No te quedan Boosts. Compra uno para destacar tu perfil.",
+    cuerpoDeLaPeticionInvalido: "Cuerpo de la petición inválido.",
+    cuentaReactivada: "Cuenta reactivada. Ya puedes intentar iniciar sesión de nuevo.",
+    cuentaVerificada: "Cuenta verificada. Ya puedes iniciar sesión.",
+    correoActualizado: "Correo actualizado. Vuelve a iniciar sesion.",
+    siEsaCuentaExiste:
+      "Si esa cuenta existe, te hemos enviado un enlace para restablecer la contrasena.",
+    siCorrespondeReenviado: "Si corresponde, te hemos reenviado el correo de verificacion.",
+    contrasenaActualizada: "Contrasena actualizada. Ya puedes iniciar sesion con la nueva.",
+    revisaCorreoRegistro:
+      "Revisa tu correo. Te hemos enviado un mensaje para continuar con tu registro.",
+    revisaCorreoEmpresa:
+      "Revisa tu correo. Te hemos enviado un mensaje para continuar con el registro de tu empresa.",
+    denunciaGracias: "Gracias por avisar. Lo revisaremos.",
+    denunciaYa: "Ya nos habías avisado de esto. Gracias.",
+    vipYaCancelada: "Tu suscripción ya estaba cancelada.",
+    vipCanceladaOk:
+      "Hemos pedido la baja. Sigues siendo VIP hasta que acabe el periodo que ya pagaste.",
+    zonaLlenaEnFechas: "Esa zona ya tiene todas sus plazas ocupadas en esas fechas.",
+    zonaLlenaProximosDias:
+      "Esa zona tiene todas sus plazas ocupadas en los próximos días que se pueden reservar.",
   },
 } as const);

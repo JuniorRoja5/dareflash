@@ -26,6 +26,7 @@
  * REINTENTA ante el 1020 de MariaDB (conflicto de instantánea) y el 1213 (deadlock): la transacción
  * fallida se deshace entera y reintentar es repetir la misma intención. Si se agotan, el error sube.
  */
+import { mensajeApi, type ClaveApi, type MensajeApi } from "@/textos/mensaje-api";
 import "server-only";
 
 import { randomUUID } from "node:crypto";
@@ -38,7 +39,6 @@ import {
   type EstadoPublicidad,
   type EstadoVisiblePublicidad,
   MSG_MOTIVO_RETIRADA_PUBLICIDAD,
-  MSG_TIPO_NEGOCIO_DESCONOCIDO,
   PUBLICIDAD_DESTINO_MAX,
   PUBLICIDAD_DIAS_MAX,
   PUBLICIDAD_DIAS_MIN,
@@ -101,19 +101,23 @@ export type CodigoPublicidad =
   | "ESTADO_NO_PERMITE"
   | "TIPO_NEGOCIO_DESCONOCIDO";
 
-/** Un rechazo ESPERABLE, con su frase para la empresa. La ruta lo traduce a 4xx. */
+/**
+ * Un rechazo ESPERABLE. La ruta lo traduce a 4xx. La FRASE no va aquí (P5b3): va su DATO —la clave del
+ * espacio `api` y sus valores—, y la ruta la compone en el idioma de quien llama. El `message` del
+ * `Error` es la clave: lo que se lee en un log.
+ */
 export class PublicidadError extends Error {
   constructor(
     public readonly code: CodigoPublicidad,
-    message: string,
+    public readonly mensaje: MensajeApi,
   ) {
-    super(message);
+    super(mensaje.clave);
     this.name = "PublicidadError";
   }
 }
 
-const MSG_NO_EXISTE = "Esa campaña no existe.";
-const MSG_NO_OPERA = "Tu empresa tiene que estar verificada para crear o activar campañas.";
+const MSG_NO_EXISTE = mensajeApi({ clave: "esaCampanaNo" });
+const MSG_NO_OPERA = mensajeApi({ clave: "publicidadNoOpera" });
 
 // ---------------------------------------------------------------------------------------------------
 // El alta (borrador)
@@ -130,7 +134,7 @@ export const campanaSchema = z.object({
   nombre: z
     .string()
     .trim()
-    .min(3, "Ponle un nombre a la campaña (al menos 3 caracteres).")
+    .min(3, "campanaNombreCorto" satisfies ClaveApi)
     .max(PUBLICIDAD_NOMBRE_MAX),
   alcance: AlcancePublicidadSchema,
   ciudadId: z.coerce.number().int().positive().optional(),
@@ -151,14 +155,14 @@ export const campanaSchema = z.object({
   texto: z
     .string()
     .trim()
-    .min(3, "Escribe el texto del anuncio (al menos 3 caracteres).")
+    .min(3, "campanaTextoCorto" satisfies ClaveApi)
     .max(PUBLICIDAD_TEXTO_MAX),
   destinoUrl: z
     .string()
     .trim()
     .max(PUBLICIDAD_DESTINO_MAX)
-    .refine(destinoValido, "El enlace tiene que ser una dirección web completa (https://…)."),
-  fechaInicio: z.string().regex(DIA_ISO, "Elige el día en que empieza."),
+    .refine(destinoValido, "campanaDestinoNoValido" satisfies ClaveApi),
+  fechaInicio: z.string().regex(DIA_ISO, "campanaEligeDia" satisfies ClaveApi),
   dias: z.coerce
     .number()
     .int()
@@ -204,7 +208,9 @@ async function empresaParaOperar(db: Db, empresaId: string): Promise<EmpresaPara
   const tipoNegocio = tipoNegocioDe(e.tipoNegocio);
   if (!tipoNegocio) {
     console.warn(`[publicidad] tipo de negocio fuera del catálogo en la empresa ${empresaId}`);
-    throw new PublicidadError("TIPO_NEGOCIO_DESCONOCIDO", MSG_TIPO_NEGOCIO_DESCONOCIDO);
+    throw new PublicidadError("TIPO_NEGOCIO_DESCONOCIDO", {
+      clave: "publicidadTipoNegocioDesconocido",
+    });
   }
   return {
     estado: e.estado as EstadoEmpresa,
@@ -225,46 +231,47 @@ async function validarZona(
   datos: Pick<DatosCampana, "alcance" | "ciudadId" | "estadoCodigo" | "paises">,
 ): Promise<{ ciudadId: number | null; estadoCodigo: string | null; paises: string[] }> {
   if (!puedeComprarAlcance(empresa.tipoNegocio, datos.alcance)) {
-    throw new PublicidadError(
-      "ALCANCE_NO_PERMITIDO",
-      "Tu tipo de negocio no puede comprar ese alcance.",
-    );
+    throw new PublicidadError("ALCANCE_NO_PERMITIDO", { clave: "publicidadAlcanceNoPermitido" });
   }
-  const malaZona = (m: string) => new PublicidadError("ZONA_NO_VALIDA", m);
+  const malaZona = (m: MensajeApi) => new PublicidadError("ZONA_NO_VALIDA", m);
   switch (datos.alcance) {
     case "CIUDAD": {
-      if (!datos.ciudadId) throw malaZona("Elige la ciudad de la lista.");
+      if (!datos.ciudadId) throw malaZona({ clave: "publicidadEligeCiudad" });
       const c = await db.ciudad.findUnique({
         where: { id: datos.ciudadId },
         select: { paisIso: true },
       });
-      if (!c || c.paisIso !== empresa.paisIso) throw malaZona("Elige una ciudad de tu país.");
+      if (!c || c.paisIso !== empresa.paisIso)
+        throw malaZona({ clave: "publicidadCiudadDeTuPais" });
       return { ciudadId: datos.ciudadId, estadoCodigo: null, paises: [] };
     }
     case "ESTADO": {
       const codigo = datos.estadoCodigo;
       if (!codigo || !codigo.startsWith(`${empresa.paisIso}.`)) {
-        throw malaZona("Elige una región de tu país.");
+        throw malaZona({ clave: "publicidadRegionDeTuPais" });
       }
       const existe = await db.ciudad.findFirst({
         where: { estadoCodigo: codigo },
         select: { id: true },
       });
-      if (!existe) throw malaZona("Elige una región de la lista.");
+      if (!existe) throw malaZona({ clave: "publicidadRegionDeLaLista" });
       return { ciudadId: null, estadoCodigo: codigo, paises: [] };
     }
     case "PAIS": {
       const paises = [...new Set(datos.paises)];
-      if (paises.length === 0) throw malaZona("Elige al menos un país.");
+      if (paises.length === 0) throw malaZona({ clave: "publicidadAlMenosUnPais" });
       if (paises.length > PUBLICIDAD_PAISES_MAX) {
-        throw malaZona(`Como mucho ${PUBLICIDAD_PAISES_MAX} países por campaña.`);
+        throw malaZona({
+          clave: "publicidadMaxPaises",
+          params: { max: String(PUBLICIDAD_PAISES_MAX) },
+        });
       }
       const conocidos = await db.ciudad.findMany({
         where: { paisIso: { in: paises } },
         distinct: ["paisIso"],
         select: { paisIso: true },
       });
-      if (conocidos.length !== paises.length) throw malaZona("Alguno de los países no es válido.");
+      if (conocidos.length !== paises.length) throw malaZona({ clave: "publicidadPaisNoValido" });
       return { ciudadId: null, estadoCodigo: null, paises: paises.sort() };
     }
     case "GLOBAL":
@@ -286,10 +293,10 @@ export async function crearBorrador(
   const zona = await validarZona(db, empresa, datos);
   const inicio = diaDeTexto(datos.fechaInicio);
   if (!dentroDePlazo(inicio, ahora)) {
-    throw new PublicidadError(
-      "FECHA_FUERA_DE_PLAZO",
-      `La campaña tiene que empezar entre hoy y dentro de ${PUBLICIDAD_RESERVA_MAX_DIAS} días.`,
-    );
+    throw new PublicidadError("FECHA_FUERA_DE_PLAZO", {
+      clave: "publicidadFechaFueraDePlazo",
+      params: { dias: String(PUBLICIDAD_RESERVA_MAX_DIAS) },
+    });
   }
   const creada = await db.publicidad.create({
     data: {
@@ -547,10 +554,7 @@ async function cobrarHoySiEmpieza(
     inicio: await inicioDelCobro(tx),
   });
   if (r === "SIN_SALDO") {
-    throw new PublicidadError(
-      "SALDO_INSUFICIENTE",
-      "No te quedan créditos de publicidad para el día de hoy.",
-    );
+    throw new PublicidadError("SALDO_INSUFICIENTE", { clave: "publicidadSinSaldoHoy" });
   }
 }
 
@@ -566,8 +570,19 @@ function exigirSaldo(empresa: EmpresaParaOperar, coste: number, comprometido: nu
     throw new PublicidadError(
       "SALDO_INSUFICIENTE",
       comprometido > 0
-        ? `Esta campaña necesita ${coste} créditos de publicidad. Tienes ${empresa.saldo}, pero ${comprometido} ya están comprometidos en tus otras campañas: te quedan ${Math.max(0, disponible)}.`
-        : `Esta campaña necesita ${coste} créditos de publicidad y tienes ${empresa.saldo}.`,
+        ? {
+            clave: "publicidadSaldoComprometido",
+            params: {
+              coste: String(coste),
+              saldo: String(empresa.saldo),
+              comprometido: String(comprometido),
+              quedan: String(Math.max(0, disponible)),
+            },
+          }
+        : {
+            clave: "publicidadSaldoInsuficiente",
+            params: { coste: String(coste), saldo: String(empresa.saldo) },
+          },
     );
   }
 }
@@ -597,13 +612,10 @@ export async function activarPublicidad(
         await bloquearEmpresa(tx, empresaId);
         const c = await bloquear(tx, empresaId, publicidadId);
         if (c.estado !== "BORRADOR") {
-          throw new PublicidadError("ESTADO_NO_PERMITE", "Esa campaña ya no es un borrador.");
+          throw new PublicidadError("ESTADO_NO_PERMITE", { clave: "publicidadYaNoBorrador" });
         }
         if (!c.imagen) {
-          throw new PublicidadError(
-            "SIN_IMAGEN",
-            "La campaña no tiene imagen. Bórrala y créala de nuevo.",
-          );
+          throw new PublicidadError("SIN_IMAGEN", { clave: "publicidadSinImagen" });
         }
         const empresa = await empresaParaOperar(tx, empresaId);
         // El alcance se vuelve a comprobar: la empresa pudo cambiar de tipo de negocio desde el borrador.
@@ -614,10 +626,10 @@ export async function activarPublicidad(
         });
         inicio = opciones.fechaInicio ? diaDeTexto(opciones.fechaInicio) : c.fechaInicio;
         if (!dentroDePlazo(inicio, ahora)) {
-          throw new PublicidadError(
-            "FECHA_FUERA_DE_PLAZO",
-            `La campaña tiene que empezar entre hoy y dentro de ${PUBLICIDAD_RESERVA_MAX_DIAS} días.`,
-          );
+          throw new PublicidadError("FECHA_FUERA_DE_PLAZO", {
+            clave: "publicidadFechaFueraDePlazo",
+            params: { dias: String(PUBLICIDAD_RESERVA_MAX_DIAS) },
+          });
         }
         dias = c.diasContratados;
         const tarifa = tarifaPorDia(c.alcance, c.paises.length);
@@ -688,10 +700,7 @@ export async function pausarPublicidad(
         c.ocultoAutoEn !== null,
       );
       if (!accionesPublicidad(visible).includes("PAUSAR")) {
-        throw new PublicidadError(
-          "ESTADO_NO_PERMITE",
-          "Solo se puede pausar una campaña activa o programada.",
-        );
+        throw new PublicidadError("ESTADO_NO_PERMITE", { clave: "publicidadSoloPausarActiva" });
       }
       await liberarFuturo(tx, publicidadId, ahora);
       await tx.publicidad.update({
@@ -758,16 +767,13 @@ async function reanudarEnTx(
 ): Promise<{ ok: true; inicio: Date; dias: number }> {
   const c = await bloquear(tx, empresaId, publicidadId);
   if (c.estado !== "PAUSADA") {
-    throw new PublicidadError("ESTADO_NO_PERMITE", "Solo se puede reanudar una campaña pausada.");
+    throw new PublicidadError("ESTADO_NO_PERMITE", { clave: "publicidadSoloReanudarPausada" });
   }
   // EN REVISIÓN (la pausó el umbral de denuncias): reanudarla sería saltarse la revisión. Lo comprueba
   // el SERVIDOR, no solo el botón: la puerta de verdad es esta. La absolución pasa porque levanta el
   // auto-oculto ANTES, por su única puerta (`levantarAutoOcultoEnTx`): no hay atajo que la salte.
   if (c.ocultoAutoEn !== null) {
-    throw new PublicidadError(
-      "ESTADO_NO_PERMITE",
-      "La estamos revisando por unas denuncias. Podrás reanudarla cuando terminemos.",
-    );
+    throw new PublicidadError("ESTADO_NO_PERMITE", { clave: "publicidadEnRevision" });
   }
   const empresa = await empresaParaOperar(tx, empresaId);
   const cal = await calendarioDe(tx, publicidadId, ahora);
@@ -778,10 +784,10 @@ async function reanudarEnTx(
   const primerPosible = hoyNo ? sumarDias(diaDe(ahora), 1) : diaDe(ahora);
   intento.inicio = fechaInicio ? diaDeTexto(fechaInicio) : primerPosible;
   if (intento.inicio < primerPosible || !dentroDePlazo(intento.inicio, ahora)) {
-    throw new PublicidadError(
-      "FECHA_FUERA_DE_PLAZO",
-      `Puede volver a empezar entre el ${claveDia(primerPosible)} y dentro de ${PUBLICIDAD_RESERVA_MAX_DIAS} días.`,
-    );
+    throw new PublicidadError("FECHA_FUERA_DE_PLAZO", {
+      clave: "publicidadReanudarFueraDePlazo",
+      params: { desde: claveDia(primerPosible), dias: String(PUBLICIDAD_RESERVA_MAX_DIAS) },
+    });
   }
   if (intento.dias > 0) {
     // La tarifa CONGELADA al activar; un borrador nunca llega aquí, así que siempre la hay.
@@ -891,7 +897,7 @@ export async function terminarPublicidad(
       );
       // EN REVISIÓN también se puede terminar: es suya y no esquiva nada (las denuncias siguen ahí).
       if (!accionesPublicidad(visible).includes("TERMINAR")) {
-        throw new PublicidadError("ESTADO_NO_PERMITE", "Esa campaña ya no se puede terminar.");
+        throw new PublicidadError("ESTADO_NO_PERMITE", { clave: "publicidadNoSePuedeTerminar" });
       }
       await liberarFuturo(tx, publicidadId, ahora);
       await tx.publicidad.update({

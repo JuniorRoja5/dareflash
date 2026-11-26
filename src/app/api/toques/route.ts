@@ -1,17 +1,10 @@
 import { z } from "zod";
 
-import {
-  MSG_TOQUE_A_TI_MISMO,
-  MSG_TOQUE_ENVIADO,
-  fraseReinicioDiario,
-  msgToqueLimiteDiario,
-  MSG_TOQUE_REPETIDO,
-  MSG_TOQUE_SIN_VERIFICAR,
-  MSG_TOQUE_SOLO_VIP,
-  RATE_LIMITS,
-} from "@/config/constants";
+import { RATE_LIMITS, TOQUE_MAX_DIA } from "@/config/constants";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk } from "@/server/http/api";
+import { idiomaDeFormatoDeLaApi, textosApi } from "@/server/http/textos-api";
+import { fraseReinicioDiario } from "@/textos/reinicio-diario";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +29,9 @@ const CuerpoSchema = z.object({ userId: z.string().min(1).max(191) });
  * resultado).
  */
 export const POST = mutatingRoute(async (req, { prisma, user }) => {
+  const t = await textosApi(req);
+  // Las respuestas que también pinta el botón: su espacio (una frase, UNA clave).
+  const tToque = await textosApi(req, "toque");
   const { AuthError, requireVerifiedUser } = await import("@/server/auth/rbac");
   const { rateLimit } = await import("@/server/security/rate-limit");
   const { darToque } = await import("@/server/services/toque");
@@ -44,13 +40,13 @@ export const POST = mutatingRoute(async (req, { prisma, user }) => {
     await requireVerifiedUser();
   } catch (e) {
     if (e instanceof AuthError) {
-      return apiError("EMAIL_SIN_VERIFICAR", MSG_TOQUE_SIN_VERIFICAR, 403);
+      return apiError("EMAIL_SIN_VERIFICAR", t("verificaTuCorreoParaPoderDar"), 403);
     }
     throw e;
   }
 
   const cuerpo = CuerpoSchema.safeParse(await req.json().catch(() => null));
-  if (!cuerpo.success) return apiError("VALIDATION", "No hemos podido procesar la petición.", 400);
+  if (!cuerpo.success) return apiError("VALIDATION", t("noHemosPodido"), 400);
 
   // EL CUBO VA ANTES DE ESCRIBIR y cuenta SIEMPRE (también cuando bloquea), así que una ráfaga no
   // lo reinicia. Es el tope de PRODUCTO contra usar el toque como megáfono: cuántas personas
@@ -61,13 +57,17 @@ export const POST = mutatingRoute(async (req, { prisma, user }) => {
   });
   if (!rl.allowed) {
     // La hora del reinicio, en la de quien pide (Fase 11): el día se sigue contando en UTC.
-    const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
+    const { zonaDeLaPeticion } = await import("@/server/zona-peticion");
     const reinicio = fraseReinicioDiario(
+      await textosApi(req, "reinicioDiario"),
       new Date(),
-      await idiomaDeLaPeticion(),
+      await idiomaDeFormatoDeLaApi(req),
       await zonaDeLaPeticion(),
     );
-    return apiOk({ estado: "limite", mensaje: msgToqueLimiteDiario(reinicio) });
+    return apiOk({
+      estado: "limite",
+      mensaje: tToque("limiteDiario", { veces: String(TOQUE_MAX_DIA), reinicio }),
+    });
   }
 
   const r = await darToque(prisma, {
@@ -77,15 +77,15 @@ export const POST = mutatingRoute(async (req, { prisma, user }) => {
 
   switch (r.estado) {
     case "no-vip":
-      return apiError("SOLO_VIP", MSG_TOQUE_SOLO_VIP, 403);
+      return apiError("SOLO_VIP", t("darUnToque"), 403);
     case "a-ti-mismo":
-      return apiError("VALIDATION", MSG_TOQUE_A_TI_MISMO, 400);
+      return apiError("VALIDATION", t("noPuedesDarte"), 400);
     // Mismo 404 que cualquier recurso ajeno que no se ve: no se revela si el id existe.
     case "no-disponible":
-      return apiError("NO_DISPONIBLE", "Ese perfil no está disponible.", 404);
+      return apiError("NO_DISPONIBLE", t("esePerfilNo"), 404);
     case "repetido":
-      return apiOk({ estado: r.estado, mensaje: MSG_TOQUE_REPETIDO });
+      return apiOk({ estado: r.estado, mensaje: tToque("repetido") });
     case "enviado":
-      return apiOk({ estado: r.estado, mensaje: MSG_TOQUE_ENVIADO });
+      return apiOk({ estado: r.estado, mensaje: tToque("enviado") });
   }
 });

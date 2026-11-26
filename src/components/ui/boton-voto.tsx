@@ -2,7 +2,6 @@
 
 import { useCallback, useState, useSyncExternalStore } from "react";
 
-import { MSG_VOTO_SIN_VER } from "@/config/constants";
 import { estaVista, suscribirVistas } from "@/lib/visto-cliente";
 import {
   accionQuitar,
@@ -183,31 +182,34 @@ export function BotonVoto({
           ? await accionQuitar({ retoId, participacionId, miVoto })
           : await accionVotar({ retoId, participacionId, miVoto });
       if (r.estado === "requiere-mover") {
-        setMover({ mensaje: r.mensaje, votoActualEn: r.votoActualEn });
+        setMover({ mensaje: r.mensaje ?? t("yaVotoOtra"), votoActualEn: r.votoActualEn });
       } else if (r.estado === "sin-ver" || r.estado === "rechazado") {
-        setAviso(r.mensaje); // COPY del servidor, ya humano
+        // La frase del servidor, ya en su idioma; si no trajo ninguna, la de reserva de este espacio.
+        setAviso(r.mensaje ?? (r.estado === "sin-ver" ? t("sinVer") : t("errorVotar")));
       }
     } finally {
       setOcupado(false);
     }
-  }, [estado, retoId, participacionId, miVoto, navegarDuro]);
+  }, [estado, retoId, participacionId, miVoto, navegarDuro, t]);
 
   const confirmarMover = useCallback(async () => {
     setMover(null);
     setOcupado(true);
     try {
       const r = await accionVotar({ retoId, participacionId, permitirMover: true, miVoto });
-      if (r.estado === "sin-ver" || r.estado === "rechazado") setAviso(r.mensaje);
+      if (r.estado === "sin-ver" || r.estado === "rechazado") {
+        setAviso(r.mensaje ?? (r.estado === "sin-ver" ? t("sinVer") : t("errorVotar")));
+      }
     } finally {
       setOcupado(false);
     }
-  }, [retoId, participacionId, miVoto]);
+  }, [retoId, participacionId, miVoto, t]);
 
   const votado = estado === "votado";
   const bloqueado = estado === "cerrado" || estado === "no-votable" || estado === "sin-ver";
   const etiqueta = t(`texto_${estado}`);
-  // «sin ver» lo dice el servidor con su mensaje (`MSG_VOTO_SIN_VER`, compartido con la API: P5b3).
-  const aria = estado === "sin-ver" ? MSG_VOTO_SIN_VER : t(`aria_${estado}`);
+  // «sin ver», con la frase de `voto.sinVer` (la ruta dice lo mismo: test de igualdad, P5b3).
+  const aria = estado === "sin-ver" ? t("sinVer") : t(`aria_${estado}`);
 
   const contador = (
     <span className="tabular-nums">
@@ -224,7 +226,7 @@ export function BotonVoto({
           onClick={() => void alPulsar()}
           disabled={bloqueado || ocupado}
           aria-label={aria}
-          title={estado === "sin-ver" ? MSG_VOTO_SIN_VER : undefined}
+          title={estado === "sin-ver" ? t("sinVer") : undefined}
           className={`flex h-14 w-14 items-center justify-center rounded-full text-void transition-[filter,background-color] duration-[var(--df-dur-fast)] ease-mechanical ${
             votado ? "bg-ok" : "bg-action"
           } ${bloqueado ? "opacity-45" : "hover:brightness-110"}`}
@@ -262,9 +264,7 @@ export function BotonVoto({
         {contador} <span className="text-sm font-normal text-text-dim">{t("etiquetaVotos")}</span>
       </span>
       {votado ? <span className="text-sm text-ok">{t("votoRegistrado")}</span> : null}
-      {estado === "sin-ver" ? (
-        <span className="text-sm text-text-dim">{MSG_VOTO_SIN_VER}</span>
-      ) : null}
+      {estado === "sin-ver" ? <span className="text-sm text-text-dim">{t("sinVer")}</span> : null}
       {mover ? (
         <DialogoMover
           mensaje={mover.mensaje}

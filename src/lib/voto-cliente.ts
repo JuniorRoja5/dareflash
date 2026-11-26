@@ -21,7 +21,6 @@
  * DESHACE entero si el servidor dice que no. No hay streaming ni refresco en vivo de votos ajenos: el
  * número de partida es el de la carga, y encima solo se pinta lo que tú has hecho.
  */
-import { MSG_VOTO_SIN_VER, MSG_VOTO_YA_VOTO_OTRA } from "@/config/constants";
 import { delCsrf, mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 
 // ---------------------------------------------------------------------------------------------
@@ -155,9 +154,14 @@ function aplicar(retoId: string, destino: string | null): void {
  */
 export type ResultadoAccion =
   | { estado: "hecho" }
-  | { estado: "requiere-mover"; votoActualEn: string | null; mensaje: string }
-  | { estado: "sin-ver"; mensaje: string }
-  | { estado: "rechazado"; mensaje: string }
+  /**
+   * `mensaje`: la frase del SERVIDOR, ya en el idioma de quien vota; `null` si no trajo ninguna (red
+   * caída, una respuesta rara). Entonces la pone el botón, de su espacio de textos (P5b3): esta pieza
+   * es pura y no lleva frases.
+   */
+  | { estado: "requiere-mover"; votoActualEn: string | null; mensaje: string | null }
+  | { estado: "sin-ver"; mensaje: string | null }
+  | { estado: "rechazado"; mensaje: string | null }
   | { estado: "ocupado" };
 
 /** Transporte inyectable: en los tests se sustituye por uno falso, sin red. */
@@ -177,11 +181,9 @@ const transportePorDefecto: TransporteVoto = {
   quitar: (id) => delCsrf(`/api/participaciones/${encodeURIComponent(id)}/voto`),
 };
 
-const COPY_GENERICO = "No se pudo registrar tu voto. Inténtalo de nuevo.";
-
 /** El copy SIEMPRE sale del servidor (`error.message`, ya humano); el genérico es solo para la red. */
-function copyDe(data: unknown): string {
-  return mensajeDe(data) || COPY_GENERICO;
+function copyDe(data: unknown): string | null {
+  return mensajeDe(data) || null;
 }
 
 /**
@@ -223,7 +225,7 @@ export async function accionVotar(
       return {
         estado: "requiere-mover",
         votoActualEn: cuerpo.votoActualEn ?? null,
-        mensaje: cuerpo.mensaje || MSG_VOTO_YA_VOTO_OTRA,
+        mensaje: cuerpo.mensaje || null,
       };
     }
     if (r.ok) return { estado: "hecho" };
@@ -231,12 +233,11 @@ export async function accionVotar(
     aplicar(retoId, previo);
     // El gate NO debería saltar aquí (el botón no se habilita sin marca), pero puede: la marca del
     // servidor caduca sola. Se distingue para que la UI vuelva a pedir reproducción, no un reintento.
-    if (r.code === "SIN_VER")
-      return { estado: "sin-ver", mensaje: mensajeDe(r.data) || MSG_VOTO_SIN_VER };
+    if (r.code === "SIN_VER") return { estado: "sin-ver", mensaje: mensajeDe(r.data) || null };
     return { estado: "rechazado", mensaje: copyDe(r.data) };
   } catch {
     aplicar(retoId, previo); // red caída: no se queda un "Votado" que no existe en el servidor
-    return { estado: "rechazado", mensaje: COPY_GENERICO };
+    return { estado: "rechazado", mensaje: null };
   } finally {
     enCurso.delete(retoId);
   }
@@ -262,7 +263,7 @@ export async function accionQuitar(
     return { estado: "rechazado", mensaje: copyDe(r.data) };
   } catch {
     aplicar(retoId, previo);
-    return { estado: "rechazado", mensaje: COPY_GENERICO };
+    return { estado: "rechazado", mensaje: null };
   } finally {
     enCurso.delete(retoId);
   }

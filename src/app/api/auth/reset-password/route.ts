@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk } from "@/server/http/api";
+import { frase, textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export const dynamic = "force-dynamic";
  * `application/json` (una peticion cross-site no puede enviarlo sin preflight).
  */
 export async function POST(req: Request) {
+  const t = await textosApi(req);
   const { prisma } = await import("@/server/db/client");
   const { resetPassword } = await import("@/server/auth/password-reset");
   const { esArgon2Sobrecargado } = await import("@/server/auth/password");
@@ -36,15 +38,15 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return apiError("BAD_REQUEST", "Cuerpo de la peticion invalido.", 400);
+    return apiError("BAD_REQUEST", t("cuerpoDeLa"), 400);
   }
   const parsed = schema.safeParse(body);
-  if (!parsed.success) return apiError("VALIDATION", "Revisa el enlace y la contrasena.", 400);
+  if (!parsed.success) return apiError("VALIDATION", t("revisaElEnlace"), 400);
 
   // POLITICA DE CONTRASENA FUERTE (misma que el registro). Aqui no hay email a mano (el token aun no
   // se ha consumido), pero longitud + fuerza + veto de la marca siguen aplicando.
   const veredicto = evaluarPassword({ password: parsed.data.password });
-  if (!veredicto.ok) return apiError("VALIDATION", veredicto.mensaje, 400);
+  if (!veredicto.ok) return apiError("VALIDATION", frase(t, veredicto.mensaje), 400);
 
   try {
     const r = await resetPassword(prisma, {
@@ -54,20 +56,16 @@ export async function POST(req: Request) {
     if (!r.ok) {
       // Generico (invalido/caducado igual): sin oraculo de por que fallo. El caso NORMAL aqui es el
       // enlace YA USADO (el dueño acaba de restablecer y recarga); la pagina lo cubre con texto.
-      return apiError(
-        "INVALID_TOKEN",
-        "El enlace para restablecer la contrasena es invalido o ha caducado.",
-        400,
-      );
+      return apiError("INVALID_TOKEN", t("elEnlacePara"), 400);
     }
     return apiOk({
       ok: true,
-      message: "Contrasena actualizada. Ya puedes iniciar sesion con la nueva.",
+      message: t("contrasenaActualizada"),
     });
   } catch (e) {
     // El argon2 del hasheo va por el semaforo: si esta saturado, 503 (servicio ocupado), nunca 500.
     if (esArgon2Sobrecargado(e)) {
-      return apiError("OVERLOADED", "Servicio ocupado, reintenta en unos segundos.", 503);
+      return apiError("OVERLOADED", t("servicioOcupadoReintenta"), 503);
     }
     throw e;
   }

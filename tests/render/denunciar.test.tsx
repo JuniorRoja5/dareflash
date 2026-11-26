@@ -8,6 +8,7 @@
  *    nunca como error.
  */
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { es } from "@/textos/es";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ post: vi.fn() }));
@@ -18,7 +19,7 @@ vi.mock("@/lib/cliente-http", async (orig) => ({
 }));
 vi.mock("next/navigation", () => ({ usePathname: () => "/feed" }));
 
-import { MOTIVOS_DENUNCIA, MSG_DENUNCIA_SIN_VERIFICAR } from "@/config/constants";
+import { MOTIVOS_DENUNCIA } from "@/config/constants";
 import { Denunciar } from "@/components/ui/denunciar";
 
 const ok = (data: unknown, status = 200) => ({ ok: status < 400, status, code: "", data });
@@ -65,7 +66,7 @@ describe("cuándo se ofrece", () => {
     montar({ emailVerificado: false });
     abrir();
 
-    expect(screen.getByText(MSG_DENUNCIA_SIN_VERIFICAR)).toBeDefined();
+    expect(screen.getByText(es.denunciar.sinVerificar)).toBeDefined();
     expect(screen.queryByText(MOTIVOS_DENUNCIA[0]!.texto)).toBeNull();
     expect(mocks.post).not.toHaveBeenCalled();
   });

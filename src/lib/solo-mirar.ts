@@ -13,7 +13,7 @@
  * QUÉ HACE CADA PANTALLA CON ESTO (decidido contra MARCA.md, ver el docblock de `FeedVertical`):
  * los controles se ESCONDEN, no se desactivan —un botón de `--df-action` desactivado sigue ocupando
  * la única acción de la pantalla sin hacer nada—; y donde el control era LA acción del sitio (la caja
- * de comentar, "Participar"), su hueco lo ocupa una línea que dice por qué (`MSG_EMPRESA_SOLO_MIRA`).
+ * de comentar, "Participar"), su hueco lo ocupa una línea que dice por qué (`comentarios.soloMira`).
  *
  * Pura y cliente-segura: la calcula el servidor con la sesión y viaja como prop.
  */

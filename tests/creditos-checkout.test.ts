@@ -16,13 +16,11 @@
  *    ruta (rojo: la empresa recibe CUENTA_EMPRESA).
  */
 import { falso } from "./helpers/valores-falsos";
+import { MARCA } from "@/config/marca";
+import { es } from "@/textos/es";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  MSG_CREDITOS_PAGO_NO_DISPONIBLE,
-  MSG_CREDITOS_SIN_VERIFICAR,
-  PAQUETES_CREDITOS,
-} from "../src/config/constants";
+import { PAQUETES_CREDITOS } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 import { issueCsrfToken } from "../src/server/auth/csrf";
 import { createSession, validateSession } from "../src/server/auth/session";
@@ -225,7 +223,7 @@ describe("abrir el pago", () => {
     const res = await pedir({ packageId: "creditos_10" });
     expect(res.status).toBe(503);
     const cuerpo = JSON.stringify(await res.json());
-    expect(cuerpo).toContain(MSG_CREDITOS_PAGO_NO_DISPONIBLE);
+    expect(cuerpo).toContain(es.api.laCompraDe.replace("{marca}", MARCA));
     expect(cuerpo).not.toContain("STRIPE");
     expect(H.crearSesion).not.toHaveBeenCalled();
   });
@@ -234,7 +232,7 @@ describe("abrir el pago", () => {
     await prisma.empresa.update({ where: { id: empresaId }, data: { estado: "PENDIENTE" } });
     const res = await pedir({ packageId: "creditos_10" });
     expect(res.status).toBe(403);
-    expect(JSON.stringify(await res.json())).toContain(MSG_CREDITOS_SIN_VERIFICAR);
+    expect(JSON.stringify(await res.json())).toContain(es.api.podrasComprarCreditos);
     expect(H.crearSesion).not.toHaveBeenCalled();
   });
 });

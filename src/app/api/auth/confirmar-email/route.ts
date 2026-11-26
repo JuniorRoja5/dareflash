@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk, depsRuta } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export const dynamic = "force-dynamic";
  * sin que nadie pulsara nada.
  */
 export async function POST(req: Request) {
+  const t = await textosApi(req);
   const { prisma } = await depsRuta();
   const { confirmarCambioEmail } = await import("@/server/services/cambio-email");
 
@@ -23,17 +25,17 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return apiError("BAD_REQUEST", "Cuerpo de la peticion invalido.", 400);
+    return apiError("BAD_REQUEST", t("cuerpoDeLa"), 400);
   }
   const parsed = z.object({ token: z.string().min(1).max(400) }).safeParse(body);
-  if (!parsed.success) return apiError("VALIDATION", "Falta el token.", 400);
+  if (!parsed.success) return apiError("VALIDATION", t("faltaElToken"), 400);
 
   const r = await confirmarCambioEmail(prisma, { rawToken: parsed.data.token });
-  if (r.ok) return apiOk({ ok: true, message: "Correo actualizado. Vuelve a iniciar sesion." });
+  if (r.ok) return apiOk({ ok: true, message: t("correoActualizado") });
 
   // Un token invalido y uno caducado dan el MISMO mensaje: distinguirlos diria si un token existio.
   if (r.motivo === "OCUPADA") {
-    return apiError("OCUPADA", "Esa direccion ya no esta disponible.", 409);
+    return apiError("OCUPADA", t("esaDireccionYa"), 409);
   }
-  return apiError("TOKEN_INVALIDO", "Este enlace ya no es valido. Pide el cambio otra vez.", 400);
+  return apiError("TOKEN_INVALIDO", t("esteEnlaceYa"), 400);
 }

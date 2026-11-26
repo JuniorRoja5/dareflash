@@ -16,6 +16,7 @@
  *     SESIÓN (nunca del cliente) y actualiza EXACTAMENTE esa fila; la ruta pasa `user.userId` del
  *     `mutatingRoute`. La validación del nombre vive aquí como esquema Zod (el gate real de servidor).
  */
+import type { ClaveApi } from "@/textos/mensaje-api";
 import "server-only";
 
 import { z } from "zod";
@@ -324,9 +325,9 @@ export const displayNameSchema = z
   .pipe(
     z
       .string()
-      .min(NOMBRE_MIN, "El nombre es demasiado corto.")
-      .max(NOMBRE_MAX, "El nombre es demasiado largo.")
-      .regex(PATRON_NOMBRE, "El nombre tiene caracteres no permitidos."),
+      .min(NOMBRE_MIN, "perfilNombreCorto" satisfies ClaveApi)
+      .max(NOMBRE_MAX, "perfilNombreLargo" satisfies ClaveApi)
+      .regex(PATRON_NOMBRE, "perfilNombreCaracteres" satisfies ClaveApi),
   );
 
 /** Sin caracteres de control (U+0000-U+001F, U+007F)? El salto de linea tambien queda fuera. */
@@ -340,8 +341,8 @@ function sinControles(v: string): boolean {
 
 /** URL http/https válida (el sitio web SÍ es una URL libre; se pinta con rel="nofollow noopener"). */
 const urlHttp = z
-  .url("El sitio web debe ser una URL válida.")
-  .refine((u) => /^https?:\/\//i.test(u), "El sitio web debe empezar por http:// o https://");
+  .url("perfilWebNoValida" satisfies ClaveApi)
+  .refine((u) => /^https?:\/\//i.test(u), "perfilWebProtocolo" satisfies ClaveApi);
 
 /**
  * Campos de perfil v1. Cada uno acepta VACÍO -> `null` (borrar el campo). bio: <=300 sin controles.
@@ -355,7 +356,7 @@ const bioSchema = z
     z
       .string()
       .max(BIO_MAX, `La biografía no puede pasar de ${BIO_MAX} caracteres.`)
-      .refine(sinControles, "La biografía tiene caracteres no permitidos."),
+      .refine(sinControles, "perfilBioCaracteres" satisfies ClaveApi),
   )
   .transform((s) => s || null);
 
@@ -373,7 +374,7 @@ const instagramSchema = z
   .pipe(
     z.union([
       z.literal(""),
-      z.string().regex(PATRON_INSTAGRAM, "El usuario de Instagram no es válido."),
+      z.string().regex(PATRON_INSTAGRAM, "perfilInstagramNoValido" satisfies ClaveApi),
     ]),
   )
   .transform((s) => s || null);
@@ -384,7 +385,7 @@ const youtubeSchema = z
   .pipe(
     z.union([
       z.literal(""),
-      z.string().regex(PATRON_YOUTUBE, "El usuario de YouTube no es válido."),
+      z.string().regex(PATRON_YOUTUBE, "perfilYoutubeNoValido" satisfies ClaveApi),
     ]),
   )
   .transform((s) => s || null);
@@ -398,15 +399,8 @@ const youtubeSchema = z
 export const usernameSchema = z
   .string()
   .transform((s) => s.trim().toLowerCase())
-  .pipe(
-    z
-      .string()
-      .regex(
-        HANDLE_RE,
-        "El nombre de usuario debe tener entre 3 y 30 caracteres: minúsculas, números, punto o guion bajo.",
-      ),
-  )
-  .refine((s) => !esHandleReservado(s), "Ese nombre de usuario no está disponible.");
+  .pipe(z.string().regex(HANDLE_RE, "perfilUsernameFormato" satisfies ClaveApi))
+  .refine((s) => !esHandleReservado(s), "perfilUsernameNoDisponible" satisfies ClaveApi);
 
 /**
  * EL COLOR DEL NOMBRE: una CLAVE del catálogo, `null` para volver al de siempre.

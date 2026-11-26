@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk, depsRuta } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -26,12 +27,13 @@ const QuerySchema = z.object({
  * tampoco paginando.
  */
 export async function GET(req: Request) {
+  const t = await textosApi(req);
   const url = new URL(req.url);
   const parsed = QuerySchema.safeParse({
     cursor: url.searchParams.get("cursor") ?? undefined,
     limit: url.searchParams.get("limit") ?? undefined,
   });
-  if (!parsed.success) return apiError("BAD_REQUEST", "Parámetros de página inválidos.", 400);
+  if (!parsed.success) return apiError("BAD_REQUEST", t("parametrosDePagina"), 400);
 
   const { prisma } = await depsRuta();
   const { listarRetosCerrados } = await import("@/server/services/retos-publico");
@@ -45,6 +47,6 @@ export async function GET(req: Request) {
     return apiOk({ items, nextCursor });
   } catch (e) {
     console.error("[api/retos/cerrados] fallo paginando:", sanearError(e));
-    return apiError("CERRADOS_FAILED", "No se pudieron cargar más retos cerrados.", 502);
+    return apiError("CERRADOS_FAILED", t("noSePudieronCargar"), 502);
   }
 }

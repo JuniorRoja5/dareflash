@@ -1,10 +1,11 @@
 import { z } from "zod";
 
-import { MSG_LIKE_NO_DISPONIBLE, MSG_LIKE_PROPIO, RATE_LIMITS } from "@/config/constants";
+import { RATE_LIMITS } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
 import type { ResultadoLike } from "@/server/services/likes";
+import { textosApi, type TApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -17,52 +18,52 @@ const ParamsSchema = z.object({ id: z.string().min(1).max(64) });
  * repite, el toggle deja el estado al revés—, mientras que poner y quitar son idempotentes cada
  * uno por su lado. El botón decide cuál llamar; la API no adivina.
  */
-function respuesta(r: ResultadoLike) {
+function respuesta(r: ResultadoLike, t: TApi) {
   if (r.estado !== "rechazado") return apiOk({ ...r });
   return r.motivo === "PROPIO"
-    ? apiError("LIKE_PROPIO", MSG_LIKE_PROPIO, 409)
-    : apiError("NOT_FOUND", MSG_LIKE_NO_DISPONIBLE, 404);
+    ? apiError("LIKE_PROPIO", t("likePropio"), 409)
+    : apiError("NOT_FOUND", t("likeNoDisponible"), 404);
 }
 
 /**
  * Cubo por USUARIO, COMPARTIDO por poner y quitar: son la misma acción vista desde fuera, y con un
  * cubo por verbo el límite real sería el doble del que dice la config.
  */
-async function limitar(prisma: PrismaClient, secret: string, userId: string) {
+async function limitar(prisma: PrismaClient, secret: string, userId: string, t: TApi) {
   const { rateLimit } = await import("@/server/security/rate-limit");
   const rl = await rateLimit(prisma, {
     key: `like:user:${rateLimitKey(secret, userId)}`,
     ...RATE_LIMITS.LIKE_PER_USER,
   });
-  return rl.allowed
-    ? null
-    : apiError("RATE_LIMITED", "Demasiadas peticiones. Inténtalo en un momento.", 429);
+  return rl.allowed ? null : apiError("RATE_LIMITED", t("demasiadasPeticionesIntentalo"), 429);
 }
 
 export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (_req, { user, env, prisma }, { params }) => {
+    const t = await textosApi(_req);
     const { darLike } = await import("@/server/services/likes");
 
     const parsed = ParamsSchema.safeParse(await params);
-    if (!parsed.success) return apiError("NOT_FOUND", MSG_LIKE_NO_DISPONIBLE, 404);
+    if (!parsed.success) return apiError("NOT_FOUND", t("esteVideoYa"), 404);
 
-    const limitado = await limitar(prisma, env.AUTH_SECRET, user.userId);
+    const limitado = await limitar(prisma, env.AUTH_SECRET, user.userId, t);
     if (limitado) return limitado;
 
-    return respuesta(await darLike(prisma, { userId: user.userId, videoId: parsed.data.id }));
+    return respuesta(await darLike(prisma, { userId: user.userId, videoId: parsed.data.id }), t);
   },
 );
 
 export const DELETE = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (_req, { user, env, prisma }, { params }) => {
+    const t = await textosApi(_req);
     const { quitarLike } = await import("@/server/services/likes");
 
     const parsed = ParamsSchema.safeParse(await params);
-    if (!parsed.success) return apiError("NOT_FOUND", MSG_LIKE_NO_DISPONIBLE, 404);
+    if (!parsed.success) return apiError("NOT_FOUND", t("esteVideoYa"), 404);
 
-    const limitado = await limitar(prisma, env.AUTH_SECRET, user.userId);
+    const limitado = await limitar(prisma, env.AUTH_SECRET, user.userId, t);
     if (limitado) return limitado;
 
-    return respuesta(await quitarLike(prisma, { userId: user.userId, videoId: parsed.data.id }));
+    return respuesta(await quitarLike(prisma, { userId: user.userId, videoId: parsed.data.id }), t);
   },
 );

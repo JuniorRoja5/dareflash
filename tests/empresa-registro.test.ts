@@ -21,6 +21,7 @@
  * o al DTO del dueño (rojo el de las claves).
  */
 import { contrasenaFalsa, falso } from "./helpers/valores-falsos";
+import { es } from "@/textos/es";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import type { PrismaClient } from "../src/generated/prisma/client";
@@ -207,9 +208,11 @@ describe("lo que no entra en la base de datos", () => {
   });
 
   it("ni web ni redes: no habría con qué verificar", async () => {
-    await expect(alta("a@b.test", { webUrl: null, redes: null })).rejects.toThrow(
-      /web o tus redes/i,
-    );
+    // La frase viaja como DATO (P5b3): la clave, y su texto en el diccionario.
+    await expect(alta("a@b.test", { webUrl: null, redes: null })).rejects.toMatchObject({
+      mensaje: { clave: "empresaWebORedes" },
+    });
+    expect(es.api.empresaWebORedes).toMatch(/web o tus redes/i);
     expect(await prisma.empresa.count()).toBe(0);
   });
 

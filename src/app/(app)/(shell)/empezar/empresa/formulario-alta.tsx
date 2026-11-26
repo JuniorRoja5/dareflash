@@ -17,8 +17,6 @@ import {
   EMPRESA_NOMBRE_MIN,
   EMPRESA_REDES_MAX,
   EMPRESA_WEB_MAX,
-  MSG_EMPRESA_WEB_O_REDES,
-  MSG_REVISA_CORREO_EMPRESA,
   type TipoCuentaEmpresa,
   type TipoNegocio,
   VALORES_TIPO_CUENTA_EMPRESA,
@@ -172,7 +170,7 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
     return (
       <Tarjeta className="p-5 lg:p-6" role="status">
         <p className="text-base font-semibold text-text">{t("recibido")}</p>
-        <p className="mt-2 max-w-prose text-sm text-text">{MSG_REVISA_CORREO_EMPRESA}</p>
+        <p className="mt-2 max-w-prose text-sm text-text">{t("revisaCorreo")}</p>
       </Tarjeta>
     );
   }
@@ -259,7 +257,7 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
         </div>
       </Bloque>
 
-      <Bloque titulo={t("bloqueContacto")} descripcion={MSG_EMPRESA_WEB_O_REDES}>
+      <Bloque titulo={t("bloqueContacto")} descripcion={t("webORedes")}>
         <Campo
           id="personaContacto"
           label={t("persona")}

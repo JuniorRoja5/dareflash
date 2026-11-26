@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk, depsRuta } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -28,13 +29,14 @@ const QuerySchema = z.object({
  * Component de `/feed`; este endpoint sirve las siguientes cuando el cliente se acerca al final.
  */
 export async function GET(req: Request) {
+  const t = await textosApi(req);
   const url = new URL(req.url);
   const parsed = QuerySchema.safeParse({
     cursor: url.searchParams.get("cursor") ?? undefined,
     limit: url.searchParams.get("limit") ?? undefined,
     desde: url.searchParams.get("desde") ?? undefined,
   });
-  if (!parsed.success) return apiError("BAD_REQUEST", "Parámetros de feed inválidos.", 400);
+  if (!parsed.success) return apiError("BAD_REQUEST", t("parametrosDeFeed"), 400);
 
   const { prisma } = await depsRuta();
   const { getCurrentUser } = await import("@/server/auth/current-user");
@@ -65,6 +67,6 @@ export async function GET(req: Request) {
     return apiOk({ items, nextCursor, piezas });
   } catch (e) {
     console.error("[api/feed] fallo construyendo el feed:", sanearError(e));
-    return apiError("FEED_FAILED", "No se pudo cargar el feed. Reintenta.", 502);
+    return apiError("FEED_FAILED", t("noSePudoCargar"), 502);
   }
 }

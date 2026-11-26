@@ -17,15 +17,9 @@
  *    la ruta se convierte en un oráculo para enumerar participaciones ocultas.
  */
 import { falso } from "./helpers/valores-falsos";
+import { es } from "@/textos/es";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  MSG_NO_DISPONIBLE,
-  MSG_VOTO_AUTOVOTO,
-  MSG_VOTO_RETO_CERRADO,
-  MSG_VOTO_SIN_VER,
-  MSG_VOTO_SIN_VOTO,
-} from "../src/config/constants";
 import type { ModerationStatus, PrismaClient } from "../src/generated/prisma/client";
 
 const APP_URL = "http://test.local";
@@ -221,7 +215,7 @@ describe("el gate de 'visto' manda", () => {
     const { res, body } = await votar(votante, sub);
 
     expect(res.status).toBe(409);
-    expect(body).toEqual({ error: { code: "SIN_VER", message: MSG_VOTO_SIN_VER } });
+    expect(body).toEqual({ error: { code: "SIN_VER", message: es.api.reproduceEsteVideo } });
     // No basta con que responda mal: no puede haber dejado rastro.
     expect(await prisma.vote.count()).toBe(0);
     expect((await votos(sub)).voteCount).toBe(0);
@@ -393,7 +387,7 @@ describe("rechazos", () => {
     const { res, body } = await votar(autor, sub);
 
     expect(res.status).toBe(409);
-    expect(body).toEqual({ error: { code: "AUTOVOTO", message: MSG_VOTO_AUTOVOTO } });
+    expect(body).toEqual({ error: { code: "AUTOVOTO", message: es.api.autovoto } });
     expect((await votos(sub)).voteCount).toBe(0);
   });
 
@@ -406,7 +400,7 @@ describe("rechazos", () => {
     const alVotar = await votar(votante, sub);
     expect(alVotar.res.status).toBe(409);
     expect(alVotar.body).toEqual({
-      error: { code: "RETO_CERRADO", message: MSG_VOTO_RETO_CERRADO },
+      error: { code: "RETO_CERRADO", message: es.api.retoCerradoVotos },
     });
 
     // Y un voto ya puesto no se puede retirar cuando el plazo cerró: los votos son el resultado.
@@ -429,7 +423,9 @@ describe("rechazos", () => {
     const conInexistente = await votar(votante, "no-existe-jamas");
 
     expect(conOculta.res.status).toBe(404);
-    expect(conOculta.body).toEqual({ error: { code: "NOT_FOUND", message: MSG_NO_DISPONIBLE } });
+    expect(conOculta.body).toEqual({
+      error: { code: "NOT_FOUND", message: es.api.videoNoDisponible },
+    });
     // Status, code Y texto: si cualquiera de los tres difiere, se puede enumerar lo oculto.
     expect(conInexistente.res.status).toBe(conOculta.res.status);
     expect(conInexistente.body).toEqual(conOculta.body);
@@ -483,7 +479,7 @@ describe("quitar el voto", () => {
     const { res, body } = await quitar(await crearUsuario(prisma), sub);
 
     expect(res.status).toBe(409);
-    expect(body).toEqual({ error: { code: "SIN_VOTO", message: MSG_VOTO_SIN_VOTO } });
+    expect(body).toEqual({ error: { code: "SIN_VOTO", message: es.api.sinVotoAqui } });
   });
 
   it("un id de OTRA participación no borra el voto que tienes puesto", async () => {

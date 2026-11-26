@@ -1,10 +1,12 @@
 import { z } from "zod";
 
 import { apiError, apiOk, clientIp, clientIpKey, rateLimitKey } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  const t = await textosApi(req);
   const { env } = await import("@/config/env");
   const { RATE_LIMITS } = await import("@/config/constants");
   const { prisma } = await import("@/server/db/client");
@@ -23,10 +25,10 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return apiError("BAD_REQUEST", "Cuerpo de la peticion invalido.", 400);
+    return apiError("BAD_REQUEST", t("cuerpoDeLa"), 400);
   }
   const parsed = schema.safeParse(body);
-  if (!parsed.success) return apiError("VALIDATION", "Datos invalidos.", 400);
+  if (!parsed.success) return apiError("VALIDATION", t("datosInvalidosSinTilde"), 400);
   const { email, password } = parsed.data;
 
   const acctKey = `login:acct:${rateLimitKey(env.AUTH_SECRET, email)}`;
@@ -41,7 +43,7 @@ export async function POST(req: Request) {
     ...RATE_LIMITS.LOGIN_PER_IP,
   });
   if (!perIp.allowed) {
-    return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
+    return apiError("RATE_LIMITED", t("demasiadosIntentosIntenta"), 429);
   }
 
   // Cubo POR CUENTA + verificacion, en un MISMO hueco del semaforo (Opcion A del hallazgo 2). Si
@@ -80,14 +82,14 @@ export async function POST(req: Request) {
           `[api] login: fallo al considerar el correo de desbloqueo: ${sanearError(e)}`,
         );
       });
-      return apiError("RATE_LIMITED", "Demasiados intentos. Intenta mas tarde.", 429);
+      return apiError("RATE_LIMITED", t("demasiadosIntentosIntenta"), 429);
     }
     const result = outcome.result;
     if (!result.ok) {
       if (result.reason === "EMAIL_NOT_VERIFIED") {
-        return apiError("EMAIL_NOT_VERIFIED", "Verifica tu email antes de iniciar sesion.", 403);
+        return apiError("EMAIL_NOT_VERIFIED", t("verificaTuEmail"), 403);
       }
-      return apiError("INVALID_CREDENTIALS", "Credenciales invalidas.", 401);
+      return apiError("INVALID_CREDENTIALS", t("credencialesInvalidas"), 401);
     }
 
     // Acierto: resetea el cubo de ESA cuenta (un usuario legitimo no acumula).
@@ -107,7 +109,7 @@ export async function POST(req: Request) {
     return apiOk({ ok: true, role: result.role, esCuentaEmpresa: result.esCuentaEmpresa });
   } catch (e) {
     if (esArgon2Sobrecargado(e)) {
-      return apiError("OVERLOADED", "Servicio ocupado, reintenta en unos segundos.", 503);
+      return apiError("OVERLOADED", t("servicioOcupadoReintenta"), 503);
     }
     throw e;
   }

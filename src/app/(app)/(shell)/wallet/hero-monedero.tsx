@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 import { ImportePremio } from "@/components/ui/importe-premio";
-import { MSG_RETIRADA_SIN_MINIMO, RETIRADA_MINIMA_CENTS } from "@/config/constants";
+import { RETIRADA_MINIMA_CENTS } from "@/config/constants";
 import { importeConMoneda } from "@/lib/dinero";
 import type { Idioma } from "@/lib/formato";
 import { textos } from "@/textos/servidor";
@@ -92,7 +92,7 @@ export async function HeroMonedero({
         {saldoCents === 0 ? (
           <p className="mt-4 max-w-prose text-sm text-text-dim">{t("sinGanar")}</p>
         ) : llegaAlMinimo ? null : (
-          <p className="mt-4 max-w-prose text-sm text-text-dim">{MSG_RETIRADA_SIN_MINIMO}</p>
+          <p className="mt-4 max-w-prose text-sm text-text-dim">{t("sinMinimo")}</p>
         )}
       </div>
     </section>

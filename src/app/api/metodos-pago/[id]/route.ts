@@ -3,6 +3,7 @@ import { z } from "zod";
 import { leerCuerpoMetodoPago, MENSAJE_METODO_PAGO } from "@/lib/metodo-pago-cuerpo";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk } from "@/server/http/api";
+import { frase, textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ const ParamsSchema = z.object({ id: z.string().min(1).max(191) });
  */
 export const PUT = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (req, { prisma }, { params }) => {
+    const t = await textosApi(req);
     const { AuthError, requireVerifiedUser } = await import("@/server/auth/rbac");
     const { reemplazarMetodoPago } = await import("@/server/services/metodos-pago");
 
@@ -28,16 +30,16 @@ export const PUT = mutatingRoute<{ params: Promise<{ id: string }> }>(
       userId = (await requireVerifiedUser()).userId;
     } catch (e) {
       if (e instanceof AuthError) {
-        return apiError("EMAIL_SIN_VERIFICAR", "Verifica tu correo antes de tocar el cobro.", 403);
+        return apiError("EMAIL_SIN_VERIFICAR", t("verificaTuCorreoAntesDe"), 403);
       }
       throw e;
     }
 
     const parsed = ParamsSchema.safeParse(await params);
-    if (!parsed.success) return apiError("NOT_FOUND", "Ese método ya no está.", 404);
+    if (!parsed.success) return apiError("NOT_FOUND", t("eseMetodoYa"), 404);
 
     const cuerpo = leerCuerpoMetodoPago(await req.json().catch(() => null));
-    if (!cuerpo.ok) return apiError(cuerpo.codigo, cuerpo.mensaje, 400);
+    if (!cuerpo.ok) return apiError(cuerpo.codigo, frase(t, cuerpo.mensaje), 400);
 
     const r = await reemplazarMetodoPago(prisma, {
       userId,
@@ -47,7 +49,7 @@ export const PUT = mutatingRoute<{ params: Promise<{ id: string }> }>(
     if (!r.ok) {
       return apiError(
         r.rechazo,
-        MENSAJE_METODO_PAGO[r.rechazo] ?? "No hemos podido guardar ese método.",
+        t(MENSAJE_METODO_PAGO[r.rechazo] ?? "noHemosPodidoGuardarMetodo"),
         409,
       );
     }
@@ -70,6 +72,7 @@ export const PUT = mutatingRoute<{ params: Promise<{ id: string }> }>(
  */
 export const DELETE = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (_req, { prisma }, { params }) => {
+    const t = await textosApi(_req);
     const { AuthError, requireVerifiedUser } = await import("@/server/auth/rbac");
     const { borrarMetodoPago } = await import("@/server/services/metodos-pago");
 
@@ -78,13 +81,13 @@ export const DELETE = mutatingRoute<{ params: Promise<{ id: string }> }>(
       userId = (await requireVerifiedUser()).userId;
     } catch (e) {
       if (e instanceof AuthError) {
-        return apiError("EMAIL_SIN_VERIFICAR", "Verifica tu correo antes de tocar el cobro.", 403);
+        return apiError("EMAIL_SIN_VERIFICAR", t("verificaTuCorreoAntesDe"), 403);
       }
       throw e;
     }
 
     const parsed = ParamsSchema.safeParse(await params);
-    if (!parsed.success) return apiError("NOT_FOUND", "Ese método ya no está.", 404);
+    if (!parsed.success) return apiError("NOT_FOUND", t("eseMetodoYa"), 404);
 
     await borrarMetodoPago(prisma, { userId, metodoId: parsed.data.id });
     return apiOk({ ok: true });

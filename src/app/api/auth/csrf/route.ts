@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { apiError } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -9,13 +10,14 @@ export const dynamic = "force-dynamic";
  * manda en `X-CSRF-Token` en las acciones con efectos. `Cache-Control: no-store`: un
  * token en el cuerpo de un GET no debe cachearlo ningun intermediario.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const t = await textosApi(req);
   const { env } = await import("@/config/env");
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const { issueCsrfToken } = await import("@/server/auth/csrf");
 
   const user = await getCurrentUser();
-  if (!user) return apiError("UNAUTHENTICATED", "No autenticado.", 401);
+  if (!user) return apiError("UNAUTHENTICATED", t("noAutenticado"), 401);
 
   const csrfToken = issueCsrfToken(env.AUTH_SECRET, user.sessionId);
   const res = NextResponse.json({ csrfToken });

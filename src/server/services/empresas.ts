@@ -21,6 +21,7 @@
  *
  * EL AVISO VA EN LA MISMA TRANSACCIÓN que el registro (ver `registrarEmpresa`).
  */
+import type { MensajeApi } from "@/textos/mensaje-api";
 import "server-only";
 
 import {
@@ -39,8 +40,6 @@ import {
   EMPRESA_NOTA_MAX,
   EMPRESA_REDES_MAX,
   EMPRESA_WEB_MAX,
-  MSG_EMPRESA_DATOS_INVALIDOS,
-  MSG_EMPRESA_WEB_O_REDES,
   MSG_MOTIVO_RECHAZO_EMPRESA,
   SOCIO_FUNDADOR_CREDITOS,
   TITULO_AVISO_EMPRESA_NUEVA,
@@ -76,9 +75,10 @@ import { requestEmailVerification } from "@/server/services/email-verification";
 export class EmpresaError extends Error {
   constructor(
     public readonly code: "DATOS_INVALIDOS",
-    message: string,
+    /** La frase como DATO (P5b3): la compone la ruta, en el idioma de quien se da de alta. */
+    public readonly mensaje: MensajeApi,
   ) {
-    super(message);
+    super(mensaje.clave);
     this.name = "EmpresaError";
   }
 }
@@ -172,24 +172,25 @@ function validarAlta(entrada: EntradaRegistro): {
 } {
   const nombre = entrada.nombre.trim();
   if (nombre.length < EMPRESA_NOMBRE_MIN || nombre.length > EMPRESA_NOMBRE_MAX) {
-    throw new EmpresaError(
-      "DATOS_INVALIDOS",
-      `El nombre tiene que tener entre ${EMPRESA_NOMBRE_MIN} y ${EMPRESA_NOMBRE_MAX} caracteres.`,
-    );
+    throw new EmpresaError("DATOS_INVALIDOS", {
+      clave: "empresaNombreLongitud",
+      params: { min: String(EMPRESA_NOMBRE_MIN), max: String(EMPRESA_NOMBRE_MAX) },
+    });
   }
   const personaContacto = entrada.personaContacto.trim();
   if (
     personaContacto.length < EMPRESA_CONTACTO_MIN ||
     personaContacto.length > EMPRESA_CONTACTO_MAX
   ) {
-    throw new EmpresaError("DATOS_INVALIDOS", MSG_EMPRESA_DATOS_INVALIDOS);
+    throw new EmpresaError("DATOS_INVALIDOS", { clave: "empresaDatosInvalidos" });
   }
   const paisIso = entrada.paisIso.trim().toUpperCase();
-  if (!esPaisIso(paisIso)) throw new EmpresaError("DATOS_INVALIDOS", MSG_EMPRESA_DATOS_INVALIDOS);
+  if (!esPaisIso(paisIso))
+    throw new EmpresaError("DATOS_INVALIDOS", { clave: "empresaDatosInvalidos" });
   // WEB O REDES, AL MENOS UNO. Es la regla que no cabe en el esquema (un CHECK que nadie ve) y la
   // que decide si el admin PUEDE verificar: sin ninguno de los dos no hay nada que comprobar.
   if (!entrada.webUrl?.trim() && !entrada.redes?.trim()) {
-    throw new EmpresaError("DATOS_INVALIDOS", MSG_EMPRESA_WEB_O_REDES);
+    throw new EmpresaError("DATOS_INVALIDOS", { clave: "empresaWebORedes" });
   }
   return { nombre, personaContacto, paisIso };
 }

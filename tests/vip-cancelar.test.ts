@@ -17,13 +17,9 @@
  * caso de la vencida, que NO se puede cancelar aunque su estado siga en ACTIVA).
  */
 import { falso } from "./helpers/valores-falsos";
+import { es } from "@/textos/es";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  MSG_VIP_NO_ERES,
-  MSG_VIP_PAGO_NO_DISPONIBLE,
-  MSG_VIP_YA_CANCELADA,
-} from "@/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
 
 // `vi.hoisted` corre ANTES que los imports: el helper de valores falsos se carga dentro.
@@ -135,7 +131,7 @@ describe("quién puede darse de baja", () => {
     expect(res.status).toBe(409);
     const cuerpo = await res.json();
     expect(cuerpo.error.code).toBe("NO_ERES_VIP");
-    expect(cuerpo.error.message).toBe(MSG_VIP_NO_ERES);
+    expect(cuerpo.error.message).toBe(es.api.noTienesNinguna);
     expect(H.update, "se ha llamado a Stripe por alguien sin suscripción").not.toHaveBeenCalled();
   });
 
@@ -201,7 +197,7 @@ describe("la baja de quien SÍ es VIP", () => {
     const res = await pedir();
 
     expect(res.status).toBe(200);
-    expect((await res.json()).mensaje).toBe(MSG_VIP_YA_CANCELADA);
+    expect((await res.json()).mensaje).toBe(es.api.vipYaCancelada);
     // Y NO se vuelve a llamar a Stripe por algo que ya está pedido.
     expect(H.update).not.toHaveBeenCalled();
   });
@@ -216,7 +212,7 @@ describe("cuando el raíl no está", () => {
 
     expect(res.status).toBe(503);
     const cuerpo = await res.json();
-    expect(cuerpo.error.message).toBe(MSG_VIP_PAGO_NO_DISPONIBLE);
+    expect(cuerpo.error.message).toBe(es.api.lasSuscripcionesNo);
     expect(JSON.stringify(cuerpo)).not.toMatch(/STRIPE|Stripe|sk_/);
   });
 

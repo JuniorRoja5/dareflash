@@ -1,5 +1,7 @@
 import "server-only";
 
+import { frase, textosApiEnCastellano, type TApi } from "@/server/http/textos-api";
+
 /**
  * LAS IMÁGENES DE UN RETO QUE LLEGAN EN UN FORMULARIO — sanear y guardar, en un solo sitio.
  *
@@ -34,6 +36,8 @@ export async function imagenDelFormulario(
   campo: string,
   prefijoError: string,
   limites: { maxBytes: number; maxLado: number },
+  /** La `t` de quien responde (P5b3). Por defecto, castellano: el panel no se traduce. */
+  t: TApi = textosApiEnCastellano(),
 ): Promise<ImagenSaneada> {
   const fichero = form.get(campo);
   if (!(fichero instanceof File) || fichero.size === 0) return { tipo: "ausente" };
@@ -52,7 +56,7 @@ export async function imagenDelFormulario(
       return {
         tipo: "error",
         code: `${prefijoError}_${e.motivo}`,
-        mensaje: e.message,
+        mensaje: frase(t, e.mensaje),
         status: e.motivo === "TAMANO" ? 413 : 400,
       };
     }
@@ -60,7 +64,7 @@ export async function imagenDelFormulario(
     return {
       tipo: "error",
       code: `${prefijoError}_ERROR`,
-      mensaje: "No hemos podido procesar la imagen. Prueba con otra.",
+      mensaje: t("noHemosPodidoProcesar"),
       status: 400,
     };
   }

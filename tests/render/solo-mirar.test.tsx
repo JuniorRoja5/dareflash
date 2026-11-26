@@ -37,7 +37,7 @@ vi.mock("next/link", async () => {
 
 import { FeedVertical } from "@/components/feed/feed-vertical";
 import { PieLegal } from "@/components/ui/pie-legal";
-import { ENLACE_PIE_EMPRESAS, MSG_EMPRESA_SOLO_MIRA } from "@/config/constants";
+import { ENLACE_PIE_EMPRESAS } from "@/config/constants";
 import type { PostFeed } from "@/server/services/feed";
 
 afterEach(cleanup);
@@ -128,7 +128,7 @@ describe("el feed, para quien solo mira", () => {
     );
     expect(cifras).toEqual(["7me gusta", "12votos"]);
     // En el hueco de la caja de comentar —panel de escritorio—, la línea.
-    expect(screen.getAllByText(MSG_EMPRESA_SOLO_MIRA).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(es.comentarios.soloMira).length).toBeGreaterThan(0);
   });
 
   it("SIN soloMirar, los controles están (el test no pasa por vacío)", async () => {
@@ -179,7 +179,7 @@ describe("cada página compartida saca la decisión de `soloMirar`", () => {
     const reto = leer("src", "app", "(app)", "(shell)", "retos", "[codigo]", "page.tsx");
     // El botón va DENTRO de la rama de quien participa.
     expect(reto).toMatch(
-      /\{soloMirar\(usuario\) \? \([\s\S]*?MSG_EMPRESA_SOLO_MIRA[\s\S]*?\) : \([\s\S]*?<BotonParticipar/,
+      /\{soloMirar\(usuario\) \? \([\s\S]*?textos\("comentarios"\)\)\("soloMira"\)[\s\S]*?\) : \([\s\S]*?<BotonParticipar/,
     );
     expect(reto).toMatch(/soloMirar=\{soloMirar\(usuario\)\}/);
     const rejilla = leer(

@@ -5,7 +5,6 @@ import { useCallback, useState, useTransition } from "react";
 
 import { useTextos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
-import { MSG_VIP_CANCELADA_OK, MSG_VIP_PAGO_NO_DISPONIBLE } from "@/config/constants";
 import { mensajeDe, postJsonCsrf } from "@/lib/cliente-http";
 
 /** Las cuatro caras del botón. `pedida` es terminal: lo que falta lo escribe el webhook. */
@@ -49,11 +48,11 @@ export function CancelarVip({ className = "" }: { className?: string }) {
     try {
       const r = await postJsonCsrf<{ mensaje?: string }>("/api/vip/cancelar", {});
       if (r.ok) {
-        setMensaje(typeof r.data.mensaje === "string" ? r.data.mensaje : MSG_VIP_CANCELADA_OK);
+        setMensaje(typeof r.data.mensaje === "string" ? r.data.mensaje : t("canceladaOk"));
         setFase("pedida");
         return;
       }
-      setError(mensajeDe(r.data) || MSG_VIP_PAGO_NO_DISPONIBLE);
+      setError(mensajeDe(r.data) || t("pagoNoDisponible"));
       setFase("reposo");
     } catch {
       setError(t("sinConexion"));

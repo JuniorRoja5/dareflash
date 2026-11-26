@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { apiError, apiOk, depsRuta } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -29,15 +30,16 @@ const ParamsSchema = z.object({ id: z.string().min(1).max(64) });
  * endpoint no relaja ese filtro, así que una participación retirada desaparece también de la paginación.
  */
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const t = await textosApi(req);
   const params = ParamsSchema.safeParse(await ctx.params);
-  if (!params.success) return apiError("NOT_FOUND", "Reto no disponible.", 404);
+  if (!params.success) return apiError("NOT_FOUND", t("retoNoDisponible"), 404);
 
   const url = new URL(req.url);
   const parsed = QuerySchema.safeParse({
     cursor: url.searchParams.get("cursor") ?? undefined,
     limit: url.searchParams.get("limit") ?? undefined,
   });
-  if (!parsed.success) return apiError("BAD_REQUEST", "Parámetros de página inválidos.", 400);
+  if (!parsed.success) return apiError("BAD_REQUEST", t("parametrosDePagina"), 400);
 
   const { prisma } = await depsRuta();
   const { getCurrentUser } = await import("@/server/auth/current-user");
@@ -52,7 +54,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       where: { id: params.data.id, status: { not: "DRAFT" } },
       select: { id: true, title: true, category: true },
     });
-    if (!reto) return apiError("NOT_FOUND", "Reto no disponible.", 404);
+    if (!reto) return apiError("NOT_FOUND", t("retoNoDisponible"), 404);
 
     // Sigue siendo PÚBLICO: sin sesión esto es `null`, `miVoto` sale `null` y no se consulta el voto.
     // Con sesión, las páginas SIGUIENTES traen el voto propio igual que la primera — si no, el botón
@@ -93,6 +95,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     });
   } catch (e) {
     console.error("[api/retos/participaciones] fallo paginando:", sanearError(e));
-    return apiError("PARTICIPACIONES_FAILED", "No se pudieron cargar más participaciones.", 502);
+    return apiError("PARTICIPACIONES_FAILED", t("noSePudieronCargarMas"), 502);
   }
 }

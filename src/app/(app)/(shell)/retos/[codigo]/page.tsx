@@ -3,14 +3,13 @@ import { redirigirPermanente } from "@/server/redirigir";
 
 import { Marcador } from "@/components/ui/marcador";
 import { PildoraCategoria } from "@/components/ui/pildora";
-import { MSG_EMPRESA_SOLO_MIRA } from "@/config/constants";
 import { soloMirar } from "@/lib/solo-mirar";
 
 import { ChapaExclusivo } from "../chapa-exclusivo";
 import { MarcaSponsor } from "../marca-sponsor";
 import { TextosProvider } from "@/components/textos-provider";
 import { nombreDeCategoria } from "@/textos/categoria";
-import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
+import { fraseDeLaPeticion, textos, textosClienteDeLaPeticion } from "@/textos/servidor";
 import { BotonParticipar } from "./participar";
 import { ParticipacionesReto, type ParticipacionUI } from "./participaciones-reto";
 
@@ -88,7 +87,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
   const { mensajeNivelInsuficiente, puedeParticiparPorNivel } = await import("@/lib/nivel-reto");
   const avisoNivel =
     puntosMios && !puedeParticiparPorNivel(puntosMios.pointsBalance, reto.nivelMinimo)
-      ? mensajeNivelInsuficiente(reto.nivelMinimo)
+      ? await fraseDeLaPeticion(mensajeNivelInsuficiente(reto.nivelMinimo))
       : null;
 
   // EL OTRO CANDADO: reto exclusivo de VIP Mythic. Quién es VIP lo dice el CHOKEPOINT, aquí y en el
@@ -232,7 +231,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
                   y apagada seguiría ocupando su sitio sin hacer nada (MARCA.md, una por pantalla). */}
                 {soloMirar(usuario) ? (
                   <p data-solo-mirar className="text-sm text-text-dim">
-                    {MSG_EMPRESA_SOLO_MIRA}
+                    {(await textos("comentarios"))("soloMira")}
                   </p>
                 ) : (
                   <BotonParticipar

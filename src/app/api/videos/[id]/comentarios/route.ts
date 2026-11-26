@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { MSG_NO_DISPONIBLE, RATE_LIMITS } from "@/config/constants";
+import { RATE_LIMITS } from "@/config/constants";
 import { mutatingRoute } from "@/server/auth/mutating-route";
 import { apiError, apiOk, rateLimitKey } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +23,12 @@ const QuerySchema = z.object({ cursor: z.string().min(1).max(128).optional() });
  * 404 que uno que no existe.
  */
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const t = await textosApi(req);
   const params = ParamsSchema.safeParse(await ctx.params);
-  if (!params.success) return apiError("NOT_FOUND", MSG_NO_DISPONIBLE, 404);
+  if (!params.success) return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
   const url = new URL(req.url);
   const q = QuerySchema.safeParse({ cursor: url.searchParams.get("cursor") ?? undefined });
-  if (!q.success) return apiError("BAD_REQUEST", "Parámetros inválidos.", 400);
+  if (!q.success) return apiError("BAD_REQUEST", t("parametrosInvalidos"), 400);
 
   const { prisma } = await import("@/server/db/client");
   const { getCurrentUser } = await import("@/server/auth/current-user");
@@ -37,7 +39,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     cursor: q.data.cursor ?? null,
     userId: usuario?.userId ?? null,
   });
-  if (!pagina) return apiError("NOT_FOUND", MSG_NO_DISPONIBLE, 404);
+  if (!pagina) return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
 
   const res = NextResponse.json(pagina);
   res.headers.set("Cache-Control", "no-store");
@@ -51,21 +53,22 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
  */
 export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
   async (req, { user, env, prisma }, { params }) => {
+    const t = await textosApi(req);
     const { rateLimit } = await import("@/server/security/rate-limit");
     const { publicarComentario } = await import("@/server/services/comentarios");
 
     const parsed = ParamsSchema.safeParse(await params);
-    if (!parsed.success) return apiError("NOT_FOUND", MSG_NO_DISPONIBLE, 404);
+    if (!parsed.success) return apiError("NOT_FOUND", t("videoNoDisponible"), 404);
 
     const cuerpo = CuerpoSchema.safeParse(await req.json().catch(() => null));
-    if (!cuerpo.success) return apiError("VALIDATION", "Escribe el comentario.", 400);
+    if (!cuerpo.success) return apiError("VALIDATION", t("escribeElComentario"), 400);
 
     const rl = await rateLimit(prisma, {
       key: `comentario:user:${rateLimitKey(env.AUTH_SECRET, user.userId)}`,
       ...RATE_LIMITS.COMENTAR_PER_USER,
     });
     if (!rl.allowed) {
-      return apiError("RATE_LIMITED", "Estás comentando muy seguido. Espera un momento.", 429);
+      return apiError("RATE_LIMITED", t("estasComentandoMuy"), 429);
     }
 
     const r = await publicarComentario(prisma, {
@@ -75,8 +78,8 @@ export const POST = mutatingRoute<{ params: Promise<{ id: string }> }>(
     });
     if (r.estado === "rechazado") {
       return r.motivo === "NO_DISPONIBLE"
-        ? apiError("NOT_FOUND", MSG_NO_DISPONIBLE, 404)
-        : apiError("TEXTO_INVALIDO", "El comentario no puede estar vacío ni ser tan largo.", 400);
+        ? apiError("NOT_FOUND", t("videoNoDisponible"), 404)
+        : apiError("TEXTO_INVALIDO", t("elComentarioNo"), 400);
     }
     return apiOk({ comentario: r.comentario, comentarios: r.comentarios }, 201);
   },

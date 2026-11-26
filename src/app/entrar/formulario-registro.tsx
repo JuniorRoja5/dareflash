@@ -6,12 +6,7 @@ import { type FormEvent, useState } from "react";
 import { useTextos, useTextosRicos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
-import {
-  CTA_NEGOCIO,
-  MSG_EDAD_MINIMA,
-  MSG_REVISA_CORREO_REGISTRO,
-  PARAM_REFERIDO,
-} from "@/config/constants";
+import { CTA_NEGOCIO, PARAM_REFERIDO } from "@/config/constants";
 import { declaraEdadMinima, leerFechaNacimiento } from "@/lib/edad";
 import { postJson } from "@/lib/cliente-http";
 import { mensajeError, MSG_REGISTRO } from "@/lib/mensajes-error";
@@ -38,12 +33,12 @@ type Estado = "idle" | "enviando" | "hecho";
  * valores incompletos mientras se teclea, y soltar "revisa tu fecha" en cada pulsación sería ruido.
  * Lo único que se adelanta es lo útil: que esa fecha no llega a la edad mínima.
  */
-function avisoDeEdad(valor: string): string | null {
+function avisoDeEdad(valor: string, aviso: string): string | null {
   if (!valor) return null;
   const ahora = new Date();
   const nacimiento = leerFechaNacimiento(valor, ahora);
   if (!nacimiento) return null;
-  return declaraEdadMinima(nacimiento, ahora) ? null : MSG_EDAD_MINIMA;
+  return declaraEdadMinima(nacimiento, ahora) ? null : aviso;
 }
 
 export function FormularioRegistro() {
@@ -71,7 +66,7 @@ export function FormularioRegistro() {
   // un segundo juez que puede discrepar — y el que discrepa en silencio es siempre el del cliente.
   // Mientras la fecha está a medias (el `type="date"` va dando valores incompletos) no se dice nada:
   // avisar a cada tecla de que "la fecha no vale" es ruido, no ayuda.
-  const avisoEdad = avisoDeEdad(nacimiento);
+  const avisoEdad = avisoDeEdad(nacimiento, t("edadMinima"));
 
   async function onSubmit(e: FormEvent): Promise<void> {
     e.preventDefault();
@@ -100,14 +95,14 @@ export function FormularioRegistro() {
   // ÉXITO: mensaje uniforme (no revela si el correo ya tenía cuenta) Y CIERTO EN LOS DOS CASOS.
   // Antes decía "te hemos enviado un enlace de verificación" también cuando el correo ya tenía
   // cuenta y no habíamos mandado nada. Ahora siempre sale un mensaje (verificación o «ya tienes
-  // cuenta») y la frase dice solo eso. Ver `MSG_REVISA_CORREO_REGISTRO`.
+  // cuenta») y la frase dice solo eso. Ver `registro.revisaCorreo`.
   if (estado === "hecho") {
     return (
       <div
         role="status"
         className="rounded-sm border border-line bg-surface/60 p-4 text-sm text-text"
       >
-        {MSG_REVISA_CORREO_REGISTRO}
+        {t("revisaCorreo")}
       </div>
     );
   }
