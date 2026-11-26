@@ -23,7 +23,10 @@ import path from "node:path";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { MSG_EMPRESA_CORREO_NUEVO } from "../src/config/constants";
+import { MARCA } from "../src/config/marca";
 import type { SessionUser } from "../src/server/auth/session";
+import { es } from "../src/textos/es";
 
 const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
@@ -142,7 +145,9 @@ describe("el formulario del alta", () => {
   it("explica ANTES de intentarlo que hace falta un correo nuevo", () => {
     // En el formulario y no en la respuesta: contestar «ese correo ya existe» sería un oráculo de
     // direcciones registradas, que es lo que el registro de participante evita a propósito.
-    expect(fuente()).toContain("MSG_EMPRESA_CORREO_NUEVO");
+    // Desde la P5b2b, del diccionario; y dice lo mismo que la constante que citan la API y el servicio.
+    expect(fuente()).toContain('descripcion={t("correoNuevo")}');
+    expect(es.altaFormulario.correoNuevo.replace("{marca}", MARCA)).toBe(MSG_EMPRESA_CORREO_NUEVO);
   });
 
   it("no navega al terminar: el correo está sin verificar, así que no hay sesión que llevar", () => {

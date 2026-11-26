@@ -1136,6 +1136,13 @@ export const es = conMarcasConocidas({
     fiscalPais: "País que la emite",
     sinIndicar: "Sin indicar",
     bloqueAcceso: "Acceso",
+    /**
+     * POR QUÉ HACE FALTA UN CORREO NUEVO, contado ANTES de intentarlo (no en la respuesta: eso sería un
+     * oráculo de direcciones registradas). `MSG_EMPRESA_CORREO_NUEVO` lo documenta para la API y el
+     * servicio; un test exige que digan lo mismo.
+     */
+    correoNuevo:
+      "Usa un correo que no tenga ya cuenta en {marca}: una cuenta de empresa no participa, así que no se puede convertir una cuenta de participante en una.",
     correo: "Correo",
     etiquetaClave: "Contraseña",
     /** UNA frase con el enlace dentro. */

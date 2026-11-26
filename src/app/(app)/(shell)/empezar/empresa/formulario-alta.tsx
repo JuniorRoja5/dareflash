@@ -17,7 +17,6 @@ import {
   EMPRESA_NOMBRE_MIN,
   EMPRESA_REDES_MAX,
   EMPRESA_WEB_MAX,
-  MSG_EMPRESA_CORREO_NUEVO,
   MSG_EMPRESA_WEB_O_REDES,
   MSG_REVISA_CORREO_EMPRESA,
   type TipoCuentaEmpresa,
@@ -74,7 +73,7 @@ function Selector({
  * ALTA DE EMPRESA — la interfaz de `POST /api/empresa`, que crea LA CUENTA Y LA EMPRESA juntas.
  *
  * NO CONVIERTE UNA CUENTA EXISTENTE, y el formulario lo dice en el bloque «Acceso», antes de que nadie
- * escriba el correo (`MSG_EMPRESA_CORREO_NUEVO`). Decirlo aquí y no en la respuesta no es una
+ * escriba el correo (`altaFormulario.correoNuevo`). Decirlo aquí y no en la respuesta no es una
  * preferencia de copy: contestar «ese correo ya tiene cuenta» convertiría el alta en un oráculo que
  * confirma qué direcciones existen, que es justo lo que el registro de participante se cuida de no
  * abrir.
@@ -321,7 +320,7 @@ export function FormularioAlta({ paises }: { paises: readonly PaisParaElegir[] }
         ) : null}
       </Bloque>
 
-      <Bloque titulo={t("bloqueAcceso")} descripcion={MSG_EMPRESA_CORREO_NUEVO}>
+      <Bloque titulo={t("bloqueAcceso")} descripcion={t("correoNuevo")}>
         <Campo
           id="email"
           label={t("correo")}
