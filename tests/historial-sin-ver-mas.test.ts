@@ -29,8 +29,9 @@ const RAIZ = path.resolve(__dirname, "..");
 /** Los que acumulan a propósito, y por qué NO son el historial de una persona. */
 const ACUMULAN_Y_NO_SON_HISTORIAL: Record<string, string> = {
   "src/app/(app)/(shell)/buscar/buscar-cliente.tsx": "resultados de una búsqueda",
+  // DECISIÓN de Junior (26 nov): la galería se queda con «Ver más».
   "src/app/(app)/(shell)/perfil/rejilla-videos.tsx":
-    "la galería de vídeos de un perfil (también el ajeno): se explora, no se audita",
+    "la galería de vídeos de un perfil es una galería, no un historial",
   "src/app/(app)/(shell)/ranking/ranking-vistas.tsx": "la clasificación pública",
   "src/app/(app)/(shell)/retos/feed-retos.tsx": "el catálogo público de retos cerrados",
   "src/app/(app)/(shell)/retos/[codigo]/participaciones-reto.tsx":
