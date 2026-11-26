@@ -1,0 +1,1075 @@
+{
+  "src/app/api/auth/change-password/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Cuerpo de la peticion invalido.",
+      "INVALID_CREDENTIALS → La contrasena actual no es correcta.",
+      "OVERLOADED → Servicio ocupado, reintenta en unos segundos.",
+      "RATE_LIMITED → Demasiados intentos. Intenta mas tarde.",
+      "VALIDATION → Datos invalidos.",
+      "VALIDATION → ‹veredicto.mensaje›"
+    ],
+    "frases": [
+      "Cuerpo de la peticion invalido.",
+      "Datos invalidos.",
+      "Demasiados intentos. Intenta mas tarde.",
+      "La contrasena actual no es correcta.",
+      "Servicio ocupado, reintenta en unos segundos.",
+      "changepw:user:{…}"
+    ]
+  },
+  "src/app/api/auth/confirmar-email/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Cuerpo de la peticion invalido.",
+      "OCUPADA → Esa direccion ya no esta disponible.",
+      "TOKEN_INVALIDO → Este enlace ya no es valido. Pide el cambio otra vez.",
+      "VALIDATION → Falta el token."
+    ],
+    "frases": [
+      "Correo actualizado. Vuelve a iniciar sesion.",
+      "Cuerpo de la peticion invalido.",
+      "Esa direccion ya no esta disponible.",
+      "Este enlace ya no es valido. Pide el cambio otra vez.",
+      "Falta el token."
+    ]
+  },
+  "src/app/api/auth/csrf/route.ts": {
+    "pares": ["UNAUTHENTICATED → No autenticado."],
+    "frases": ["No autenticado."]
+  },
+  "src/app/api/auth/forgot-password/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Cuerpo de la peticion invalido.",
+      "RATE_LIMITED → Demasiados intentos. Intenta mas tarde.",
+      "VALIDATION → Datos invalidos."
+    ],
+    "frases": [
+      "Cuerpo de la peticion invalido.",
+      "Datos invalidos.",
+      "Demasiados intentos. Intenta mas tarde.",
+      "Si esa cuenta existe, te hemos enviado un enlace para restablecer la contrasena.",
+      "forgot:email:{…}",
+      "forgot:ip:{…}"
+    ]
+  },
+  "src/app/api/auth/login/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Cuerpo de la peticion invalido.",
+      "EMAIL_NOT_VERIFIED → Verifica tu email antes de iniciar sesion.",
+      "INVALID_CREDENTIALS → Credenciales invalidas.",
+      "OVERLOADED → Servicio ocupado, reintenta en unos segundos.",
+      "RATE_LIMITED → Demasiados intentos. Intenta mas tarde.",
+      "RATE_LIMITED → Demasiados intentos. Intenta mas tarde.",
+      "VALIDATION → Datos invalidos."
+    ],
+    "frases": [
+      "Credenciales invalidas.",
+      "Cuerpo de la peticion invalido.",
+      "Datos invalidos.",
+      "Demasiados intentos. Intenta mas tarde.",
+      "Servicio ocupado, reintenta en unos segundos.",
+      "Verifica tu email antes de iniciar sesion.",
+      "login:acct:{…}",
+      "login:ip:{…}",
+      "unlock:acct:{…}",
+      "unlock:ip:{…}"
+    ]
+  },
+  "src/app/api/auth/logout/route.ts": {
+    "pares": [],
+    "frases": []
+  },
+  "src/app/api/auth/register/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Cuerpo de la peticion invalido.",
+      "EDAD_MINIMA → Tienes que ser mayor de edad para registrarte.",
+      "OVERLOADED → Servicio ocupado, reintenta en unos segundos.",
+      "RATE_LIMITED → Demasiados intentos. Intenta mas tarde.",
+      "RATE_LIMITED → Demasiados intentos. Intenta mas tarde.",
+      "TERMINOS → Tienes que aceptar los términos para registrarte.",
+      "VALIDATION → Datos de registro invalidos.",
+      "VALIDATION → Revisa tu fecha de nacimiento.",
+      "VALIDATION → ‹veredicto.mensaje›"
+    ],
+    "frases": [
+      "Cuerpo de la peticion invalido.",
+      "Datos de registro invalidos.",
+      "Demasiados intentos. Intenta mas tarde.",
+      "Servicio ocupado, reintenta en unos segundos.",
+      "register:email:{…}",
+      "register:ip:{…}"
+    ]
+  },
+  "src/app/api/auth/resend-verification/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Cuerpo de la peticion invalido.",
+      "RATE_LIMITED → Demasiados intentos. Intenta mas tarde.",
+      "VALIDATION → Datos invalidos."
+    ],
+    "frases": [
+      "Cuerpo de la peticion invalido.",
+      "Datos invalidos.",
+      "Demasiados intentos. Intenta mas tarde.",
+      "Si corresponde, te hemos reenviado el correo de verificacion.",
+      "resend:email:{…}",
+      "resend:ip:{…}"
+    ]
+  },
+  "src/app/api/auth/reset-password/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Cuerpo de la peticion invalido.",
+      "INVALID_TOKEN → El enlace para restablecer la contrasena es invalido o ha caducado.",
+      "OVERLOADED → Servicio ocupado, reintenta en unos segundos.",
+      "VALIDATION → Revisa el enlace y la contrasena.",
+      "VALIDATION → ‹veredicto.mensaje›"
+    ],
+    "frases": [
+      "Contrasena actualizada. Ya puedes iniciar sesion con la nueva.",
+      "Cuerpo de la peticion invalido.",
+      "El enlace para restablecer la contrasena es invalido o ha caducado.",
+      "Revisa el enlace y la contrasena.",
+      "Servicio ocupado, reintenta en unos segundos."
+    ]
+  },
+  "src/app/api/auth/unlock/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Cuerpo de la peticion invalido.",
+      "INVALID_TOKEN → El enlace de desbloqueo es invalido o ha caducado.",
+      "VALIDATION → Falta el token."
+    ],
+    "frases": [
+      "Cuenta reactivada. Ya puedes intentar iniciar sesion de nuevo.",
+      "Cuerpo de la peticion invalido.",
+      "El enlace de desbloqueo es invalido o ha caducado.",
+      "Falta el token."
+    ]
+  },
+  "src/app/api/auth/verify/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Cuerpo de la peticion invalido.",
+      "INVALID_TOKEN → El enlace de verificacion es invalido o ha caducado.",
+      "VALIDATION → Falta el token."
+    ],
+    "frases": [
+      "Cuenta verificada. Ya puedes iniciar sesion.",
+      "Cuerpo de la peticion invalido.",
+      "El enlace de verificacion es invalido o ha caducado.",
+      "Falta el token."
+    ]
+  },
+  "src/app/api/boost/activar/route.ts": {
+    "pares": [
+      "EMAIL_SIN_VERIFICAR → Verifica tu correo para poder destacar tu perfil.",
+      "VALIDATION → No hemos podido procesar la petición."
+    ],
+    "frases": ["No hemos podido procesar la petición."]
+  },
+  "src/app/api/boost/checkout/route.ts": {
+    "pares": [
+      "EMAIL_SIN_VERIFICAR → Verifica tu correo para poder comprar.",
+      "PAGO_NO_DISPONIBLE → Los pagos no están disponibles ahora mismo.",
+      "RATE_LIMITED → Demasiados intentos. Espera un momento.",
+      "VALIDATION → Elige un paquete válido.",
+      "‹porConfig ? \"PAGO_NO_CONFIGURADO\" : \"PAGO_NO_DISPONIBLE\"› → Los pagos no están disponibles ahora mismo."
+    ],
+    "frases": [
+      "Demasiados intentos. Espera un momento.",
+      "Elige un paquete válido.",
+      "boost:checkout:{…}",
+      "{…} Boost{…}"
+    ]
+  },
+  "src/app/api/boost/webhook/route.ts": {
+    "pares": [
+      "ERROR → No se pudo procesar.",
+      "FIRMA_INVALIDA → Firma no válida.",
+      "PAGO_NO_CONFIGURADO → Pagos no disponibles."
+    ],
+    "frases": ["Firma no válida.", "No se pudo procesar.", "Pagos no disponibles."]
+  },
+  "src/app/api/buscar/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Búsqueda inválida. Escribe al menos 2 caracteres y elige un tipo.",
+      "BUSCAR_FAILED → No hemos podido buscar ahora mismo. Reinténtalo.",
+      "RATE_LIMITED → Demasiadas búsquedas seguidas. Espera un momento."
+    ],
+    "frases": [
+      "Búsqueda inválida. Escribe al menos 2 caracteres y elige un tipo.",
+      "Demasiadas búsquedas seguidas. Espera un momento.",
+      "Escribe al menos 2 caracteres.",
+      "No hemos podido buscar ahora mismo. Reinténtalo.",
+      "buscar:ip:{…}",
+      "buscar:{…}:{…}:{…}:{…}:{…}"
+    ]
+  },
+  "src/app/api/comentarios/[id]/route.ts": {
+    "pares": [
+      "NOT_FOUND → Vídeo no disponible.",
+      "NOT_FOUND → Vídeo no disponible.",
+      "NOT_FOUND → Vídeo no disponible.",
+      "NOT_FOUND → Vídeo no disponible.",
+      "RATE_LIMITED → Demasiadas peticiones. Espera un momento."
+    ],
+    "frases": ["Demasiadas peticiones. Espera un momento.", "comentario:user:{…}"]
+  },
+  "src/app/api/denuncias/route.ts": {
+    "pares": [
+      "DENUNCIA_PROPIA → No puedes denunciar tu propio contenido.",
+      "EMAIL_SIN_VERIFICAR → Verifica tu correo para poder denunciar.",
+      "NOT_FOUND → Este contenido ya no está disponible.",
+      "RATE_LIMITED → Estás denunciando muy seguido. Espera un momento.",
+      "VALIDATION → Elige un motivo para denunciar."
+    ],
+    "frases": [
+      "Elige un motivo para denunciar.",
+      "Estás denunciando muy seguido. Espera un momento.",
+      "denuncia:user:{…}"
+    ]
+  },
+  "src/app/api/empresa/creditos/[id]/recibo/route.ts": {
+    "pares": ["NOT_FOUND → No encontrado.", "NOT_FOUND → No encontrado."],
+    "frases": ["No encontrado."]
+  },
+  "src/app/api/empresa/creditos/checkout/route.ts": {
+    "pares": [
+      "EMAIL_NOT_VERIFIED → Confirma tu correo para comprar créditos.",
+      "EMPRESA_NO_VERIFICADA → Podrás comprar créditos en cuanto verifiquemos tu empresa.",
+      "NOT_FOUND → No encontrado.",
+      "PAGO_NO_DISPONIBLE → La compra de créditos todavía no está disponible. Mientras tanto, los créditos llegan como regalo de Socio Fundador o del equipo de RevolFlash.",
+      "RATE_LIMITED → Demasiados intentos. Espera un momento.",
+      "VALIDATION → Elige un paquete válido.",
+      "‹porConfig ? \"PAGO_NO_CONFIGURADO\" : \"PAGO_NO_DISPONIBLE\"› → La compra de créditos todavía no está disponible. Mientras tanto, los créditos llegan como regalo de Socio Fundador o del equipo de RevolFlash."
+    ],
+    "frases": [
+      "Confirma tu correo para comprar créditos.",
+      "Demasiados intentos. Espera un momento.",
+      "Elige un paquete válido.",
+      "No encontrado.",
+      "creditos:checkout:{…}",
+      "{…} créditos de publicidad"
+    ]
+  },
+  "src/app/api/empresa/creditos/webhook/route.ts": {
+    "pares": [
+      "ERROR → No se pudo procesar.",
+      "FIRMA_INVALIDA → Firma no válida.",
+      "PAGO_NO_CONFIGURADO → Pagos no disponibles."
+    ],
+    "frases": ["Firma no válida.", "No se pudo procesar.", "Pagos no disponibles."]
+  },
+  "src/app/api/empresa/publicidad/[id]/route.ts": {
+    "pares": [
+      "EMAIL_NOT_VERIFIED → Confirma tu correo para gestionar campañas.",
+      "NOT_FOUND → Esa campaña no existe.",
+      "NOT_FOUND → Esa campaña no existe.",
+      "NOT_FOUND → No encontrado.",
+      "NOT_FOUND → No hay ningún borrador con ese identificador.",
+      "RATE_LIMITED → Demasiadas acciones seguidas. Espera un momento.",
+      "VALIDATION → No hemos podido procesar la petición.",
+      "‹e.code› → ‹e.message›"
+    ],
+    "frases": [
+      "Confirma tu correo para gestionar campañas.",
+      "Demasiadas acciones seguidas. Espera un momento.",
+      "Esa campaña no existe.",
+      "Esa zona tiene todas sus plazas ocupadas en los próximos días que se pueden reservar.",
+      "Esa zona ya tiene todas sus plazas ocupadas en esas fechas.",
+      "No encontrado.",
+      "No hay ningún borrador con ese identificador.",
+      "No hemos podido procesar la petición.",
+      "accionpublicidad:user:{…}"
+    ]
+  },
+  "src/app/api/empresa/publicidad/route.ts": {
+    "pares": [
+      "BAD_REQUEST → No hemos podido leer los datos. Inténtalo de nuevo.",
+      "EMAIL_NOT_VERIFIED → Confirma tu correo para crear campañas.",
+      "IMAGEN_FALTA → Sube la imagen de la campaña.",
+      "IMAGEN_NO_GUARDADA → No hemos podido guardar la imagen. Inténtalo de nuevo en un momento.",
+      "NOT_FOUND → No encontrado.",
+      "RATE_LIMITED → Has creado muchas campañas seguidas. Espera un momento.",
+      "VALIDATION → Revisa los datos de la campaña.",
+      "VALIDATION → ‹parsed.error.issues[0]?.message›",
+      "‹e.code› → ‹e.message›",
+      "‹imagen.code› → ‹imagen.mensaje›"
+    ],
+    "frases": [
+      "Confirma tu correo para crear campañas.",
+      "Has creado muchas campañas seguidas. Espera un momento.",
+      "No encontrado.",
+      "No hemos podido guardar la imagen. Inténtalo de nuevo en un momento.",
+      "No hemos podido leer los datos. Inténtalo de nuevo.",
+      "Revisa los datos de la campaña.",
+      "Sube la imagen de la campaña.",
+      "crearpublicidad:user:{…}"
+    ]
+  },
+  "src/app/api/empresa/retos/route.ts": {
+    "pares": [
+      "BAD_REQUEST → No hemos podido leer los datos. Inténtalo de nuevo.",
+      "EMAIL_NOT_VERIFIED → Confirma tu correo para proponer retos.",
+      "NOT_FOUND → No encontrado.",
+      "RATE_LIMITED → Has enviado muchas propuestas seguidas. Espera un momento.",
+      "VALIDATION → Revisa los datos del reto.",
+      "VALIDATION → ‹parsed.error.issues[0]?.message›",
+      "‹e.code› → ‹e.message›",
+      "‹logo.code› → ‹logo.mensaje›"
+    ],
+    "frases": [
+      "Confirma tu correo para proponer retos.",
+      "Has enviado muchas propuestas seguidas. Espera un momento.",
+      "Hemos recibido tu propuesta, pero no pudimos guardar el logo.",
+      "No encontrado.",
+      "No hemos podido leer los datos. Inténtalo de nuevo.",
+      "Revisa los datos del reto.",
+      "proponerreto:user:{…}"
+    ]
+  },
+  "src/app/api/empresa/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Cuerpo de la peticion invalido.",
+      "OVERLOADED → Servicio ocupado, reintenta en unos segundos.",
+      "RATE_LIMITED → Demasiados intentos. Intenta mas tarde.",
+      "RATE_LIMITED → Demasiados intentos. Intenta mas tarde.",
+      "TERMINOS → Tienes que aceptar los términos para registrarte.",
+      "VALIDATION → Revisa los datos: faltan el nombre, el país o la persona de contacto, o la web no es una dirección válida.",
+      "VALIDATION → ‹e.message›",
+      "VALIDATION → ‹veredicto.mensaje›"
+    ],
+    "frases": [
+      "Cuerpo de la peticion invalido.",
+      "Demasiados intentos. Intenta mas tarde.",
+      "Servicio ocupado, reintenta en unos segundos.",
+      "register:email:{…}",
+      "register:ip:{…}"
+    ]
+  },
+  "src/app/api/feed/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Parámetros de feed inválidos.",
+      "FEED_FAILED → No se pudo cargar el feed. Reintenta."
+    ],
+    "frases": ["No se pudo cargar el feed. Reintenta.", "Parámetros de feed inválidos."]
+  },
+  "src/app/api/health/route.ts": {
+    "pares": [],
+    "frases": []
+  },
+  "src/app/api/metodos-pago/[id]/route.ts": {
+    "pares": [
+      "EMAIL_SIN_VERIFICAR → Verifica tu correo antes de tocar el cobro.",
+      "EMAIL_SIN_VERIFICAR → Verifica tu correo antes de tocar el cobro.",
+      "NOT_FOUND → Ese método ya no está.",
+      "NOT_FOUND → Ese método ya no está.",
+      "‹cuerpo.codigo› → ‹cuerpo.mensaje›",
+      "‹r.rechazo› → No hemos podido guardar ese método.",
+      "‹r.rechazo› → ‹MENSAJE_METODO_PAGO[r.rechazo]›"
+    ],
+    "frases": [
+      "Ese método ya no está.",
+      "No hemos podido guardar ese método.",
+      "Verifica tu correo antes de tocar el cobro."
+    ]
+  },
+  "src/app/api/metodos-pago/route.ts": {
+    "pares": [
+      "EMAIL_SIN_VERIFICAR → Verifica tu correo antes de configurar el cobro.",
+      "‹cuerpo.codigo› → ‹cuerpo.mensaje›",
+      "‹r.rechazo› → No hemos podido guardar ese método.",
+      "‹r.rechazo› → ‹MENSAJE_METODO_PAGO[r.rechazo]›"
+    ],
+    "frases": [
+      "No hemos podido guardar ese método.",
+      "Verifica tu correo antes de configurar el cobro."
+    ]
+  },
+  "src/app/api/notificaciones/leidas/route.ts": {
+    "pares": [
+      "BAD_REQUEST → No hemos podido leer la petición.",
+      "RATE_LIMITED → Demasiadas peticiones. Inténtalo en un momento.",
+      "VALIDATION → Datos inválidos."
+    ],
+    "frases": [
+      "Datos inválidos.",
+      "Demasiadas peticiones. Inténtalo en un momento.",
+      "No hemos podido leer la petición.",
+      "notifleer:user:{…}"
+    ]
+  },
+  "src/app/api/notificaciones/no-leidas/route.ts": {
+    "pares": ["UNAUTHENTICATED → Inicia sesión para ver tus avisos."],
+    "frases": ["Inicia sesión para ver tus avisos."]
+  },
+  "src/app/api/notificaciones/route.ts": {
+    "pares": [
+      "UNAUTHENTICATED → Inicia sesión para ver tus avisos.",
+      "VALIDATION → Parámetros inválidos."
+    ],
+    "frases": ["Inicia sesión para ver tus avisos.", "Parámetros inválidos."]
+  },
+  "src/app/api/participaciones/[id]/visto/route.ts": {
+    "pares": [
+      "NOT_FOUND → Vídeo no disponible.",
+      "NOT_FOUND → Vídeo no disponible.",
+      "RATE_LIMITED → Demasiadas peticiones. Inténtalo en un momento."
+    ],
+    "frases": ["Demasiadas peticiones. Inténtalo en un momento.", "visto:user:{…}"]
+  },
+  "src/app/api/participaciones/[id]/voto/route.ts": {
+    "pares": [
+      "AUTOVOTO → No puedes votar tu propia participación.",
+      "NOT_FOUND → Vídeo no disponible.",
+      "NOT_FOUND → Vídeo no disponible.",
+      "NOT_FOUND → Vídeo no disponible.",
+      "RATE_LIMITED → Demasiadas peticiones. Inténtalo en un momento.",
+      "RETO_CERRADO → Este reto ya no admite votos.",
+      "SIN_VER → Reproduce este vídeo para poder votarlo.",
+      "SIN_VOTO → No tienes ningún voto puesto aquí.",
+      "VALIDATION → Datos inválidos."
+    ],
+    "frases": [
+      "Datos inválidos.",
+      "Demasiadas peticiones. Inténtalo en un momento.",
+      "voto:user:{…}"
+    ]
+  },
+  "src/app/api/perfil/avatar/route.ts": {
+    "pares": [
+      "AVATAR_ERROR → No hemos podido guardar la imagen. Reintenta.",
+      "AVATAR_ERROR → No hemos podido procesar la imagen. Prueba con otra.",
+      "AVATAR_{…} → ‹e.message›",
+      "BAD_REQUEST → No hemos podido leer la imagen. Inténtalo de nuevo.",
+      "RATE_LIMITED → Has subido muchas imágenes seguidas. Espera un momento.",
+      "VALIDATION → Elige una imagen para tu foto de perfil."
+    ],
+    "frases": [
+      "Elige una imagen para tu foto de perfil.",
+      "Has subido muchas imágenes seguidas. Espera un momento.",
+      "No hemos podido guardar la imagen. Reintenta.",
+      "No hemos podido leer la imagen. Inténtalo de nuevo.",
+      "No hemos podido procesar la imagen. Prueba con otra.",
+      "avatar:user:{…}"
+    ]
+  },
+  "src/app/api/perfil/email/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Cuerpo de la peticion invalido.",
+      "MISMA_DIRECCION → Esa ya es tu direccion de correo.",
+      "OCUPADA → Esa direccion no esta disponible.",
+      "PASSWORD_INCORRECTA → La contrasena no es correcta.",
+      "RATE_LIMITED → Demasiados intentos. Intentalo mas tarde.",
+      "SOBRECARGA → Ahora mismo no podemos procesarlo. Reintenta.",
+      "VALIDATION → Revisa el correo y la contrasena."
+    ],
+    "frases": [
+      "Ahora mismo no podemos procesarlo. Reintenta.",
+      "Cuerpo de la peticion invalido.",
+      "Demasiados intentos. Intentalo mas tarde.",
+      "Esa direccion no esta disponible.",
+      "Esa ya es tu direccion de correo.",
+      "La contrasena no es correcta.",
+      "Revisa el correo y la contrasena.",
+      "cambiaremail:user:{…}"
+    ]
+  },
+  "src/app/api/perfil/route.ts": {
+    "pares": [
+      "BAD_REQUEST → No hemos podido leer los datos. Inténtalo de nuevo.",
+      "RATE_LIMITED → Has guardado muchas veces seguidas. Espera un momento.",
+      "USERNAME_TAKEN → Ese nombre de usuario ya está en uso.",
+      "VALIDATION → Revisa el nombre.",
+      "VALIDATION → ‹parsed.error.issues[0]?.message›"
+    ],
+    "frases": [
+      "Ese nombre de usuario ya está en uso.",
+      "Has guardado muchas veces seguidas. Espera un momento.",
+      "No hemos podido leer los datos. Inténtalo de nuevo.",
+      "Revisa el nombre.",
+      "updateprofile:user:{…}"
+    ]
+  },
+  "src/app/api/perfil/videos/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Parámetros de página inválidos.",
+      "UNAUTHORIZED → Inicia sesión para ver tus vídeos.",
+      "VIDEOS_FAILED → No se pudieron cargar más vídeos."
+    ],
+    "frases": [
+      "Inicia sesión para ver tus vídeos.",
+      "No se pudieron cargar más vídeos.",
+      "Parámetros de página inválidos."
+    ]
+  },
+  "src/app/api/perfiles/[username]/videos/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Parámetros de página inválidos.",
+      "NOT_FOUND → Perfil no disponible.",
+      "NOT_FOUND → Perfil no disponible.",
+      "VIDEOS_FAILED → No se pudieron cargar más vídeos."
+    ],
+    "frases": [
+      "No se pudieron cargar más vídeos.",
+      "Parámetros de página inválidos.",
+      "Perfil no disponible."
+    ]
+  },
+  "src/app/api/ranking/route.ts": {
+    "pares": ["INVALID_QUERY → Petición no válida."],
+    "frases": ["Petición no válida."]
+  },
+  "src/app/api/retiradas/route.ts": {
+    "pares": [
+      "EMAIL_SIN_VERIFICAR → Verifica tu correo antes de pedir un cobro.",
+      "UNAUTHENTICATED → Inicia sesión para ver tus cobros.",
+      "VALIDATION → No hemos podido procesar la petición.",
+      "VALIDATION → Parámetros inválidos.",
+      "‹r.rechazo ?? \"RECHAZO\"› → No hemos podido registrar tu solicitud.",
+      "‹r.rechazo ?? \"RECHAZO\"› → [BAJO_MINIMO] Todavía no llegas al mínimo para pedir un cobro. Sigue participando: el saldo se acumula.",
+      "‹r.rechazo ?? \"RECHAZO\"› → [METODO_NO_EXISTE] Ese método de cobro ya no está. Elige otro o añade uno nuevo.",
+      "‹r.rechazo ?? \"RECHAZO\"› → [NO_ENTERO] El importe no es válido.",
+      "‹r.rechazo ?? \"RECHAZO\"› → [SIN_SALDO] No tienes saldo suficiente para pedir ese importe."
+    ],
+    "frases": [
+      "El importe no es válido.",
+      "Ese método de cobro ya no está. Elige otro o añade uno nuevo.",
+      "Inicia sesión para ver tus cobros.",
+      "No hemos podido procesar la petición.",
+      "No hemos podido registrar tu solicitud.",
+      "Parámetros inválidos.",
+      "Verifica tu correo antes de pedir un cobro."
+    ]
+  },
+  "src/app/api/retos/[id]/participaciones/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Parámetros de página inválidos.",
+      "NOT_FOUND → Reto no disponible.",
+      "NOT_FOUND → Reto no disponible.",
+      "PARTICIPACIONES_FAILED → No se pudieron cargar más participaciones."
+    ],
+    "frases": [
+      "No se pudieron cargar más participaciones.",
+      "Parámetros de página inválidos.",
+      "Reto no disponible."
+    ]
+  },
+  "src/app/api/retos/cerrados/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Parámetros de página inválidos.",
+      "CERRADOS_FAILED → No se pudieron cargar más retos cerrados."
+    ],
+    "frases": ["No se pudieron cargar más retos cerrados.", "Parámetros de página inválidos."]
+  },
+  "src/app/api/toques/route.ts": {
+    "pares": [
+      "EMAIL_SIN_VERIFICAR → Verifica tu correo para poder dar un toque.",
+      "NO_DISPONIBLE → Ese perfil no está disponible.",
+      "SOLO_VIP → Dar un toque es de VIP Mythic. Hazte VIP para usarlo.",
+      "VALIDATION → No hemos podido procesar la petición.",
+      "VALIDATION → No puedes darte un toque a ti mismo."
+    ],
+    "frases": ["Ese perfil no está disponible.", "No hemos podido procesar la petición."]
+  },
+  "src/app/api/videos/[id]/comentarios/route.ts": {
+    "pares": [
+      "BAD_REQUEST → Parámetros inválidos.",
+      "NOT_FOUND → Vídeo no disponible.",
+      "NOT_FOUND → Vídeo no disponible.",
+      "NOT_FOUND → Vídeo no disponible.",
+      "NOT_FOUND → Vídeo no disponible.",
+      "RATE_LIMITED → Estás comentando muy seguido. Espera un momento.",
+      "TEXTO_INVALIDO → El comentario no puede estar vacío ni ser tan largo.",
+      "VALIDATION → Escribe el comentario."
+    ],
+    "frases": [
+      "El comentario no puede estar vacío ni ser tan largo.",
+      "Escribe el comentario.",
+      "Estás comentando muy seguido. Espera un momento.",
+      "Parámetros inválidos.",
+      "comentario:user:{…}"
+    ]
+  },
+  "src/app/api/videos/[id]/confirmar-reemplazo/route.ts": {
+    "pares": [
+      "NOT_FOUND → Vídeo no disponible.",
+      "NO_LISTO → El vídeo aún se está procesando. Inténtalo en un momento."
+    ],
+    "frases": ["El vídeo aún se está procesando. Inténtalo en un momento.", "Vídeo no disponible."]
+  },
+  "src/app/api/videos/[id]/like/route.ts": {
+    "pares": [
+      "LIKE_PROPIO → No puedes dar me gusta a tu propio vídeo.",
+      "NOT_FOUND → Este vídeo ya no está disponible.",
+      "NOT_FOUND → Este vídeo ya no está disponible.",
+      "NOT_FOUND → Este vídeo ya no está disponible.",
+      "RATE_LIMITED → Demasiadas peticiones. Inténtalo en un momento."
+    ],
+    "frases": ["Demasiadas peticiones. Inténtalo en un momento.", "like:user:{…}"]
+  },
+  "src/app/api/videos/[id]/miniatura/route.ts": {
+    "pares": [
+      "BAD_REQUEST → No hemos podido leer la imagen. Inténtalo de nuevo.",
+      "MINIATURA_BUNNY → No se pudo aplicar la miniatura. Se usará una automática; puedes reintentar.",
+      "MINIATURA_ERROR → No hemos podido procesar la imagen. Prueba con otra.",
+      "MINIATURA_{…} → ‹e.message›",
+      "NOT_FOUND → Vídeo no disponible.",
+      "RATE_LIMITED → Demasiadas miniaturas por ahora. Inténtalo más tarde.",
+      "VALIDATION → Elige una imagen para la miniatura."
+    ],
+    "frases": [
+      "Demasiadas miniaturas por ahora. Inténtalo más tarde.",
+      "Elige una imagen para la miniatura.",
+      "No hemos podido leer la imagen. Inténtalo de nuevo.",
+      "No hemos podido procesar la imagen. Prueba con otra.",
+      "No se pudo aplicar la miniatura. Se usará una automática; puedes reintentar.",
+      "Vídeo no disponible.",
+      "miniatura:user:{…}"
+    ]
+  },
+  "src/app/api/videos/[id]/reproduccion/route.ts": {
+    "pares": [
+      "NOT_FOUND → Vídeo no disponible.",
+      "NOT_FOUND → Vídeo no disponible.",
+      "PLAYBACK_FAILED → No se pudo preparar el vídeo. Reintenta."
+    ],
+    "frases": ["No se pudo preparar el vídeo. Reintenta.", "Vídeo no disponible."]
+  },
+  "src/app/api/videos/[id]/route.ts": {
+    "pares": [
+      "NOT_FOUND → Vídeo no disponible.",
+      "NOT_FOUND → Vídeo no disponible.",
+      "NOT_FOUND → Vídeo no disponible.",
+      "NOT_FOUND → Vídeo no disponible."
+    ],
+    "frases": ["Vídeo no disponible."]
+  },
+  "src/app/api/videos/upload-credential/route.ts": {
+    "pares": [
+      "NIVEL_INSUFICIENTE → ‹mensajeNivelInsuficiente(nivelMinimo)›",
+      "PARTICIPACION_BLOQUEADA → ‹MSG_BLOQUEADA›",
+      "RATE_LIMITED → Demasiadas subidas por ahora. Intentalo mas tarde.",
+      "RETO_NO_DISPONIBLE → Este reto no admite participaciones.",
+      "SOLO_VIP → Este reto es exclusivo de VIP Mythic.",
+      "UPLOAD_INIT_FAILED → No se pudo preparar la subida. Reintenta.",
+      "VALIDATION → Datos invalidos.",
+      "VALIDATION → Elige una categoria de la lista."
+    ],
+    "frases": [
+      "Datos invalidos.",
+      "Demasiadas subidas por ahora. Intentalo mas tarde.",
+      "Elige una categoria de la lista.",
+      "Este reto no admite participaciones.",
+      "No se pudo preparar la subida. Reintenta.",
+      "Video de {…}",
+      "createvideo:user:{…}"
+    ]
+  },
+  "src/app/api/vip/cancelar/route.ts": {
+    "pares": [
+      "NO_ERES_VIP → No tienes ninguna suscripción activa que cancelar.",
+      "PAGO_NO_DISPONIBLE → Las suscripciones no están disponibles ahora mismo.",
+      "RATE_LIMITED → Demasiados intentos. Espera un momento.",
+      "‹porConfig ? \"PAGO_NO_CONFIGURADO\" : \"PAGO_NO_DISPONIBLE\"› → Las suscripciones no están disponibles ahora mismo."
+    ],
+    "frases": ["Demasiados intentos. Espera un momento.", "vip:cancelar:{…}"]
+  },
+  "src/app/api/vip/checkout/route.ts": {
+    "pares": [
+      "EMAIL_SIN_VERIFICAR → Verifica tu correo para poder suscribirte.",
+      "PAGO_NO_DISPONIBLE → Las suscripciones no están disponibles ahora mismo.",
+      "RATE_LIMITED → Demasiados intentos. Espera un momento.",
+      "YA_ACTIVO → Ya tienes VIP Mythic activo.",
+      "‹porConfig ? \"PAGO_NO_CONFIGURADO\" : \"PAGO_NO_DISPONIBLE\"› → Las suscripciones no están disponibles ahora mismo."
+    ],
+    "frases": ["Demasiados intentos. Espera un momento.", "VIP Mythic", "vip:checkout:{…}"]
+  },
+  "src/app/api/vip/webhook/route.ts": {
+    "pares": [
+      "ERROR → No se pudo procesar.",
+      "FIRMA_INVALIDA → Firma no válida.",
+      "PAGO_NO_CONFIGURADO → Pagos no disponibles."
+    ],
+    "frases": ["Firma no válida.", "No se pudo procesar.", "Pagos no disponibles."]
+  },
+  "src/config/constants.ts": {
+    "pares": [],
+    "frases": [
+      " {…}",
+      "Acoso o incitación al odio",
+      "Ahora mismo no podemos aceptar datos de cobro. Vuelve a intentarlo en un rato.",
+      "Ajuste del equipo de {…}",
+      "Anúnciate aquí",
+      "Anúnciate aquí y te verá la gente de tu zona. Desde {…} {…} de publicidad al día.",
+      "Compra de créditos",
+      "Comprobamos que tienes créditos de publicidad para todos los días, pero no los apartamos: se descuentan cada día de campaña. Si cuando llegue un día no te quedan, la campaña se pausa.",
+      "Contenido no permitido",
+      "Contenido sexual",
+      "Dar un toque es de VIP Mythic. Hazte VIP para usarlo.",
+      "De {…}",
+      "Descartado. El contenido se queda como está.",
+      "Devolución de un día de campaña",
+      "Déjanos tu web o tus redes: con uno de los dos nos basta para comprobar que existís.",
+      "El contador se reinicia {…}.",
+      "El enlace lleva a un sitio que no es seguro para quien lo pulse.",
+      "El premio no encaja con lo que suele mover un reto así.",
+      "El reto pide algo que no podemos publicar.",
+      "Elige un motivo de la lista para rechazar.",
+      "Elige un rol válido.",
+      "En revisión",
+      "Enlace peligroso",
+      "Esa empresa no existe.",
+      "Ese contenido ya no está.",
+      "Ese enlace de invitación no es válido.",
+      "Ese paquete no existe.",
+      "Esta actividad no encaja con lo que podemos publicar.",
+      "Esta cuenta no tiene ninguna dirección registrada.",
+      "Esta es una cuenta de empresa: puede mirarlo todo, pero no participar. Si quieres subir vídeos y competir, crea una cuenta normal con otro correo.",
+      "Este contenido ya no está disponible.",
+      "Este reto es exclusivo de VIP Mythic.",
+      "Este reto ya no admite votos.",
+      "Este vídeo ya no está disponible.",
+      "Gracias por avisar. Lo revisaremos.",
+      "Hay un reto patrocinado esperando revisión",
+      "Hay una empresa esperando verificación",
+      "Hemos parado este cobro mientras revisamos la actividad de la cuenta. Escríbenos y lo vemos contigo.",
+      "Hemos pedido la baja. Sigues siendo VIP hasta que acabe el periodo que ya pagaste.",
+      "Hemos revisado la campaña y no podemos seguir mostrándola.",
+      "Incumple las normas",
+      "La campaña no cumple las normas de publicidad de {…}.",
+      "La campaña promete algo que no se corresponde con lo que ofrece.",
+      "La compra de créditos todavía no está disponible. Mientras tanto, los créditos llegan como regalo de Socio Fundador o del equipo de {…}.",
+      "La imagen o el texto incluyen contenido que no podemos mostrar.",
+      "Las cuentas de empresa no participan.",
+      "Las fechas no nos dan tiempo a prepararlo y difundirlo bien.",
+      "Las suscripciones no están disponibles ahora mismo.",
+      "Llega a gente de todo el país",
+      "Los pagos no están disponibles ahora mismo.",
+      "Marca o producto digital",
+      "Marca personal",
+      "Mientras no esté verificada, no puede hacer nada en el portal.",
+      "Necesitamos verificar tu cuenta antes de enviarte dinero. Escríbenos y te decimos qué hace falta.",
+      "Negocio físico",
+      "Negocio online",
+      "No encontramos esa cuenta.",
+      "No había nada que cambiar.",
+      "No hemos podido completar este cobro.",
+      "No hemos podido comprobar la web que nos has dado.",
+      "No hemos podido verificar la cuenta.",
+      "No podemos ofrecerte campañas hasta revisar el tipo de negocio de tu empresa. Escríbenos contestando a cualquiera de nuestros correos y lo arreglamos.",
+      "No pudimos completar la transferencia con esos datos bancarios. Comprueba el IBAN y el titular, y guarda el método otra vez.",
+      "No puedes cambiar el rol de esta cuenta.",
+      "No puedes dar me gusta a tu propio vídeo.",
+      "No puedes darte un toque a ti mismo.",
+      "No puedes denunciar tu propio contenido.",
+      "No puedes votar tu propia participación.",
+      "No se publica nada hasta que lo apruebes.",
+      "No te quedan Boosts. Compra uno para destacar tu perfil.",
+      "No tienes ninguna suscripción activa que cancelar.",
+      "No tienes ningún voto puesto aquí.",
+      "No tienes permiso para gestionar empresas.",
+      "No tienes permiso para moderar contenido.",
+      "No tienes permiso para moderar cuentas.",
+      "No tienes saldo suficiente para pedir ese importe.",
+      "Nos falta información para entender qué tiene que hacer la gente.",
+      "Nos faltan datos para comprobar que el negocio existe.",
+      "Otro motivo",
+      "Podrás comprar créditos en cuanto verifiquemos tu empresa.",
+      "Pone en riesgo a un menor",
+      "Regalo de Socio Fundador",
+      "Reproduce este vídeo para poder votarlo.",
+      "Retirado. Ya no se ve en ningún sitio.",
+      "Revisa los datos: faltan el nombre, el país o la persona de contacto, o la web no es una dirección válida.",
+      "Revisa tu correo. Te hemos enviado un mensaje para continuar con el registro de tu empresa.",
+      "Revisa tu correo. Te hemos enviado un mensaje para continuar con tu registro.",
+      "Revisa tu fecha de nacimiento.",
+      "Revísala aquí: {…}",
+      "Revísalo aquí: {…}",
+      "Solo el administrador puede asignar roles.",
+      "Solo el administrador puede consultar el correo de una cuenta.",
+      "Solo se puede suspender una cuenta de usuario.",
+      "Spam o engaño",
+      "Tienes que aceptar los términos para registrarte.",
+      "Tienes que ser mayor de edad para registrarte.",
+      "Todavía no llegas al mínimo para pedir un cobro. Sigue participando: el saldo se acumula.",
+      "Todo el mundo",
+      "Toque enviado.",
+      "Tu marca, entre los vídeos de quienes compiten en {…}.",
+      "Tu suscripción ya estaba cancelada.",
+      "Un día de campaña",
+      "Un día de campaña cuesta {…} {…} en una ciudad y {…} en todo el mundo, {…}",
+      "Un día de campaña cuesta {…}, {…}",
+      "Un moderador retiro tu participacion en este reto, asi que no puedes volver a participar.",
+      "Una ciudad y alrededores",
+      "Una región entera",
+      "Uno o varios países",
+      "Usa contenido que no es suyo",
+      "Usa un correo que no tenga ya cuenta en {…}: una cuenta de empresa no participa, así que no se puede convertir una cuenta de participante en una.",
+      "Verifica tu correo para poder comprar.",
+      "Verifica tu correo para poder dar un toque.",
+      "Verifica tu correo para poder denunciar.",
+      "Verifica tu correo para poder destacar tu perfil.",
+      "Verifica tu correo para poder suscribirte.",
+      "Violencia o contenido gráfico",
+      "Vuelve en {…} min y habrá hueco para ti. Tu Boost sigue guardado.",
+      "Vídeo no disponible.",
+      "Ya has dado {…} toques hoy. {…}",
+      "Ya has destacado tu perfil {…} veces hoy. {…}",
+      "Ya has votado otra participación de este reto.",
+      "Ya le has dado un toque hoy.",
+      "Ya nos habías avisado de esto. Gracias.",
+      "Ya tenemos registrado este negocio.",
+      "Ya tenemos una propuesta igual de tu empresa.",
+      "Ya tienes VIP Mythic activo.",
+      "a las {…}",
+      "anunciándote en todo el mundo",
+      "anunciándote en tu ciudad",
+      "anunciándote en tu región",
+      "anunciándote en un país",
+      "cada día",
+      "en una región",
+      "por país",
+      "y se descuenta cada día que se muestra.",
+      "{…} créditos de publicidad de regalo",
+      "{…} ha propuesto un reto patrocinado: «{…}».",
+      "{…} se ha registrado como empresa ({…}) y espera verificación.",
+      "{…} y {…}",
+      "{…} {…}",
+      "{…}: hasta {…} {…}",
+      "{…}: hasta {…} {…} si tienes un local, o {…} {…} si vendes online o eres una marca",
+      "{…}{…}` : \"\"} {…}",
+      "¿Tienes un negocio en tu ciudad?"
+    ]
+  },
+  "src/lib/categorias.ts": {
+    "pares": [],
+    "frases": []
+  },
+  "src/lib/estado-subida.ts": {
+    "pares": [],
+    "frases": [
+      "Couldn't connect to upload the video. Check your connection and try again.",
+      "Done. Your video is ready to watch.",
+      "El permiso de subida ha caducado. Vuelve a pulsar Publicar para empezar de nuevo.",
+      "El servicio de vídeo no está respondiendo ahora mismo. No es cosa tuya: inténtalo en unos minutos.",
+      "Getting the upload ready…",
+      "La subida se cortó a mitad. Tu conexión funciona, así que vuelve a intentarlo.",
+      "Listo. Tu vídeo ya se puede ver.",
+      "No se aceptó este vídeo. Prueba con otro fichero o con otro formato.",
+      "No se pudo conectar para subir el vídeo. Revisa tu conexión e inténtalo de nuevo.",
+      "Preparando la subida…",
+      "Subiendo tu vídeo…",
+      "The upload permission expired. Press Publish again to start over.",
+      "The upload stopped partway. Your connection is fine, so give it another go.",
+      "The video service isn't responding right now. It's not your fault: try again in a few minutes.",
+      "This video wasn't accepted. Try another file or another format.",
+      "Tu vídeo dura más de 90 segundos, así que no se ha publicado. Recórtalo y súbelo otra vez.",
+      "Tu vídeo no se pudo preparar y no llegará a publicarse. Sube otro para participar.",
+      "Uploading your video…",
+      "Video uploaded and safe. It's queued for processing; it'll show up on your profile when it's ready.",
+      "Vídeo subido y a salvo. Está en cola para prepararse; aparecerá en tu perfil cuando esté listo.",
+      "Your video couldn't be prepared and won't be published. Upload another one to take part.",
+      "Your video is longer than 90 seconds, so it wasn't published. Trim it and upload it again."
+    ]
+  },
+  "src/lib/mensajes-error.ts": {
+    "pares": [],
+    "frases": [
+      "Correo o contraseña incorrectos.",
+      "Demasiados intentos, espera un momento.",
+      "El servicio está ocupado. Reinténtalo en unos segundos.",
+      "Escribe al menos 2 caracteres para buscar.",
+      "No hemos podido buscar ahora mismo. Reinténtalo.",
+      "No hemos podido cerrar la sesión. Reinténtalo.",
+      "No se pudo crear la cuenta. Reintenta.",
+      "No se pudo iniciar sesión. Reintenta.",
+      "Revisa el correo y la contraseña.",
+      "Revisa el correo, una contraseña de 10+ caracteres (larga y poco predecible) y que tengas al menos 16 años."
+    ]
+  },
+  "src/lib/metodo-pago-cuerpo.ts": {
+    "pares": [],
+    "frases": [
+      "Falta el nombre del titular de la cuenta.",
+      "No hemos podido procesar la petición.",
+      "Revisa el IBAN: no parece completo.",
+      "Solo puedes cobrar en una cuenta bancaria: añade su IBAN y el titular.",
+      "Ya tienes todos los métodos de cobro que se pueden guardar. Borra uno para añadir otro."
+    ]
+  },
+  "src/lib/nivel-reto.ts": {
+    "pares": [],
+    "frases": ["Necesitas ser {…} para participar en este reto."]
+  },
+  "src/lib/notificaciones-vista.ts": {
+    "pares": [],
+    "frases": ["Hace {…} d", "Hace {…} h", "Hace {…} min"]
+  },
+  "src/lib/retirada.ts": {
+    "pares": [],
+    "frases": ["Cuenta bancaria", "En proceso", "Método de cobro"]
+  },
+  "src/lib/zona-horaria-pais.ts": {
+    "pares": [],
+    "frases": ["Ciudad de México", "Port Moresby", "Ulán Bator", "{…}:{…}"]
+  },
+  "src/server/auth/mutating-route.ts": {
+    "pares": [
+      "BAD_ORIGIN → Origen no permitido.",
+      "CSRF → Token CSRF invalido o ausente.",
+      "CUENTA_EMPRESA → Esta es una cuenta de empresa: puede mirarlo todo, pero no participar. Si quieres subir vídeos y competir, crea una cuenta normal con otro correo.",
+      "UNAUTHENTICATED → No autenticado."
+    ],
+    "frases": ["No autenticado.", "Origen no permitido.", "Token CSRF invalido o ausente."]
+  },
+  "src/server/auth/password-policy.ts": {
+    "pares": [],
+    "frases": [
+      "Esa contraseña es demasiado fácil de adivinar. Prueba una más larga o menos predecible.",
+      "La contraseña debe tener al menos {…} caracteres."
+    ]
+  },
+  "src/server/http/api.ts": {
+    "pares": [],
+    "frases": []
+  },
+  "src/server/http/form.ts": {
+    "pares": [],
+    "frases": []
+  },
+  "src/server/http/imagen-subida.ts": {
+    "pares": [],
+    "frases": ["No hemos podido procesar la imagen. Prueba con otra."]
+  },
+  "src/server/http/ip.ts": {
+    "pares": [],
+    "frases": []
+  },
+  "src/server/services/avatar.ts": {
+    "pares": [],
+    "frases": []
+  },
+  "src/server/services/categoria-video.ts": {
+    "pares": [],
+    "frases": []
+  },
+  "src/server/services/empresas.ts": {
+    "pares": [],
+    "frases": [
+      " Como Socio Fundador, te llevas {…}. {…}",
+      "El nombre tiene que tener entre {…} y {…} caracteres.",
+      "Hemos revisado {…} y está verificada. Ya puedes usar tu portal.{…}",
+      "Hemos revisado {…} y no hemos podido verificarla. {…}",
+      "Ir a mi portal",
+      "Lo que se puede hacer desde el portal irá creciendo.",
+      "No hemos podido verificar tu empresa",
+      "Si crees que es un error, contesta a este correo y lo miramos otra vez.",
+      "Tu empresa está verificada",
+      "Tu portal: {…}",
+      "[empresas] ADMIN_EMAIL sin configurar: la empresa queda registrada y NADIE recibe el aviso."
+    ]
+  },
+  "src/server/services/feed.ts": {
+    "pares": [],
+    "frases": []
+  },
+  "src/server/services/imagen.ts": {
+    "pares": [],
+    "frases": [
+      "El archivo no es una imagen JPEG, PNG o WebP.",
+      "El fichero está vacío.",
+      "La imagen supera el tamaño máximo permitido.",
+      "No se pudo leer la imagen. ¿Está dañada?",
+      "No se pudo procesar la imagen. Prueba con otra."
+    ]
+  },
+  "src/server/services/participacion.ts": {
+    "pares": [],
+    "frases": []
+  },
+  "src/server/services/perfil.ts": {
+    "pares": [],
+    "frases": [
+      "El nombre de usuario debe tener entre 3 y 30 caracteres: minúsculas, números, punto o guion bajo.",
+      "El nombre es demasiado corto.",
+      "El nombre es demasiado largo.",
+      "El nombre tiene caracteres no permitidos.",
+      "El sitio web debe empezar por http:// o https://",
+      "El sitio web debe ser una URL válida.",
+      "El sitio web no puede pasar de {…} caracteres.",
+      "El usuario de Instagram no es válido.",
+      "El usuario de YouTube no es válido.",
+      "Ese nombre de usuario no está disponible.",
+      "La biografía no puede pasar de {…} caracteres.",
+      "La biografía tiene caracteres no permitidos."
+    ]
+  },
+  "src/server/services/publicidad-entrega.ts": {
+    "pares": [],
+    "frases": ["pub:rot:{…}:{…}"]
+  },
+  "src/server/services/publicidad.ts": {
+    "pares": [],
+    "frases": [
+      "\n        INSERT IGNORE INTO `ZonaOcupacion` (`id`, `zonaClave`, `dia`, `posicion`, `publicidadId`, `createdAt`)\n        VALUES {…}",
+      "\n    SELECT `id`, `estado`, `alcance`, `ciudadId`, `estadoCodigo`, `imagen`, `fechaInicio`,\n           `diasContratados`, `creditosPorDia`, `ocultoAutoEn`\n    FROM `Publicidad` WHERE `id` = {…} AND `empresaId` = {…} FOR UPDATE",
+      "\n    SELECT p.`creditosPorDia` AS tarifa, COUNT(DISTINCT z.`dia`) AS dias\n    FROM `ZonaOcupacion` z JOIN `Publicidad` p ON p.`id` = z.`publicidadId`\n    WHERE p.`empresaId` = {…} AND p.`estado` = 'ACTIVA'\n      AND p.`id` <> {…} AND z.`dia` >= {…}\n      AND NOT EXISTS (\n        SELECT 1 FROM `CreditoLedger` c\n        WHERE c.`publicidadId` = p.`id` AND c.`dia` = z.`dia` AND c.`reason` = 'CONSUMO'\n      )\n    GROUP BY p.`id`, p.`creditosPorDia`",
+      "({…}, {…}, {…}, {…}, {…}, NOW(3))",
+      "Alguno de los países no es válido.",
+      "Como mucho {…} días por campaña.",
+      "Como mucho {…} países por campaña.",
+      "El enlace tiene que ser una dirección web completa (https://…).",
+      "Elige al menos un país.",
+      "Elige el día en que empieza.",
+      "Elige la ciudad de la lista.",
+      "Elige una ciudad de tu país.",
+      "Elige una región de la lista.",
+      "Elige una región de tu país.",
+      "Esa campaña no existe.",
+      "Esa campaña ya no es un borrador.",
+      "Esa campaña ya no se puede terminar.",
+      "Escribe el texto del anuncio (al menos 3 caracteres).",
+      "Esta campaña necesita {…} créditos de publicidad y tienes {…}.",
+      "Esta campaña necesita {…} créditos de publicidad. Tienes {…}, pero {…} ya están comprometidos en tus otras campañas: te quedan {…}.",
+      "La campaña no tiene imagen. Bórrala y créala de nuevo.",
+      "La campaña tiene que empezar entre hoy y dentro de {…} días.",
+      "La estamos revisando por unas denuncias. Podrás reanudarla cuando terminemos.",
+      "No te quedan créditos de publicidad para el día de hoy.",
+      "Ponle un nombre a la campaña (al menos 3 caracteres).",
+      "Puede volver a empezar entre el {…} y dentro de {…} días.",
+      "ROLLBACK TO SAVEPOINT reanudar_tras_absolver",
+      "SAVEPOINT reanudar_tras_absolver",
+      "Solo se puede pausar una campaña activa o programada.",
+      "Solo se puede reanudar una campaña pausada.",
+      "Todo el mundo",
+      "Tu empresa tiene que estar verificada para crear o activar campañas.",
+      "Tu tipo de negocio no puede comprar ese alcance.",
+      "{…} (toda la región)",
+      "{…} y 100 km alrededor"
+    ]
+  },
+  "src/server/services/retirada.ts": {
+    "pares": [],
+    "frases": []
+  },
+  "src/server/services/retos-empresa.ts": {
+    "pares": [],
+    "frases": [
+      "Hemos aprobado tu reto",
+      "Hemos aprobado «{…}». Te escribiremos para organizar el pago, y lo publicaremos en cuanto lo recibamos.",
+      "Hemos revisado «{…}» y no lo hemos podido aprobar. {…}",
+      "La fecha de «{…}» ya pasó sin que llegáramos a decidir tu propuesta. Puedes proponerlo de nuevo con otras fechas.",
+      "No hemos podido aprobar tu reto",
+      "Podrás proponer retos en cuanto verifiquemos tu empresa.",
+      "Proponer un reto",
+      "Proponer un reto: {…}",
+      "Puedes proponer otro desde tu portal. Si crees que es un error, contesta a este correo.",
+      "Quien gane cobra el premio entero. En tu portal verás cuándo está publicado.",
+      "Tu propuesta de reto ha caducado",
+      "Tus retos: {…}",
+      "Un reto patrocinado necesita un premio.",
+      "Ver mis retos",
+      "Ya tienes {…} propuestas esperando. En cuanto decidamos alguna, podrás enviar otra.",
+      "[retos-empresa] ADMIN_EMAIL sin configurar: la propuesta queda guardada y NADIE recibe el aviso.",
+      "[retos-empresa] no se pudo borrar el logo de {…}; reintento luego.",
+      "[retos-empresa] sin acceso a {…}: no se borra ningún logo (¿volumen sin montar?)."
+    ]
+  }
+}
