@@ -7,15 +7,13 @@
  * mano, en inglés o alemán saldría en castellano y el pseudo-idioma no la marcaría: rojo, con fichero y
  * línea. Qué cuenta y qué no, en `helpers/texto-a-mano`.
  *
- * LAS ZONAS AÚN NO EXTRAÍDAS van en `PENDIENTES_P5B2`, fichero a fichero, y esa lista solo puede
- * MENGUAR: una excepción que ya no tiene texto a mano también es rojo (si no, la lista se queda vieja y
- * deja de decir qué falta). La P5b2 la vacía.
+ * SIN EXCEPCIONES desde la P5b2b: la lista de zonas pendientes (`PENDIENTES_P5B2`) llegó a cero y se
+ * retiró. Todo `.tsx` de `src/app` y `src/components` fuera de las zonas de abajo pasa el censo.
  *
  * Fuera del censo, a propósito: el panel (no se traduce), la API (P5b3) y las dos páginas internas de
  * desarrollo (`/style-guide`, `/reproduccion-test`).
  *
- * Para romperlo: escribir `<p>Hola</p>` en un componente de una zona extraída (rojo con el fichero), o
- * dejar en la lista un fichero que ya no tiene texto a mano (rojo).
+ * Para romperlo: escribir `<p>Hola</p>` en cualquier componente de la app (rojo con el fichero).
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -31,9 +29,6 @@ const FUERA = [
   "src/app/style-guide/",
   "src/app/reproduccion-test/",
 ];
-
-/** Lo que aún tiene texto a mano y se extrae en la P5b2. Solo puede menguar. */
-const PENDIENTES_P5B2 = ["src/app/privacidad/page.tsx"];
 
 function tsx(dir: string): string[] {
   return readdirSync(dir).flatMap((n) => {
@@ -82,18 +77,10 @@ describe("el texto de la interfaz sale de t()", () => {
     ).toEqual([]);
   });
 
-  it("ninguna zona extraída tiene texto escrito a mano", () => {
+  it("ningún componente de la app tiene texto escrito a mano", () => {
     const culpables = [...aMano]
-      .filter(([f, t]) => t.length > 0 && !PENDIENTES_P5B2.includes(f))
+      .filter(([, t]) => t.length > 0)
       .map(([f, t]) => `${f} → ${t.slice(0, 3).join(" | ")}`);
     expect(culpables, `texto a mano fuera de t(): ${culpables.join("; ")}`).toEqual([]);
-  });
-
-  it("la lista de pendientes solo mengua: cada uno sigue teniendo texto a mano (y existe)", () => {
-    const sobran = PENDIENTES_P5B2.filter((f) => (aMano.get(f) ?? []).length === 0);
-    expect(
-      sobran,
-      `ya no tienen texto a mano: quítalos de PENDIENTES_P5B2: ${sobran.join(", ")}`,
-    ).toEqual([]);
   });
 });

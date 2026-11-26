@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
 
 import { PieLegal } from "@/components/ui/pie-legal";
-import { MARCA } from "@/config/marca";
+import { textos, textosRicos } from "@/textos/servidor";
 
-export const metadata = { title: "Política de Privacidad" };
+export async function generateMetadata() {
+  return { title: (await textos("privacidad"))("titulo") };
+}
 
 /**
  * POLÍTICA DE PRIVACIDAD — página pública, estática y sin datos.
@@ -23,8 +25,8 @@ export const metadata = { title: "Política de Privacidad" };
  * despliegue). Si algún día lleva el correo de contacto, sale de `constants.ts`, no de `env`.
  *
  * NO SE PINTA DESDE MARKDOWN: no hay renderizador en el proyecto y meter uno por una página sería
- * una dependencia nueva para esto. El texto va en JSX, con dos piezas locales para que el documento
- * se lea como un documento y no como un muro de `<div>`.
+ * una dependencia nueva para esto. El texto vive en el diccionario (`privacidad`, P5b2b), una frase por
+ * clave con su formato dentro (`tRico`: `resaltado`, `pendiente`, `externo`), y la estructura en JSX.
  */
 
 /** Un apartado numerado. El `id` deja enlazar a una sección concreta desde fuera. */
@@ -56,7 +58,7 @@ function Apartado({
 }
 
 /**
- * Un hueco sin rellenar, VISIBLE a propósito. No se disimula con texto plausible: un documento legal
+ * Un hueco sin rellenar (la marca `pendiente`), VISIBLE a propósito. No se disimula con texto plausible: un documento legal
  * con un dato inventado es peor que uno con un hueco declarado.
  *
  * VA EN NEUTRO, y la primera versión no: la pinté con `--df-time`, que se ve bien y está MAL —ese
@@ -65,15 +67,16 @@ function Apartado({
  * visible es que rompe el ritmo del texto —fondo elevado y filete discontinuo—, no robarle el color
  * a otro significado.
  */
-function Pendiente({ children }: { children: ReactNode }) {
-  return (
-    <mark className="rounded-xs border border-dashed border-line bg-raised px-1.5 py-0.5 text-text-dim">
-      [PENDIENTE — {children}]
-    </mark>
-  );
-}
+const PENDIENTE =
+  "rounded-xs border border-dashed border-line bg-raised px-1.5 py-0.5 text-text-dim";
 
-export default function PrivacidadPage() {
+export default async function PrivacidadPage() {
+  const [t, tr] = await Promise.all([textos("privacidad"), textosRicos("privacidad")]);
+  const marcas = {
+    resaltado: { className: "text-text" },
+    pendiente: { className: PENDIENTE },
+  };
+  const FILAS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
   return (
     <main className="mx-auto w-full max-w-[72ch] px-5 py-12 sm:px-6 lg:py-16">
       <h1
@@ -83,7 +86,7 @@ export default function PrivacidadPage() {
           fontVariationSettings: '"wght" 800, "wdth" 115',
         }}
       >
-        Política de Privacidad
+        {t("titulo")}
       </h1>
 
       {/* EL ESTADO DEL DOCUMENTO, VISIBLE. Quien lo lee tiene que saber que todavía no es la versión
@@ -92,129 +95,56 @@ export default function PrivacidadPage() {
         role="note"
         className="mt-5 rounded-sm border border-line bg-surface/60 p-4 text-sm leading-relaxed text-text-dim"
       >
-        <strong className="font-medium text-text">Documento en preparación.</strong> Esta versión
-        describe cómo tratamos tus datos hoy, pero todavía no es la definitiva: los huecos marcados
-        como <Pendiente>pendiente</Pendiente> se completan antes del lanzamiento, y el texto está
-        pendiente de revisión legal.
+        {tr("enPreparacion", {
+          resaltado: { className: "font-medium text-text", como: "strong" },
+          pendiente: { className: PENDIENTE },
+        })}
       </p>
 
       <p className="mt-4 text-xs text-text-dim">
-        Última actualización: <Pendiente>fecha de publicación</Pendiente>
+        {tr("actualizacion", { pendiente: { className: PENDIENTE } })}
       </p>
 
-      <Apartado numero={1} titulo="Quién es el responsable de tus datos">
-        <p>
-          {MARCA} (en adelante, «la Plataforma», «nosotros») es un servicio de retos en vídeo con
-          premios. El responsable del tratamiento de tus datos es:
-        </p>
+      <Apartado numero={1} titulo={t("s1")}>
+        <p>{t("s1_intro")}</p>
         <ul className="list-disc space-y-1.5 pl-5">
-          <li>
-            <span className="text-text">Entidad:</span>{" "}
-            <Pendiente>razón social del responsable</Pendiente>
-          </li>
-          <li>
-            <span className="text-text">Domicilio:</span> <Pendiente>domicilio social</Pendiente>
-          </li>
-          <li>
-            <span className="text-text">Contacto de privacidad:</span>{" "}
-            <Pendiente>correo de contacto</Pendiente>
-          </li>
+          <li>{tr("s1_entidad", marcas)}</li>
+          <li>{tr("s1_domicilio", marcas)}</li>
+          <li>{tr("s1_contacto", marcas)}</li>
         </ul>
-        <p>
-          Si resides en el Espacio Económico Europeo (EEE), el Reino Unido o Suiza, tratamos tus
-          datos conforme al Reglamento General de Protección de Datos (RGPD) y a la normativa local
-          aplicable.
-        </p>
+        <p>{t("s1_rgpd")}</p>
       </Apartado>
 
-      <Apartado numero={2} titulo="Qué datos recogemos">
+      <Apartado numero={2} titulo={t("s2")}>
         <ul className="list-disc space-y-2 pl-5">
-          <li>
-            <span className="text-text">Datos de cuenta:</span> correo electrónico, nombre de
-            usuario, contraseña (guardada siempre cifrada, nunca en claro), fecha de nacimiento
-            (para comprobar que eres mayor de 18 años) y los datos opcionales de tu perfil (avatar,
-            web, redes).
-          </li>
-          <li>
-            <span className="text-text">Contenido que publicas:</span> vídeos, comentarios, votos y
-            tu participación en retos.
-          </li>
-          <li>
-            <span className="text-text">Datos de uso y técnicos:</span> dirección IP, tipo de
-            dispositivo y navegador, y registros de actividad, que usamos para seguridad y
-            prevención del fraude. También guardamos la zona horaria de tu navegador, para mostrarte
-            las horas en tu hora local.
-          </li>
-          <li>
-            <span className="text-text">Ubicación aproximada:</span> a partir de tu dirección IP
-            deducimos tu país y una ciudad aproximada, nunca tu dirección exacta. Guardamos ese
-            resultado, no la IP, y lo usamos para medir cuánta gente ve la Plataforma en cada zona y
-            para la publicidad local. El recuento por zona es anónimo: dice cuántas personas, no
-            quiénes.
-          </li>
-          <li>
-            <span className="text-text">Datos de pago:</span> cuando compras un Boost, el pago lo
-            procesa Stripe.{" "}
-            <span className="text-text">No almacenamos los números de tu tarjeta</span> en ningún
-            momento; solo guardamos el registro de la transacción (importe, moneda e identificador
-            de pago) para tu historial.
-          </li>
-          <li>
-            <span className="text-text">Referidos:</span> si llegas por el enlace de otra persona, o
-            invitas a alguien, registramos esa relación.
-          </li>
-          <li>
-            <span className="text-text">Comunicaciones:</span> los correos que te enviamos
-            (verificación de cuenta, avisos y recuperación de contraseña).
-          </li>
+          <li>{tr("s2_cuenta", marcas)}</li>
+          <li>{tr("s2_contenido", marcas)}</li>
+          <li>{tr("s2_uso", marcas)}</li>
+          <li>{tr("s2_ubicacion", marcas)}</li>
+          <li>{tr("s2_pago", marcas)}</li>
+          <li>{tr("s2_referidos", marcas)}</li>
+          <li>{tr("s2_comunicaciones", marcas)}</li>
         </ul>
       </Apartado>
 
-      <Apartado numero={3} titulo="Para qué usamos tus datos y con qué base legal">
+      <Apartado numero={3} titulo={t("s3")}>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-line">
                 <th scope="col" className="py-2 pr-4 font-medium text-text">
-                  Finalidad
+                  {t("s3_finalidad")}
                 </th>
                 <th scope="col" className="py-2 font-medium text-text">
-                  Base legal (RGPD)
+                  {t("s3_base")}
                 </th>
               </tr>
             </thead>
             <tbody>
-              {[
-                [
-                  "Crear y mantener tu cuenta, dejarte participar y ver el servicio",
-                  "Ejecución del contrato",
-                ],
-                [
-                  "Comprobar que eres mayor de 18 años",
-                  "Obligación legal / ejecución del contrato",
-                ],
-                [
-                  "Procesar compras de Boost y, en el futuro, el pago de premios",
-                  "Ejecución del contrato",
-                ],
-                ["Seguridad, prevención del fraude y del abuso, y moderación", "Interés legítimo"],
-                [
-                  "Medir la audiencia por zona y mostrar publicidad local con tu ubicación aproximada",
-                  "Interés legítimo (pendiente de revisión legal)",
-                ],
-                [
-                  "Enviarte correos operativos (verificación, avisos de tu cuenta)",
-                  "Ejecución del contrato",
-                ],
-                ["Enviarte comunicaciones opcionales, si las activas", "Consentimiento"],
-                [
-                  "Cumplir obligaciones fiscales y responder a requerimientos legales",
-                  "Obligación legal",
-                ],
-              ].map(([finalidad, base]) => (
-                <tr key={finalidad} className="border-b border-line last:border-0">
-                  <td className="py-2.5 pr-4 align-top">{finalidad}</td>
-                  <td className="py-2.5 align-top">{base}</td>
+              {FILAS.map((n) => (
+                <tr key={n} className="border-b border-line last:border-0">
+                  <td className="py-2.5 pr-4 align-top">{t(`s3_f${n}`)}</td>
+                  <td className="py-2.5 align-top">{t(`s3_b${n}`)}</td>
                 </tr>
               ))}
             </tbody>
@@ -222,117 +152,58 @@ export default function PrivacidadPage() {
         </div>
       </Apartado>
 
-      <Apartado numero={4} titulo="Mayores de 18 años">
-        <p>
-          {MARCA} es <span className="text-text">solo para mayores de 18 años</span>. No admitimos
-          cuentas de menores de edad ni recogemos sus datos a sabiendas. Si detectamos la cuenta de
-          un menor, la eliminamos.
-        </p>
+      <Apartado numero={4} titulo={t("s4")}>
+        <p>{tr("s4_texto", marcas)}</p>
       </Apartado>
 
-      <Apartado numero={5} titulo="Con quién compartimos tus datos">
-        <p>
-          No vendemos tus datos. Los compartimos únicamente con los proveedores que necesitamos para
-          prestar el servicio, y solo lo imprescindible:
-        </p>
+      <Apartado numero={5} titulo={t("s5")}>
+        <p>{t("s5_intro")}</p>
         <ul className="list-disc space-y-1.5 pl-5">
-          <li>
-            <span className="text-text">Bunny.net</span> — alojamiento y distribución (CDN) de los
-            vídeos.
-          </li>
-          <li>
-            <span className="text-text">Stripe</span> — procesamiento de pagos y, en el futuro, el
-            pago de premios.
-          </li>
-          <li>
-            <span className="text-text">Proveedor de correo</span> — para enviarte los correos del
-            servicio.
-          </li>
-          <li>
-            <span className="text-text">Proveedor de alojamiento</span> — donde se ejecuta la
-            Plataforma.
-          </li>
+          <li>{tr("s5_bunny", marcas)}</li>
+          <li>{tr("s5_stripe", marcas)}</li>
+          <li>{tr("s5_correo", marcas)}</li>
+          <li>{tr("s5_alojamiento", marcas)}</li>
         </ul>
-        <p>También podremos compartir datos cuando lo exija la ley o una autoridad competente.</p>
+        <p>{t("s5_ley")}</p>
         <p>
-          <span className="text-text">Fuentes de ubicación:</span> la ubicación aproximada sale de
-          la base de datos de IP de{" "}
-          <a href="https://db-ip.com" className="underline underline-offset-2">
-            DB-IP
-          </a>{" "}
-          y del catálogo de ciudades de{" "}
-          <a href="https://www.geonames.org" className="underline underline-offset-2">
-            GeoNames
-          </a>
-          , ambos con licencia{" "}
-          <a
-            href="https://creativecommons.org/licenses/by/4.0/"
-            className="underline underline-offset-2"
-          >
-            CC BY 4.0
-          </a>
-          . Son ficheros que consultamos en nuestros servidores: no les enviamos ningún dato tuyo.
+          {tr("s5_fuentes", {
+            ...marcas,
+            externo: {
+              hrefs: [
+                "https://db-ip.com",
+                "https://www.geonames.org",
+                "https://creativecommons.org/licenses/by/4.0/",
+              ],
+              className: "underline underline-offset-2",
+            },
+          })}
         </p>
-        <p>
-          <span className="text-text">Transferencias internacionales:</span> algunos de estos
-          proveedores, y el propio responsable, pueden estar fuera del EEE. En ese caso aplicamos
-          las garantías que exige el RGPD, como las cláusulas contractuales tipo.{" "}
-          <Pendiente>mecanismo exacto, pendiente de revisión legal</Pendiente>
-        </p>
+        <p>{tr("s5_transferencias", marcas)}</p>
       </Apartado>
 
-      <Apartado numero={6} titulo="Cuánto tiempo conservamos tus datos">
-        <p>
-          Conservamos tus datos mientras tu cuenta esté activa. Si la eliminas, los borramos o los
-          anonimizamos, salvo lo que debamos conservar por obligación legal —por ejemplo, los
-          registros de pagos durante el plazo fiscal aplicable— o para resolver disputas y prevenir
-          el fraude.
-        </p>
+      <Apartado numero={6} titulo={t("s6")}>
+        <p>{t("s6_texto")}</p>
       </Apartado>
 
-      <Apartado numero={7} titulo="Tus derechos">
-        <p>
-          Puedes ejercer en cualquier momento tus derechos de acceso, rectificación, supresión,
-          oposición, limitación del tratamiento y portabilidad, así como retirar tu consentimiento
-          cuando el tratamiento se base en él. Escríbenos a{" "}
-          <Pendiente>correo de contacto</Pendiente>.
-        </p>
-        <p>
-          Si estás en el EEE, también puedes reclamar ante tu autoridad de control (en España, la
-          Agencia Española de Protección de Datos).
-        </p>
+      <Apartado numero={7} titulo={t("s7")}>
+        <p>{tr("s7_texto", marcas)}</p>
+        <p>{t("s7_reclamar")}</p>
       </Apartado>
 
-      <Apartado numero={8} titulo="Cookies">
-        <p>
-          Usamos cookies y almacenamiento local <span className="text-text">necesarios</span> para
-          que la Plataforma funcione: mantener tu sesión iniciada, recordar tu preferencia de tema
-          (claro u oscuro) y protegerte frente al fraude. No usamos cookies de publicidad de
-          terceros.{" "}
-          <Pendiente>si se añade analítica, requiere una capa de consentimiento</Pendiente>
-        </p>
+      <Apartado numero={8} titulo={t("s8")}>
+        <p>{tr("s8_texto", marcas)}</p>
       </Apartado>
 
-      <Apartado numero={9} titulo="Seguridad">
-        <p>
-          Aplicamos medidas técnicas y organizativas para proteger tus datos: contraseñas cifradas,
-          conexiones seguras, control de acceso y registros de seguridad. Ningún sistema es
-          infalible, pero trabajamos para reducir el riesgo.
-        </p>
+      <Apartado numero={9} titulo={t("s9")}>
+        <p>{t("s9_texto")}</p>
       </Apartado>
 
-      <Apartado numero={10} titulo="Cambios en esta política">
-        <p>
-          Podemos actualizar esta política. Si el cambio es relevante, te avisaremos por los medios
-          habituales. La fecha de arriba indica la última versión.
-        </p>
+      <Apartado numero={10} titulo={t("s10")}>
+        <p>{t("s10_texto")}</p>
       </Apartado>
 
-      <Apartado numero={11} titulo="Contacto">
-        <p>
-          Para cualquier cuestión sobre tus datos o esta política:{" "}
-          <Pendiente>correo de contacto</Pendiente>.
-        </p>
+      <Apartado numero={11} titulo={t("s11")}>
+        <p>{tr("s11_texto", marcas)}</p>
       </Apartado>
 
       {/* EL MISMO PIE QUE EL RESTO, también aquí: una página legal sin camino de vuelta deja a quien

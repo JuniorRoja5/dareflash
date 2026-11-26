@@ -384,8 +384,8 @@ borran para "limpiar"**:
   `"use client"` llega a un diccionario (grafo de imports; y en `.next/static` no puede aparecer ni la
   marca `__idioma` ni ningún CENTINELA —texto largo que solo vive en los diccionarios, porque Turbopack
   pliega `es.x.y` a un literal y una fuga parcial no arrastra la marca—, de
-  `scripts/centinelas-textos.mjs`: lo miran `ci-revisar-imagenes.sh` y `check-build-sin-env`). En las zonas extraídas no hay
-  texto a mano en JSX (censo por AST); lo que falta vive en `PENDIENTES_P5B2`, que solo puede menguar. El
+  `scripts/centinelas-textos.mjs`: lo miran `ci-revisar-imagenes.sh` y `check-build-sin-env`). Fuera del panel, la API y
+  las páginas de desarrollo no hay texto a mano en JSX (censo por AST, SIN excepciones desde la P5b2b). El
   pseudo-idioma `/xx/…` (acentos, +30 %, corchetes) solo se sirve en desarrollo; en producción, 404.
   **REGLA: una frase es UNA clave.** Si lleva un formato en medio (palabras resaltadas, un enlace, algo
   que solo oye un lector de pantalla), la marca va DENTRO de la plantilla y se pinta con `tRico`
@@ -406,6 +406,14 @@ borran para "limpiar"**:
   vocabulario en castellano (estado de un cobro, nombre del método, duración de un Boost), un test exige
   que el diccionario diga exactamente lo mismo. El marcado de cada zona está fijado en
   `render/marcado-p5b2a-*` (snapshots tomados del código de ANTES de extraer).
+  **P5b2b** (portal de empresa, su alta y `/privacidad`): el catálogo suma `pendiente` (un `<mark>`: el
+  hueco `[PENDIENTE — …]` de un documento, en la misma frase que otro resaltado) y `externo` (un `<a
+href>` FUERA del sitio, sin idioma ni router; con varios en una frase, `hrefs` en orden). Las frases de
+  empresa que se calculan con cifras de la config (Socios Fundadores, la tarifa, el saldo, a qué hora
+  empieza un día de campaña) viven en `textos/empresa` y `textos/publicidad`; sus gemelas en castellano
+  del panel y los correos tienen un test de igualdad, también con otras cifras en la tabla. Los
+  componentes de servidor síncronos con uno asíncrono dentro se pasan a `resolverServidor` en `tambien`
+  (si no, el test pinta la página vacía). Marcado en `render/marcado-p5b2b-*`.
 - `tsconfig-tests-cubre-tsx` (PTT) — `tsconfig.test.json` cubre TODO `tests/`, también los `.tsx`: se le
   pide a TypeScript la lista de ficheros del proyecto y cada `.ts`/`.tsx` del disco tiene que estar.
   Vitest no comprueba tipos, así que un test de render fuera de `tsc` corre verde con la fixture de una

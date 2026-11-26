@@ -56,9 +56,14 @@ describe("la política de privacidad existe y se puede leer", () => {
   it("los huecos sin rellenar se VEN", () => {
     // Si alguien los rellena con texto plausible para que "quede bonito", el documento pasa a
     // afirmar datos que nadie ha dado. Mejor un hueco declarado.
-    const v = codigo(PRIVACIDAD);
-    expect(v).toMatch(/<Pendiente>/);
-    expect(v).toMatch(/PENDIENTE/);
+    // Desde la P5b2b el texto vive en el diccionario: cada hueco es la marca `pendiente` (un `<mark>`
+    // visible), ninguno va como texto suelto, y la página le da su clase.
+    const textos = Object.values(es.privacidad).join(" | ");
+    const huecos = textos.match(/\[PENDIENTE —[^\]]*\]/g) ?? [];
+    const marcados = textos.match(/\{pendiente:\[PENDIENTE —[^\]]*\]\}/g) ?? [];
+    expect(huecos.length).toBeGreaterThanOrEqual(9);
+    expect(marcados.length, "un hueco sin su marca no se ve como hueco").toBe(huecos.length);
+    expect(codigo(PRIVACIDAD)).toMatch(/pendiente: \{ className: PENDIENTE \}/);
   });
 
   it("y el marcador de hueco no le roba el color a otro significado", () => {
@@ -66,7 +71,8 @@ describe("la política de privacidad existe y se puede leer", () => {
     // crítico" y nada más (MARCA.md: un token, un trabajo). Un hueco pendiente no es tiempo, ni
     // dinero, ni alarma, ni una acción: es una anotación, y va en neutro. Lo que lo hace visible es
     // que rompe el ritmo del texto, no quitarle el color a otro significado.
-    const marcador = /function Pendiente[\s\S]*?\n\}/.exec(codigo(PRIVACIDAD))?.[0] ?? "";
+    // Desde la P5b2b el marcador es la clase de la marca `pendiente` (`const PENDIENTE`).
+    const marcador = /const PENDIENTE =[\s\S]*?;/.exec(codigo(PRIVACIDAD))?.[0] ?? "";
     expect(marcador.length, "no encuentro el marcador de hueco").toBeGreaterThan(50);
     for (const token of ["time", "money", "alarm", "action", "ok", "rank"]) {
       expect(marcador, `el marcador usa el color de ${token}`).not.toMatch(
@@ -78,7 +84,9 @@ describe("la política de privacidad existe y se puede leer", () => {
   it("y dice en la propia página que todavía no es definitiva", () => {
     // El aviso va EN LA PÁGINA, no solo en un comentario del fuente: quien la lee tiene que saber
     // en qué estado está. Un comentario no se lo cuenta a nadie.
-    expect(codigo(PRIVACIDAD)).toMatch(/Documento en preparación/);
+    // Desde la P5b2b, en el diccionario, y la página lo pinta.
+    expect(es.privacidad.enPreparacion).toMatch(/Documento en preparación/);
+    expect(codigo(PRIVACIDAD)).toMatch(/tr\("enPreparacion"/);
   });
 });
 

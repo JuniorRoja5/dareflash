@@ -1440,6 +1440,96 @@ export const es = conMarcasConocidas({
     hueco: "El primer hueco libre para todos sus días empieza el {resaltado:{fecha}}.",
     programarPara: "Programar para el {fecha}",
   },
+  // ── /privacidad (P5b2b), palabra por palabra ─────────────────────────────────────────────────────
+  /**
+   * LA POLÍTICA DE PRIVACIDAD (servidor). Versión FUNCIONAL, no definitiva: los `{pendiente:…}` son
+   * huecos declarados (se rellenan con los datos del responsable) y tiene que revisarla un abogado. Al
+   * traducirla, los huecos se traducen como huecos: no se inventa un dato.
+   */
+  privacidad: {
+    titulo: "Política de Privacidad",
+    enPreparacion:
+      "{resaltado:Documento en preparación.} Esta versión describe cómo tratamos tus datos hoy, pero todavía no es la definitiva: los huecos marcados como {pendiente:[PENDIENTE — pendiente]} se completan antes del lanzamiento, y el texto está pendiente de revisión legal.",
+    actualizacion: "Última actualización: {pendiente:[PENDIENTE — fecha de publicación]}",
+    s1: "Quién es el responsable de tus datos",
+    s1_intro:
+      "{marca} (en adelante, «la Plataforma», «nosotros») es un servicio de retos en vídeo con premios. El responsable del tratamiento de tus datos es:",
+    s1_entidad: "{resaltado:Entidad:} {pendiente:[PENDIENTE — razón social del responsable]}",
+    s1_domicilio: "{resaltado:Domicilio:} {pendiente:[PENDIENTE — domicilio social]}",
+    s1_contacto: "{resaltado:Contacto de privacidad:} {pendiente:[PENDIENTE — correo de contacto]}",
+    s1_rgpd:
+      "Si resides en el Espacio Económico Europeo (EEE), el Reino Unido o Suiza, tratamos tus datos conforme al Reglamento General de Protección de Datos (RGPD) y a la normativa local aplicable.",
+    s2: "Qué datos recogemos",
+    s2_cuenta:
+      "{resaltado:Datos de cuenta:} correo electrónico, nombre de usuario, contraseña (guardada siempre cifrada, nunca en claro), fecha de nacimiento (para comprobar que eres mayor de 18 años) y los datos opcionales de tu perfil (avatar, web, redes).",
+    s2_contenido:
+      "{resaltado:Contenido que publicas:} vídeos, comentarios, votos y tu participación en retos.",
+    s2_uso:
+      "{resaltado:Datos de uso y técnicos:} dirección IP, tipo de dispositivo y navegador, y registros de actividad, que usamos para seguridad y prevención del fraude. También guardamos la zona horaria de tu navegador, para mostrarte las horas en tu hora local.",
+    s2_ubicacion:
+      "{resaltado:Ubicación aproximada:} a partir de tu dirección IP deducimos tu país y una ciudad aproximada, nunca tu dirección exacta. Guardamos ese resultado, no la IP, y lo usamos para medir cuánta gente ve la Plataforma en cada zona y para la publicidad local. El recuento por zona es anónimo: dice cuántas personas, no quiénes.",
+    s2_pago:
+      "{resaltado:Datos de pago:} cuando compras un Boost, el pago lo procesa Stripe. {resaltado:No almacenamos los números de tu tarjeta} en ningún momento; solo guardamos el registro de la transacción (importe, moneda e identificador de pago) para tu historial.",
+    s2_referidos:
+      "{resaltado:Referidos:} si llegas por el enlace de otra persona, o invitas a alguien, registramos esa relación.",
+    s2_comunicaciones:
+      "{resaltado:Comunicaciones:} los correos que te enviamos (verificación de cuenta, avisos y recuperación de contraseña).",
+    s3: "Para qué usamos tus datos y con qué base legal",
+    s3_finalidad: "Finalidad",
+    s3_base: "Base legal (RGPD)",
+    s3_f1: "Crear y mantener tu cuenta, dejarte participar y ver el servicio",
+    s3_b1: "Ejecución del contrato",
+    s3_f2: "Comprobar que eres mayor de 18 años",
+    s3_b2: "Obligación legal / ejecución del contrato",
+    s3_f3: "Procesar compras de Boost y, en el futuro, el pago de premios",
+    s3_b3: "Ejecución del contrato",
+    s3_f4: "Seguridad, prevención del fraude y del abuso, y moderación",
+    s3_b4: "Interés legítimo",
+    s3_f5: "Medir la audiencia por zona y mostrar publicidad local con tu ubicación aproximada",
+    s3_b5: "Interés legítimo (pendiente de revisión legal)",
+    s3_f6: "Enviarte correos operativos (verificación, avisos de tu cuenta)",
+    s3_b6: "Ejecución del contrato",
+    s3_f7: "Enviarte comunicaciones opcionales, si las activas",
+    s3_b7: "Consentimiento",
+    s3_f8: "Cumplir obligaciones fiscales y responder a requerimientos legales",
+    s3_b8: "Obligación legal",
+    s4: "Mayores de 18 años",
+    s4_texto:
+      "{marca} es {resaltado:solo para mayores de 18 años}. No admitimos cuentas de menores de edad ni recogemos sus datos a sabiendas. Si detectamos la cuenta de un menor, la eliminamos.",
+    s5: "Con quién compartimos tus datos",
+    s5_intro:
+      "No vendemos tus datos. Los compartimos únicamente con los proveedores que necesitamos para prestar el servicio, y solo lo imprescindible:",
+    s5_bunny: "{resaltado:Bunny.net} — alojamiento y distribución (CDN) de los vídeos.",
+    s5_stripe: "{resaltado:Stripe} — procesamiento de pagos y, en el futuro, el pago de premios.",
+    s5_correo: "{resaltado:Proveedor de correo} — para enviarte los correos del servicio.",
+    s5_alojamiento: "{resaltado:Proveedor de alojamiento} — donde se ejecuta la Plataforma.",
+    s5_ley: "También podremos compartir datos cuando lo exija la ley o una autoridad competente.",
+    s5_fuentes:
+      "{resaltado:Fuentes de ubicación:} la ubicación aproximada sale de la base de datos de IP de {externo:DB-IP} y del catálogo de ciudades de {externo:GeoNames}, ambos con licencia {externo:CC BY 4.0}. Son ficheros que consultamos en nuestros servidores: no les enviamos ningún dato tuyo.",
+    s5_transferencias:
+      "{resaltado:Transferencias internacionales:} algunos de estos proveedores, y el propio responsable, pueden estar fuera del EEE. En ese caso aplicamos las garantías que exige el RGPD, como las cláusulas contractuales tipo. {pendiente:[PENDIENTE — mecanismo exacto, pendiente de revisión legal]}",
+    s6: "Cuánto tiempo conservamos tus datos",
+    s6_texto:
+      "Conservamos tus datos mientras tu cuenta esté activa. Si la eliminas, los borramos o los anonimizamos, salvo lo que debamos conservar por obligación legal —por ejemplo, los registros de pagos durante el plazo fiscal aplicable— o para resolver disputas y prevenir el fraude.",
+    s7: "Tus derechos",
+    s7_texto:
+      "Puedes ejercer en cualquier momento tus derechos de acceso, rectificación, supresión, oposición, limitación del tratamiento y portabilidad, así como retirar tu consentimiento cuando el tratamiento se base en él. Escríbenos a {pendiente:[PENDIENTE — correo de contacto]}.",
+    s7_reclamar:
+      "Si estás en el EEE, también puedes reclamar ante tu autoridad de control (en España, la Agencia Española de Protección de Datos).",
+    s8: "Cookies",
+    s8_texto:
+      "Usamos cookies y almacenamiento local {resaltado:necesarios} para que la Plataforma funcione: mantener tu sesión iniciada, recordar tu preferencia de tema (claro u oscuro) y protegerte frente al fraude. No usamos cookies de publicidad de terceros. {pendiente:[PENDIENTE — si se añade analítica, requiere una capa de consentimiento]}",
+    s9: "Seguridad",
+    s9_texto:
+      "Aplicamos medidas técnicas y organizativas para proteger tus datos: contraseñas cifradas, conexiones seguras, control de acceso y registros de seguridad. Ningún sistema es infalible, pero trabajamos para reducir el riesgo.",
+    s10: "Cambios en esta política",
+    s10_texto:
+      "Podemos actualizar esta política. Si el cambio es relevante, te avisaremos por los medios habituales. La fecha de arriba indica la última versión.",
+    s11: "Contacto",
+    s11_texto:
+      "Para cualquier cuestión sobre tus datos o esta política: {pendiente:[PENDIENTE — correo de contacto]}.",
+  },
+
   // ── Retos patrocinados del portal (P5b2b) ────────────────────────────────────────────────────────
   /** /empresa/retos: sus propuestas y su extracto (servidor). */
   retosEmpresa: {

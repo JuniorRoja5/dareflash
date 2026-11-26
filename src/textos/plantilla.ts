@@ -64,6 +64,17 @@ export type PropsDeMarca = {
   };
   oculto: Record<string, never>;
   salto: Record<string, never>;
+  /**
+   * (P5b2b) Un hueco por rellenar de un documento, VISIBLE a propósito (`<mark>`): «[PENDIENTE — …]» en
+   * /privacidad. Hace falta porque va en mitad de una frase que ya lleva un `resaltado` con otra clase.
+   */
+  pendiente: { className: string };
+  /**
+   * (P5b2b) Un enlace FUERA del sitio: `<a href>` normal, sin idioma ni router (`enlace` es el interno).
+   * Si la frase lleva VARIOS, `hrefs` los da en el orden en que aparecen: tres fuentes con su licencia
+   * en una sola frase no se pueden partir en trozos (al traducir cambia el orden).
+   */
+  externo: { hrefs: readonly string[]; className?: string };
 };
 export type MarcaRica = keyof PropsDeMarca;
 

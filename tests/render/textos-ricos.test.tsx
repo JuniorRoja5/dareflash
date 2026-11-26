@@ -115,3 +115,45 @@ describe("la marca `salto` (P5b2a): el corte de línea de un titular", () => {
     expect(container.querySelectorAll("br")).toHaveLength(1);
   });
 });
+
+describe("las marcas `pendiente` y `externo` (P5b2b)", () => {
+  const MARCAS = {
+    resaltado: { className: "r" },
+    pendiente: { className: "p" },
+    externo: { hrefs: ["https://a.test", "https://b.test"], className: "e" },
+  };
+
+  it("`pendiente` es un <mark> con su clase, en la misma frase que otro resaltado", () => {
+    const t = crearTRico(
+      { x: "{resaltado:Ojo.} Falta {pendiente:[PENDIENTE — dato]} aquí" } as const,
+      "es",
+    );
+    const { container } = render(<p>{t("x", MARCAS)}</p>);
+    expect(container.innerHTML).toBe(
+      '<p><span class="r">Ojo.</span> Falta <mark class="p">[PENDIENTE — dato]</mark> aquí</p>',
+    );
+  });
+
+  it("`externo`: un <a href> normal por enlace, cada uno con el SUYO, en el orden de la frase", () => {
+    const t = crearTRico({ x: "De {externo:A} y de {externo:B}." } as const, "es");
+    const { container } = render(<p>{t("x", MARCAS)}</p>);
+    expect(container.innerHTML).toBe(
+      '<p>De <a href="https://a.test" class="e">A</a> y de <a href="https://b.test" class="e">B</a>.</p>',
+    );
+  });
+
+  it("y uno de más, sin destino, deja sus palabras: nunca un enlace a ninguna parte", () => {
+    const t = crearTRico({ x: "{externo:A}, {externo:B} y {externo:C}" } as const, "es");
+    const { container } = render(<p>{t("x", MARCAS)}</p>);
+    expect(container.querySelectorAll("a")).toHaveLength(2);
+    expect(container.textContent).toBe("A, B y C");
+  });
+
+  it("y el pseudo-idioma conserva las dos (si no, en `xx` asomarían las llaves)", () => {
+    const pseudo = pseudoDiccionario(es).privacidad.s5_fuentes;
+    const t = crearTRico({ x: pseudo }, "es");
+    const { container } = render(<p>{t("x", MARCAS)}</p>);
+    expect(container.querySelectorAll("a")).toHaveLength(2);
+    expect(container.textContent).not.toMatch(/[{}]/);
+  });
+});

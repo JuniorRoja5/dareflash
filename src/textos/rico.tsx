@@ -84,6 +84,8 @@ function pintar(
   valores: Record<string, string>,
   marcas: MarcasDadas,
   prefijo: string,
+  /** Cuántos `externo` van pintados en esta frase: el n-ésimo toma `hrefs[n]`. */
+  cuenta: { externo: number } = { externo: 0 },
 ): ReactNode[] {
   const salida: ReactNode[] = [];
   nodos.forEach((n, i) => {
@@ -98,7 +100,7 @@ function pintar(
     }
     const nodo = n as { marca: string; hijos: Nodo[] };
     const clave = `${prefijo}${i}`;
-    const hijos = pintar(nodo.hijos, valores, marcas, `${clave}.`);
+    const hijos = pintar(nodo.hijos, valores, marcas, `${clave}.`, cuenta);
     switch (nodo.marca) {
       case "resaltado":
         salida.push(
@@ -128,6 +130,27 @@ function pintar(
       case "salto":
         salida.push(<br key={clave} />);
         return;
+      case "pendiente":
+        salida.push(
+          <mark key={clave} className={marcas.pendiente?.className}>
+            {hijos}
+          </mark>,
+        );
+        return;
+      case "externo": {
+        const href = marcas.externo?.hrefs[cuenta.externo++];
+        // Sin destino (más enlaces en la frase que `hrefs`): sus PALABRAS, sin un enlace a ninguna parte.
+        salida.push(
+          href ? (
+            <a key={clave} href={href} className={marcas.externo?.className}>
+              {hijos}
+            </a>
+          ) : (
+            <Fragment key={clave}>{hijos}</Fragment>
+          ),
+        );
+        return;
+      }
       case "oculto":
         salida.push(
           <span key={clave} className="sr-only">
