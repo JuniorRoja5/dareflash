@@ -460,6 +460,7 @@ export const es = conMarcasConocidas({
     boosts: "Mis Boosts",
     empezar: "Empezar",
     altaEmpresa: "Registrar mi empresa",
+    noEncontrada: "Página no encontrada",
     miEmpresa: "Mi empresa",
     creditosEmpresa: "Créditos de publicidad",
     cuentaEmpresa: "Cuenta",
@@ -549,26 +550,26 @@ export const es = conMarcasConocidas({
    */
   desbloquear: {
     titulo: "Reactivar tu cuenta",
-    hecho: "Cuenta reactivada. Ya puedes intentar iniciar sesion de nuevo.",
-    error: "El enlace de desbloqueo es invalido o ha caducado.",
-    sinConexion: "No se pudo conectar. Intentalo de nuevo mas tarde.",
+    hecho: "Cuenta reactivada. Ya puedes intentar iniciar sesión de nuevo.",
+    error: "El enlace de desbloqueo es inválido o ha caducado.",
+    sinConexion: "No se pudo conectar. Inténtalo de nuevo más tarde.",
     faltaToken: "Falta el token en el enlace. Abre el enlace completo del correo de desbloqueo.",
-    frenada: "Tu cuenta se freno temporalmente por demasiados intentos. Pulsa para reactivarla.",
+    frenada: "Tu cuenta se frenó temporalmente por demasiados intentos. Pulsa para reactivarla.",
     reactivando: "Reactivando...",
     reactivar: "Reactivar mi cuenta",
-    vuelveAIntentar: "Vuelve a intentar iniciar sesion.",
+    vuelveAIntentar: "Vuelve a intentar iniciar sesión.",
     volverInicio: "Volver al inicio",
     yaUsado:
-      "Si ya has reactivado tu cuenta, este enlace deja de funcionar: vuelve a intentar iniciar sesion. Si el enlace ha caducado y sigues bloqueado, al intentarlo de nuevo te enviaremos uno nuevo.",
+      "Si ya has reactivado tu cuenta, este enlace deja de funcionar: vuelve a intentar iniciar sesión. Si el enlace ha caducado y sigues bloqueado, al intentarlo de nuevo te enviaremos uno nuevo.",
     cargando: "Cargando...",
   },
   /** /verify. Igual que /unlock: los textos sin tilde van tal cual se veían. */
   verificar: {
     titulo: "Verificar tu cuenta",
     cargando: "Cargando…",
-    hecho: "Cuenta verificada. Ya puedes iniciar sesion.",
-    error: "El enlace de verificacion es invalido o ha caducado.",
-    sinConexion: "No se pudo conectar. Intentalo de nuevo mas tarde.",
+    hecho: "Cuenta verificada. Ya puedes iniciar sesión.",
+    error: "El enlace de verificación es inválido o ha caducado.",
+    sinConexion: "No se pudo conectar. Inténtalo de nuevo más tarde.",
     faltaToken: "Falta el token en el enlace. Abre el enlace completo del correo de verificación.",
     pulsa: "Pulsa el botón para confirmar tu dirección de correo.",
     verificando: "Verificando…",
@@ -1440,6 +1441,17 @@ export const es = conMarcasConocidas({
     hueco: "El primer hueco libre para todos sus días empieza el {resaltado:{fecha}}.",
     programarPara: "Programar para el {fecha}",
   },
+  /**
+   * LA PÁGINA 404 PROPIA (P5b2b, aprobada por Junior el 25 nov): una ruta que no existe, un idioma no
+   * publicado o `/en/panel`. Una frase humana, sin datos inventados, y una sola acción: volver.
+   */
+  noEncontrada: {
+    titulo: "Esta página no existe",
+    texto:
+      "Puede que el enlace esté mal escrito o que lo que buscabas ya no esté en {marca}. Desde el inicio llegas a todo lo demás.",
+    volver: "Volver al inicio",
+  },
+
   // ── /privacidad (P5b2b), palabra por palabra ─────────────────────────────────────────────────────
   /**
    * LA POLÍTICA DE PRIVACIDAD (servidor). Versión FUNCIONAL, no definitiva: los `{pendiente:…}` son

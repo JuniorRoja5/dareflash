@@ -5,6 +5,7 @@ import { useState } from "react";
 import { formatearContador } from "@/components/feed/feed-datos";
 import { delCsrf, postJsonCsrf } from "@/lib/cliente-http";
 import { useNavegarDuro } from "@/components/enlace";
+import { useFormato } from "@/components/formato-provider";
 import { useTextos } from "@/components/textos-provider";
 
 /**
@@ -40,6 +41,7 @@ export function BotonLike({
   esMio?: boolean;
 }) {
   const navegarDuro = useNavegarDuro();
+  const { idioma } = useFormato();
   const t = useTextos("like");
   const [dado, setDado] = useState(miLike);
   const [delta, setDelta] = useState(0);
@@ -87,14 +89,16 @@ export function BotonLike({
       onClick={() => void alternar()}
       disabled={esMio}
       aria-pressed={dado}
-      aria-label={t(dado ? "quitarMeGusta" : "meGusta", { cuenta: formatearContador(mostrados) })}
+      aria-label={t(dado ? "quitarMeGusta" : "meGusta", {
+        cuenta: formatearContador(mostrados, idioma),
+      })}
       className="flex flex-col items-center gap-1 disabled:opacity-40"
     >
       <span className="flex h-11 w-11 items-center justify-center text-white lg:text-text lg:hover:text-white">
         <IconoCorazon relleno={dado} />
       </span>
       <span className="text-2xs font-medium tabular-nums text-white lg:text-text-dim">
-        {formatearContador(mostrados)}
+        {formatearContador(mostrados, idioma)}
       </span>
     </button>
   );

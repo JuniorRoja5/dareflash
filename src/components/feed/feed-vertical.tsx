@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFormato } from "@/components/formato-provider";
 import { useTextos } from "@/components/textos-provider";
 
 import { BotonCompartir } from "@/components/ui/boton-compartir";
@@ -93,11 +94,12 @@ function Accion({
   destacado?: boolean;
   onClick?: () => void;
 }) {
+  const { idioma } = useFormato();
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={`${label} (${formatearContador(valor)})`}
+      aria-label={`${label} (${formatearContador(valor, idioma)})`}
       className="flex flex-col items-center gap-1"
     >
       <span
@@ -110,7 +112,7 @@ function Accion({
         {icono}
       </span>
       <span className="text-2xs font-semibold tabular-nums text-white lg:text-text-dim">
-        {formatearContador(valor)}
+        {formatearContador(valor, idioma)}
       </span>
     </button>
   );
@@ -122,12 +124,13 @@ function Accion({
  * sin icono pulsable. El número sí se enseña, porque saber cuántos votos lleva algo es mirar.
  */
 function Cifra({ valor, etiqueta }: { valor: number; etiqueta: string }) {
+  const { idioma } = useFormato();
   return (
     <div
       data-cifra-solo-lectura
       className="flex flex-col items-center gap-0.5 text-white lg:text-text"
     >
-      <span className="text-sm font-semibold tabular-nums">{formatearContador(valor)}</span>
+      <span className="text-sm font-semibold tabular-nums">{formatearContador(valor, idioma)}</span>
       <span className="text-2xs text-white/80 lg:text-text-dim">{etiqueta}</span>
     </div>
   );
@@ -378,6 +381,7 @@ function PanelComentarios({
   onContador: (videoId: string, comentarios: number) => void;
   anclaComentario?: string;
 }) {
+  const { idioma } = useFormato();
   const t = useTextos("feed");
   return (
     <aside className="hidden border-l border-line bg-surface shadow-[var(--df-shadow-lg)] lg:flex lg:h-[100svh] lg:flex-col lg:overflow-hidden">
@@ -403,8 +407,8 @@ function PanelComentarios({
           {post.categoria ? <PildoraCategoria>{post.categoria}</PildoraCategoria> : null}
           <span className="text-2xs tabular-nums text-text-dim">
             {t("resumen", {
-              votos: formatearContador(post.votos),
-              comentarios: formatearContador(post.comentarios),
+              votos: formatearContador(post.votos, idioma),
+              comentarios: formatearContador(post.comentarios, idioma),
             })}
           </span>
         </div>
@@ -447,6 +451,7 @@ function HojaComentarios({
   onCerrar: () => void;
   anclaComentario?: string;
 }) {
+  const { idioma } = useFormato();
   const t = useTextos("feed");
   useEffect(() => {
     const alTeclear = (e: KeyboardEvent): void => {
@@ -472,7 +477,7 @@ function HojaComentarios({
       >
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <p className="text-sm font-semibold text-text tabular-nums">
-            {t("nComentarios", { cuenta: formatearContador(post.comentarios) })}
+            {t("nComentarios", { cuenta: formatearContador(post.comentarios, idioma) })}
           </p>
           <button
             type="button"

@@ -26,6 +26,8 @@ import { describe, expect, it } from "vitest";
 import {
   componentesEnZona,
   estiloSinHora,
+  formatearCompacto,
+  formatearMegabytes,
   formatearDecimal,
   formatearDiaClave,
   formatearFecha,
@@ -84,6 +86,49 @@ describe("1 · un solo sitio formatea", () => {
     expect(TODOS.length).toBeGreaterThan(300);
     const fuera = TODOS.filter(
       (f) => f.rel !== "src/lib/formato.ts" && FORMATEO.test(f.codigo),
+    ).map((f) => f.rel);
+    expect(fuera).toEqual([]);
+  });
+});
+
+/**
+ * UN TAMAÑO O UNA CIFRA COMPACTA ESCRITOS A MANO (P5b2b): una unidad pegada a una cifra interpolada
+ * (`${…} MB`, `${…}K`, `${…}M`) o un `toFixed` con unidad. Así salían «12.3 MB» y «12.4K» también en
+ * español; ahora los dan `formatearMegabytes` y `formatearCompacto`, con la forma del idioma.
+ */
+const A_MANO = /\$\{[^}]*\}\s?(?:[KMG]B|K|M|k)`|\.toFixed\(\d\)[^`\n]{0,3}\s?[KMG]B\b/;
+
+/**
+ * Las excepciones, una a una y con su motivo. `premioCorto` («$8.4k») es DINERO, y el dinero se escribe
+ * igual en todos los idiomas por regla de la casa (`formatearImporte`, en inglés de EE. UU.).
+ */
+const A_MANO_PERMITIDO: Record<string, string> = {
+  "src/lib/portada.ts": "premioCorto: dinero, en-US en todos los idiomas",
+};
+
+describe("1 bis · tamaños y cifras compactas, del formateador", () => {
+  it("el detector distingue (si no, el censo no prueba nada)", () => {
+    expect(A_MANO.test("const toMB = (b) => `${(b / MB).toFixed(1)} MB`;")).toBe(true);
+    expect(A_MANO.test("return `${redondea1(n / 1000)}K`;")).toBe(true);
+    expect(A_MANO.test("return `${redondea1(n / 1_000_000)}M`;")).toBe(true);
+    expect(A_MANO.test("formatearMegabytes(fichero.size, idioma)")).toBe(false);
+    expect(A_MANO.test("`${x.toFixed(2)}deg`")).toBe(false);
+    expect(A_MANO.test("`${n}%`")).toBe(false);
+  });
+
+  it("y los dos de siempre salen ya con la forma del idioma", () => {
+    expect(formatearMegabytes(12.34 * 1024 * 1024, "es")).toBe("12,3 MB");
+    expect(formatearMegabytes(12.34 * 1024 * 1024, "en")).toBe("12.3 MB");
+    expect(formatearCompacto(999, "es")).toBe("999");
+    expect(formatearCompacto(12_400, "es").replace(/\s/g, " ")).toBe("12,4 mil");
+    expect(formatearCompacto(12_400, "en")).toBe("12.4K");
+    expect(formatearCompacto(1_200_000, "es").replace(/\s/g, " ")).toBe("1,2 M");
+  });
+
+  it("fuera de `lib/formato`, nadie escribe un tamaño ni una cifra compacta a mano", () => {
+    const fuera = TODOS.filter(
+      (f) =>
+        f.rel !== "src/lib/formato.ts" && !(f.rel in A_MANO_PERMITIDO) && A_MANO.test(f.codigo),
     ).map((f) => f.rel);
     expect(fuera).toEqual([]);
   });

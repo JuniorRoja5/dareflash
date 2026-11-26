@@ -22,7 +22,7 @@ import {
 } from "@/lib/estado-subida";
 
 import { nombreDeCategoria } from "@/textos/categoria";
-import { formatearNumero } from "@/lib/formato";
+import { formatearMegabytes, formatearNumero } from "@/lib/formato";
 import { useFormato } from "@/components/formato-provider";
 
 import { CATEGORIAS } from "../retos/retos-datos";
@@ -37,7 +37,6 @@ import {
 } from "./subida-tus";
 
 const MB = 1024 * 1024;
-const toMB = (bytes: number): string => `${(bytes / MB).toFixed(1)} MB`;
 
 const SELECTOR_FOCO =
   'a[href], button:not([disabled]), textarea, input:not([type="file"]), select, label[for], [tabindex]:not([tabindex="-1"])';
@@ -428,7 +427,7 @@ export function ModalSubida({
               <>
                 <span className="max-w-full truncate font-medium text-text">{fichero.name}</span>
                 <span className="text-2xs tracking-widest text-text-dim uppercase">
-                  {toMB(fichero.size)}
+                  {formatearMegabytes(fichero.size, idioma)}
                 </span>
               </>
             ) : (

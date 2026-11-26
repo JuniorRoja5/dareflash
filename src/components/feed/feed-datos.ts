@@ -4,18 +4,14 @@
  * cuando llegaron los comentarios reales (`ComentariosVideo`), y `tests/sin-datos-maqueta.test.ts`
  * impide que vuelva.
  */
-
-/** 1 decimal, sin ".0" (1.0 -> "1", 12.4 -> "12.4"). */
-function redondea1(x: number): string {
-  return (Math.round(x * 10) / 10).toString();
-}
+import { formatearCompacto, type Idioma } from "@/lib/formato";
 
 /**
- * Formato COMPACTO de un contador (decision PURA, atada con dientes): < 1000 tal cual; miles -> "K";
- * millones -> "M". Se renderiza con `tabular-nums`. Romper el formato (no compactar) cae en rojo.
+ * Formato COMPACTO de un contador (decision PURA, atada con dientes): < 1000 tal cual; desde mil, la
+ * forma compacta DEL IDIOMA («1,2 mil» en español, «1.2K» en inglés), del formateador único (P1). Antes
+ * se escribía a mano («12.4K» también en español); un tamaño o una cifra compacta escritos a mano son
+ * rojo en `formato-a-mano`. Se renderiza con `tabular-nums`.
  */
-export function formatearContador(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 1_000_000) return `${redondea1(n / 1000)}K`;
-  return `${redondea1(n / 1_000_000)}M`;
+export function formatearContador(n: number, idioma: Idioma): string {
+  return formatearCompacto(n, idioma);
 }

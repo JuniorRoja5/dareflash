@@ -178,6 +178,26 @@ export function formatearNumero(n: number, idioma: Idioma): string {
   return formatoNumero(LOCALE[idioma]).format(n);
 }
 
+/**
+ * Una cifra COMPACTA, con la forma del idioma y un decimal como mucho: «1,2 mil» y «12,4 mil» en
+ * español, «1.2K» en inglés, «1,2 Mio.» en alemán. Por debajo de mil, entera. (Antes, «12.4K» a mano en
+ * todos los idiomas: el punto decimal inglés también en español. P5b2b.)
+ */
+export function formatearCompacto(n: number, idioma: Idioma): string {
+  return formatoNumero(LOCALE[idioma], { notation: "compact", maximumFractionDigits: 1 }).format(n);
+}
+
+/** UN TAMAÑO DE FICHERO en megabytes (de 1024 × 1024 bytes), con un decimal: «12,3 MB». */
+export function formatearMegabytes(bytes: number, idioma: Idioma): string {
+  return formatoNumero(LOCALE[idioma], {
+    style: "unit",
+    unit: "megabyte",
+    unitDisplay: "short",
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(bytes / (1024 * 1024));
+}
+
 /** Con un número FIJO de decimales («12,5»). */
 export function formatearDecimal(n: number, idioma: Idioma, decimales: number): string {
   return formatoNumero(LOCALE[idioma], {
