@@ -239,7 +239,7 @@ describe("el motivo y el admin NO llegan al dueño de la cuenta", () => {
     const { misMovimientosMonedero } = await import("../src/server/services/retirada");
     await ajustar({ deltaCents: 5000 });
 
-    const movimientos = await misMovimientosMonedero(prisma, userId);
+    const { items: movimientos } = await misMovimientosMonedero(prisma, userId);
     expect(movimientos).toHaveLength(1);
     expect(movimientos[0]!.concepto, "el movimiento no dice que es un ajuste").toBe("ADMIN");
     expect(movimientos[0]!.amountCents).toBe(5000);
@@ -254,9 +254,9 @@ describe("el motivo y el admin NO llegan al dueño de la cuenta", () => {
     // La otra mitad de la misma regla. Esconder el motivo es correcto; esconder el MOVIMIENTO deja
     // un saldo que cambia solo, que es indistinguible de un error.
     const { misMovimientosMonedero } = await import("../src/server/services/retirada");
-    expect(await misMovimientosMonedero(prisma, userId)).toHaveLength(0);
+    expect((await misMovimientosMonedero(prisma, userId)).items).toHaveLength(0);
     await ajustar({ deltaCents: 5000 });
-    expect(await misMovimientosMonedero(prisma, userId)).toHaveLength(1);
+    expect((await misMovimientosMonedero(prisma, userId)).items).toHaveLength(1);
   });
 });
 

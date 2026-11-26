@@ -817,6 +817,15 @@ export const es = conMarcasConocidas({
     solicitudes: "Tus solicitudes",
     movimientos: "Últimos movimientos",
     movimientosVacio: "Todavía no hay movimientos. Aquí verás cada entrada y salida de tu saldo.",
+    /**
+     * Una página POSTERIOR que se ha quedado sin filas (PU1): no es «todavía no hay», es que por aquí
+     * ya no queda nada. «Anterior» sigue debajo, para no dejar a nadie encerrado.
+     */
+    solicitudesVacioPosterior: "No quedan más solicitudes por aquí.",
+    movimientosVacioPosterior: "No quedan más movimientos por aquí.",
+    /** El nombre de cada `nav` de páginas: dos en la misma pantalla no pueden llamarse igual. */
+    paginasSolicitudes: "Páginas de tus solicitudes",
+    paginasMovimientos: "Páginas de tus movimientos",
     col_fecha: "Fecha",
     col_concepto: "Concepto",
     col_importe: "Importe",
@@ -867,10 +876,7 @@ export const es = conMarcasConocidas({
     conMotivo: "{resaltado:{motivo}} El importe volvió entero a tu monedero.",
     sinMotivo:
       "No hemos podido completar este cobro y el importe volvió entero a tu monedero. Si no sabes por qué se rechazó, escríbenos.",
-    errorMas: "No hemos podido cargar más. Inténtalo otra vez.",
     vacio: "Todavía no has pedido ningún cobro.",
-    cargando: "Cargando…",
-    verMas: "Ver más",
     dondeCobrar: "Dónde cobrar",
     nMetodos: { one: "{n} método", other: "{n} métodos" },
     /** «Reemplazar», no «editar»: los datos no vuelven del servidor, así que no hay nada que editar. */

@@ -907,6 +907,10 @@ model WalletLedger {
   createdAt      DateTime @default(now())
 
   @@index([userId])
+  // El keyset de «Últimos movimientos» del monedero (PU1): `(createdAt, id) < (t, i)` de UNA persona,
+  // de la más reciente a la más antigua, en una sola pasada del índice. Sin él, cada página ordenaba
+  // en memoria todas sus filas.
+  @@index([userId, createdAt, id])
   @@index([status])
   @@index([refType, refId])
 }

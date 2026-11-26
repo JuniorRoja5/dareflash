@@ -259,25 +259,46 @@ export interface MovimientoMonedero {
  * el admin puede ajustarlo, una cuenta puede ver su dinero cambiar sin una sola línea que lo cuente,
  * y un saldo que se mueve solo es indistinguible de un error.
  *
- * ES UN TOPE, NO UNA PÁGINA, y la pantalla lo dice ("últimos movimientos"). No se pagina por dos
- * razones honestas: `WalletLedger` solo tiene índice por `userId` —un keyset por `(createdAt, id)`
- * se apoyaría en una ordenación en memoria, y el índice compuesto es una migración que esta pieza no
- * lleva—, y una lista que no promete ser completa no necesita un "ver más" que lo parezca. El día
- * que haga falta el histórico entero, lo que toca es el índice y el mismo keyset de `misRetiradas`.
+ * ┌─ ANTES ERA UN TOPE (LOS 10 ÚLTIMOS) Y AHORA ES UNA PÁGINA (PU1) ──────────────────────────────┐
+ * │ Se quedaba en los diez últimos porque `WalletLedger` solo tenía índice por `userId`. Ahora se  │
+ * │ recorre entero con el MISMO keyset de `misRetiradas` —`(createdAt, id) < (t, i)`, jamás        │
+ * │ `OFFSET`—, apoyado en el índice `[userId, createdAt, id]` que entra con su migración         │
+ * │ (`movimientos_monedero_keyset`): sin él, cada página ordenaría en memoria todas las filas de   │
+ * │ la persona.                                                                                   │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
  */
 export async function misMovimientosMonedero(
   db: PrismaClient,
   userId: string,
-  limite = 10,
-): Promise<MovimientoMonedero[]> {
+  opts: { cursor?: string | null; limite?: number } = {},
+): Promise<PaginaMovimientos> {
+  const limite = Math.min(Math.max(1, Math.floor(opts.limite ?? LIMITE_MAX)), LIMITE_MAX);
+  const desde = decodificarCursorTiempo(opts.cursor);
   const filas = await db.walletLedger.findMany({
-    where: { userId },
+    where: { userId, ...dondeDesde(desde) },
+    // DESC en las DOS columnas: una sola pasada del índice hacia atrás.
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    take: Math.min(Math.max(1, Math.floor(limite)), 50),
+    // Una de más: así se sabe si hay página siguiente sin un `count` aparte.
+    take: limite + 1,
     // `refId` NO: ver el docblock del DTO. En un ajuste es el id del admin.
     select: { id: true, amountCents: true, currency: true, refType: true, createdAt: true },
   });
-  return filas.map(({ refType, ...f }) => ({ ...f, concepto: refType }));
+  const hayMas = filas.length > limite;
+  const pagina = hayMas ? filas.slice(0, limite) : filas;
+  const ultima = pagina[pagina.length - 1];
+  return {
+    items: pagina.map(({ refType, ...f }) => ({ ...f, concepto: refType })),
+    nextCursor:
+      hayMas && ultima
+        ? codificarCursorTiempo({ creadoMs: ultima.createdAt.getTime(), id: ultima.id })
+        : null,
+  };
+}
+
+export interface PaginaMovimientos {
+  items: MovimientoMonedero[];
+  /** Cursor OPACO de la página siguiente; `null` = no hay más. */
+  nextCursor: string | null;
 }
 
 export async function misRetiradas(

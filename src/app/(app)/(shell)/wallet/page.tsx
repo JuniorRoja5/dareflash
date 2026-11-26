@@ -2,6 +2,14 @@ import { apartarCuentaEmpresa } from "@/server/auth/solo-participante";
 import { redirigir } from "@/server/redirigir";
 
 import { TextosProvider } from "@/components/textos-provider";
+import { PasosKeyset } from "@/components/ui/pasos-keyset";
+import {
+  CLAVES_SOLICITUDES,
+  conservarParaMovimientos,
+  conservarParaSolicitudes,
+  FILAS_POR_PAGINA_MONEDERO,
+  leerPaginasMonedero,
+} from "@/lib/paginas-monedero";
 import { ESTADOS_RETIRADA_EN_CURSO, puedePedirCobro } from "@/lib/retirada";
 import { textos, textosClienteDeLaPeticion } from "@/textos/servidor";
 
@@ -45,7 +53,11 @@ export const dynamic = "force-dynamic";
  * —las dos leen `RETIRADA_MINIMA_CENTS`, la vista a través de `puedePedirCobro`—. Esconder un botón
  * no es una regla.
  */
-export default async function WalletPage() {
+export default async function WalletPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await apartarCuentaEmpresa();
   const { requireVerifiedUser, AuthError } = await import("@/server/auth/rbac");
   const { prisma } = await import("@/server/db/client");
@@ -69,17 +81,26 @@ export default async function WalletPage() {
     select: { walletBalanceCents: true },
   });
   const saldo = usuario.walletBalanceCents;
+  // DÓNDE ESTÁ CADA LISTA (PU1): cada una con sus parámetros, así que pasar de página en una no
+  // mueve la otra. Ver `lib/paginas-monedero`.
+  const paginas = leerPaginasMonedero(await searchParams);
 
   const [metodos, historial, movimientos, porEstado] = await Promise.all([
     misMetodosPago(prisma, userId),
-    // La PRIMERA página del histórico, ya pintada por el servidor; el "Ver más" sigue desde su
-    // cursor. Lo que no se hace es traerlo entero: un histórico largo es una pantalla lenta.
-    misRetiradas(prisma, userId),
+    // UNA PÁGINA del histórico, la que dice la URL, por keyset. Se REEMPLAZA al pasar de página,
+    // no se acumula: traerlo entero —o ir sumando— es una pantalla cada vez más lenta.
+    misRetiradas(prisma, userId, {
+      cursor: paginas.solicitudes.cursor,
+      limite: FILAS_POR_PAGINA_MONEDERO,
+    }),
     // DE DÓNDE SALE EL SALDO. Desde que el equipo puede ajustarlo a mano, el dinero puede cambiar
     // sin que ninguna solicitud lo explique: un saldo que se mueve solo parece un error.
-    misMovimientosMonedero(prisma, userId),
+    misMovimientosMonedero(prisma, userId, {
+      cursor: paginas.movimientos.cursor,
+      limite: FILAS_POR_PAGINA_MONEDERO,
+    }),
     // LAS DOS CIFRAS DEL HERO, DE UNA CONSULTA Y SOBRE TODO EL HISTORIAL. Sumarlas en memoria a
-    // partir de `misRetiradas` daría un número que parece total y solo cuenta las 20 últimas, que es
+    // partir de `misRetiradas` daría un número que parece total y solo cuenta una página, que es
     // peor que no ponerlo: una cifra de dinero equivocada no se distingue de una correcta mirándola.
     prisma.withdrawal.groupBy({
       by: ["status"],
@@ -139,12 +160,31 @@ export default async function WalletPage() {
             <h2 id="tus-solicitudes" className="font-medium text-text">
               {t("solicitudes")}
             </h2>
-            {/* La lista es CLIENTE porque el "Ver más" añade páginas sin recargar; la PRIMERA la trae
-              el servidor ya pintada, así que no hay un salto en blanco al abrir. */}
-            <HistorialRetiradas inicial={historial.items} cursorInicial={historial.nextCursor} />
+            {historial.items.length === 0 && paginas.solicitudes.cursor !== null ? (
+              <p className="mt-3 text-sm text-text-dim">{t("solicitudesVacioPosterior")}</p>
+            ) : (
+              <HistorialRetiradas filas={historial.items} />
+            )}
+            {/* FUERA del `if` de la lista: en una página posterior vacía, «Anterior» sigue aquí. */}
+            <PasosKeyset
+              base="/wallet"
+              aqui={paginas.solicitudes}
+              proximoCursor={historial.nextCursor}
+              filtro={conservarParaSolicitudes(paginas)}
+              claves={CLAVES_SOLICITUDES}
+              ancla="tus-solicitudes"
+              etiqueta={t("paginasSolicitudes")}
+            />
           </section>
 
-          <MovimientosMonedero movimientos={movimientos} idioma={idioma} zona={zona} />
+          <MovimientosMonedero
+            movimientos={movimientos.items}
+            proximoCursor={movimientos.nextCursor}
+            aqui={paginas.movimientos}
+            conservar={conservarParaMovimientos(paginas)}
+            idioma={idioma}
+            zona={zona}
+          />
         </div>
       </div>
     </TextosProvider>

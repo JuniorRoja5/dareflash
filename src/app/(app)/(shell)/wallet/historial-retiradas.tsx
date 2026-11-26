@@ -1,8 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
-import { getJson } from "@/lib/cliente-http";
 import { importeConMoneda } from "@/lib/dinero";
 import { pasosDe, type EstadoRetirada } from "@/lib/retirada";
 import { useTextos, useTextosRicos } from "@/components/textos-provider";
@@ -28,9 +25,8 @@ import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "@/li
  * devuelve `null`— porque no avanzó por el camino: se salió. Pintarle los cuatro pasos apagados
  * contaría un progreso que no existe.
  *
- * "VER MÁS" ES KEYSET: se pide la página siguiente con el cursor de la última fila y se AÑADE. Con
- * un `OFFSET`, pedir otro cobro mientras lees empuja la ventana y la segunda página repite la
- * última fila de la primera.
+ * LAS PÁGINAS SON KEYSET (`misRetiradas`): con un `OFFSET`, pedir otro cobro mientras lees empuja la
+ * ventana y la segunda página repite la última fila de la primera.
  *
  * NO SE PINTA QUIÉN LA PROCESÓ: el DTO no lo trae, y es deliberado — el handle del admin que firmó
  * un movimiento es traza interna, igual que la nota de un ajuste de puntos.
@@ -217,36 +213,14 @@ function Fila({ r }: { r: RetiradaPropia }) {
   );
 }
 
-export function HistorialRetiradas({
-  inicial,
-  cursorInicial,
-}: {
-  inicial: RetiradaPropia[];
-  cursorInicial: string | null;
-}) {
+/**
+ * UNA PÁGINA de solicitudes (PU1). Antes era un «Ver más» que AÑADÍA filas en el cliente; ahora la
+ * página la elige la URL (`solicitudes=`, ver `lib/paginas-monedero`) y la pinta el servidor, y
+ * `PasosKeyset` va debajo, en la página: la lista se REEMPLAZA, no se acumula. Sigue siendo de
+ * cliente solo por `Fila`, que lee el proveedor de textos y de formato.
+ */
+export function HistorialRetiradas({ filas }: { filas: RetiradaPropia[] }) {
   const t = useTextos("cobros");
-  const [filas, setFilas] = useState(inicial);
-  const [cursor, setCursor] = useState(cursorInicial);
-  const [cargando, setCargando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function verMas() {
-    if (!cursor || cargando) return;
-    setCargando(true);
-    setError(null);
-    const r = await getJson<{ items: RetiradaPropia[]; nextCursor: string | null }>(
-      `/api/retiradas?cursor=${encodeURIComponent(cursor)}`,
-    );
-    setCargando(false);
-    if (!r.ok) {
-      setError(t("errorMas"));
-      return;
-    }
-    // Se AÑADE, y el cursor avanza al de la respuesta: la página siguiente arranca donde acabó
-    // esta, no en un desplazamiento que otra solicitud nueva habría movido.
-    setFilas((previas) => [...previas, ...r.data.items]);
-    setCursor(r.data.nextCursor);
-  }
 
   if (filas.length === 0) {
     return <p className="mt-3 text-sm text-text-dim">{t("vacio")}</p>;
@@ -273,23 +247,6 @@ export function HistorialRetiradas({
           </li>
         ))}
       </ul>
-
-      {error ? (
-        <p role="alert" className="mt-3 text-sm text-alarm">
-          {error}
-        </p>
-      ) : null}
-
-      {cursor ? (
-        <button
-          type="button"
-          onClick={() => void verMas()}
-          disabled={cargando}
-          className="mx-auto mt-4 block min-h-[44px] rounded-full border border-line px-5 text-sm font-medium text-text-dim transition-colors duration-[var(--df-dur-fast)] ease-mechanical hover:bg-raised hover:text-text disabled:opacity-60"
-        >
-          {cargando ? t("cargando") : t("verMas")}
-        </button>
-      ) : null}
     </>
   );
 }

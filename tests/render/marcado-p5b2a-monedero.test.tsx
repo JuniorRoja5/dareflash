@@ -18,7 +18,7 @@ const H = vi.hoisted(() => ({
   saldo: 0,
   metodos: [] as unknown[],
   historial: { items: [] as unknown[], nextCursor: null as string | null },
-  movimientos: [] as unknown[],
+  movimientos: { items: [] as unknown[], nextCursor: null as string | null },
   porEstado: [] as unknown[],
   getJson: null as unknown as ReturnType<typeof import("vitest").vi.fn>,
   post: null as unknown as ReturnType<typeof import("vitest").vi.fn>,
@@ -84,7 +84,9 @@ const pulsar = async (el: HTMLElement) => {
   });
 };
 const T0 = new Date("2026-03-01T10:00:00Z");
-const pagina = async () => render(<>{await resolverServidor(await WalletPage())}</>).container;
+const pagina = async (sp: Record<string, string> = {}) =>
+  render(<>{await resolverServidor(await WalletPage({ searchParams: Promise.resolve(sp) }))}</>)
+    .container;
 
 const metodo = (id: string, pista: string) => ({ id, metodo: "BANK", pista, createdAt: T0 });
 const retirada = (id: string, status: string, motivoRechazo: string | null = null) => ({
@@ -103,7 +105,7 @@ beforeEach(() => {
   H.saldo = 0;
   H.metodos = [];
   H.historial = { items: [], nextCursor: null };
-  H.movimientos = [];
+  H.movimientos = { items: [], nextCursor: null };
   H.porEstado = [];
   for (const m of [H.getJson, H.post, H.put, H.del]) m.mockReset();
 });
@@ -116,15 +118,18 @@ describe("/wallet", () => {
   it("por debajo del mínimo, con un método, y un movimiento de cada concepto", async () => {
     H.saldo = 1234;
     H.metodos = [metodo("m1", "1332")];
-    H.movimientos = ["PRIZE", "WITHDRAWAL", "WITHDRAWAL_REFUND", "ADMIN", "RARO", null].map(
-      (concepto, i) => ({
-        id: `mv${i}`,
-        amountCents: i % 2 === 0 ? 5000 : -2500,
-        currency: "USD",
-        concepto,
-        createdAt: T0,
-      }),
-    );
+    H.movimientos = {
+      items: ["PRIZE", "WITHDRAWAL", "WITHDRAWAL_REFUND", "ADMIN", "RARO", null].map(
+        (concepto, i) => ({
+          id: `mv${i}`,
+          amountCents: i % 2 === 0 ? 5000 : -2500,
+          currency: "USD",
+          concepto,
+          createdAt: T0,
+        }),
+      ),
+      nextCursor: null,
+    };
     expect((await pagina()).innerHTML).toMatchSnapshot();
   });
 
@@ -148,13 +153,14 @@ describe("/wallet", () => {
     };
     const c = await pagina();
     expect(c.innerHTML).toMatchSnapshot("página");
+  });
 
-    H.getJson.mockResolvedValueOnce(r(500));
-    await pulsar(screen.getByRole("button", { name: "Ver más" }));
-    expect(c.innerHTML).toMatchSnapshot("ver más falla");
-    H.getJson.mockReturnValueOnce(new Promise(() => {}));
-    await pulsar(screen.getByRole("button", { name: "Ver más" }));
-    expect(c.innerHTML).toMatchSnapshot("cargando");
+  // PU1: la paginación de las dos listas, que REEMPLAZA en vez de acumular.
+  it("una página posterior vacía de cada lista: su frase y «Anterior» debajo", async () => {
+    const c = await pagina({ solicitudes: "1767225600000.w9", movimientos: "1767225600000.mv9" });
+    const seccion = (id: string) => c.querySelector(`section[aria-labelledby="${id}"]`)!.outerHTML;
+    expect(seccion("tus-solicitudes")).toMatchSnapshot("solicitudes");
+    expect(seccion("movimientos")).toMatchSnapshot("movimientos");
   });
 
   it("los métodos: reemplazar, guardar con error, borrar con error", async () => {

@@ -54,6 +54,14 @@ export interface Paginacion {
   pila: readonly string[];
 }
 
+/** Los nombres de los dos parámetros de la URL que guardan una posición. */
+export interface ClavesPaginacion {
+  cursor: string;
+  pila: string;
+}
+
+export const CLAVES_POR_DEFECTO: ClavesPaginacion = { cursor: "cursor", pila: "pila" };
+
 /** La primera página: sin cursor y sin nada que recordar. */
 export const PRIMERA: Paginacion = { cursor: null, pila: [] };
 
@@ -114,6 +122,12 @@ export function enlacePaginado(
    * ensucia la URL y la convierte en otra dirección para el mismo sitio.
    */
   extra?: Readonly<Record<string, string | null | undefined>>,
+  /**
+   * Con qué nombres viaja la posición. Por defecto `cursor` y `pila`. Una pantalla con DOS listas
+   * paginadas (el monedero: solicitudes y movimientos) necesita uno por lista, y lleva la posición de
+   * la otra en `extra`: así pasar de página en una no mueve la otra.
+   */
+  claves: ClavesPaginacion = CLAVES_POR_DEFECTO,
 ): string {
   const q = new URLSearchParams();
   // El filtro PRIMERO: así la parte estable de la URL va delante y la posición detrás, que se lee
@@ -121,9 +135,9 @@ export function enlacePaginado(
   for (const [clave, valor] of Object.entries(extra ?? {})) {
     if (valor) q.set(clave, valor);
   }
-  if (p.cursor) q.set("cursor", p.cursor);
+  if (p.cursor) q.set(claves.cursor, p.cursor);
   const pila = escribirPila(p.pila);
-  if (pila) q.set("pila", pila);
+  if (pila) q.set(claves.pila, pila);
   const s = q.toString();
   return s ? `${base}?${s}` : base;
 }

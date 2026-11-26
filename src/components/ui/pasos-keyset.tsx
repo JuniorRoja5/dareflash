@@ -1,7 +1,13 @@
 import { Enlace } from "@/components/enlace";
 import { textos } from "@/textos/servidor";
 
-import { anterior, enlacePaginado, siguiente, type Paginacion } from "@/lib/paginacion-pila";
+import {
+  anterior,
+  enlacePaginado,
+  siguiente,
+  type ClavesPaginacion,
+  type Paginacion,
+} from "@/lib/paginacion-pila";
 
 /**
  * 44 px por debajo de escritorio (el mínimo táctil del brief) y 38 con ratón, donde el panel y las
@@ -29,6 +35,9 @@ export async function PasosKeyset({
   aqui,
   proximoCursor,
   filtro,
+  claves,
+  ancla,
+  etiqueta,
 }: {
   /** Ruta de la lista, sin query: "/puntos", "/referidos". */
   base: string;
@@ -40,25 +49,42 @@ export async function PasosKeyset({
    * lista filtrada lleva a la página dos de la lista SIN filtrar: otra lista, sin avisar.
    */
   filtro?: Readonly<Record<string, string | null | undefined>>;
+  /** Nombres de la posición en la URL, si la pantalla tiene más de una lista (ver `enlacePaginado`). */
+  claves?: ClavesPaginacion;
+  /**
+   * El `id` al que vuelve la página al cambiar: con dos listas, la segunda no está arriba, y sin esto
+   * «Siguiente» deja a la persona en lo alto de la pantalla, lejos de lo que estaba leyendo.
+   */
+  ancla?: string;
+  /**
+   * El nombre del `nav` para un lector de pantalla. Con dos en la misma página, el genérico
+   * («Paginación») los haría iguales: cada uno tiene que decir de qué lista es.
+   */
+  etiqueta?: string;
 }) {
   const atras = anterior(aqui);
   const adelante = proximoCursor ? siguiente(aqui, proximoCursor) : null;
   if (!atras && !adelante) return null;
   const t = await textos("paginacion");
+  const enlace = (p: Paginacion) =>
+    enlacePaginado(base, p, filtro, claves) + (ancla ? `#${ancla}` : "");
 
   return (
-    <nav aria-label={t("aria")} className="mt-6 flex items-center justify-between gap-3">
+    <nav
+      aria-label={etiqueta ?? t("aria")}
+      className="mt-6 flex items-center justify-between gap-3"
+    >
       {/* Los huecos se rellenan con un `span` vacío para que `justify-between` mantenga a
           "Siguiente" a la derecha cuando no hay "Anterior". */}
       {atras ? (
-        <Enlace href={enlacePaginado(base, atras, filtro)} rel="prev" className={PASO}>
+        <Enlace href={enlace(atras)} rel="prev" className={PASO}>
           <span aria-hidden="true">←</span> {t("anterior")}
         </Enlace>
       ) : (
         <span />
       )}
       {adelante ? (
-        <Enlace href={enlacePaginado(base, adelante, filtro)} rel="next" className={PASO}>
+        <Enlace href={enlace(adelante)} rel="next" className={PASO}>
           {t("siguiente")} <span aria-hidden="true">→</span>
         </Enlace>
       ) : (

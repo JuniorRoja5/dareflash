@@ -2,6 +2,9 @@ import type { FuncionT } from "@/textos/plantilla";
 import { textos, type Textos } from "@/textos/servidor";
 import { importeConMoneda } from "@/lib/dinero";
 import type { MovimientoMonedero } from "@/server/services/retirada";
+import { PasosKeyset } from "@/components/ui/pasos-keyset";
+import type { Paginacion } from "@/lib/paginacion-pila";
+import { CLAVES_MOVIMIENTOS } from "@/lib/paginas-monedero";
 import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "@/lib/formato";
 
 /**
@@ -22,7 +25,9 @@ import { formatearFechaParaQuienMira, type Idioma, type ZonaHoraria } from "@/li
  * así que reescribir el texto reescribe también los movimientos viejos en vez de congelarlos. Y un
  * `refType` que ya no esté en el catálogo cae en un genérico honesto en lugar de dejar un hueco.
  *
- * ES UN TOPE, NO UNA PÁGINA, y el título lo dice. Ver `misMovimientosMonedero`.
+ * PÁGINAS DE 10, POR KEYSET (PU1): antes era un tope —los 10 últimos— y ahora se recorre entero con
+ * `PasosKeyset`, que REEMPLAZA la página. Su posición viaja en `movimientos=` y lleva la de las
+ * solicitudes tal como está (`lib/paginas-monedero`): pasar de página aquí no mueve la otra lista.
  */
 /** La caja de la lista: el mismo cristal que el resto de bloques de la pantalla. */
 const CAJA =
@@ -64,10 +69,19 @@ function Importe({ m, idioma }: { m: MovimientoMonedero; idioma: Idioma }) {
 
 export async function MovimientosMonedero({
   movimientos,
+  proximoCursor,
+  aqui,
+  conservar,
   idioma,
   zona,
 }: {
   movimientos: MovimientoMonedero[];
+  /** Cursor de la página siguiente, o `null` si esta era la última. */
+  proximoCursor: string | null;
+  /** Dónde está ESTA lista. */
+  aqui: Paginacion;
+  /** La posición de la OTRA lista (las solicitudes), que el enlace lleva tal cual. */
+  conservar: Readonly<Record<string, string | null>>;
   idioma: Idioma;
   zona: ZonaHoraria | null;
 }) {
@@ -78,7 +92,9 @@ export async function MovimientosMonedero({
         {t("movimientos")}
       </h2>
       {movimientos.length === 0 ? (
-        <p className="mt-3 text-sm text-text-dim">{t("movimientosVacio")}</p>
+        <p className="mt-3 text-sm text-text-dim">
+          {aqui.cursor !== null ? t("movimientosVacioPosterior") : t("movimientosVacio")}
+        </p>
       ) : (
         <>
           {/* ESCRITORIO: TABLA. Fecha, concepto e importe en su columna, para bajar por la de los
@@ -130,6 +146,16 @@ export async function MovimientosMonedero({
           </ul>
         </>
       )}
+      {/* FUERA del `if` de la lista: en una página posterior vacía, «Anterior» tiene que seguir aquí. */}
+      <PasosKeyset
+        base="/wallet"
+        aqui={aqui}
+        proximoCursor={proximoCursor}
+        filtro={conservar}
+        claves={CLAVES_MOVIMIENTOS}
+        ancla="movimientos"
+        etiqueta={t("paginasMovimientos")}
+      />
     </section>
   );
 }

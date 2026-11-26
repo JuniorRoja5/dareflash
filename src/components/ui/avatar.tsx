@@ -62,13 +62,39 @@ function anilloDe(color: string, grosor: number, doble: boolean): string {
   ].join(", ");
 }
 
+/**
+ * LA CAJA del avatar, separada del tamaño de la letra: la usan el círculo Y la envoltura del emblema.
+ * Ver `RAIZ_CON_EMBLEMA`.
+ */
+const CAJA = {
+  sm: "h-8 w-8",
+  md: "h-12 w-12",
+  lg: "h-16 w-16",
+  xl: "h-20 w-20", // podio (puesto 1); aditivo, no cambia los usos existentes
+} as const;
+const LETRA = { sm: "text-xs", md: "text-base", lg: "text-xl", xl: "text-2xl" } as const;
 const TAMANO = {
-  sm: "h-8 w-8 text-xs",
-  md: "h-12 w-12 text-base",
-  lg: "h-16 w-16 text-xl",
-  xl: "h-20 w-20 text-2xl", // podio (puesto 1); aditivo, no cambia los usos existentes
+  sm: `${CAJA.sm} ${LETRA.sm}`,
+  md: `${CAJA.md} ${LETRA.md}`,
+  lg: `${CAJA.lg} ${LETRA.lg}`,
+  xl: `${CAJA.xl} ${LETRA.xl}`,
 } as const;
 export type TamanoAvatar = keyof typeof TAMANO;
+
+/**
+ * ┌─ LA ENVOLTURA DEL EMBLEMA TIENE SU PROPIA ALTURA, Y ANTES NO (PU1) ───────────────────────────┐
+ * │ Era `relative inline-flex` y nada más. En una fila flex con el `align-items` por defecto       │
+ * │ (`stretch`) —la de un comentario: avatar a la izquierda, texto y «Borrar» a la derecha— se     │
+ * │ ESTIRABA hasta el alto del texto, y el emblema, que va anclado abajo a la derecha de ella, se  │
+ * │ iba a la esquina de la FILA, lejos de la cara. El círculo no lo sufría: ya tenía su caja.      │
+ * │                                                                                               │
+ * │ Altura FIJA y no `self-start`: `stretch` no toca a un elemento con alto propio, y así no se    │
+ * │ cambia la alineación de las filas que centran (cabecera, ranking, menú), que `self-start`      │
+ * │ habría subido. `shrink-0`, para que una fila estrecha no lo aplaste a lo ancho.                │
+ * │ Lo fija `tests/render/avatar-sin-estirar`.                                                     │
+ * └───────────────────────────────────────────────────────────────────────────────────────────────┘
+ */
+const RAIZ_CON_EMBLEMA = (tamano: TamanoAvatar) => `relative inline-flex shrink-0 ${CAJA[tamano]}`;
 
 /**
  * AVATAR — radius-full. Si hay `imagen` (URL de /avatars/*.webp que sirve Caddy) se pinta la FOTO
@@ -148,7 +174,7 @@ export function Avatar({
   if (!conEmblema) return circulo;
 
   return (
-    <span className="relative inline-flex">
+    <span className={RAIZ_CON_EMBLEMA(tamano)}>
       {circulo}
       {/* El anillo dice el nivel de lejos; el glifo lo dice DE CERCA y sin depender del color, que es
           lo que necesita quien no distingue bien los tonos. Los dos salen del mismo `nivel`.

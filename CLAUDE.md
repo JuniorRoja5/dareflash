@@ -419,6 +419,17 @@ href>` FUERA del sitio, sin idioma ni router; con varios en una frase, `hrefs` e
   Vitest no comprueba tipos, así que un test de render fuera de `tsc` corre verde con la fixture de una
   forma que ya no existe (había 37 errores escondidos en 14). Una fixture se tipa con su forma entera,
   nunca con un `as`.
+- `historial-sin-ver-mas` / `monedero-paginas` / `monedero-movimientos-keyset` (PU1) — ningún historial
+  del usuario fuera del panel ACUMULA con «ver más»: todo cliente que añade una página a lo que tenía
+  (`[...previas, ...nuevas]` con cursor) está en una lista cerrada de listados públicos, con su porqué;
+  uno nuevo es rojo con su fichero. El monedero pagina sus dos listas con `PasosKeyset`, de 10 en 10,
+  cada una con SUS parámetros (`solicitudes=`, `movimientos=`, ver
+  [src/lib/paginas-monedero.ts](src/lib/paginas-monedero.ts)), y el enlace de una lleva la posición de
+  la otra tal cual. Los movimientos van por keyset sobre el índice `[userId, createdAt, id]`.
+- `avatar-sin-estirar` (PU1) — la raíz del `Avatar` lleva SIEMPRE su caja fija y `shrink-0`, con
+  emblema y sin él: en una fila flex con `stretch` (un comentario con «Borrar») la envoltura se
+  estiraba y el emblema se iba a la esquina de la fila. Altura fija y no `self-start`, que subiría el
+  avatar en las filas que centran.
 - `reloj-rate-limit` — todo test que lleva una ruta real hasta el 429 congela el reloj
   (`congelarReloj()` de [tests/helpers/reloj.ts](tests/helpers/reloj.ts)). Ver la trampa de abajo.
 

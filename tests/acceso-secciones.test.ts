@@ -28,6 +28,7 @@ import {
   NAV_ESCRITORIO,
   destinosDe,
 } from "../src/components/ui/logic";
+import { enlacePaginado } from "../src/lib/paginacion-pila";
 
 const RAIZ = process.cwd();
 const leer = (...p: string[]) => readFileSync(join(RAIZ, ...p), "utf8");
@@ -137,9 +138,15 @@ describe("los controles de paso, donde de verdad viven", () => {
   });
 
   it("y `enlacePaginado` pone cursor y pila, nunca un número de página", () => {
+    // Desde la PU1 los nombres viajan en `claves` (una pantalla con dos listas necesita uno por
+    // lista), así que se fija lo que PRODUCE: por defecto, `cursor` y `pila`.
     const lib = soloCodigo(leer("src", "lib", "paginacion-pila.ts"));
-    expect(lib).toMatch(/q\.set\("cursor", /);
-    expect(lib).toMatch(/q\.set\("pila", /);
+    expect(lib).toMatch(
+      /CLAVES_POR_DEFECTO: ClavesPaginacion = \{ cursor: "cursor", pila: "pila" \}/,
+    );
+    expect(lib).toMatch(/q\.set\(claves\.cursor, /);
+    expect(lib).toMatch(/q\.set\(claves\.pila, /);
+    expect(enlacePaginado("/x", { cursor: "a.b", pila: ["c.d"] })).toBe("/x?cursor=a.b&pila=c.d");
     expect(lib).not.toMatch(/q\.set\("page"/);
   });
 });

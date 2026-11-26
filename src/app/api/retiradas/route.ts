@@ -35,7 +35,8 @@ const QuerySchema = z.object({
 });
 
 /**
- * GET /api/retiradas — una página del historial PROPIO (keyset). La usa el "Ver más" del monedero.
+ * GET /api/retiradas — una página del historial PROPIO (keyset). La usaba el «Ver más» del monedero;
+ * desde la PU1 el monedero pagina por la URL (`PasosKeyset`) y ninguna pantalla la llama.
  *
  * Es una LECTURA y no mueve nada: pedir un cobro es el POST de abajo, con su CSRF. Un GET que
  * debitara saldo lo dispararía cualquier prefetch.
