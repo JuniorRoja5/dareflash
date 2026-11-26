@@ -16,7 +16,7 @@
  *  4. LOS DTO que viajan al portal: sus CLAVES (con igualdad exacta) y sus VALORES.
  *
  * Para romperlo a propósito: volver a pintar `comisionBps` en el extracto (rojo el 1); poner
- * «comisión» en `MSG_PAGO_PATROCINIO` (rojo el 2); añadir el desglose al correo de aprobación (rojo
+ * «comisión» en `retosEmpresa.pago` del diccionario (rojo el 2); añadir el desglose al correo de aprobación (rojo
  * el 3); añadir `comisionCents` a `extractoDeEmpresa` (rojo el 4).
  */
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -75,19 +75,11 @@ describe("el portal no habla de comisiones", () => {
   });
 
   it("los textos de constants que el portal y sus correos enseñan", () => {
+    // El pago, el estado de una propuesta y su etiqueta viven desde la P5b2b en el diccionario: los lee
+    // el caso de abajo, con todo espacio que el portal pide.
     const textos: Record<string, string> = {
-      MSG_PAGO_PATROCINIO: C.MSG_PAGO_PATROCINIO,
       MSG_EMPRESA_SOLO_MIRA: C.MSG_EMPRESA_SOLO_MIRA,
       MSG_CUENTA_EMPRESA_NO_PARTICIPA: C.MSG_CUENTA_EMPRESA_NO_PARTICIPA,
-      ...Object.fromEntries(
-        Object.entries(C.MSG_ESTADO_SOLICITUD).map(([k, v]) => [`MSG_ESTADO_SOLICITUD.${k}`, v]),
-      ),
-      ...Object.fromEntries(
-        Object.entries(C.ETIQUETA_ESTADO_SOLICITUD).map(([k, v]) => [
-          `ETIQUETA_ESTADO_SOLICITUD.${k}`,
-          v,
-        ]),
-      ),
       ...Object.fromEntries(
         Object.entries(C.MSG_MOTIVO_RECHAZO_RETO).map(([k, v]) => [
           `MSG_MOTIVO_RECHAZO_RETO.${k}`,
@@ -120,7 +112,9 @@ describe("el portal no habla de comisiones", () => {
       nombres.add(m[1]!);
     for (const m of codigo.matchAll(/textosClienteDeLaPeticion\(\[([^\]]*)\]/g))
       for (const n of m[1]!.matchAll(/"(\w+)"/g)) nombres.add(n[1]!);
-    expect([...nombres]).toEqual(expect.arrayContaining(["empresaResumen", "creditosCompra"]));
+    expect([...nombres]).toEqual(
+      expect.arrayContaining(["empresaResumen", "creditosCompra", "retosEmpresa"]),
+    );
     const hojas = (v: unknown, k: string): [string, string][] =>
       typeof v === "string"
         ? [[k, v]]

@@ -111,6 +111,7 @@ import CuentaEmpresaPage from "@/app/(app)/(shell)/empresa/cuenta/page";
 import LayoutPortal from "@/app/(app)/(shell)/empresa/layout";
 import PaginaCampana from "@/app/(app)/(shell)/empresa/publicidad/[id]/page";
 import PaginaNuevaCampana from "@/app/(app)/(shell)/empresa/publicidad/nueva/page";
+import PaginaProponerReto from "@/app/(app)/(shell)/empresa/retos/nuevo/page";
 import EditarPerfilPage from "@/app/(app)/(shell)/perfil/editar/page";
 import { TextosProvider } from "@/components/textos-provider";
 import { es } from "@/textos/es";
@@ -174,6 +175,12 @@ describe("el portal de empresa y su alta (P5b2b)", () => {
       }),
     );
     expect(c.textContent).toContain(es.accionesCampana.programar);
+  });
+
+  it("proponer un reto: el formulario recibe el suyo, y las categorías del armazón", async () => {
+    const c = await enElArmazon(await PaginaProponerReto());
+    expect(c.textContent).toContain(es.propuestaFormulario.enviar);
+    expect(c.textContent).toContain(es.categorias.cat_fitness);
   });
 
   it("el alta (sin sesión, quien la ve): el formulario recibe el suyo", async () => {

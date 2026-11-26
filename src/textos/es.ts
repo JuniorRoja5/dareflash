@@ -1440,6 +1440,106 @@ export const es = conMarcasConocidas({
     hueco: "El primer hueco libre para todos sus días empieza el {resaltado:{fecha}}.",
     programarPara: "Programar para el {fecha}",
   },
+  // ── Retos patrocinados del portal (P5b2b) ────────────────────────────────────────────────────────
+  /** /empresa/retos: sus propuestas y su extracto (servidor). */
+  retosEmpresa: {
+    titulo: "Mis retos",
+    subtitulo: "Los retos patrocinados que nos propones, y lo que suma cada uno.",
+    proponer: "Proponer un reto",
+    enviada:
+      "Hemos recibido tu propuesta. La revisamos a mano y te escribimos en cuanto la decidamos.",
+    sinVerificar: "Podrás proponer retos en cuanto verifiquemos tu empresa.",
+    tusPropuestas: "Tus propuestas",
+    vacioPosterior: "No quedan más propuestas por aquí.",
+    vacioPrimera:
+      "Todavía no nos has propuesto ningún reto. Cuando lo hagas, aquí verás en qué punto está.",
+    vacioSinVerificar: "Aquí verás tus propuestas y en qué punto está cada una.",
+    col_reto: "Reto",
+    col_premio: "Premio",
+    col_fechas: "Abre – cierra",
+    col_estado: "Estado",
+    verPublicado: "Ver el reto publicado",
+    tramo: "{abre} – {cierra}",
+    lineaMovil: "{categoria} · Premio {premio} · {abre} – {cierra}",
+    /** La propuesta en una palabra, y la línea que la acompaña (solo las pinta el portal). */
+    estado_EN_REVISION: "En revisión",
+    estado_RECHAZADA: "Rechazada",
+    estado_CADUCADA: "Caducada",
+    estado_APROBADA: "Aprobada",
+    estado_PUBLICADA: "Publicada",
+    relato_EN_REVISION: "La revisamos a mano y te escribimos en cuanto la decidamos.",
+    relato_RECHAZADA: "No la hemos podido aprobar.",
+    relato_CADUCADA:
+      "Caducada: la fecha del reto ya pasó. Puedes proponerlo de nuevo con otras fechas.",
+    /** Lo que promete es la regla de `publicarReto`: un reto de empresa no se publica sin el pago. */
+    relato_APROBADA:
+      "Está aprobada. Te escribiremos para organizar el pago, y la publicaremos en cuanto lo recibamos.",
+    relato_PUBLICADA: "Está publicada: la gente ya puede participar.",
+    /** `MSG_MOTIVO_RECHAZO_RETO` (el panel y el correo); un test exige que digan lo mismo. */
+    motivo_FECHAS_NO_VIABLES: "Las fechas no nos dan tiempo a prepararlo y difundirlo bien.",
+    motivo_PREMIO_NO_ADECUADO: "El premio no encaja con lo que suele mover un reto así.",
+    motivo_CONTENIDO_NO_PERMITIDO: "El reto pide algo que no podemos publicar.",
+    motivo_DATOS_INSUFICIENTES: "Nos falta información para entender qué tiene que hacer la gente.",
+    motivo_DUPLICADA: "Ya tenemos una propuesta igual de tu empresa.",
+    extracto: "Extracto",
+    extractoVacio:
+      "Cuando aprobemos uno de tus retos, aquí verás el premio para quien gane y el total a pagar de cada uno.",
+    totalPagar: "Total a pagar",
+    /** La cifra, tal cual (como antes). */
+    retosPie: { one: "{cuantos} reto", other: "{cuantos} retos" },
+    premioGanador: "Premio para quien gane",
+    cerrado: "Cerrado",
+    sinCerrar: "Sin cerrar",
+    /**
+     * CÓMO SE PAGA: lo que paga y que quien gane cobra el premio entero; NADA de cómo se reparte dentro
+     * (`empresa-sin-comisiones`). Y promete una regla que el código cumple: «lo publicaremos en cuanto
+     * lo recibamos» es `publicarReto`, que no publica un reto de empresa sin `pagoRecibidoEn`.
+     */
+    pago: "El pago se hace por transferencia, fuera de {marca}. Cuando aprobemos tu reto, te escribiremos para organizarlo, y lo publicaremos en cuanto lo recibamos. Quien gane cobra el premio entero.",
+  },
+  /** /empresa/retos/nuevo (servidor). */
+  proponerReto: {
+    volver: "Mis retos",
+    titulo: "Proponer un reto",
+    intro:
+      "Tú pones el reto y el premio; nosotros lo revisamos, lo preparamos y lo publicamos con tu marca. Nada sale publicado sin que lo aprobemos.",
+    sinVerificar:
+      "Podrás proponer retos en cuanto verifiquemos tu empresa. Te escribiremos cuando esté.",
+    comoFunciona: "Cómo funciona",
+    despues: "Después de enviar",
+    paso1: "La revisamos a mano y te escribimos en cuanto la decidamos.",
+    paso2: "Si la aprobamos, la preparamos con tu marca.",
+    paso3: "La publicamos en cuanto recibimos el pago.",
+    elPago: "El pago",
+    pendientes: "Puedes tener hasta {max} propuestas esperando a la vez.",
+  },
+  /** El formulario de la propuesta (cliente). */
+  propuestaFormulario: {
+    falta_titulo: "Escribe un título de al menos 3 caracteres.",
+    falta_premio: "El premio no es válido. Usa un importe como 50 o 49.90.",
+    falta_fechas: "Elige cuándo abre y cuándo cierra el reto.",
+    cierreAntes: "El cierre tiene que ser después de la apertura.",
+    cierrePasado: "El cierre tiene que estar en el futuro.",
+    errorEnviar: "No hemos podido enviar la propuesta. Revisa los datos.",
+    sinConexion: "No hemos podido conectar. Revisa tu conexión e inténtalo de nuevo.",
+    elReto: "El reto",
+    titulo: "Título",
+    tituloPlaceholder: "Lo que la gente verá en la tarjeta",
+    categoria: "Categoría",
+    descripcion: "Qué tiene que hacer la gente",
+    reglas: "Reglas (opcional)",
+    premioFechas: "Premio y fechas",
+    fechasLocal: "Las fechas, en tu hora local.",
+    premio: "Premio ({moneda})",
+    ganadores: "Ganadores",
+    abre: "Abre",
+    cierra: "Cierra",
+    tuMarca: "Tu marca",
+    logo: "Logo (opcional)",
+    logoAyuda: "PNG, JPG o WebP. Saldrá junto a «Patrocinado por» con el nombre de tu empresa.",
+    enviando: "Enviando…",
+    enviar: "Enviar propuesta",
+  },
   /** Los resultados de una campaña (servidor). */
   informeCampana: {
     titulo: "Resultados",

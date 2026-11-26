@@ -1053,14 +1053,15 @@ describe("una propuesta pendiente con el cierre ya pasado está CADUCADA", () =>
   });
 
   it("en el portal se ve CADUCADA, con su línea, antes de que pase el barrido", async () => {
-    const { MSG_ESTADO_SOLICITUD } = await import("../src/config/constants");
+    // La línea vive en el diccionario desde la P5b2b (`retosEmpresa.relato_*`).
+    const { es } = await import("../src/textos/es");
     const { empresaId } = await unaEmpresa("Panadería La Espiga");
     await unaQueCaduca(empresaId);
     const [antes] = (await svc.misSolicitudesReto(prisma, empresaId, { ahora: AHORA })).items;
     expect(antes!.estado).toBe("EN_REVISION");
     const [despues] = (await svc.misSolicitudesReto(prisma, empresaId, { ahora: DESPUES })).items;
     expect(despues!.estado).toBe("CADUCADA");
-    expect(MSG_ESTADO_SOLICITUD.CADUCADA).toBe(
+    expect(es.retosEmpresa.relato_CADUCADA).toBe(
       "Caducada: la fecha del reto ya pasó. Puedes proponerlo de nuevo con otras fechas.",
     );
     // Y la columna sigue en PENDIENTE: lo que se enseña se CALCULA, no espera al barrido.

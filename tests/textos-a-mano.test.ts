@@ -33,12 +33,7 @@ const FUERA = [
 ];
 
 /** Lo que aún tiene texto a mano y se extrae en la P5b2. Solo puede menguar. */
-const PENDIENTES_P5B2 = [
-  "src/app/(app)/(shell)/empresa/retos/nuevo/formulario-propuesta.tsx",
-  "src/app/(app)/(shell)/empresa/retos/nuevo/page.tsx",
-  "src/app/(app)/(shell)/empresa/retos/page.tsx",
-  "src/app/privacidad/page.tsx",
-];
+const PENDIENTES_P5B2 = ["src/app/privacidad/page.tsx"];
 
 function tsx(dir: string): string[] {
   return readdirSync(dir).flatMap((n) => {

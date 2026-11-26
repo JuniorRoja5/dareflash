@@ -4,22 +4,19 @@ import { Boton } from "@/components/ui/boton";
 import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { TarjetaMetrica } from "@/components/ui/tarjeta-metrica";
-import {
-  DEFAULT_CURRENCY,
-  ETIQUETA_ESTADO_SOLICITUD,
-  MSG_ESTADO_SOLICITUD,
-  MSG_MOTIVO_RECHAZO_RETO,
-  MSG_PAGO_PATROCINIO,
-} from "@/config/constants";
-import { nombreCategoria } from "@/lib/categorias";
+import { DEFAULT_CURRENCY } from "@/config/constants";
 import { importeConMoneda } from "@/lib/dinero";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
+import { nombreDeCategoria } from "@/textos/categoria";
+import { textos } from "@/textos/servidor";
 
 import { ambitoDelPortal } from "../ambito-portal";
 import { AvisoVerificar } from "../aviso-verificar";
 import { formatearFechaParaQuienMira } from "@/lib/formato";
 
-export const metadata = { title: "Mis retos" };
+export async function generateMetadata() {
+  return { title: (await textos("retosEmpresa"))("titulo") };
+}
 // Lee la sesión y las filas de la empresa: por petición, nunca cacheada.
 export const dynamic = "force-dynamic";
 
@@ -51,10 +48,11 @@ export default async function PaginaMisRetos({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const ambito = await ambitoDelPortal();
+  const [t, tcat] = await Promise.all([textos("retosEmpresa"), textos("categorias")]);
   if (ambito === null) {
     return (
       <div className="df-rise">
-        <h1 className="text-2xl text-text">Mis retos</h1>
+        <h1 className="text-2xl text-text">{t("titulo")}</h1>
         <div className="mt-6">
           <AvisoVerificar />
         </div>
@@ -68,6 +66,7 @@ export default async function PaginaMisRetos({
   const dinero = (cents: number, moneda = DEFAULT_CURRENCY) =>
     importeConMoneda(cents, idioma, moneda);
   const fecha = (ms: number) => formatearFechaParaQuienMira(ms, idioma, zona, "diaMesAno");
+  const categoria = (clave: string) => nombreDeCategoria(tcat, clave) ?? clave;
 
   const sp = await searchParams;
   const enviada = sp["enviada"] === "1";
@@ -88,43 +87,41 @@ export default async function PaginaMisRetos({
     <div className="df-rise space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl text-text">Mis retos</h1>
-          <p className="mt-1 max-w-prose text-sm text-text-dim">
-            Los retos patrocinados que nos propones, y lo que suma cada uno.
-          </p>
+          <h1 className="text-2xl text-text">{t("titulo")}</h1>
+          <p className="mt-1 max-w-prose text-sm text-text-dim">{t("subtitulo")}</p>
         </div>
         {/* SECUNDARIO: el acento de la pantalla es el CTA del cromo, y uno solo por pantalla. */}
         {verificada ? (
           <Boton href="/empresa/retos/nuevo" variante="secundario">
-            Proponer un reto
+            {t("proponer")}
           </Boton>
         ) : null}
       </div>
 
       {enviada ? (
         <p role="status" className="rounded-sm border border-line bg-surface p-3 text-sm text-text">
-          Hemos recibido tu propuesta. La revisamos a mano y te escribimos en cuanto la decidamos.
+          {t("enviada")}
         </p>
       ) : null}
 
       {!verificada ? (
         <p className="max-w-prose rounded-sm border border-line bg-surface p-4 text-sm text-text-dim">
-          Podrás proponer retos en cuanto verifiquemos tu empresa.
+          {t("sinVerificar")}
         </p>
       ) : null}
 
       <section aria-labelledby="propuestas" className="space-y-3">
         <h2 id="propuestas" className={CABECERA}>
-          Tus propuestas
+          {t("tusPropuestas")}
         </h2>
         {solicitudes.items.length === 0 ? (
           <Tarjeta className="p-5">
             <p className="max-w-prose text-sm text-text-dim">
               {aqui.cursor !== null
-                ? "No quedan más propuestas por aquí."
+                ? t("vacioPosterior")
                 : verificada
-                  ? "Todavía no nos has propuesto ningún reto. Cuando lo hagas, aquí verás en qué punto está."
-                  : "Aquí verás tus propuestas y en qué punto está cada una."}
+                  ? t("vacioPrimera")
+                  : t("vacioSinVerificar")}
             </p>
           </Tarjeta>
         ) : (
@@ -135,10 +132,10 @@ export default async function PaginaMisRetos({
               <table className="w-full border-collapse text-left text-sm">
                 <thead className="border-b border-line">
                   <tr>
-                    <th className={`pl-5 ${TH}`}>Reto</th>
-                    <th className={`text-right ${TH}`}>Premio</th>
-                    <th className={TH}>Abre – cierra</th>
-                    <th className={`pr-5 ${TH}`}>Estado</th>
+                    <th className={`pl-5 ${TH}`}>{t("col_reto")}</th>
+                    <th className={`text-right ${TH}`}>{t("col_premio")}</th>
+                    <th className={TH}>{t("col_fechas")}</th>
+                    <th className={`pr-5 ${TH}`}>{t("col_estado")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -146,15 +143,13 @@ export default async function PaginaMisRetos({
                     <tr key={s.id} data-solicitud={s.id} className="align-top">
                       <td className="max-w-[22rem] py-3 pr-4 pl-5">
                         <p className="font-medium break-words text-text">{s.titulo}</p>
-                        <p className="text-2xs text-text-dim">
-                          {nombreCategoria(s.categoria) ?? s.categoria}
-                        </p>
+                        <p className="text-2xs text-text-dim">{categoria(s.categoria)}</p>
                         {s.reto ? (
                           <Enlace
                             href={`/retos/${s.reto.publicCode}-${s.reto.slug}`}
                             className={`mt-1 inline-block ${ENLACE}`}
                           >
-                            Ver el reto publicado
+                            {t("verPublicado")}
                           </Enlace>
                         ) : null}
                       </td>
@@ -162,17 +157,15 @@ export default async function PaginaMisRetos({
                         {dinero(s.premioCents)}
                       </td>
                       <td className="py-3 pr-4 whitespace-nowrap text-text-dim tabular-nums">
-                        {fecha(s.aperturaMs)} – {fecha(s.cierreMs)}
+                        {t("tramo", { abre: fecha(s.aperturaMs), cierra: fecha(s.cierreMs) })}
                       </td>
                       <td className="w-[18rem] py-3 pr-5">
-                        <span className={PILDORA}>{ETIQUETA_ESTADO_SOLICITUD[s.estado]}</span>
-                        <p className="mt-1.5 text-2xs text-text-dim">
-                          {MSG_ESTADO_SOLICITUD[s.estado]}
-                        </p>
+                        <span className={PILDORA}>{t(`estado_${s.estado}`)}</span>
+                        <p className="mt-1.5 text-2xs text-text-dim">{t(`relato_${s.estado}`)}</p>
                         {/* EL MOTIVO SÍ SE LE ENSEÑA; la nota interna no existe en este DTO. */}
                         {s.motivoRechazo ? (
                           <p className="mt-1 text-2xs text-text">
-                            {MSG_MOTIVO_RECHAZO_RETO[s.motivoRechazo]}
+                            {t(`motivo_${s.motivoRechazo}`)}
                           </p>
                         ) : null}
                       </td>
@@ -191,24 +184,26 @@ export default async function PaginaMisRetos({
                       <h3 className="min-w-0 flex-1 text-sm font-semibold break-words text-text">
                         {s.titulo}
                       </h3>
-                      <span className={PILDORA}>{ETIQUETA_ESTADO_SOLICITUD[s.estado]}</span>
+                      <span className={PILDORA}>{t(`estado_${s.estado}`)}</span>
                     </div>
                     <p className="mt-1 text-2xs text-text-dim">
-                      {nombreCategoria(s.categoria) ?? s.categoria} · Premio {dinero(s.premioCents)}{" "}
-                      · {fecha(s.aperturaMs)} – {fecha(s.cierreMs)}
+                      {t("lineaMovil", {
+                        categoria: categoria(s.categoria),
+                        premio: dinero(s.premioCents),
+                        abre: fecha(s.aperturaMs),
+                        cierra: fecha(s.cierreMs),
+                      })}
                     </p>
-                    <p className="mt-2 text-sm text-text-dim">{MSG_ESTADO_SOLICITUD[s.estado]}</p>
+                    <p className="mt-2 text-sm text-text-dim">{t(`relato_${s.estado}`)}</p>
                     {s.motivoRechazo ? (
-                      <p className="mt-1 text-sm text-text">
-                        {MSG_MOTIVO_RECHAZO_RETO[s.motivoRechazo]}
-                      </p>
+                      <p className="mt-1 text-sm text-text">{t(`motivo_${s.motivoRechazo}`)}</p>
                     ) : null}
                     {s.reto ? (
                       <Enlace
                         href={`/retos/${s.reto.publicCode}-${s.reto.slug}`}
                         className={`mt-2 inline-flex min-h-[44px] items-center ${ENLACE}`}
                       >
-                        Ver el reto publicado
+                        {t("verPublicado")}
                       </Enlace>
                     ) : null}
                   </Tarjeta>
@@ -223,14 +218,11 @@ export default async function PaginaMisRetos({
 
       <section aria-labelledby="extracto" className="space-y-3">
         <h2 id="extracto" className={CABECERA}>
-          Extracto
+          {t("extracto")}
         </h2>
         {extracto.filas.length === 0 ? (
           <Tarjeta className="p-5">
-            <p className="max-w-prose text-sm text-text-dim">
-              Cuando aprobemos uno de tus retos, aquí verás el premio para quien gane y el total a
-              pagar de cada uno.
-            </p>
+            <p className="max-w-prose text-sm text-text-dim">{t("extractoVacio")}</p>
           </Tarjeta>
         ) : (
           <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
@@ -238,9 +230,9 @@ export default async function PaginaMisRetos({
                 Solo lo que paga: cómo se reparte dentro de RevolFlash no se le cuenta a la empresa. */}
             {totales.moneda ? (
               <TarjetaMetrica
-                etiqueta="Total a pagar"
+                etiqueta={t("totalPagar")}
                 valor={dinero(totales.totalCents, totales.moneda)}
-                pie={`${totales.retos} ${totales.retos === 1 ? "reto" : "retos"}`}
+                pie={t("retosPie", { n: totales.retos, cuantos: String(totales.retos) })}
               />
             ) : (
               <span className="hidden lg:block" />
@@ -250,10 +242,10 @@ export default async function PaginaMisRetos({
               <table className="hidden w-full border-collapse text-left text-sm md:table">
                 <thead className="border-b border-line">
                   <tr>
-                    <th className={`pl-5 ${TH}`}>Reto</th>
-                    <th className={`text-right ${TH}`}>Premio para quien gane</th>
-                    <th className={`text-right ${TH}`}>Total a pagar</th>
-                    <th className={`pr-5 ${TH}`}>Estado</th>
+                    <th className={`pl-5 ${TH}`}>{t("col_reto")}</th>
+                    <th className={`text-right ${TH}`}>{t("premioGanador")}</th>
+                    <th className={`text-right ${TH}`}>{t("totalPagar")}</th>
+                    <th className={`pr-5 ${TH}`}>{t("col_estado")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -270,7 +262,7 @@ export default async function PaginaMisRetos({
                       </td>
                       {/* «Sin cerrar» y no «en curso»: un borrador todavía sin publicar tampoco ha cerrado. */}
                       <td className="py-3 pr-5">
-                        <span className={PILDORA}>{f.cerrado ? "Cerrado" : "Sin cerrar"}</span>
+                        <span className={PILDORA}>{f.cerrado ? t("cerrado") : t("sinCerrar")}</span>
                       </td>
                     </tr>
                   ))}
@@ -283,21 +275,21 @@ export default async function PaginaMisRetos({
                       <span className="min-w-0 flex-1 text-sm break-words text-text">
                         {f.titulo}
                       </span>
-                      <span className={PILDORA}>{f.cerrado ? "Cerrado" : "Sin cerrar"}</span>
+                      <span className={PILDORA}>{f.cerrado ? t("cerrado") : t("sinCerrar")}</span>
                     </div>
                     <p className="flex justify-between text-2xs text-text-dim tabular-nums">
-                      <span>Premio para quien gane</span>
+                      <span>{t("premioGanador")}</span>
                       <span>{dinero(f.premioCents, f.moneda)}</span>
                     </p>
                     <p className="flex justify-between text-sm text-text tabular-nums">
-                      <span>Total a pagar</span>
+                      <span>{t("totalPagar")}</span>
                       <span className="font-semibold">{dinero(f.totalCents, f.moneda)}</span>
                     </p>
                   </li>
                 ))}
               </ul>
               <p className="border-t border-line px-4 py-3 text-2xs text-text-dim md:px-5">
-                {MSG_PAGO_PATROCINIO}
+                {t("pago")}
               </p>
             </div>
           </div>

@@ -7,6 +7,7 @@ import { type FormEvent, useState } from "react";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { BarraEnviar, BloqueFormulario } from "@/components/ui/formulario";
+import { useTextos } from "@/components/textos-provider";
 import { CATEGORIES, DEFAULT_CURRENCY } from "@/config/constants";
 import { mensajeDe, obtenerCsrfToken } from "@/lib/cliente-http";
 import { importeACentimos } from "@/lib/dinero";
@@ -38,6 +39,9 @@ function aIsoUtc(valorLocal: string): string | null {
  * aviso del pago vive en el panel lateral de la página, no aquí.
  */
 export function FormularioPropuesta() {
+  const t = useTextos("propuestaFormulario");
+  // Los nombres de las categorías, los del armazón (`categorias`), los mismos de toda la app.
+  const tcat = useTextos("categorias");
   const router = useRouter();
   const navegar = useNavegar();
   const [titulo, setTitulo] = useState("");
@@ -57,26 +61,26 @@ export function FormularioPropuesta() {
     setError(null);
 
     if (titulo.trim().length < 3) {
-      setError("Escribe un título de al menos 3 caracteres.");
+      setError(t("falta_titulo"));
       return;
     }
     const centimos = importeACentimos(premio);
     if (centimos === null || centimos <= 0) {
-      setError("El premio no es válido. Usa un importe como 50 o 49.90.");
+      setError(t("falta_premio"));
       return;
     }
     const startsAt = aIsoUtc(apertura);
     const deadline = aIsoUtc(cierre);
     if (!startsAt || !deadline) {
-      setError("Elige cuándo abre y cuándo cierra el reto.");
+      setError(t("falta_fechas"));
       return;
     }
     if (new Date(startsAt) >= new Date(deadline)) {
-      setError("El cierre tiene que ser después de la apertura.");
+      setError(t("cierreAntes"));
       return;
     }
     if (new Date(deadline) <= new Date()) {
-      setError("El cierre tiene que estar en el futuro.");
+      setError(t("cierrePasado"));
       return;
     }
 
@@ -108,29 +112,29 @@ export function FormularioPropuesta() {
         return;
       }
       const data = await res.json().catch(() => ({}));
-      setError(mensajeDe(data) || "No hemos podido enviar la propuesta. Revisa los datos.");
+      setError(mensajeDe(data) || t("errorEnviar"));
     } catch {
-      setError("No hemos podido conectar. Revisa tu conexión e inténtalo de nuevo.");
+      setError(t("sinConexion"));
     }
     setEnviando(false);
   }
 
   return (
     <form onSubmit={(e) => void enviar(e)} className="space-y-4" noValidate>
-      <BloqueFormulario titulo="El reto">
+      <BloqueFormulario titulo={t("elReto")}>
         <Campo
           id="title"
-          label="Título"
+          label={t("titulo")}
           className="sm:col-span-2"
           value={titulo}
           maxLength={120}
           autoComplete="off"
-          placeholder="Lo que la gente verá en la tarjeta"
+          placeholder={t("tituloPlaceholder")}
           onChange={(e) => setTitulo(e.target.value)}
         />
         <div>
           <label htmlFor="category" className={ETIQUETA}>
-            Categoría
+            {t("categoria")}
           </label>
           <select
             id="category"
@@ -140,7 +144,7 @@ export function FormularioPropuesta() {
           >
             {CATEGORIES.map((c) => (
               <option key={c.key} value={c.key}>
-                {c.es}
+                {tcat(`cat_${c.key}`)}
               </option>
             ))}
           </select>
@@ -148,7 +152,7 @@ export function FormularioPropuesta() {
         <span className="hidden sm:block" aria-hidden />
         <div className="sm:col-span-2">
           <label htmlFor="description" className={ETIQUETA}>
-            Qué tiene que hacer la gente
+            {t("descripcion")}
           </label>
           <textarea
             id="description"
@@ -161,7 +165,7 @@ export function FormularioPropuesta() {
         </div>
         <div className="sm:col-span-2">
           <label htmlFor="rules" className={ETIQUETA}>
-            Reglas (opcional)
+            {t("reglas")}
           </label>
           <textarea
             id="rules"
@@ -174,10 +178,10 @@ export function FormularioPropuesta() {
         </div>
       </BloqueFormulario>
 
-      <BloqueFormulario titulo="Premio y fechas" descripcion="Las fechas, en tu hora local.">
+      <BloqueFormulario titulo={t("premioFechas")} descripcion={t("fechasLocal")}>
         <Campo
           id="premio"
-          label={`Premio (${DEFAULT_CURRENCY})`}
+          label={t("premio", { moneda: DEFAULT_CURRENCY })}
           inputMode="decimal"
           autoComplete="off"
           value={premio}
@@ -186,7 +190,7 @@ export function FormularioPropuesta() {
         />
         <Campo
           id="winnersCount"
-          label="Ganadores"
+          label={t("ganadores")}
           type="number"
           inputMode="numeric"
           min={1}
@@ -195,24 +199,24 @@ export function FormularioPropuesta() {
         />
         <Campo
           id="startsAt"
-          label="Abre"
+          label={t("abre")}
           type="datetime-local"
           value={apertura}
           onChange={(e) => setApertura(e.target.value)}
         />
         <Campo
           id="deadline"
-          label="Cierra"
+          label={t("cierra")}
           type="datetime-local"
           value={cierre}
           onChange={(e) => setCierre(e.target.value)}
         />
       </BloqueFormulario>
 
-      <BloqueFormulario titulo="Tu marca">
+      <BloqueFormulario titulo={t("tuMarca")}>
         <div className="sm:col-span-2">
           <label htmlFor="sponsorLogo" className={ETIQUETA}>
-            Logo (opcional)
+            {t("logo")}
           </label>
           <input
             id="sponsorLogo"
@@ -221,9 +225,7 @@ export function FormularioPropuesta() {
             className="block w-full text-sm text-text-dim file:mr-3 file:min-h-[44px] file:rounded-sm file:border file:border-line file:bg-surface file:px-4 file:text-sm file:text-text"
             onChange={(e) => setLogo(e.target.files?.[0] ?? null)}
           />
-          <p className="mt-1.5 text-2xs text-text-dim">
-            PNG, JPG o WebP. Saldrá junto a «Patrocinado por» con el nombre de tu empresa.
-          </p>
+          <p className="mt-1.5 text-2xs text-text-dim">{t("logoAyuda")}</p>
         </div>
       </BloqueFormulario>
 
@@ -241,7 +243,7 @@ export function FormularioPropuesta() {
           disabled={enviando}
           className="w-full shrink-0 whitespace-nowrap sm:w-auto"
         >
-          {enviando ? "Enviando…" : "Enviar propuesta"}
+          {enviando ? t("enviando") : t("enviar")}
         </Boton>
       </BarraEnviar>
     </form>

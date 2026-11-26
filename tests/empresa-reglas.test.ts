@@ -28,8 +28,10 @@ import {
   ETIQUETA_TIPO_CUENTA,
   ETIQUETA_TIPO_NEGOCIO,
   MSG_MOTIVO_RECHAZO_EMPRESA,
+  MSG_MOTIVO_RECHAZO_RETO,
   SOCIO_FUNDADOR_CREDITOS,
   SOCIO_FUNDADOR_HASTA_ISO,
+  VALORES_MOTIVO_RECHAZO_RETO,
 } from "../src/config/constants";
 import {
   AlcancePublicidadSchema,
@@ -152,6 +154,15 @@ describe("el copy cubre todas las uniones", () => {
     expect(Object.keys(MSG_MOTIVO_RECHAZO_EMPRESA).sort()).toEqual(
       [...MotivoRechazoEmpresaSchema.options].sort(),
     );
+  });
+
+  it("el motivo de rechazo de un RETO: el portal (diccionario) dice lo mismo que el panel y el correo", () => {
+    const palabras = es.retosEmpresa as Record<string, unknown>;
+    for (const m of VALORES_MOTIVO_RECHAZO_RETO) {
+      expect(palabras[`motivo_${m}`], m).toBe(MSG_MOTIVO_RECHAZO_RETO[m]);
+    }
+    const enDiccionario = Object.keys(palabras).filter((k) => k.startsWith("motivo_"));
+    expect(enDiccionario.length).toBe(VALORES_MOTIVO_RECHAZO_RETO.length);
   });
 
   it("y cada tipo, la suya", () => {

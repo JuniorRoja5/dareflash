@@ -2344,23 +2344,8 @@ export const MSG_MOTIVO_RECHAZO_RETO: Record<MotivoRechazoReto, string> = {
  */
 export type EstadoVisibleSolicitud =
   "EN_REVISION" | "RECHAZADA" | "CADUCADA" | "APROBADA" | "PUBLICADA";
-export const ETIQUETA_ESTADO_SOLICITUD: Record<EstadoVisibleSolicitud, string> = {
-  EN_REVISION: "En revisión",
-  RECHAZADA: "Rechazada",
-  CADUCADA: "Caducada",
-  APROBADA: "Aprobada",
-  PUBLICADA: "Publicada",
-};
-/** La línea que acompaña a cada estado en el portal. */
-export const MSG_ESTADO_SOLICITUD: Record<EstadoVisibleSolicitud, string> = {
-  EN_REVISION: "La revisamos a mano y te escribimos en cuanto la decidamos.",
-  RECHAZADA: "No la hemos podido aprobar.",
-  CADUCADA: "Caducada: la fecha del reto ya pasó. Puedes proponerlo de nuevo con otras fechas.",
-  // Lo que promete es la regla de `publicarReto`: un reto de empresa no se publica sin el pago.
-  APROBADA:
-    "Está aprobada. Te escribiremos para organizar el pago, y la publicaremos en cuanto lo recibamos.",
-  PUBLICADA: "Está publicada: la gente ya puede participar.",
-};
+// Su palabra y la línea que la acompaña viven desde la P5b2b en el diccionario
+// (`retosEmpresa.estado_*` y `relato_*`): solo las pinta el portal.
 
 /**
  * Lo que queda en `AuditLog` al decidir una propuesta (`targetType` "RETO_SOLICITUD") y al marcar
@@ -2402,18 +2387,9 @@ export function msgAvisoRetoPropuesto(datos: {
   ].join("\n");
 }
 
-/**
- * CÓMO SE PAGA, contado a la EMPRESA (formulario y portal). Copy firmado por el analista.
- *
- * SIN UNA PALABRA SOBRE CÓMO SE REPARTE EL DINERO DENTRO DE REVOLFLASH: a la empresa se le dice lo que
- * paga y que quien gane cobra el premio entero, nunca la comisión ni su porcentaje. El desglose vive
- * solo en el panel. Lo vigila `empresa-sin-comisiones`, que censa todo lo que se le enseña o se le
- * escribe a una empresa.
- *
- * Y PROMETE UNA REGLA QUE EL CÓDIGO CUMPLE: "lo publicaremos en cuanto lo recibamos" es
- * `publicarReto`, que no publica un reto de empresa sin `pagoRecibidoEn`.
- */
-export const MSG_PAGO_PATROCINIO = `El pago se hace por transferencia, fuera de ${MARCA}. Cuando aprobemos tu reto, te escribiremos para organizarlo, y lo publicaremos en cuanto lo recibamos. Quien gane cobra el premio entero.`;
+// CÓMO SE PAGA, contado a la EMPRESA (copy firmado por el analista), vive desde la P5b2b en el
+// diccionario (`retosEmpresa.pago`): solo lo pinta el portal. Sin una palabra sobre cómo se reparte el
+// dinero dentro (lo vigila `empresa-sin-comisiones`, que lee también el diccionario).
 
 // ----------------------------------------------------------------------------
 // Decisiones de Fase 9 YA CERRADAS que consumen piezas posteriores. Viven aqui
