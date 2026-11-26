@@ -134,6 +134,33 @@ describe("1 bis · tamaños y cifras compactas, del formateador", () => {
   });
 });
 
+/**
+ * LAS CIFRAS DE CRÉDITOS DEL PORTAL, CON SU SEPARADOR DE MILES (aprobado por Junior el 26 nov): el saldo,
+ * lo comprometido, lo que queda, el coste, los créditos por día y el total de retos salen del
+ * formateador («12.485»; es-ES no agrupa las de cuatro cifras: «1335»). Pintadas a pelo —un
+ * `String(saldo)` o un `{c.creditosPorDia}` en JSX— salían «12485».
+ */
+const CIFRA_A_PELO =
+  /String\((?:saldo|comprometido|coste|tarifa|disponible|props\.saldo|props\.comprometido|c\.creditosPorDia|totales\.retos|CREDITOS_POR_DIA\[[^\]]*\]|tarifaPorDia\([^)]*\)|Math\.max\(0, saldo - comprometido\))\)|\{c\.creditosPorDia\}/;
+const DEL_PORTAL = (r: string) =>
+  r.startsWith("src/app/(app)/(shell)/empresa/") || r === "src/textos/publicidad.ts";
+
+describe("1 ter · las cifras de créditos del portal, del formateador", () => {
+  it("el detector distingue (si no, el censo no prueba nada)", () => {
+    expect(CIFRA_A_PELO.test("saldo: String(saldo),")).toBe(true);
+    expect(CIFRA_A_PELO.test("<td>{c.creditosPorDia}</td>")).toBe(true);
+    expect(CIFRA_A_PELO.test("cuantos: String(totales.retos)")).toBe(true);
+    expect(CIFRA_A_PELO.test("saldo: cifra(saldo),")).toBe(false);
+    expect(CIFRA_A_PELO.test('cuerpo.set("dias", String(nDias));')).toBe(false);
+  });
+
+  it("ninguna se pinta a pelo en el portal", () => {
+    const portal = TODOS.filter((f) => DEL_PORTAL(f.rel));
+    expect(portal.length).toBeGreaterThan(15);
+    expect(portal.filter((f) => CIFRA_A_PELO.test(f.codigo)).map((f) => f.rel)).toEqual([]);
+  });
+});
+
 // ---------------------------------------------------------------------------------------------------
 // 2. «UTC» no se le dice a un usuario ni a una empresa
 // ---------------------------------------------------------------------------------------------------

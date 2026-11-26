@@ -33,7 +33,9 @@ export default async function NoEncontrada() {
         {t("titulo")}
       </h1>
       <p className="mt-3 max-w-prose text-base leading-relaxed text-text-dim">{t("texto")}</p>
-      <Boton href="/" variante="principal" className="mt-8">
+      {/* SIN PRECARGA (aprobado por Junior el 26 nov): precargar la portada eran +22 KB en reposo para
+          un botón que casi nadie pulsa desde aquí. */}
+      <Boton href="/" variante="principal" className="mt-8" prefetch={false}>
         {t("volver")}
       </Boton>
     </main>

@@ -10,7 +10,7 @@ import { textos, type Textos } from "@/textos/servidor";
 
 import { ambitoDelPortal } from "../ambito-portal";
 import { AvisoVerificar } from "../aviso-verificar";
-import { formatearDiaClave, type Idioma } from "@/lib/formato";
+import { formatearDiaClave, formatearNumero, type Idioma } from "@/lib/formato";
 
 export async function generateMetadata() {
   return { title: (await textos("publicidad"))("titulo") };
@@ -88,7 +88,7 @@ export default async function PaginaPublicidad({
           <h1 className="text-2xl text-text">{t("titulo")}</h1>
           <p className="mt-1 max-w-prose text-sm text-text-dim">{t("subtitulo")}</p>
           <p className="mt-1 max-w-prose text-sm text-text">
-            {fraseSaldo(tc, saldo.saldo, saldo.comprometido, "todas")}
+            {fraseSaldo(tc, idioma, saldo.saldo, saldo.comprometido, "todas")}
           </p>
         </div>
         {/* SECUNDARIO: el acento de la pantalla es el CTA del cromo, y uno solo por pantalla. */}
@@ -150,7 +150,7 @@ export default async function PaginaPublicidad({
                         {calendario(t, c, idioma)}
                       </td>
                       <td className="py-3 pr-4 text-right text-text tabular-nums">
-                        {c.creditosPorDia}
+                        {formatearNumero(c.creditosPorDia, idioma)}
                       </td>
                       <td className="py-3 pr-5">
                         <span className={PILDORA}>{estadoCampana(t, c.estado)}</span>
@@ -176,7 +176,7 @@ export default async function PaginaPublicidad({
                       <p className="mt-1 text-2xs text-text-dim tabular-nums">
                         {t("crDiaMovil", {
                           calendario: calendario(t, c, idioma),
-                          tarifa: String(c.creditosPorDia),
+                          tarifa: formatearNumero(c.creditosPorDia, idioma),
                         })}
                       </p>
                     </Tarjeta>

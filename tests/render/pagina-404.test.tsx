@@ -12,8 +12,11 @@
  * El 404 de verdad (estado y cuerpo) se comprueba contra el build: `curl` a `/no-existe-nada` y a
  * `/en/feed`, en el informe de la P5b2b.
  *
- * Para romperlo: borrar `app/not-found.tsx` (rojo), poner un segundo botón principal (rojo), o crear
- * `app/_no-existe/page.tsx` (rojo).
+ * Y el botón NO PRECARGA la portada (aprobado por Junior el 26 nov): se comprueba la prop que recibe
+ * el `Link`.
+ *
+ * Para romperlo: borrar `app/not-found.tsx` (rojo), poner un segundo botón principal (rojo), quitar el
+ * `prefetch={false}` (rojo) o crear `app/_no-existe/page.tsx` (rojo).
  */
 import { existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
@@ -28,6 +31,17 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/no-existe-nada",
   useSearchParams: () => new URLSearchParams(),
 }));
+// El `Link` de Next, de verdad pero ANOTANDO la precarga que se le pide (la prop no llega al DOM).
+const H = vi.hoisted(() => ({ prefetch: [] as unknown[] }));
+vi.mock("next/link", async () => {
+  const { createElement } = await import("react");
+  return {
+    default: ({ prefetch, ...props }: Record<string, unknown>) => {
+      H.prefetch.push(prefetch);
+      return createElement("a", props);
+    },
+  };
+});
 
 import NoEncontrada from "@/app/not-found";
 import { MARCA } from "@/config/marca";
@@ -48,6 +62,12 @@ describe("la página 404 propia", () => {
     expect(c.querySelectorAll("button")).toHaveLength(0);
     // Nada inventado: ni una cifra en la página.
     expect(c.textContent).not.toMatch(/\d/);
+  });
+
+  it("y SIN precarga del inicio (26 nov): eran +22 KB en reposo para un botón que casi nadie pulsa", async () => {
+    H.prefetch.length = 0;
+    render(<>{await resolverServidor(await NoEncontrada())}</>);
+    expect(H.prefetch).toEqual([false]);
   });
 
   it("está en la raíz de `app`, que es la que recoge toda ruta sin página", () => {

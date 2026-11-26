@@ -207,7 +207,9 @@ export default async function PaginaCampana({
               </div>
               <div>
                 <dt className="text-2xs text-text-dim">{t("dato_crDia")}</dt>
-                <dd className="text-text tabular-nums">{c.creditosPorDia}</dd>
+                <dd className="text-text tabular-nums">
+                  {formatearNumero(c.creditosPorDia, idioma)}
+                </dd>
               </div>
               {porDelante > 0 ? (
                 <div className="sm:col-span-2">
@@ -219,18 +221,18 @@ export default async function PaginaCampana({
                       ? tr(
                           "costeBorrador",
                           { resaltado: { className: "font-semibold" } },
-                          { coste: String(coste) },
+                          { coste: formatearNumero(coste, idioma) },
                         )
                       : tr(
                           "costeQuedan",
                           { resaltado: { className: "font-semibold" } },
-                          { coste: String(coste), dias: String(porDelante) },
+                          { coste: formatearNumero(coste, idioma), dias: String(porDelante) },
                         )}
                   </dd>
                   {/* Antes de comprometer (borrador o pausada): contra lo DISPONIBLE se comprobará. */}
                   {c.estado === "BORRADOR" || c.estado === "PAUSADA" ? (
                     <dd className="mt-1 text-2xs text-text-dim">
-                      {fraseSaldo(tc, saldo.saldo, saldo.comprometido)}
+                      {fraseSaldo(tc, idioma, saldo.saldo, saldo.comprometido)}
                     </dd>
                   ) : null}
                 </div>

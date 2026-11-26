@@ -7,7 +7,9 @@ import { type FormEvent, useState } from "react";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { BarraEnviar, BloqueFormulario } from "@/components/ui/formulario";
+import { useFormato } from "@/components/formato-provider";
 import { useTextos, useTextosRicos } from "@/components/textos-provider";
+import { formatearNumero } from "@/lib/formato";
 import {
   type AlcancePublicidad,
   PUBLICIDAD_DESTINO_MAX,
@@ -63,6 +65,8 @@ export function FormularioCampana(props: PropsFormularioCampana) {
   const t = useTextos("campanaFormulario");
   const tr = useTextosRicos("campanaFormulario");
   const tc = useTextos("campanaComun");
+  const { idioma } = useFormato();
+  const cifra = (n: number) => formatearNumero(n, idioma);
   const router = useRouter();
   const navegar = useNavegar();
   const [alcance, setAlcance] = useState<AlcancePublicidad>(props.alcances[0]!);
@@ -172,8 +176,8 @@ export function FormularioCampana(props: PropsFormularioCampana) {
                 </span>
                 <span className="shrink-0 text-2xs text-text-dim tabular-nums">
                   {a === "PAIS"
-                    ? t("tarifaAlcancePais", { tarifa: String(tarifaPorDia("PAIS", 1)) })
-                    : t("tarifaAlcance", { tarifa: String(tarifaPorDia(a)) })}
+                    ? t("tarifaAlcancePais", { tarifa: cifra(tarifaPorDia("PAIS", 1)) })
+                    : t("tarifaAlcance", { tarifa: cifra(tarifaPorDia(a)) })}
                 </span>
               </label>
             ))}
@@ -358,23 +362,23 @@ export function FormularioCampana(props: PropsFormularioCampana) {
                   {/* LO DISPONIBLE, no el saldo a secas: es contra lo que se comprobará al activar. */}
                   {props.comprometido > 0
                     ? tr("costeConComprometido", RESALTE_COSTE, {
-                        coste: String(coste),
-                        tarifa: String(tarifa),
-                        disponible: String(disponible),
-                        saldo: String(props.saldo),
-                        comprometido: String(props.comprometido),
+                        coste: cifra(coste),
+                        tarifa: cifra(tarifa),
+                        disponible: cifra(disponible),
+                        saldo: cifra(props.saldo),
+                        comprometido: cifra(props.comprometido),
                       })
                     : tr("costeSinComprometido", RESALTE_COSTE, {
-                        coste: String(coste),
-                        tarifa: String(tarifa),
-                        saldo: String(props.saldo),
+                        coste: cifra(coste),
+                        tarifa: cifra(tarifa),
+                        saldo: cifra(props.saldo),
                       })}
                   {coste > disponible ? (
                     <span className="block text-alarm">{t("noLlega")}</span>
                   ) : null}
                 </>
               ) : (
-                fraseSaldo(tc, props.saldo, props.comprometido)
+                fraseSaldo(tc, idioma, props.saldo, props.comprometido)
               )}
             </p>
           )

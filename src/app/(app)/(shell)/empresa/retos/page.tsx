@@ -12,7 +12,7 @@ import { textos } from "@/textos/servidor";
 
 import { ambitoDelPortal } from "../ambito-portal";
 import { AvisoVerificar } from "../aviso-verificar";
-import { formatearFechaParaQuienMira } from "@/lib/formato";
+import { formatearFechaParaQuienMira, formatearNumero } from "@/lib/formato";
 
 export async function generateMetadata() {
   return { title: (await textos("retosEmpresa"))("titulo") };
@@ -232,7 +232,10 @@ export default async function PaginaMisRetos({
               <TarjetaMetrica
                 etiqueta={t("totalPagar")}
                 valor={dinero(totales.totalCents, totales.moneda)}
-                pie={t("retosPie", { n: totales.retos, cuantos: String(totales.retos) })}
+                pie={t("retosPie", {
+                  n: totales.retos,
+                  cuantos: formatearNumero(totales.retos, idioma),
+                })}
               />
             ) : (
               <span className="hidden lg:block" />

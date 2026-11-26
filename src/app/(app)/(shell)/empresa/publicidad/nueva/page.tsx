@@ -10,6 +10,7 @@ import {
 } from "@/config/constants";
 import { alcancesPermitidos } from "@/lib/empresa";
 import { paisesParaElegir } from "@/lib/paises";
+import { formatearNumero } from "@/lib/formato";
 import { claveDia, diaDe, sumarDias } from "@/lib/publicidad";
 import { creditoDia, queEsUnCredito } from "@/textos/empresa";
 import { fraseInicioDelDia } from "@/textos/publicidad";
@@ -164,7 +165,7 @@ export default async function PaginaNuevaCampana() {
                 <div key={a} className="flex justify-between gap-3">
                   <dt className="text-text-dim">{t(`tarifa_${a}`)}</dt>
                   <dd className="text-text tabular-nums">
-                    {t("cr", { creditos: String(CREDITOS_POR_DIA[a]) })}
+                    {t("cr", { creditos: formatearNumero(CREDITOS_POR_DIA[a], idioma) })}
                   </dd>
                 </div>
               ))}

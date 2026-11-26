@@ -5,6 +5,7 @@
  * en el formulario (cliente).
  */
 import type { AlcancePublicidad, EstadoVisiblePublicidad } from "@/config/constants";
+import { formatearNumero, type Idioma } from "@/lib/formato";
 import { CAPITAL_DE_PAIS_CON_VARIAS_ZONAS, inicioLocalDelDia } from "@/lib/zona-horaria-pais";
 
 import type { FuncionT } from "./plantilla";
@@ -15,23 +16,26 @@ type TComun = FuncionT<Textos["campanaComun"]>;
 /**
  * EL SALDO EN HUMANO, con lo que ya está comprometido. Una sola frase para todo el portal (lista,
  * formulario, ficha): si cada pantalla lo dijera a su manera, una diría «tienes 90» y otra «te quedan 30»
- * sobre el mismo dinero, y las dos serían verdad a medias. Las cifras, tal cual (como antes de la P5b2b).
+ * sobre el mismo dinero, y las dos serían verdad a medias. Las cifras, por el formateador (P1; aprobado
+ * por Junior el 26 nov): «12.485» en español.
  */
 export function fraseSaldo(
   t: TComun,
+  idioma: Idioma,
   saldo: number,
   comprometido: number,
   /** «otras» en la ficha y el formulario (se habla de UNA campaña); «todas» en la lista. */
   cuales: "otras" | "todas" = "otras",
 ): string {
   const palabra = t("creditosPalabra", { n: saldo });
-  if (comprometido <= 0) return t("saldoSolo", { saldo: String(saldo), palabra });
+  const cifra = (n: number) => formatearNumero(n, idioma);
+  if (comprometido <= 0) return t("saldoSolo", { saldo: cifra(saldo), palabra });
   return t("saldoComprometido", {
-    saldo: String(saldo),
+    saldo: cifra(saldo),
     palabra,
-    comprometido: String(comprometido),
+    comprometido: cifra(comprometido),
     donde: t(`donde_${cuales}`),
-    quedan: String(Math.max(0, saldo - comprometido)),
+    quedan: cifra(Math.max(0, saldo - comprometido)),
   });
 }
 

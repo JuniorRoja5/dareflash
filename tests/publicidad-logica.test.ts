@@ -243,7 +243,7 @@ describe("el reparto (P7), simulado", () => {
 
 /** Desde la P5b2b la frase del saldo sale del diccionario (`campanaComun`), con la misma regla. */
 const fraseSaldo = (saldo: number, comprometido: number, cuales?: "otras" | "todas") =>
-  fraseSaldoT(crearT(es.campanaComun, "es"), saldo, comprometido, cuales);
+  fraseSaldoT(crearT(es.campanaComun, "es"), "es", saldo, comprometido, cuales);
 
 describe("la frase del saldo", () => {
   it("sin nada comprometido, el saldo a secas; con algo, cuánto queda para nuevas", () => {
@@ -254,6 +254,12 @@ describe("la frase del saldo", () => {
     expect(fraseSaldo(1, 0)).toBe("Tienes 1 crédito de publicidad.");
     // Nunca un disponible negativo (el saldo pudo bajar por un ajuste después de comprometer).
     expect(fraseSaldo(10, 30, "todas")).toContain("te quedan 0 para nuevas");
+  });
+
+  it("con las cifras del formateador (26 nov): «12.485» y «11.150»; las de cuatro cifras, sin punto", () => {
+    expect(fraseSaldo(12_485, 1_335)).toBe(
+      "Tienes 12.485 créditos de publicidad; 1335 ya están comprometidos en tus otras campañas, así que te quedan 11.150 para nuevas.",
+    );
   });
 });
 

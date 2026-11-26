@@ -38,6 +38,8 @@ type PropsBoton = PropsComunes &
 type PropsEnlace = PropsComunes &
   Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "className" | "children" | "href"> & {
     href: string;
+    /** La precarga de Next del destino. `false` donde casi nadie va a pulsar (la 404, P5b2b). */
+    prefetch?: boolean;
   };
 
 /**
