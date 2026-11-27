@@ -7,8 +7,8 @@
  *    «sesion», «invalido»…). Si vuelve una, rojo con su clave. Solo palabras que NO existen sin tilde
  *    en castellano (no «esta» ni «mas», que sí existen): un censo que da rojos falsos se acaba
  *    desactivando;
- *  - ninguna JERGA técnica en un mensaje de la API («CSRF», «token», «origen»): quien la lee no sabe qué
- *    hacer con ella (así hablaba `mutatingRoute`);
+ *  - ninguna JERGA técnica en un texto de pantalla («CSRF», «token», «origen»): quien la lee no sabe qué
+ *    hacer con ella (así hablaban `mutatingRoute` y las pantallas de un enlace incompleto);
  *  - ninguna EDAD escrita: la cifra entra como `{edad}` desde `EDAD_MIN_USO` (el registro decía «16
  *    años» cuando la edad mínima es 18).
  *
@@ -65,7 +65,7 @@ describe("las faltas corregidas no vuelven", () => {
   });
 });
 
-describe("los mensajes de la API, sin jerga", () => {
+describe("sin jerga en ningún texto de pantalla (usuarios y empresas; el panel no vive aquí)", () => {
   const JERGA = /(?<![\p{L}])(csrf|token|origen|unauthorized|forbidden)(?![\p{L}])/iu;
 
   it("el censo ve una (control)", () => {
@@ -75,10 +75,10 @@ describe("los mensajes de la API, sin jerga", () => {
     );
   });
 
-  it("ningún mensaje del espacio `api` habla de CSRF, tokens ni orígenes", () => {
-    const fuera = textos(es.api, "api")
-      .filter(([, t]) => JERGA.test(t))
-      .map(([k, t]) => `${k}: ${t}`);
+  it("ningún texto del diccionario habla de CSRF, tokens ni orígenes", () => {
+    // TODO el diccionario, no solo `api` (P5b3): «Falta el token en el enlace» estaba en las
+    // pantallas de recuperar, desbloquear, verificar y cambiar el correo.
+    const fuera = TODOS.filter(([, t]) => JERGA.test(sinHuecos(t))).map(([k, t]) => `${k}: ${t}`);
     expect(fuera, "jerga técnica en un mensaje que lee una persona").toEqual([]);
   });
 });

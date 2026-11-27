@@ -601,7 +601,7 @@ export const es = conMarcasConocidas({
     validacion: "Elige una contraseña de al menos 10 caracteres, larga y poco predecible.",
     caducado: "El enlace para restablecer la contraseña es inválido o ha caducado.",
     sinConexion: "No se pudo conectar. Inténtalo de nuevo más tarde.",
-    faltaToken: "Falta el token en el enlace. Abre el enlace completo del correo de recuperación.",
+    faltaToken: "Este enlace está incompleto. Ábrelo otra vez desde el correo de recuperación.",
     pedirNuevo: "Pedir un enlace nuevo",
     listo: "Listo.",
     yaUsado:
@@ -621,7 +621,7 @@ export const es = conMarcasConocidas({
     hecho: "Cuenta reactivada. Ya puedes intentar iniciar sesión de nuevo.",
     error: "El enlace de desbloqueo es inválido o ha caducado.",
     sinConexion: "No se pudo conectar. Inténtalo de nuevo más tarde.",
-    faltaToken: "Falta el token en el enlace. Abre el enlace completo del correo de desbloqueo.",
+    faltaToken: "Este enlace está incompleto. Ábrelo otra vez desde el correo de desbloqueo.",
     frenada: "Tu cuenta se frenó temporalmente por demasiados intentos. Pulsa para reactivarla.",
     reactivando: "Reactivando...",
     reactivar: "Reactivar mi cuenta",
@@ -638,7 +638,7 @@ export const es = conMarcasConocidas({
     hecho: "Cuenta verificada. Ya puedes iniciar sesión.",
     error: "El enlace de verificación es inválido o ha caducado.",
     sinConexion: "No se pudo conectar. Inténtalo de nuevo más tarde.",
-    faltaToken: "Falta el token en el enlace. Abre el enlace completo del correo de verificación.",
+    faltaToken: "Este enlace está incompleto. Ábrelo otra vez desde el correo de verificación.",
     pulsa: "Pulsa el botón para confirmar tu dirección de correo.",
     verificando: "Verificando…",
     verificar: "Verificar mi cuenta",
@@ -657,7 +657,7 @@ export const es = conMarcasConocidas({
     noValido: "Este enlace ya no es válido.",
     sinConexion: "No hemos podido conectar. Inténtalo de nuevo.",
     faltaToken:
-      "Falta el token en el enlace. Ábrelo completo desde el correo que te hemos enviado.",
+      "Este enlace está incompleto. Ábrelo otra vez desde el correo que te hemos enviado.",
     pulsa:
       "Pulsa para confirmar que esta dirección es tuya. Al hacerlo se cerrarán tus sesiones abiertas.",
     confirmando: "Confirmando…",
