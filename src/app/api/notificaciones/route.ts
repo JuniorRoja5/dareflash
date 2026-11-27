@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { apiError } from "@/server/http/api";
-import { textosApi } from "@/server/http/textos-api";
+import { idiomaDeLaApi, textosApi } from "@/server/http/textos-api";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +41,8 @@ export async function GET(req: Request) {
     listarNotificaciones(prisma, user.userId, {
       cursor: q.data.cursor ?? null,
       limite: q.data.limite,
+      // Los avisos de la campana, en el idioma de la cookie (P5b4; la API no pasa por el proxy).
+      idioma: await idiomaDeLaApi(req),
     }),
     contarNoLeidas(prisma, user.userId),
   ]);

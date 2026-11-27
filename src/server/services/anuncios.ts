@@ -37,7 +37,11 @@ import {
 } from "@/config/constants";
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import type { FiltrosInspector } from "@/lib/filtros-inspector";
-import { AvisoSchema, avisoAnuncio, textoAviso } from "@/lib/notificaciones";
+import { AvisoSchema, avisoAnuncio } from "@/lib/notificaciones";
+import { componerAviso, type AvisoCompuesto } from "@/server/avisos-texto";
+
+/** El panel no se traduce: el aviso en castellano, y SIN texto si la fila no valida (el admin la ve). */
+const textoDelPanel = (a: AvisoCompuesto | null): string | null => (a?.valido ? a.texto : null);
 import type { Db } from "@/server/db/types";
 import { textosDeAnuncios } from "@/server/services/notificaciones";
 import { USUARIO_VISIBLE } from "@/server/services/usuario-visible";
@@ -460,7 +464,7 @@ export async function inspeccionarNotificaciones(
       tipo: f.tipo as TipoNotificacion,
       // El MISMO texto que su bandeja, por la misma función. Una fila que no valida no se omite (el
       // admin tiene que verla): sale sin texto.
-      texto: textoAviso(f, { anuncios })?.es ?? null,
+      texto: textoDelPanel(componerAviso(f, "es", { anuncios })),
       leida: f.leidaEn !== null,
       creadaMs: f.createdAt.getTime(),
     })),

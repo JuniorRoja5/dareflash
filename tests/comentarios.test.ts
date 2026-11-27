@@ -17,7 +17,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { COMENTARIO_TEXTO_MAX } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
-import { avisoComentario, textoAviso } from "../src/lib/notificaciones";
+import { avisoComentario } from "../src/lib/notificaciones";
+import { componerAviso } from "../src/server/avisos-texto";
 import {
   comentarioSuelto,
   listarComentarios,
@@ -160,8 +161,8 @@ describe("publicar", () => {
     await publicar(videoId);
     const [aviso] = await avisosDe(dueno);
     expect(aviso?.datos).toEqual({ autor: "comentarista", reto: null });
-    expect(textoAviso(aviso!)).toMatchObject({
-      es: "@comentarista ha comentado tu vídeo.",
+    expect(componerAviso(aviso!, "es")).toMatchObject({
+      texto: "@comentarista ha comentado tu vídeo.",
       href: "/perfil",
     });
   });

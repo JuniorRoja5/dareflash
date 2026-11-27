@@ -59,6 +59,8 @@ vi.mock("@/server/services/boost-destacados", () => ({
 vi.mock("@/server/formato-peticion", async (original) => ({
   ...(await original<typeof import("../../src/server/formato-peticion")>()),
   idiomaDeLaPeticion: async () => "es",
+  // La página pide el idioma de los avisos (P5b4); `listarNotificaciones` está simulado y no lo usa.
+  idiomaDeTextosDeLaPeticion: async () => "es",
   zonaDeLaPeticion: async () => "Europe/Madrid",
 }));
 

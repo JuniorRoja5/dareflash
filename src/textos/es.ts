@@ -230,6 +230,39 @@ export const es = conMarcasConocidas({
     limite: "Demasiados intentos, espera un momento.",
     ocupado: "El servicio está ocupado. Reinténtalo en unos segundos.",
   },
+  /**
+   * LOS AVISOS de la campana y de /notificaciones (Fase 11 · P5b4; antes, una tabla ES/EN en
+   * `lib/notificaciones` de la que solo se leía el castellano). `datosDeAviso` dice cuál y con qué
+   * valores; `componerAviso` (server/avisos-texto) la compone en el idioma que se le pase. Los dos
+   * fallos de un vídeo que ya dice la pantalla de subida usan sus claves (`subida.estado_*`). El
+   * borrador en inglés de antes espera a la P5c en `textos/borradores/avisos-en.ts`.
+   */
+  avisos: {
+    contenidoOculto: "Se ha ocultado contenido por denuncias. Está pendiente de revisar.",
+    videoListo: "Tu vídeo ya está publicado y se puede ver.",
+    videoFallido_UPLOAD_INCOMPLETE:
+      "Tu vídeo no llegó a subirse entero y no se publicará. Vuelve a subirlo cuando quieras.",
+    videoFallido_OBJETO_INEXISTENTE:
+      "Tu vídeo ya no está disponible y no se publicará. Puedes volver a subirlo.",
+    votoRecibido: "Alguien ha votado tu vídeo en «{reto}».",
+    ganasteReto: {
+      one: "Has ganado «{reto}». Sumas {n} punto.",
+      other: "Has ganado «{reto}». Sumas {n} puntos.",
+    },
+    top20: {
+      one: "Has quedado entre los 20 mejores de «{reto}». Sumas {n} punto.",
+      other: "Has quedado entre los 20 mejores de «{reto}». Sumas {n} puntos.",
+    },
+    subisteNivel: "Has subido a {nivel}.",
+    toque: "@{autor} te ha dado un toque.",
+    comentarioEnReto: "@{autor} ha comentado tu vídeo en «{reto}».",
+    comentario: "@{autor} ha comentado tu vídeo.",
+    /**
+     * Un aviso que no se sabe pintar (un `tipo` de otra versión, `datos` incompletos): antes se
+     * omitía; ahora se dice que hay algo, sin inventar qué, y se anota en el log.
+     */
+    generico: "Tienes un aviso nuevo.",
+  },
   /** Cuándo se reinician los contadores diarios (Boost, toques): `textos/reinicio-diario`. */
   reinicioDiario: {
     frase: "El contador se reinicia {cuando}.",
@@ -732,8 +765,8 @@ export const es = conMarcasConocidas({
   },
   /**
    * La ventana de subir un vídeo (`ModalSubida`, isla de CLIENTE: /crear y la ficha de un reto). Los
-   * mensajes de cada ESTADO de la subida («Subiendo tu vídeo…», «en cola»…) siguen en `copySubida`
-   * (lib/estado-subida), que comparte con los avisos del servidor: van a la P5b3.
+   * mensajes de cada ESTADO (`estado_*`) los leen también dos avisos de un vídeo fallido (P5b4: la
+   * misma clave, no una copia), así que la pantalla y la campana no pueden decir cosas distintas.
    */
   subida: {
     lanzar: "Subir un vídeo",
@@ -772,8 +805,7 @@ export const es = conMarcasConocidas({
     publicar: "Publicar",
     /**
      * Lo que dice cada ESTADO de la subida (P5b3: antes `copySubida`). Los dos de codificación los
-     * repite el aviso de la campana (`COPY_SUBIDA` de `lib/estado-subida`, con su inglés): un test
-     * exige que digan exactamente lo mismo.
+     * dice también el aviso de la campana: usa ESTAS claves (P5b4), una frase, UNA clave.
      */
     estado_preparando: "Preparando la subida…",
     estado_subiendo: "Subiendo tu vídeo…",
@@ -782,6 +814,8 @@ export const es = conMarcasConocidas({
     estado_listo: "Listo. Tu vídeo ya se puede ver.",
     "estado_sin-conexion":
       "No se pudo conectar para subir el vídeo. Revisa tu conexión e inténtalo de nuevo.",
+    // OJO con lo que NO dice: no promete reanudar. TUS es reanudable, pero hoy reintentar pide
+    // credencial nueva y arranca una subida NUEVA; si algún día reutiliza la subida, se cambia a la vez.
     estado_corte: "La subida se cortó a mitad. Tu conexión funciona, así que vuelve a intentarlo.",
     estado_credencial:
       "El permiso de subida ha caducado. Vuelve a pulsar Publicar para empezar de nuevo.",

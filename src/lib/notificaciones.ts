@@ -14,11 +14,12 @@
  */
 import { z } from "zod";
 
+import type { es } from "@/textos/es";
+
 import { type VideoFailureReason } from "@/config/constants";
 import { VideoFailureReasonSchema } from "@/config/esquemas";
 
 import { enlaceComentario } from "./enlace-comentario";
-import { COPY_SUBIDA } from "./estado-subida";
 import { NIVELES, type ClaveNivel } from "./niveles";
 
 const Id = z.string().min(1).max(191);
@@ -266,50 +267,53 @@ export function avisoContenidoAutoOculto(input: {
 }
 
 // ---------------------------------------------------------------------------------------------------
-// COPY: lo que dice cada aviso, ES y EN, y adónde lleva. Fuente única: la UI no escribe literales.
+// LO QUE DICE CADA AVISO, como DATO (Fase 11 · P5b4): la clave de su frase en el diccionario y sus
+// valores, y adónde lleva. La FRASE la compone `componerAviso` (server/avisos-texto) en el idioma que
+// se le pase —el de la página, el de la API o, en la P4, el del destinatario de un push—. Aquí no se
+// escribe ni una palabra: antes vivía aquí una tabla ES/EN, de la que solo se leía el castellano.
 // ---------------------------------------------------------------------------------------------------
 
-export interface TextoAviso {
-  es: string;
-  en: string;
-  /** Adónde lleva el aviso. Siempre una ruta local. */
-  href: string;
-}
+type Avisos = (typeof es)["avisos"];
+
+/** La frase de un aviso: una clave del espacio `avisos`, una de la pantalla de subida, o un texto ya escrito. */
+export type FraseAviso =
+  | { espacio: "avisos"; clave: keyof Avisos & string; params?: Record<string, string | number> }
+  /** Los dos fallos de un vídeo que ya dice la pantalla de subida: una frase, UNA clave. */
+  | { espacio: "subida"; clave: "estado_demasiado-largo" | "estado_fallo-codificacion" }
+  /** El de un ANUNCIO: lo escribió el equipo, en un idioma, y no hay traducción que inventar. */
+  | { texto: string };
+
+export type DatosAviso =
+  | { estado: "ok"; frase: FraseAviso; href: string }
+  /** Se omite a propósito (un anuncio cuyo texto ya no existe): mejor un hueco que un aviso vacío. */
+  | { estado: "omitir" }
+  /** La fila no valida (un `tipo` desconocido, `datos` incompletos): la compone el genérico. */
+  | { estado: "invalido" };
 
 const enlaceReto = (r: RetoFoto): string => `/retos/${r.codigo}-${r.slug}`;
 
-/**
- * Texto del fallo de un vídeo. Los dos de contenido reutilizan EL MISMO copy que ve quien sube
- * (`COPY_SUBIDA`): el aviso no puede contar una versión distinta de la pantalla de subida.
- */
-function textoFallo(motivo: VideoFailureReason): { es: string; en: string } {
+/** La frase del fallo de un vídeo, por su motivo. */
+function fraseFallo(motivo: VideoFailureReason): FraseAviso {
   switch (motivo) {
     case "TOO_LONG":
-      return COPY_SUBIDA["demasiado-largo"];
+      return { espacio: "subida", clave: "estado_demasiado-largo" };
     case "TRANSCODE_ERROR":
-      return COPY_SUBIDA["fallo-codificacion"];
+      return { espacio: "subida", clave: "estado_fallo-codificacion" };
     case "UPLOAD_INCOMPLETE":
-      return {
-        es: "Tu vídeo no llegó a subirse entero y no se publicará. Vuelve a subirlo cuando quieras.",
-        en: "Your video didn't finish uploading and won't be published. Upload it again whenever you like.",
-      };
+      return { espacio: "avisos", clave: "videoFallido_UPLOAD_INCOMPLETE" };
     case "OBJETO_INEXISTENTE":
-      return {
-        es: "Tu vídeo ya no está disponible y no se publicará. Puedes volver a subirlo.",
-        en: "Your video is no longer available and won't be published. You can upload it again.",
-      };
+      return { espacio: "avisos", clave: "videoFallido_OBJETO_INEXISTENTE" };
   }
 }
 
 /**
- * Texto de un aviso a partir de su tipo y su foto. Si la fila guardada no valida (una fila de otra
- * versión, datos manipulados), devuelve `null` y la bandeja la omite en vez de pintar algo roto.
+ * Lo que dice un aviso y adónde lleva, a partir de su tipo y su foto. Pura: sin idioma, sin petición.
  *
  * Reglas del copy (brief v2): desde el lado del usuario, voz activa, sin promesas. VIDEO_FALLIDO dice la
  * verdad —no se publicará—. Los premios en DINERO no se nombran: su pago no existe todavía, y "has
  * ganado 50 €" sería una promesa. Los puntos sí, porque se otorgan en el mismo cierre que emite el aviso.
  */
-export function textoAviso(
+export function datosDeAviso(
   fila: {
     tipo: string;
     refType: string;
@@ -317,73 +321,70 @@ export function textoAviso(
     datos: unknown;
   },
   contexto: ContextoTexto = {},
-): TextoAviso | null {
+): DatosAviso {
   const r = AvisoSchema.safeParse(fila);
-  if (!r.success) return null;
+  if (!r.success) return { estado: "invalido" };
   const a = r.data;
+  const ok = (frase: FraseAviso, href: string): DatosAviso => ({ estado: "ok", frase, href });
   switch (a.tipo) {
     case "CONTENIDO_AUTO_OCULTO":
-      return {
-        // DICE LO QUE PASÓ, no lo que hay que concluir: "se ha ocultado" (un contador llegó a
-        // tres), nunca "contenido inapropiado" — eso lo decide quien lo mire, que es a lo que se
-        // le invita. Lleva a la cola, que es donde se decide.
-        es: "Se ha ocultado contenido por denuncias. Está pendiente de revisar.",
-        en: "Content was hidden after multiple reports. It is pending review.",
-        href: "/panel/moderacion",
-      };
+      // DICE LO QUE PASÓ, no lo que hay que concluir: "se ha ocultado" (un contador llegó a
+      // tres), nunca "contenido inapropiado" — eso lo decide quien lo mire, que es a lo que se
+      // le invita. Lleva a la cola, que es donde se decide.
+      return ok({ espacio: "avisos", clave: "contenidoOculto" }, "/panel/moderacion");
     case "VIDEO_LISTO":
-      return {
-        es: "Tu vídeo ya está publicado y se puede ver.",
-        en: "Your video is live and ready to watch.",
-        href: "/perfil",
-      };
+      return ok({ espacio: "avisos", clave: "videoListo" }, "/perfil");
     case "VIDEO_FALLIDO":
-      return { ...textoFallo(a.datos.motivo), href: "/crear" };
+      return ok(fraseFallo(a.datos.motivo), "/crear");
     case "VOTO_RECIBIDO":
-      return {
-        es: `Alguien ha votado tu vídeo en «${a.datos.reto.titulo}».`,
-        en: `Someone voted for your video in "${a.datos.reto.titulo}".`,
-        href: enlaceReto(a.datos.reto),
-      };
+      return ok(
+        { espacio: "avisos", clave: "votoRecibido", params: { reto: a.datos.reto.titulo } },
+        enlaceReto(a.datos.reto),
+      );
     case "GANASTE_RETO":
-      return {
-        es: `Has ganado «${a.datos.reto.titulo}». Sumas ${a.datos.puntos} puntos.`,
-        en: `You won "${a.datos.reto.titulo}". You earn ${a.datos.puntos} points.`,
-        href: enlaceReto(a.datos.reto),
-      };
+      return ok(
+        {
+          espacio: "avisos",
+          clave: "ganasteReto",
+          params: { reto: a.datos.reto.titulo, n: a.datos.puntos },
+        },
+        enlaceReto(a.datos.reto),
+      );
     case "TOP20":
-      return {
-        es: `Has quedado entre los 20 mejores de «${a.datos.reto.titulo}». Sumas ${a.datos.puntos} puntos.`,
-        en: `You finished in the top 20 of "${a.datos.reto.titulo}". You earn ${a.datos.puntos} points.`,
-        href: enlaceReto(a.datos.reto),
-      };
+      return ok(
+        {
+          espacio: "avisos",
+          clave: "top20",
+          params: { reto: a.datos.reto.titulo, n: a.datos.puntos },
+        },
+        enlaceReto(a.datos.reto),
+      );
     case "SUBISTE_NIVEL": {
+      // El nombre del nivel es de marca (no se traduce): viaja como valor.
       const nivel = NIVELES.find((n) => n.clave === a.refId)!;
-      return {
-        es: `Has subido a ${nivel.nombre}.`,
-        en: `You reached ${nivel.nombre}.`,
-        href: "/perfil",
-      };
+      return ok(
+        { espacio: "avisos", clave: "subisteNivel", params: { nivel: nivel.nombre } },
+        "/perfil",
+      );
     }
     case "ANUNCIO": {
       // El texto del admin, UNIDO por refId. Si no llegó (un anuncio que no existe), se omite como
       // cualquier fila que no se sabe pintar: mejor un hueco que un aviso vacío.
       const texto = contexto.anuncios?.get(a.refId);
-      if (!texto) return null;
+      if (!texto) return { estado: "omitir" };
       // Un solo texto: el admin escribe en un idioma y no hay traducción que inventar. Lleva a la
       // bandeja, donde se lee entero; no hay (ni se promete) una pantalla propia del anuncio.
-      return { es: texto, en: texto, href: "/notificaciones" };
+      return ok({ texto }, "/notificaciones");
     }
     case "TOQUE":
       // LLEVA AL PERFIL DE QUIEN TOCA, que es lo único que hay que mirar: un toque no tiene
       // contenido detrás. El handle sale de `datos` y no de la clave, aunque la clave también lo
       // lleve: son dos usos distintos (pintar y deduplicar) y atarlos haría que cambiar el formato
       // de uno cambiara el otro.
-      return {
-        es: `@${a.datos.autor} te ha dado un toque.`,
-        en: `@${a.datos.autor} gave you a nudge.`,
-        href: `/u/${a.datos.autor}`,
-      };
+      return ok(
+        { espacio: "avisos", clave: "toque", params: { autor: a.datos.autor } },
+        `/u/${a.datos.autor}`,
+      );
     case "COMENTARIO": {
       // Sin el texto del comentario (ver el esquema). Lleva AL COMENTARIO: el feed abre por ese vídeo y
       // ancla el comentario. El vídeo no viaja en la fila del aviso —se une por refId al leer, como el
@@ -397,16 +398,15 @@ export function textoAviso(
           ? enlaceReto(a.datos.reto)
           : "/perfil";
       return a.datos.reto
-        ? {
-            es: `@${a.datos.autor} ha comentado tu vídeo en «${a.datos.reto.titulo}».`,
-            en: `@${a.datos.autor} commented on your video in "${a.datos.reto.titulo}".`,
+        ? ok(
+            {
+              espacio: "avisos",
+              clave: "comentarioEnReto",
+              params: { autor: a.datos.autor, reto: a.datos.reto.titulo },
+            },
             href,
-          }
-        : {
-            es: `@${a.datos.autor} ha comentado tu vídeo.`,
-            en: `@${a.datos.autor} commented on your video.`,
-            href,
-          };
+          )
+        : ok({ espacio: "avisos", clave: "comentario", params: { autor: a.datos.autor } }, href);
     }
   }
 }

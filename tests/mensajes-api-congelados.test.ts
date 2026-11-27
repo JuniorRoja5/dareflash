@@ -26,6 +26,7 @@ import { describe, expect, it } from "vitest";
 
 import * as constantes from "@/config/constants";
 import { MARCA } from "@/config/marca";
+import { AVISOS_EN_BORRADOR, SUBIDA_EN_BORRADOR } from "@/textos/borradores/avisos-en";
 import { es } from "@/textos/es";
 
 import { leerMensajesApi, normalizarHuecos, type Lectura } from "./helpers/mensajes-api";
@@ -247,6 +248,9 @@ describe("los mensajes de la API dicen lo mismo que antes", () => {
   it("y cada frase de antes sigue existiendo, letra a letra (en el diccionario o en su sitio)", () => {
     const existen = new Set([
       ...cadenasDe(es).map(normalizarHuecos),
+      // El inglés de `COPY_SUBIDA` (que nunca se sirvió) se fue en la P5b4 al borrador de la P5c: sigue
+      // existiendo, letra a letra, ahí.
+      ...cadenasDe({ AVISOS_EN_BORRADOR, SUBIDA_EN_BORRADOR }).map(normalizarHuecos),
       ...Object.values(hoy).flatMap((l) => l.frases),
     ]);
     const perdidas: string[] = [];

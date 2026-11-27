@@ -20,7 +20,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { enlaceComentario } from "../src/lib/enlace-comentario";
 import type { PrismaClient } from "../src/generated/prisma/client";
-import { avisoComentario, textoAviso } from "../src/lib/notificaciones";
+import { avisoComentario } from "../src/lib/notificaciones";
+import { componerAviso } from "../src/server/avisos-texto";
 import { publicarComentario, retirarComentario } from "../src/server/services/comentarios";
 import { listarNotificaciones } from "../src/server/services/notificaciones";
 import { generarPublicCode } from "../src/server/services/reto-codigo";
@@ -189,18 +190,20 @@ describe("el feed consume el enlace (estructural)", () => {
   });
 });
 
-describe("textoAviso (puro)", () => {
+describe("componerAviso", () => {
   const aviso = avisoComentario({ commentId: "c1", autor: "ana", reto: null });
 
   it("con el vídeo en el contexto, enlaza al comentario", () => {
-    const t = textoAviso(aviso, { comentarios: new Map([["c1", "vid-9"]]) });
+    const t = componerAviso(aviso, "es", { comentarios: new Map([["c1", "vid-9"]]) });
     expect(t?.href).toBe("/feed?video=vid-9&comentario=c1");
     // El texto no cambia: el enlace es lo único que se movió.
-    expect(t?.es).toBe("@ana ha comentado tu vídeo.");
+    expect(t?.texto).toBe("@ana ha comentado tu vídeo.");
   });
 
   it("sin el vídeo, el de siempre; y un mapa de OTRO comentario no lo confunde", () => {
-    expect(textoAviso(aviso)?.href).toBe("/perfil");
-    expect(textoAviso(aviso, { comentarios: new Map([["otro", "vid-9"]]) })?.href).toBe("/perfil");
+    expect(componerAviso(aviso, "es")?.href).toBe("/perfil");
+    expect(componerAviso(aviso, "es", { comentarios: new Map([["otro", "vid-9"]]) })?.href).toBe(
+      "/perfil",
+    );
   });
 });

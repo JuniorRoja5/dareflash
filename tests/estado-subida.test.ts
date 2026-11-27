@@ -11,6 +11,7 @@
  *  - hacer que `estadoEnVuelo` mire el porcentaje en vez de `subidaCompleta` -> cae el invariante;
  *  - meter un literal de copy a mano en el modal -> cae el test estructural.
  */
+import { SUBIDA_EN_BORRADOR } from "@/textos/borradores/avisos-en";
 import { es } from "@/textos/es";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -19,7 +20,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   clasificarFalloSubida,
-  COPY_SUBIDA,
   esFallo,
   ESTADOS_FALLO,
   ESTADOS_FALLO_SUBIDA,
@@ -33,6 +33,16 @@ import {
 
 /** Lo que pinta la pantalla de subida: el diccionario (P5b3; antes `copySubida`). */
 const copySubida = (e: string): string => (es.subida as Record<string, string>)[`estado_${e}`]!;
+/**
+ * El inglés que tenía `COPY_SUBIDA` (borrado en la P5b4): un borrador SIN PUBLICAR para la P5c. Sus
+ * reglas se siguen mirando aquí para que no entre en `en.ts` con una promesa que no se cumple.
+ */
+const copyEn = (e: string): string | undefined =>
+  (SUBIDA_EN_BORRADOR as Record<string, string>)[`estado_${e}`];
+/** Las claves `estado_*` de la pantalla de subida, sin el prefijo. */
+const ESTADOS_DICCIONARIO = Object.keys(es.subida)
+  .filter((k) => k.startsWith("estado_"))
+  .map((k) => k.slice("estado_".length));
 
 describe("el fallo dice su causa REAL, no un genérico", () => {
   it("0 bytes y sin respuesta -> problema de conexión (NO 'codificando', NO genérico)", () => {
@@ -192,20 +202,21 @@ describe("el copy es humano, bilingüe y no promete de más", () => {
     "demasiado-largo",
   ];
 
-  it("cada estado tiene texto en ES y en EN", () => {
+  it("cada estado tiene texto en el diccionario (y en el borrador en inglés)", () => {
     for (const e of TODOS) {
-      expect(COPY_SUBIDA[e]?.es.length ?? 0).toBeGreaterThan(10);
-      expect(COPY_SUBIDA[e]?.en.length ?? 0).toBeGreaterThan(10);
+      expect(copySubida(e)?.length ?? 0).toBeGreaterThan(10);
+      expect(copyEn(e)?.length ?? 0).toBeGreaterThan(10);
     }
     // Sin estados de más ni de menos: el catálogo y el tipo no se separan sin que esto se caiga.
-    expect(Object.keys(COPY_SUBIDA).sort()).toEqual([...TODOS].sort());
+    expect([...ESTADOS_DICCIONARIO].sort()).toEqual([...TODOS].sort());
+    expect(Object.keys(SUBIDA_EN_BORRADOR).length).toBe(TODOS.length);
   });
 
   it("ningún texto enseña un código crudo ni jerga técnica", () => {
     const prohibido = /\b(40[0-9]|41[0-9]|50[0-9]|PENDING|FAILED|tus|TUS|Bunny|HTTP|null)\b/;
     for (const e of TODOS) {
-      expect(COPY_SUBIDA[e]?.es).not.toMatch(prohibido);
-      expect(COPY_SUBIDA[e]?.en).not.toMatch(prohibido);
+      expect(copySubida(e)).not.toMatch(prohibido);
+      expect(copyEn(e)).not.toMatch(prohibido);
     }
   });
 
@@ -213,8 +224,8 @@ describe("el copy es humano, bilingüe y no promete de más", () => {
     // La cola de codificación no nos dice cuánto tarda. "En un momento" es una promesa inventada.
     const promesas = /en un momento|enseguida|in a moment|shortly|any second/i;
     for (const e of TODOS) {
-      expect(COPY_SUBIDA[e]?.es).not.toMatch(promesas);
-      expect(COPY_SUBIDA[e]?.en).not.toMatch(promesas);
+      expect(copySubida(e)).not.toMatch(promesas);
+      expect(copyEn(e)).not.toMatch(promesas);
     }
   });
 
@@ -224,14 +235,14 @@ describe("el copy es humano, bilingüe y no promete de más", () => {
     // el que obliga a cambiar las dos cosas a la vez.
     const reanudar = /donde lo dejó|donde lo dejo|reanud|pick up where|resume/i;
     for (const e of TODOS) {
-      expect(COPY_SUBIDA[e]?.es).not.toMatch(reanudar);
-      expect(COPY_SUBIDA[e]?.en).not.toMatch(reanudar);
+      expect(copySubida(e)).not.toMatch(reanudar);
+      expect(copyEn(e)).not.toMatch(reanudar);
     }
   });
 
   it("'en cola' dice que el vídeo está A SALVO: es lo que evita que parezca que se ha perdido", () => {
     expect(copySubida("en-cola")).toMatch(/a salvo/i);
-    expect(COPY_SUBIDA["en-cola"].en).toMatch(/safe/i);
+    expect(copyEn("en-cola")).toMatch(/safe/i);
   });
 
   it("el fallo de conexión y el de corte NO dicen lo mismo", () => {
@@ -295,13 +306,5 @@ describe("el modal usa la fuente única de estado y copy", () => {
   it("lee el estado HTTP real del error para poder clasificarlo", () => {
     // Sin `originalResponse` no hay forma de distinguir "no hubo respuesta" de "respondió y dijo que no".
     expect(fuente()).toContain("originalResponse");
-  });
-});
-
-describe("la pantalla y el aviso de la campana dicen LO MISMO (P5b3)", () => {
-  it("cada estado del diccionario es el castellano de COPY_SUBIDA, que usan los avisos", () => {
-    for (const [e, copy] of Object.entries(COPY_SUBIDA)) {
-      expect(copySubida(e), e).toBe(copy.es);
-    }
   });
 });

@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NOTIF_NO_LEIDAS_TOPE } from "../src/config/constants";
 import { TipoNotificacionSchema } from "../src/config/esquemas";
@@ -28,9 +28,11 @@ import {
   avisoVideoFallido,
   avisoVideoListo,
   avisoVotoRecibido,
-  textoAviso,
+  datosDeAviso,
   type Aviso,
 } from "../src/lib/notificaciones";
+import { componerAviso } from "../src/server/avisos-texto";
+import { es } from "../src/textos/es";
 import {
   contarNoLeidas,
   emitirAviso,
@@ -48,6 +50,9 @@ beforeAll(() => {
 });
 afterAll(async () => {
   await prisma.$disconnect();
+});
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 beforeEach(async () => {
   await resetDb(prisma);
@@ -136,13 +141,13 @@ describe("la unión de tipos", () => {
   it("un COMENTARIO no lleva el texto del comentario: solo quién y dónde", () => {
     const a = avisoComentario({ commentId: "c1", autor: "comentarista", reto: null });
     expect(Object.keys(a.datos as object).sort()).toEqual(["autor", "reto"]);
-    expect(textoAviso(a)).toMatchObject({
-      es: "@comentarista ha comentado tu vídeo.",
+    expect(componerAviso(a, "es")).toMatchObject({
+      texto: "@comentarista ha comentado tu vídeo.",
       href: "/perfil",
     });
-    expect(textoAviso(avisoComentario({ commentId: "c2", autor: "x", reto: RETO }))?.href).toBe(
-      `/retos/${RETO.codigo}-${RETO.slug}`,
-    );
+    expect(
+      componerAviso(avisoComentario({ commentId: "c2", autor: "x", reto: RETO }), "es")?.href,
+    ).toBe(`/retos/${RETO.codigo}-${RETO.slug}`);
   });
 
   it("el esquema del aviso cubre EXACTAMENTE los tipos de la unión (ni uno más ni uno menos)", () => {
@@ -174,19 +179,24 @@ describe("la unión de tipos", () => {
 
   it("un ANUNCIO lleva datos VACÍOS (el texto no se copia) y sin su texto unido no se pinta", () => {
     expect(avisoAnuncio("a1").datos).toEqual({});
-    expect(textoAviso(avisoAnuncio("a1"))).toBeNull();
-    expect(textoAviso(avisoAnuncio("a1"), { anuncios: TEXTOS_ANUNCIO })?.es).toBe(
+    expect(datosDeAviso(avisoAnuncio("a1")).estado).toBe("omitir");
+    expect(componerAviso(avisoAnuncio("a1"), "es")).toBeNull();
+    expect(componerAviso(avisoAnuncio("a1"), "es", { anuncios: TEXTOS_ANUNCIO })?.texto).toBe(
       TEXTOS_ANUNCIO.get("a1"),
     );
   });
 
-  it("cada tipo tiene texto ES y EN humano, sin códigos técnicos, y un enlace local", () => {
+  it("cada tipo tiene texto humano, sin códigos técnicos, y un enlace local", () => {
+    // El inglés ya no vive aquí (P5b4): llegará con `en.ts` en la P5c, y entonces `textos-tipos` exige
+    // la clave. Lo que se mira es el castellano que se sirve.
     for (const a of UNO_DE_CADA) {
-      const t = textoAviso(a, { anuncios: TEXTOS_ANUNCIO });
+      const t = componerAviso(a, "es", { anuncios: TEXTOS_ANUNCIO });
       expect(t, a.tipo).not.toBeNull();
-      expect(t!.es.length).toBeGreaterThan(10);
-      expect(t!.en.length).toBeGreaterThan(10);
-      expect(t!.es).not.toMatch(/PENDING|FAILED|TOO_LONG|TRANSCODE|UPLOAD_|null|undefined|\bu9\b/);
+      expect(t!.valido, a.tipo).toBe(true);
+      expect(t!.texto.length).toBeGreaterThan(10);
+      expect(t!.texto).not.toMatch(
+        /PENDING|FAILED|TOO_LONG|TRANSCODE|UPLOAD_|null|undefined|\bu9\b/,
+      );
       expect(t!.href.startsWith("/")).toBe(true);
     }
   });
@@ -200,7 +210,7 @@ describe("la unión de tipos", () => {
     ] as const) {
       // Dice la VERDAD (brief: sin promesas): que no se publica. "Demasiado largo" reutiliza el copy de
       // la pantalla de subida, que lo dice en pasado ("no se ha publicado").
-      expect(textoAviso(avisoVideoFallido("v", m))?.es, m).toMatch(
+      expect(componerAviso(avisoVideoFallido("v", m), "es")?.texto, m).toMatch(
         /no se publicará|no llegará|no se ha publicado/,
       );
     }
@@ -287,7 +297,10 @@ describe("la bandeja pagina por KEYSET", () => {
     }
   });
 
-  it("una fila que no valida se omite sin romper la página, y el cursor no la vuelve a servir", async () => {
+  it("una fila que no valida sale con la frase genérica sin romper la página, y el cursor no la repite", async () => {
+    // Desde la P5b4 no se omite: la campana la enseña con `avisos.generico` (lo pidió el encargo: un
+    // aviso guardado sigue apareciendo, aunque su tipo o sus datos sean de otra versión).
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     const t = new Date("2026-09-01T10:00:00.000Z");
     await prisma.notification.createMany({
       data: [
@@ -312,10 +325,14 @@ describe("la bandeja pagina por KEYSET", () => {
       ],
     });
     const p1 = await listarNotificaciones(prisma, userId, { limite: 2 });
-    expect(p1.items).toHaveLength(1); // "a" (la rota se omite)
+    // "a" y la rota, con la genérica (y sin enlace a ninguna parte que no exista).
+    expect(p1.items.map((i) => i.texto)).toEqual([es.avisos.videoListo, es.avisos.generico]);
+    expect(p1.items[1]!.href).toBe("/notificaciones");
     const p2 = await listarNotificaciones(prisma, userId, { cursor: p1.nextCursor, limite: 2 });
-    expect(p2.items).toHaveLength(1); // "c", sin repetir "a"
-    expect(p2.items[0]!.id).not.toBe(p1.items[0]!.id);
+    expect(p2.items).toHaveLength(1); // "c", sin repetir ninguna
+    expect(p1.items.map((i) => i.id)).not.toContain(p2.items[0]!.id);
+    // Y cuenta como no leída, igual que antes: el contador no cambia de regla.
+    expect(await contarNoLeidas(prisma, userId)).toBe(3);
   });
 
   it("la vista NO expone la clave del hecho (en un voto llevaría dentro al votante)", async () => {

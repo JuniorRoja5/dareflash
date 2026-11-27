@@ -15,7 +15,9 @@
  */
 import { NOTIF_MARCAR_MAX, NOTIF_NO_LEIDAS_TOPE, type TipoNotificacion } from "@/config/constants";
 import type { Prisma } from "@/generated/prisma/client";
-import { AvisoSchema, textoAviso, type Aviso } from "@/lib/notificaciones";
+import { AvisoSchema, type Aviso } from "@/lib/notificaciones";
+import type { IdiomaDeTextos } from "@/lib/idioma-ruta";
+import { componerAviso } from "@/server/avisos-texto";
 import type { Db } from "@/server/db/types";
 
 import { COMENTARIO_VISIBLE } from "./comentario-visible";
@@ -95,7 +97,15 @@ function decodificarCursor(raw: string | null | undefined): PosicionCursor | nul
 export async function listarNotificaciones(
   db: Db,
   userId: string,
-  opts: { cursor?: string | null; limite?: number } = {},
+  opts: {
+    cursor?: string | null;
+    limite?: number;
+    /**
+     * En qué idioma se componen los avisos (P5b4). Lo pone quien pide la página: la de
+     * /notificaciones, el de la página; la API de la campana, el de la cookie. Ausente = castellano.
+     */
+    idioma?: IdiomaDeTextos;
+  } = {},
 ): Promise<PaginaNotificaciones> {
   const limite = Math.min(Math.max(1, Math.floor(opts.limite ?? LIMITE_MAX)), LIMITE_MAX);
   const desde = decodificarCursor(opts.cursor);
@@ -136,12 +146,14 @@ export async function listarNotificaciones(
   const items: NotificacionVista[] = [];
   for (const f of pagina) {
     // Una fila que no valida (de otra versión, o manipulada) se OMITE: mejor un hueco que un texto roto.
-    const t = textoAviso(f, { anuncios, comentarios });
+    // Un anuncio cuyo texto ya no existe se OMITE (mejor un hueco que un aviso vacío); una fila que no
+    // valida (de otra versión, o con `datos` incompletos) sale con la frase genérica (P5b4).
+    const t = componerAviso(f, opts.idioma ?? "es", { anuncios, comentarios });
     if (!t) continue;
     items.push({
       id: f.id,
       tipo: f.tipo as TipoNotificacion,
-      texto: t.es,
+      texto: t.texto,
       href: t.href,
       leida: f.leidaEn !== null,
       creadaMs: f.createdAt.getTime(),

@@ -117,7 +117,10 @@ describe("tRico: la plantilla en trozos", () => {
     // una persona, y en la P5c por un traductor— podría meter marcado o un `<script>` en la página.
     const DIR = path.resolve(__dirname, "../src/textos");
     const piezas = [
-      ...readdirSync(DIR).map((f) => path.join(DIR, f)),
+      // Los ficheros, también los de `borradores/` (P5b4): un borrador tampoco mete HTML.
+      ...readdirSync(DIR, { recursive: true, withFileTypes: true })
+        .filter((e) => e.isFile())
+        .map((e) => path.join(e.parentPath, e.name)),
       path.resolve(__dirname, "../src/components/textos-provider.tsx"),
     ];
     expect(piezas.length).toBeGreaterThan(5);

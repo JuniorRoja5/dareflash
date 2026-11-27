@@ -7,6 +7,8 @@
  * (`textoAviso(…).es`, la tabla ES/EN de `lib/notificaciones`, main 93bb4e6): después de pasar los
  * avisos al diccionario, cada uno tiene que decir EXACTAMENTE lo mismo y llevar al mismo sitio.
  *
+ * DESPUÉS (P5b4): el mismo caso pasa por `componerAviso(fila, "es")`, que lee `es.avisos`.
+ *
  * Para romperlo: cambiar una letra de cualquier aviso en `es.ts` (rojo con su caso).
  *
  * Regenerar el ANTES (solo se hizo una vez, antes de tocar nada):
@@ -19,7 +21,7 @@ import { describe, expect, it } from "vitest";
 
 import { NIVELES } from "@/lib/niveles";
 
-import { textoAviso } from "../src/lib/notificaciones";
+import { componerAviso } from "../src/server/avisos-texto";
 
 const ANTES = path.join(process.cwd(), "tests/fixtures/avisos-antes.json");
 
@@ -101,8 +103,8 @@ const CASOS: Record<string, { fila: Fila; contexto?: Contexto }> = {
 
 /** Lo que dice y adónde lleva un aviso, en castellano. Es lo ÚNICO que cambia al extraer. */
 function enCastellano(fila: Fila, contexto?: Contexto): { texto: string; href: string } | null {
-  const t = textoAviso(fila, contexto);
-  return t ? { texto: t.es, href: t.href } : null;
+  const t = componerAviso(fila, "es", contexto);
+  return t ? { texto: t.texto, href: t.href } : null;
 }
 
 const hoy = Object.fromEntries(

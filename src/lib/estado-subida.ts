@@ -181,66 +181,10 @@ export function sondeoSigueAbierto(estado: EstadoSubida): boolean {
   return estado === "en-cola";
 }
 
-/**
- * COPY por estado, ES y EN. Fuente única: la UI no escribe literales sueltos.
- *
- * Reglas que cumple, y que el test vigila: nada de códigos crudos en pantalla (ni 403, ni PENDING, ni
- * "tus"), y ninguna promesa de plazo que no podemos sostener — la cola de codificación de Bunny no
- * nos dice cuánto va a tardar, así que no se dice "en un momento".
- *
- * EN está aquí como fuente lista para el día que haya selector de idioma; hoy la app renderiza solo
- * ES. Se define ahora porque el momento de escribir la traducción es cuando se escribe el original,
- * no seis meses después intentando recordar qué quería decir cada estado.
+/*
+ * El TEXTO de cada estado vive en el diccionario (`subida.estado_*` en `textos/es.ts`), y lo leen la
+ * pantalla de subida y los avisos de un vídeo fallido. Aquí estuvo `COPY_SUBIDA`, una tabla ES/EN
+ * propia: desde la P5b4 no existe y su inglés espera a la P5c en `textos/borradores/avisos-en.ts`. Las
+ * reglas que cumplía (ni códigos crudos, ni plazos, ni la promesa de REANUDAR) las vigila
+ * `tests/estado-subida` sobre el diccionario.
  */
-export const COPY_SUBIDA: Record<EstadoSubida, { es: string; en: string }> = {
-  preparando: {
-    es: "Preparando la subida…",
-    en: "Getting the upload ready…",
-  },
-  subiendo: {
-    es: "Subiendo tu vídeo…",
-    en: "Uploading your video…",
-  },
-  "en-cola": {
-    es: "Vídeo subido y a salvo. Está en cola para prepararse; aparecerá en tu perfil cuando esté listo.",
-    en: "Video uploaded and safe. It's queued for processing; it'll show up on your profile when it's ready.",
-  },
-  listo: {
-    es: "Listo. Tu vídeo ya se puede ver.",
-    en: "Done. Your video is ready to watch.",
-  },
-  "sin-conexion": {
-    es: "No se pudo conectar para subir el vídeo. Revisa tu conexión e inténtalo de nuevo.",
-    en: "Couldn't connect to upload the video. Check your connection and try again.",
-  },
-  // OJO con lo que NO dice: no promete reanudar. El protocolo TUS es reanudable, pero hoy el botón de
-  // reintentar vuelve a pedir credencial y arranca una subida NUEVA, así que "seguirá donde lo dejó"
-  // sería una promesa falsa — justo la clase de mentira que esta pieza viene a quitar. Si algún día el
-  // reintento reutiliza la subida en curso, este texto se actualiza a la vez y no antes.
-  corte: {
-    es: "La subida se cortó a mitad. Tu conexión funciona, así que vuelve a intentarlo.",
-    en: "The upload stopped partway. Your connection is fine, so give it another go.",
-  },
-  credencial: {
-    es: "El permiso de subida ha caducado. Vuelve a pulsar Publicar para empezar de nuevo.",
-    en: "The upload permission expired. Press Publish again to start over.",
-  },
-  rechazo: {
-    es: "No se aceptó este vídeo. Prueba con otro fichero o con otro formato.",
-    en: "This video wasn't accepted. Try another file or another format.",
-  },
-  "servidor-ocupado": {
-    es: "El servicio de vídeo no está respondiendo ahora mismo. No es cosa tuya: inténtalo en unos minutos.",
-    en: "The video service isn't responding right now. It's not your fault: try again in a few minutes.",
-  },
-  // Los dos terminales de codificación. Dicen QUÉ pasó y QUÉ hacer, y sobre todo dicen que la espera
-  // se acabó: es lo que evita que alguien siga esperando a un vídeo que no va a llegar.
-  "fallo-codificacion": {
-    es: "Tu vídeo no se pudo preparar y no llegará a publicarse. Sube otro para participar.",
-    en: "Your video couldn't be prepared and won't be published. Upload another one to take part.",
-  },
-  "demasiado-largo": {
-    es: "Tu vídeo dura más de 90 segundos, así que no se ha publicado. Recórtalo y súbelo otra vez.",
-    en: "Your video is longer than 90 seconds, so it wasn't published. Trim it and upload it again.",
-  },
-};

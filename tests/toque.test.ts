@@ -23,7 +23,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { TOQUE_MAX_DIA } from "../src/config/constants";
 import type { PrismaClient } from "../src/generated/prisma/client";
-import { textoAviso } from "../src/lib/notificaciones";
+import { datosDeAviso } from "../src/lib/notificaciones";
 import { listarNotificaciones } from "../src/server/services/notificaciones";
 import { darToque } from "../src/server/services/toque";
 import { registrarSuscripcion } from "../src/server/services/vip";
@@ -252,14 +252,15 @@ describe("lo que ve quien lo recibe", () => {
     expect(JSON.stringify(items)).not.toContain(vip);
   });
 
-  it("una fila de TOQUE manipulada no se pinta, se omite", async () => {
-    // Misma disciplina que el resto: mejor un hueco que un texto roto.
+  it("una fila de TOQUE manipulada no se pinta con sus datos: no valida", async () => {
+    // Nunca un texto roto. Desde la P5b4 la campana la enseña con la frase genérica (no un hueco):
+    // eso lo fija `tests/avisos-texto`; aquí, que el TOQUE sin autor o con otro refType no valida.
     expect(
-      textoAviso({ tipo: "TOQUE", refType: "USER", refId: "x:2026-06-15", datos: {} }),
-    ).toBeNull();
+      datosDeAviso({ tipo: "TOQUE", refType: "USER", refId: "x:2026-06-15", datos: {} }).estado,
+    ).toBe("invalido");
     expect(
-      textoAviso({ tipo: "TOQUE", refType: "VIDEO", refId: "x", datos: { autor: "a" } }),
-    ).toBeNull();
+      datosDeAviso({ tipo: "TOQUE", refType: "VIDEO", refId: "x", datos: { autor: "a" } }).estado,
+    ).toBe("invalido");
   });
 });
 

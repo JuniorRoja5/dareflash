@@ -41,9 +41,12 @@ export default async function NotificacionesPage({
   const { cursor } = await searchParams;
   const { prisma } = await import("@/server/db/client");
   const { listarNotificaciones } = await import("@/server/services/notificaciones");
+  const { idiomaDeTextosDeLaPeticion } = await import("@/server/formato-peticion");
   const pagina = await listarNotificaciones(prisma, user.userId, {
     cursor: cursor ?? null,
     limite: NOTIF_PAGINA,
+    // Los avisos, en el idioma de la página (P5b4).
+    idioma: await idiomaDeTextosDeLaPeticion(),
   });
   const ahoraMs = instante();
   const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
