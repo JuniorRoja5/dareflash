@@ -25,10 +25,10 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return apiError("BAD_REQUEST", t("cuerpoDeLa"), 400);
+    return apiError("BAD_REQUEST", t("cuerpoDeLaPeticionInvalido"), 400);
   }
   const parsed = schema.safeParse(body);
-  if (!parsed.success) return apiError("VALIDATION", t("datosInvalidosSinTilde"), 400);
+  if (!parsed.success) return apiError("VALIDATION", t("datosInvalidos"), 400);
   const { email, password } = parsed.data;
 
   const acctKey = `login:acct:${rateLimitKey(env.AUTH_SECRET, email)}`;

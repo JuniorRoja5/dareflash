@@ -426,7 +426,9 @@ href>` FUERA del sitio, sin idioma ni router; con varios en una frase, `hrefs` e
   correos (P7), los logs, el panel y `mutatingRoute`. El castellano de antes está congelado por AST en
   `tests/fixtures/mensajes-api-antes.json` (código + mensaje por ruta, y cada frase), y donde una frase
   vive en dos sitios (pantalla y API, usuario y panel) un test exige igualdad exacta. `GET
-/api/retiradas` se borró.
+/api/retiradas` se borró. `textos-ortografia`: en ningún texto del diccionario vuelve una de las faltas
+  corregidas el 27 nov (lista cerrada de palabras que no existen sin tilde), ningún mensaje de `api`
+  habla de CSRF, tokens ni orígenes, y ninguna edad se escribe (`{edad}` sale de `EDAD_MIN_USO`).
 - `tsconfig-tests-cubre-tsx` (PTT) — `tsconfig.test.json` cubre TODO `tests/`, también los `.tsx`: se le
   pide a TypeScript la lista de ficheros del proyecto y cada `.ts`/`.tsx` del disco tiene que estar.
   Vitest no comprueba tipos, así que un test de render fuera de `tsc` corre verde con la fixture de una

@@ -367,3 +367,26 @@ describe("los servicios que devolvían frases devuelven un dato", () => {
     }
   });
 });
+
+describe("las cifras de créditos en un mensaje van por la P1 (P5b3, aprobado el 27 nov)", () => {
+  it("«12.485 créditos»; las de cuatro cifras, sin punto", async () => {
+    const { frase, textosApiEnCastellano } = await import("../src/server/http/textos-api");
+    expect(
+      frase(textosApiEnCastellano(), {
+        clave: "publicidadSaldoComprometido",
+        params: { coste: 12485, saldo: 20000, comprometido: 1335, quedan: 11150 },
+      }),
+    ).toBe(
+      "Esta campaña necesita 12.485 créditos de publicidad. Tienes 20.000, pero 1335 ya están comprometidos en tus otras campañas: te quedan 11.150.",
+    );
+  });
+
+  it("y el servicio las pasa como NÚMERO, no como texto (si no, la P1 no las ve)", () => {
+    const codigo = sinComentarios(
+      readFileSync(path.join(RAIZ, "src/server/services/publicidad.ts"), "utf8"),
+    );
+    const saldo = codigo.slice(codigo.indexOf('"publicidadSaldoComprometido"'));
+    expect(saldo.slice(0, 400)).not.toMatch(/String\((coste|empresa\.saldo|comprometido)/);
+    expect(codigo).not.toMatch(/params: \{ coste: String\(/);
+  });
+});

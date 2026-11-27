@@ -61,7 +61,7 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
     body = {};
   }
   const parsed = schema.safeParse(body ?? {});
-  if (!parsed.success) return apiError("VALIDATION", t("datosInvalidosSinTilde"), 400);
+  if (!parsed.success) return apiError("VALIDATION", t("datosInvalidos"), 400);
   const challengeId = parsed.data.challengeId ?? null;
 
   // CATEGORIA: obligatoria en la subida LIBRE (sin reto) y debe ser una de las 14; en una PARTICIPACION

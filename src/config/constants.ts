@@ -296,8 +296,6 @@ export const RAZON_BOOST_COMPRA = "PURCHASE";
 /** `refType` de la fila de ledger: a que apunta el movimiento. */
 export const REF_BOOST_STRIPE = "STRIPE_PAYMENT";
 
-export const MSG_BOOST_PAQUETE_NO_VALIDO = "Ese paquete no existe.";
-
 /**
  * Razon del movimiento cuando el EQUIPO ajusta creditos de boost a mano. Coincide con
  * `BoostReasonSchema` y es la que `razones-boost` dice por su signo.
@@ -867,8 +865,6 @@ export const ACCIONES_PUNTOS: readonly AccionPuntos[] = [
   },
 ];
 
-/** Copy de referidos. El codigo NO se ensena como "codigo": se ensena el ENLACE, que es lo que se comparte. */
-export const MSG_REFERIDO_NO_VALIDO = "Ese enlace de invitación no es válido.";
 /** Parametro del enlace de invitacion: `https://…/entrar?ref=CODIGO`. Fuente unica. */
 export const PARAM_REFERIDO = "ref";
 
@@ -2079,8 +2075,8 @@ export const EMPRESAS_PAGINA = 25;
  * DICE QUÉ HACER, no solo que no. Quien lee esto suele ser alguien que quería participar y se
  * registró por el camino equivocado: la salida es una cuenta normal, con otro correo.
  */
-export const MSG_CUENTA_EMPRESA_NO_PARTICIPA =
-  "Esta es una cuenta de empresa: puede mirarlo todo, pero no participar. Si quieres subir vídeos y competir, crea una cuenta normal con otro correo.";
+// (P5b3) El mensaje de una cuenta de empresa que intenta participar vive en el diccionario:
+// `api.cuentaEmpresaNoParticipa`, lo devuelve `mutatingRoute`.
 
 /**
  * POR QUÉ EL ALTA DE EMPRESA PIDE UN CORREO NUEVO, contado ANTES de intentarlo.

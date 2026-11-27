@@ -6,7 +6,7 @@ import { type FormEvent, useState } from "react";
 import { useTextos, useTextosRicos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
-import { CTA_NEGOCIO, PARAM_REFERIDO } from "@/config/constants";
+import { CTA_NEGOCIO, EDAD_MIN_USO, PARAM_REFERIDO } from "@/config/constants";
 import { declaraEdadMinima, leerFechaNacimiento } from "@/lib/edad";
 import { postJson } from "@/lib/cliente-http";
 import { fraseDeError, motivoDeError } from "@/lib/mensajes-error";
@@ -89,7 +89,7 @@ export function FormularioRegistro() {
         fraseDeError(motivoDeError(r.status, r.code), {
           limite: te("limite"),
           ocupado: te("ocupado"),
-          validacion: t("errorValidacion"),
+          validacion: t("errorValidacion", { edad: String(EDAD_MIN_USO) }),
           generico: t("errorConexion"),
         }),
       );

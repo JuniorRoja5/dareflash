@@ -3,7 +3,8 @@
  * ningún diccionario (`import type`).
  *
  * Un servicio no escribe frases: dice QUÉ pasó con una clave del espacio `api` y, si la frase lleva
- * huecos, sus valores YA como texto (las cifras se pasan tal cual se pintaban: el castellano no cambia).
+ * huecos, sus valores: texto, o un NÚMERO, que `t()` formatea con la P1 en el idioma de quien lee
+ * («12.485 créditos»; las de cuatro cifras, sin punto).
  * La frase la compone quien responde, en su idioma (`frase` de `server/http/textos-api`).
  */
 import type { es } from "./es";
@@ -18,7 +19,7 @@ type Huecos<S> = S extends `${string}{${infer H}}${infer R}` ? H | Huecos<R> : n
 export type MensajeApi = {
   [K in ClaveApi]: [Huecos<Api[K]>] extends [never]
     ? { clave: K; params?: undefined }
-    : { clave: K; params: Record<Huecos<Api[K]>, string> };
+    : { clave: K; params: Record<Huecos<Api[K]>, string | number> };
 }[ClaveApi];
 
 /** Un `MensajeApi` escrito con su tipo comprobado (sin `as`). */

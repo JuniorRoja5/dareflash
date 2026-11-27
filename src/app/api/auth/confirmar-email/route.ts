@@ -25,7 +25,7 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return apiError("BAD_REQUEST", t("cuerpoDeLa"), 400);
+    return apiError("BAD_REQUEST", t("cuerpoDeLaPeticionInvalido"), 400);
   }
   const parsed = z.object({ token: z.string().min(1).max(400) }).safeParse(body);
   if (!parsed.success) return apiError("VALIDATION", t("faltaElToken"), 400);

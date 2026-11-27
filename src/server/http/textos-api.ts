@@ -89,7 +89,7 @@ export type { MensajeApi };
 export function frase(t: TApi, m: MensajeApi): string {
   // La clave y sus parámetros los comprueba `MensajeApi` donde se escribe el dato; aquí ya son un par
   // válido, y `FuncionT` no sabe estrechar un par genérico.
-  return (t as (clave: string, p?: Record<string, string>) => string)(m.clave, m.params);
+  return (t as (clave: string, p?: Record<string, string | number>) => string)(m.clave, m.params);
 }
 
 /**

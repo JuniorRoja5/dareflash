@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 
 import { PieLegal } from "@/components/ui/pie-legal";
+import { EDAD_MIN_USO } from "@/config/constants";
 import { textos, textosRicos } from "@/textos/servidor";
+
+/** La edad mínima, de la config: nunca escrita en el diccionario (P5b3). */
+const edad = { edad: String(EDAD_MIN_USO) };
 
 export async function generateMetadata() {
   return { title: (await textos("privacidad"))("titulo") };
@@ -117,7 +121,7 @@ export default async function PrivacidadPage() {
 
       <Apartado numero={2} titulo={t("s2")}>
         <ul className="list-disc space-y-2 pl-5">
-          <li>{tr("s2_cuenta", marcas)}</li>
+          <li>{tr("s2_cuenta", marcas, edad)}</li>
           <li>{tr("s2_contenido", marcas)}</li>
           <li>{tr("s2_uso", marcas)}</li>
           <li>{tr("s2_ubicacion", marcas)}</li>
@@ -143,7 +147,9 @@ export default async function PrivacidadPage() {
             <tbody>
               {FILAS.map((n) => (
                 <tr key={n} className="border-b border-line last:border-0">
-                  <td className="py-2.5 pr-4 align-top">{t(`s3_f${n}`)}</td>
+                  <td className="py-2.5 pr-4 align-top">
+                    {n === 2 ? t("s3_f2", edad) : t(`s3_f${n as 1 | 3 | 4 | 5}`)}
+                  </td>
                   <td className="py-2.5 align-top">{t(`s3_b${n}`)}</td>
                 </tr>
               ))}
@@ -152,8 +158,8 @@ export default async function PrivacidadPage() {
         </div>
       </Apartado>
 
-      <Apartado numero={4} titulo={t("s4")}>
-        <p>{tr("s4_texto", marcas)}</p>
+      <Apartado numero={4} titulo={t("s4", edad)}>
+        <p>{tr("s4_texto", marcas, edad)}</p>
       </Apartado>
 
       <Apartado numero={5} titulo={t("s5")}>

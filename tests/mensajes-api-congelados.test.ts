@@ -113,6 +113,42 @@ const TILDES_APROBADAS: Record<string, readonly (readonly [string, string])[]> =
   ],
 };
 
+/**
+ * LAS CORRECCIONES VISIBLES que Junior aprobó el 27 nov, en TODOS los ficheros, de la más específica
+ * a la más genérica: las faltas de ortografía de los mensajes de la API, los cuatro mensajes de
+ * `mutatingRoute` en lenguaje humano (sin «CSRF», «token» ni «origen»), y la edad del registro (16 →
+ * `{edad}` desde `EDAD_MIN_USO`, que vale 18). Lo que no está aquí tiene que seguir IDÉNTICO.
+ */
+const CORRECCIONES_27_NOV: readonly (readonly [string, string])[] = [
+  [
+    "Token CSRF invalido o ausente.",
+    "Tu sesión ha caducado. Recarga la página e inténtalo de nuevo.",
+  ],
+  ["Origen no permitido.", "Tu sesión ha caducado. Recarga la página e inténtalo de nuevo."],
+  ["No autenticado.", "Tienes que iniciar sesión para hacer esto."],
+  ["al menos 16 años", "al menos {…} años"],
+  ["Credenciales invalidas.", "Credenciales inválidas."],
+  // Sin jerga: «token» no le dice nada a quien abre un enlace cortado (P5b3, para su visto bueno).
+  ["Falta el token.", "Este enlace está incompleto. Ábrelo otra vez desde el correo."],
+  ["Cuerpo de la peticion invalido.", "Cuerpo de la petición inválido."],
+  ["contrasena", "contraseña"],
+  ["Contrasena", "Contraseña"],
+  ["iniciar sesion", "iniciar sesión"],
+  ["invalidos", "inválidos"],
+  ["invalido", "inválido"],
+  ["direccion", "dirección"],
+  ["no esta disponible", "no está disponible"],
+  ["ya no es valido", "ya no es válido"],
+  ["Intentalo mas tarde", "Inténtalo más tarde"],
+  ["Intenta mas tarde", "Intenta más tarde"],
+  ["categoria de la lista", "categoría de la lista"],
+  ["correo de verificacion", "correo de verificación"],
+  [
+    "Un moderador retiro tu participacion en este reto, asi que",
+    "Un moderador retiró tu participación en este reto, así que",
+  ],
+];
+
 /** Lo que se BORRÓ a propósito: `GET /api/retiradas` (decisión de Junior, 26 nov). */
 const BORRADOS: Record<string, readonly string[]> = {
   "src/app/api/retiradas/route.ts": [
@@ -150,6 +186,9 @@ const EQUIVALENCIAS: Record<string, Readonly<Record<string, string>>> = {
  * `{ one, other }`): el texto de cada forma es el de antes con la palabra que elegía el `?:`.
  */
 const FRASES_REESCRITAS: Record<string, readonly string[]> = {
+  // CONSTANTES MUERTAS, borradas (aprobado el 27 nov): nadie las usaba ya en main.
+  "Ese paquete no existe.": [],
+  "Ese enlace de invitación no es válido.": [],
   // El nombre del producto en Stripe: el `?:` del plural es ahora `{ one, other }`.
   "{…} Boost{…}": ["{n} Boost", "{n} Boosts"],
   // TEXTO MUERTO, quitado: el mensaje de zod de `q` en /api/buscar nunca se devolvía (la ruta responde
@@ -162,12 +201,16 @@ const FRASES_REESCRITAS: Record<string, readonly string[]> = {
 };
 
 const corregir = (f: string, s: string) =>
-  (TILDES_APROBADAS[f] ?? []).reduce((a, [de, a2]) => a.replaceAll(de, a2), s);
+  [...(TILDES_APROBADAS[f] ?? []), ...CORRECCIONES_27_NOV].reduce(
+    (a, [de, a2]) => a.replaceAll(de, a2),
+    s,
+  );
 /** Todas las correcciones, para buscar una frase de antes que ya no se escribe igual. */
 const corregirEnCualquiera = (s: string) =>
-  Object.values(TILDES_APROBADAS)
-    .flat()
-    .reduce((a, [de, a2]) => a.replaceAll(de, a2), s);
+  [...Object.values(TILDES_APROBADAS).flat(), ...CORRECCIONES_27_NOV].reduce(
+    (a, [de, a2]) => a.replaceAll(de, a2),
+    s,
+  );
 
 if (process.env.ACTUALIZAR_ANTES === "1") {
   writeFileSync(ANTES, JSON.stringify(leerHoy(), null, 1) + "\n");

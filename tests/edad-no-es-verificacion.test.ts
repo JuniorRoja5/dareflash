@@ -38,16 +38,11 @@ const FORMULARIO = ["src", "app", "entrar", "formulario-registro.tsx"];
  * que se juzga es su código MÁS esas frases. Si no, el veto se quedaba mirando un fichero sin copy.
  */
 /**
- * El copy del registro. Sin `errorValidacion`, y a propósito: es el texto de ANTES (`MSG_REGISTRO`,
- * que vivía en `lib/mensajes-error` y por eso este test no lo veía), que dice «al menos 16 años»
- * cuando la edad mínima es 18. Al sacarlo al diccionario (P5b3) apareció aquí; el castellano no se
- * cambia en esa pieza, así que va en la lista de faltas para que Junior decida. Cuando se corrija,
- * esta excepción se quita.
+ * El copy del registro, ENTERO. Desde la P5b3 (corrección aprobada por Junior el 27 nov) también la
+ * frase de validación, que decía «al menos 16 años» con la edad mínima en 18: ahora lleva `{edad}`,
+ * que sale de `EDAD_MIN_USO`. Ninguna excepción.
  */
-const COPY_REGISTRO = Object.entries(es.registro)
-  .filter(([clave]) => clave !== "errorValidacion")
-  .map(([, texto]) => texto)
-  .join("\n");
+const COPY_REGISTRO = Object.values(es.registro).join("\n");
 
 describe("una sola constante de edad", () => {
   it("vale 18 y SOLO hay un umbral de edad en la config", () => {

@@ -576,15 +576,16 @@ function exigirSaldo(empresa: EmpresaParaOperar, coste: number, comprometido: nu
         ? {
             clave: "publicidadSaldoComprometido",
             params: {
-              coste: String(coste),
-              saldo: String(empresa.saldo),
-              comprometido: String(comprometido),
-              quedan: String(Math.max(0, disponible)),
+              // NÚMEROS: los formatea la P1 en el idioma de quien lee («12.485»).
+              coste,
+              saldo: empresa.saldo,
+              comprometido,
+              quedan: Math.max(0, disponible),
             },
           }
         : {
             clave: "publicidadSaldoInsuficiente",
-            params: { coste: String(coste), saldo: String(empresa.saldo) },
+            params: { coste, saldo: empresa.saldo },
           },
     );
   }

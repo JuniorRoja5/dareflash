@@ -131,7 +131,7 @@ describe("el copy del veto", () => {
     // Desde la P5b3 es un DATO (la clave y el nombre del nivel) y la frase la compone quien la pinta.
     const frase = (clave: string) => {
       const m = mensajeNivelInsuficiente(clave);
-      return es.api[m.clave].replace("{nivel}", m.params.nivel);
+      return es.api[m.clave].replace("{nivel}", String(m.params.nivel));
     };
     expect(frase("pro")).toBe("Necesitas ser Pro para participar en este reto.");
     expect(frase("legend")).toContain("Legend");

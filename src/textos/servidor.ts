@@ -64,5 +64,5 @@ export async function textosClienteDeLaPeticion<N extends NombreEspacio>(
  */
 export async function fraseDeLaPeticion(m: MensajeApi): Promise<string> {
   const t = await textos("api");
-  return (t as (clave: string, p?: Record<string, string>) => string)(m.clave, m.params);
+  return (t as (clave: string, p?: Record<string, string | number>) => string)(m.clave, m.params);
 }

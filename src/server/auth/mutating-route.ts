@@ -19,6 +19,7 @@ import "server-only";
 import type { Env } from "@/config/env";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { apiError, originAllowed } from "@/server/http/api";
+import { textosApi } from "@/server/http/textos-api";
 
 import { verifyCsrfToken } from "./csrf";
 import type { SessionUser } from "./session";
@@ -73,23 +74,26 @@ export function mutatingRoute<C = unknown>(
     const { prisma } = await import("@/server/db/client");
     const { getCurrentUser } = await import("./current-user");
 
+    // Los MENSAJES salen del diccionario, en el idioma de quien llama (P5b3), y en humano: a quien
+    // ve «Origen no permitido» o «Token CSRF» no le sirve de nada. Los CÓDIGOS no cambian.
+    const t = await textosApi(req);
+
     if (!originAllowed(req, env.APP_URL)) {
-      return apiError("BAD_ORIGIN", "Origen no permitido.", 403);
+      return apiError("BAD_ORIGIN", t("sesionCaducadaRecarga"), 403);
     }
 
     const user = await getCurrentUser();
-    if (!user) return apiError("UNAUTHENTICATED", "No autenticado.", 401);
+    if (!user) return apiError("UNAUTHENTICATED", t("noAutenticado"), 401);
 
     const csrf = req.headers.get("x-csrf-token");
     if (!verifyCsrfToken(env.AUTH_SECRET, user.sessionId, csrf)) {
-      return apiError("CSRF", "Token CSRF invalido o ausente.", 403);
+      return apiError("CSRF", t("sesionCaducadaRecarga"), 403);
     }
 
     // EL CANDADO DE LA CUENTA DE EMPRESA. Va DESPUES del CSRF (no antes): a quien no ha demostrado
     // ser quien dice no se le cuenta nada, ni siquiera que esta cuenta es de empresa.
     if (user.esCuentaEmpresa && opciones.cuentaEmpresa !== "permite") {
-      const { MSG_CUENTA_EMPRESA_NO_PARTICIPA } = await import("@/config/constants");
-      return apiError("CUENTA_EMPRESA", MSG_CUENTA_EMPRESA_NO_PARTICIPA, 403);
+      return apiError("CUENTA_EMPRESA", t("cuentaEmpresaNoParticipa"), 403);
     }
 
     return handler(req, { user, env, prisma }, routeContext);

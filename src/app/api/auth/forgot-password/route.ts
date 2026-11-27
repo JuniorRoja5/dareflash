@@ -36,10 +36,10 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return apiError("BAD_REQUEST", t("cuerpoDeLa"), 400);
+    return apiError("BAD_REQUEST", t("cuerpoDeLaPeticionInvalido"), 400);
   }
   const parsed = schema.safeParse(body);
-  if (!parsed.success) return apiError("VALIDATION", t("datosInvalidosSinTilde"), 400);
+  if (!parsed.success) return apiError("VALIDATION", t("datosInvalidos"), 400);
   const email = parsed.data.email;
 
   // Rate limit POR IP y POR direccion (evita usar el reset como herramienta de acoso de buzon o para
