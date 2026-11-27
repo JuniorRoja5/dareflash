@@ -1,7 +1,7 @@
 "use client";
 
 import { importeConMoneda } from "@/lib/dinero";
-import { pasosDe, type EstadoRetirada } from "@/lib/retirada";
+import { pasosDe, type EstadoRetirada, type RechazoParaMostrar } from "@/lib/retirada";
 import { useTextos, useTextosRicos } from "@/components/textos-provider";
 import { nombreMetodo } from "@/textos/cobros";
 import type { FuncionT } from "@/textos/plantilla";
@@ -48,6 +48,13 @@ const CHIP: Record<EstadoRetirada, string> = {
 /** Mismo nombre que las tarjetas y el selector (`nombreMetodo`), con su pista detrás. */
 function destinoDe(t: FuncionT<Textos["cobros"]>, r: RetiradaPropia): string {
   return t("destino", { metodo: nombreMetodo(t, r), pista: r.pista });
+}
+
+/** La frase de un rechazo: el texto del equipo, o la de su motivo (P5b3). */
+function fraseDelRechazo(t: FuncionT<Textos["cobros"]>, r: RechazoParaMostrar): string {
+  if (r.tipo === "texto") return r.texto;
+  if (r.tipo === "motivo") return t(`rechazo_${r.motivo}`);
+  return t("rechazoDesconocido");
 }
 
 /** La palabra de un estado (el chip) y la de un evento (el recorrido): no son la misma. */
@@ -195,15 +202,15 @@ function Fila({ r }: { r: RetiradaPropia }) {
 
         {rechazada ? (
           <p className="mt-3 max-w-prose text-xs leading-relaxed text-text-dim">
-            {/* EL PORQUÉ, cuando lo hay. Llega ya traducido del servidor (`fraseDeRechazo`), así
-                que aquí no se interpreta ninguna clave ni se elige frase: lo que viene es lo que
-                se lee. Las rechazadas de antes de que esto existiera no traen motivo, y entonces
-                se dice lo único cierto — volvió el dinero— sin inventar una razón. */}
+            {/* EL PORQUÉ, cuando lo hay. Llega como DATO del servidor (`rechazoParaMostrar`): el texto
+                del equipo tal cual, o la frase de su motivo en el idioma de quien mira (P5b3). Las
+                rechazadas de antes de que esto existiera no traen motivo, y entonces se dice lo único
+                cierto —volvió el dinero— sin inventar una razón. */}
             {r.motivoRechazo
               ? tr(
                   "conMotivo",
                   { resaltado: { className: "text-text" } },
-                  { motivo: r.motivoRechazo },
+                  { motivo: fraseDelRechazo(t, r.motivoRechazo) },
                 )
               : t("sinMotivo")}
           </p>

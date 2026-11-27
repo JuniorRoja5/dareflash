@@ -67,7 +67,7 @@ const post: PostFeed = {
   imagen: null,
   puntos: 0,
   retoTitulo: "Reto",
-  categoria: null,
+  categoriaClave: null,
   votos: 12,
   comentarios: 3,
   likes: 7,

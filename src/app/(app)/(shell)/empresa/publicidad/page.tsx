@@ -5,7 +5,7 @@ import { PasosKeyset } from "@/components/ui/pasos-keyset";
 import { Tarjeta } from "@/components/ui/tarjeta";
 import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 import type { FuncionT } from "@/textos/plantilla";
-import { estadoCampana, fraseSaldo } from "@/textos/publicidad";
+import { estadoCampana, fraseSaldo, textoZonaCampana } from "@/textos/publicidad";
 import { textos, type Textos } from "@/textos/servidor";
 
 import { ambitoDelPortal } from "../ambito-portal";
@@ -144,7 +144,7 @@ export default async function PaginaPublicidad({
                         </Enlace>
                       </td>
                       <td className="max-w-[16rem] py-3 pr-4 break-words text-text-dim">
-                        {c.zona}
+                        {textoZonaCampana(tc, c.zona, idioma)}
                       </td>
                       <td className="py-3 pr-4 whitespace-nowrap text-text-dim tabular-nums">
                         {calendario(t, c, idioma)}
@@ -172,7 +172,9 @@ export default async function PaginaPublicidad({
                         </h3>
                         <span className={PILDORA}>{estadoCampana(t, c.estado)}</span>
                       </div>
-                      <p className="mt-1 text-2xs break-words text-text-dim">{c.zona}</p>
+                      <p className="mt-1 text-2xs break-words text-text-dim">
+                        {textoZonaCampana(tc, c.zona, idioma)}
+                      </p>
                       <p className="mt-1 text-2xs text-text-dim tabular-nums">
                         {t("crDiaMovil", {
                           calendario: calendario(t, c, idioma),

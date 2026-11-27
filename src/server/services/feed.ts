@@ -29,7 +29,6 @@
 import "server-only";
 
 import { Prisma } from "@/generated/prisma/client";
-import { nombreCategoria } from "@/lib/categorias";
 import {
   codificarCursorTiempo,
   conKeysetTiempo,
@@ -46,7 +45,11 @@ import { misLikes as misLikes_ } from "./likes";
 import { VIDEO_VISIBLE } from "./video-visible";
 import { vipsActivosEntre } from "./vip";
 
-/** Un post del feed, listo para pintar. `categoria` es el nombre ya resuelto (o null si no participa). */
+/**
+ * Un post del feed, listo para pintar. La categoría y el título van como DATO (P5b3): la CLAVE de la
+ * categoría (o null si no participa) y el título del reto o del vídeo (o null): el nombre y la reserva
+ * «Vídeo» los pone el feed en el idioma de quien mira.
+ */
 export interface PostFeed {
   id: string;
   /** Nombre visible (opcional). Si falta, el `username` hace de nombre en la UI. */
@@ -57,8 +60,8 @@ export interface PostFeed {
   /** Puntos del DUENO: el avatar deriva de ellos su anillo de nivel. Columna de `User`, en el mismo
    *  `select` que ya traia su nombre — ni una consulta mas, y menos una por video. */
   puntos: number;
-  retoTitulo: string;
-  categoria: string | null;
+  retoTitulo: string | null;
+  categoriaClave: string | null;
   votos: number;
   /** Comentarios VISIBLES del vídeo (Video.commentCount). Es del VÍDEO, así que también en una subida
    *  libre. */
@@ -213,8 +216,8 @@ function aPostFeed(
     username: v.user.username,
     imagen: v.user.image,
     puntos: v.user.pointsBalance,
-    retoTitulo: sub?.challenge.title ?? v.title ?? "Vídeo",
-    categoria: nombreCategoria(claveCategoria),
+    retoTitulo: sub?.challenge.title ?? v.title ?? null,
+    categoriaClave: claveCategoria ?? null,
     votos: sub?.voteCount ?? 0,
     comentarios: v.commentCount,
     likes: v.likeCount,

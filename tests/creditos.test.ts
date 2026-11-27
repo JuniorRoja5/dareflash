@@ -46,7 +46,6 @@ import { rechazarEmpresa, verificarEmpresa } from "../src/server/services/empres
 import { es } from "../src/textos/es";
 
 import { crearUsuario, createTestPrisma, resetDb } from "./helpers/db";
-import { MARCA } from "@/config/marca";
 
 let prisma: PrismaClient;
 let admin: string;
@@ -407,9 +406,11 @@ describe("lo que ve la empresa", () => {
       // P11: `recibo` (null salvo en una compra). Ni nota ni quién: las claves, exactas.
       expect(Object.keys(m).sort()).toEqual(["concepto", "creadoMs", "delta", "id", "recibo"]);
     }
-    expect(c.movimientos.map((m) => m.concepto).sort()).toEqual(
-      [`Ajuste del equipo de ${MARCA}`, "Regalo de Socio Fundador"].sort(),
+    // El concepto viaja como DATO (P5b3): la razón; la frase la pone el portal en su idioma.
+    expect(c.movimientos.map((m) => m.concepto.razon).sort()).toEqual(
+      ["AJUSTE_ADMIN", "SOCIO_FUNDADOR"].sort(),
     );
+    expect(c.movimientos.every((m) => m.concepto.campana === null)).toBe(true);
     expect(JSON.stringify(c)).not.toContain("secreto del equipo");
     expect(JSON.stringify(c)).not.toContain(admin);
   });

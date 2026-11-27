@@ -62,7 +62,8 @@ export const POST = mutatingRoute(async (req, { user, env, prisma }) => {
             currency: DEFAULT_CURRENCY.toLowerCase(),
             unit_amount: paquete.precioCents,
             product_data: {
-              name: `${paquete.boosts} Boost${paquete.boosts === 1 ? "" : "s"}`,
+              // Lo que lee quien paga en la página de Stripe: en su idioma (P5b3).
+              name: t("productoBoosts", { n: paquete.boosts }),
             },
           },
         },

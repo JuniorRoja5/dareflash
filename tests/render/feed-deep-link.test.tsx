@@ -36,7 +36,7 @@ const post = (id: string): PostFeed => ({
   imagen: null,
   puntos: 0,
   retoTitulo: "Reto",
-  categoria: null,
+  categoriaClave: null,
   votos: 0,
   comentarios: 3,
   src: "s",

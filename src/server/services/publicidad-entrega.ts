@@ -25,11 +25,9 @@
 import "server-only";
 
 import {
-  ANUNCIO_CASA,
   ANUNCIO_CASA_DESTINO,
+  CREDITOS_POR_DIA,
   type AlcancePublicidad,
-  ETIQUETA_PIEZA_CAMPANA,
-  ETIQUETA_PIEZA_CASA,
   type EspacioPublicidad,
   PUBLICIDAD_CACHE_HOY_MS,
   PUBLICIDAD_CADA_N_ITEMS,
@@ -50,6 +48,8 @@ import {
   huecosEnTramo,
 } from "@/lib/publicidad";
 import type { Db } from "@/server/db/types";
+import { textosEnCastellano, type Textos } from "@/textos/diccionarios";
+import type { FuncionT } from "@/textos/plantilla";
 
 import { filtroPagadoEl, inicioDelCobro, seCobra } from "./publicidad-consumo";
 import { type RedisContarMetricas, contarHueco, contarMetrica } from "./publicidad-metricas";
@@ -89,7 +89,6 @@ export function enlaceDeCampana(c: { id: string }): string {
 }
 
 /** El texto del botón de una campaña (el destino es suyo: no se sabe qué hay al otro lado). */
-const CTA_CAMPANA = "Visitar";
 
 interface CampanaEntrega extends CampanaEnReparto {
   imagen: string;
@@ -102,20 +101,30 @@ interface CampanaEntrega extends CampanaEnReparto {
  * portal: lo que la empresa ve antes de activar es EXACTAMENTE lo que se publica, porque sale de esta
  * misma función y se pinta con el mismo componente (`TarjetaAnuncio`). Un test lo exige.
  */
-export function piezaDeCampana(c: {
-  id: string;
-  imagen: string | null;
-  texto: string;
-  destinoUrl: string;
-}): PiezaEntregada {
+/**
+ * Las PALABRAS de una pieza (P5b3): la `t` del espacio `anuncio` en el idioma de quien mira. Por
+ * defecto, castellano; la ponen la página o la API que pide la pieza.
+ */
+export type PalabrasDePieza = FuncionT<Textos["anuncio"]>;
+const enCastellano = (): PalabrasDePieza => textosEnCastellano("anuncio");
+
+export function piezaDeCampana(
+  c: {
+    id: string;
+    imagen: string | null;
+    texto: string;
+    destinoUrl: string;
+  },
+  t: PalabrasDePieza = enCastellano(),
+): PiezaEntregada {
   return {
     tipo: "campana",
     id: c.id,
-    etiqueta: ETIQUETA_PIEZA_CAMPANA,
+    etiqueta: t("etiqueta_campana"),
     imagen: c.imagen,
     titulo: null,
     texto: c.texto,
-    cta: CTA_CAMPANA,
+    cta: t("ctaCampana"),
     enlace: enlaceDeCampana(c),
     externo: true,
     dominio: dominioDe(c.destinoUrl),
@@ -123,12 +132,28 @@ export function piezaDeCampana(c: {
 }
 
 /** EL ANUNCIO DE LA CASA del espacio. A una empresa la lleva a su Publicidad, no al alta. */
-export function piezaDeLaCasa(espacio: EspacioPublicidad, esEmpresa: boolean): PiezaEntregada {
-  const casa = ANUNCIO_CASA[espacio];
+export function piezaDeLaCasa(
+  espacio: EspacioPublicidad,
+  esEmpresa: boolean,
+  t: PalabrasDePieza = enCastellano(),
+): PiezaEntregada {
+  // La cifra sale de la tarifa: si el precio de una ciudad cambia, la frase cambia con él.
+  const casa =
+    espacio === "LOCAL"
+      ? {
+          titulo: t("casa_LOCAL_titulo"),
+          texto: t("casa_LOCAL_texto", { n: CREDITOS_POR_DIA.CIUDAD }),
+          cta: t("casa_LOCAL_cta"),
+        }
+      : {
+          titulo: t("casa_GLOBAL_titulo"),
+          texto: t("casa_GLOBAL_texto"),
+          cta: t("casa_GLOBAL_cta"),
+        };
   return {
     tipo: "casa",
     id: `casa-${espacio.toLowerCase()}`,
-    etiqueta: ETIQUETA_PIEZA_CASA,
+    etiqueta: t("etiqueta_casa"),
     imagen: null,
     titulo: casa.titulo,
     texto: casa.texto,
@@ -277,6 +302,8 @@ async function elegirPiezaSinContar(
     ahora?: Date;
     /** Solo tests: el número al azar cuando no hay Redis. */
     azar?: () => number;
+    /** Las palabras de la pieza en el idioma de quien mira (P5b3). Ausente = castellano. */
+    palabras?: PalabrasDePieza;
   },
 ): Promise<PiezaEntregada | null> {
   const ahora = entrada.ahora ?? new Date();
@@ -320,11 +347,13 @@ async function elegirPiezaSinContar(
       }
       // UNA VISTA (P10): la campaña se entrega en este hueco. Nunca lanza.
       await contarMetrica(redis, "v", elegida.id, ahora);
-      return piezaDeCampana(elegida);
+      return piezaDeCampana(elegida, entrada.palabras);
     }
   }
 
-  if (entrada.superficie === "portada") return piezaDeLaCasa(espacio, espectador.esEmpresa);
+  if (entrada.superficie === "portada") {
+    return piezaDeLaCasa(espacio, espectador.esEmpresa, entrada.palabras);
+  }
   // FEED: la casa, una vez por sesión. Sin Redis (o sin identidad) no se puede saber si ya la vio,
   // así que no se enseña: mejor un hueco sin rellenar que el mismo cartel cada ocho vídeos.
   if (!redis || !espectador.quien) return null;
@@ -336,7 +365,7 @@ async function elegirPiezaSinContar(
       PUBLICIDAD_CASA_FEED_TTL_S,
       "NX",
     );
-    return nueva === "OK" ? piezaDeLaCasa(espacio, espectador.esEmpresa) : null;
+    return nueva === "OK" ? piezaDeLaCasa(espacio, espectador.esEmpresa, entrada.palabras) : null;
   } catch {
     return null;
   }
@@ -355,6 +384,8 @@ export async function piezasDeUnaPagina(
     espectador: Espectador;
     redis: RedisReparto | null;
     ahora?: Date;
+    /** Las palabras de la pieza en el idioma de quien mira (P5b3). Ausente = castellano. */
+    palabras?: PalabrasDePieza;
   },
 ): Promise<{ despuesDe: string; pieza: PiezaEntregada }[]> {
   const piezas: { despuesDe: string; pieza: PiezaEntregada }[] = [];
@@ -365,6 +396,7 @@ export async function piezasDeUnaPagina(
       superficie: "feed",
       redis: entrada.redis,
       ahora: entrada.ahora,
+      palabras: entrada.palabras,
     });
     const videoId = entrada.videoIds[h.despuesDe];
     if (pieza && videoId) piezas.push({ despuesDe: videoId, pieza });
@@ -435,6 +467,8 @@ export async function piezasDelFeed(
     videoIds: readonly string[];
     /** Inyectable para los tests. Ausente = el del proceso; `null` = sin Redis. */
     redis?: RedisReparto | null;
+    /** Las palabras de la pieza en el idioma de quien mira (P5b3). Ausente = castellano. */
+    palabras?: PalabrasDePieza;
   },
 ): Promise<{ despuesDe: string; pieza: PiezaEntregada }[]> {
   try {
@@ -445,6 +479,7 @@ export async function piezasDelFeed(
       videoIds: entrada.videoIds,
       espectador,
       redis: await redisDe(entrada.redis),
+      palabras: entrada.palabras,
     });
   } catch {
     return [];
@@ -470,6 +505,8 @@ export async function piezaDePortada(
     espacio: EspacioPublicidad;
     /** Inyectable para los tests. Ausente = el del proceso; `null` = sin Redis. */
     redis?: RedisReparto | null;
+    /** Las palabras de la pieza en el idioma de quien mira (P5b3). Ausente = castellano. */
+    palabras?: PalabrasDePieza;
   },
 ): Promise<PiezaEntregada | null> {
   try {
@@ -480,6 +517,7 @@ export async function piezaDePortada(
       espectador,
       superficie: "portada",
       redis: await redisDe(entrada.redis),
+      palabras: entrada.palabras,
     });
   } catch {
     return null;

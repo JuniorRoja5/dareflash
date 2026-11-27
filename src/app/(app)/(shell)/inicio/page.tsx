@@ -122,8 +122,9 @@ export default async function InicioPage() {
   // la pieza (`pintarPiezaEnPortada`: la casa, solo a una empresa).
   const { piezaDePortada } = await import("@/server/services/publicidad-entrega");
   const ip = sesion ? null : cabeceras.get("x-real-ip");
-  const pieza1 = await piezaDePortada(prisma, { sesion, ip, espacio: "GLOBAL" });
-  const pieza2 = await piezaDePortada(prisma, { sesion, ip, espacio: "LOCAL" });
+  const palabras = await textos("anuncio");
+  const pieza1 = await piezaDePortada(prisma, { sesion, ip, espacio: "GLOBAL", palabras });
+  const pieza2 = await piezaDePortada(prisma, { sesion, ip, espacio: "LOCAL", palabras });
   const espacio1 = pieza1 && pintarPiezaEnPortada(pieza1, esEmpresa) ? pieza1 : null;
   const espacio2 = pieza2 && pintarPiezaEnPortada(pieza2, esEmpresa) ? pieza2 : null;
   const denunciaPortada = esEmpresa

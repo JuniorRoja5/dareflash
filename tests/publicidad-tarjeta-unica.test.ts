@@ -33,7 +33,10 @@ const ENTREGA = ["src", "server", "services", "publicidad-entrega.ts"];
 describe("la vista previa ES el anuncio", () => {
   it("pinta `TarjetaAnuncio` con la pieza de `piezaDeCampana`, en modo previa", () => {
     const c = leer(...PREVIA);
-    expect(c).toMatch(/<TarjetaAnuncio pieza=\{piezaDeCampana\(c\)\} previa \/>/);
+    // Con las palabras de quien mira (P5b3): la misma función, en su idioma.
+    expect(c).toMatch(
+      /<TarjetaAnuncio pieza=\{piezaDeCampana\(c, await textos\("anuncio"\)\)\} previa \/>/,
+    );
     expect(c).toMatch(/import \{ TarjetaAnuncio \} from "@\/components\/ui\/tarjeta-anuncio"/);
     // Nada dibujado a mano: ni una imagen ni una etiqueta suya.
     expect(c).not.toMatch(/<img\b/);
@@ -46,7 +49,7 @@ describe("la vista previa ES el anuncio", () => {
   it("el reparto construye la pieza servida con la MISMA función", () => {
     const c = leer(...ENTREGA);
     expect(c).toMatch(/export function piezaDeCampana\(/);
-    expect(c).toMatch(/return piezaDeCampana\(elegida\)/);
+    expect(c).toMatch(/return piezaDeCampana\(elegida, entrada\.palabras\)/);
     // Y no hay otra forma de construir una pieza de campaña en ese fichero.
     // (Un VALOR `tipo: "campana",`, no el tipo de la interfaz `tipo: "campana" | "casa"`.)
     expect(c.match(/tipo: "campana",/g)).toHaveLength(1);

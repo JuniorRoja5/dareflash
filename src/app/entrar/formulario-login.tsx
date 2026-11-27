@@ -7,7 +7,7 @@ import { useTextos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 import { Campo } from "@/components/ui/campo";
 import { postJson } from "@/lib/cliente-http";
-import { mensajeError, MSG_LOGIN } from "@/lib/mensajes-error";
+import { fraseDeError, motivoDeError } from "@/lib/mensajes-error";
 import { destinoTrasLogin } from "@/lib/destino-login";
 import { useNavegarDuro } from "@/components/enlace";
 import { rutaSiguienteSegura } from "@/lib/ruta-siguiente";
@@ -30,6 +30,7 @@ export function FormularioLogin() {
   const navegarDuro = useNavegarDuro();
   const t = useTextos("login");
   const tf = useTextos("formAcceso");
+  const te = useTextos("errorComun");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [verVisible, setVerVisible] = useState(false);
@@ -70,7 +71,15 @@ export function FormularioLogin() {
       if (r.code === "EMAIL_NOT_VERIFIED") {
         setSinVerificar(true);
       } else {
-        setError(mensajeError(r.status, r.code, MSG_LOGIN));
+        setError(
+          fraseDeError(motivoDeError(r.status, r.code, { credenciales: true }), {
+            limite: te("limite"),
+            ocupado: te("ocupado"),
+            credenciales: t("errorCredenciales"),
+            validacion: t("errorValidacion"),
+            generico: t("errorConexion"),
+          }),
+        );
       }
       setEstado("idle");
     } catch {

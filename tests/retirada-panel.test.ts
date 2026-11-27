@@ -316,9 +316,8 @@ describe("rechazar exige decir por qué", () => {
     expect(fila.motivoRechazo).not.toContain(TEXTO);
   });
 
-  it("el motivo llega hasta el historial del usuario, ya traducido a su frase", async () => {
+  it("el motivo llega hasta el historial del usuario, como DATO validado (P5b3)", async () => {
     const { misRetiradas } = await import("../src/server/services/retirada");
-    const { FRASE_RECHAZO } = await import("@/config/constants");
     const id = await pedir(7500);
     await transicionarRetirada(prisma, {
       retiradaId: id,
@@ -328,9 +327,10 @@ describe("rechazar exige decir por qué", () => {
     });
 
     const mias = await misRetiradas(prisma, userId);
-    expect(mias.items[0]!.motivoRechazo).toBe(FRASE_RECHAZO.DATOS_BANCARIOS);
-    // La CLAVE no viaja: lo que sale es la frase, resuelta en el servidor.
-    expect(JSON.stringify(mias)).not.toContain("DATOS_BANCARIOS");
+    // DESDE LA P5b3 viaja el DATO, no la frase: la compone el monedero en el idioma de quien mira
+    // (`cobros.rechazo_*`). Lo que sigue sin viajar es la clave CRUDA de la fila: el servidor la
+    // valida contra la lista cerrada y, si no está, manda `desconocido` (caso de abajo).
+    expect(mias.items[0]!.motivoRechazo).toEqual({ tipo: "motivo", motivo: "DATOS_BANCARIOS" });
   });
 
   it("y una rechazada SIN motivo (de antes de la columna) no inventa ninguno", async () => {
@@ -351,7 +351,6 @@ describe("rechazar exige decir por qué", () => {
 
   it("una clave que ya no existe cae en la frase genérica, no revienta la lista", async () => {
     const { misRetiradas } = await import("../src/server/services/retirada");
-    const { FRASE_RECHAZO_DESCONOCIDO } = await import("@/config/constants");
     const id = await pedir(7500);
     await transicionarRetirada(prisma, {
       retiradaId: id,
@@ -364,7 +363,8 @@ describe("rechazar exige decir por qué", () => {
 
     const mias = await misRetiradas(prisma, userId);
     expect(mias.items).toHaveLength(1);
-    expect(mias.items[0]!.motivoRechazo).toBe(FRASE_RECHAZO_DESCONOCIDO);
+    expect(mias.items[0]!.motivoRechazo).toEqual({ tipo: "desconocido" });
+    expect(JSON.stringify(mias), "la clave cruda de la fila viajó").not.toContain("YA_NO_EXISTE");
   });
 
   it("el motivo también queda en la TRAZA: es la decisión que se tomó sobre su dinero", async () => {

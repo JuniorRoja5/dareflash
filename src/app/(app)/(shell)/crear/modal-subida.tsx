@@ -11,7 +11,6 @@ import { AVATAR_TIPOS, avatarExcedeTope } from "@/app/(app)/(shell)/perfil/perfi
 import { getJson, mensajeDe, obtenerCsrfToken, postJsonCsrf } from "@/lib/cliente-http";
 import {
   clasificarFalloSubida,
-  copySubida,
   esFallo,
   estadoEnVuelo,
   estadoTrasSondeo,
@@ -535,7 +534,7 @@ export function ModalSubida({
               </div>
               <p className="mt-1.5 text-sm tabular-nums text-text-dim">
                 {t("conProgreso", {
-                  estado: copySubida("subiendo"),
+                  estado: t("estado_subiendo"),
                   porcentaje: formatearNumero(progreso, idioma),
                 })}
               </p>
@@ -551,7 +550,7 @@ export function ModalSubida({
                 role="status"
                 aria-live="polite"
               >
-                {copySubida(estado)}
+                {t(`estado_${estado}`)}
               </p>
               {aviso ? (
                 <p className="mt-2 text-center text-sm text-alarm" role="alert">
@@ -576,11 +575,11 @@ export function ModalSubida({
             >
               {estado === "subiendo"
                 ? t("conProgreso", {
-                    estado: copySubida("subiendo"),
+                    estado: t("estado_subiendo"),
                     porcentaje: formatearNumero(progreso, idioma),
                   })
                 : estado === "preparando"
-                  ? copySubida("preparando")
+                  ? t("estado_preparando")
                   : estado !== null && puedeReintentar(estado)
                     ? t("reintentar")
                     : t("publicar")}
@@ -590,7 +589,7 @@ export function ModalSubida({
           {/* FALLO: el mensaje nombra la causa real. Un rechazo del fichero no ofrece reintentar. */}
           {estado !== null && esFallo(estado) ? (
             <p className="mt-2 text-center text-sm text-alarm" role="status">
-              {copySubida(estado)}
+              {t(`estado_${estado}`)}
             </p>
           ) : null}
           {errorPrevio ? (

@@ -129,7 +129,7 @@ const empresa = (cambios: Partial<MiEmpresa> = {}): MiEmpresa => ({
 const movimiento = (
   id: string,
   delta: number,
-  concepto: string,
+  concepto: MovimientoCreditoEmpresa["concepto"],
   recibo: string | null = null,
 ): MovimientoCreditoEmpresa => ({ id, delta, concepto, creadoMs: ALTA + DIA, recibo });
 
@@ -231,8 +231,8 @@ describe("/empresa/creditos", () => {
     H.estadoAmbito = "PENDIENTE";
     H.saldo = 90;
     H.movimientos = [
-      movimiento("m1", 100, "Compra de créditos", "/api/empresa/creditos/recibo/m1"),
-      movimiento("m2", -10, "Campaña «Pan»"),
+      movimiento("m1", 100, { razon: "COMPRA", campana: null }, "/api/empresa/creditos/recibo/m1"),
+      movimiento("m2", -10, { razon: "CONSUMO", campana: "Pan" }),
     ];
     H.nextCursor = "c2";
     expect(

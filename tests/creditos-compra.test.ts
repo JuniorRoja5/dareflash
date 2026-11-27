@@ -155,7 +155,8 @@ describe("el recibo", () => {
     const { movimientos } = await misCreditos(prisma, e);
     expect(movimientos).toHaveLength(1);
     expect(movimientos[0]?.recibo).toBe(`/api/empresa/creditos/${movimientos[0]?.id}/recibo`);
-    expect(movimientos[0]?.concepto).toBe("Compra de créditos");
+    // El concepto viaja como DATO (P5b3); su frase es `creditosEmpresa.razon_COMPRA`.
+    expect(movimientos[0]?.concepto).toEqual({ razon: "COMPRA", campana: null });
   });
 });
 

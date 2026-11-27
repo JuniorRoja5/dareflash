@@ -113,7 +113,7 @@ export default async function RetoDetallePage({ params }: { params: Promise<{ co
       "subida",
     ] as const),
   ]);
-  const contextoReto = { titulo: reto.titulo, categoria: nombreDeCategoria(tcat, reto.categoria) };
+  const contextoReto = { titulo: reto.titulo, categoriaClave: reto.categoria };
   const participacionesUI: ParticipacionUI[] = pagina.items.map((p) => {
     const urls = firmarReproduccion(p.bunnyVideoId, p.thumbnailFileName);
     return {

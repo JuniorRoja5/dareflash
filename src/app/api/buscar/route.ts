@@ -14,7 +14,8 @@ export const dynamic = "force-dynamic";
  * corto (descarga la BD en consultas calientes; opcional y degradable, ver la caché). Errores humanos.
  */
 const QuerySchema = z.object({
-  q: z.string().trim().min(2, "Escribe al menos 2 caracteres.").max(100),
+  // Sin mensaje propio: la ruta responde con el suyo (`api.busquedaInvalidaEscribe`), nunca con este.
+  q: z.string().trim().min(2).max(100),
   // `ciudades` (Fase 9 · P5): el autocompletado del catálogo, con `pais` opcional para acotarlo.
   tipo: z.enum(["usuarios", "retos", "ciudades"]),
   pais: z

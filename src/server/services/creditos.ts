@@ -30,6 +30,7 @@ import {
   CREDITOS_PAGINA,
   ETIQUETA_MOVIMIENTO_CREDITO,
   type RazonCredito,
+  VALORES_RAZON_CREDITO,
   SOCIO_FUNDADOR_CREDITOS,
   REF_CREDITOS_STRIPE,
   claveRegaloSocioFundador,
@@ -41,6 +42,7 @@ import {
   decodificarCursorTiempo,
 } from "@/lib/cursor-tiempo";
 import { esSocioFundador } from "@/lib/socio-fundador";
+import { esUnoDe } from "@/lib/valores";
 import type { Db } from "@/server/db/types";
 
 import { LEDGER_TX_OPTIONS } from "./ledger";
@@ -283,13 +285,24 @@ export async function ajustarCreditosEmpresa(
 export interface MovimientoCreditoEmpresa {
   id: string;
   delta: number;
-  concepto: string;
+  /**
+   * El concepto como DATO (P5b3): la RAZÓN (validada; `null` si ya no está en el catálogo) y el nombre
+   * de SU campaña si es el cobro o la devolución de un día. La frase la compone el portal en su idioma
+   * (`conceptoDeCredito`); el panel, `conceptoDe` en castellano, con las mismas palabras.
+   */
+  concepto: ConceptoCredito;
   creadoMs: number;
   /**
    * P11: el enlace a su RECIBO de Stripe si es una compra (la ruta comprueba el ámbito otra vez), o
    * `null`. «Recibo», nunca «Factura».
    */
   recibo: string | null;
+}
+
+/** Qué fue un movimiento de créditos, para que lo diga el portal (ver `MovimientoCreditoEmpresa`). */
+export interface ConceptoCredito {
+  razon: RazonCredito | null;
+  campana: string | null;
 }
 
 export interface CreditosDeEmpresa {
@@ -355,7 +368,10 @@ export async function misCreditos(
     movimientos: pagina.map((f) => ({
       id: f.id,
       delta: f.delta,
-      concepto: conceptoDe(f.reason, f.publicidad?.nombre, "Movimiento"),
+      concepto: {
+        razon: esUnoDe(VALORES_RAZON_CREDITO, f.reason) ? f.reason : null,
+        campana: f.publicidad?.nombre ?? null,
+      },
       recibo:
         f.reason === "COMPRA" && f.refType === REF_CREDITOS_STRIPE
           ? `/api/empresa/creditos/${f.id}/recibo`

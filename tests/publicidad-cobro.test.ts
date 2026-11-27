@@ -149,8 +149,9 @@ describe("el barrido cobra HOY, una vez", () => {
     await unaCampana(e, { nombre: "Meriendas" });
     await barrer(DIA2);
     const conceptos = (await misCreditos(prisma, e)).movimientos.map((m) => m.concepto);
-    expect(conceptos).toContain("Un día de campaña · «Desayunos»");
-    expect(conceptos).toContain("Un día de campaña · «Meriendas»");
+    // El concepto viaja como DATO (P5b3): la razón y el nombre de SU campaña.
+    expect(conceptos).toContainEqual({ razon: "CONSUMO", campana: "Desayunos" });
+    expect(conceptos).toContainEqual({ razon: "CONSUMO", campana: "Meriendas" });
   });
 
   it("NUNCA UN ANUNCIO SERVIDO SIN COBRAR: hasta que el barrido cobra el día, no sale", async () => {

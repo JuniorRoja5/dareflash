@@ -11,6 +11,7 @@
  *  - hacer que `estadoEnVuelo` mire el porcentaje en vez de `subidaCompleta` -> cae el invariante;
  *  - meter un literal de copy a mano en el modal -> cae el test estructural.
  */
+import { es } from "@/textos/es";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -19,7 +20,6 @@ import { describe, expect, it } from "vitest";
 import {
   clasificarFalloSubida,
   COPY_SUBIDA,
-  copySubida,
   esFallo,
   ESTADOS_FALLO,
   ESTADOS_FALLO_SUBIDA,
@@ -30,6 +30,9 @@ import {
   type EstadoSubida,
   type EstadoVideoSondeo,
 } from "../src/lib/estado-subida";
+
+/** Lo que pinta la pantalla de subida: el diccionario (P5b3; antes `copySubida`). */
+const copySubida = (e: string): string => (es.subida as Record<string, string>)[`estado_${e}`]!;
 
 describe("el fallo dice su causa REAL, no un genérico", () => {
   it("0 bytes y sin respuesta -> problema de conexión (NO 'codificando', NO genérico)", () => {
@@ -292,5 +295,13 @@ describe("el modal usa la fuente única de estado y copy", () => {
   it("lee el estado HTTP real del error para poder clasificarlo", () => {
     // Sin `originalResponse` no hay forma de distinguir "no hubo respuesta" de "respondió y dijo que no".
     expect(fuente()).toContain("originalResponse");
+  });
+});
+
+describe("la pantalla y el aviso de la campana dicen LO MISMO (P5b3)", () => {
+  it("cada estado del diccionario es el castellano de COPY_SUBIDA, que usan los avisos", () => {
+    for (const [e, copy] of Object.entries(COPY_SUBIDA)) {
+      expect(copySubida(e), e).toBe(copy.es);
+    }
   });
 });

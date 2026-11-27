@@ -49,7 +49,11 @@ export default async function NotificacionesPage({
   const { idiomaDeLaPeticion, zonaDeLaPeticion } = await import("@/server/formato-peticion");
   const [idioma, zona] = await Promise.all([idiomaDeLaPeticion(), zonaDeLaPeticion()]);
   const sinLeer = pagina.items.filter((i) => !i.leida).map((i) => i.id);
-  const [t, tr] = await Promise.all([textos("notificaciones"), textosRicos("notificaciones")]);
+  const [t, tr, tt] = await Promise.all([
+    textos("notificaciones"),
+    textosRicos("notificaciones"),
+    textos("tiempoRelativo"),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-8 lg:py-12">
@@ -94,7 +98,7 @@ export default async function NotificacionesPage({
                     {i.leida ? i.texto : tr("avisoNuevo", { oculto: {} }, { texto: i.texto })}
                   </span>
                   <span className="mt-1 block text-2xs text-text-dim">
-                    {haceCuanto(i.creadaMs, ahoraMs, idioma, zona)}
+                    {haceCuanto(tt, i.creadaMs, ahoraMs, idioma, zona)}
                   </span>
                 </span>
               </Enlace>

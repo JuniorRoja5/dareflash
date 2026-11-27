@@ -1,4 +1,5 @@
 import type { MovimientoCreditoEmpresa } from "@/server/services/creditos";
+import { conceptoDeCredito } from "@/textos/empresa";
 import { textos } from "@/textos/servidor";
 import {
   formatearNumero,
@@ -67,7 +68,7 @@ export async function MovimientosCreditos({
                 {formatearFechaParaQuienMira(m.creadoMs, idioma, zona, "diaMesAno")}
               </td>
               <td className="py-2.5 pr-4 text-text">
-                {m.concepto}
+                {conceptoDeCredito(t, m.concepto)}
                 {m.recibo ? (
                   <>
                     {" · "}
@@ -86,7 +87,7 @@ export async function MovimientosCreditos({
         {movimientos.map((m) => (
           <li key={m.id} className="flex items-baseline justify-between gap-3 py-3">
             <span className="min-w-0">
-              <span className="block text-sm text-text">{m.concepto}</span>
+              <span className="block text-sm text-text">{conceptoDeCredito(t, m.concepto)}</span>
               <span className="block text-2xs text-text-dim tabular-nums">
                 {formatearFechaParaQuienMira(m.creadoMs, idioma, zona, "diaMesAno")}
               </span>

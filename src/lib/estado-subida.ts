@@ -244,8 +244,3 @@ export const COPY_SUBIDA: Record<EstadoSubida, { es: string; en: string }> = {
     en: "Your video is longer than 90 seconds, so it wasn't published. Trim it and upload it again.",
   },
 };
-
-/** Copy en castellano de un estado (lo que renderiza la app hoy). */
-export function copySubida(estado: EstadoSubida): string {
-  return COPY_SUBIDA[estado].es;
-}

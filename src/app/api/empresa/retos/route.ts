@@ -121,9 +121,7 @@ export const POST = mutatingRoute(
       ok: true,
       id: solicitud.id,
       logoGuardado,
-      ...(logoGuardado
-        ? {}
-        : { aviso: "Hemos recibido tu propuesta, pero no pudimos guardar el logo." }),
+      ...(logoGuardado ? {} : { aviso: t("propuestaSinLogo") }),
     });
   },
   { cuentaEmpresa: "permite" },

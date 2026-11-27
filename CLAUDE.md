@@ -414,6 +414,19 @@ href>` FUERA del sitio, sin idioma ni router; con varios en una frase, `hrefs` e
   del panel y los correos tienen un test de igualdad, también con otras cifras en la tabla. Los
   componentes de servidor síncronos con uno asíncrono dentro se pasan a `resolverServidor` en `tambien`
   (si no, el test pinta la página vacía). Marcado en `render/marcado-p5b2b-*`.
+- `textos-api` / `mensajes-api-congelados` / `frases-compartidas` (Fase 11 · P5b3) — la API responde en
+  el idioma de la cookie `df-idioma`, que el PROXY pone al servir una página y SOLO si cambia (una
+  `Set-Cookie` en cada respuesta es rojo). `textosApi(req)` ([src/server/http/textos-api.ts](src/server/http/textos-api.ts))
+  la lee validada: un idioma publicado, o `xx` solo en desarrollo; si no, castellano. NINGUNA ruta de
+  la API llega, por ninguna cadena de imports, a `x-df-idioma` / `x-df-ruta` (en `/api` nadie las pisa:
+  la zona sale de `zona-peticion`, sin cabeceras). Ningún mensaje de la API se escribe a mano (censo
+  por AST: `apiError` nunca recibe una cadena ni un `MSG_*`); los servicios que devolvían una frase
+  devuelven un DATO (`MensajeApi`: clave + valores, o una unión cerrada como `RechazoParaMostrar` o
+  `ZonaCampana`) y la frase la compone quien la pinta (`frase(t, dato)`). Fuera, declarados: los
+  correos (P7), los logs, el panel y `mutatingRoute`. El castellano de antes está congelado por AST en
+  `tests/fixtures/mensajes-api-antes.json` (código + mensaje por ruta, y cada frase), y donde una frase
+  vive en dos sitios (pantalla y API, usuario y panel) un test exige igualdad exacta. `GET
+/api/retiradas` se borró.
 - `tsconfig-tests-cubre-tsx` (PTT) — `tsconfig.test.json` cubre TODO `tests/`, también los `.tsx`: se le
   pide a TypeScript la lista de ficheros del proyecto y cada `.ts`/`.tsx` del disco tiene que estar.
   Vitest no comprueba tipos, así que un test de render fuera de `tsc` corre verde con la fixture de una

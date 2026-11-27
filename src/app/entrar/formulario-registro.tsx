@@ -9,7 +9,7 @@ import { Campo } from "@/components/ui/campo";
 import { CTA_NEGOCIO, PARAM_REFERIDO } from "@/config/constants";
 import { declaraEdadMinima, leerFechaNacimiento } from "@/lib/edad";
 import { postJson } from "@/lib/cliente-http";
-import { mensajeError, MSG_REGISTRO } from "@/lib/mensajes-error";
+import { fraseDeError, motivoDeError } from "@/lib/mensajes-error";
 
 /**
  * FORMULARIO de registro (isla cliente). POST /api/auth/register
@@ -48,6 +48,7 @@ export function FormularioRegistro() {
   const refCode = useSearchParams().get(PARAM_REFERIDO);
   const tn = useTextos("negocio");
   const t = useTextos("registro");
+  const te = useTextos("errorComun");
   const tr = useTextosRicos("registro");
   const tf = useTextos("formAcceso");
   const ta = useTextos("acceso");
@@ -84,7 +85,14 @@ export function FormularioRegistro() {
         setEstado("hecho"); // respuesta uniforme: revisa tu correo (sin sesión ni redirección)
         return;
       }
-      setError(mensajeError(r.status, r.code, MSG_REGISTRO));
+      setError(
+        fraseDeError(motivoDeError(r.status, r.code), {
+          limite: te("limite"),
+          ocupado: te("ocupado"),
+          validacion: t("errorValidacion"),
+          generico: t("errorConexion"),
+        }),
+      );
       setEstado("idle");
     } catch {
       setError(t("errorConexion"));

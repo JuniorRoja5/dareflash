@@ -9,7 +9,14 @@ import { leerPila, type Paginacion } from "@/lib/paginacion-pila";
 import type { Estimacion } from "@/server/services/publicidad";
 import type { FuncionT } from "@/textos/plantilla";
 import type { FuncionTRico } from "@/textos/rico";
-import { alcanceCampana, estadoCampana, fraseInicioDelDia, fraseSaldo } from "@/textos/publicidad";
+import {
+  alcanceCampana,
+  estadoCampana,
+  fraseInicioDelDia,
+  fraseSaldo,
+  nombreDeZona,
+  textoZonaCampana,
+} from "@/textos/publicidad";
 import { textos, textosClienteDeLaPeticion, textosRicos, type Textos } from "@/textos/servidor";
 
 import { ambitoDelPortal } from "../../ambito-portal";
@@ -40,6 +47,7 @@ const ID_VALIDO = /^[a-z0-9]{10,40}$/;
 function fraseEstimacion(
   t: FuncionT<Textos["publicidad"]>,
   tr: FuncionTRico<Textos["publicidad"]>,
+  tc: FuncionT<Textos["campanaComun"]>,
   e: Estimacion,
   idioma: Idioma,
 ): React.ReactNode {
@@ -53,11 +61,11 @@ function fraseEstimacion(
   if (e.tipo === "respaldo") {
     return tr("estRespaldo", cifra, {
       personas: formatearNumero(e.personas, idioma),
-      nivel: e.nivelNombre,
-      zona: e.zonaSinDatos,
+      nivel: nombreDeZona(tc, e.nivelNombre, idioma),
+      zona: nombreDeZona(tc, e.zonaSinDatos, idioma),
     });
   }
-  return t("estSinDatos", { zona: e.zonaSinDatos });
+  return t("estSinDatos", { zona: nombreDeZona(tc, e.zonaSinDatos, idioma) });
 }
 
 /**
@@ -125,7 +133,7 @@ export default async function PaginaCampana({
     new Date().getUTCMonth(),
     new Date().getUTCDate(),
   );
-  const est = estimacion ? fraseEstimacion(t, tr, estimacion, idioma) : null;
+  const est = estimacion ? fraseEstimacion(t, tr, tc, estimacion, idioma) : null;
   // A qué hora de SU país empieza cada día (los días son UTC; decir «UTC» a una empresa es jerga).
   const inicioDelDia = empresa ? fraseInicioDelDia(tc, empresa.paisIso, new Date()) : null;
 
@@ -149,7 +157,7 @@ export default async function PaginaCampana({
         {/* P8: EL MOTIVO de la retirada, el de la lista cerrada (la nota interna no viaja al portal). */}
         {c.motivoRetirada ? (
           <p className="mt-2 max-w-prose rounded-sm border border-line bg-surface p-3 text-sm text-text">
-            {t("motivoRetirada", { motivo: c.motivoRetirada })}
+            {t("motivoRetirada", { motivo: t(`motivoRetirada_${c.motivoRetirada}`) })}
           </p>
         ) : null}
       </div>
@@ -162,7 +170,7 @@ export default async function PaginaCampana({
         <h2 id="pieza" className={CABECERA}>
           {t("asiSeVera")}
         </h2>
-        <TarjetaAnuncio pieza={piezaDeCampana(c)} previa />
+        <TarjetaAnuncio pieza={piezaDeCampana(c, await textos("anuncio"))} previa />
         <p className="max-w-prose text-2xs break-words text-text-dim">
           {tr("llevaA", { resaltado: { className: "text-text" } }, { url: c.destinoUrl })}
         </p>
@@ -187,7 +195,7 @@ export default async function PaginaCampana({
               </div>
               <div>
                 <dt className="text-2xs text-text-dim">{t("dato_zona")}</dt>
-                <dd className="break-words text-text">{c.zona}</dd>
+                <dd className="break-words text-text">{textoZonaCampana(tc, c.zona, idioma)}</dd>
               </div>
               <div>
                 <dt className="text-2xs text-text-dim">

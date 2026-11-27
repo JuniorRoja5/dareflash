@@ -49,7 +49,7 @@ const post = (id: string): PostFeed => ({
   puntos: 0,
   username: `autor_${id}`,
   retoTitulo: "t",
-  categoria: null,
+  categoriaClave: null,
   votos: 0,
   comentarios: 0,
   likes: 0,

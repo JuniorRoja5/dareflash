@@ -89,7 +89,11 @@ const pagina = async (sp: Record<string, string> = {}) =>
     .container;
 
 const metodo = (id: string, pista: string) => ({ id, metodo: "BANK", pista, createdAt: T0 });
-const retirada = (id: string, status: string, motivoRechazo: string | null = null) => ({
+const retirada = (
+  id: string,
+  status: string,
+  motivoRechazo: { tipo: "texto"; texto: string } | null = null,
+) => ({
   id,
   amountCents: 6000,
   currency: "USD",
@@ -146,7 +150,7 @@ describe("/wallet", () => {
         retirada("w2", "APPROVED"),
         retirada("w3", "PROCESSING"),
         retirada("w4", "PAID"),
-        retirada("w5", "REJECTED", "El IBAN no corresponde al titular."),
+        retirada("w5", "REJECTED", { tipo: "texto", texto: "El IBAN no corresponde al titular." }),
         retirada("w6", "REJECTED"),
       ],
       nextCursor: "c2",

@@ -50,8 +50,8 @@ export interface ParticipacionParaFeed {
 /** Datos del RETO, iguales para toda la lista: se pasan una vez, no por ítem. */
 export interface RetoParaFeed {
   titulo: string;
-  /** Nombre ya resuelto de la categoría (o `null`), igual que lo devuelve el feed global. */
-  categoria: string | null;
+  /** La CLAVE de la categoría (o `null`), igual que la devuelve el feed global (P5b3). */
+  categoriaClave: string | null;
 }
 
 /**
@@ -75,7 +75,7 @@ export function postDeParticipacion(
     // El caption del feed es el TÍTULO DEL RETO, no el del vídeo: dentro del feed de un reto todos
     // comparten reto, y es lo que da contexto ("Reto: …") igual que en el feed global.
     retoTitulo: reto.titulo,
-    categoria: reto.categoria,
+    categoriaClave: reto.categoriaClave,
     votos: p.votos,
     comentarios: p.comentarios,
     likes: p.likes,

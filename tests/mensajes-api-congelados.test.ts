@@ -145,6 +145,22 @@ const EQUIVALENCIAS: Record<string, Readonly<Record<string, string>>> = {
   },
 };
 
+/**
+ * Frases que eran UNA plantilla con un `?:` dentro y ahora son sus FORMAS en el diccionario (un plural
+ * `{ one, other }`): el texto de cada forma es el de antes con la palabra que elegía el `?:`.
+ */
+const FRASES_REESCRITAS: Record<string, readonly string[]> = {
+  // El nombre del producto en Stripe: el `?:` del plural es ahora `{ one, other }`.
+  "{…} Boost{…}": ["{n} Boost", "{n} Boosts"],
+  // TEXTO MUERTO, quitado: el mensaje de zod de `q` en /api/buscar nunca se devolvía (la ruta responde
+  // con `api.busquedaInvalidaEscribe`). Sin formas que comprobar.
+  "Escribe al menos 2 caracteres.": [],
+  "Anúnciate aquí y te verá la gente de tu zona. Desde {…} {…} de publicidad al día.": [
+    "Anúnciate aquí y te verá la gente de tu zona. Desde {n} crédito de publicidad al día.",
+    "Anúnciate aquí y te verá la gente de tu zona. Desde {n} créditos de publicidad al día.",
+  ],
+};
+
 const corregir = (f: string, s: string) =>
   (TILDES_APROBADAS[f] ?? []).reduce((a, [de, a2]) => a.replaceAll(de, a2), s);
 /** Todas las correcciones, para buscar una frase de antes que ya no se escribe igual. */
@@ -193,6 +209,14 @@ describe("los mensajes de la API dicen lo mismo que antes", () => {
     const perdidas: string[] = [];
     for (const [f, l] of Object.entries(antes)) {
       for (const fr of l.frases) {
+        const reescrita = FRASES_REESCRITAS[fr];
+        if (reescrita) {
+          // La misma frase, partida en sus formas: TODAS tienen que existir, letra a letra.
+          for (const forma of reescrita) {
+            if (!existen.has(normalizarHuecos(forma))) perdidas.push(`${f}: ${fr} → ${forma}`);
+          }
+          continue;
+        }
         if (!existen.has(fr) && !existen.has(corregirEnCualquiera(fr)))
           perdidas.push(`${f}: ${fr}`);
       }

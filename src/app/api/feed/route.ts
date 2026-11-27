@@ -63,6 +63,7 @@ export async function GET(req: Request) {
       ip: req.headers.get("x-real-ip"),
       desde: parsed.data.desde ?? 0,
       videoIds: items.map((p) => p.id),
+      palabras: await textosApi(req, "anuncio"),
     });
     return apiOk({ items, nextCursor, piezas });
   } catch (e) {

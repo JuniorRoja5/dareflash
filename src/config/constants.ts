@@ -2673,30 +2673,6 @@ export const PUBLICIDAD_CACHE_HOY_MS = 60_000;
  * El anuncio de la casa no lo es —lo pone RevolFlash para sí mismo—: decir «Publicidad» ahí sería
  * disfrazarlo, así que lleva «De RevolFlash».
  */
-export const ETIQUETA_PIEZA_CAMPANA = "Publicidad";
-export const ETIQUETA_PIEZA_CASA = `De ${MARCA}`;
-
-/**
- * EL ANUNCIO DE LA CASA: el hueco vacío sirve para llenarse a sí mismo. Invita a anunciarse, nunca vende
- * VIP («quita los anuncios» dentro de un anuncio se lee como presión). A una empresa —que ya está
- * registrada— la lleva a su sección de Publicidad, no al alta.
- */
-export const ANUNCIO_CASA: Record<
-  EspacioPublicidad,
-  { titulo: string; texto: string; cta: string }
-> = {
-  LOCAL: {
-    titulo: "¿Tienes un negocio en tu ciudad?",
-    // La cifra sale de la tarifa: si el precio de una ciudad cambia, esta frase cambia con él.
-    texto: `Anúnciate aquí y te verá la gente de tu zona. Desde ${CREDITOS_POR_DIA.CIUDAD} ${CREDITOS_POR_DIA.CIUDAD === 1 ? "crédito" : "créditos"} de publicidad al día.`,
-    cta: "Anúnciate aquí",
-  },
-  GLOBAL: {
-    titulo: "Llega a gente de todo el país",
-    texto: `Tu marca, entre los vídeos de quienes compiten en ${MARCA}.`,
-    cta: "Anúnciate aquí",
-  },
-};
 export const ANUNCIO_CASA_DESTINO = {
   invitado: "/empezar/empresa",
   empresa: "/empresa/publicidad",

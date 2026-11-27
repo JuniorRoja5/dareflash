@@ -272,27 +272,29 @@ export const ZONA_HORARIA_PAIS: Readonly<Record<string, string>> = {
 };
 
 /**
- * Los países con VARIAS zonas horarias y el nombre de su capital, cuya hora se usa. Los códigos salen de
- * GeoNames (ver la cabecera); los nombres, en castellano, se escriben aquí.
+ * Los países con VARIAS zonas horarias: de ellos se dice la hora DE SU CAPITAL, nombrándola. Los códigos
+ * salen de GeoNames (ver la cabecera). Los NOMBRES de las capitales viven en el diccionario
+ * (`campanaComun.capital_<ISO>`, P5b3): son palabras de cada idioma («Pekín», «Beijing»).
  */
-export const CAPITAL_DE_PAIS_CON_VARIAS_ZONAS: Readonly<Record<string, string>> = {
-  AU: "Canberra",
-  BR: "Brasilia",
-  CA: "Ottawa",
-  CD: "Kinsasa",
-  CL: "Santiago",
-  CN: "Pekín",
-  ES: "Madrid",
-  GE: "Tiflis",
-  ID: "Yakarta",
-  MN: "Ulán Bator",
-  MX: "Ciudad de México",
-  PG: "Port Moresby",
-  PT: "Lisboa",
-  RU: "Moscú",
-  UA: "Kiev",
-  US: "Washington",
-};
+export const PAISES_CON_VARIAS_ZONAS = [
+  "AU",
+  "BR",
+  "CA",
+  "CD",
+  "CL",
+  "CN",
+  "ES",
+  "GE",
+  "ID",
+  "MN",
+  "MX",
+  "PG",
+  "PT",
+  "RU",
+  "UA",
+  "US",
+] as const;
+export type PaisConVariasZonas = (typeof PAISES_CON_VARIAS_ZONAS)[number];
 
 /**
  * CUÁNDO EMPIEZA, en local, el día UTC `dia` en el país: la hora («19:00», «1:00», «5:30») y si cae en

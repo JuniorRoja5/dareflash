@@ -607,9 +607,10 @@ describe("la estimación antes de pagar", () => {
     const id = await unBorrador(e);
     const { estimacionDeMiPublicidad } = await import("../src/server/services/publicidad");
     expect(await estimacionDeMiPublicidad(prisma, e, id, AHORA)).toEqual({
+      // Los nombres viajan como DATO (P5b3): el país, por su código; su nombre lo pone el portal.
       tipo: "respaldo",
-      zonaSinDatos: "Valencia",
-      nivelNombre: "España",
+      zonaSinDatos: { tipo: "nombre", nombre: "Valencia" },
+      nivelNombre: { tipo: "paises", paises: ["ES"] },
       personas: 800,
     });
   });
@@ -620,7 +621,7 @@ describe("la estimación antes de pagar", () => {
     const { estimacionDeMiPublicidad } = await import("../src/server/services/publicidad");
     expect(await estimacionDeMiPublicidad(prisma, e, id, AHORA)).toEqual({
       tipo: "sin-datos",
-      zonaSinDatos: "Valencia",
+      zonaSinDatos: { tipo: "nombre", nombre: "Valencia" },
     });
   });
 

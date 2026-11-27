@@ -180,7 +180,7 @@ describe("feedPublicado", () => {
 
     const { items } = await feedPublicado(prisma, { firmar: firmarFake });
     expect(items.map((i) => i.id)).toEqual([idLibre]); // el suelto sin categoría, fuera
-    expect(items[0]!.categoria).toBe("Gaming"); // key "gaming" -> "Gaming" (vía Video.category)
+    expect(items[0]!.categoriaClave).toBe("gaming"); // la CLAVE, vía Video.category (P5b3: el nombre lo pone el feed)
   });
 
   it("excluye vídeos de usuarios borrados o baneados", async () => {
@@ -283,7 +283,7 @@ describe("feedPublicado", () => {
     const pub = items.find((i) => i.id === idPub)!;
     expect(pub.votos).toBe(42);
     expect(pub.retoTitulo).toBe("Reto de fitness");
-    expect(pub.categoria).toBe("Fitness"); // key "fitness" -> nombre "Fitness"
+    expect(pub.categoriaClave).toBe("fitness"); // la CLAVE (P5b3: el nombre lo pone el feed)
 
     // El id de la PARTICIPACION, aparte del id del VIDEO: es de lo que hablan las rutas del gate de
     // "visto" y del voto, y pasarles un id de Video daria 404.
@@ -295,7 +295,7 @@ describe("feedPublicado", () => {
     // Submission NO publicada -> no se vota, asi que tampoco se ofrece para marcar como vista.
     expect(sinPub.participacionId).toBeNull();
     expect(sinPub.retoTitulo).toBe("Título del vídeo sin submission publicada");
-    expect(sinPub.categoria).toBeNull();
+    expect(sinPub.categoriaClave).toBeNull();
   });
 });
 

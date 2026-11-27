@@ -63,6 +63,7 @@ export function CampanaNotificaciones() {
   const { idioma, zona } = useFormato();
   const t = useTextos("campana");
   const tr = useTextosRicos("campana");
+  const tt = useTextos("tiempoRelativo");
   const { noLeidas, fijar } = useNoLeidas();
   const [abierto, setAbierto] = useState(false);
   const [carga, setCarga] = useState<Carga>({ estado: "cargando" });
@@ -163,7 +164,7 @@ export function CampanaNotificaciones() {
                         {i.leida ? i.texto : tr("avisoNuevo", { oculto: {} }, { texto: i.texto })}
                       </span>
                       <span className="mt-0.5 block text-2xs text-text-dim">
-                        {haceCuanto(i.creadaMs, carga.ahoraMs, idioma, zona)}
+                        {haceCuanto(tt, i.creadaMs, carga.ahoraMs, idioma, zona)}
                       </span>
                     </span>
                   </Enlace>

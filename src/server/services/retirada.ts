@@ -5,7 +5,13 @@ import { randomUUID } from "node:crypto";
 import { DEFAULT_CURRENCY } from "@/config/constants";
 import type { PrismaClient } from "@/generated/prisma/client";
 import { codificarCursorTiempo, decodificarCursorTiempo, dondeDesde } from "@/lib/cursor-tiempo";
-import { claveRetirada, evaluarImporte, fraseDeRechazo, type RechazoImporte } from "@/lib/retirada";
+import {
+  claveRetirada,
+  evaluarImporte,
+  rechazoParaMostrar,
+  type RechazoImporte,
+  type RechazoParaMostrar,
+} from "@/lib/retirada";
 
 import { applyWallet, LedgerError } from "./ledger";
 
@@ -205,15 +211,14 @@ export interface RetiradaPropia {
    */
   actualizadaEn: Date | null;
   /**
-   * POR QUÉ se rechazó, ya traducido a la frase que lee la persona. `null` si no está rechazada o
-   * si es de antes de que esto existiera.
+   * POR QUÉ se rechazó, como DATO (P5b3): el texto del equipo, un motivo VÁLIDO de la lista o
+   * `desconocido`. `null` si no está rechazada o si es de antes de que esto existiera.
    *
-   * SALE YA RESUELTO DEL SERVIDOR, no la clave: así la vista no puede equivocarse de tabla ni
-   * enseñar un código, y el fail-open de `fraseDeRechazo` (una clave que ya no existe cae en una
-   * frase genérica) ocurre en UN solo sitio. Lo que NO viaja es la clave cruda ni, por tanto, nada
-   * que haya que interpretar en el cliente.
+   * SALE YA RESUELTO DEL SERVIDOR (`rechazoParaMostrar`): el fail-open (una clave que ya no existe cae
+   * en `desconocido`) ocurre en UN solo sitio, y lo que viaja es una de esas tres formas, nunca la
+   * clave cruda de la fila. La frase la compone la vista en el idioma de quien mira.
    */
-  motivoRechazo: string | null;
+  motivoRechazo: RechazoParaMostrar | null;
 }
 
 export interface PaginaRetiradas {
@@ -338,7 +343,7 @@ export async function misRetiradas(
     items: pagina.map(({ procesadaEn, motivoRechazo, motivoRechazoTexto, ...r }) => ({
       ...r,
       actualizadaEn: procesadaEn,
-      motivoRechazo: fraseDeRechazo(motivoRechazo, motivoRechazoTexto),
+      motivoRechazo: rechazoParaMostrar(motivoRechazo, motivoRechazoTexto),
     })),
     nextCursor:
       hayMas && ultima

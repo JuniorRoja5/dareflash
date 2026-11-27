@@ -6,7 +6,10 @@
  */
 import type { AlcancePublicidad, EstadoVisiblePublicidad } from "@/config/constants";
 import { formatearNumero, type Idioma } from "@/lib/formato";
-import { CAPITAL_DE_PAIS_CON_VARIAS_ZONAS, inicioLocalDelDia } from "@/lib/zona-horaria-pais";
+import { nombrePais } from "@/lib/paises";
+import type { NombreDeZona, ZonaCampana } from "@/lib/publicidad";
+import { esUnoDe } from "@/lib/valores";
+import { inicioLocalDelDia, PAISES_CON_VARIAS_ZONAS } from "@/lib/zona-horaria-pais";
 
 import type { FuncionT } from "./plantilla";
 import type { Textos } from "./servidor";
@@ -50,8 +53,9 @@ export function fraseInicioDelDia(t: TComun, paisIso: string, dia: Date): string
   if (!inicio) return null;
   // «a la 1:00» / «a las 19:00»: la forma la elige la HORA, con las reglas de plural del idioma (P1).
   const cuando = t("aLaHora", { n: Number.parseInt(inicio.hora, 10), hora: inicio.hora });
-  const capital = CAPITAL_DE_PAIS_CON_VARIAS_ZONAS[paisIso.trim().toUpperCase()];
-  if (capital) {
+  const iso = paisIso.trim().toUpperCase();
+  if (esUnoDe(PAISES_CON_VARIAS_ZONAS, iso)) {
+    const capital = t(`capital_${iso}`);
     return t(inicio.diaAnterior ? "inicioCapitalVispera" : "inicioCapital", { cuando, capital });
   }
   return t(inicio.diaAnterior ? "inicioLocalVispera" : "inicioLocal", { cuando });
@@ -60,3 +64,42 @@ export function fraseInicioDelDia(t: TComun, paisIso: string, dia: Date): string
 export const alcanceCampana = (t: TComun, a: AlcancePublicidad) => t(`alcance_${a}`);
 export const estadoCampana = (t: FuncionT<Textos["publicidad"]>, e: EstadoVisiblePublicidad) =>
   t(`estado_${e}`);
+
+/**
+ * La zona de una campaña dicha en el idioma de `t` (P5b3). La usan el portal y, en castellano, el panel
+ * (`zonaLegible`): una sola redacción. Los países, unidos con «, » como siempre.
+ */
+export function textoZonaCampana(
+  t: FuncionT<Textos["campanaComun"]>,
+  z: ZonaCampana,
+  idioma: Idioma,
+): string {
+  switch (z.alcance) {
+    case "CIUDAD":
+      return t("zonaCiudad", { ciudad: z.ciudad ?? t("zonaCiudadSinNombre") });
+    case "ESTADO":
+      return t("zonaRegion", { region: z.region });
+    case "PAIS":
+      return z.paises.map((p) => nombrePais(p, idioma)).join(", ");
+    case "GLOBAL":
+      return t("zonaGlobal");
+  }
+}
+
+/** El nombre de una zona DENTRO de una frase de la estimación (P5b3). */
+export function nombreDeZona(
+  t: FuncionT<Textos["campanaComun"]>,
+  n: NombreDeZona,
+  idioma: Idioma,
+): string {
+  switch (n.tipo) {
+    case "nombre":
+      return n.nombre;
+    case "paises":
+      return n.paises.map((p) => nombrePais(p, idioma)).join(", ");
+    case "esta":
+      return t("zonaEsta");
+    case "global":
+      return t("zonaGlobalEnFrase");
+  }
+}

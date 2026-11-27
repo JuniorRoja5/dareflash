@@ -95,6 +95,7 @@ export default async function FeedPage({
     ip,
     desde: 0,
     videoIds: items.map((p) => p.id),
+    palabras: await textos("anuncio"),
   });
 
   return (

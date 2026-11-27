@@ -80,7 +80,8 @@ export const POST = mutatingRoute(
               currency: DEFAULT_CURRENCY.toLowerCase(),
               // El importe NO sale del cliente: el precio del catálogo.
               unit_amount: paquete.precioCents,
-              product_data: { name: `${paquete.creditos} créditos de publicidad` },
+              // Lo que lee quien paga en la página de Stripe: en su idioma (P5b3).
+              product_data: { name: t("productoCreditos", { n: paquete.creditos }) },
             },
           },
         ],

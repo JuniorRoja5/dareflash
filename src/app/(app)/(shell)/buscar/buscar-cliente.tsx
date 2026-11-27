@@ -1,7 +1,7 @@
 "use client";
 
 import { Enlace } from "@/components/enlace";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useTextos } from "@/components/textos-provider";
 import { Avatar } from "@/components/ui/avatar";
@@ -14,7 +14,7 @@ import {
   NombreUsuario,
   textoNombre,
 } from "@/components/ui/identidad-usuario";
-import { mensajeError, MSG_BUSCAR } from "@/lib/mensajes-error";
+import { fraseDeError, motivoDeError } from "@/lib/mensajes-error";
 import type { PaginaBusqueda, RetoBusqueda, UsuarioBusqueda } from "@/server/services/buscar";
 import { nombreDeCategoria } from "@/textos/categoria";
 
@@ -55,6 +55,16 @@ export function BuscarCliente({
 }) {
   const t = useTextos("buscar");
   const tc = useTextos("categorias");
+  const te = useTextos("errorComun");
+  const frasesDeError = useMemo(
+    () => ({
+      limite: te("limite"),
+      ocupado: te("ocupado"),
+      validacion: t("minimo"),
+      generico: t("errorGenerico"),
+    }),
+    [t, te],
+  );
   const [q, setQ] = useState(qInicial);
   const [tab, setTab] = useState<Tab>(tipoInicial);
   const [res, setRes] = useState<Resultado>({ clave: "", items: [], cursor: null });
@@ -77,7 +87,7 @@ export function BuscarCliente({
         const r = await getJson<PaginaBusqueda<Item>>(urlBuscar({ q: termino, tipo }));
         if (id !== peticionRef.current) return; // llegó tarde -> se descarta
         if (!r.ok) {
-          setError(mensajeError(r.status, r.code, MSG_BUSCAR));
+          setError(fraseDeError(motivoDeError(r.status, r.code), frasesDeError));
           setEstado("error");
           return;
         }
@@ -90,7 +100,7 @@ export function BuscarCliente({
       }
     }, DEBOUNCE_MS);
     return () => clearTimeout(temporizador);
-  }, [q, tab, claveActual, t]);
+  }, [q, tab, claveActual, t, frasesDeError]);
 
   async function cargarMas(): Promise<void> {
     if (!res.cursor) return;
@@ -102,7 +112,7 @@ export function BuscarCliente({
       );
       if (id !== peticionRef.current) return;
       if (!r.ok) {
-        setError(mensajeError(r.status, r.code, MSG_BUSCAR));
+        setError(fraseDeError(motivoDeError(r.status, r.code), frasesDeError));
         setEstado("error");
         return;
       }

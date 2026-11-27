@@ -30,7 +30,7 @@ const post = (puntos: number): PostFeed => ({
   imagen: null,
   puntos,
   retoTitulo: "Reto",
-  categoria: null,
+  categoriaClave: null,
   votos: 0,
   comentarios: 0,
   src: "s",

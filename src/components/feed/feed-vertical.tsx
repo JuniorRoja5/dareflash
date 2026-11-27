@@ -15,6 +15,8 @@ import { ReproductorHls } from "@/components/ui/reproductor-hls";
 import type { PostFeed } from "@/server/services/feed";
 import type { PiezaEntregada } from "@/server/services/publicidad-entrega";
 
+import { nombreDeCategoria } from "@/textos/categoria";
+
 import { ComentariosVideo } from "./comentarios-video";
 import { formatearContador } from "./feed-datos";
 import { PiezaFeed } from "./pieza-feed";
@@ -178,6 +180,7 @@ function PostInicio({
   onComentar: () => void;
 }) {
   const t = useTextos("feed");
+  const tcat = useTextos("categorias");
   // Snapshot del mute efectivo en la fase de CAPTURA del pointerdown (root->botón), ANTES de que el
   // listener del contenedor (fase de burbuja) desbloquee el audio y flipe `mutedEfectivo`. Sin esto,
   // si el PRIMER gesto es el botón, el onClick leería el estado ya cambiado y mutearía en vez de sonar.
@@ -256,11 +259,11 @@ function PostInicio({
             />
           </div>
           <p className="mt-1 line-clamp-2 text-sm text-white/90">
-            {t("reto", { titulo: post.retoTitulo })}
+            {t("reto", { titulo: post.retoTitulo ?? t("videoSinTitulo") })}
           </p>
-          {post.categoria ? (
+          {post.categoriaClave ? (
             <div className="mt-2">
-              <PildoraCategoria>{post.categoria}</PildoraCategoria>
+              <PildoraCategoria>{nombreDeCategoria(tcat, post.categoriaClave)}</PildoraCategoria>
             </div>
           ) : null}
         </div>
@@ -383,6 +386,7 @@ function PanelComentarios({
 }) {
   const { idioma } = useFormato();
   const t = useTextos("feed");
+  const tcat = useTextos("categorias");
   return (
     <aside className="hidden border-l border-line bg-surface shadow-[var(--df-shadow-lg)] lg:flex lg:h-[100svh] lg:flex-col lg:overflow-hidden">
       <div className="border-b border-line p-4">
@@ -401,10 +405,12 @@ function PanelComentarios({
           claseHandle="text-sm text-text-dim"
         />
         <p className="mt-1 line-clamp-2 text-sm text-text-dim">
-          {t("reto", { titulo: post.retoTitulo })}
+          {t("reto", { titulo: post.retoTitulo ?? t("videoSinTitulo") })}
         </p>
         <div className="mt-2 flex items-center gap-2">
-          {post.categoria ? <PildoraCategoria>{post.categoria}</PildoraCategoria> : null}
+          {post.categoriaClave ? (
+            <PildoraCategoria>{nombreDeCategoria(tcat, post.categoriaClave)}</PildoraCategoria>
+          ) : null}
           <span className="text-2xs tabular-nums text-text-dim">
             {t("resumen", {
               votos: formatearContador(post.votos, idioma),

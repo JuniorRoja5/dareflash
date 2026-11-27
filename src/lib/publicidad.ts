@@ -417,3 +417,25 @@ export function clicsPorCienVistas(vistas: number, clics: number): number | null
   if (vistas <= 0) return null;
   return Math.round((clics / vistas) * 1000) / 10;
 }
+
+/**
+ * LA ZONA DE UNA CAMPAÑA, como DATO (P5b3): el servicio dice cuál es; la frase («Madrid y 100 km
+ * alrededor», «Todo el mundo») la compone quien la pinta, en su idioma (`textoZonaCampana` de
+ * `textos/publicidad`). Los nombres (ciudad, región) son datos de GeoNames y los países van por su
+ * código ISO: su nombre lo da `nombrePais` en el idioma de quien mira.
+ */
+export type ZonaCampana =
+  | { alcance: "CIUDAD"; ciudad: string | null }
+  | { alcance: "ESTADO"; region: string }
+  | { alcance: "PAIS"; paises: string[] }
+  | { alcance: "GLOBAL" };
+
+/**
+ * El NOMBRE de una zona dentro de una frase de la estimación («no hay datos de {zona}»), como DATO: un
+ * nombre propio, unos países, «esta zona» o «todo el mundo». Lo compone `nombreDeZona`.
+ */
+export type NombreDeZona =
+  | { tipo: "nombre"; nombre: string }
+  | { tipo: "paises"; paises: string[] }
+  | { tipo: "esta" }
+  | { tipo: "global" };

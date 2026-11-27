@@ -26,7 +26,6 @@
  * REINTENTA ante el 1020 de MariaDB (conflicto de instantánea) y el 1213 (deadlock): la transacción
  * fallida se deshace entera y reintentar es repetir la misma intención. Si se agotan, el error sube.
  */
-import { mensajeApi, type ClaveApi, type MensajeApi } from "@/textos/mensaje-api";
 import "server-only";
 
 import { randomUUID } from "node:crypto";
@@ -38,7 +37,7 @@ import {
   type EstadoEmpresa,
   type EstadoPublicidad,
   type EstadoVisiblePublicidad,
-  MSG_MOTIVO_RETIRADA_PUBLICIDAD,
+  type MotivoRetiradaPublicidad,
   PUBLICIDAD_DESTINO_MAX,
   PUBLICIDAD_DIAS_MAX,
   PUBLICIDAD_DIAS_MIN,
@@ -61,7 +60,6 @@ import {
 } from "@/lib/cursor-tiempo";
 import { puedeComprarAlcance, puedeOperarEmpresa, tipoNegocioDe } from "@/lib/empresa";
 import type { Ubicacion } from "@/lib/geo";
-import { nombrePais } from "@/lib/paises";
 import {
   type CampanaEnReparto,
   type GrupoEspectadores,
@@ -77,9 +75,14 @@ import {
   sumarDias,
   tarifaPorDia,
   zonasDeCampana,
+  type NombreDeZona,
+  type ZonaCampana,
 } from "@/lib/publicidad";
 import type { Db } from "@/server/db/types";
 import { ciudadesEnRadio } from "@/server/geo/ubicacion";
+import { textosEnCastellano } from "@/textos/diccionarios";
+import { mensajeApi, type ClaveApi, type MensajeApi } from "@/textos/mensaje-api";
+import { textoZonaCampana } from "@/textos/publicidad";
 
 import { aforoEnCascada, medianasAforo } from "./aforo";
 import { saldoCreditosEmpresa } from "./creditos";
@@ -167,7 +170,7 @@ export const campanaSchema = z.object({
     .number()
     .int()
     .min(PUBLICIDAD_DIAS_MIN)
-    .max(PUBLICIDAD_DIAS_MAX, `Como mucho ${PUBLICIDAD_DIAS_MAX} días por campaña.`),
+    .max(PUBLICIDAD_DIAS_MAX, "campanaMaxDias" satisfies ClaveApi),
 });
 export type DatosCampana = z.infer<typeof campanaSchema>;
 
@@ -918,7 +921,8 @@ export interface CampanaDeEmpresa {
   nombre: string;
   estado: EstadoVisiblePublicidad;
   alcance: AlcancePublicidad;
-  zona: string;
+  /** La zona como DATO (P5b3): la frase la compone el portal en su idioma (`textoZonaCampana`). */
+  zona: ZonaCampana;
   texto: string;
   destinoUrl: string;
   imagen: string | null;
@@ -933,10 +937,11 @@ export interface CampanaDeEmpresa {
   creditosPorDia: number;
   creadaMs: number;
   /**
-   * P8: POR QUÉ LA RETIRÓ EL EQUIPO, ya en humano (de la lista cerrada); `null` si no está retirada. La
-   * NOTA interna y QUIÉN la firmó no salen nunca de aquí: el select ni siquiera las pide.
+   * P8: POR QUÉ LA RETIRÓ EL EQUIPO, como CLAVE validada de la lista cerrada (P5b3: la frase la pone
+   * el portal en su idioma, `publicidad.motivoRetirada_<MOTIVO>`); `null` si no está retirada. La NOTA
+   * interna y QUIÉN la firmó no salen nunca de aquí: el select ni siquiera las pide.
    */
-  motivoRetirada: string | null;
+  motivoRetirada: MotivoRetiradaPublicidad | null;
 }
 
 const SELECT_CAMPANA = {
@@ -1018,20 +1023,34 @@ export async function nombresDeEstados(
  * («Valencia», «Valencia»), y una lista que dice «Valencia» en dos campañas distintas obliga a abrir las
  * dos para saber cuál es la región. Por eso cada alcance lleva su apellido.
  */
+export function zonaDeCampana(
+  f: Pick<FilaCampana, "alcance" | "estadoCodigo" | "ciudad" | "paises">,
+  estados: Map<string, string>,
+): ZonaCampana {
+  switch (f.alcance as AlcancePublicidad) {
+    case "CIUDAD":
+      return { alcance: "CIUDAD", ciudad: f.ciudad?.nombre ?? null };
+    case "ESTADO":
+      return {
+        alcance: "ESTADO",
+        region: estados.get(f.estadoCodigo ?? "") ?? f.estadoCodigo ?? "",
+      };
+    case "PAIS":
+      return { alcance: "PAIS", paises: f.paises.map((p) => p.paisIso) };
+    case "GLOBAL":
+      return { alcance: "GLOBAL" };
+  }
+}
+
+/**
+ * La zona en CASTELLANO, para el panel (que no se traduce): la MISMA redacción que el portal
+ * (`textoZonaCampana`), compuesta con el diccionario en castellano.
+ */
 export function zonaLegible(
   f: Pick<FilaCampana, "alcance" | "estadoCodigo" | "ciudad" | "paises">,
   estados: Map<string, string>,
 ): string {
-  switch (f.alcance as AlcancePublicidad) {
-    case "CIUDAD":
-      return `${f.ciudad?.nombre ?? "Ciudad"} y 100 km alrededor`;
-    case "ESTADO":
-      return `${estados.get(f.estadoCodigo ?? "") ?? f.estadoCodigo ?? ""} (toda la región)`;
-    case "PAIS":
-      return f.paises.map((p) => nombrePais(p.paisIso)).join(", ");
-    case "GLOBAL":
-      return "Todo el mundo";
-  }
+  return textoZonaCampana(textosEnCastellano("campanaComun"), zonaDeCampana(f, estados), "es");
 }
 
 function aDto(
@@ -1049,7 +1068,7 @@ function aDto(
       f.ocultoAutoEn !== null,
     ),
     alcance: f.alcance as AlcancePublicidad,
-    zona: zonaLegible(f, estados),
+    zona: zonaDeCampana(f, estados),
     texto: f.texto,
     destinoUrl: f.destinoUrl,
     imagen: f.imagen,
@@ -1063,7 +1082,7 @@ function aDto(
     creadaMs: f.createdAt.getTime(),
     motivoRetirada: (() => {
       const m = MotivoRetiradaPublicidadSchema.safeParse(f.retiradaMotivo);
-      return estado === "RETIRADA" && m.success ? MSG_MOTIVO_RETIRADA_PUBLICIDAD[m.data] : null;
+      return estado === "RETIRADA" && m.success ? m.data : null;
     })(),
   };
 }
@@ -1155,9 +1174,9 @@ export type Estimacion =
   /** Hay tráfico medido en la zona: «unas N personas al día» (N puede ser 0 = menos de una). */
   | { tipo: "zona"; personas: number }
   /** La zona no tiene tráfico medido: la cifra de un nivel más amplio DE SU ESPACIO, diciendo cuál. */
-  | { tipo: "respaldo"; zonaSinDatos: string; nivelNombre: string; personas: number }
+  | { tipo: "respaldo"; zonaSinDatos: NombreDeZona; nivelNombre: NombreDeZona; personas: number }
   /** Ni la zona ni sus niveles: se dice, y no se ofrece la compra como si hubiera datos. */
-  | { tipo: "sin-datos"; zonaSinDatos: string };
+  | { tipo: "sin-datos"; zonaSinDatos: NombreDeZona };
 
 interface CampanaParaEstimar {
   id: string;
@@ -1323,10 +1342,12 @@ async function respaldoDe(
   db: Db,
   c: CampanaParaEstimar,
 ): Promise<{
-  zonaNombre: string;
-  cascada: { nivel: "ESTADO" | "PAIS" | "GLOBAL"; zona: string; nombre: string }[];
+  zonaNombre: NombreDeZona;
+  cascada: { nivel: "ESTADO" | "PAIS" | "GLOBAL"; zona: string; nombre: NombreDeZona }[];
 }> {
-  let zonaNombre = "esta zona";
+  // Los NOMBRES, como dato (P5b3): las palabras («esta zona», «todo el mundo») y los países las pone
+  // el portal en su idioma (`nombreDeZona`).
+  let zonaNombre: NombreDeZona = { tipo: "esta" };
   let pais: string | null = null;
   let estado: { codigo: string; nombre: string } | null = null;
   if (c.alcance === "CIUDAD" && c.ciudadId !== null) {
@@ -1334,26 +1355,30 @@ async function respaldoDe(
       where: { id: c.ciudadId },
       select: { nombre: true, paisIso: true, estadoCodigo: true, estadoNombre: true },
     });
-    zonaNombre = x?.nombre ?? zonaNombre;
+    zonaNombre = x?.nombre ? { tipo: "nombre", nombre: x.nombre } : zonaNombre;
     pais = x?.paisIso ?? null;
     estado = x?.estadoCodigo
       ? { codigo: x.estadoCodigo, nombre: x.estadoNombre ?? x.estadoCodigo }
       : null;
   } else if (c.alcance === "ESTADO" && c.estadoCodigo) {
     const nombres = await nombresDeEstados(db, [c.estadoCodigo]);
-    zonaNombre = nombres.get(c.estadoCodigo) ?? c.estadoCodigo;
+    zonaNombre = { tipo: "nombre", nombre: nombres.get(c.estadoCodigo) ?? c.estadoCodigo };
     pais = c.estadoCodigo.split(".")[0] ?? null;
   } else if (c.alcance === "PAIS") {
-    zonaNombre = c.paises.map((p) => nombrePais(p)).join(", ");
+    zonaNombre = { tipo: "paises", paises: [...c.paises] };
   } else {
-    zonaNombre = "todo el mundo";
+    zonaNombre = { tipo: "global" };
   }
-  type Nivel = { nivel: "ESTADO" | "PAIS" | "GLOBAL"; zona: string; nombre: string };
+  type Nivel = { nivel: "ESTADO" | "PAIS" | "GLOBAL"; zona: string; nombre: NombreDeZona };
   const cascada = nivelesDeRespaldo(c.alcance).flatMap((nivel): Nivel[] => {
     if (nivel === "ESTADO")
-      return estado ? [{ nivel, zona: estado.codigo, nombre: estado.nombre }] : [];
-    if (nivel === "PAIS") return pais ? [{ nivel, zona: pais, nombre: nombrePais(pais) }] : [];
-    return [{ nivel, zona: ZONA_GLOBAL, nombre: "todo el mundo" }];
+      return estado
+        ? [{ nivel, zona: estado.codigo, nombre: { tipo: "nombre", nombre: estado.nombre } }]
+        : [];
+    if (nivel === "PAIS") {
+      return pais ? [{ nivel, zona: pais, nombre: { tipo: "paises", paises: [pais] } }] : [];
+    }
+    return [{ nivel, zona: ZONA_GLOBAL, nombre: { tipo: "global" } }];
   });
   return { zonaNombre, cascada };
 }
@@ -1398,7 +1423,10 @@ export async function estimarPublicidad(
     ahora,
   );
   if (!encontrado) return { tipo: "sin-datos", zonaSinDatos: zonaNombre };
-  const nombre = cascada.find((z) => z.nivel === encontrado.nivel)?.nombre ?? "";
+  const nombre: NombreDeZona = cascada.find((z) => z.nivel === encontrado.nivel)?.nombre ?? {
+    tipo: "nombre",
+    nombre: "",
+  };
   return {
     tipo: "respaldo",
     zonaSinDatos: zonaNombre,

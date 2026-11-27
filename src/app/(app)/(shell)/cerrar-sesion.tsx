@@ -3,7 +3,7 @@
 import { useTextos } from "@/components/textos-provider";
 import { Boton } from "@/components/ui/boton";
 
-import { useCerrarSesion } from "./usar-cerrar-sesion";
+import { useCerrarSesion, useFrasesSalir } from "./usar-cerrar-sesion";
 
 /**
  * Botón "Cerrar sesión" para /perfil (mi perfil) — la vía que alcanza el MÓVIL (la barra superior es
@@ -12,7 +12,7 @@ import { useCerrarSesion } from "./usar-cerrar-sesion";
  */
 export function CerrarSesion({ className = "" }: { className?: string }) {
   const t = useTextos("cuenta");
-  const { salir, cargando, error } = useCerrarSesion();
+  const { salir, cargando, error } = useCerrarSesion(useFrasesSalir());
   return (
     <div className={className}>
       <Boton

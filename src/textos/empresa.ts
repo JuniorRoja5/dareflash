@@ -13,6 +13,7 @@ import {
   SOCIO_FUNDADOR_HASTA_ISO,
   type EstadoEmpresa,
   type MotivoRechazoEmpresa,
+  type RazonCredito,
   type TipoCuentaEmpresa,
   type TipoNegocio,
 } from "@/config/constants";
@@ -70,3 +71,12 @@ export const tipoNegocio = (t: T, n: TipoNegocio | null) =>
   n ? t(`tipoNegocio_${n}`) : t("tipoNegocioSinClasificar");
 export const estadoEmpresa = (t: T, e: EstadoEmpresa) => t(`estado_${e}`);
 export const motivoRechazo = (t: T, m: MotivoRechazoEmpresa) => t(`motivo_${m}`);
+
+/** El concepto de un movimiento de créditos en el idioma de `t` (P5b3). */
+export function conceptoDeCredito(
+  t: FuncionT<Textos["creditosEmpresa"]>,
+  c: { razon: RazonCredito | null; campana: string | null },
+): string {
+  const etiqueta = c.razon ? t(`razon_${c.razon}`) : t("razonDesconocida");
+  return c.campana ? t("conceptoConCampana", { etiqueta, campana: c.campana }) : etiqueta;
+}

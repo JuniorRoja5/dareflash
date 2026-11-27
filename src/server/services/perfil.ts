@@ -355,7 +355,7 @@ const bioSchema = z
   .pipe(
     z
       .string()
-      .max(BIO_MAX, `La biografía no puede pasar de ${BIO_MAX} caracteres.`)
+      .max(BIO_MAX, "perfilBioLarga" satisfies ClaveApi)
       .refine(sinControles, "perfilBioCaracteres" satisfies ClaveApi),
   )
   .transform((s) => s || null);
@@ -365,7 +365,7 @@ const websiteSchema = z
   .transform((s) => s.trim())
   .pipe(z.union([z.literal(""), urlHttp]))
   // Tope = ancho de columna (VARCHAR(191)): sin el, una URL válida larga reventaría en la BD (500).
-  .pipe(z.string().max(WEBSITE_MAX, `El sitio web no puede pasar de ${WEBSITE_MAX} caracteres.`))
+  .pipe(z.string().max(WEBSITE_MAX, "perfilWebLarga" satisfies ClaveApi))
   .transform((s) => s || null);
 
 const instagramSchema = z

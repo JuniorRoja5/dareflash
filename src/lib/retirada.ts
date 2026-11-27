@@ -1,8 +1,6 @@
 import {
   AJUSTE_NOTA_MAX,
   AJUSTE_NOTA_MIN,
-  FRASE_RECHAZO,
-  FRASE_RECHAZO_DESCONOCIDO,
   MOTIVO_RECHAZO_LIBRE,
   RETIRADA_MINIMA_CENTS,
   type MetodoRetirada,
@@ -263,28 +261,38 @@ export function validarMotivoRechazo(
 }
 
 /**
- * LA FRASE QUE LEE LA PERSONA. La pone el copy, no la fila: la fila guarda la CLAVE, así que
- * reescribir el texto reescribe también los rechazos antiguos en vez de congelarlos.
+ * LO QUE SE LE DICE A LA PERSONA de un rechazo, como DATO (P5b3; antes `fraseDeRechazo` devolvía la
+ * frase). La pone el copy, no la fila: la fila guarda la CLAVE, así que reescribir el texto reescribe
+ * también los rechazos antiguos en vez de congelarlos. La frase la compone quien la pinta, en su idioma
+ * (`cobros.rechazo_<MOTIVO>` del diccionario; el panel, `FRASE_RECHAZO`, y un test exige que digan lo
+ * mismo).
  *
- * FAIL-OPEN, y es deliberado (mismo criterio que `nivelDeClave`): una clave que ya no existe —una
- * renombrada sin migrar, una fila de antes de que esto existiera— cae en una frase genérica honesta
- * en lugar de dejar un hueco o reventar la pantalla de alguien que no ha cobrado. Lo que impide que
- * se llegue a eso es el guard que exige que toda clave elegible tenga su frase; esto es la red de
- * abajo, no el permiso.
+ * FAIL-OPEN, y es deliberado (mismo criterio que `nivelDeClave`), y sigue ocurriendo en UN sitio, aquí:
+ * una clave que ya no existe —una renombrada sin migrar, una fila de antes de que esto existiera— sale
+ * como `desconocido`, que tiene su frase genérica honesta, en lugar de dejar un hueco o reventar la
+ * pantalla de alguien que no ha cobrado. Lo que viaja es SIEMPRE una de estas tres formas: nunca una
+ * clave cruda de la fila. El texto libre del equipo (solo con el motivo libre) se enseña tal cual: lo
+ * escribió una persona.
  */
-export function fraseDeRechazo(
+export type RechazoParaMostrar =
+  | { tipo: "texto"; texto: string }
+  | { tipo: "motivo"; motivo: MotivoRechazo }
+  | { tipo: "desconocido" };
+
+export function rechazoParaMostrar(
   motivo: string | null | undefined,
   texto?: string | null,
-): string | null {
+): RechazoParaMostrar | null {
   if (!motivo) return null;
   // El texto solo manda cuando el motivo ES el libre: si una clave de la lista trajera texto (una
   // fila vieja, un arreglo a mano), se enseña su frase, que es la que está revisada.
   if (motivo === MOTIVO_RECHAZO_LIBRE) {
     const limpio = (texto ?? "").trim();
-    if (limpio.length > 0) return limpio;
+    if (limpio.length > 0) return { tipo: "texto", texto: limpio };
   }
-  const frase = FRASE_RECHAZO[motivo as MotivoRechazo];
-  return frase ?? FRASE_RECHAZO_DESCONOCIDO;
+  return esUnoDe(VALORES_MOTIVO_RECHAZO, motivo)
+    ? { tipo: "motivo", motivo }
+    : { tipo: "desconocido" };
 }
 
 /**

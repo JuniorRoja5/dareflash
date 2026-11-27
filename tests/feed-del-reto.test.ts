@@ -49,7 +49,7 @@ const PARTICIPACION = {
   autorVip: false,
   colorNombre: null,
 };
-const RETO = { titulo: "Reto de fitness", categoria: "Fitness" };
+const RETO = { titulo: "Reto de fitness", categoriaClave: "fitness" };
 const URLS = { src: "https://x/playlist.m3u8", poster: "https://x/thumb.jpg" };
 
 describe("el ítem tiene la MISMA forma que el que pinta el feed", () => {
@@ -63,7 +63,7 @@ describe("el ítem tiene la MISMA forma que el que pinta el feed", () => {
       puntos: 0,
       username: "ana",
       retoTitulo: "Reto de fitness",
-      categoria: "Fitness",
+      categoriaClave: "fitness",
       votos: 42,
       comentarios: 3,
       likes: 0,

@@ -19,6 +19,7 @@
  * absolución (rojo el de la inmunidad); poner la nota en el correo (rojo); no reanudar al absolver, o no
  * vaciar la caché después (rojo el de la zona libre); quitar el SAVEPOINT (rojo el de la zona llena).
  */
+import { es } from "@/textos/es";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { CREDITOS_POR_DIA } from "../src/config/constants";
@@ -393,7 +394,9 @@ describe("retirar", () => {
     // El portal: estado y motivo; la nota no existe en su DTO.
     const enPortal = await miPublicidad(prisma, c.empresaId, c.id, AHORA);
     expect(enPortal?.estado).toBe("RETIRADA");
-    expect(enPortal?.motivoRetirada).toContain("no es seguro");
+    // El motivo viaja como CLAVE validada (P5b3); su frase, en el diccionario.
+    expect(enPortal?.motivoRetirada).toBe("DESTINO_PELIGROSO");
+    expect(es.publicidad.motivoRetirada_DESTINO_PELIGROSO).toContain("no es seguro");
     expect(JSON.stringify(enPortal)).not.toContain("Traza interna");
     // El panel sí ve la nota.
     expect((await fichaPublicidadPanel(prisma, c.id, AHORA))?.retirada?.nota).toContain(

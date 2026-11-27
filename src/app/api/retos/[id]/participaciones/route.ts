@@ -45,7 +45,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const { getCurrentUser } = await import("@/server/auth/current-user");
   const { listarParticipacionesVisibles } = await import("@/server/services/participaciones-lista");
   const { firmarReproduccion } = await import("@/server/services/reproduccion-servidor");
-  const { nombreCategoria } = await import("@/lib/categorias");
   const { postDeParticipacion } = await import("@/lib/post-de-participacion");
   const { sanearError } = await import("@/server/observability/sanitize-error");
 
@@ -66,7 +65,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       userId: usuario?.userId ?? null,
     });
 
-    const contexto = { titulo: reto.title, categoria: nombreCategoria(reto.category) };
+    // La categoría como CLAVE (P5b3): el nombre lo pone el feed en el idioma de quien mira.
+    const contexto = { titulo: reto.title, categoriaClave: reto.category };
 
     // El `bunnyVideoId` NO sale de aquí (es la referencia interna en Bunny): solo las URLs FIRMADAS y
     // el `videoId` de BD. Cada ítem viaja en DOS formas a la vez porque esta página alimenta a dos

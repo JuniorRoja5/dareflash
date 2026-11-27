@@ -8,7 +8,7 @@ import { Avatar } from "@/components/ui/avatar";
 
 import { itemsMenuCuenta } from "./cuenta-logica";
 import { useCerrarDesplegable } from "./usar-desplegable";
-import { useCerrarSesion } from "./usar-cerrar-sesion";
+import { useCerrarSesion, useFrasesSalir } from "./usar-cerrar-sesion";
 
 function IconoChevron() {
   return (
@@ -78,7 +78,7 @@ export function MenuCuenta({
   const ref = useRef<HTMLDivElement>(null);
   const cerrar = useCallback(() => setAbierto(false), []);
   useCerrarDesplegable(ref, abierto, cerrar);
-  const { salir, cargando, error } = useCerrarSesion();
+  const { salir, cargando, error } = useCerrarSesion(useFrasesSalir());
 
   const items = itemsMenuCuenta(usuario !== null, esCuentaEmpresa);
 

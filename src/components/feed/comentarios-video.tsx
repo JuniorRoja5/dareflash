@@ -60,6 +60,7 @@ export function ComentariosVideo({
 }) {
   const { idioma, zona } = useFormato();
   const t = useTextos("comentarios");
+  const tt = useTextos("tiempoRelativo");
   const ruta = usePathname();
   const [items, setItems] = useState<ComentarioVista[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -249,7 +250,7 @@ export function ComentariosVideo({
                       clase="font-medium text-text"
                     />{" "}
                     <span className="text-2xs text-text-dim">
-                      {haceCuanto(c.creadoMs, ahoraMs, idioma, zona)}
+                      {haceCuanto(tt, c.creadoMs, ahoraMs, idioma, zona)}
                     </span>
                   </p>
                   <p className="text-sm break-words whitespace-pre-line text-text-dim">{c.texto}</p>

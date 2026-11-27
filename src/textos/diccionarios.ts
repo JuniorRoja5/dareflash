@@ -12,6 +12,7 @@ import type { Idioma } from "@/lib/formato";
 import { IDIOMA_PSEUDO, type IdiomaDeTextos } from "@/lib/idioma-ruta";
 
 import { es } from "./es";
+import { crearT, type FuncionT } from "./plantilla";
 import { pseudoDiccionario } from "./pseudo";
 
 export type Textos = typeof es;
@@ -27,4 +28,12 @@ let pseudo: Textos | null = null;
 export function diccionario(idioma: IdiomaDeTextos): Textos {
   if (idioma === IDIOMA_PSEUDO) return (pseudo ??= pseudoDiccionario(es));
   return DICCIONARIOS[idioma];
+}
+
+/**
+ * La `t` de un espacio en CASTELLANO FIJO, para lo que redacta el servidor para el PANEL (que no se
+ * traduce) con la misma frase que el resto de la app (la zona de una campaña, P5b3).
+ */
+export function textosEnCastellano<N extends NombreEspacio>(espacio: N): FuncionT<Textos[N]> {
+  return crearT(diccionario("es")[espacio], "es");
 }

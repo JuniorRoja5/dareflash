@@ -50,6 +50,7 @@ export const es = conMarcasConocidas({
     cerrarSesion: "Cerrar sesión",
     /** El nombre de la barra cuando la cuenta no tiene ni nombre ni handle (no debería pasar). */
     nombreSinNombre: "Tú",
+    errorSalir: "No hemos podido cerrar la sesión. Reinténtalo.",
   },
   /** El CTA principal (`ctaPrincipal` dice cuál). «Crear reto» es solo del admin: ver `cta-principal`. */
   cta: {
@@ -137,6 +138,27 @@ export const es = conMarcasConocidas({
   anuncio: {
     imagenNoCarga: "La imagen no se ha podido cargar.",
     pestanaNueva: "Se abre en una pestaña nueva.",
+    /**
+     * LO QUE DICE UNA PIEZA (P5b3; antes, constantes en el servicio): la etiqueta, el botón de una
+     * campaña y el anuncio de la casa de cada espacio. Lo pone quien construye la pieza con la `t` de
+     * quien mira (`palabras` de `publicidad-entrega`). El texto de una campaña lo escribe la empresa.
+     * EL ANUNCIO DE LA CASA: el hueco vacío sirve para llenarse a sí mismo. Invita a anunciarse, nunca
+     * vende VIP («quita los anuncios» dentro de un anuncio se lee como presión). A una empresa —que ya
+     * está registrada— la lleva a su sección de Publicidad, no al alta (`ANUNCIO_CASA_DESTINO`).
+     */
+    etiqueta_campana: "Publicidad",
+    etiqueta_casa: "De {marca}",
+    ctaCampana: "Visitar",
+    casa_LOCAL_titulo: "¿Tienes un negocio en tu ciudad?",
+    casa_LOCAL_texto: {
+      one: "Anúnciate aquí y te verá la gente de tu zona. Desde {n} crédito de publicidad al día.",
+      other:
+        "Anúnciate aquí y te verá la gente de tu zona. Desde {n} créditos de publicidad al día.",
+    },
+    casa_LOCAL_cta: "Anúnciate aquí",
+    casa_GLOBAL_titulo: "Llega a gente de todo el país",
+    casa_GLOBAL_texto: "Tu marca, entre los vídeos de quienes compiten en {marca}.",
+    casa_GLOBAL_cta: "Anúnciate aquí",
   },
   /**
    * Las MARCAS que salen junto a un nombre en cualquier pantalla (y en el panel): la de VIP, la de
@@ -190,6 +212,24 @@ export const es = conMarcasConocidas({
   carga: {
     cargando: "Cargando…",
   },
+  /**
+   * «Hace X» de un aviso o un comentario (`haceCuanto`, P5b3): la pieza elige la unidad; aquí, las
+   * palabras. Va en el armazón: lo pintan la campana, los comentarios y /notificaciones.
+   */
+  tiempoRelativo: {
+    ahora: "Ahora",
+    minutos: "Hace {n} min",
+    horas: "Hace {n} h",
+    dias: "Hace {n} d",
+  },
+  /**
+   * Las dos frases de error que dicen igual todas las pantallas (`motivoDeError`, P5b3): el límite de
+   * intentos y el servicio ocupado. Va en el armazón y en /entrar.
+   */
+  errorComun: {
+    limite: "Demasiados intentos, espera un momento.",
+    ocupado: "El servicio está ocupado. Reinténtalo en unos segundos.",
+  },
   /** Cuándo se reinician los contadores diarios (Boost, toques): `textos/reinicio-diario`. */
   reinicioDiario: {
     frase: "El contador se reinicia {cuando}.",
@@ -236,6 +276,8 @@ export const es = conMarcasConocidas({
     videoAnterior: "Vídeo anterior",
     videoSiguiente: "Vídeo siguiente",
     cerrarAviso: "Cerrar aviso",
+    /** El título de un vídeo sin reto ni título propio (P5b3: antes lo escribía el servicio). */
+    videoSinTitulo: "Vídeo",
   },
   comentarios: {
     yaNoEsta: "Ese comentario ya no está.",
@@ -519,6 +561,9 @@ export const es = conMarcasConocidas({
     reenviar: "Reenviar el correo de verificación",
     entrando: "Entrando…",
     olvidada: "He olvidado mi contraseña",
+    /** Las frases de `motivoDeError` para el login (P5b3; antes `MSG_LOGIN`). */
+    errorValidacion: "Revisa el correo y la contraseña.",
+    errorCredenciales: "Correo o contraseña incorrectos.",
   },
   registro: {
     errorConexion: "No se pudo crear la cuenta. Reintenta.",
@@ -532,6 +577,9 @@ export const es = conMarcasConocidas({
     teEnviaremos: "Te enviaremos un correo para verificar tu cuenta.",
     edadMinima: "Tienes que ser mayor de edad para registrarte.",
     revisaCorreo: "Revisa tu correo. Te hemos enviado un mensaje para continuar con tu registro.",
+    /** La frase de `motivoDeError` cuando el registro no valida (antes `MSG_REGISTRO`). */
+    errorValidacion:
+      "Revisa el correo, una contraseña de 10+ caracteres (larga y poco predecible) y que tengas al menos 16 años.",
   },
   recuperar: {
     titulo: "Recuperar contraseña",
@@ -642,6 +690,7 @@ export const es = conMarcasConocidas({
     sinResultados: "Sin resultados para «{termino}».",
     cargando: "Cargando…",
     cargarMas: "Cargar más",
+    errorGenerico: "No hemos podido buscar ahora mismo. Reinténtalo.",
   },
   /** /destacados, la vitrina de Boost (servidor). */
   destacados: {
@@ -721,6 +770,28 @@ export const es = conMarcasConocidas({
     conProgreso: "{estado} {porcentaje} %",
     reintentar: "Reintentar",
     publicar: "Publicar",
+    /**
+     * Lo que dice cada ESTADO de la subida (P5b3: antes `copySubida`). Los dos de codificación los
+     * repite el aviso de la campana (`COPY_SUBIDA` de `lib/estado-subida`, con su inglés): un test
+     * exige que digan exactamente lo mismo.
+     */
+    estado_preparando: "Preparando la subida…",
+    estado_subiendo: "Subiendo tu vídeo…",
+    "estado_en-cola":
+      "Vídeo subido y a salvo. Está en cola para prepararse; aparecerá en tu perfil cuando esté listo.",
+    estado_listo: "Listo. Tu vídeo ya se puede ver.",
+    "estado_sin-conexion":
+      "No se pudo conectar para subir el vídeo. Revisa tu conexión e inténtalo de nuevo.",
+    estado_corte: "La subida se cortó a mitad. Tu conexión funciona, así que vuelve a intentarlo.",
+    estado_credencial:
+      "El permiso de subida ha caducado. Vuelve a pulsar Publicar para empezar de nuevo.",
+    estado_rechazo: "No se aceptó este vídeo. Prueba con otro fichero o con otro formato.",
+    "estado_servidor-ocupado":
+      "El servicio de vídeo no está respondiendo ahora mismo. No es cosa tuya: inténtalo en unos minutos.",
+    "estado_fallo-codificacion":
+      "Tu vídeo no se pudo preparar y no llegará a publicarse. Sube otro para participar.",
+    "estado_demasiado-largo":
+      "Tu vídeo dura más de 90 segundos, así que no se ha publicado. Recórtalo y súbelo otra vez.",
   },
 
   // ── Puntos y referidos (P5b2a, servidor) ─────────────────────────────────────────────────────────
@@ -894,7 +965,7 @@ export const es = conMarcasConocidas({
     rechazadaEl: "Rechazada el",
     ultimaActualizacion: "Última actualización",
     devuelto: "{importe} {resaltado:· devuelto a tu saldo}",
-    /** El motivo llega YA en la frase del servidor (`fraseDeRechazo`); aquí solo se resalta. */
+    /** El motivo, ya compuesto (`rechazo_*`, o el texto del equipo); aquí solo se resalta. */
     conMotivo: "{resaltado:{motivo}} El importe volvió entero a tu monedero.",
     sinMotivo:
       "No hemos podido completar este cobro y el importe volvió entero a tu monedero. Si no sabes por qué se rechazó, escríbenos.",
@@ -931,6 +1002,18 @@ export const es = conMarcasConocidas({
     hecho: "Solicitud registrada. El importe ya ha salido de tu saldo y el equipo la revisará.",
     enviando: "Enviando…",
     pedir: "Pedir cobro",
+    /**
+     * POR QUÉ SE RECHAZÓ UN COBRO, por su clave (`rechazoParaMostrar`, P5b3). El panel dice lo mismo
+     * con `FRASE_RECHAZO` (no se traduce): un test exige que sean idénticas.
+     */
+    rechazo_DATOS_BANCARIOS:
+      "No pudimos completar la transferencia con esos datos bancarios. Comprueba el IBAN y el titular, y guarda el método otra vez.",
+    rechazo_CUENTA_NO_VERIFICADA:
+      "Necesitamos verificar tu cuenta antes de enviarte dinero. Escríbenos y te decimos qué hace falta.",
+    rechazo_SOSPECHA_FRAUDE:
+      "Hemos parado este cobro mientras revisamos la actividad de la cuenta. Escríbenos y lo vemos contigo.",
+    rechazo_OTRO: "No hemos podido completar este cobro.",
+    rechazoDesconocido: "No hemos podido completar este cobro.",
   },
 
   // ── VIP y Boost (P5b2a) ──────────────────────────────────────────────────────────────────────────
@@ -1285,6 +1368,17 @@ export const es = conMarcasConocidas({
     columnaCreditos: "Créditos",
     /** «Recibo», nunca «Factura». */
     recibo: "Recibo",
+    /**
+     * EL CONCEPTO de un movimiento, por su RAZÓN (`conceptoDeCredito`, P5b3). El panel dice lo mismo con
+     * `ETIQUETA_MOVIMIENTO_CREDITO`: un test exige que sean idénticas.
+     */
+    razon_SOCIO_FUNDADOR: "Regalo de Socio Fundador",
+    razon_AJUSTE_ADMIN: "Ajuste del equipo de {marca}",
+    razon_CONSUMO: "Un día de campaña",
+    razon_DEVOLUCION: "Devolución de un día de campaña",
+    razon_COMPRA: "Compra de créditos",
+    razonDesconocida: "Movimiento",
+    conceptoConCampana: "{etiqueta} · «{campana}»",
   },
   /** La compra de créditos (cliente). */
   creditosCompra: {
@@ -1337,6 +1431,34 @@ export const es = conMarcasConocidas({
     inicioCapital: "Cada día de campaña empieza {cuando}, hora de {capital}.",
     inicioCapitalVispera:
       "Cada día de campaña empieza {cuando} del día anterior, hora de {capital}.",
+    /**
+     * LA ZONA de una campaña (`textoZonaCampana`, P5b3; antes la redactaba el servicio). El panel dice
+     * lo mismo en castellano, con la misma función. Y el nombre de una zona dentro de una frase de la
+     * estimación (`nombreDeZona`).
+     */
+    zonaCiudad: "{ciudad} y 100 km alrededor",
+    zonaCiudadSinNombre: "Ciudad",
+    zonaRegion: "{region} (toda la región)",
+    zonaGlobal: "Todo el mundo",
+    zonaEsta: "esta zona",
+    zonaGlobalEnFrase: "todo el mundo",
+    /** La capital de cada país con VARIAS zonas (`PAISES_CON_VARIAS_ZONAS`), cuya hora se usa. */
+    capital_AU: "Canberra",
+    capital_BR: "Brasilia",
+    capital_CA: "Ottawa",
+    capital_CD: "Kinsasa",
+    capital_CL: "Santiago",
+    capital_CN: "Pekín",
+    capital_ES: "Madrid",
+    capital_GE: "Tiflis",
+    capital_ID: "Yakarta",
+    capital_MN: "Ulán Bator",
+    capital_MX: "Ciudad de México",
+    capital_PG: "Port Moresby",
+    capital_PT: "Lisboa",
+    capital_RU: "Moscú",
+    capital_UA: "Kiev",
+    capital_US: "Washington",
   },
   /** /empresa/publicidad y la ficha de una campaña (servidor). */
   publicidad: {
@@ -1406,6 +1528,17 @@ export const es = conMarcasConocidas({
     costeBorrador: "{resaltado:{coste} créditos}",
     costeQuedan: "{resaltado:{coste} créditos} ({dias} días)",
     queHacer: "Qué quieres hacer",
+    /**
+     * POR QUÉ LA RETIRÓ EL EQUIPO, por su clave (P5b3; antes la frase venía del servicio). El panel y el
+     * correo dicen lo mismo con `MSG_MOTIVO_RETIRADA_PUBLICIDAD`: un test exige que sean idénticas.
+     */
+    motivoRetirada_ENGANOSA: "La campaña promete algo que no se corresponde con lo que ofrece.",
+    motivoRetirada_CONTENIDO_NO_PERMITIDO:
+      "La imagen o el texto incluyen contenido que no podemos mostrar.",
+    motivoRetirada_DESTINO_PELIGROSO:
+      "El enlace lleva a un sitio que no es seguro para quien lo pulse.",
+    motivoRetirada_INCUMPLE_NORMAS: "La campaña no cumple las normas de publicidad de {marca}.",
+    motivoRetirada_OTRO: "Hemos revisado la campaña y no podemos seguir mostrándola.",
   },
   /** /empresa/publicidad/nueva (servidor). */
   nuevaCampana: {
@@ -2097,5 +2230,12 @@ export const es = conMarcasConocidas({
     zonaLlenaEnFechas: "Esa zona ya tiene todas sus plazas ocupadas en esas fechas.",
     zonaLlenaProximosDias:
       "Esa zona tiene todas sus plazas ocupadas en los próximos días que se pueden reservar.",
+    propuestaSinLogo: "Hemos recibido tu propuesta, pero no pudimos guardar el logo.",
+    campanaMaxDias: "Como mucho {max} días por campaña.",
+    /** El nombre del producto en la página de pago de Stripe (lo lee quien paga). */
+    productoBoosts: { one: "{n} Boost", other: "{n} Boosts" },
+    productoCreditos: { one: "{n} crédito de publicidad", other: "{n} créditos de publicidad" },
+    perfilBioLarga: "La biografía no puede pasar de {max} caracteres.",
+    perfilWebLarga: "El sitio web no puede pasar de {max} caracteres.",
   },
 } as const);

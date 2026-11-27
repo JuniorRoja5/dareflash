@@ -11,7 +11,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  CAPITAL_DE_PAIS_CON_VARIAS_ZONAS,
+  PAISES_CON_VARIAS_ZONAS,
   ZONA_HORARIA_PAIS,
   horaLocalDeInicio,
   inicioLocalDelDia,
@@ -71,7 +71,7 @@ describe("la hora local a la que empieza un día de campaña", () => {
     for (const [pais, zona] of Object.entries(ZONA_HORARIA_PAIS)) {
       expect(() => new Intl.DateTimeFormat("es-ES", { timeZone: zona }), pais).not.toThrow();
     }
-    for (const pais of Object.keys(CAPITAL_DE_PAIS_CON_VARIAS_ZONAS)) {
+    for (const pais of PAISES_CON_VARIAS_ZONAS) {
       expect(ZONA_HORARIA_PAIS[pais], pais).toBeDefined();
     }
     expect(Object.keys(ZONA_HORARIA_PAIS).length).toBeGreaterThan(200);

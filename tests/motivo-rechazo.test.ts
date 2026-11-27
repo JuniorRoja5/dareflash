@@ -26,9 +26,23 @@ import { describe, expect, it } from "vitest";
 
 import { FRASE_RECHAZO, FRASE_RECHAZO_DESCONOCIDO, MOTIVO_RECHAZO_LIBRE } from "@/config/constants";
 import { MotivoRechazoSchema } from "@/config/esquemas";
-import { fraseDeRechazo, validarMotivoRechazo } from "../src/lib/retirada";
+import { es } from "@/textos/es";
+import { rechazoParaMostrar, validarMotivoRechazo } from "../src/lib/retirada";
 
 const TEXTO = "El banco nos devolvió la transferencia sin decir por qué";
+
+/**
+ * Lo que LEE la persona, compuesto igual que en el monedero (P5b3): el dato de `rechazoParaMostrar` y
+ * la frase de `cobros` del diccionario. Cada aserción de abajo lo compara con `FRASE_RECHAZO`, que es
+ * lo que dice el PANEL: así este fichero es también el test de que los dos dicen lo mismo.
+ */
+function fraseDeRechazo(motivo: string | null | undefined, texto?: string | null): string | null {
+  const r = rechazoParaMostrar(motivo, texto);
+  if (r === null) return null;
+  if (r.tipo === "texto") return r.texto;
+  if (r.tipo === "motivo") return es.cobros[`rechazo_${r.motivo}`];
+  return es.cobros.rechazoDesconocido;
+}
 
 describe("el motivo es obligatorio al rechazar", () => {
   it("sin motivo, con uno vacío o con uno que no está en la lista: no pasa", () => {

@@ -10,8 +10,9 @@
  * SIN EXCEPCIONES desde la P5b2b: la lista de zonas pendientes (`PENDIENTES_P5B2`) llegó a cero y se
  * retiró. Todo `.tsx` de `src/app` y `src/components` fuera de las zonas de abajo pasa el censo.
  *
- * Fuera del censo, a propósito: el panel (no se traduce), la API (P5b3) y las dos páginas internas de
- * desarrollo (`/style-guide`, `/reproduccion-test`).
+ * Fuera del censo, a propósito: el panel (no se traduce), la API (tiene el suyo desde la P5b3, por AST
+ * sobre los mensajes: `textos-api`) y las dos páginas internas de desarrollo (`/style-guide`,
+ * `/reproduccion-test`).
  *
  * Para romperlo: escribir `<p>Hola</p>` en cualquier componente de la app (rojo con el fichero).
  */

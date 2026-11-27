@@ -118,7 +118,7 @@ const campana = (cambios: Partial<CampanaDeEmpresa> = {}): CampanaDeEmpresa => (
   nombre: "Pan de masa madre",
   estado: "BORRADOR",
   alcance: "CIUDAD",
-  zona: "Sevilla y alrededores",
+  zona: { alcance: "CIUDAD", ciudad: "Sevilla" },
   texto: "El mejor pan del barrio",
   destinoUrl: "https://bar.test",
   imagen: null,
@@ -420,7 +420,12 @@ describe("/empresa/publicidad/[id]", () => {
     [
       "pausada con estimación de respaldo",
       { estado: "PAUSADA", inicioMs: HOY - 2 * DIA, finMs: HOY + 4 * DIA, diasTenidos: 3 },
-      { tipo: "respaldo", zonaSinDatos: "Sevilla", nivelNombre: "Andalucía", personas: 300 },
+      {
+        tipo: "respaldo",
+        zonaSinDatos: { tipo: "nombre", nombre: "Sevilla" },
+        nivelNombre: { tipo: "nombre", nombre: "Andalucía" },
+        personas: 300,
+      },
       false,
     ],
     [
@@ -432,7 +437,7 @@ describe("/empresa/publicidad/[id]", () => {
         diasTenidos: 3,
         alcance: "ESTADO",
       },
-      { tipo: "sin-datos", zonaSinDatos: "Andalucía" },
+      { tipo: "sin-datos", zonaSinDatos: { tipo: "nombre", nombre: "Andalucía" } },
       false,
     ],
     [
@@ -466,7 +471,7 @@ describe("/empresa/publicidad/[id]", () => {
         inicioMs: HOY - 9 * DIA,
         finMs: HOY - 6 * DIA,
         diasTenidos: 3,
-        motivoRetirada: "El anuncio engaña.",
+        motivoRetirada: "ENGANOSA",
       },
       null,
       false,
