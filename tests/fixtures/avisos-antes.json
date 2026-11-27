@@ -1,0 +1,82 @@
+{
+  "CONTENIDO_AUTO_OCULTO (vídeo)": {
+    "texto": "Se ha ocultado contenido por denuncias. Está pendiente de revisar.",
+    "href": "/panel/moderacion"
+  },
+  "CONTENIDO_AUTO_OCULTO (comentario)": {
+    "texto": "Se ha ocultado contenido por denuncias. Está pendiente de revisar.",
+    "href": "/panel/moderacion"
+  },
+  "VIDEO_LISTO": {
+    "texto": "Tu vídeo ya está publicado y se puede ver.",
+    "href": "/perfil"
+  },
+  "VIDEO_FALLIDO (TOO_LONG)": {
+    "texto": "Tu vídeo dura más de 90 segundos, así que no se ha publicado. Recórtalo y súbelo otra vez.",
+    "href": "/crear"
+  },
+  "VIDEO_FALLIDO (TRANSCODE_ERROR)": {
+    "texto": "Tu vídeo no se pudo preparar y no llegará a publicarse. Sube otro para participar.",
+    "href": "/crear"
+  },
+  "VIDEO_FALLIDO (UPLOAD_INCOMPLETE)": {
+    "texto": "Tu vídeo no llegó a subirse entero y no se publicará. Vuelve a subirlo cuando quieras.",
+    "href": "/crear"
+  },
+  "VIDEO_FALLIDO (OBJETO_INEXISTENTE)": {
+    "texto": "Tu vídeo ya no está disponible y no se publicará. Puedes volver a subirlo.",
+    "href": "/crear"
+  },
+  "VOTO_RECIBIDO": {
+    "texto": "Alguien ha votado tu vídeo en «Salto de comba 60 s».",
+    "href": "/retos/ab12cd34-salto-de-comba-60-s"
+  },
+  "GANASTE_RETO": {
+    "texto": "Has ganado «Salto de comba 60 s». Sumas 150 puntos.",
+    "href": "/retos/ab12cd34-salto-de-comba-60-s"
+  },
+  "TOP20": {
+    "texto": "Has quedado entre los 20 mejores de «Salto de comba 60 s». Sumas 40 puntos.",
+    "href": "/retos/ab12cd34-salto-de-comba-60-s"
+  },
+  "SUBISTE_NIVEL (rookie)": {
+    "texto": "Has subido a Rookie.",
+    "href": "/perfil"
+  },
+  "SUBISTE_NIVEL (challenger)": {
+    "texto": "Has subido a Challenger.",
+    "href": "/perfil"
+  },
+  "SUBISTE_NIVEL (pro)": {
+    "texto": "Has subido a Pro.",
+    "href": "/perfil"
+  },
+  "SUBISTE_NIVEL (elite)": {
+    "texto": "Has subido a Elite.",
+    "href": "/perfil"
+  },
+  "SUBISTE_NIVEL (legend)": {
+    "texto": "Has subido a Legend.",
+    "href": "/perfil"
+  },
+  "ANUNCIO (con su texto)": {
+    "texto": "Esta semana duplicamos los puntos de los retos.",
+    "href": "/notificaciones"
+  },
+  "TOQUE": {
+    "texto": "@ana te ha dado un toque.",
+    "href": "/u/ana"
+  },
+  "COMENTARIO (en un reto, con su vídeo)": {
+    "texto": "@leo ha comentado tu vídeo en «Salto de comba 60 s».",
+    "href": "/feed?video=vid-7&comentario=c9"
+  },
+  "COMENTARIO (en un reto, sin su vídeo)": {
+    "texto": "@leo ha comentado tu vídeo en «Salto de comba 60 s».",
+    "href": "/retos/ab12cd34-salto-de-comba-60-s"
+  },
+  "COMENTARIO (subida libre, sin su vídeo)": {
+    "texto": "@leo ha comentado tu vídeo.",
+    "href": "/perfil"
+  }
+}
